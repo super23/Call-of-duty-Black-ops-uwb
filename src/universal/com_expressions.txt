@@ -1,0 +1,11 @@
+Expression_Free
+MakeRPN
+Expression_Parse
+GetOperandAsString
+Expression_Alloc
+Expression_OpIsFunction
+Expression_ParseOperatorToken
+Expression_HashOperand
+Expression_StringOperand
+Expression_Read
+Expression_Init

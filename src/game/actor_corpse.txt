@@ -1,0 +1,12 @@
+G_GetActorCorpseIndex
+G_GetFreeActorCorpseIndex
+G_RemoveOneActorCorpse
+G_RemoveAllActorCorpses
+G_RemoveActorCorpses
+G_UpdateActorCorpses
+ActorCorpse_Free
+Actor_GetBodyPlantAngles
+Actor_SetBodyPlantAngle
+Actor_OrientCorpseToGround
+Actor_OrientPitchToGround
+Actor_BecomeCorpse

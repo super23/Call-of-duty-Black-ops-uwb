@@ -1,0 +1,10 @@
+InputLineWndProc
+Sys_CreateConsole
+ConWndProc
+Conbuf_CleanText
+Sys_DestroyConsole
+Sys_ShowConsole
+Sys_ConsoleInput
+Conbuf_AppendText
+Conbuf_AppendTextInMainThread
+Sys_SetErrorText

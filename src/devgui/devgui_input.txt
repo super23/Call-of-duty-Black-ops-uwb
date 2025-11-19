@@ -1,0 +1,16 @@
+DevGui_InputInit
+DevGui_InputShutdown
+DevGui_SelectGamepad
+DevGui_InputUpdate
+DevGui_UpdateScrollInputs
+DevGui_UpdateScrollStates
+DevGui_UpdateMenuScroll
+DevGui_InputUpdateGamepad
+DevGui_InputUpdateMouse
+DevGui_MouseEvent
+DevGui_GetMenuScroll
+DevGui_UpdateIntScroll
+DevGui_UpdateFloatScroll
+DevGui_IsButtonDown
+DevGui_IsButtonPressed
+DevGui_IsButtonReleased

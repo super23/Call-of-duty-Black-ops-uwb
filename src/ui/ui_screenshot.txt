@@ -1,0 +1,14 @@
+UI_Screenshot_Success
+UI_Screenshot_Failure
+UI_ScreenshotAlloc
+UI_ScreenshotShutdown
+UI_ScreenshotDecompressCallback
+UI_ScreenshotUpdate
+UI_ScreenshotDecompress
+UI_ScreenshotHandleInput
+UI_ScreenshotDownload
+UI_ScreenshotDraw
+UI_ScreenshotInit
+UI_ScreenshotDownload_f
+UI_ScreenshotAbortDownload_f
+UI_ScreenshotZoom_f

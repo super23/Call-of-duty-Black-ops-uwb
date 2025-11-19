@@ -1,0 +1,7 @@
+R_InitDrawSurfListInfo
+R_EmitDrawSurfList
+R_MergeAndEmitDrawSurfLists
+R_GetKeyCount
+R_BeginPreTess
+R_EndPreTess
+R_AllocPreTessIndices

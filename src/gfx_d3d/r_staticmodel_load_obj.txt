@@ -1,0 +1,14 @@
+R_AllocStaticModels
+R_SortGfxAabbTree
+R_SortGfxAabbTreeChildren
+CompareStaticModels
+R_FilterStaticModelIntoCells_r
+R_AddStaticModelToCell
+R_AddStaticModelToAabbTree_r
+GetNameFromStaticModelInst
+R_SetStaticModelReflectionProbe
+R_CalcReflectionProbeIndex
+R_FindNearestReflectionProbeInCell
+R_FindNearestReflectionProbe
+R_CellForPoint
+R_CreateStaticModel

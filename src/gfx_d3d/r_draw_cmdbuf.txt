@@ -1,0 +1,2 @@
+R_ReadPrimDrawSurfInt
+R_ReadPrimDrawSurfData

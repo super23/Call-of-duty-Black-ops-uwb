@@ -1,0 +1,11 @@
+CG_RegisterImpactEffects
+CG_RegisterImpactEffects_LoadObj
+CG_RegisterImpactEffects_NonFlesh
+CG_RegisterImpactEffects_Flesh
+CG_FleshTypeToName
+CG_RegisterImpactEffectsForDir
+CG_ParseImpactEffects
+compare_impact_files
+CG_RegisterImpactEffects_FastFile
+CG_RegisterImpactEffects_Generic<31,char const * __cdecl(int)>
+CG_RegisterImpactEffects_Generic<4,char const * __cdecl(int)>

@@ -1,0 +1,4 @@
+VehAnim_RegisterDvars
+VehAnim_Init
+VehAnim_UpdatePosRot
+VehAnim_GetAnimDelta

@@ -1,0 +1,4 @@
+Scr_ClearScrVarDebugPub
+Scr_ResetScrVarDebugPub
+Scr_ClearScrStringDebugGlob
+Scr_ResetScrStringDebugGlob

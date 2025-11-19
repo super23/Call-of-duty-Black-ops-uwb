@@ -1,0 +1,5 @@
+phys_task_manager_init
+phys_task_manager_shutdown
+phys_task_manager_needs_flush
+phys_task_manager_flush
+phys_task_manager_process

@@ -1,0 +1,9 @@
+R_HashAssetName
+R_HashString
+R_AllocGlobalVariable
+R_FreeGlobalVariable
+R_CullPointAndRadius
+R_ConvertColorToBytes
+R_PickEntityBone
+FresnelTerm
+R_GetClearColor

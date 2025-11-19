@@ -1,0 +1,16 @@
+DynEnt_GetCollSector
+DynEnt_GetCollWorld
+DynEnt_ClearCollWorld
+DynEnt_UnlinkEntity
+DynEnt_LinkEntity
+DynEnt_AddToCollSector
+DynEnt_SortCollSector
+DynEnt_AllocCollSector
+DynEnt_GetContents
+DynEnt_GetLocalBounds
+DynEnt_GetRadiusDistSqr
+DynEnt_IsInCone
+DynEnt_GetCylindricalRadiusDistSqr
+DynEnt_EntityInArea
+DynEnt_PointTraceToModel
+DynEnt_PointTraceToBrush

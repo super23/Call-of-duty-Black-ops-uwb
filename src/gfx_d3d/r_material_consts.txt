@@ -1,0 +1,3 @@
+R_GetPixelLiteralConsts
+R_RegisterShaderConst
+R_ComparePixelConsts

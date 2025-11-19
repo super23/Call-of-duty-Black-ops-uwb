@@ -1,0 +1,13 @@
+FS_FileRead
+FS_FileWrite
+FileWrapper_Open
+FS_FileOpenReadBinary
+FS_FileOpenReadText
+FS_FileOpenWriteBinary
+FS_FileOpenAppendText
+FS_FileOpenWriteText
+FS_FileClose
+FS_FileSeek
+FileWrapper_Seek
+FS_FileGetFileSize
+FileWrapper_GetFileSize

@@ -1,0 +1,9 @@
+SND_InitLog
+SND_LogLookupAlias
+SND_LogRegisterString
+SND_LogSkip
+SND_LogMissingAliasId
+SND_LogPlayedAliasId
+SND_LogStreamLatency
+SND_LogCommandQHWM
+SND_LogNotifyQHWM

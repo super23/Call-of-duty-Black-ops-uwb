@@ -1,0 +1,6 @@
+LiveSteamP2P::LiveSteamP2P
+LiveSteamP2P::SendPacketToSteamID
+LiveSteamP2P::IsDataAvailable
+LiveSteamP2P::ReadPacket
+LiveSteamP2P::OnSessionRequest
+CCallback<LiveSteamP2P,P2PSessionRequest_t,0>::Register

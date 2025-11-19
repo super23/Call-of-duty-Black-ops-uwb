@@ -1,0 +1,3 @@
+phys_transient_allocator::reset
+phys_transient_allocator::reset_to_state
+phys_transient_allocator::resize

@@ -1,0 +1,7 @@
+DynEnt_WriteGameState
+MSG_WritePosition
+MSG_WriteQuat
+DynEnt_ReadGameState
+MSG_ReadPosition
+MSG_ReadQuat
+Vec4Normalize

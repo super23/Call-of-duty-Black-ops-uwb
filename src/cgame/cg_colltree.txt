@@ -1,0 +1,6 @@
+CG_ClearEntityCollWorld
+CG_UnlinkEntityColl
+CG_LinkEntityColl
+CG_AddEntityToCollSector
+CG_SortEntityCollSector
+CG_AllocEntityCollSector

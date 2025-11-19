@@ -1,0 +1,5 @@
+Hunk_FirstFitInit
+Hunk_FirstFitReset
+Hunk_FirstFitDestroy
+Hunk_FirstFitAlloc
+Hunk_FirstFitFree

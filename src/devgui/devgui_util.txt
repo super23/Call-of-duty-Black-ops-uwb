@@ -1,0 +1,12 @@
+DevGui_GetScreenXPad
+DevGui_GetScreenYPad
+DevGui_GetScreenWidth
+DevGui_GetScreenHeight
+DevGui_DrawBox
+DevGui_DrawBoxCentered
+DevGui_DrawBevelBox
+DevGui_DrawQuad
+DevGui_DrawLine
+DevGui_DrawFont
+DevGui_GetFontWidth
+DevGui_GetFontHeight

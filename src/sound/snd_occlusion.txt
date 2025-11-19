@@ -1,0 +1,11 @@
+SND_LosOcclusionTrace
+Snd_LosOcclusionMultiTrace
+Vec3ScaleAdd
+SND_TraceProximity
+SND_SurfaceTypeToReflectance
+SND_UpdateProximity
+SND_LosOcclusionCmd
+SND_LosOcclusionUpdate
+SND_LosOcclusionThreadMain
+SND_LosOcclusionInit
+SND_LosOcclusionFini

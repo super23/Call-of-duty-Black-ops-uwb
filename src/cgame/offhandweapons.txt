@@ -1,0 +1,14 @@
+CG_OffhandRegisterDvars
+CG_DrawOffHandIcon
+GetBestOffhand
+IsOffHandDisplayVisible
+CalcOffHandAmmo
+CG_DrawOffHandHighlight
+OffHandFlash
+CG_DrawOffHandAmmo
+CG_DrawOffHandName
+CG_SwitchOffHandCmd
+CG_PrepOffHand
+CG_UseOffHand
+CG_SetEquippedOffHand
+_Pow_int<float>

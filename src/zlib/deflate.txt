@@ -1,0 +1,13 @@
+deflateInit2_
+deflateReset
+deflate
+putShortMSB
+flush_pending
+deflateEnd
+lm_init
+deflate_stored
+fill_window
+read_buf
+ClampShortNonNegative
+deflate_fast
+longest_match_fast

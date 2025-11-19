@@ -1,0 +1,15 @@
+UI_ClearDisplayedServers
+UI_BuildServerDisplayList
+UI_BinaryServerInsertion
+UI_InsertServerIntoDisplayList
+UI_BuildServerStatus
+UI_BuildServerStatusScoreBoard
+UI_DoServerRefresh
+UI_StartServerRefresh
+UI_StopServerRefresh
+UI_ServersSort
+UI_ServersQsortCompare
+UI_AddServerToFavoritesList
+UI_RemoveServerFromFavoritesList
+UI_DrawServerRefreshDate
+UI_UpdateServerToolTips

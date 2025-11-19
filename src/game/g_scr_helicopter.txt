@@ -1,0 +1,11 @@
+CMD_Heli_FreeHelicopter
+CMD_Heli_SetDamageStage
+CMD_Heli_SetHeliHeightLock
+CMD_Heli_IsInsideHeliHeightLock
+Helicopter_GetMethod
+G_SpawnHelicopter
+Heli_InitFirstThink
+Helicopter_Pain
+Helicopter_Die
+Helicopter_Controller
+Helicopter_Think

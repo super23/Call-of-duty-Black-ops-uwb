@@ -1,0 +1,3 @@
+GetMemory
+GetClearedMemory
+FreeMemory

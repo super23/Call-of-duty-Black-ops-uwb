@@ -1,0 +1,4 @@
+Wavelet_DecompressLevel
+Wavelet_ConsumeBits
+Wavelet_DecodeValue
+Wavelet_AddDeltaToMipmap

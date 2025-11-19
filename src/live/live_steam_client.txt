@@ -1,0 +1,7 @@
+LiveSteamClient::LiveSteamClient
+LiveSteamClient::RequestEncryptedAppTicket
+LiveSteamClient::GetRetrievedEncryptedAppTicket
+LiveSteamClient::OnRequestEncryptedAppTicket
+CCallResult<LiveSteamClient,EncryptedAppTicketResponse_t>::CCallResult<LiveSteamClient,EncryptedAppTicketResponse_t>
+CCallResult<LiveSteamClient,EncryptedAppTicketResponse_t>::Run
+CCallResult<LiveSteamClient,EncryptedAppTicketResponse_t>::GetCallbackSizeBytes

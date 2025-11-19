@@ -1,0 +1,8 @@
+CG_ActorProcessSnapshot
+CG_UpdateActorDObj
+CG_GetLocalClientStaticGlobals
+CG_ResetActorEntity
+CG_Actor_PreControllers
+CG_Actor
+CG_EntityNeedsScriptThread
+CG_ActorCorpse

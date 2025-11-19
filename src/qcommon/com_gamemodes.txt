@@ -1,0 +1,6 @@
+Com_GameMode_IsOnlineGame
+Com_GameMode_IsPrivateOnlineGame
+Com_GameMode_IsPublicOnlineGame
+Com_GameMode_IsGameMode
+ValidateGameModes
+Com_GameMode_ResetGameModes

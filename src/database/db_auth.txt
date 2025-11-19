@@ -1,0 +1,7 @@
+DB_AuthLoad_InflateInit
+DB_AuthLoad_InflateEnd
+DB_AuthLoad_Inflate
+tom_game_malloc
+tom_game_realloc
+tom_game_calloc
+tom_game_free

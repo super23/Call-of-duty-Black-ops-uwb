@@ -1,0 +1,15 @@
+Sys_Mkdir
+Sys_Cwd
+Sys_DefaultCDPath
+Sys_DefaultHomePath
+Sys_DefaultInstallPath
+Sys_ListFiles
+Sys_ListFilteredFiles
+HasFileExtension
+Sys_FreeFileList
+Sys_DirectoryHasContents
+Sys_InitStreamThread
+Sys_InitializeCriticalSections
+Sys_EnterCriticalSection
+Sys_TryEnterCriticalSection
+Sys_LeaveCriticalSection

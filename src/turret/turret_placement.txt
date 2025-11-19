@@ -1,0 +1,6 @@
+Turret_PlaceTurret_RegisterDvars
+Turret_PlaceTurret_Internal
+Turret_PlaceTurret_Trace
+Turret_PlaceTurret_UpdateFooting
+Turret_PlaceTurret_Client
+Turret_PlaceTurret_Server

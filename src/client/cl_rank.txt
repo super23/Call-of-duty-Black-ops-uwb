@@ -1,0 +1,7 @@
+CL_BuildRankXPTable
+CL_GetMaxXP
+CL_GetMaxPrestige
+CL_GetRankForXp
+CL_GetRankData
+CL_GetRankIcon
+CL_GetRankIconName

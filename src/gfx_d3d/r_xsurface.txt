@@ -1,0 +1,10 @@
+XSurfaceGetNumVerts
+XSurfaceGetNumTris
+XSurfaceGetVerts
+XSurfaceTransfer
+XSurfaceTransferGetTexCoordRange
+XSurfaceTransfer_Position<GfxPackedVertex>
+XSurfaceTransfer_BinormalSign<GfxPackedVertex>
+XSurfaceTransfer_NormalTangent<GfxPackedVertex>
+XSurfaceTransfer_Texcoord<GfxPackedVertex>
+XSurfaceTransfer_Color<GfxPackedVertex>

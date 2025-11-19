@@ -1,0 +1,8 @@
+R_RegisterSunDvars
+R_SetSunFromDvars
+R_LoadSunThroughDvars
+R_GetSunDvarCount
+R_Cmd_LoadSun
+R_Cmd_SaveSun
+R_SaveSunFromDvars
+R_FlushSun

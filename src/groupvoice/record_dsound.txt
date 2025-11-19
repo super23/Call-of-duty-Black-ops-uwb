@@ -1,0 +1,8 @@
+DSOUNDRecord_UpdateSample
+DSOUNDRecord_Frame
+DSOUNDRecord_NewSample
+DSOUNDRecord_DestroySample
+DSOUNDRecord_Start
+DSOUNDRecord_Stop
+DSOUNDRecord_Init
+DSOUNDRecord_Shutdown

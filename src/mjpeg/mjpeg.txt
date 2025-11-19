@@ -1,0 +1,7 @@
+mjpeg_initonce
+mjpeg_set_callback
+mjpeg_init
+mjpeg_is_encoding
+mjpeg_thread
+mjpeg_close
+mjpeg_draw

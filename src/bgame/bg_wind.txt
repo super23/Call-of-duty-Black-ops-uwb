@@ -1,0 +1,10 @@
+BG_Wind_RegisterDvars
+DisplayWindDebug
+SeedVariantWind
+BG_SeedVarintWinds
+BG_UpdateVariantWind
+CG_UpdateWind
+BG_GetVariantWindVector
+BG_GetGlobalWind
+CG_EnableLocalWindSource
+CG_GetLocalWindSourceScale

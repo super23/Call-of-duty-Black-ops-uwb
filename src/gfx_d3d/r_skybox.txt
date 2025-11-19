@@ -1,0 +1,4 @@
+R_RegisterSkyboxModel
+R_ClearSkyboxModel
+R_AddSkyboxModel
+R_MapGetSkyboxModel

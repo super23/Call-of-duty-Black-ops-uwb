@@ -1,0 +1,7 @@
+Com_GetBuildVersion
+Com_GetBuildNumber
+Com_GetBuildDisplayName
+Com_GetBuildOfficialNameR
+Com_GetBuildDisplayNameR
+Com_GetBuildName
+Com_GetChangelist

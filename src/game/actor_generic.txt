@@ -1,0 +1,5 @@
+Actor_Generic_Finish
+Actor_Generic_Suspend
+Actor_Generic_Resume
+Actor_Generic_Pain
+Actor_Generic_Touch

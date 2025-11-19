@@ -1,0 +1,3 @@
+CM_LoadStaticModels
+CM_CreateStaticModel
+CM_InitStaticModel

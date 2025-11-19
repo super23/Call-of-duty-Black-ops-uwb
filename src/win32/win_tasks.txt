@@ -1,0 +1,6 @@
+TaskManager_ClearOverlappedTasks
+TaskManager_GetOpenTaskSlot
+TaskManager_ClearTask
+TaskManager_AnyTaskInProgress
+TaskManager_TaskIsInProgress
+TaskManager_GetTaskData

@@ -1,0 +1,7 @@
+PhysPresetLoadFile
+PhysPreset_Strcpy
+PhysPresetPrecache
+Hunk_AllocPhysPresetPrecache
+PhysPreset_Register
+PhysPreset_Register_FastFile
+PhysPreset_Register_LoadObj

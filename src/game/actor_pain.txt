@@ -1,0 +1,4 @@
+Actor_InPain
+Actor_Pain_Start
+Actor_Pain_Finish
+Actor_Pain_Think

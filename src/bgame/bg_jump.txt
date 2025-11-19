@@ -1,0 +1,15 @@
+Jump_RegisterDvars
+Jump_ClearState
+Jump_GetStepHeight
+Jump_IsPlayerAboveMax
+Jump_ActivateSlowdown
+Jump_ApplySlowdown
+Jump_ReduceFriction
+Jump_GetSlowdownFriction
+Jump_ClampVelocity
+Jump_Check
+Jump_Start
+Jump_GetLandFactor
+Jump_PushOffLadder
+Jump_AddSurfaceEvent
+bitarray<51>::resetBit

@@ -1,0 +1,2 @@
+FxCurveIterator_Create
+FxCurveIterator_Release

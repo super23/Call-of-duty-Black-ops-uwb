@@ -1,0 +1,9 @@
+R_SetDrawLitConstants
+R_DrawCloakHDR
+R_DrawCloakPrePassCallbackHDR
+R_DrawCloakPostEmissiveCallbackHDR
+R_DrawLit
+R_DrawLitCallback
+R_DrawLitPostResolveCallback
+R_DrawDecal
+R_DrawDecalCallback

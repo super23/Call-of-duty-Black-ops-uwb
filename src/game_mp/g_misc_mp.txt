@@ -1,0 +1,9 @@
+misc_EntInfo
+EntinfoPosAndScale
+EntInfo_Vehicle
+EntInfo_Item
+G_GetEntInfoScale
+SP_info_notnull
+SP_light
+TeleportPlayer
+ScrNotify_FaceEvent

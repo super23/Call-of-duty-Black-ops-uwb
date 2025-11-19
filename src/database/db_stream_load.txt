@@ -1,0 +1,6 @@
+Load_Stream
+Load_DelayStream
+DB_ConvertOffsetToAlias
+DB_ConvertOffsetToPointer
+Load_XStringCustom
+Load_TempStringCustom

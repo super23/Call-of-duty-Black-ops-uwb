@@ -1,0 +1,2 @@
+Sys_DestroySplashWindow
+Sys_HideSplashWindow

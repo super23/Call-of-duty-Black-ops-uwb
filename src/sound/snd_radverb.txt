@@ -1,0 +1,7 @@
+SND_RvParamsDefault
+SND_RvValidateRange
+SND_RvParamsValidate
+SND_RvFrameParam
+I_flerp
+SND_RvDelayInit
+SND_RvFrame

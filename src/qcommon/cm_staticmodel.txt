@@ -1,0 +1,5 @@
+CM_Hunk_AllocXModel
+CM_XModelPrecache
+CM_Hunk_AllocXModelColl
+CM_TraceStaticModel
+CM_TraceStaticModelComplete

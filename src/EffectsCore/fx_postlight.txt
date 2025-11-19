@@ -1,0 +1,4 @@
+FX_PostLight_GenerateVerts
+FX_PostLight_Begin
+FX_PostLight_Add
+FX_PostLight_GetInfo

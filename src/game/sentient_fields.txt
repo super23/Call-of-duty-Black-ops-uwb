@@ -1,0 +1,6 @@
+SentientScr_ReadOnly
+SentientScr_SetTeam
+SentientScr_GetTeam
+GScr_AddFieldsForSentient
+Scr_SetSentientField
+Scr_GetSentientField

@@ -1,0 +1,9 @@
+R_UploadWaterTextureInternal
+WaterFrequenciesAtTime
+WaterAmplitudesFromFrequencies
+TransposeArray
+WaterPixelsFromAmplitudes
+GenerateMipMaps
+R_UploadWaterTexture
+R_InitWater
+Load_PicmipWater

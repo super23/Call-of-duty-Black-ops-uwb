@@ -1,0 +1,6 @@
+phys_set_debug_callback
+phys_exec_debug_callback
+PHYS_WARNING
+phys_assert_info::phys_assert_info
+phys_assert_info::frame_advance
+phys_assert_info_frame_advance_all

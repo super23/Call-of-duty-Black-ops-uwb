@@ -1,0 +1,5 @@
+CG_StartShakeCamera
+CG_UpdateCameraShake
+CG_ShakeCamera
+MemFile_WriteData
+CG_ClearCameraShakes

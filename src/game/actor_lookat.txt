@@ -1,0 +1,8 @@
+Actor_InitLookAt
+Actor_SetLookAtAnimNodes
+Actor_SetLookAt
+Actor_SetLookAtYawLimits
+Actor_CurrentLookAtAnimYawMax
+Actor_CurrentLookAtYawMax
+Actor_StopLookAt
+Actor_UpdateLookAt

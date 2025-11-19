@@ -1,0 +1,9 @@
+R_DrawXModelSurfCheckBreak
+R_DrawXModelSurfLit
+R_DrawXModelSurfLitInternal
+R_GetWorldMatrixForModelSurf
+R_DrawXModelRigidModelSurf
+R_DrawXModelSurfCamera
+R_DrawXModelSurfCameraInternal
+R_DrawXModelSurf
+R_DrawXModelSurfInternal

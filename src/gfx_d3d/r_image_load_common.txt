@@ -1,0 +1,17 @@
+Image_TrackFullscreenTexture
+Image_GetMipmapResolution
+Image_GetPlatformScreenWidth
+Image_GetPlatformScreenHeight
+Image_TrackTexture
+Image_GetCardMemoryAmountForMipLevel
+Image_GetCardMemoryAmount
+Image_UploadData
+Image_Upload2D_CopyData_PC
+Image_Upload2D_CopyDataBlock_PC
+Image_Upload3D_CopyData_PC
+Image_SourceBytesPerSlice_PC
+Image_CountMipmaps
+Image_GetPicmip
+Image_Setup
+Image_SetupAndLoad
+Image_CubemapFace

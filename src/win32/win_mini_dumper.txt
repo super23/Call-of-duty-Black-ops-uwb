@@ -1,0 +1,10 @@
+Sys_StartMiniDump
+Sys_IsMiniDumpStarted
+miniDumper::miniDumper
+miniDumper::~miniDumper
+miniDumper::unhandledExceptionHandler
+miniDumper::setMiniDumpFileName
+miniDumper::getImpersonationToken
+miniDumper::enablePrivilege
+miniDumper::restorePrivilege
+miniDumper::writeMiniDump

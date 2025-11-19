@@ -1,0 +1,4 @@
+SE_LoadFileData
+SE_FreeFileDataAfterLoad
+SE_BuildFileList
+SE_R_ListFiles

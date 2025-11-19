@@ -1,0 +1,17 @@
+RB_CalcSunSpriteSamples
+RB_DrawSun
+RB_DrawSunQuerySprite
+RB_TessSunBillboard
+RB_SetTessQuad
+RB_UpdateSunVisibilityWithoutQuery
+RB_GetSunSampleRectRelativeArea
+RB_AddSunEffects
+RB_DrawSunSprite
+RB_DrawSunPostEffects
+RB_DrawSunFlare
+R_UpdateOverTime
+RB_DrawSunFlareCore
+RB_DrawBlindAndGlare
+RB_CalcSunBlind
+RB_AllocSunSpriteQueries
+RB_FreeSunSpriteQueries

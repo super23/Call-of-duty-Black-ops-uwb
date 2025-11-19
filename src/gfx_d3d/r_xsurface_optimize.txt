@@ -1,0 +1,9 @@
+XModelOptimizeCallback
+XModelOptimize
+_XModelOptimize
+XSurfaceOptimize
+XSurfaceOptimizeRigid
+XModelUnoptimizeCallback
+XModelUnoptimize
+XSurfaceUnoptimize
+XSurfaceUnoptimizeRigid

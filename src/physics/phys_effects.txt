@@ -1,0 +1,9 @@
+Phys_InitSoundAliases
+Phys_GetSoundAliasIndex
+Phys_EffectsInit
+Phys_ReEvalPriority
+Phys_EffectsProcess
+rigid_body::is_user_rigid_body
+Phys_RemmapSurfaceType
+Phys_GetSoundAliasForImpact
+Phys_CanPlayEffect

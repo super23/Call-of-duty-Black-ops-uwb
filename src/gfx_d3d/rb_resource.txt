@@ -1,0 +1,15 @@
+RB_Resource_Lock
+RB_Resource_Unlock
+RB_Resource_CreateTexture
+RB_Resource_AllocEntry
+RB_Resource_Release
+RB_Resource_ReloadTexture
+RB_Resource_Callback
+RB_Resource_CallbackParam
+RB_Resource_CreateVertexDeclaration
+RB_Resource_CreateVertexShader
+RB_Resource_CreatePixelShader
+RB_Resource_LoadVertexBuffer
+RB_Resource_Update
+RB_Resource_Update_Internal
+RB_Resource_Flush

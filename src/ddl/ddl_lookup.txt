@@ -1,0 +1,10 @@
+DDL_Lookup_IsLeaf
+DDL_Lookup_IsMemberAtOffset
+DDL_Lookup_FindInStruct
+DDL_Lookup_GetMemberFromOffset
+DDL_Lookup_ClearState
+DDL_Lookup_FindMemberDef
+DDL_Lookup_MoveToIndex
+DDL_Lookup_MoveTo
+DDL_Lookup_MoveNext
+DDL_Lookup_MoveToStart

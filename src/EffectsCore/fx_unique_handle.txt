@@ -1,0 +1,4 @@
+UniqueHandleToEffect
+UniqueHandleAssignHandle
+UniqueHandleRelease
+UniqueHandleInit

@@ -1,0 +1,9 @@
+Live_FileShare_CacheInit
+Live_FileShare_CacheShutdown
+Live_FileShare_Hash
+Live_FileShare_IsCached
+Live_FileShareCache_AddDescriptor
+Live_FileShareCache_GetDescriptor
+Live_FileShare_IsRatingCached
+Live_FileShareCache_AddRating
+Live_FileShareCache_GetRating

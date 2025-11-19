@@ -1,0 +1,12 @@
+XAnimClientNotifyList::XAnimClientNotifyList
+XAnimClientNotifyList::~XAnimClientNotifyList
+XAnimClientNotifyList::GetNotifyList
+XAnimClientNotifyList::AddNotify
+XAnimClientNotify::XAnimClientNotify
+XAnimClientNotify::~XAnimClientNotify
+XAnimClientNotify::swap
+XAnimClientNotify::IsClientAnimNotify
+XAnimClientNotify::GetNotifyStringName
+XAnimClientNotify::GetNotetrackCLName
+XAnimClientNotify::GetNotifyType
+XAnimClientNotify::GetNotifyName

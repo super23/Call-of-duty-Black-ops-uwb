@@ -1,0 +1,6 @@
+CL_Netchan_TransmitNextFragment
+CL_Netchan_Transmit
+CL_Netchan_AddOOBProfilePacket
+CL_Netchan_UpdateProfileStats
+CL_Netchan_PrintProfileStats
+CL_ProfDraw

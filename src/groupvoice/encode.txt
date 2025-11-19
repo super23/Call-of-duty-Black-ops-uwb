@@ -1,0 +1,5 @@
+Encode_SetOptions
+Encode_Init
+Encode_Shutdown
+Encode_Sample
+Encode_GetFrameSize

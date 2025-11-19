@@ -1,0 +1,9 @@
+dwWriteStats
+dwWriteStatsComplete
+dwReadStatsByUser
+dwReadStatsByRank
+dwReadStatsByPivot
+dwReadStatsForUsers
+dwReadStatsComplete
+dwFetchPerformanceValuesComplete
+dwWritePerformanceStatsComplete

@@ -1,0 +1,8 @@
+BG_Actor_GetAnimStateIndex
+BG_Actor_GetAnimStateName
+BG_Actor_GetAnimStateCategoryName
+Dog_RegisterDvars
+BG_Dog_UpdateAnimationState
+BG_Dog_SetNewAnimationState
+ApplyNewAnimState
+BG_Dog_SetAnimState

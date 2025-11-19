@@ -1,0 +1,8 @@
+R_FlagXModelAsSkinned
+R_SkinSceneDObj
+R_SkinSceneDObjModels
+R_AllocSkinnedCachedVerts
+R_PreSkinXSurface
+QuatMultiplyInverse
+R_TransformSkelMat
+R_SkinGfxEntityCmd

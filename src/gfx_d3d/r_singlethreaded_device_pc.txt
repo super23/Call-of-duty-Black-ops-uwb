@@ -1,0 +1,3 @@
+R_AcquireDXDeviceOwnership
+R_ReleaseDXDeviceOwnership
+R_AssertDXDeviceOwnership

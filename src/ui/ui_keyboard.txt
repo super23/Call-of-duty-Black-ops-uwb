@@ -1,0 +1,7 @@
+UI_GetActiveKeyboardType
+UI_SetActiveKeyboardType
+UI_ClearKeyboardActive
+UI_Keyboard_New_f
+UI_KeyboardComplete
+UI_Keyboard_Complete_f
+UI_Clear_Keyboard_Active_f

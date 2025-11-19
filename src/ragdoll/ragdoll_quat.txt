@@ -1,0 +1,8 @@
+Ragdoll_QuatMul
+Ragdoll_QuatMulInvSecond
+Ragdoll_QuatConjugate
+Ragdoll_QuatInverse
+Ragdoll_QuatPointRotate
+Ragdoll_Mat33ToQuat
+Ragdoll_QuatToAxisAngle
+Ragdoll_QuatLerp

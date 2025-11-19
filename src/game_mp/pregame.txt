@@ -1,0 +1,14 @@
+Pregame_SetState
+Pregame_GetState
+Pregame_isEnabled
+Pregame_StartPregame
+Pregame_StartGame
+Pregame_Reset
+Pregame_ResetData
+Pregame_ResetDataForClient
+Pregame_ShouldLoadPregame
+Pregame_RegisterDvars
+Pregame_GetAssignedPregameTeam
+Pregame_SetAssignedPregameClass
+Pregame_SetAssignedPregameTeam
+Pregame_GetAssignedPregameClass

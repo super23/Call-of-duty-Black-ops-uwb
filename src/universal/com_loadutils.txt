@@ -1,0 +1,7 @@
+Com_LoadInfoString
+Com_LoadInfoString_LoadObj
+Com_LoadInfoString_FastFile
+Com_LoadRawTextFile
+Com_LoadRawTextFile_LoadObj
+Com_LoadRawTextFile_FastFile
+Com_UnloadRawTextFile

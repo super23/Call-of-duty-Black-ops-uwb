@@ -1,0 +1,8 @@
+R_VertexStream2_Init
+AllocateVertexStream2Buffer
+R_VertexStream2_Shutdown
+FreeVertexStream2Buffer
+R_VertexStream2_Lock
+R_VertexStream2_Unlock
+R_VertexStream2_Clear
+R_VertexStream2_GetVB

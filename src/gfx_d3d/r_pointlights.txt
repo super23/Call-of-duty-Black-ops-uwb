@@ -1,0 +1,7 @@
+GenerateLightGridBasisDirs
+GatherIncidentEnergyInSpaceForLightFromDir
+AddLightGridLightingForDir
+EvaluateHeroLightForGrid
+R_AdjustLightColorSamples
+R_AddHeroOnlyLightsToGridColors
+R_InitHeroLights

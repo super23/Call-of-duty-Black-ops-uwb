@@ -1,0 +1,12 @@
+Com_GetServerDObj
+Com_ClientDObjCreate
+Com_GetFreeDObjIndex
+Com_ClientDObjClearAllSkel
+Com_ServerDObjCreate
+Com_SafeClientDObjFree
+Com_SafeServerDObjFree
+Com_InitDObj
+Com_ShutdownDObj
+DB_SaveDObjs
+DB_LoadDObjs
+Com_GetClientDObj

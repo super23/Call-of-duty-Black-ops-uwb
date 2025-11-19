@@ -1,0 +1,12 @@
+DSound_GetBytesLeft
+DSound_UpdateSample
+DSound_AdjustSamplePlayback
+DSound_BufferUnderrunOccurred
+DSound_HandleBufferUnderrun
+DSound_SampleFrame
+DSound_NewSample
+CreateBasicBuffer
+DSound_StopSample
+DSound_Init
+DSound_Shutdown
+DSound_Frame

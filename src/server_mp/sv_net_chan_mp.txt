@@ -1,0 +1,4 @@
+SV_Netchan_TransmitNextFragment
+SV_Netchan_OutgoingSequenceIncremented
+SV_Netchan_Transmit
+SV_Netchan_AddOOBProfilePacket

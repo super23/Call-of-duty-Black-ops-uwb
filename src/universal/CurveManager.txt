@@ -1,0 +1,9 @@
+cCurveManager::GetFreeCurve
+cCurveManager::AddNodeToCurve
+cCurveManager::SortCurve
+cCurveManager::BuildCurve
+cCurveManager::FreeCurve
+cCurveManager::SetCurveBSpline
+cCurveManager::SetCurveDraw
+cCurveManager::GetPos
+cCurveManager::GetCurveLength

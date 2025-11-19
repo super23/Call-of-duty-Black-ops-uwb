@@ -1,0 +1,10 @@
+LargeLocalBegin
+LargeLocalRoundSize
+LargeLocalEnd
+LargeLocalGetBuf
+LargeLocal::LargeLocal
+LargeLocalBeginRight
+LargeLocal::~LargeLocal
+LargeLocalEndRight
+LargeLocal::GetBuf
+LargeLocalReset

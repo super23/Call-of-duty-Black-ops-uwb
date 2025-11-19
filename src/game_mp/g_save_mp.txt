@@ -1,0 +1,2 @@
+MemFile_WriteByte
+MemFile_WriteShort

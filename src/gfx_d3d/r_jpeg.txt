@@ -1,0 +1,15 @@
+R_SaveJpg
+jpegDest
+init_destination
+empty_output_buffer
+term_destination
+Z_MallocJpeg
+Z_FreeJpeg
+ExitJpeg
+PrintfJpeg
+R_ReadJpgSetup
+Jpeg_HunkAlloc
+Jpeg_HunkFree
+Jpeg_Error
+Jpeg_Print
+R_ReadJpg

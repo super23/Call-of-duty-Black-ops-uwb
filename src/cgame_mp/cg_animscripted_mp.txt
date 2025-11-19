@@ -1,0 +1,9 @@
+CG_GetTagMatrix
+GetLinkEntDObj
+CG_CalcTagParentAxis
+CG_LinkTransformForEntity
+CG_GenerateLinkInfo
+CG_UpdateEntityLink
+CG_UpdateFakeEntityLink
+CG_EntityLinked
+CG_EntGetLinkToParent

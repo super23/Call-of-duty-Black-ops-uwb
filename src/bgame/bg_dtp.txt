@@ -1,0 +1,13 @@
+Dtp_RegisterDvars
+Dtp_CalcSurfaceType
+Dtp_IsSliding
+Dtp_AdjustDamage
+Dtp_Interrupt
+Dtp_CheckForEnd
+Dtp_End
+Dtp_ReduceFriction
+Dtp_AirMove
+Dtp_CanMove
+Dtp_Update
+Dtp_Start
+Dtp_IsDtp

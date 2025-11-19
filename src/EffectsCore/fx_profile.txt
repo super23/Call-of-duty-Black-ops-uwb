@@ -1,0 +1,10 @@
+FX_DrawProfile
+FX_GetProfileEntry
+FX_ProfileSingleEffect
+FX_CompareProfileEntries
+FX_GetProfileEntryCost
+FX_DrawPriorityDebug
+FX_ComparePriorityDebugEntries
+FX_DrawMarkProfile
+FX_DrawMarkProfile_MarkPrint
+typeAsString

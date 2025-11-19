@@ -1,0 +1,10 @@
+Record_SetRecordingCallback
+Record_QueueAudioDataForEncoding
+Record_AudioCallback
+Record_Start
+Record_Stop
+Record_NewSample
+Record_DestroySample
+Record_Shutdown
+Record_Frame
+Record_Init

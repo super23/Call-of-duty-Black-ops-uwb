@@ -1,0 +1,11 @@
+StringTable_FirstHashIndex
+StringTable_LookupColumnNumForValue
+StringTable_LookupRowNumForValue
+StringTable_GetColumnValueForRow
+StringTable_Lookup
+StringTable_Find
+StringTable_RowCount
+StringTable_ColumnCount
+StringTable_Checksum
+StringTable_GetAsset_FastFile
+StringTable_GetAsset

@@ -1,0 +1,3 @@
+Actor_FillWeaponParms
+Actor_InitWeaponParms
+Actor_Melee

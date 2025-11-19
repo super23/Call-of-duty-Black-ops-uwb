@@ -1,0 +1,9 @@
+CM_PointLeafnum_r
+CM_PointLeafnum
+CM_BoxLeafnums_r
+CM_StoreLeafs
+CM_BoxLeafnums
+CM_PointContents
+CM_PointContentsLeafBrushNode_r
+CM_TransformedPointContents
+CM_ClusterPVS

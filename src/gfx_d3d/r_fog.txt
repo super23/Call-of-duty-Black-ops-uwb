@@ -1,0 +1,4 @@
+R_ClearFogs
+R_SetFogFromServer
+R_GetFogSettings
+R_SwitchFog

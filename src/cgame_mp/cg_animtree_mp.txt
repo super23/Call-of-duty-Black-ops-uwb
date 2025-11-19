@@ -1,0 +1,7 @@
+CGScr_LoadAnimTrees
+Hunk_AllocXAnimCreate
+CG_FreeClientDObjInfo
+CG_SetDObjInfo
+CG_CheckDObjInfoMatches
+CG_SafeDObjFree
+CG_FreeEntityDObjInfo

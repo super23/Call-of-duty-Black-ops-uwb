@@ -1,0 +1,6 @@
+Live_GetMapCount
+Live_Disconnected
+Live_SetPlaylistVersion
+Live_SetPlaylistNum
+Live_GetMapIndex
+Live_GetMapSource

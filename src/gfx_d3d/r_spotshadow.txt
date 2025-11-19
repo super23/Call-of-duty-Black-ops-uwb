@@ -1,0 +1,8 @@
+R_AddSpotShadowEntCmd
+R_AddSpotShadowsForLight
+R_SetViewParmsForLight
+R_GetSpotShadowLookupMatrix
+R_AddSpotShadowModelEntities
+R_GenerateAllSortedSpotShadowDrawSurfs
+R_GenerateSortedPrimarySpotShadowDrawSurfs
+R_EmitSpotShadowMapSurfs

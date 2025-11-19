@@ -1,0 +1,11 @@
+RemoveSunShadowTech
+R_GfxDrawSurf_GetFade
+R_Get_NvFloatZLitTech
+R_GetTechType
+R_GetPossibleTechniqueTypes
+R_SetTechnique
+R_SetPrepassMaterial
+R_SetMaterial
+R_TrySetMaterialWithFunc
+R_SetGameTime
+R_UpdateMaterialTime

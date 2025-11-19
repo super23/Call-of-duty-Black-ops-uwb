@@ -1,0 +1,8 @@
+Flame_Class_Chunk_Init
+Flame_Class_Chunk_Alloc
+Flame_Class_Chunk_Free
+Flame_Phys_Spawn_Items
+Flame_Class_Chunk_Age
+Flame_Class_Chunk_Spawn
+Flame_Class_Chunk_Render_Item
+Flame_Class_Chunk_Render_All

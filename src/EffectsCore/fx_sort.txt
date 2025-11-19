@@ -1,0 +1,10 @@
+FX_SortEffects
+FX_WaitBeginIteratingOverEffects_Exclusive
+FX_FirstEffectIsFurther
+FX_CalcRunnerParentSortOrder
+FX_SortNewElemsInEffect
+FX_SortSpriteElemIntoEffect
+FX_ElemToHandle
+FX_GetInsertSortElem
+FX_ExistingElemSortsBeforeNewElem
+FX_PoolToHandle_Generic<FxElem,FxElemContainer,2048>

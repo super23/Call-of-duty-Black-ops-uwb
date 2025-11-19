@@ -1,0 +1,17 @@
+ikMatrixIdentity44
+ikMatrixSet44
+ikMatrixTransformVector34
+ikQuatTransToMatrix44
+ikMatrix44ToQuatTrans
+ikAxisToQuat
+ikMat44Set
+ikCalcBoneModelMatrix_r
+ikCalcBoneModelMatrix
+ikSolve2D
+ikMap2DTo3D
+ikSolveLegJoint
+ikSolveArmJoint
+IK_FlipHack
+ikNormalizedMatrixAssert_func
+ikRotateBone
+ikMatrixLerp44

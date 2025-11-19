@@ -1,0 +1,7 @@
+CG_AddLagometerFrameInfo
+CG_AddLagometerSnapshotInfo
+CG_DrawLagometer
+CG_DrawDisconnect
+CG_DrawEntityCount
+CG_DrawServerBandwidth
+CG_DrawServerKillcamData

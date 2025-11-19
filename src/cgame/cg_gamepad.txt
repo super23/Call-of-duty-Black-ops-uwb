@@ -1,0 +1,7 @@
+CG_HandleSpecialStateInput
+CG_HandleSpectatorInput
+CG_ShouldUpdateViewAngles
+CG_TranslateGamepadButton
+CG_GamepadSpectatorInput
+CG_GamepadCheckStartAndBack
+CG_GamepadKillCamInput

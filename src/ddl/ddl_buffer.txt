@@ -1,0 +1,5 @@
+DDL_Buffer_WriteHeader
+DDL_Buffer_ReadHeader
+DDL_Buffer_ReadBits
+DDL_Buffer_WriteBits
+DDL_Buffer_ClearBits

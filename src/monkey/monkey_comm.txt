@@ -1,0 +1,8 @@
+Monkey_InitCommunication
+Monkey_ShutdownCommunication
+Monkey_DisconnectAndExit
+Monkey_Send
+Monkey_SendString
+Monkey_Recv
+Monkey_RecvString
+Monkey_SocketHasData

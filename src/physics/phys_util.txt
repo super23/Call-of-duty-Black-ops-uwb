@@ -1,0 +1,8 @@
+nuge::get_ballistic_info
+nuge::apply_ballistic_target
+nuge::calc_velocities
+nuge::calc_sphere_inertia
+nuge::calc_box_inertia
+nuge::calc_bound_sphere
+nuge::calc_bound_box
+Phys_GetQuaternion

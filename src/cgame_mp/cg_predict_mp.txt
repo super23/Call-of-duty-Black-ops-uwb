@@ -1,0 +1,22 @@
+`vector destructor iterator'
+CG_ItemListLocalClientNum
+CG_ClearItemList
+CG_BuildItemList
+MovieCameraMove
+FollowCameraMove
+CG_ClearSavedPlayerState
+CG_SavePlayerState
+CG_PredictPlayerState
+CG_PredictPlayerState_Internal
+CG_TouchItemPrediction
+CG_TouchItem
+CG_InterpolatePlayerStateViewAngles
+CG_ShouldInterpolatePlayerStateViewClamp
+CG_InterpolatePlayerState
+CG_CopyFlagsFromSnapshotEntity
+pmove_t::pmove_t
+colgeom_visitor_t::prolog
+colgeom_visitor_t::epilog
+colgeom_visitor_inlined_t<200>::visit
+colgeom_visitor_inlined_t<200>::update
+colgeom_visitor_t::colgeom_visitor_t

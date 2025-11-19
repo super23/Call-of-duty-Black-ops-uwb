@@ -1,0 +1,5 @@
+R_RegisterCmds
+R_Cmd_ApplyPicmip
+R_Cmd_Screenshot
+R_Cmd_ScreenshotJpeg
+R_UnregisterCmds

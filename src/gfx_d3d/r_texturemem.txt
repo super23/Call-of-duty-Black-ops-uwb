@@ -1,0 +1,8 @@
+R_AvailableTextureMemory
+R_VideoMemory
+DDraw::Instance
+DDraw::DDraw
+R_VideoMemoryForDevice
+R_DDEnumCallback
+R_DrasticVideoMemoryForDevice
+R_DDEnumDrasticCallback

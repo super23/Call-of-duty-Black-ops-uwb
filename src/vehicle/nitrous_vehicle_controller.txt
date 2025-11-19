@@ -1,0 +1,15 @@
+NitrousVehicleController::UpdateScriptVehicleControl
+NitrousVehicle::set_hand_brake
+NitrousVehicleController::UpdateControlsStrafeMode
+NitrousVehicleController::UpdateVehicleInputs
+NitrousVehicle::set_brake
+NitrousVehicleController::UpdateStun
+StunRandomBrake
+NitrousVehicleController::UpdateControls
+RecalibrateInputCustom
+NitrousVehicleController::UpdateControlsDefault
+NitrousVehicleController::UpdateControlsTank
+NitrousVehicleController::SetScriptTarget
+NitrousVehicleController::UpdateJump
+rigid_body::add_force
+NitrousVehicleController::UpdateApplyBoatAccel

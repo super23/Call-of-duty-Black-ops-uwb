@@ -1,0 +1,30 @@
+XAnim_SetTime
+DObjCalcAnim
+XAnimCalc
+IsInfoAdditive
+XAnimClearRotTransArray
+XAnimCalcLeaf
+XAnimCalcLeafInternal
+XAnimCalcNonLoopEnd
+Vec4Mad
+XAnimGetCalcBuffer
+XAnimScaleRotTransArray
+XAnimNormalizeRotScaleTransArray
+XAnimMadRotTransArray
+XAnimApplyAdditives
+XAnimCalcAnimInfo::XAnimCalcAnimInfo
+XAnim_CalcDeltaForTime
+XAnim_CalcRotDeltaEntire
+XAnim_CalcPosDeltaEntire
+bitarray<160>::testBit
+XAnimCalcParts<unsigned char>
+XAnimWeightedAccumLerpedTrans
+XAnimWeightedAccumTrans
+XAnim_GetTimeIndex<unsigned char>
+XAnimCalcParts<unsigned short>
+XAnim_GetTimeIndex<unsigned short>
+XAnim_CalcRotDeltaDuring<unsigned char>
+Short2LerpAsVec2
+XAnim_CalcPosDeltaDuring<unsigned char>
+XAnim_CalcRotDeltaDuring<unsigned short>
+XAnim_CalcPosDeltaDuring<unsigned short>

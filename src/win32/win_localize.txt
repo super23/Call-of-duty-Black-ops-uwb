@@ -1,0 +1,5 @@
+Win_InitLocalization
+Win_ShutdownLocalization
+Win_LocalizeRef
+Win_CopyLocalizationString
+Win_GetLanguage

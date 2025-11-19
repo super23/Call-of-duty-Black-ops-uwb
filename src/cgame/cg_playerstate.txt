@@ -1,0 +1,7 @@
+CG_Respawn
+CG_ResetSpectatorViewAngles
+CG_TransitionPlayerState
+CG_DamageFeedback
+CG_CheckPlayerstateEvents
+CG_ClearTransPlayerState
+CG_ExtractTransPlayerState

@@ -1,0 +1,17 @@
+CM_LoadMap
+CM_InitAllThreadData
+CM_InitThreadData
+CM_LoadMapData
+CM_LoadMapData_LoadObj
+CM_LoadMapData_FastFile
+Rope_InitRopes
+ShutdownRopes
+CM_Shutdown
+CM_Unload
+CM_LeafCluster
+CM_ModelBounds
+CM_ModelSurfaceFlags
+CM_Hunk_Alloc
+CM_Hunk_CheckTempMemoryHighClear
+CM_Hunk_AllocateTempMemoryHigh
+CM_Hunk_ClearTempMemoryHigh

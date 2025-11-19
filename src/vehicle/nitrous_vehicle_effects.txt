@@ -1,0 +1,6 @@
+NitrousVehicle::_update_wheel_effect_states
+GetWheelStateColor
+NitrousVehicle::debug_render_wheel_effects
+phys_vec3::operator-=
+operator/
+NitrousVehicle::debug_render_effects

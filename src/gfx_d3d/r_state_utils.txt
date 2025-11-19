@@ -1,0 +1,17 @@
+R_InitCmdBufSourceState
+R_InitCmdBufState
+R_HW_ForceSamplerState
+R_SetDefaultAlphaTestFunction
+R_DecodeSamplerState
+R_SetDefaultStateBits
+R_InitCmdBufSamplerState
+R_GetActiveWorldMatrix
+R_WorldMatrixChanged
+R_Set2D
+R_CmdBufSet2D
+R_MatrixIdentity44
+R_CmdBufSet3D
+R_Set3D
+R_BeginView
+R_DeriveNearPlaneConstantsForView
+R_SetShadowLookupMatrix

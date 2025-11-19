@@ -1,0 +1,12 @@
+Eval_AnyMissingOperands
+Eval_PushOperator
+Eval_EvaluationStep
+Eval_PrepareBinaryOpSameTypes
+Eval_PrepareBinaryOpIntegers
+Eval_PrepareBinaryOpBoolean
+Eval_IsUnaryOp
+Eval_PushInteger
+Eval_CanPushValue
+Eval_PushNumber
+Eval_Solve
+Eval_OperatorForToken

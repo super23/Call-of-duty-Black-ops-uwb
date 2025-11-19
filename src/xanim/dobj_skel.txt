@@ -1,0 +1,12 @@
+DobjHasAnyPartBits
+DObjCalcSkel
+GetControlAndDuplicatePartBits
+CalcSkelDuplicateBones
+CalcSkelRootBonesNoParentOrDuplicate
+CalcSkelRootBonesWithParent
+QuatMultiplyReverseInverse
+MatrixTransformVectorQuatTransEquals
+QuatMultiplyReverseEquals
+CalcSkelNonRootBones
+DObjCalcBaseSkel
+DObjCalcBaseAnim

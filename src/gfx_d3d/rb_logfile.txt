@@ -1,0 +1,13 @@
+RB_UpdateLogging
+RB_CloseLogFile
+RB_OpenLogFile
+RB_IsLogging
+RB_LogPrint
+RB_LogTechniqueType
+RB_LogPrintState_0
+RB_LogBlend
+RB_LogBlendOp
+RB_LogFromTable
+RB_LogPrintState_1
+RB_LogBool
+RB_LogStencilState
