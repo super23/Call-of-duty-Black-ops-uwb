@@ -1,0 +1,38 @@
+#pragma once
+
+char *__cdecl GetPairValue(const SpawnVar *spawnVar, const char *key);
+void __cdecl AddSavedCommand(const RadiantCommand *command);
+void __cdecl RunSavedRadiantCmds();
+void __cdecl G_AssignGameIdMapping(int liveUpdateId, int gameId);
+int __cdecl G_GetGameIdMapping(int liveUpdateId);
+void __cdecl CG_AssignGameIdMapping(int liveUpdateId, int gameId);
+int __cdecl CG_GetGameIdMapping(int liveUpdateId);
+void __cdecl RadiantRemoteInit();
+gentity_s *__cdecl FindEntity(const SpawnVar *spawnVar, int gameId);
+bool __cdecl IsEntityType(const SpawnVar *spawnVar);
+void __cdecl G_ClearSelectedEntity();
+void __cdecl G_ProcessEntityCommand(const RadiantCommand *command, SpawnVar *spawnVar);
+bool __cdecl G_IsSpawnPoint(const char *classname);
+void __cdecl G_ProcessCameraCommand(SpawnVar *spawnVar);
+unsigned int __cdecl G_FindMiscModel(const float *origin, int gameId);
+void __cdecl G_ProcessMiscModelCommand(const RadiantCommand *command, SpawnVar *spawnVar);
+void __cdecl G_ClearSelectedMiscModel();
+unsigned int __cdecl G_FindCorona(const float *origin, int gameId);
+void __cdecl G_ProcessCoronaCommand(const RadiantCommand *command, SpawnVar *spawnVar);
+void __cdecl G_ClearSelectedCorona();
+void __cdecl G_NotifyScriptsOfSelectedScriptStruct(int structId);
+unsigned int __cdecl G_FindStruct(SpawnVar *spawnVar, int gameId);
+void __cdecl G_ProcessScriptStructCommand(const RadiantCommand *command, SpawnVar *spawnVar);
+void __cdecl G_ClearSelectedScriptStruct();
+void __cdecl CG_NotifyScriptsOfSelectedScriptStruct(int structId);
+unsigned int __cdecl CG_FindStruct(SpawnVar *spawnVar, int gameId);
+void __cdecl CG_ProcessScriptStructCommand(const RadiantCommand *command, SpawnVar *spawnVar);
+void __cdecl CG_ClearSelectedScriptStruct();
+void __cdecl G_RadiantDebugDraw();
+void __cdecl G_ClearSelection(void (__cdecl *ignoreFunc)());
+void __cdecl CG_ClearSelection(void (__cdecl *ignoreFunc)());
+void __cdecl CG_ProcessRadiantCmd(const RadiantCommand *command);
+char __cdecl CG_ProcessRadiantCmds();
+int __cdecl GetCommandProcessorType(const SpawnVar *spawnVar);
+void __cdecl G_ProcessRadiantCmd(const RadiantCommand *command);
+char __cdecl G_ProcessRadiantCmds();

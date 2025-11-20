@@ -1,0 +1,10 @@
+#pragma once
+
+void __cdecl CG_ActorProcessSnapshot(int localClientNum, centity_s *cent);
+void __cdecl CG_UpdateActorDObj(int localClientNum, centity_s *cent, actorInfo_t *ai);
+cgs_t *__cdecl CG_GetLocalClientStaticGlobals(int localClientNum);
+void __cdecl CG_ResetActorEntity(int localClientNum, cg_s *cgameGlob, centity_s *cent);
+void __cdecl CG_Actor_PreControllers(int localClientNum, centity_s *cent);
+void __cdecl CG_Actor(int localClientNum, centity_s *cent);
+bool __cdecl CG_EntityNeedsScriptThread(int localClientNum, centity_s *cent);
+void __cdecl CG_ActorCorpse(int localClientNum, centity_s *cent);

@@ -1,0 +1,31 @@
+#pragma once
+
+void __cdecl SV_SetConfigstring(int index, char *val);
+void __cdecl SV_GetConfigstring(unsigned int index, char *buffer, int bufferSize);
+unsigned int __cdecl SV_GetConfigstringConst(unsigned int index);
+void __cdecl SV_SetConfigValueForKey(int start, int max, char *key, char *value);
+void __cdecl SV_SetUserinfo(int index, char *val);
+void __cdecl SV_GetUserinfo(int index, char *buffer, int bufferSize);
+void __cdecl SV_CreateBaseline();
+void __cdecl SV_SetXUIDConfigStrings();
+void __cdecl SV_Startup(int controllerIndex);
+void __cdecl SV_SetExpectedHunkUsage(char *mapname);
+void __cdecl SV_ClearServer();
+void __cdecl SV_InitArchivedSnapshot();
+void __cdecl SV_SetSystemInfoConfig();
+void __cdecl SV_SaveSystemInfo();
+void __cdecl SV_SetServerDvarsBeforeScriptsInit();
+void __cdecl  SV_SpawnServer(int controllerIndex, char *server, int mapIsPreloaded, int savegame);
+char *__cdecl SV_AllocateClientMemory_SizeRequired(int maxLocalClients, int maxClients);
+void __cdecl SV_AllocateClientMemory(HunkUser *hunk, int maxLocalClients, int maxClients);
+void __cdecl SV_FreeClientMemory(HunkUser *hunk);
+bool __cdecl SV_Loaded();
+void __cdecl SV_Init();
+void __cdecl SV_DropAllClients();
+void __cdecl SV_Shutdown(const char *finalmsg);
+void __cdecl SV_FinalMessage(const char *message);
+void __cdecl SV_ClearServerThreadOwnsGame();
+void __cdecl SV_IncServerThreadOwnsGame();
+void __cdecl SV_DecServerThreadOwnsGame();
+int __cdecl SV_GetServerThreadOwnsGame();
+void __cdecl SV_CheckThread();

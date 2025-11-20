@@ -1,0 +1,68 @@
+#pragma once
+
+void __cdecl R_InitWaterSimulation();
+void __cdecl R_WaterSimulationRestart();
+void __cdecl ExpireAllMeshes(tile_t *tile);
+void __cdecl ExpireMesh(tile_t *tile);
+void __cdecl R_WaterSimulationTeleport(int posX, int posY);
+void __cdecl R_InitWaterSimulationBuffers(unsigned int location);
+void __cdecl R_FreeWaterSimulationBuffers();
+void __cdecl R_SetWaterSimulationConstants(GfxCmdBufSourceState *state, float interp);
+// local variable allocation has failed, the output may be wrong!
+void  R_WaterSimulationRender(int a1@<ebp>, const float *eyePos, int time, unsigned int viewIndex);
+void __cdecl R_WaterSimulationTrackView(const float *eyePos);
+bool __cdecl R_WaterSimulationFillTile(tile_t *tile);
+char __cdecl R_WaterFindCells(int gridX, int gridY, ComWaterCell **cells);
+unsigned int __cdecl AllocMeshVerts();
+unsigned int __cdecl NumMeshVertsFree();
+void __cdecl FreeMeshVerts(unsigned int baseVertex);
+void R_WaterSimulationUpdateConfig();
+void __cdecl R_RenderWaterModel(unsigned int viewIndex);
+char *__cdecl R_SurfaceAlloc(unsigned int size);
+void __cdecl R_WaterSimulationSwitchOff();
+void *FlushBuffers();
+// local variable allocation has failed, the output may be wrong!
+void  R_WaterSimulationUpdateFrame(channel_t<float4> *a1@<ebp>, const WaterSimulationCmd *cmd);
+void __cdecl Float4LoadFloats(unsigned int x, unsigned int y, unsigned int z, unsigned int w, float4 *result);
+void *__cdecl Water_AllocVertexBuffer(IDirect3DVertexBuffer9 **vb, unsigned int buffersize);
+void *__cdecl Water_AllocIndexBuffer(IDirect3DIndexBuffer9 **ib, unsigned int buffersize);
+void __cdecl R_InitWaterSimulationVertexBuffers();
+unsigned int __cdecl FillIndexBuffer(unsigned __int16 *lockedindex, unsigned int lodMask, unsigned __int16 *verts);
+void __cdecl R_FreeWaterSimulationVertexBuffers();
+void __cdecl R_WaterSimulationNotifyBullet(const float *hitpos);
+void __cdecl R_WaterSimulationSetHeight(const float *center, float radius, float targetHeight, float lerpRate);
+void __cdecl GetBuffersForPoint(int u, int v, int *bufId, float *interpolate);
+char __cdecl ConvertWorldToGrid(const float *worldPos, int *u, int *v);
+void __cdecl R_WaterSimulationSimpleDisplace(const float *hitpos, float radius, float height);
+void __cdecl R_WaterSimulationNotifyExplosionEx(const float *hitpos, int size, float height);
+void __cdecl R_WaterSimulationNotifyExplosion(const float *hitpos);
+void R_WaterSimulationApplyWaveSeed();
+int __cdecl water_rand();
+void __cdecl R_WaterSimulationCmd(const WaterSimulationCmd *rawdata);
+unsigned intLockUpdateMutex();
+bool UnlockUpdateMutex();
+// local variable allocation has failed, the output may be wrong!
+void  R_WaterSimulationSkinMesh(float a1@<ebp>, const WaterSimulationCmd *cmd);
+float4 *__cdecl ReadValue(float4 *result, unsigned __int8 u, int v, unsigned int bufnum);
+double __cdecl R_WaterSimulationGetBaseHeight(const float *queryPos);
+double __cdecl R_WaterSimulationGetHeight(const float *queryPos);
+void __cdecl R_WaterSimulationGetGridPosition(unsigned __int8 sx, unsigned __int8 sy, int timeOffset, float *v);
+void __cdecl R_WaterSimulationGetInfo(const float *queryPos, WaterSimInfo *info);
+double __cdecl R_WaterSimulationGetHeightGlobal(const float *queryPos);
+char __cdecl R_WaterSimulationGetAverageHeight(float *pHeight);
+void __thiscall channel_t<float4>::Alloc(channel_t<float4> *this, unsigned int location);
+void __thiscall channel_t<GfxColor>::Free(channel_t<GfxColor> *this);
+float4 *__thiscall channel_t<float4>::Cache(channel_t<float4> *this, unsigned int y, bool modify, bool flush);
+void __thiscall channel_t<short>::Alloc(channel_t<short> *this, unsigned int location);
+__int16 *__thiscall channel_t<short>::Cache(channel_t<short> *this, unsigned int y, bool modify, bool flush);
+void __thiscall channel_t<char>::Alloc(channel_t<char> *this, unsigned int location);
+char *__thiscall channel_t<char>::Cache(channel_t<char> *this, unsigned int y, bool modify, bool flush);
+void __thiscall channel_t<GfxColor>::Alloc(channel_t<GfxColor> *this, unsigned int location);
+void __thiscall fifo_t<debugpoint_t,16>::add(fifo_t<debugpoint_t,16> *this, const debugpoint_t *t);
+void __thiscall fifo_t<meshExpire_t,1024>::add(fifo_t<meshExpire_t,1024> *this, const meshExpire_t *t);
+GfxColor *__thiscall channel_t<GfxColor>::Cache(channel_t<GfxColor> *this, unsigned int y, bool modify, bool flush);
+waterdata_t *__thiscall waterdata_t::waterdata_t(waterdata_t *this);
+channel_t<short> *__thiscall channel_t<short>::channel_t<short>(channel_t<short> *this);
+channel_t<char> *__thiscall channel_t<char>::channel_t<char>(channel_t<char> *this);
+channel_t<GfxColor> *__thiscall channel_t<GfxColor>::channel_t<GfxColor>(channel_t<GfxColor> *this);
+void __thiscall channel_t<float4>::cache_t::cache_t(channel_t<float4>::cache_t *this);

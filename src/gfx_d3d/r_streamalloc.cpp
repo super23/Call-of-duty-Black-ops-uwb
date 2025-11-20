@@ -1,0 +1,184 @@
+#include "r_streamalloc.h"
+
+void __cdecl R_StreamAlloc_InitTempImages()
+{
+  int index; // [esp+4h] [ebp-4h]
+
+  if ( !byte_B002DE0 )
+  {
+    for ( index = 0; index < 32; ++index )
+    {
+      dword_B002CE0[2 * index] = (int)DB_AllocTempImage();
+      memset((unsigned __int8 *)dword_B002CE0[2 * index], 0, 0x34u);
+      byte_B002CE4[8 * index] = 0;
+    }
+    byte_B002DE0 = 1;
+  }
+}
+
+GfxImage *__cdecl R_StreamAlloc_SetupTempImage(
+        _D3DFORMAT format,
+        bool linear,
+        unsigned __int16 width,
+        unsigned __int16 height)
+{
+  GfxImage *image; // [esp+0h] [ebp-8h]
+  int index; // [esp+4h] [ebp-4h]
+
+  if ( !byte_B002DE0
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_streamalloc.cpp",
+          1755,
+          0,
+          "%s",
+          "s_allocGlob.tempImagesInit") )
+  {
+    __debugbreak();
+  }
+  R_StreamAlloc_Lock();
+  image = 0;
+  for ( index = 0; index < 32; ++index )
+  {
+    if ( !byte_B002CE4[8 * index] )
+    {
+      byte_B002CE4[8 * index] = 1;
+      image = (GfxImage *)dword_B002CE0[2 * index];
+      break;
+    }
+  }
+  if ( image )
+  {
+    Image_Create2DTexture_PC(image, width, height, 0, 0, format);
+    R_StreamAlloc_Unlock();
+    return image;
+  }
+  else
+  {
+    R_StreamAlloc_Unlock();
+    return 0;
+  }
+}
+
+void __cdecl R_StreamAlloc_ReleaseTempImage(GfxImage *image)
+{
+  int index; // [esp+0h] [ebp-4h]
+
+  R_StreamAlloc_Lock();
+  for ( index = 0; index < 32; ++index )
+  {
+    if ( image == (GfxImage *)dword_B002CE0[2 * index] )
+    {
+      Image_Release(image);
+      byte_B002CE4[8 * index] = 0;
+      R_StreamAlloc_Unlock();
+      return;
+    }
+  }
+  if ( !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_streamalloc.cpp",
+          1799,
+          0,
+          "%s",
+          "0 && \"tried to release a non-temp image\"") )
+    __debugbreak();
+  R_StreamAlloc_Unlock();
+}
+
+void __cdecl R_StreamAlloc_Lock()
+{
+  Sys_LockWrite(&s_allocGlob.lock);
+}
+
+void __cdecl R_StreamAlloc_Unlock()
+{
+  Sys_UnlockWrite(&s_allocGlob.lock);
+}
+
+char __cdecl R_StreamAlloc_CanAllocate(int size, float importance, GfxImage **unloadImage)
+{
+  *unloadImage = 0;
+  if ( size + Image_TrackBytes <= streamFrontendGlob.mainBufferSize )
+    return 1;
+  else
+    return R_StreamAlloc_FreeImageByImportance(size, importance, unloadImage);
+}
+
+char __cdecl R_StreamAlloc_FreeImageByImportance(int size, float importance, GfxImage **unloadImage)
+{
+  XAssetPoolEntry<GfxImage> *image; // [esp+0h] [ebp-20h]
+  GfxImage *sacrificeImage; // [esp+4h] [ebp-1Ch]
+  signed int imagePartIndex; // [esp+8h] [ebp-18h]
+  int sortIndex; // [esp+Ch] [ebp-14h]
+
+  sacrificeImage = 0;
+  for ( sortIndex = list_count - 1; sortIndex >= 0; --sortIndex )
+  {
+    imagePartIndex = streamFrontendGlob.sortedImages[sortIndex + 352];
+    if ( (streamFrontendGlob.imageInitialBits[(imagePartIndex >> 5) + 100] & (1 << (imagePartIndex & 0x1F))) != 0
+      && (importance == 3.4028235e38
+       || (streamFrontendGlob.imageTouchBits[0][(imagePartIndex >> 5) + 104] & (1 << (imagePartIndex & 0x1F))) == 0) )
+    {
+      if ( *(float *)&streamFrontendGlob.imageImportanceBits[imagePartIndex - 4064] >= importance )
+        break;
+      if ( (streamFrontendGlob.imageInitialBits[(imagePartIndex >> 5) - 32] & (1 << (imagePartIndex & 0x1F))) == 0 )
+      {
+        image = DB_GetImageAtIndex(imagePartIndex);
+        if ( image->entry.streaming )
+        {
+          if ( !image->entry.skippedMipLevels )
+          {
+            if ( (signed int)image->entry.loadedSize >= size )
+            {
+              *unloadImage = &image->entry;
+              return 1;
+            }
+            if ( !sacrificeImage )
+              sacrificeImage = &image->entry;
+          }
+        }
+      }
+    }
+  }
+  if ( sacrificeImage )
+  {
+    *unloadImage = sacrificeImage;
+    return 1;
+  }
+  else
+  {
+    *unloadImage = 0;
+    return 0;
+  }
+}
+
+unsigned __int8 *__cdecl R_StreamAlloc_FreeImage(GfxImage *image, int imagePart, bool dirty, int *freedSize)
+{
+  int imagePartIndex; // [esp+0h] [ebp-4h]
+
+  imagePartIndex = DB_GetImageIndex(image);
+  streamFrontendGlob.imageInitialBits[(imagePartIndex >> 5) + 100] &= ~(1 << (imagePartIndex & 0x1F));
+  *freedSize = 0;
+  return 0;
+}
+
+void __cdecl R_StreamAlloc_Flush()
+{
+  unsigned int useBits; // [esp+0h] [ebp-10h]
+  int bitIndex; // [esp+4h] [ebp-Ch]
+  int index; // [esp+Ch] [ebp-4h]
+
+  for ( index = 0; index < 132; ++index )
+  {
+    useBits = streamFrontendGlob.imageInitialBits[index + 100];
+    if ( useBits )
+    {
+      for ( bitIndex = 0; bitIndex < 32; ++bitIndex )
+      {
+        if ( (useBits & (1 << (bitIndex & 0x1F))) != 0 )
+          streamFrontendGlob.imageInitialBits[((bitIndex + 32 * index) >> 5) + 100] &= ~(1 << ((bitIndex + 32 * index)
+                                                                                             & 0x1F));
+      }
+    }
+  }
+}
+

@@ -1,0 +1,36 @@
+#pragma once
+
+char *__cdecl SV_ExpandNewlines(char *in);
+void __cdecl SV_AddServerCommand(client_t *client, svscmd_type type, char *cmd);
+int __cdecl SV_CanReplaceServerCommand(client_t *client, const char *cmd);
+bool __cdecl SV_IsFirstTokenEqual(const char *str1, const char *str2);
+void __cdecl SV_CullIgnorableServerCommands(client_t *client);
+void SV_SendServerCommand(client_t *cl, svscmd_type type, const char *fmt, ...);
+client_t *__cdecl SV_FindClientByAddress(netadr_t from, int qport);
+void __cdecl SV_VoicePacket(netadr_t from, msg_t *msg);
+void __cdecl SVC_Status(netadr_t from, bdSecurityID *secID);
+void __cdecl SVC_StatusScoreBoard(netadr_t from, bdSecurityID *secID);
+void __cdecl SVC_Info(netadr_t from, bdSecurityID *secID, bool quick);
+void __cdecl SV_ConnectionlessPacket(netadr_t from, msg_t *msg);
+void __cdecl SV_PacketEvent(netadr_t from, msg_t *msg);
+void __cdecl SV_CalcPings();
+void __cdecl SV_FreeClientScriptId(client_t *cl);
+void __cdecl SV_CheckTimeouts();
+int __cdecl SV_CheckPaused();
+void  SV_RunFrame(__m128 a1@<xmm0>);
+void __cdecl SV_UpdatePerformanceFrame(int time);
+void __cdecl SV_UpdateBots();
+void __cdecl SV_InitThreadVariables();
+void __cdecl SV_InitServerThread();
+void   SV_ServerThread(__m128 a1@<xmm0>, unsigned int threadContext);
+void __cdecl SV_PostFrame();
+void SV_RunEventLoop();
+void __cdecl SV_WaitServer();
+void __cdecl SV_InitSnapshot();
+void __cdecl SV_KillLocalServer();
+void __cdecl SV_PreFrame();
+int __cdecl SV_Frame(int controllerIndex, int msec);
+void __cdecl SV_FrameInternal(int controllerIndex, int msec);
+void SV_WakeServer();
+char __cdecl SV_CheckOverflow();
+void __cdecl SV_AllowPackets(bool allow);

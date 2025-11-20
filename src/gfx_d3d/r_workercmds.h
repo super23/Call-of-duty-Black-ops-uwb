@@ -1,0 +1,30 @@
+#pragma once
+
+int __cdecl r_dpvs_entityCallback(jqBatch *batch);
+int __cdecl r_model_skinCallback(jqBatch *batch);
+bool __cdecl R_DynamicFenceBusy();
+int __cdecl r_dpvs_staticCallback(jqBatch *batch);
+int __cdecl r_dpvs_dynmodelCallback(jqBatch *batch);
+int __cdecl r_dpvs_sceneentCallback(jqBatch *batch);
+int __cdecl r_dpvs_dynbrushCallback(jqBatch *batch);
+int __cdecl r_waterCallback(jqBatch *batch);
+int __cdecl R_UploadWaterPending();
+signed __int32 R_ExecWaterFailed();
+int __cdecl r_water_simCallback(jqBatch *batch);
+bool __cdecl R_EndFenceBusy();
+int __cdecl r_spot_shadow_entCallback(jqBatch *batch);
+int __cdecl fx_updateCallback(jqBatch *batch);
+int __cdecl fx_update_remainingCallback(jqBatch *batch);
+bool __cdecl R_FXUpdateRemainingWait();
+bool __cdecl R_FXSpotLightPending();
+int __cdecl fx_update_remaining_ppuCallback(jqBatch *batch);
+bool __cdecl R_FXUpdateRemainingPPUWait();
+bool __cdecl R_FXDependentPending();
+int __cdecl fx_drawCallback(jqBatch *batch);
+int __cdecl dobj_skelCallback(jqBatch *batch);
+int __cdecl dobj_skinCallback(jqBatch *batch);
+int __cdecl r_model_lightingCallback(jqBatch *batch);
+int __cdecl r_add_sceneentCallback(jqBatch *batch);
+int __cdecl fx_marks_drawCallback(jqBatch *batch);
+int __cdecl fx_update_spotCallback(jqBatch *batch);
+int __cdecl r_skin_cached_staticmodelCallback(jqBatch *batch);

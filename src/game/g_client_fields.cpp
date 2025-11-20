@@ -1,0 +1,855 @@
+#include "g_client_fields.h"
+
+void __cdecl ClientScr_ReadOnly(gclient_s *pSelf, const client_fields_s *pField)
+{
+  const char *v2; // eax
+
+  if ( !pSelf && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 27, 0, "%s", "pSelf") )
+    __debugbreak();
+  if ( !pField
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 28, 0, "%s", "pField") )
+  {
+    __debugbreak();
+  }
+  v2 = va("player field %s is read-only", pField->name);
+  Scr_Error(v2, 0);
+}
+
+void __cdecl ClientScr_SetSessionTeam(gclient_s *pSelf)
+{
+  char *v1; // eax
+  const char *v2; // eax
+  unsigned __int16 newTeam; // [esp+0h] [ebp-4h]
+
+  if ( !pSelf && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 38, 0, "%s", "pSelf") )
+    __debugbreak();
+  newTeam = (unsigned __int16)Scr_GetConstString(0, SCRIPTINSTANCE_SERVER).floatValue;
+  if ( newTeam == scr_const.axis )
+  {
+    pSelf->sess.cs.team = TEAM_AXIS;
+  }
+  else if ( newTeam == scr_const.allies )
+  {
+    pSelf->sess.cs.team = TEAM_ALLIES;
+  }
+  else if ( newTeam == scr_const.spectator )
+  {
+    pSelf->sess.cs.team = TEAM_SPECTATOR;
+  }
+  else if ( newTeam == scr_const.none )
+  {
+    pSelf->sess.cs.team = TEAM_FREE;
+  }
+  else
+  {
+    v1 = SL_ConvertToString(newTeam, SCRIPTINSTANCE_SERVER);
+    v2 = va("'%s' is an illegal sessionteam string. Must be allies, axis, none, or spectator.", v1);
+    Scr_Error(v2, 0);
+  }
+  if ( pSelf - level.clients >= level.maxclients )
+    Scr_Error("client is not pointing to the level.clients array", 0);
+  BG_EvalVehicleName();
+  ClientUserinfoChanged(pSelf - level.clients);
+  CalculateRanks();
+}
+
+void __cdecl ClientScr_SetFFATeam(gclient_s *pSelf)
+{
+  char *v1; // eax
+  const char *v2; // eax
+  unsigned __int16 newTeam; // [esp+0h] [ebp-4h]
+
+  if ( !pSelf && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 70, 0, "%s", "pSelf") )
+    __debugbreak();
+  newTeam = (unsigned __int16)Scr_GetConstString(0, SCRIPTINSTANCE_SERVER).floatValue;
+  if ( newTeam == scr_const.axis )
+  {
+    pSelf->sess.cs.ffaTeam = TEAM_FFA_AXIS;
+  }
+  else if ( newTeam == scr_const.allies )
+  {
+    pSelf->sess.cs.ffaTeam = TEAM_FFA_ALLIES;
+  }
+  else if ( newTeam == scr_const.none || newTeam == scr_const.spectator )
+  {
+    pSelf->sess.cs.ffaTeam = TEAM_FFA_NONE;
+  }
+  else
+  {
+    v1 = SL_ConvertToString(newTeam, SCRIPTINSTANCE_SERVER);
+    v2 = va("'%s' is an illegal ffateam string. Must be allies or axis.", v1);
+    Scr_Error(v2, 0);
+  }
+}
+
+void __cdecl ClientScr_GetFFATeam(gclient_s *pSelf)
+{
+  ffa_team_t ffaTeam; // [esp+0h] [ebp-4h]
+
+  if ( !pSelf && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 86, 0, "%s", "pSelf") )
+    __debugbreak();
+  ffaTeam = pSelf->sess.cs.ffaTeam;
+  if ( ffaTeam == TEAM_FFA_AXIS )
+  {
+    Scr_AddConstString(scr_const.axis, SCRIPTINSTANCE_SERVER);
+  }
+  else if ( ffaTeam == TEAM_FFA_ALLIES )
+  {
+    Scr_AddConstString(scr_const.allies, SCRIPTINSTANCE_SERVER);
+  }
+  else
+  {
+    Scr_AddConstString(scr_const.none, SCRIPTINSTANCE_SERVER);
+  }
+}
+
+void __cdecl ClientScr_GetName(gclient_s *pSelf)
+{
+  char *v1; // eax
+
+  if ( !pSelf
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 108, 0, "%s", "pSelf") )
+  {
+    __debugbreak();
+  }
+  v1 = (char *)CS_DisplayName(&pSelf->sess.cs, 3);
+  Scr_AddString(v1, SCRIPTINSTANCE_SERVER);
+}
+
+void __cdecl ClientScr_GetGroundType(gclient_s *pSelf)
+{
+  char *groundType; // [esp+0h] [ebp-4h]
+
+  if ( !pSelf
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 115, 0, "%s", "pSelf") )
+  {
+    __debugbreak();
+  }
+  if ( pSelf->ps.groundType )
+  {
+    groundType = (char *)Com_SurfaceTypeToName(pSelf->ps.groundType);
+    Scr_AddString(groundType, SCRIPTINSTANCE_SERVER);
+  }
+}
+
+void __cdecl ClientScr_GetSessionTeam(gclient_s *pSelf)
+{
+  if ( !pSelf
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 126, 0, "%s", "pSelf") )
+  {
+    __debugbreak();
+  }
+  switch ( pSelf->sess.cs.team )
+  {
+    case TEAM_FREE:
+      Scr_AddConstString(scr_const.none, SCRIPTINSTANCE_SERVER);
+      break;
+    case TEAM_AXIS:
+      Scr_AddConstString(scr_const.axis, SCRIPTINSTANCE_SERVER);
+      break;
+    case TEAM_ALLIES:
+      Scr_AddConstString(scr_const.allies, SCRIPTINSTANCE_SERVER);
+      break;
+    case TEAM_SPECTATOR:
+      Scr_AddConstString(scr_const.spectator, SCRIPTINSTANCE_SERVER);
+      break;
+    default:
+      return;
+  }
+}
+
+int __cdecl CScr_GetColumnTypeByName(const char *typeName)
+{
+  int i; // [esp+14h] [ebp-4h]
+
+  for ( i = 0; i < 18; ++i )
+  {
+    if ( !strcmp(typeName, g_scoreboardColumnNames[i]) )
+      return i;
+  }
+  return 0;
+}
+
+const char *__cdecl CScr_GetColumnNameByType(scoreboardColumnType_t columnType)
+{
+  if ( (unsigned int)columnType < SB_TYPE_ASSISTS )
+    return g_scoreboardColumnNames[columnType];
+  Com_PrintWarning(1, "There is no name for scoreboard column type %i.", columnType);
+  return g_scoreboardColumnNames[0];
+}
+
+void __cdecl ClientScr_SetSessionState(gclient_s *pSelf)
+{
+  char *v1; // eax
+  const char *v2; // eax
+  unsigned __int16 newState; // [esp+0h] [ebp-4h]
+
+  if ( !pSelf
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 203, 0, "%s", "pSelf") )
+  {
+    __debugbreak();
+  }
+  if ( pSelf->sess.connected == CON_DISCONNECTED
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp",
+          204,
+          0,
+          "%s",
+          "pSelf->sess.connected != CON_DISCONNECTED") )
+  {
+    __debugbreak();
+  }
+  newState = (unsigned __int16)Scr_GetConstString(0, SCRIPTINSTANCE_SERVER).floatValue;
+  if ( newState == scr_const.playing )
+  {
+    pSelf->sess.sessionState = SESS_STATE_PLAYING;
+  }
+  else if ( newState == scr_const.dead )
+  {
+    pSelf->sess.sessionState = SESS_STATE_DEAD;
+  }
+  else if ( newState == scr_const.spectator )
+  {
+    pSelf->sess.sessionState = SESS_STATE_SPECTATOR;
+  }
+  else if ( newState == scr_const.intermission )
+  {
+    pSelf->ps.eFlags ^= 2u;
+    pSelf->sess.sessionState = SESS_STATE_INTERMISSION;
+    if ( Demo_IsRecording() )
+      Demo_End(0);
+  }
+  else
+  {
+    v1 = SL_ConvertToString(newState, SCRIPTINSTANCE_SERVER);
+    v2 = va("'%s' is an illegal sessionstate string. Must be playing, dead, spectator, or intermission.", v1);
+    Scr_Error(v2, 0);
+  }
+}
+
+void __cdecl ClientScr_GetSessionState(gclient_s *pSelf)
+{
+  if ( !pSelf
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 244, 0, "%s", "pSelf") )
+  {
+    __debugbreak();
+  }
+  if ( pSelf->sess.connected == CON_DISCONNECTED
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp",
+          245,
+          0,
+          "%s",
+          "pSelf->sess.connected != CON_DISCONNECTED") )
+  {
+    __debugbreak();
+  }
+  switch ( pSelf->sess.sessionState )
+  {
+    case SESS_STATE_PLAYING:
+      Scr_AddConstString(scr_const.playing, SCRIPTINSTANCE_SERVER);
+      break;
+    case SESS_STATE_DEAD:
+      Scr_AddConstString(scr_const.dead, SCRIPTINSTANCE_SERVER);
+      break;
+    case SESS_STATE_SPECTATOR:
+      Scr_AddConstString(scr_const.spectator, SCRIPTINSTANCE_SERVER);
+      break;
+    case SESS_STATE_INTERMISSION:
+      Scr_AddConstString(scr_const.intermission, SCRIPTINSTANCE_SERVER);
+      break;
+    default:
+      return;
+  }
+}
+
+void __cdecl ClientScr_SetMaxHealth(gclient_s *pSelf)
+{
+  if ( !pSelf
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 278, 0, "%s", "pSelf") )
+  {
+    __debugbreak();
+  }
+  if ( (unsigned int)(pSelf - level.clients) >= level.maxclients
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp",
+          279,
+          0,
+          "pSelf - level.clients doesn't index level.maxclients\n\t%i not in [0, %i)",
+          pSelf - level.clients,
+          level.maxclients) )
+  {
+    __debugbreak();
+  }
+  pSelf->sess.maxHealth = Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue;
+  if ( pSelf->sess.maxHealth < 1 )
+    pSelf->sess.maxHealth = 1;
+  if ( pSelf->ps.stats[0] > pSelf->sess.maxHealth )
+    pSelf->ps.stats[0] = pSelf->sess.maxHealth;
+  g_entities[pSelf - level.clients].health = pSelf->ps.stats[0];
+  pSelf->ps.stats[2] = pSelf->sess.maxHealth;
+}
+
+void __cdecl ClientScr_SetScore(gclient_s *pSelf)
+{
+  VariableUnion v1; // [esp+0h] [ebp-10h]
+  int intValue; // [esp+4h] [ebp-Ch]
+  VariableUnion v3; // [esp+8h] [ebp-8h]
+  int score; // [esp+Ch] [ebp-4h]
+
+  score = Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue;
+  if ( !pSelf
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 306, 0, "%s", "pSelf") )
+  {
+    __debugbreak();
+  }
+  if ( (unsigned int)(pSelf - level.clients) >= level.maxclients
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp",
+          307,
+          0,
+          "pSelf - level.clients doesn't index level.maxclients\n\t%i not in [0, %i)",
+          pSelf - level.clients,
+          level.maxclients) )
+  {
+    __debugbreak();
+  }
+  if ( score < 0 )
+  {
+    if ( score < -30000 )
+      v1.intValue = -30000;
+    else
+      v1.intValue = score;
+    intValue = v1.intValue;
+  }
+  else
+  {
+    if ( score > 30000 )
+      v3.intValue = 30000;
+    else
+      v3.intValue = score;
+    intValue = v3.intValue;
+  }
+  pSelf->sess.cs.score.score = intValue;
+  CalculateRanks();
+}
+
+void __cdecl ClientScr_SetKills(gclient_s *pSelf)
+{
+  pSelf->sess.cs.score.kills = ClientScr_SetColumnValue(pSelf, SB_TYPE_KILLS).intValue;
+}
+
+VariableUnion __cdecl ClientScr_SetColumnValue(gclient_s *pSelf, scoreboardColumnType_t columnType)
+{
+  int columnIndex; // [esp+0h] [ebp-8h]
+  int value; // [esp+4h] [ebp-4h]
+
+  value = Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue;
+  pSelf->sess.scoreboardColumnCache[columnType] = value;
+  if ( columnType == SB_TYPE_X2SCORE )
+    value /= 10;
+  columnIndex = ClientScr_GetScoreboardColumnIndexByType(columnType);
+  if ( !pSelf
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 354, 0, "%s", "pSelf") )
+  {
+    __debugbreak();
+  }
+  if ( columnIndex >= 0 )
+    pSelf->sess.cs.score.scoreboardColumns[columnIndex] = value;
+  return (VariableUnion)value;
+}
+
+int __cdecl ClientScr_GetScoreboardColumnIndexByType(scoreboardColumnType_t columnType)
+{
+  int i; // [esp+0h] [ebp-8h]
+  MatchState *matchState; // [esp+4h] [ebp-4h]
+
+  matchState = G_GetMatchState();
+  if ( !matchState
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 336, 0, "%s", "matchState") )
+  {
+    __debugbreak();
+  }
+  for ( i = 0; i < 4; ++i )
+  {
+    if ( matchState->unarchivedState.scoreboardColumnTypes[i] == columnType )
+      return i;
+  }
+  return -1;
+}
+
+void __cdecl ClientScr_SetDeaths(gclient_s *pSelf)
+{
+  pSelf->sess.cs.score.deaths = ClientScr_SetColumnValue(pSelf, SB_TYPE_DEATHS).intValue;
+}
+
+void __cdecl ClientScr_SetAssists(gclient_s *pSelf)
+{
+  pSelf->sess.cs.score.assists = ClientScr_SetColumnValue(pSelf, SB_TYPE_ASSISTS).intValue;
+}
+
+void __cdecl ClientScr_SetDefends(gclient_s *pSelf)
+{
+  ClientScr_SetColumnValue(pSelf, SB_TYPE_DEFENDS);
+}
+
+void __cdecl ClientScr_SetPlants(gclient_s *pSelf)
+{
+  ClientScr_SetColumnValue(pSelf, SB_TYPE_PLANTS);
+}
+
+void __cdecl ClientScr_SetDefuses(gclient_s *pSelf)
+{
+  ClientScr_SetColumnValue(pSelf, SB_TYPE_DEFUSES);
+}
+
+void __cdecl ClientScr_SetReturns(gclient_s *pSelf)
+{
+  ClientScr_SetColumnValue(pSelf, SB_TYPE_RETURNS);
+}
+
+void __cdecl ClientScr_SetCaptures(gclient_s *pSelf)
+{
+  ClientScr_SetColumnValue(pSelf, SB_TYPE_CAPTURES);
+}
+
+void __cdecl ClientScr_SetDestructions(gclient_s *pSelf)
+{
+  ClientScr_SetColumnValue(pSelf, SB_TYPE_DESTRUCTIONS);
+}
+
+void __cdecl ClientScr_SetSurvived(gclient_s *pSelf)
+{
+  ClientScr_SetColumnValue(pSelf, SB_TYPE_SURVIVED);
+}
+
+void __cdecl ClientScr_SetStabs(gclient_s *pSelf)
+{
+  ClientScr_SetColumnValue(pSelf, SB_TYPE_STABS);
+}
+
+void __cdecl ClientScr_SetTomahawks(gclient_s *pSelf)
+{
+  ClientScr_SetColumnValue(pSelf, SB_TYPE_TOMAHAWKS);
+}
+
+void __cdecl ClientScr_SetHumiliated(gclient_s *pSelf)
+{
+  ClientScr_SetColumnValue(pSelf, SB_TYPE_HUMILIATED);
+}
+
+void __cdecl ClientScr_SetX2Score(gclient_s *pSelf)
+{
+  ClientScr_SetColumnValue(pSelf, SB_TYPE_X2SCORE);
+}
+
+void __cdecl ClientScr_SetHeadshots(gclient_s *pSelf)
+{
+  ClientScr_SetColumnValue(pSelf, SB_TYPE_HEADSHOTS);
+}
+
+void __cdecl ClientScr_SetSpectatorClient(gclient_s *pSelf)
+{
+  int iNewSpectatorClient; // [esp+0h] [ebp-4h]
+
+  if ( !pSelf
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 524, 0, "%s", "pSelf") )
+  {
+    __debugbreak();
+  }
+  iNewSpectatorClient = Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue;
+  if ( iNewSpectatorClient < -1 || iNewSpectatorClient >= 32 )
+    Scr_Error("spectatorclient can only be set to -1, or a valid client number", 0);
+  pSelf->sess.forceSpectatorClient = iNewSpectatorClient;
+}
+
+void __cdecl ClientScr_SetKillCamEntity(gclient_s *pSelf)
+{
+  int iNewKillCamEntity; // [esp+0h] [ebp-4h]
+
+  if ( !pSelf
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 545, 0, "%s", "pSelf") )
+  {
+    __debugbreak();
+  }
+  iNewKillCamEntity = Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue;
+  if ( iNewKillCamEntity < -1 || iNewKillCamEntity >= 1024 )
+    Scr_Error("killcamentity can only be set to -1, or a valid entity number", 0);
+  pSelf->sess.killCamEntity = iNewKillCamEntity;
+}
+
+void __cdecl ClientScr_SetKillCamTargetEntity(gclient_s *pSelf)
+{
+  int iNewKillCamEntity; // [esp+0h] [ebp-4h]
+
+  if ( !pSelf
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 559, 0, "%s", "pSelf") )
+  {
+    __debugbreak();
+  }
+  iNewKillCamEntity = Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue;
+  if ( iNewKillCamEntity < -1 || iNewKillCamEntity >= 1024 )
+    Scr_Error("killcamentity can only be set to -1, or a valid entity number", 0);
+  pSelf->sess.killCamTargetEntity = iNewKillCamEntity;
+}
+
+void __cdecl ClientScr_SetStatusIcon(gclient_s *pSelf)
+{
+  char *pszIcon; // [esp+0h] [ebp-4h]
+
+  if ( !pSelf
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 581, 0, "%s", "pSelf") )
+  {
+    __debugbreak();
+  }
+  pszIcon = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
+  pSelf->sess.cs.score.status_icon = GScr_GetStatusIconIndex(pszIcon);
+}
+
+void __cdecl ClientScr_GetStatusIcon(gclient_s *pSelf)
+{
+  char szConfigString[1028]; // [esp+0h] [ebp-408h] BYREF
+
+  if ( !pSelf
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 595, 0, "%s", "pSelf") )
+  {
+    __debugbreak();
+  }
+  if ( pSelf->sess.cs.score.status_icon > 8u
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp",
+          597,
+          0,
+          "%s",
+          "pSelf->sess.cs.score.status_icon >= 0 && pSelf->sess.cs.score.status_icon <= MAX_STATUS_ICONS") )
+  {
+    __debugbreak();
+  }
+  if ( pSelf->sess.cs.score.status_icon )
+  {
+    SV_GetConfigstring(pSelf->sess.cs.score.status_icon + 3091, szConfigString, 1024);
+    Scr_AddString(szConfigString, SCRIPTINSTANCE_SERVER);
+  }
+  else
+  {
+    Scr_AddString((char *)&toastPopupTitle, SCRIPTINSTANCE_SERVER);
+  }
+}
+
+void __cdecl ClientScr_SetHeadIcon(gclient_s *pSelf)
+{
+  gentity_s *pEnt; // [esp+0h] [ebp-8h]
+  char *pszIcon; // [esp+4h] [ebp-4h]
+
+  if ( !pSelf
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 622, 0, "%s", "pSelf") )
+  {
+    __debugbreak();
+  }
+  if ( (unsigned int)(pSelf - level.clients) >= level.maxclients
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp",
+          623,
+          0,
+          "pSelf - level.clients doesn't index level.maxclients\n\t%i not in [0, %i)",
+          pSelf - level.clients,
+          level.maxclients) )
+  {
+    __debugbreak();
+  }
+  pEnt = &g_entities[pSelf - level.clients];
+  pszIcon = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
+  pEnt->s.iHeadIcon = GScr_GetHeadIconIndex(pszIcon);
+}
+
+void __cdecl ClientScr_GetHeadIcon(gclient_s *pSelf)
+{
+  char szConfigString[1024]; // [esp+0h] [ebp-408h] BYREF
+  gentity_s *pEnt; // [esp+404h] [ebp-4h]
+
+  if ( !pSelf
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 643, 0, "%s", "pSelf") )
+  {
+    __debugbreak();
+  }
+  if ( (unsigned int)(pSelf - level.clients) >= level.maxclients
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp",
+          644,
+          0,
+          "pSelf - level.clients doesn't index level.maxclients\n\t%i not in [0, %i)",
+          pSelf - level.clients,
+          level.maxclients) )
+  {
+    __debugbreak();
+  }
+  pEnt = &g_entities[pSelf - level.clients];
+  if ( pEnt->s.iHeadIcon )
+  {
+    if ( pEnt->s.iHeadIcon <= 0xFu )
+    {
+      SV_GetConfigstring(pEnt->s.iHeadIcon + 3099, szConfigString, 1024);
+      Scr_AddString(szConfigString, SCRIPTINSTANCE_SERVER);
+    }
+  }
+  else
+  {
+    Scr_AddString((char *)&toastPopupTitle, SCRIPTINSTANCE_SERVER);
+  }
+}
+
+void __cdecl ClientScr_SetHeadIconTeam(gclient_s *pSelf)
+{
+  char *v1; // eax
+  const char *v2; // eax
+  gentity_s *pEnt; // [esp+0h] [ebp-8h]
+  unsigned __int16 sTeam; // [esp+4h] [ebp-4h]
+
+  if ( !pSelf
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 671, 0, "%s", "pSelf") )
+  {
+    __debugbreak();
+  }
+  if ( (unsigned int)(pSelf - level.clients) >= level.maxclients
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp",
+          672,
+          0,
+          "pSelf - level.clients doesn't index level.maxclients\n\t%i not in [0, %i)",
+          pSelf - level.clients,
+          level.maxclients) )
+  {
+    __debugbreak();
+  }
+  pEnt = &g_entities[pSelf - level.clients];
+  sTeam = (unsigned __int16)Scr_GetConstString(0, SCRIPTINSTANCE_SERVER).floatValue;
+  if ( sTeam == scr_const.none )
+  {
+    pEnt->s.faction.iHeadIconTeam = 0;
+  }
+  else if ( sTeam == scr_const.allies )
+  {
+    pEnt->s.faction.iHeadIconTeam = 2;
+  }
+  else if ( sTeam == scr_const.axis )
+  {
+    pEnt->s.faction.iHeadIconTeam = 1;
+  }
+  else if ( sTeam == scr_const.spectator )
+  {
+    v1 = SL_ConvertToString(sTeam, SCRIPTINSTANCE_SERVER);
+    v2 = va("'%s' is an illegal head icon team string. Must be none, allies, axis, or spectator.", v1);
+    Scr_Error(v2, 0);
+  }
+  else
+  {
+    pEnt->s.faction.iHeadIconTeam = 3;
+  }
+}
+
+void __cdecl ClientScr_GetHeadIconTeam(gclient_s *pSelf)
+{
+  entityState_s::<unnamed_type_faction> v1; // [esp+0h] [ebp-8h]
+
+  if ( !pSelf
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 699, 0, "%s", "pSelf") )
+  {
+    __debugbreak();
+  }
+  if ( (unsigned int)(pSelf - level.clients) >= level.maxclients
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp",
+          700,
+          0,
+          "pSelf - level.clients doesn't index level.maxclients\n\t%i not in [0, %i)",
+          pSelf - level.clients,
+          level.maxclients) )
+  {
+    __debugbreak();
+  }
+  v1.iHeadIconTeam = (unsigned __int8)g_entities[pSelf - level.clients].s.faction;
+  switch ( v1.iHeadIconTeam )
+  {
+    case 1u:
+      Scr_AddConstString(scr_const.axis, SCRIPTINSTANCE_SERVER);
+      break;
+    case 2u:
+      Scr_AddConstString(scr_const.allies, SCRIPTINSTANCE_SERVER);
+      break;
+    case 3u:
+      Scr_AddConstString(scr_const.spectator, SCRIPTINSTANCE_SERVER);
+      break;
+    default:
+      Scr_AddConstString(scr_const.none, SCRIPTINSTANCE_SERVER);
+      break;
+  }
+}
+
+void __cdecl ClientScr_SetArchiveTime(gclient_s *pSelf)
+{
+  if ( !pSelf
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 726, 0, "%s", "pSelf") )
+  {
+    __debugbreak();
+  }
+  pSelf->sess.archiveTime = (int)(Scr_GetFloat(0, SCRIPTINSTANCE_SERVER) * 1000.0);
+}
+
+void __cdecl ClientScr_GetArchiveTime(gclient_s *pSelf)
+{
+  Scr_AddFloat((float)pSelf->sess.archiveTime * 0.001, SCRIPTINSTANCE_SERVER);
+}
+
+void __cdecl ClientScr_SetPSOffsetTime(gclient_s *pSelf)
+{
+  if ( !pSelf
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 749, 0, "%s", "pSelf") )
+  {
+    __debugbreak();
+  }
+  pSelf->sess.psOffsetTime = Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue;
+}
+
+void __cdecl ClientScr_GetEntityFromIndex(gclient_s *pSelf, const client_fields_s *pField)
+{
+  unsigned int entNum; // [esp+4h] [ebp-4h]
+
+  entNum = GetField((const int *)((char *)&pSelf->ps.commandTime + pField->ofs), pField->size[0]);
+  if ( entNum > 0x400
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp",
+          774,
+          0,
+          "entNum not in [0, MAX_GENTITIES]\n\t%i not in [%i, %i]",
+          entNum,
+          0,
+          1024) )
+  {
+    __debugbreak();
+  }
+  if ( entNum != 1023 && entNum != 1022 )
+  {
+    if ( !g_entities[entNum].r.inuse
+      && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 783, 0, "%s", "ent->r.inuse") )
+    {
+      __debugbreak();
+    }
+    Scr_AddEntity(&g_entities[entNum], SCRIPTINSTANCE_SERVER);
+  }
+}
+
+void __cdecl ClientScr_GetPSOffsetTime(gclient_s *pSelf)
+{
+  Scr_AddInt(pSelf->sess.archiveTime, SCRIPTINSTANCE_SERVER);
+}
+
+void __cdecl GScr_AddFieldsForClient()
+{
+  const client_fields_s *f; // [esp+4h] [ebp-4h]
+
+  for ( f = fields; f->name; ++f )
+  {
+    if ( ((f - fields) & 0xC000) != 0
+      && !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp",
+            893,
+            0,
+            "%s",
+            "!((f - fields) & ENTFIELD_MASK)") )
+    {
+      __debugbreak();
+    }
+    if ( f - fields != (unsigned __int16)(f - fields)
+      && !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp",
+            894,
+            0,
+            "%s",
+            "(f - fields) == (unsigned short)( f - fields )") )
+    {
+      __debugbreak();
+    }
+    Scr_AddClassField(0, (char *)f->name, (unsigned __int16)(f - fields) | 0xC000, SCRIPTINSTANCE_SERVER);
+  }
+}
+
+void __cdecl Scr_SetClientField(gclient_s *client, int offset)
+{
+  const client_fields_s *f; // [esp+0h] [ebp-4h]
+
+  if ( !client
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 909, 0, "%s", "client") )
+  {
+    __debugbreak();
+  }
+  if ( (unsigned int)offset >= 0x29
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp",
+          910,
+          0,
+          "%s",
+          "static_cast<unsigned int>( offset ) < ARRAY_COUNT( fields ) - 1") )
+  {
+    __debugbreak();
+  }
+  if ( offset < 0
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 911, 0, "%s", "offset >= 0") )
+  {
+    __debugbreak();
+  }
+  f = &fields[offset];
+  if ( f->setter )
+  {
+    f->setter(client, f);
+  }
+  else
+  {
+    if ( !f->ofs
+      && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 921, 0, "%s", "f->ofs") )
+    {
+      __debugbreak();
+    }
+    GScr_SetGenericField((unsigned __int8 *)client, f->type, f->ofs, 0);
+  }
+}
+
+void __cdecl Scr_GetClientField(gclient_s *client, int offset)
+{
+  const client_fields_s *f; // [esp+0h] [ebp-4h]
+
+  if ( !client
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 940, 0, "%s", "client") )
+  {
+    __debugbreak();
+  }
+  if ( (unsigned int)offset >= 0x29
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp",
+          941,
+          0,
+          "%s",
+          "static_cast<unsigned int>( offset ) < ARRAY_COUNT( fields ) - 1") )
+  {
+    __debugbreak();
+  }
+  if ( offset < 0
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 942, 0, "%s", "offset >= 0") )
+  {
+    __debugbreak();
+  }
+  f = &fields[offset];
+  if ( f->getter )
+  {
+    f->getter(client, f);
+  }
+  else
+  {
+    if ( !f->ofs
+      && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_client_fields.cpp", 952, 0, "%s", "f->ofs") )
+    {
+      __debugbreak();
+    }
+    GScr_GetGenericField((unsigned __int8 *)client, f->type, f->ofs, f->whichbits);
+  }
+}
+

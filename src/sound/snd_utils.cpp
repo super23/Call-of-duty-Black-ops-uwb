@@ -1,0 +1,1213 @@
+#include "snd_utils.h"
+
+unsigned int __cdecl SND_GetSpeakerConfigCount()
+{
+  return 3;
+}
+
+const snd_speaker_config *__cdecl Snd_GetSpeakerConfig(unsigned int index)
+{
+  if ( index >= 3
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          86,
+          0,
+          "%s",
+          "index < SND_SPEAKER_CONFIG_COUNT") )
+  {
+    __debugbreak();
+  }
+  return &snd_speaker_configs[index];
+}
+
+unsigned int __cdecl Snd_GetMixChannelCount(unsigned int speakerConfig)
+{
+  return Snd_GetSpeakerConfig(speakerConfig)->speakerCount;
+}
+
+double __cdecl Snd_PanMono(float angle)
+{
+  float v2; // [esp+8h] [ebp-24h]
+  float D; // [esp+18h] [ebp-14h]
+  float s; // [esp+28h] [ebp-4h]
+  float anglea; // [esp+34h] [ebp+8h]
+
+  anglea = Snd_NormalizeAngle(angle);
+  D = (float)(5.4977875 - 0.78539819) / 2.0;
+  if ( anglea > 0.78539819 || anglea < 5.4977875 )
+    return 1.0;
+  if ( (float)((float)(anglea - 0.78539819) - (float)(5.4977875 - anglea)) < 0.0 )
+    v2 = anglea - 0.78539819;
+  else
+    v2 = 5.4977875 - anglea;
+  s = v2 / D;
+  if ( ((float)(v2 / D) < 0.0 || s > 1.0)
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          152,
+          0,
+          "%s\n\t(s) = %g",
+          "(s >= 0.0f && s <= 1.0f)",
+          s) )
+  {
+    __debugbreak();
+  }
+  return 0.2 * 0.69999999 + (1.0 - 0.69999999) * s;
+}
+
+double __cdecl Snd_NormalizeAngle(float x)
+{
+  while ( x >= 6.2831855 )
+    x = x - 6.2831855;
+  while ( x < 0.0 )
+    x = x + 6.2831855;
+  return x;
+}
+
+void __cdecl Snd_PanStereo(float angle, float boost, float *left, float *right)
+{
+  float v4; // [esp+Ch] [ebp-24h]
+  float v5; // [esp+10h] [ebp-20h]
+  float v6; // [esp+14h] [ebp-1Ch]
+  float v7; // [esp+18h] [ebp-18h]
+  float v8; // [esp+1Ch] [ebp-14h]
+  float v9; // [esp+20h] [ebp-10h]
+  float v10; // [esp+24h] [ebp-Ch]
+  float A; // [esp+28h] [ebp-8h]
+  float anglea; // [esp+38h] [ebp+8h]
+
+  A = Snd_PanMono(angle);
+  anglea = Snd_NormalizeAngle(angle + 1.5707964);
+  if ( anglea > 3.1415927 )
+    v6 = 6.2831855 - anglea;
+  else
+    v6 = anglea;
+  if ( v6 > 3.1415927
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          166,
+          0,
+          "%s\n\t(angleFromRight) = %g",
+          "(angleFromRight <= (3.141592653f))",
+          v6) )
+  {
+    __debugbreak();
+  }
+  SND_EqualPowerFadeCoefs(v6 / 3.1415927, left, right);
+  v9 = (float)(*left * A) + boost;
+  if ( (float)(v9 - 1.0) < 0.0 )
+    v10 = (float)(*left * A) + boost;
+  else
+    v10 = FLOAT_1_0;
+  if ( (float)(0.0 - v9) < 0.0 )
+    v5 = v10;
+  else
+    v5 = *(float *)&FLOAT_0_0;
+  *left = v5;
+  v7 = (float)(*right * A) + boost;
+  if ( (float)(v7 - 1.0) < 0.0 )
+    v8 = (float)(*right * A) + boost;
+  else
+    v8 = FLOAT_1_0;
+  if ( (float)(0.0 - v7) < 0.0 )
+    v4 = v8;
+  else
+    v4 = *(float *)&FLOAT_0_0;
+  *right = v4;
+}
+
+void __cdecl Snd_Pan(unsigned int speakerCount, const float *angles, float toSound, float *levels)
+{
+  unsigned int k; // [esp+14h] [ebp-1Ch]
+  unsigned int j; // [esp+18h] [ebp-18h]
+  unsigned int i; // [esp+1Ch] [ebp-14h]
+  float spread; // [esp+20h] [ebp-10h]
+  unsigned int rightIndex; // [esp+24h] [ebp-Ch]
+  unsigned int leftIndex; // [esp+28h] [ebp-8h]
+  float sound; // [esp+2Ch] [ebp-4h]
+
+  leftIndex = -1;
+  rightIndex = -1;
+  for ( i = 0; i < speakerCount; ++i )
+  {
+    if ( angles[i] < 0.0
+      && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp", 182, 0, "%s", "angles[i] >= 0") )
+    {
+      __debugbreak();
+    }
+    if ( angles[i] >= 6.2831855
+      && !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+            183,
+            0,
+            "%s",
+            "angles[i] < SND_2PI") )
+    {
+      __debugbreak();
+    }
+    levels[i] = *(float *)&FLOAT_0_0;
+  }
+  for ( j = 0; j < speakerCount; ++j )
+  {
+    if ( Snd_AngleInInterval(toSound, angles[j], angles[(j + 1) % speakerCount]) )
+    {
+      leftIndex = j;
+      rightIndex = (j + 1) % speakerCount;
+      break;
+    }
+  }
+  if ( leftIndex == -1
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          197,
+          0,
+          "%s",
+          "(leftIndex != 0xFFFFFFFF)") )
+  {
+    __debugbreak();
+  }
+  if ( rightIndex == -1
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          198,
+          0,
+          "%s",
+          "(rightIndex != 0xFFFFFFFF)") )
+  {
+    __debugbreak();
+  }
+  spread = Snd_NormalizeAngle(angles[rightIndex] - angles[leftIndex]);
+  sound = Snd_NormalizeAngle(toSound - angles[leftIndex]);
+  if ( (float)(spread - sound) <= -0.0000152879
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          203,
+          0,
+          "%s",
+          "spread-sound > -SND_EPSILON") )
+  {
+    __debugbreak();
+  }
+  SND_EqualPowerFadeCoefs(sound / spread, &levels[leftIndex], &levels[rightIndex]);
+  for ( k = 0; k < speakerCount; ++k )
+  {
+    if ( (LODWORD(levels[k]) & 0x7F800000) == 0x7F800000
+      && !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+            209,
+            0,
+            "%s",
+            "!IS_NAN(levels[i])") )
+    {
+      __debugbreak();
+    }
+    if ( levels[k] < 0.0
+      && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp", 210, 0, "%s", "levels[i] >= 0.0f") )
+    {
+      __debugbreak();
+    }
+    if ( levels[k] > 1.0
+      && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp", 211, 0, "%s", "levels[i] <= 1.0f") )
+    {
+      __debugbreak();
+    }
+  }
+}
+
+bool __cdecl Snd_AngleInInterval(float angle, float left, float right)
+{
+  float anglea; // [esp+14h] [ebp+8h]
+  float lefta; // [esp+18h] [ebp+Ch]
+  float righta; // [esp+1Ch] [ebp+10h]
+
+  anglea = Snd_NormalizeAngle(angle);
+  lefta = Snd_NormalizeAngle(left);
+  righta = Snd_NormalizeAngle(right);
+  if ( righta <= lefta )
+    return anglea >= lefta || righta >= anglea;
+  else
+    return righta >= anglea && anglea >= lefta;
+}
+
+void __cdecl Snd_Pan3d(
+        const snd_speaker_config *config,
+        const float *position,
+        const float *forward,
+        const float *listener,
+        float centerSend,
+        float lfeSend,
+        float aliasOmni,
+        snd_speaker_map *pan)
+{
+  double v8; // st7
+  double v9; // xmm0_8
+  double v10; // xmm0_8
+  long double v11; // [esp+10h] [ebp-E8h]
+  long double v12; // [esp+10h] [ebp-E8h]
+  float v13; // [esp+10h] [ebp-E8h]
+  float v14; // [esp+14h] [ebp-E4h]
+  long double v15; // [esp+18h] [ebp-E0h]
+  long double v16; // [esp+18h] [ebp-E0h]
+  float v17; // [esp+20h] [ebp-D8h]
+  float v18; // [esp+28h] [ebp-D0h]
+  float v19; // [esp+2Ch] [ebp-CCh]
+  float v20; // [esp+30h] [ebp-C8h]
+  float v21; // [esp+38h] [ebp-C0h]
+  float v22; // [esp+48h] [ebp-B0h]
+  unsigned int j; // [esp+78h] [ebp-80h]
+  float scale; // [esp+80h] [ebp-78h]
+  signed int out; // [esp+84h] [ebp-74h]
+  unsigned int m; // [esp+88h] [ebp-70h]
+  unsigned int k; // [esp+8Ch] [ebp-6Ch]
+  unsigned int i; // [esp+90h] [ebp-68h]
+  float d; // [esp+94h] [ebp-64h]
+  float angle; // [esp+98h] [ebp-60h]
+  float omniBaseVolume; // [esp+9Ch] [ebp-5Ch]
+  float levels[8]; // [esp+A0h] [ebp-58h] BYREF
+  float angles[8]; // [esp+C0h] [ebp-38h] BYREF
+  float d2; // [esp+E0h] [ebp-18h]
+  float totalVolume; // [esp+E4h] [ebp-14h]
+  float to[3]; // [esp+E8h] [ebp-10h]
+  float omni; // [esp+F4h] [ebp-4h]
+
+  if ( !config && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp", 225, 0, "%s", "config") )
+    __debugbreak();
+  if ( ((*(unsigned int *)position & 0x7F800000) == 0x7F800000
+     || ((unsigned int)position[1] & 0x7F800000) == 0x7F800000
+     || ((unsigned int)position[2] & 0x7F800000) == 0x7F800000)
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          226,
+          0,
+          "%s",
+          "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])") )
+  {
+    __debugbreak();
+  }
+  if ( ((*(unsigned int *)listener & 0x7F800000) == 0x7F800000
+     || ((unsigned int)listener[1] & 0x7F800000) == 0x7F800000
+     || ((unsigned int)listener[2] & 0x7F800000) == 0x7F800000)
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          227,
+          0,
+          "%s",
+          "!IS_NAN((listener)[0]) && !IS_NAN((listener)[1]) && !IS_NAN((listener)[2])") )
+  {
+    __debugbreak();
+  }
+  if ( (centerSend < 0.0 || centerSend > 1.0)
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          228,
+          0,
+          "%s\n\t(centerSend) = %g",
+          "(centerSend >= 0.0f && centerSend <= 1.0f)",
+          centerSend) )
+  {
+    __debugbreak();
+  }
+  if ( (lfeSend < 0.0 || lfeSend > 1.0)
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          229,
+          0,
+          "%s\n\t(lfeSend) = %g",
+          "(lfeSend >= 0.0f && lfeSend <= 1.0f)",
+          lfeSend) )
+  {
+    __debugbreak();
+  }
+  if ( (aliasOmni < 0.0 || aliasOmni > 1.0)
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          230,
+          0,
+          "%s\n\t(aliasOmni) = %g",
+          "(aliasOmni >= 0.0f && aliasOmni <= 1.0f)",
+          aliasOmni) )
+  {
+    __debugbreak();
+  }
+  if ( Abs(forward) <= 0.99998474 || Abs(forward) >= 1.0000153 )
+  {
+    v8 = Abs(forward);
+    if ( !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+            231,
+            0,
+            "%s\n\t(Vec3Length(forward)) = %g",
+            "(Vec3Length(forward) > 1.0f-(1.52879e-5f) && Vec3Length(forward) < 1.0f+(1.52879e-5f))",
+            v8) )
+      __debugbreak();
+  }
+  if ( !pan && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp", 232, 0, "%s", "pan") )
+    __debugbreak();
+  if ( pan->input_channel_count != 1
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          239,
+          0,
+          "%s",
+          "pan->input_channel_count == 1") )
+  {
+    __debugbreak();
+  }
+  to[0] = *position - *listener;
+  to[1] = position[1] - listener[1];
+  to[2] = position[2] - listener[2];
+  d2 = (float)(to[0] * to[0]) + (float)(to[1] * to[1]);
+  d = fsqrt(d2);
+  angle = *(float *)&FLOAT_0_0;
+  omni = *(float *)&FLOAT_0_0;
+  for ( i = 0; i < config->angleCount; ++i )
+  {
+    levels[i] = *(float *)&FLOAT_0_0;
+    angles[i] = config->angles[i].angle;
+  }
+  if ( d2 <= 0.0000152879 )
+  {
+    omni = FLOAT_1_0;
+  }
+  else
+  {
+    v9 = to[0];
+    __libm_sse2_atan2(v11, v15);
+    *(float *)&v9 = v9;
+    v22 = *(float *)&v9;
+    v10 = *forward;
+    __libm_sse2_atan2(v12, v16);
+    *(float *)&v10 = v10;
+    angle = Snd_NormalizeAngle(v22 - *(float *)&v10);
+    if ( (float)((float)(d / 10.0) - 1.0) < 0.0 )
+      v21 = d / 10.0;
+    else
+      v21 = FLOAT_1_0;
+    if ( (float)(0.0 - (float)(d / 10.0)) < 0.0 )
+      v17 = v21;
+    else
+      v17 = *(float *)&FLOAT_0_0;
+    omni = 1.0 - v17;
+  }
+  v20 = 1.0 / (double)config->speakerCount;
+  omniBaseVolume = fsqrt(v20);
+  if ( omni != 1.0 )
+  {
+    if ( config->angleCount == 1 )
+    {
+      levels[0] = Snd_PanMono(angle);
+    }
+    else if ( config->angleCount == 2 )
+    {
+      Snd_PanStereo(angle, centerSend, levels, &levels[1]);
+    }
+    else
+    {
+      Snd_Pan(config->angleCount, angles, angle, levels);
+    }
+  }
+  totalVolume = *(float *)&FLOAT_0_0;
+  for ( k = 0; k < config->angleCount; ++k )
+  {
+    levels[k] = (float)((float)(1.0 - omni) * levels[k]) + (float)(omniBaseVolume * omni);
+    totalVolume = (float)(levels[k] * levels[k]) + totalVolume;
+  }
+  v19 = fsqrt(totalVolume);
+  if ( (float)(v19 - 1.0) < 0.0 )
+    v18 = v19;
+  else
+    v18 = FLOAT_1_0;
+  if ( (float)(0.0 - v19) < 0.0 )
+    v14 = v18;
+  else
+    v14 = *(float *)&FLOAT_0_0;
+  totalVolume = v14;
+  for ( m = 0; m < config->angleCount; ++m )
+    levels[m] = (float)((float)(1.0 - aliasOmni) * levels[m]) + (float)(totalVolume * aliasOmni);
+  if ( pan->output_channel_count != config->speakerCount
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          296,
+          0,
+          "%s",
+          "pan->output_channel_count == (int)config->speakerCount") )
+  {
+    __debugbreak();
+  }
+  for ( out = 0; out < (signed int)config->speakerCount; ++out )
+  {
+    scale = *(float *)&FLOAT_0_0;
+    if ( (config->outputFormat & (1 << out)) != 0 )
+    {
+      for ( j = 0; j < config->angleCount; ++j )
+      {
+        if ( config->angles[j].speaker == 1 << out )
+        {
+          scale = levels[j];
+          break;
+        }
+      }
+      if ( out == 2 )
+      {
+        if ( (float)(centerSend - scale) < 0.0 )
+          v13 = scale;
+        else
+          v13 = centerSend;
+        scale = v13;
+      }
+      else if ( out == 3 )
+      {
+        scale = lfeSend;
+      }
+    }
+    if ( (LODWORD(scale) & 0x7F800000) == 0x7F800000
+      && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp", 325, 0, "%s", "!IS_NAN(scale)") )
+    {
+      __debugbreak();
+    }
+    if ( scale < 0.0
+      && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp", 326, 0, "%s", "scale>=0.0f") )
+    {
+      __debugbreak();
+    }
+    if ( scale > 1.0
+      && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp", 327, 0, "%s", "scale<=1.0f") )
+    {
+      __debugbreak();
+    }
+    Snd_SpeakerMapSetVolume(pan, 0, out, scale);
+  }
+}
+
+void __cdecl SND_EqualPowerFadeCoefs(float t, float *a, float *b)
+{
+  long double v3; // [esp+0h] [ebp-2Ch]
+  long double v4; // [esp+0h] [ebp-2Ch]
+  float v5; // [esp+0h] [ebp-2Ch]
+  float v6; // [esp+8h] [ebp-24h]
+  float v7; // [esp+14h] [ebp-18h]
+  float v8; // [esp+1Ch] [ebp-10h]
+  float v9; // [esp+24h] [ebp-8h]
+
+  if ( (LODWORD(t) & 0x7F800000) == 0x7F800000
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp", 336, 0, "%s", "!IS_NAN(t)") )
+  {
+    __debugbreak();
+  }
+  if ( (float)(t - 1.0) < 0.0 )
+    v9 = t;
+  else
+    v9 = FLOAT_1_0;
+  if ( (float)(0.0 - t) < 0.0 )
+    v6 = v9;
+  else
+    v6 = *(float *)&FLOAT_0_0;
+  __libm_sse2_cos(v3);
+  if ( (float)((float)(1.5707964 * v6) - 1.0) < 0.0 )
+    v8 = 1.5707964 * v6;
+  else
+    v8 = FLOAT_1_0;
+  if ( (float)(0.0 - (float)(1.5707964 * v6)) < 0.0 )
+    *((float *)&v4 + 1) = v8;
+  else
+    HIDWORD(v4) = *(unsigned int *)&FLOAT_0_0;
+  *a = *((float *)&v4 + 1);
+  __libm_sse2_sin(v4);
+  if ( (float)((float)(1.5707964 * v6) - 1.0) < 0.0 )
+    v7 = 1.5707964 * v6;
+  else
+    v7 = FLOAT_1_0;
+  if ( (float)(0.0 - (float)(1.5707964 * v6)) < 0.0 )
+    v5 = v7;
+  else
+    v5 = *(float *)&FLOAT_0_0;
+  *b = v5;
+  if ( (*(unsigned int *)a & 0x7F800000) == 0x7F800000
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp", 341, 0, "%s", "!IS_NAN(*a)") )
+  {
+    __debugbreak();
+  }
+  if ( (*(unsigned int *)b & 0x7F800000) == 0x7F800000
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp", 342, 0, "%s", "!IS_NAN(*b)") )
+  {
+    __debugbreak();
+  }
+}
+
+void __cdecl SND_GetNearestPointOnSegment(
+        const float *P,
+        const float *segmentA,
+        const float *segmentB,
+        float *nearPoint)
+{
+  float BA; // [esp+30h] [ebp-20h]
+  float BA_4; // [esp+34h] [ebp-1Ch]
+  float BA_8; // [esp+38h] [ebp-18h]
+  float fraction; // [esp+48h] [ebp-8h]
+  float segmentLengthSq; // [esp+4Ch] [ebp-4h]
+
+  if ( ((*(unsigned int *)P & 0x7F800000) == 0x7F800000
+     || ((unsigned int)P[1] & 0x7F800000) == 0x7F800000
+     || ((unsigned int)P[2] & 0x7F800000) == 0x7F800000)
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          348,
+          0,
+          "%s",
+          "!IS_NAN((P)[0]) && !IS_NAN((P)[1]) && !IS_NAN((P)[2])") )
+  {
+    __debugbreak();
+  }
+  if ( ((*(unsigned int *)segmentA & 0x7F800000) == 0x7F800000
+     || ((unsigned int)segmentA[1] & 0x7F800000) == 0x7F800000
+     || ((unsigned int)segmentA[2] & 0x7F800000) == 0x7F800000)
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          349,
+          0,
+          "%s",
+          "!IS_NAN((segmentA)[0]) && !IS_NAN((segmentA)[1]) && !IS_NAN((segmentA)[2])") )
+  {
+    __debugbreak();
+  }
+  if ( ((*(unsigned int *)segmentB & 0x7F800000) == 0x7F800000
+     || ((unsigned int)segmentB[1] & 0x7F800000) == 0x7F800000
+     || ((unsigned int)segmentB[2] & 0x7F800000) == 0x7F800000)
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          350,
+          0,
+          "%s",
+          "!IS_NAN((segmentB)[0]) && !IS_NAN((segmentB)[1]) && !IS_NAN((segmentB)[2])") )
+  {
+    __debugbreak();
+  }
+  *nearPoint = *(float *)&FLOAT_0_0;
+  nearPoint[1] = *(float *)&FLOAT_0_0;
+  nearPoint[2] = *(float *)&FLOAT_0_0;
+  BA = *segmentB - *segmentA;
+  BA_4 = segmentB[1] - segmentA[1];
+  BA_8 = segmentB[2] - segmentA[2];
+  segmentLengthSq = (float)((float)(BA * BA) + (float)(BA_4 * BA_4)) + (float)(BA_8 * BA_8);
+  if ( segmentLengthSq >= 1.0 )
+  {
+    fraction = (float)((float)((float)(BA * (float)(*P - *segmentA)) + (float)(BA_4 * (float)(P[1] - segmentA[1])))
+                     + (float)(BA_8 * (float)(P[2] - segmentA[2])))
+             / segmentLengthSq;
+    if ( fraction >= 0.0 )
+    {
+      if ( fraction <= 1.0 )
+      {
+        *nearPoint = (float)(fraction * BA) + *segmentA;
+        nearPoint[1] = (float)(fraction * BA_4) + segmentA[1];
+        nearPoint[2] = (float)(fraction * BA_8) + segmentA[2];
+      }
+      else
+      {
+        *nearPoint = *segmentB;
+        nearPoint[1] = segmentB[1];
+        nearPoint[2] = segmentB[2];
+      }
+    }
+    else
+    {
+      *nearPoint = *segmentA;
+      nearPoint[1] = segmentA[1];
+      nearPoint[2] = segmentA[2];
+    }
+    if ( ((*(unsigned int *)nearPoint & 0x7F800000) == 0x7F800000
+       || ((unsigned int)nearPoint[1] & 0x7F800000) == 0x7F800000
+       || ((unsigned int)nearPoint[2] & 0x7F800000) == 0x7F800000)
+      && !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+            387,
+            0,
+            "%s",
+            "!IS_NAN((nearPoint)[0]) && !IS_NAN((nearPoint)[1]) && !IS_NAN((nearPoint)[2])") )
+    {
+      __debugbreak();
+    }
+  }
+  else
+  {
+    *nearPoint = *segmentA;
+    nearPoint[1] = segmentA[1];
+    nearPoint[2] = segmentA[2];
+  }
+}
+
+void __cdecl SND_GetNearestPointOnStrip(
+        const float *point,
+        const float (*verts)[3],
+        unsigned int count,
+        float *position)
+{
+  float d; // [esp+Ch] [ebp-1Ch]
+  unsigned int i; // [esp+10h] [ebp-18h]
+  bool copied; // [esp+17h] [ebp-11h]
+  float nearestDistance; // [esp+18h] [ebp-10h]
+  float nearestOnSegment[3]; // [esp+1Ch] [ebp-Ch] BYREF
+
+  nearestDistance = FLOAT_3_4028235e38;
+  copied = 0;
+  for ( i = 0; i < count - 1; ++i )
+  {
+    SND_GetNearestPointOnSegment(point, &(*verts)[3 * i], &(*verts)[3 * i + 3], nearestOnSegment);
+    d = Vec3DistanceSq(point, nearestOnSegment);
+    if ( nearestDistance > d )
+    {
+      nearestDistance = d;
+      *position = nearestOnSegment[0];
+      position[1] = nearestOnSegment[1];
+      position[2] = nearestOnSegment[2];
+      copied = 1;
+    }
+  }
+  if ( !copied && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp", 411, 0, "%s", "copied") )
+    __debugbreak();
+}
+
+unsigned int __cdecl SND_HashAlias(const snd_alias_list_t *alias)
+{
+  return alias->id;
+}
+
+const char *__cdecl SND_GetAliasName(const snd_alias_list_t *alias)
+{
+  if ( alias && alias->name )
+    return alias->name;
+  else
+    return "null";
+}
+
+double __cdecl SND_dBToLinear()
+{
+  long double v1; // [esp+0h] [ebp-Ch]
+  float v3; // [esp+4h] [ebp-8h]
+  long double x; // [esp+8h] [ebp-4h]
+  float xa; // [esp+8h] [ebp-4h]
+
+  __libm_sse2_pow(v1, x);
+  xa = 10.0;
+  if ( (float)10.0 < 0.0000152879 )
+    xa = *(float *)&FLOAT_0_0;
+  if ( (float)(xa - 1.0) < 0.0 )
+    v3 = xa;
+  else
+    v3 = FLOAT_1_0;
+  if ( (float)(0.0 - xa) < 0.0 )
+    return v3;
+  else
+    return *(float *)&FLOAT_0_0;
+}
+
+double __cdecl SND_LinearToDb(float linear)
+{
+  float v2; // [esp+0h] [ebp-4h]
+
+  if ( linear < 0.0000152879 )
+    linear = FLOAT_0_0000152879;
+  v2 = log10(linear);
+  return v2 * 20.0;
+}
+
+double __cdecl SND_LinearToDbSpl(float linear)
+{
+  float db; // [esp+4h] [ebp-4h]
+
+  db = SND_LinearToDb(linear);
+  if ( db > -95.0 )
+    return (float)(db + 100.0);
+  else
+    return *(float *)&FLOAT_0_0;
+}
+
+double __cdecl SND_dBSPLToLinear()
+{
+  return SND_dBToLinear();
+}
+
+int __cdecl SND_HashName(const char *name)
+{
+  unsigned int v2; // kr00_4
+  unsigned int i; // [esp+10h] [ebp-Ch]
+  int hash; // [esp+14h] [ebp-8h]
+
+  if ( !name || !*name )
+    return 0;
+  v2 = strlen(name);
+  hash = 5381;
+  for ( i = 0; i < v2; ++i )
+    hash = (hash << 16) + (hash << 6) + tolower(name[i]) - hash;
+  if ( !hash )
+    return 1;
+  return hash;
+}
+
+void __cdecl Snd_SpeakerMapSetVolume(snd_speaker_map *map, int in, int out, float volume)
+{
+  if ( (volume < 0.0 || volume > 1.0)
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          523,
+          0,
+          "%s\n\t(volume) = %g",
+          "(volume >= 0.0f && volume <= 1.0f)",
+          volume) )
+  {
+    __debugbreak();
+  }
+  map->volumes[Snd_SpeakerMapGetIndex(map, in, out)] = volume;
+}
+
+void __cdecl Snd_SpeakerMapZero(snd_speaker_map *map)
+{
+  int i; // [esp+0h] [ebp-4h]
+
+  for ( i = 0; i < 16; ++i )
+    map->volumes[i] = *(float *)&FLOAT_0_0;
+}
+
+int __cdecl Snd_SpeakerMapGetIndex(const snd_speaker_map *map, int in, int out)
+{
+  int i; // [esp+0h] [ebp-4h]
+
+  if ( in >= map->input_channel_count
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          568,
+          0,
+          "%s",
+          "in < map->input_channel_count") )
+  {
+    __debugbreak();
+  }
+  if ( out >= map->output_channel_count
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          569,
+          0,
+          "%s",
+          "out < map->output_channel_count") )
+  {
+    __debugbreak();
+  }
+  i = out + map->output_channel_count * in;
+  if ( i >= 16
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          571,
+          0,
+          "%s",
+          "i < SND_CHANNEL_MAP_VOLUME_COUNT") )
+  {
+    __debugbreak();
+  }
+  return i;
+}
+
+double __cdecl Snd_SpeakerMapGetVolume(const snd_speaker_map *map, int in, int out)
+{
+  float volume; // [esp+0h] [ebp-4h]
+
+  volume = map->volumes[Snd_SpeakerMapGetIndex(map, in, out)];
+  if ( volume < 0.0
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp", 579, 0, "%s", "volume >= 0.0f") )
+  {
+    __debugbreak();
+  }
+  if ( volume > 1.0
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp", 580, 0, "%s", "volume <= 1.0f") )
+  {
+    __debugbreak();
+  }
+  return volume;
+}
+
+void __cdecl SND_PanToSpeakermap(
+        unsigned int inputChannelCount,
+        unsigned int outputChannelCount,
+        const snd_pan *pan,
+        float centerSend,
+        snd_speaker_map *map)
+{
+  float v5; // [esp+4h] [ebp-2Ch]
+  float v6; // [esp+Ch] [ebp-24h]
+  float v7; // [esp+14h] [ebp-1Ch]
+  float volume; // [esp+18h] [ebp-18h]
+  float center; // [esp+2Ch] [ebp-4h]
+  float centera; // [esp+2Ch] [ebp-4h]
+  float centerb; // [esp+2Ch] [ebp-4h]
+  float centerc; // [esp+2Ch] [ebp-4h]
+  float centerd; // [esp+2Ch] [ebp-4h]
+  float centere; // [esp+2Ch] [ebp-4h]
+
+  if ( !inputChannelCount
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp", 698, 0, "%s", "inputChannelCount") )
+  {
+    __debugbreak();
+  }
+  if ( !outputChannelCount
+    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp", 699, 0, "%s", "outputChannelCount") )
+  {
+    __debugbreak();
+  }
+  Snd_SpeakerMapZero(map);
+  map->input_channel_count = inputChannelCount;
+  map->output_channel_count = outputChannelCount;
+  if ( inputChannelCount == 1 )
+  {
+    switch ( outputChannelCount )
+    {
+      case 1u:
+        SND_PanToSpeakermap11(pan, map);
+        return;
+      case 2u:
+        SND_PanToSpeakermap12(pan, map);
+        return;
+      case 6u:
+        SND_PanToSpeakermap16(pan, map);
+        center = Snd_SpeakerMapGetVolume(map, 0, 2);
+        if ( (float)(center - centerSend) < 0.0 )
+          volume = centerSend;
+        else
+          volume = center;
+        Snd_SpeakerMapSetVolume(map, 0, 2, volume);
+        return;
+      case 8u:
+        SND_PanToSpeakermap18(pan, map);
+        centera = Snd_SpeakerMapGetVolume(map, 0, 2);
+        if ( (float)(centera - centerSend) < 0.0 )
+          v7 = centerSend;
+        else
+          v7 = centera;
+        Snd_SpeakerMapSetVolume(map, 0, 2, v7);
+        return;
+    }
+LABEL_44:
+    Com_PrintError(9, "invalid channel count %d %d\n", inputChannelCount, outputChannelCount);
+    return;
+  }
+  if ( inputChannelCount != 2 )
+    goto LABEL_44;
+  switch ( outputChannelCount )
+  {
+    case 1u:
+      SND_PanToSpeakermap21(pan, map);
+      return;
+    case 2u:
+      SND_PanToSpeakermap22(pan, map);
+      return;
+    case 6u:
+      SND_PanToSpeakermap26(pan, map);
+      centerb = Snd_SpeakerMapGetVolume(map, 0, 2);
+      if ( (float)(centerb - (float)(centerSend * 0.70710677)) < 0.0 )
+        Snd_SpeakerMapSetVolume(map, 0, 2, centerSend * 0.70710677);
+      else
+        Snd_SpeakerMapSetVolume(map, 0, 2, centerb);
+      centerc = Snd_SpeakerMapGetVolume(map, 1, 2);
+      if ( (float)(centerc - (float)(centerSend * 0.70710677)) < 0.0 )
+        v6 = centerSend * 0.70710677;
+      else
+        v6 = centerc;
+      Snd_SpeakerMapSetVolume(map, 1, 2, v6);
+      break;
+    case 8u:
+      SND_PanToSpeakermap28(pan, map);
+      centerd = Snd_SpeakerMapGetVolume(map, 0, 2);
+      if ( (float)(centerd - (float)(centerSend * 0.70710677)) < 0.0 )
+        Snd_SpeakerMapSetVolume(map, 0, 2, centerSend * 0.70710677);
+      else
+        Snd_SpeakerMapSetVolume(map, 0, 2, centerd);
+      centere = Snd_SpeakerMapGetVolume(map, 1, 2);
+      if ( (float)(centere - (float)(centerSend * 0.70710677)) < 0.0 )
+        v5 = centerSend * 0.70710677;
+      else
+        v5 = centere;
+      Snd_SpeakerMapSetVolume(map, 1, 2, v5);
+      break;
+    default:
+      goto LABEL_44;
+  }
+}
+
+void __cdecl SND_PanToSpeakermap11(const snd_pan *pan, snd_speaker_map *map)
+{
+  float volume; // [esp+4h] [ebp-Ch]
+  float v3; // [esp+8h] [ebp-8h]
+  float v4; // [esp+Ch] [ebp-4h]
+
+  Snd_SpeakerMapZero(map);
+  if ( map->input_channel_count != 1
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          588,
+          0,
+          "%s",
+          "map->input_channel_count == 1") )
+  {
+    __debugbreak();
+  }
+  if ( map->output_channel_count != 1
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          589,
+          0,
+          "%s",
+          "map->output_channel_count == 1") )
+  {
+    __debugbreak();
+  }
+  v3 = pan->front + pan->back;
+  if ( (float)(v3 - 1.0) < 0.0 )
+    v4 = pan->front + pan->back;
+  else
+    v4 = FLOAT_1_0;
+  if ( (float)(0.0 - v3) < 0.0 )
+    volume = v4;
+  else
+    volume = *(float *)&FLOAT_0_0;
+  Snd_SpeakerMapSetVolume(map, 0, 0, volume);
+}
+
+void __cdecl SND_PanToSpeakermap12(const snd_pan *pan, snd_speaker_map *map)
+{
+  float v2; // [esp+4h] [ebp-18h]
+  float v3; // [esp+8h] [ebp-14h]
+  float v4; // [esp+Ch] [ebp-10h]
+  float v5; // [esp+10h] [ebp-Ch]
+  float v6; // [esp+14h] [ebp-8h]
+  float v7; // [esp+18h] [ebp-4h]
+
+  Snd_SpeakerMapZero(map);
+  if ( map->input_channel_count != 1
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          597,
+          0,
+          "%s",
+          "map->input_channel_count == 1") )
+  {
+    __debugbreak();
+  }
+  if ( map->output_channel_count != 2
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          598,
+          0,
+          "%s",
+          "map->output_channel_count == 2") )
+  {
+    __debugbreak();
+  }
+  v6 = pan->front + pan->back;
+  if ( (float)(v6 - 1.0) < 0.0 )
+    v7 = pan->front + pan->back;
+  else
+    v7 = FLOAT_1_0;
+  if ( (float)(0.0 - v6) < 0.0 )
+    v3 = v7;
+  else
+    v3 = *(float *)&FLOAT_0_0;
+  Snd_SpeakerMapSetVolume(map, 0, 0, v3 * pan->left);
+  v4 = pan->front + pan->back;
+  if ( (float)(v4 - 1.0) < 0.0 )
+    v5 = pan->front + pan->back;
+  else
+    v5 = FLOAT_1_0;
+  if ( (float)(0.0 - v4) < 0.0 )
+    v2 = v5;
+  else
+    v2 = *(float *)&FLOAT_0_0;
+  Snd_SpeakerMapSetVolume(map, 0, 1, v2 * pan->right);
+}
+
+void __cdecl SND_PanToSpeakermap16(const snd_pan *pan, snd_speaker_map *map)
+{
+  Snd_SpeakerMapZero(map);
+  if ( map->input_channel_count != 1
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          607,
+          0,
+          "%s",
+          "map->input_channel_count == 1") )
+  {
+    __debugbreak();
+  }
+  if ( map->output_channel_count != 6
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          608,
+          0,
+          "%s",
+          "map->output_channel_count == 6") )
+  {
+    __debugbreak();
+  }
+  Snd_SpeakerMapSetVolume(map, 0, 0, pan->front * pan->left);
+  Snd_SpeakerMapSetVolume(map, 0, 1, pan->front * pan->right);
+  Snd_SpeakerMapSetVolume(map, 0, 2, pan->center);
+  Snd_SpeakerMapSetVolume(map, 0, 3, pan->lfe);
+  Snd_SpeakerMapSetVolume(map, 0, 4, pan->back * pan->left);
+  Snd_SpeakerMapSetVolume(map, 0, 5, pan->back * pan->right);
+}
+
+void __cdecl SND_PanToSpeakermap18(const snd_pan *pan, snd_speaker_map *map)
+{
+  Snd_SpeakerMapZero(map);
+  if ( map->input_channel_count != 1
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          621,
+          0,
+          "%s",
+          "map->input_channel_count == 1") )
+  {
+    __debugbreak();
+  }
+  if ( map->output_channel_count != 8
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          622,
+          0,
+          "%s",
+          "map->output_channel_count == 8") )
+  {
+    __debugbreak();
+  }
+  Snd_SpeakerMapSetVolume(map, 0, 0, pan->front * pan->left);
+  Snd_SpeakerMapSetVolume(map, 0, 1, pan->front * pan->right);
+  Snd_SpeakerMapSetVolume(map, 0, 2, pan->center);
+  Snd_SpeakerMapSetVolume(map, 0, 3, pan->lfe);
+  Snd_SpeakerMapSetVolume(map, 0, 4, (float)(pan->back * 0.5) * pan->left);
+  Snd_SpeakerMapSetVolume(map, 0, 5, (float)(pan->back * 0.5) * pan->right);
+  Snd_SpeakerMapSetVolume(map, 0, 6, (float)(pan->back * 0.5) * pan->left);
+  Snd_SpeakerMapSetVolume(map, 0, 7, (float)(pan->back * 0.5) * pan->right);
+}
+
+void __cdecl SND_PanToSpeakermap21(const snd_pan *pan, snd_speaker_map *map)
+{
+  Snd_SpeakerMapZero(map);
+  if ( map->input_channel_count != 2
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          637,
+          0,
+          "%s",
+          "map->input_channel_count == 2") )
+  {
+    __debugbreak();
+  }
+  if ( map->output_channel_count != 1
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          638,
+          0,
+          "%s",
+          "map->output_channel_count == 1") )
+  {
+    __debugbreak();
+  }
+  Snd_SpeakerMapSetVolume(map, 0, 0, pan->front * pan->left);
+  Snd_SpeakerMapSetVolume(map, 1, 0, pan->front * pan->right);
+}
+
+void __cdecl SND_PanToSpeakermap22(const snd_pan *pan, snd_speaker_map *map)
+{
+  float total; // [esp+4h] [ebp-4h]
+
+  Snd_SpeakerMapZero(map);
+  if ( map->input_channel_count != 2
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          647,
+          0,
+          "%s",
+          "map->input_channel_count == 2") )
+  {
+    __debugbreak();
+  }
+  if ( map->output_channel_count != 2
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          648,
+          0,
+          "%s",
+          "map->output_channel_count == 2") )
+  {
+    __debugbreak();
+  }
+  total = (float)(pan->front + pan->back) / 2.0;
+  Snd_SpeakerMapSetVolume(map, 0, 0, total * pan->left);
+  Snd_SpeakerMapSetVolume(map, 1, 1, total * pan->right);
+}
+
+void __cdecl SND_PanToSpeakermap26(const snd_pan *pan, snd_speaker_map *map)
+{
+  Snd_SpeakerMapZero(map);
+  if ( map->input_channel_count != 2
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          658,
+          0,
+          "%s",
+          "map->input_channel_count == 2") )
+  {
+    __debugbreak();
+  }
+  if ( map->output_channel_count != 6
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          659,
+          0,
+          "%s",
+          "map->output_channel_count == 6") )
+  {
+    __debugbreak();
+  }
+  Snd_SpeakerMapSetVolume(map, 0, 0, pan->front * pan->left);
+  Snd_SpeakerMapSetVolume(map, 1, 1, pan->front * pan->right);
+  Snd_SpeakerMapSetVolume(map, 0, 4, pan->back * pan->left);
+  Snd_SpeakerMapSetVolume(map, 1, 5, pan->back * pan->right);
+  Snd_SpeakerMapSetVolume(map, 0, 2, (float)(pan->center * 0.69999999) * pan->left);
+  Snd_SpeakerMapSetVolume(map, 0, 3, (float)(pan->lfe * 0.5) * pan->left);
+  Snd_SpeakerMapSetVolume(map, 1, 2, (float)(pan->center * 0.69999999) * pan->right);
+  Snd_SpeakerMapSetVolume(map, 1, 3, (float)(pan->lfe * 0.5) * pan->right);
+}
+
+void __cdecl SND_PanToSpeakermap28(const snd_pan *pan, snd_speaker_map *map)
+{
+  Snd_SpeakerMapZero(map);
+  if ( map->input_channel_count != 2
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          675,
+          0,
+          "%s",
+          "map->input_channel_count == 2") )
+  {
+    __debugbreak();
+  }
+  if ( map->output_channel_count != 8
+    && !Assert_MyHandler(
+          "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
+          676,
+          0,
+          "%s",
+          "map->output_channel_count == 8") )
+  {
+    __debugbreak();
+  }
+  Snd_SpeakerMapSetVolume(map, 0, 0, pan->front * pan->left);
+  Snd_SpeakerMapSetVolume(map, 1, 1, pan->front * pan->right);
+  Snd_SpeakerMapSetVolume(map, 0, 4, (float)(pan->back * 0.5) * pan->left);
+  Snd_SpeakerMapSetVolume(map, 1, 5, (float)(pan->back * 0.5) * pan->right);
+  Snd_SpeakerMapSetVolume(map, 0, 6, (float)(pan->back * 0.5) * pan->left);
+  Snd_SpeakerMapSetVolume(map, 1, 7, (float)(pan->back * 0.5) * pan->right);
+  Snd_SpeakerMapSetVolume(map, 0, 2, (float)(pan->center * 0.5) * pan->left);
+  Snd_SpeakerMapSetVolume(map, 0, 3, (float)(pan->lfe * 0.5) * pan->left);
+  Snd_SpeakerMapSetVolume(map, 1, 2, (float)(pan->center * 0.5) * pan->right);
+  Snd_SpeakerMapSetVolume(map, 1, 3, (float)(pan->lfe * 0.5) * pan->right);
+}
+
