@@ -46,6 +46,57 @@ struct windowDef_t // sizeof=0xA4
     struct Material *background;
 };
 
+enum expDataType : __int32
+{                                       // XREF: Operand/r
+                                        // operandDataType/r ...
+    VAL_INT    = 0x0,
+    VAL_FLOAT  = 0x1,
+    VAL_STRING = 0x2,
+};
+
+union operandInternalDataUnion // sizeof=0x4
+{                                       // XREF: Expression_Parse(char const * *,ExpressionStatement *,void *,int)+19/w
+                                        // Expression_Parse(char const * *,ExpressionStatement *,void *,int):loc_78A62C/r ...
+    int intVal;
+    float floatVal;
+    const char *string;
+};
+
+struct Operand // sizeof=0x8
+{                                       // XREF: GetExpressionStringInt(int,itemDef_s *,ExpressionStatement *,char const * *,int *)+40/o
+                                        // expressionRpnDataUnion/r ...
+    expDataType dataType;               // XREF: Expression_Parse(char const * *,ExpressionStatement *,void *,int)+16/w
+                                        // Expression_Parse(char const * *,ExpressionStatement *,void *,int)+1A0/r ...
+    operandInternalDataUnion internals; // XREF: Expression_Parse(char const * *,ExpressionStatement *,void *,int)+19/w
+                                        // Expression_Parse(char const * *,ExpressionStatement *,void *,int):loc_78A62C/r ...
+};
+
+union expressionRpnDataUnion // sizeof=0x8
+{                                       // XREF: expressionRpn/r
+    Operand constant;
+    void *cmd;
+    int cmdIdx;
+};
+
+struct expressionRpn // sizeof=0xC
+{
+    int type;
+    expressionRpnDataUnion data;
+};
+
+struct ExpressionStatement // sizeof=0x10
+{                                       // XREF: textExp_s/r
+                                        // GenericEventScript/r ...
+    char *filename;                     // XREF: PC_CndStackPush(int,ExpressionStatement,bool,bool,int,int,int)+47/r
+                                        // PC_EventScript_Parse+398/r ...
+    int line;                           // XREF: PC_CndStackPush(int,ExpressionStatement,bool,bool,int,int,int)+4C/r
+                                        // PC_EventScript_Parse+3A0/r ...
+    int numRpn;                         // XREF: PC_CndStackPush(int,ExpressionStatement,bool,bool,int,int,int)+52/r
+                                        // PC_EventScript_Parse+3A9/r ...
+    expressionRpn *rpn;                 // XREF: PC_CndStackPush(int,ExpressionStatement,bool,bool,int,int,int)+58/r
+                                        // PC_EventScript_Parse+3B2/r ...
+};
+
 struct textExp_s // sizeof=0x10
 {                                       // XREF: textExp_t/r
     ExpressionStatement textExp;
@@ -157,7 +208,7 @@ struct focusItemDef_s // sizeof=0x18
     const char *mouseExitText;
     const char *mouseEnter;
     const char *mouseExit;
-    ItemKeyHandler *onKey;
+    struct ItemKeyHandler *onKey;
     focusDefData_t focusTypeData;
 };
 
@@ -213,57 +264,6 @@ struct ScriptCondition // sizeof=0x10
     int constructID;
     int blockID;
     ScriptCondition *next;
-};
-
-enum expDataType : __int32
-{                                       // XREF: Operand/r
-                                        // operandDataType/r ...
-    VAL_INT    = 0x0,
-    VAL_FLOAT  = 0x1,
-    VAL_STRING = 0x2,
-};
-
-union operandInternalDataUnion // sizeof=0x4
-{                                       // XREF: Expression_Parse(char const * *,ExpressionStatement *,void *,int)+19/w
-                                        // Expression_Parse(char const * *,ExpressionStatement *,void *,int):loc_78A62C/r ...
-    int intVal;
-    float floatVal;
-    const char *string;
-};
-
-struct Operand // sizeof=0x8
-{                                       // XREF: GetExpressionStringInt(int,itemDef_s *,ExpressionStatement *,char const * *,int *)+40/o
-                                        // expressionRpnDataUnion/r ...
-    expDataType dataType;               // XREF: Expression_Parse(char const * *,ExpressionStatement *,void *,int)+16/w
-                                        // Expression_Parse(char const * *,ExpressionStatement *,void *,int)+1A0/r ...
-    operandInternalDataUnion internals; // XREF: Expression_Parse(char const * *,ExpressionStatement *,void *,int)+19/w
-                                        // Expression_Parse(char const * *,ExpressionStatement *,void *,int):loc_78A62C/r ...
-};
-
-union expressionRpnDataUnion // sizeof=0x8
-{                                       // XREF: expressionRpn/r
-    Operand constant;
-    void *cmd;
-    int cmdIdx;
-};
-
-struct expressionRpn // sizeof=0xC
-{
-    int type;
-    expressionRpnDataUnion data;
-};
-
-struct ExpressionStatement // sizeof=0x10
-{                                       // XREF: textExp_s/r
-                                        // GenericEventScript/r ...
-    char *filename;                     // XREF: PC_CndStackPush(int,ExpressionStatement,bool,bool,int,int,int)+47/r
-                                        // PC_EventScript_Parse+398/r ...
-    int line;                           // XREF: PC_CndStackPush(int,ExpressionStatement,bool,bool,int,int,int)+4C/r
-                                        // PC_EventScript_Parse+3A0/r ...
-    int numRpn;                         // XREF: PC_CndStackPush(int,ExpressionStatement,bool,bool,int,int,int)+52/r
-                                        // PC_EventScript_Parse+3A9/r ...
-    expressionRpn *rpn;                 // XREF: PC_CndStackPush(int,ExpressionStatement,bool,bool,int,int,int)+58/r
-                                        // PC_EventScript_Parse+3B2/r ...
 };
 
 struct GenericEventScript // sizeof=0x2C
@@ -337,7 +337,7 @@ struct __declspec(align(8)) menuDef_t // sizeof=0x190
     float disableColor[4];
     ExpressionStatement rectXExp;
     ExpressionStatement rectYExp;
-    itemDef_s **items;
+    struct itemDef_s **items;
     // padding byte
     // padding byte
     // padding byte

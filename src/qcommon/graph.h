@@ -1,5 +1,39 @@
 #pragma once
 
+enum DevEventType : __int32
+{                                       // XREF: GraphFloat_DevGuiCB_Event/r
+    EVENT_ACTIVATE   = 0x0,
+    EVENT_DEACTIVATE = 0x1,
+    EVENT_ACCEPT     = 0x2,
+    EVENT_UPDATE     = 0x3,
+    EVENT_DRAW       = 0x4,
+    EVENT_SAVE       = 0x5,
+};
+
+struct __declspec(align(4)) DevGraph // sizeof=0x20
+{                                       // XREF: GraphFloat/r
+    float (*knots)[2];
+    int *knotCount;
+    int knotCountMax;
+    int selectedKnot;
+    void (__cdecl *eventCallback)(const DevGraph *, DevEventType, int);
+    void (__cdecl *textCallback)(const DevGraph *, const float, const float, char *, const int);
+    void *data;
+    bool disableEditingEndPoints;
+    // padding byte
+    // padding byte
+    // padding byte
+};
+
+struct GraphFloat // sizeof=0x168
+{                                       // XREF: .data:aaInputGraph/r
+    char name[64];
+    float knots[32][2];
+    int knotCount;
+    float scale;
+    DevGraph devguiGraph;
+};
+
 void __cdecl GraphFloat_Load(GraphFloat *graph, char *fileName, float scale);
 void __cdecl GraphFloat_ParseBuffer(GraphFloat *graph, const char *buffer, const char *fileName);
 GraphFloat *__cdecl GraphFloat_Load(char *fileName);

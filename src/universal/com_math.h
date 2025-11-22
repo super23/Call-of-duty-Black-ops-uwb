@@ -1,5 +1,16 @@
 #pragma once
 
+struct cplane_s // sizeof=0x14
+{                                       // XREF: cplane_t/r
+                                        // CM_TraceThroughBrush/r ...
+    float normal[3];                    // XREF: CM_TraceThroughBrush+629/w
+                                        // CM_TraceThroughBrush+636/w ...
+    float dist;
+    unsigned __int8 type;
+    unsigned __int8 signbits;
+    unsigned __int8 pad[2];
+};
+
 double __cdecl random();
 double __cdecl crandom();
 void __cdecl GaussianRandom(float *f0, float *f1);
@@ -57,17 +68,16 @@ void __cdecl QuatSlerp(const float *from, const float *to, float frac, float *re
 double __cdecl RotationToYaw(const float *rot);
 void __cdecl MatrixRotationZ(float (*mat)[3], float degree);
 void __cdecl FinitePerspectiveMatrix(float tanHalfFovX, float tanHalfFovY, float zNear, float zFar, float (*mtx)[4]);
-// local variable allocation has failed, the output may be wrong!
-void  SpotLightViewMatrix(unsigned int a1@<ebp>, const float *direction, float rotation, float (*mtx)[4]);
-// local variable allocation has failed, the output may be wrong!
+
+void  SpotLightViewMatrix(const float *direction, float rotation, float (*mtx)[4]);
 void  SpotLightViewMatrixDir3(
-        unsigned int a1@<ebp>,
         const float *dirx,
         const float *diry,
         const float *dirz,
         float (*mtx)[4]);
 void __cdecl SpotLightProjectionMatrix(float cosFov, float zNear, float zFar, float (*mtx)[4]);
 void __cdecl InfinitePerspectiveMatrix(float tanHalfFovX, float tanHalfFovY, float zNear, float (*mtx)[4]);
+
 void __cdecl MatrixForViewer(const float *origin, const float (*axis)[3], float (*mtx)[4]);
 void __cdecl AnglesSubtract(const float *v1, const float *v2, float *v3);
 double __cdecl AngleNormalize360(float angle);
@@ -111,13 +121,10 @@ int __cdecl PlaneFromPoints(float *plane, const float *v0, const float *v1, cons
 void __cdecl ProjectPointOnPlane(const float *p, const float *normal, float *dst);
 void __cdecl SetPlaneSignbits(cplane_s *out);
 int __cdecl BoxOnPlaneSide(
-        const float *emins,
-        const float *emaxs,
-        const cplane_s *p,
-        const cplane_s *pa,
-        float a5,
-        float a6,
-        float a7);
+    const float *emins,
+    const float *emaxs,
+    const cplane_s *p,
+    const cplane_s *pa);
 int __cdecl IsPosInsideArc(
         const float *pos,
         float posRadius,
@@ -162,3 +169,11 @@ void __cdecl colorTempToXYZ(float colorTemp, float *XYZ);
 void __cdecl colorHueMatrix(float (*finalMatrix)[4], float hue);
 void __cdecl colorSaturationMatrix(float (*finalMatrix)[4], float saturation);
 void __cdecl AxisCopy(const float (*in)[3], float (*out)[3]);
+
+void __cdecl Vec3Lerp(const float *start, const float *end, float fraction, float *endpos);
+float __cdecl Vec3DistanceSq(const float *p1, const float *p2);
+
+
+constexpr float vec2_origin[2] = { 0.0, 0.0 };
+constexpr float vec3_origin[3] = { 0.0, 0.0, 0.0 };
+constexpr float vec4_origin[4] = { 0.0, 0.0, 0.0, 0.0 };

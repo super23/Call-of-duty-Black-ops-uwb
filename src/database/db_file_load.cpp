@@ -216,7 +216,7 @@ LABEL_10:
           err = DB_AuthLoad_Inflate(&g_load.stream, 2);
           if ( err >= 2 )
           {
-            BG_EvalVehicleName();
+            BLOPS_NULLSUB();
             DB_CancelLoadXFile();
             Com_Error(
               ERR_DROP,
@@ -381,7 +381,7 @@ void __cdecl DB_LoadXFileInternal()
   g_load.stream.avail_in -= 8;
   if ( memcmp(magic, "IWff0100", 8u) && memcmp(magic, "IWffu100", 8u) )
   {
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     Com_Error(ERR_DROP, "Fastfile for zone '%s' is corrupt or unreadable.", g_load.filename);
   }
   if ( g_load.stream.avail_in < 4
@@ -423,7 +423,7 @@ void __cdecl DB_LoadXFileInternal()
     failureReason = "init failed";
   if ( failureReason )
   {
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     DB_CancelLoadXFile();
     Com_Error(ERR_DROP, "Fastfile for zone '%s' could not be loaded (%s)", g_load.filename, failureReason);
   }

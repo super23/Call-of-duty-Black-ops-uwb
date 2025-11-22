@@ -2361,7 +2361,7 @@ void __cdecl FS_Startup(const char *gameName, bool allow_devraw)
     FS_AddGameDirectory((char *)fs_basepath->current.integer, fs_gameDirVar->current.string, 0, 0);
   }
   Com_ReadCDKey();
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   FS_AddCommands();
   FS_Path_f();
   Dvar_ClearModified(fs_gameDirVar);

@@ -1,4 +1,14 @@
 #include "bg_animation.h"
+#include <cstdarg>
+#include <ctype.h>
+#include <qcommon/common.h>
+#include <universal/q_parse.h>
+#include "bg_local.h"
+#include <clientscript/cscr_animtree.h>
+#include "bg_weapons_load_obj.h"
+
+const char *globalFilename;
+animStringItem_t weaponStrings[2048];
 
 int __cdecl BG_StringHashValue(const char *fname)
 {
@@ -24,11 +34,11 @@ void BG_AnimParseError(const char *msg, ...)
   if ( globalFilename )
   {
     CurrentParseLine = Com_GetCurrentParseLine();
-    Com_Error(ERR_DROP, &byte_C5DB44, text, globalFilename, CurrentParseLine + 1);
+    Com_Error(ERR_DROP, "%s: (%s, line %i)", text, globalFilename, CurrentParseLine + 1);
   }
   else
   {
-    Com_Error(ERR_DROP, off_C5DB40, text);
+    Com_Error(ERR_DROP, "%s", text);
   }
 }
 

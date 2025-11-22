@@ -1196,7 +1196,7 @@ void __cdecl PM_Weapon(pmove_t *pm, pml_t *pml)
         {
           PM_Weapon_CheckForNightVision(pm);
           PM_Weapon_CheckForSprint(pm);
-          BG_EvalVehicleName();
+          BLOPS_NULLSUB();
           PM_Weapon_CheckForDtp(pm);
           PM_Weapon_CheckForSlide(pm);
           PM_Weapon_CheckForDeploy(pm);

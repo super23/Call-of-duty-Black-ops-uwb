@@ -1,5 +1,39 @@
 #pragma once
 
+struct animStringItem_t // sizeof=0x8
+{                                       // XREF: BG_AddVehicleName(char const *,int,int,int,int)+19A/w
+    const char *string;                 // XREF: BG_InitWeaponString(int,char const *)+9/w
+    int hash;                           // XREF: BG_InitWeaponString(int,char const *)+1F/w
+};
+
+struct animScriptCondition_t // sizeof=0x8
+{                                       // XREF: animScriptItem_t/r
+    int index;
+    unsigned int value;
+};
+
+struct animScriptCommand_t // sizeof=0x14
+{                                       // XREF: animScriptItem_t/r
+    __int16 bodyPart[2];
+    __int16 animIndex[2];
+    unsigned __int16 animDuration[2];
+    snd_alias_list_t *soundAlias;
+    unsigned __int16 tagName;           // XREF: _Com_InitHunkMemory+BD/o
+                                        // Sys_GetPhysicalCpuCount+131/o ...
+    unsigned __int16 flags;
+};
+
+struct animScriptItem_t // sizeof=0xC8
+{                                       // XREF: animScriptData_t/r
+                                        // BG_AnimParseAnimScript/r
+    int numConditions;
+    animScriptCondition_t conditions[4];
+    int numCommands;
+    animScriptCommand_t commands[8];    // XREF: _Com_InitHunkMemory+BD/o
+                                        // Sys_GetPhysicalCpuCount+131/o ...
+};
+
+
 int __cdecl BG_StringHashValue(const char *fname);
 void BG_AnimParseError(const char *msg, ...);
 unsigned int __cdecl BG_AnimationIndexForString(const char *string);

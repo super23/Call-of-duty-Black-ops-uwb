@@ -1161,7 +1161,7 @@ void   SV_ServerThread(__m128 a1@<xmm0>, unsigned int threadContext)
   Sys_ServerCompleted();
   while ( 1 )
   {
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     timeout = 1000 / sv_network_fps->current.integer;
     //PIXBeginNamedEvent(-1, "wait start server");
     g_checkServerTime = timeout + Sys_Milliseconds();

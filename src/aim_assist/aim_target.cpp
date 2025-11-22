@@ -11,6 +11,21 @@
 #include <universal/dvar.h>
 #include <cgame_mp/cg_local_mp.h>
 #include <demo/demo_common.h>
+#include <gfx_d3d/r_dpvs.h>
+#include <cgame_mp/cg_players_mp.h>
+#include <universal/com_math.h>
+#include <clientscript/scr_const.h>
+#include <universal/com_math_anglevectors.h>
+#include <bgame/bg_animconditions.h>
+#include <bgame/bg_misc.h>
+#include <cgame_mp/cg_main_mp.h>
+#include <qcommon/cm_load.h>
+#include <qcommon/cm_trace.h>
+#include <qcommon/cm_test.h>
+#include <EffectsCore/fx_system.h>
+#include <cgame/cg_world.h>
+
+static const float dog_length = 20.0f;
 
 AimTargetGlob atGlobArray[1];
 
@@ -164,15 +179,11 @@ void __cdecl AimTarget_ProcessEntityInternal(int localClientNum, const centity_s
   }
   if ( Demo_IsPlaying() )
   {
-    if ( g_DXDeviceThread != GetCurrentThreadId() )
       return;
-    goto LABEL_32;
   }
   if ( !AimTarget_PlayerInValidState(&cgameGlob->predictedPlayerState) )
   {
-    if ( g_DXDeviceThread != GetCurrentThreadId() )
       return;
-    goto LABEL_32;
   }
   if ( ent->nextState.eType == 1 || ent->nextState.eType == 17 )
   {
@@ -194,31 +205,20 @@ void __cdecl AimTarget_ProcessEntityInternal(int localClientNum, const centity_s
   }
   if ( !AimTarget_IsTargetValid(cgameGlob, ent) )
   {
-    if ( g_DXDeviceThread != GetCurrentThreadId() )
       return;
-    goto LABEL_32;
   }
-  if ( ((unsigned int)&cls.rankedServers[711].game[35] & ent->nextState.lerp.eFlags2) != 0 )
+  if ((ent->nextState.lerp.eFlags2 & 0x1000000) != 0) 
   {
-    if ( g_DXDeviceThread != GetCurrentThreadId() )
       return;
-    goto LABEL_32;
   }
   if ( ent->pose.eType == 17 && (ent->nextState.lerp.eFlags & 0x40000) != 0 )
   {
-    if ( GetCurrentThreadId() == g_DXDeviceThread )
-LABEL_32:
-      D3DPERF_EndEvent();
+      return;
   }
   else if ( player_topDownCamMode->current.integer || AimTarget_IsTargetVisible(localClientNum, ent, visBone) )
   {
     AimTarget_CreateTarget(localClientNum, ent, &target);
-    if ( g_DXDeviceThread == GetCurrentThreadId() )
-      D3DPERF_EndEvent();
-  }
-  else if ( g_DXDeviceThread == GetCurrentThreadId() )
-  {
-    goto LABEL_32;
+    return;
   }
 }
 
@@ -362,16 +362,6 @@ bool __cdecl AimTarget_IsTargetValid(const cg_s *cgameGlob, const centity_s *tar
   return R_CullPoint(cgameGlob->localClientNum, top, aim_target_frustum_expand_on_screen->current.value) == 0;
 }
 
-double __cdecl Vec3DistanceSq(const float *p1, const float *p2)
-{
-  float v_4; // [esp+4h] [ebp-8h]
-  float v_8; // [esp+8h] [ebp-4h]
-
-  v_4 = p2[1] - p1[1];
-  v_8 = p2[2] - p1[2];
-  return v_8 * v_8 + v_4 * v_4 + (float)(*p2 - *p1) * (float)(*p2 - *p1);
-}
-
 double __cdecl AimTarget_GetTargetRadius(const centity_s *targetEnt)
 {
   float mins[3]; // [esp+0h] [ebp-1Ch] BYREF
@@ -386,6 +376,44 @@ double __cdecl AimTarget_GetTargetRadius(const centity_s *targetEnt)
     return aim_target_sentient_radius->current.value;
   AimTarget_GetTargetBounds(targetEnt, mins, maxs);
   return (float)RadiusFromBounds(mins, maxs);
+}
+
+void __cdecl AimTarget_GetTagPos_0(const centity_s *ent, unsigned int tagName, float *pos)
+{
+  char *v3; // eax
+  char *v4; // eax
+  DObj *dobj; // [esp+0h] [ebp-Ch]
+  bool target_last_frame; // [esp+7h] [ebp-5h]
+  int update_interval; // [esp+8h] [ebp-4h]
+
+  if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\aim_assist\\aim_target.cpp", 314, 0, "%s", "ent") )
+    __debugbreak();
+  if ( !pos && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\aim_assist\\aim_target.cpp", 315, 0, "%s", "pos") )
+    __debugbreak();
+  if ( ent->nextState.eType == 1 )
+  {
+    target_last_frame = AimAssist_IsPrevTargetEntity(ent->pose.localClientNum, ent->nextState.number);
+    update_interval = AimTarget_GetTagUpdateInterval(ent);
+    if ( !CachedTag_GetTagPos(ent, tagName, pos, update_interval, target_last_frame) )
+    {
+      v3 = SL_ConvertToString(tagName, SCRIPTINSTANCE_SERVER);
+      Com_Error(ERR_DROP, "AimTarget_GetTagPos: Cannot find tag [%s] on entity\n", v3);
+    }
+  }
+  else
+  {
+    dobj = Com_GetClientDObj(ent->nextState.number, ent->pose.localClientNum);
+    if ( !dobj
+      && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\aim_assist\\aim_target.cpp", 333, 0, "%s", "dobj") )
+    {
+      __debugbreak();
+    }
+    if ( !CG_DObjGetWorldTagPos(&ent->pose, dobj, tagName, pos) )
+    {
+      v4 = SL_ConvertToString(tagName, SCRIPTINSTANCE_SERVER);
+      Com_Error(ERR_DROP, "AimTarget_GetTagPos: Cannot find tag [%s] on entity\n", v4);
+    }
+  }
 }
 
 void __cdecl AimTarget_GetTargetBounds(const centity_s *targetEnt, float *mins, float *maxs)
@@ -448,10 +476,13 @@ void __cdecl AimTarget_GetTargetBounds(const centity_s *targetEnt, float *mins, 
   else if ( targetEnt->nextState.eType == 1 || targetEnt->nextState.eType == 17 )
   {
     AimTarget_GetTagPos_0(targetEnt, scr_const.aim_highest_bone, highBonePos);
-    *(unsigned int *)mins = aim_target_sentient_radius->current.integer ^ _mask__NegFloat_;
-    *((unsigned int *)mins + 1) = aim_target_sentient_radius->current.integer ^ _mask__NegFloat_;
+    //*(unsigned int *)mins = aim_target_sentient_radius->current.integer ^ _mask__NegFloat_;
+    //*((unsigned int *)mins + 1) = aim_target_sentient_radius->current.integer ^ _mask__NegFloat_;
+    mins[0] = -aim_target_sentient_radius->current.integer;
+    mins[1] = -aim_target_sentient_radius->current.integer;
     mins[2] = 0.0f;
-    *maxs = aim_target_sentient_radius->current.value;
+
+    maxs[0] = aim_target_sentient_radius->current.value;
     maxs[1] = aim_target_sentient_radius->current.value;
     maxs[2] = highBonePos[2] - targetEnt->pose.origin[2];
   }
@@ -548,7 +579,7 @@ bool __cdecl AimTarget_IsTargetVisible(int localClientNum, const centity_s *targ
   playerEyePos[1] = cgameGlob->refdef.vieworg[1];
   playerEyePos[2] = cgameGlob->refdef.vieworg[2];
   predictedPlayerState = &cgameGlob->predictedPlayerState;
-  col_context_t::col_context_t(&context);
+  //col_context_t::col_context_t(&context);
   CG_TraceCapsule(
     &trace,
     playerEyePos,
@@ -771,7 +802,7 @@ void __cdecl AimTarget_UpdateClientTargets(int localClientNum)
     __debugbreak();
   }
   AimTarget_ClearTargetList((int)localClientNum);
-  BG_EvalVehicleName(localClientNum);
+  BLOPS_NULLSUB();
   for ( snapEntIndex = 0; snapEntIndex < cgameGlob->nextSnap->numEntities; ++snapEntIndex )
   {
     cent = CG_GetEntity((int)localClientNum, cgameGlob->nextSnap->entities[snapEntIndex].number);
@@ -799,9 +830,9 @@ LABEL_23:
     }
   }
   //PIXBeginNamedEvent(-1, "aim assist epilog");
-  BG_EvalVehicleName(localClientNum);
-  if ( g_DXDeviceThread == GetCurrentThreadId() )
-    D3DPERF_EndEvent();
+  BLOPS_NULLSUB();
+  //if ( g_DXDeviceThread == GetCurrentThreadId() )
+  //  D3DPERF_EndEvent();
 }
 
 void __cdecl AimTarget_ClearTargetList(int localClientNum)

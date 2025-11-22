@@ -223,15 +223,15 @@ void __cdecl CG_DoFootstepEvent(
   {
     if ( cg_footsteps->current.enabled )
       CScr_PlayerFootstepEvent(localClientNum, cent, isPlayerView, event, surfaceType, quiet);
-    BG_EvalVehicleName();
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
+    BLOPS_NULLSUB();
   }
 }
 
 void __cdecl CG_DoJumpEvent(int localClientNum, centity_s *cent, bool isPlayerView, int surfaceType, bool quiet)
 {
   CScr_PlayerJumpEvent(localClientNum, cent, isPlayerView, surfaceType, quiet);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 
 void __cdecl CG_DoLandEvent(
@@ -243,7 +243,7 @@ void __cdecl CG_DoLandEvent(
         bool damagePlayer)
 {
   CScr_PlayerLandEvent(localClientNum, cent, isPlayerView, surfaceType, quiet, damagePlayer);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 
 void __cdecl CG_DoFoliageEvent(int localClientNum, centity_s *cent, bool isPlayerView, bool quiet)
@@ -927,7 +927,7 @@ LABEL_180:
               && ps->viewlocked_entNum != cent->nextState.number )
             {
               CG_CompassAddWeaponPingInfo(localClientNum, attackerCent, cent->pose.origin, 50);
-              BG_EvalVehicleName((jpeg_decompress_struct *)localClientNum);
+              BLOPS_NULLSUB();
             }
             if ( ((*((unsigned int *)attackerCent + 201) >> 1) & 1) != 0 && attackerCent->nextState.eType == 11 )
               CG_AddTurretWeaponPingInfo(localClientNum, attackerCent, cent->pose.origin, 50);
@@ -1762,7 +1762,7 @@ LABEL_437:
               && ps->viewlocked_entNum != cent->nextState.number )
             {
               CG_CompassAddWeaponPingInfo(localClientNum, v102, cent->pose.origin, 50);
-              BG_EvalVehicleName((jpeg_decompress_struct *)localClientNum);
+              BLOPS_NULLSUB();
             }
             CG_CompassAddVehicleWeaponPingInfo(localClientNum, cent, cent->pose.origin, 50);
             return;

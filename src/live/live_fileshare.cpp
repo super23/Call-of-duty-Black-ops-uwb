@@ -3233,7 +3233,7 @@ void __cdecl Live_FileShare_Init()
                      0,
                      "Number of recent games non-elite users can see.");
   Cmd_AddCommandInternal("readFileShare", Live_FileShare_Read_f, &Live_FileShare_Read_f_VAR);
-  Cmd_AddCommandInternal("fileShareGetSummary", BG_EvalVehicleName, &Live_FileShare_GetSummary_f_VAR);
+  Cmd_AddCommandInternal("fileShareGetSummary", BLOPS_NULLSUB, &Live_FileShare_GetSummary_f_VAR);
   Cmd_AddCommandInternal(
     "fileShareTransferFromPooled",
     Live_FileShare_TransferFromPooled_f,

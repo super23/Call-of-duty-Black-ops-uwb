@@ -2854,7 +2854,7 @@ void __cdecl G_FreeVehicle(gentity_s *ent)
     __debugbreak();
   }
   ent->health = 0;
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( ent->scr_vehicle->nitrousVehicle )
   {
     NitrousVehicle::remove_vehicle(ent->scr_vehicle->nitrousVehicle);
@@ -4855,7 +4855,7 @@ void __cdecl Scr_Vehicle_Think(gentity_s *pSelf)
   VEH_UpdateBody(pSelf);
   if ( !veh->nitrousVehicle )
     VEH_UpdateSteering(pSelf);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   VEH_UpdateHealth(pSelf);
   pSelf->nextthink = level.time + 50;
   VEH_UpdateDebug(pSelf);

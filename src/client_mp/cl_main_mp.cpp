@@ -1,4 +1,10 @@
 #include "cl_main_mp.h"
+#include <cgame_mp/cg_main_mp.h>
+#include <qcommon/common.h>
+#include <qcommon/sv_msg_write.h>
+#include <ui/ui_main.h>
+
+clientStatic_t cls;
 
 void __cdecl CL_AddReliableCommand(int localClientNum, const char *cmd)
 {
@@ -177,7 +183,7 @@ void __cdecl CL_WriteDemoFromContinuousStateBuffer(int localClientNum, int conti
   index = *(unsigned int *)(v4 + 16);
   while ( index != *(unsigned int *)(v4 + 20) )
   {
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     memcpy((unsigned __int8 *)&dst, (unsigned __int8 *)(*(unsigned int *)(v4 + 12) + count * v8), count);
     CL_WriteDemoClientArchive(LocalClientConnection->demofile, 1u, &dst, index);
     index = (index + 1) % 256;
@@ -643,7 +649,7 @@ void __cdecl CL_WriteAllDemoClientArchive(int localClientNum)
   MSG_Init(&buf, data, 4096);
   for ( index = 0; index < 256; ++index )
   {
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     CL_WriteDemoClientArchive(LocalClientConnection->demofile, 1u, &LocalClientGlobals->clientArchive[index], index);
   }
 }
@@ -875,7 +881,7 @@ void __cdecl CL_ShutdownHunkUsers()
   if ( cls.hunkUsersStarted )
   {
     CL_ShutdownAllClientsCGame();
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     if ( cls.devGuiStarted )
     {
       CL_ShutdownDevGui();
@@ -963,7 +969,7 @@ void __cdecl CL_MapLoading(const char *mapname)
       dword_FB2C38[4 * localClientNum] = 0;
       CL_LocalClient_ClearCUIFlag(localClientNum, 64);
     }
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     LiveStorage_UploadStats();
     UI_CloseAllMenus(0);
     cl_serverLoadingMap = 1;
@@ -1004,7 +1010,7 @@ void __cdecl CL_MapLoading(const char *mapname)
         if ( CL_LocalClient_IsActive(localClientNumb) && Com_LocalClient_GetControllerIndex(localClientNumb) >= 0 )
         {
           CL_Disconnect(localClientNumb, 0);
-          BG_EvalVehicleName();
+          BLOPS_NULLSUB();
           UI_CloseAll(localClientNumb);
           dword_FB2C3C[4 * localClientNumb] = 5;
           clca = CL_GetLocalClientConnection(localClientNumb);
@@ -1230,7 +1236,7 @@ void __cdecl CL_Disconnect(unsigned int localClientNum, bool deactivateClient)
     if ( wasConnected )
       clientUIActive->keyCatchers &= 1u;
     if ( !wasConnected && deactivateClient )
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
     if ( wasConnected )
     {
       v5 = Com_LocalClient_GetControllerIndex(localClientNum);
@@ -1249,7 +1255,7 @@ void __cdecl CL_Disconnect(unsigned int localClientNum, bool deactivateClient)
     }
     if ( !Demo_IsIdle() )
       Demo_End(0);
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
   }
 }
 
@@ -1814,7 +1820,7 @@ void __cdecl CL_CheckForResend(int localClientNum)
         if ( dwGetAddrHandleConnectionTaskStatus(clc->serverAddress.addrHandleIndex) )
         {
           if ( net_lanauthorize->current.enabled || !Sys_IsLANAddress(clc->serverAddress) )
-            BG_EvalVehicleName();
+            BLOPS_NULLSUB();
           strcpy(pkt, "getchallenge");
           pktlen = &pkt[strlen(pkt) + 1] - &pkt[1];
           PbClientConnecting(1, pkt, &pktlen);
@@ -2310,7 +2316,7 @@ char  CL_DispatchConnectionlessPacket@<al>(int a1@<esi>, int localClientNum, net
             else
               v32 = Cmd_Argv(1);
             if ( I_stricmp(v32, fs_gameDirVar->current.string) )
-              BG_EvalVehicleName();
+              BLOPS_NULLSUB();
             if ( isMigration )
             {
               dword_FB2C3C[4 * localClientNum] = 6;
@@ -2670,7 +2676,7 @@ void __cdecl CL_WriteNewDemoClientArchive(int localClientNum)
   MSG_Init(&buf, data, 4096);
   while ( LocalClientConnection->lastClientArchiveIndex != LocalClientGlobals->clientArchiveIndex )
   {
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     CL_WriteDemoClientArchive(
       LocalClientConnection->demofile,
       1u,
@@ -3211,7 +3217,7 @@ void __cdecl CL_ShutdownRenderer(int destroyWindow)
   cls.consoleMaterial = 0;
   cls.consoleFont = 0;
   cls.spinnerMaterial = 0;
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 
 void __cdecl CL_StartHunkUsers()
@@ -3856,9 +3862,9 @@ void __cdecl CL_InitOnceForAllClients()
   Cmd_AddCommandInternal("rcon", CL_Rcon_f, &CL_Rcon_f_VAR);
   Cmd_AddCommandInternal("showContextItem", CL_ShowContextualItemUI_f, &CL_ShowContextualItemUI_f_VAR);
   Cmd_AddCommandInternal("ping", Cbuf_AddServerText_f, &CL_Ping_f_VAR);
-  Cmd_AddServerCommandInternal("ping", BG_EvalVehicleName, &CL_Ping_f_VAR_SERVER);
+  Cmd_AddServerCommandInternal("ping", BLOPS_NULLSUB, &CL_Ping_f_VAR_SERVER);
   Cmd_AddCommandInternal("serverstatus", Cbuf_AddServerText_f, &CL_ServerStatus_f_VAR);
-  Cmd_AddServerCommandInternal("serverstatus", BG_EvalVehicleName, &CL_ServerStatus_f_VAR_SERVER);
+  Cmd_AddServerCommandInternal("serverstatus", BLOPS_NULLSUB, &CL_ServerStatus_f_VAR_SERVER);
   Cmd_AddCommandInternal("setenv", CL_Setenv_f, &CL_Setenv_f_VAR);
   Cmd_AddCommandInternal("showip", CL_ShowIP_f, &CL_ShowIP_f_VAR);
   Cmd_AddCommandInternal("toggleMenu", CL_ToggleMenu_f, &CL_ToggleMenu_f_VAR);
@@ -3914,7 +3920,7 @@ void __cdecl CL_InitOnceForAllClients()
     CL_Command_SetClientNotBeingUsed,
     &CL_Command_SetClientNotBeingUsed_VAR);
   Cmd_AddCommandInternal("setclientprimary", CL_Command_SetClientPrimary, &CL_Command_SetClientPrimary_VAR);
-  Cmd_AddCommandInternal("signclientout", BG_EvalVehicleName, &CL_Command_SignClientOutOfUI_VAR);
+  Cmd_AddCommandInternal("signclientout", BLOPS_NULLSUB, &CL_Command_SignClientOutOfUI_VAR);
   Cmd_AddCommandInternal("xplaylistreadfromdisk", Playlist_CmdReadFromDisk, &Playlist_CmdReadFromDisk_VAR);
   Cmd_AddCommandInternal("SetCategoryFilter", Playlist_CmdSetCategoryFilter, &Playlist_CmdSetCategoryFilter_VAR);
   Cmd_AddCommandInternal("SetPrevPlaylist", Playlist_CmdSetPrevPlaylist, &Playlist_CmdSetPrevPlaylist_VAR);
@@ -3978,7 +3984,7 @@ void __cdecl CL_PlayDemo_f()
       v2 = Cmd_Argv(1);
       I_strncpyz(clc->demoName, v2, 64);
       Con_Close(localClientNum);
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
       dword_FB2C3C[4 * localClientNum] = 6;
       clc->demofile = demofile;
       clc->demoplaying = 1;

@@ -1,4 +1,87 @@
 #include "r_font.h"
+#include <universal/assertive.h>
+#include <universal/com_math.h>
+#include <universal/q_shared.h>
+#include "r_font_load_obj.h"
+#include <qcommon/common.h>
+#include <database/db_registry.h>
+#include <stringed/stringed_hooks.h>
+#include <ctype.h>
+
+const char MYRANDOMNUMCHARS[10] =
+{ '0', '2', '3', '4', '5', '6', '7', '8', '9', '\0' };
+
+const char MYRANDOMCHARS[63] =
+{
+  'A',
+  'B',
+  'C',
+  'D',
+  'E',
+  'F',
+  'G',
+  'H',
+  'I',
+  'J',
+  'K',
+  'L',
+  'M',
+  'N',
+  'O',
+  'P',
+  'Q',
+  'R',
+  'S',
+  'T',
+  'U',
+  'V',
+  'W',
+  'X',
+  'Y',
+  'Z',
+  'a',
+  'b',
+  'c',
+  'd',
+  'e',
+  'f',
+  'g',
+  'h',
+  'i',
+  'j',
+  'k',
+  'l',
+  'm',
+  'n',
+  'o',
+  'p',
+  'q',
+  'r',
+  's',
+  't',
+  'u',
+  'v',
+  'w',
+  'x',
+  'y',
+  'z',
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '0',
+  '\0'
+};
+
+
+int registeredFontCount;
+Font_s *registeredFont[16];
+
 
 const Glyph *__cdecl R_GetCharacterGlyph(Font_s *font, unsigned int letter)
 {

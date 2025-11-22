@@ -61,7 +61,7 @@ void __cdecl IN_StartupMouse()
   if ( in_mouse->current.enabled )
   {
     s_wmv.mouseInitialized = 1;
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
   }
   else
   {
@@ -79,7 +79,7 @@ void __cdecl IN_MouseEvent(int mstate)
     diff = s_wmv.oldButtonState ^ mstate;
     if ( s_wmv.oldButtonState != mstate )
     {
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
       for ( button = 0; button < 5; ++button )
       {
         if ( (diff & (1 << button)) != 0 )
@@ -256,7 +256,7 @@ void IN_MouseMove()
     v0 = curPos.x - s_wmv.oldPos.x;
     dy = curPos.y - s_wmv.oldPos.y;
     if ( curPos.x != s_wmv.oldPos.x || dy )
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
     s_wmv.oldPos = curPos;
     ScreenToClient(g_wv.hWnd, &curPos);
     g_wv.recenterMouse = CL_MouseEvent(curPos.x, curPos.y, v0, dy);

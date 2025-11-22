@@ -29,7 +29,7 @@ void __cdecl CL_DrawScreen(int localClientNum)
   }
   else
   {
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
   }
   if ( cg_draw2D && cg_drawVersion && cg_draw2D->current.enabled && cg_drawVersion->current.enabled )
     CG_DrawVersion();
@@ -504,7 +504,7 @@ int  CL_CGameRendering@<eax>(int a1@<esi>, int localClientNum)
   DemoType = CL_GetDemoType();
   if ( CG_DrawActiveFrame(a1, localClientNum, LocalClientGlobals->serverTime, DemoType, CUBEMAPSHOT_NONE, 0, v5) )
   {
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     if ( (CL_GetLocalClientUIGlobals(localClientNum)->keyCatchers & 0x10) != 0 )
     {
       UI_UpdateTime(localClientNum, cls.realtime);

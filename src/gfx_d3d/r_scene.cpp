@@ -3186,7 +3186,7 @@ void __cdecl R_GenerateSortedDrawSurfs(
 
   viewInfo->dynSModelView = &frontEndDataOut->dynSModelClientViewArray[viewInfoIndex];
   viewInfo->dynSModelState = &frontEndDataOut->dynSModelState;
-  BG_EvalVehicleName((jpeg_decompress_struct *)viewInfo->dynSModelView);
+  BLOPS_NULLSUB((jpeg_decompress_struct *)viewInfo->dynSModelView);
   rg.isNotRenderingFullScreen = !sceneParms->isRenderingFullScreen;
   rg.sunShadowFull = 1;
   LODWORD(rg.sunShadowmapScale) = sm_sunShadowScale->current.integer;
@@ -3532,7 +3532,7 @@ void __cdecl R_GenerateSortedDrawSurfs(
   if ( usePreTess )
   {
     v11 = !extraCamActive || viewInfo->isMissileCamera;
-    BG_EvalVehicleName((jpeg_decompress_struct *)v11);
+    BLOPS_NULLSUB((jpeg_decompress_struct *)v11);
   }
   litInfo = viewInfo->drawList;
   R_InitDrawSurfListInfo(viewInfo->drawList);
@@ -3608,7 +3608,7 @@ void __cdecl R_GenerateSortedDrawSurfs(
     R_StreamUpdatePerClient(viewParmsDraw->origin);
   }
   if ( !viewInfo->localClientNum && !forMissileCamView && !forStereoRightEyeView )
-    BG_EvalVehicleName(v7);
+    BLOPS_NULLSUB(v7);
   if ( !forMissileCamView )
   {
     //PIXBeginNamedEvent(-1, "DynEntCl_ProcessEntities");
@@ -3648,7 +3648,7 @@ void __cdecl R_GenerateSortedDrawSurfs(
   R_ShowCull(viewParmsDraw->origin);
   viewInfo->renderSeeThruDecals = CG_IsShowingZombieMap((bool)v7)
                                && FX_GetFrameTotalSeeThruDecalCount(viewInfo->localClientNum);
-  BG_EvalVehicleName(v8);
+  BLOPS_NULLSUB(v8);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
 }

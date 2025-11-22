@@ -2,6 +2,30 @@
 
 #include <qcommon/ent.h>
 
+enum weapType_t : __int32
+{                                       // XREF: WeaponDef/r
+                                        // ?G_GetWeaponAttachBone@@YAGPAUclientInfo_t@@W4weapType_t@@W4weapInventoryType_t@@@Z/r ...
+    WEAPTYPE_BULLET = 0x0,
+    WEAPTYPE_GRENADE = 0x1,
+    WEAPTYPE_PROJECTILE = 0x2,
+    WEAPTYPE_BINOCULARS = 0x3,
+    WEAPTYPE_GAS = 0x4,
+    WEAPTYPE_BOMB = 0x5,
+    WEAPTYPE_MINE = 0x6,
+    WEAPTYPE_MELEE = 0x7,
+    WEAPTYPE_NUM = 0x8,
+};
+
+enum weapInventoryType_t : __int32
+{                                       // XREF: WeaponDef/r
+                                        // ?G_GetWeaponAttachBone@@YAGPAUclientInfo_t@@W4weapType_t@@W4weapInventoryType_t@@@Z/r ...
+    WEAPINVENTORY_PRIMARY = 0x0,
+    WEAPINVENTORY_OFFHAND = 0x1,
+    WEAPINVENTORY_ITEM    = 0x2,
+    WEAPINVENTORY_ALTMODE = 0x3,
+    WEAPINVENTORY_MELEE   = 0x4,
+    WEAPINVENTORYCOUNT    = 0x5,
+};
 
 struct GfxSkinCacheEntry // sizeof=0xC
 {                                       // XREF: cpose_t/r
@@ -711,4 +735,190 @@ struct playerState_s // sizeof=0x26A4
         hudelem_s current[31];
         hudelem_s archival[31];
     } hud;
+};
+
+struct __declspec(align(8)) animation_s // sizeof=0x78
+{                                       // XREF: animScriptData_t/r
+                                        // animation_t/r
+    char name[64];
+    int initialLerp;
+    int finalLerp;
+    float forceAnimRate;
+    float moveSpeed;
+    float rotSpeed;
+    int duration;
+    int nameHash;
+    int flags;
+    __int64 movetype;
+    int stance;
+    int movestatus;
+    int noteType;
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+};
+
+
+struct lerpFrame_t // sizeof=0x34
+{                                       // XREF: clientInfo_t/r
+                                        // clientInfo_t/r ...
+    float yawAngle;                     // XREF: ClientEndFrame(gentity_s *)+E72/r
+                                        // ClientEndFrame(gentity_s *)+E8B/r
+    int yawing;
+    float pitchAngle;
+    int pitching;
+    int animationNumber;
+    animation_s *animation;
+    int animationTime;
+    float oldFramePos[3];
+    float oldFrameYaw;
+    float animSpeedScale;
+    int oldFrameSnapshotTime;
+};
+
+struct __declspec(align(4)) clientInfo_t // sizeof=0x5C8
+{                                       // XREF: bgs_t/r corpseInfo_t/r
+    int infoValid;                      // XREF: G_RunFrame(int)+906/r
+    int nextValid;
+    int clientNum;
+    char name[32];
+    team_t team;                        // XREF: Weapon_Melee_internal+1F5/r
+                                        // Weapon_Melee_internal+245/r ...
+    team_t oldteam;
+    ffa_team_t ffaTeam;
+    int rank;
+    int prestige;
+    int needsRevive;
+    unsigned int perks[2];
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    unsigned __int64 xuid;
+    char clanAbbrev[8];
+    score_s score;
+    Material *hStatusIcon;
+    Material *hRankIcon;
+    int location;
+    int health;
+    char model[64];
+    char attachModelNames[6][64];
+    char attachTagNames[6][64];
+    lerpFrame_t legs;                   // XREF: ClientEndFrame(gentity_s *)+E8B/r
+    lerpFrame_t torso;                  // XREF: ClientEndFrame(gentity_s *)+E72/r
+    float lerpMoveDir;
+    float lerpLean;
+    float playerAngles[3];              // XREF: ClientEndFrame(gentity_s *)+E59/r
+    int leftHandGun;
+    int dobjDirty;                      // XREF: ScrCmd_attach+275/w
+    clientControllers_t control;
+    int lastDamageTime;
+    int lastStandStartTime;
+    __int64 moveType;
+    __int64 eventType;
+    unsigned int clientConditions[23];
+    XAnimTree_s *pXAnimTree;            // XREF: G_FreeAnimTreeInstances+2D/r
+                                        // G_FreeAnimTreeInstances+43/r ...
+    unsigned int iDObjWeapon;
+    unsigned __int8 weaponModel;
+    // padding byte
+    // padding byte
+    // padding byte
+    unsigned int iDObjOffhandWeapon;
+    unsigned __int8 offhandWeaponModel;
+    // padding byte
+    // padding byte
+    // padding byte
+    unsigned int iDObjMeleeWeapon;
+    unsigned __int8 meleeWeaponModel;
+    // padding byte
+    // padding byte
+    // padding byte
+    int stanceTransitionTime;
+    int turnAnimEndTime;
+    char turnAnimType;
+    // padding byte
+    // padding byte
+    // padding byte
+    int attachedVehEntNum;
+    int attachedVehSeat;
+    bool hideWeapon;
+    // padding byte
+    // padding byte
+    // padding byte
+    unsigned int weaponHideBits[5];
+    bool usingKnife;
+    bool usingGrenade;
+    // padding byte
+    // padding byte
+    int nextHideWeaponTime;
+    float vehAnimLastOrg[3];
+    float vehAnimLastAngle[3];
+    int vehAnimLastBone;
+    int vehAnimLastTime;
+    int vehAnimLerpStartTime;
+    int vehAnimLerpEndTime;
+    float weaponSpinLerp;
+    float lastWeaponSpinLerp;
+    float weaponSpin;
+    bool minigunWasFiring;
+    // padding byte
+    // padding byte
+    // padding byte
+    int clientUIVisibilityFlags;
+    int teleportTime;
+    bool teleportBit;
+    // padding byte
+    // padding byte
+    // padding byte
+};
+
+struct scr_anim_s // sizeof=0x4
+{                                       // XREF: bgsAnim_s::<unnamed_type_generic_human>/r
+    //$3FF2EDC1867ACEA597C8BFA34C9C0852 ___u0;
+                                        // XREF: CScr_GetAnimLength(void)+20/w
+                                        // CScr_GetAnimLength(void)+25/r ...
+    union //$3FF2EDC1867ACEA597C8BFA34C9C0852 // sizeof=0x4
+    {                                       // XREF: CScr_GetAnimLength(void)+20/w
+                                            // CScr_GetAnimLength(void)+25/r ...
+        //$6CB7272563F4458FB40A4A5E123C4ABA __s0;
+        struct //$6CB7272563F4458FB40A4A5E123C4ABA // sizeof=0x4
+        {                                       // XREF: $3FF2EDC1867ACEA597C8BFA34C9C0852/r
+            unsigned __int16 index;
+            unsigned __int16 tree;
+        };
+        const char *linkPointer;
+    };
+};
+
+
+struct loadAnim_t // sizeof=0x48
+{                                       // XREF: playerAnims_t/r
+    scr_anim_s anim;
+    int iNameHash;
+    char szAnimName[64];
+};
+
+struct actorLerpFrame_t // sizeof=0x8
+{                                       // XREF: animInfo_t/r
+    int bAnimating;
+    int animationState;
+};
+
+struct animInfo_t // sizeof=0x3C
+{                                       // XREF: actorInfo_t/r
+    actorLerpFrame_t lerp;
+    lerpFrame_t legs;
+};
+
+struct actorInfo_t // sizeof=0x54
+{                                       // XREF: bgs_t/r cgs_t/r
+    int infoValid;
+    int nextValid;
+    int actorNum;
+    int entityNum;
+    animInfo_t animInfo;
+    int dobjDirty;
+    XAnimTree_s *pXAnimTree;
 };

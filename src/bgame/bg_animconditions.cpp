@@ -560,8 +560,3 @@ void __cdecl BG_LocalEvalEvent(pmove_t *pm)
   }
 }
 
-void __cdecl BG_EvalVehicleName()
-{
-  ;
-}
-

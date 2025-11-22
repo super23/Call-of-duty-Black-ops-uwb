@@ -309,7 +309,7 @@ char *__cdecl UI_FeederItemText_Maps(int controllerIndex, itemDef_s *item, int i
     else if ( column == 2 )
     {
       if ( listboxPtr->cursorPos[contextIndex] == index && Window_HasFocus(contextIndex, &item->window) )
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
       return (char *)&toastPopupTitle;
     }
     else
@@ -382,7 +382,7 @@ const char *__cdecl UI_FeederItemText_GametypesBase(
       break;
     case 2:
       if ( listPtr->cursorPos[contextIndex] == index && Window_HasFocus(contextIndex, &item->window) )
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
       result = &toastPopupTitle;
       break;
     case 3:
@@ -565,7 +565,7 @@ char *__cdecl UI_Feeder_HandleItemList(
       break;
     case 6:
       if ( isSelectedItem )
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
       result = (char *)&toastPopupTitle;
       break;
     default:
@@ -1911,7 +1911,7 @@ char *__cdecl UI_FeederItemText_Contracts(
       break;
     case 4:
       if ( listPtr->cursorPos[contextIndex] == index && Window_HasFocus(contextIndex, &item->window) )
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
       result = (char *)&toastPopupTitle;
       break;
     default:
@@ -2192,7 +2192,7 @@ const char *__cdecl UI_FeederItemText_KillstreakNumKills(
       break;
     case 6:
       if ( listPtr->cursorPos[contextIndex] == index && !hasKillNumBeenSelected )
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
       result = &toastPopupTitle;
       break;
     default:

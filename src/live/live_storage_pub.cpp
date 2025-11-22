@@ -50,7 +50,7 @@ TaskRecord *__cdecl LiveStorage_FetchOnlineWAD(int controllerIndex)
         {
           memcpy(s_onlineWADBuffer, (unsigned __int8 *)fileBuffer, fileLen);
           FS_FreeFile(fileBuffer);
-          BG_EvalVehicleName();
+          BLOPS_NULLSUB();
           return 0;
         }
       }
@@ -74,7 +74,7 @@ TaskRecord *__cdecl LiveStorage_FetchOnlineWAD(int controllerIndex)
     s_onlineWADFileInfo.fileTask.m_filename = wadFileName;
     s_onlineWADFileInfo.fileBuffer = s_onlineWADBuffer;
     s_onlineWADFileInfo.bufferSize = 0x10000;
-    s_onlineWADFileInfo.fileOperationSucessFunction = (void (__cdecl *)(const int, void *))BG_EvalVehicleName;
+    s_onlineWADFileInfo.fileOperationSucessFunction = (void (__cdecl *)(const int, void *))BLOPS_NULLSUB;
     s_onlineWADFileInfo.fileNotFoundFunction = (taskCompleteResults (__cdecl *)(const int, void *))LiveStorage_FetchOnlineWADNotFound;
     nestedTask = LiveStorage_ReadDWFile(controllerIndex, &s_onlineWADFileInfo);
     return LiveStorage_SetupNestedTask(task_LiveFetchOnlineWAD, controllerIndex, nestedTask, &s_onlineWADFileInfo);
@@ -224,7 +224,7 @@ void LiveStorage_ProcessOnlineWAD()
     }
     SV_SetPlaylistFetchedTime();
     s_completedOnlineWAD = 1;
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     LargeLocal::~LargeLocal(&uncompressedFileBuffer_large_local);
   }
 }

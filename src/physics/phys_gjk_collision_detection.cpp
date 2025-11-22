@@ -27,7 +27,7 @@ phys_vec3 *__cdecl phys_Unitize(phys_vec3 *result, const phys_vec3 *a)
 void __cdecl gjk_collision_epilog(bool is_server_thread)
 {
   if ( is_server_thread )
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
 }
 
 phys_heap_gjk_cache_system_avl_tree::phys_gjk_cache_info_internal *__cdecl get_gjk_cache_info(

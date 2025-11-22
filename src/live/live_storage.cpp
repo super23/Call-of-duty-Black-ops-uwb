@@ -2178,7 +2178,7 @@ TaskRecord *__cdecl LiveStorage_FileShare_PerformSearch(int controllerIndex, fil
   TaskRecord *nestedTask; // [esp+0h] [ebp-Ch]
   dwFileShareSearchTask *fileShareSearchTask; // [esp+8h] [ebp-4h]
 
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( TaskManager2_TaskIsInProgressForController(task_LiveFileShareSearch, controllerIndex) )
     return 0;
   if ( !controllerNetworkData[controllerIndex].fileOps
@@ -2288,7 +2288,7 @@ TaskRecord *__cdecl LiveStorage_FileShare_ReadFile(int controllerIndex, fileShar
     downloadInterceptor.__vftable = (fileShareDownloadInterceptor_vtbl *)&fileShareDownloadInterceptor::`vftable';
     atexit(LiveStorage_FileShare_ReadFile_::_2_::_dynamic_atexit_destructor_for__downloadInterceptor__);
   }
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( TaskManager2_TaskIsInProgressForController(task_LiveFileShareWriteFile, controllerIndex)
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\live\\live_storage.cpp",
@@ -2698,7 +2698,7 @@ TaskRecord *__cdecl LiveStorage_FileShare_ReadSummary(
   TaskRecord *task; // [esp+4h] [ebp-8h]
   dwFileShareSummaryTask *summaryTask; // [esp+8h] [ebp-4h]
 
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( TaskManager2_TaskIsInProgressForController(task_LiveFileShareGetSummary, controllerIndex) )
     return 0;
   if ( !controllerNetworkData[controllerIndex].fileOps
@@ -2764,7 +2764,7 @@ TaskRecord *__cdecl LiveStorage_FileShare_ReadMetaDataByID(
   TaskRecord *nestedTask; // [esp+0h] [ebp-Ch]
   dwFileShareDescriptorsTask *fsTask; // [esp+8h] [ebp-4h]
 
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( TaskManager2_TaskIsInProgressForController(task_LiveFileShareGetMetaByID, controllerIndex) )
     return 0;
   if ( !controllerNetworkData[controllerIndex].fileOps
@@ -2813,7 +2813,7 @@ TaskRecord *__cdecl LiveStorage_FileShare_RemoveFile(int controllerIndex, unsign
   TaskRecord *nestedTask; // [esp+4h] [ebp-8h]
   TaskRecord *task; // [esp+8h] [ebp-4h]
 
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( TaskManager2_TaskIsInProgressForController(task_LiveFileShareRemoveFile, controllerIndex) )
     return 0;
   if ( !controllerNetworkData[controllerIndex].fileOps
@@ -2858,7 +2858,7 @@ TaskRecord *__cdecl LiveStorage_FileShare_TransferLastUploaded(int controllerInd
   TaskRecord *nestedTask; // [esp+18h] [ebp-Ch]
   fileShareLastPlayedGame_t *lastPlayed; // [esp+20h] [ebp-4h]
 
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( TaskManager2_TaskIsInProgressForController(task_LiveFileShareTransfer, controllerIndex) )
     return 0;
   if ( !controllerNetworkData[controllerIndex].fileOps
@@ -3077,7 +3077,7 @@ TaskRecord *__cdecl LiveStorage_FileShare_TransferFile(
         fileShareLocation location,
         bool isCommunityFile)
 {
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( TaskManager2_TaskIsInProgressForController(task_LiveFileShareTransfer, controllerIndex) )
     return 0;
   if ( location == FILESHARE_LOCATION_USERSTORAGE )
@@ -3140,7 +3140,7 @@ TaskRecord *__cdecl LiveStorage_FileShare_WriteRating(
   dwFileShareSubmitRatingTask *ratingTask; // [esp+0h] [ebp-Ch]
   TaskRecord *nestedTask; // [esp+4h] [ebp-8h]
 
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( TaskManager2_TaskIsInProgressForController(task_LiveFileShareSubmitRating, controllerIndex) )
     return 0;
   if ( !controllerNetworkData[controllerIndex].fileOps
@@ -3192,7 +3192,7 @@ TaskRecord *__cdecl LiveStorage_FileShare_ReadTopRated(
   dwFileShareGetTopRatedTask *ratingTask; // [esp+0h] [ebp-Ch]
   TaskRecord *nestedTask; // [esp+4h] [ebp-8h]
 
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( TaskManager2_TaskIsInProgressForController(task_LiveFileShareGetTopRating, controllerIndex) )
     return 0;
   if ( !controllerNetworkData[controllerIndex].fileOps
@@ -3363,7 +3363,7 @@ TaskRecord *__cdecl LiveStorage_FileShare_ReadRating(
 {
   TaskRecord *nestedTask; // [esp+0h] [ebp-8h]
 
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( TaskManager2_TaskIsInProgressForController(sym, controllerIndex) )
     return 0;
   nestedTask = dwFileShareGetRating(controllerIndex, ratingTask);
@@ -3512,7 +3512,7 @@ char __cdecl LiveStorage_Init()
     LiveStorage_ListCustomGameTypesForUser_f,
     &LiveStorage_ListCustomGameTypesForUser_f_VAR);
   Cmd_AddCommandInternal("refetchWAD", LiveStorage_RefetchOnlineWAD, &LiveStorage_RefetchOnlineWAD_VAR);
-  Cmd_AddCommandInternal("generatePlaylistPopulation", BG_EvalVehicleName, &LiveStorage_GeneratePopulationDataCmd_VAR);
+  Cmd_AddCommandInternal("generatePlaylistPopulation", BLOPS_NULLSUB, &LiveStorage_GeneratePopulationDataCmd_VAR);
   stat_version = _Dvar_RegisterInt("stat_version", 10, 0, 0x7FFFFFFF, 0, "Stats version number");
   stats_version_check = _Dvar_RegisterBool("stats_version_check", 1, 0, "Reset stats if version numbers do not match");
   maxStatsBackupInterval = _Dvar_RegisterInt(

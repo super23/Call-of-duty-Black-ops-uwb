@@ -513,7 +513,7 @@ GfxWorld *__cdecl R_LoadWorldInternal(const char *name)
   R_LoadHeroOnlyLights(rgl.load.bspVersion);
   R_PostLoadEntities();
   R_InitShadowGeometryArrays();
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   ProfLoad_Begin("Generate high mip aabbs");
   R_GenerateHighmipAabbs();
   ProfLoad_End();
@@ -1914,7 +1914,7 @@ void __cdecl R_LoadLightGridColors(unsigned int bspVersion)
   else
   {
     for ( colorIndex = 0; colorIndex < s_world.lightGrid.colorCount; ++colorIndex )
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
   }
   ++s_world.lightGrid.colorCount;
 }

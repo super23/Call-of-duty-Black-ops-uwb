@@ -1,5 +1,9 @@
 #include "timing.h"
 
+#include <Windows.h>
+
+long double msecPerRawTimerTick;
+
 void __cdecl InitTiming()
 {
   msecPerRawTimerTick = SecondsPerTick() * 1000.0;

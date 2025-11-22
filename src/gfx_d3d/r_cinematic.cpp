@@ -814,7 +814,7 @@ char __cdecl R_Cinematic_Advance(bool force_wait)
   {
     __debugbreak();
   }
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   percentageFull = R_Cinematic_GetPercentageFull();
   if ( percentageFull < 0x14 && (cinematicGlob.playbackFlags & 1) == 0 && (cinematicGlob.playbackFlags & 0x10) == 0 )
   {

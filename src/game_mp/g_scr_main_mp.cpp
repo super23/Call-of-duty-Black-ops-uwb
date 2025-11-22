@@ -5648,7 +5648,7 @@ void GScr_RecordUsedSpawnPoint()
   player = Scr_GetEntity(0);
   point_team = GScr_ReadTeamForSpawnPoints(1u);
   Scr_GetVector(2u, origin, SCRIPTINSTANCE_SERVER);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 
 void GScr_getStartTime()

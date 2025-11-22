@@ -97,7 +97,7 @@ jpeg_decompress_struct *__cdecl R_ReadJpgSetup(
     __debugbreak();
   }
   s_read_cinfo.err = jpeg_std_error(&s_read_jerr, (void (*)(...))Jpeg_Error, Jpeg_Print);
-  jpeg_set_jpeg_alloc((void *(__cdecl *)(unsigned int))Jpeg_HunkAlloc, (void (__cdecl *)(void *))BG_EvalVehicleName);
+  jpeg_set_jpeg_alloc((void *(__cdecl *)(unsigned int))Jpeg_HunkAlloc, (void (__cdecl *)(void *))BLOPS_NULLSUB);
   s_hunk_mark = Hunk_SetMark();
   jpeg_CreateDecompress((jpeg_common_struct *)&s_read_cinfo, 62, 0x1B8u);
   jpeg_memory_src((jpeg_common_struct *)&s_read_cinfo, data, dataLen);

@@ -4566,7 +4566,7 @@ void  CG_DrawPlayerStance(
                          * 0.69999999)
                  + rect->x;
     drawColor[1] = rect->y;
-    BG_EvalVehicleName((jpeg_decompress_struct *)&drawColor[2]);
+    BLOPS_NULLSUB((jpeg_decompress_struct *)&drawColor[2]);
     deltaTime = *color;
     halfWidth = color[1];
     proneStr = (const char *)*((unsigned int *)color + 2);
@@ -4624,7 +4624,7 @@ void __cdecl CG_DrawStanceIcon(
   }
   width = rect->w;
   height = rect->h;
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   cgameGlob = CG_GetLocalClientGlobals(localClientNum);
   if ( (cgameGlob->lastStance & 1) != 0 )
   {

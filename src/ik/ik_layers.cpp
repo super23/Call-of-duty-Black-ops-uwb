@@ -3560,7 +3560,7 @@ void  IK_ProcessLayers(int a1@<ebp>, IKState *ikState)
       ikState->bHasActiveLayers = 1;
       ikState->bHasArmSolverLayer = 1;
     }
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     v55 = ikState->ikBoneToObjBone[10] != 161;
     if ( !v55
       && !Assert_MyHandler(

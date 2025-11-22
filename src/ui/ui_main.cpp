@@ -120,13 +120,13 @@ char *__cdecl GetMenuBuffer_LoadObj(char *filename)
   }
 }
 
-XModelPiece *__cdecl GetMenuBuffer_FastFile(const char *filename)
+char *__cdecl GetMenuBuffer_FastFile(const char *filename)
 {
   RawFile *rawfile; // [esp+4h] [ebp-4h]
 
   rawfile = DB_FindXAssetHeader(ASSET_TYPE_RAWFILE, filename, 1, -1).rawfile;
   if ( rawfile )
-    return (XModelPiece *)rawfile->buffer;
+    return rawfile->buffer;
   Com_PrintError(13, "menu file not found: %s, using default\n", filename);
   return 0;
 }
@@ -1404,7 +1404,7 @@ void __cdecl UI_RunMenuScript(int localClientNum, int contextIndex, __int64 args
       else
       {
 LABEL_25:
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
       }
     }
     else if ( String_Parse((const char **)args, v40, 1024) )
@@ -3126,7 +3126,7 @@ void __cdecl UI_InitOnceForAllClients()
   if ( useFastFile->current.enabled )
     DB_ResetZoneSize(0);
   if ( !G_ExitAfterConnectPaths() && !useFastFile->current.enabled )
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
   String_Init();
   UI_RegisterDvars();
   UI_AssetCache();

@@ -138,7 +138,7 @@ GlassRenderer *__thiscall GlassRenderer::GlassRenderer(GlassRenderer *this, cons
   R_InitGlassRenderBuffers(glasses->numIndices, glasses->numVerts, 0x20u);
   FreeMem = GlassesClient::GetFreeMem();
   Com_Printf(0, "GlassRenderer init: unused memory: %d\n", FreeMem);
-  Cmd_AddCommandInternal("glassMemInfo", BG_EvalVehicleName, &MemInfoCmd_VAR);
+  Cmd_AddCommandInternal("glassMemInfo", BLOPS_NULLSUB, &MemInfoCmd_VAR);
   Cmd_AddCommandInternal("crashGlass", GlassRenderer::CrashGlassCmd, &CrashGlassCmd_VAR);
   Cmd_AddCommandInternal("glassHWM", GlassRenderer::PrintHwmCmd, &PrintHwmCmd_VAR);
   this->drawBBox = _Dvar_RegisterBool("drawGlassBBox", 0, 0x80u, "Draw glass bounding box");
@@ -797,7 +797,7 @@ void __thiscall GlassRenderer::GenerateVerts(
     v14 = v10;
   }
   if ( !threadId )
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
   this->rendererLock.lock = 0;
   GlassRenderer::StartMaintenance(this);
   if ( g_DXDeviceThread == GetCurrentThreadId() )

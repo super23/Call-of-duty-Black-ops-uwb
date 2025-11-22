@@ -1,4 +1,217 @@
 #include "bg_dog.h"
+#include <clientscript/cscr_stringlist.h>
+#include <universal/q_shared.h>
+#include <universal/assertive.h>
+#include <clientscript/scr_const.h>
+#include <qcommon/ent.h>
+#include <xanim/xanim.h>
+#include "bg_local.h"
+#include "bg_misc.h"
+#include "bg_dog_animations_mp.h"
+
+const dvar_s *dog_debug;
+const dvar_s *dog_turn90_angle;
+const dvar_s *dog_turn180_angle;
+const dvar_s *dog_turn_min_goal_dist;
+
+struct AnimStateName // sizeof=0x8
+{                                       // XREF: .data:s_animStateNames/r
+    unsigned __int16 *name;             // XREF: BG_Actor_GetAnimStateIndex(ushort)+26/r
+                                        // BG_Actor_GetAnimStateName(int)+3D/r
+    int category;                       // XREF: BG_Actor_GetAnimStateCategoryName(int)+40/r
+};
+
+// aislop helped generate this
+AnimStateName s_animStateNames[47] =
+{
+    { &scr_const.idle,                               0 },
+
+    { &scr_const.move_run,                           2 },
+    { &scr_const.move_start,                         2 },
+    { &scr_const.move_stop,                          2 },
+    { &scr_const.move_walk,                          2 },
+    { &scr_const.move_turn_left,                     2 },
+    { &scr_const.move_turn_right,                    2 },
+    { &scr_const.move_run_turn_left,                 2 },
+    { &scr_const.move_run_turn_right,                2 },
+    { &scr_const.move_turn_around_left,              2 },
+    { &scr_const.move_turn_around_right,             2 },
+    { &scr_const.move_run_turn_around_left,          2 },
+    { &scr_const.move_run_turn_around_right,         2 },
+    { &scr_const.move_attack,                        2 },
+
+    { &scr_const.stop_idle,                          1 },
+    { &scr_const.stop_attackidle,                    1 },
+    { &scr_const.stop_attackidle_bark,               1 },
+    { &scr_const.stop_attackidle_growl,              1 },
+
+    { &scr_const.pain_main,                          4 },
+    { &scr_const.pain_front,                         4 },
+    { &scr_const.pain_back,                          4 },
+    { &scr_const.pain_left,                          4 },
+    { &scr_const.pain_right,                         4 },
+    { &scr_const.pain_run_front,                     4 },
+    { &scr_const.pain_run_back,                      4 },
+    { &scr_const.pain_run_left,                      4 },
+    { &scr_const.pain_run_right,                     4 },
+
+    { &scr_const.death_front,                        5 },
+    { &scr_const.death_back,                         5 },
+    { &scr_const.death_left,                         5 },
+    { &scr_const.death_right,                        5 },
+
+    { &scr_const.flashed,                            6 },
+
+    { &scr_const.combat_attackidle,                  3 },
+    { &scr_const.combat_attackidle_bark,             3 },
+    { &scr_const.combat_attackidle_growl,            3 },
+    { &scr_const.combat_attack_run,                  3 },
+    { &scr_const.combat_attack_player_close_range,   3 },
+    { &scr_const.combat_attack_miss,                 3 },
+    { &scr_const.combat_attack_miss_left,            3 },
+    { &scr_const.combat_attack_miss_right,           3 },
+
+    { &scr_const.traverse_jump_up_40,                7 },
+    { &scr_const.traverse_jump_up_80,                7 },
+    { &scr_const.traverse_jump_down_40,              7 },
+    { &scr_const.traverse_jump_down_80,              7 },
+    { &scr_const.traverse_wallhop,                   7 },
+    { &scr_const.traverse_window,                    7 },
+    { &scr_const.traverse_through_hole_42,           7 }
+};
+
+unsigned __int16 *s_animStateCategories[8] =
+{
+    &scr_const.init,        // 0x3F392C0
+    &scr_const.stop,        // 0x3F3926A
+    &scr_const.move,        // 0x3F392C2
+    &scr_const.combat,      // 0x3F392C4
+    &scr_const.pain,        // 0x3F3925A
+    &scr_const.death,       // 0x3F38F6C
+    &scr_const.flashed,     // 0x3F39306
+    &scr_const.traverse     // 0x3F392C6
+};
+
+enum ActorAnimStates : __int32
+{                                       // XREF: BG_Dog_Move_Start/r
+                                        // BG_Dog_Move_Stop/r ...
+    ACTOR_ANIMATION_IDLE             = 0x0,
+    ACTOR_ANIMATION_MOVE_RUN         = 0x1,
+    ACTOR_ANIMATION_MOVE_START       = 0x2,
+    ACTOR_ANIMATION_MOVE_STOP        = 0x3,
+    ACTOR_ANIMATION_MOVE_WALK        = 0x4,
+    ACTOR_ANIMATION_MOVE_TURN_LEFT   = 0x5,
+    ACTOR_ANIMATION_MOVE_TURN_RIGHT  = 0x6,
+    ACTOR_ANIMATION_MOVE_RUN_TURN_LEFT = 0x7,
+    ACTOR_ANIMATION_MOVE_RUN_TURN_RIGHT = 0x8,
+    ACTOR_ANIMATION_MOVE_TURN_AROUND_LEFT = 0x9,
+    ACTOR_ANIMATION_MOVE_TURN_AROUND_RIGHT = 0xA,
+    ACTOR_ANIMATION_MOVE_RUN_TURN_AROUND_LEFT = 0xB,
+    ACTOR_ANIMATION_MOVE_RUN_TURN_AROUND_RIGHT = 0xC,
+    ACTOR_ANIMATION_ATTACK           = 0xD,
+    ACTOR_ANIMATION_STOP_IDLE        = 0xE,
+    ACTOR_ANIMATION_STOP_ATTACKIDLE  = 0xF,
+    ACTOR_ANIMATION_STOP_ATTACKIDLE_BARK = 0x10,
+    ACTOR_ANIMATION_STOP_ATTACKIDLE_GROWL = 0x11,
+    ACTOR_ANIMATION_PAIN_MAIN        = 0x12,
+    ACTOR_ANIMATION_PAIN_FRONT       = 0x13,
+    ACTOR_ANIMATION_PAIN_BACK        = 0x14,
+    ACTOR_ANIMATION_PAIN_LEFT        = 0x15,
+    ACTOR_ANIMATION_PAIN_RIGHT       = 0x16,
+    ACTOR_ANIMATION_RUN_PAIN_FRONT   = 0x17,
+    ACTOR_ANIMATION_RUN_PAIN_BACK    = 0x18,
+    ACTOR_ANIMATION_RUN_PAIN_LEFT    = 0x19,
+    ACTOR_ANIMATION_RUN_PAIN_RIGHT   = 0x1A,
+    ACTOR_ANIMATION_DEATH_FRONT      = 0x1B,
+    ACTOR_ANIMATION_DEATH_BACK       = 0x1C,
+    ACTOR_ANIMATION_DEATH_LEFT       = 0x1D,
+    ACTOR_ANIMATION_DEATH_RIGHT      = 0x1E,
+    ACTOR_ANIMATION_FLASHED          = 0x1F,
+    ACTOR_ANIMATION_ATTACK_ATTACKIDLE = 0x20,
+    ACTOR_ANIMATION_ATTACK_ATTACKIDLE_BARK = 0x21,
+    ACTOR_ANIMATION_ATTACK_ATTACKIDLE_GROWL = 0x22,
+    ACTOR_ANIMATION_ATTACK_RUN       = 0x23,
+    ACTOR_ANIMATION_ATTACK_PLAYER_CLOSE_RANGE = 0x24,
+    ACTOR_ANIMATION_ATTACK_MISS      = 0x25,
+    ACTOR_ANIMATION_ATTACK_MISS_LEFT = 0x26,
+    ACTOR_ANIMATION_ATTACK_MISS_RIGHT = 0x27,
+    ACTOR_ANIMATION_TRAVERSE_JUMP_UP_40 = 0x28,
+    ACTOR_ANIMATION_TRAVERSE_JUMP_UP_80 = 0x29,
+    ACTOR_ANIMATION_TRAVERSE_JUMP_DOWN_40 = 0x2A,
+    ACTOR_ANIMATION_TRAVERSE_JUMP_DOWN_80 = 0x2B,
+    ACTOR_ANIMATION_TRAVERSE_WALLHOP = 0x2C,
+    ACTOR_ANIMATION_TRAVERSE_WINDOW  = 0x2D,
+    ACTOR_ANIMATION_TRAVERSE_THROUGH_HOLE_42 = 0x2E,
+    ACTOR_ANIMATION_COUNT            = 0x2F,
+};
+
+
+struct ai_animation_funcs_t // sizeof=0x10
+{                                       // XREF: .rdata:ai_animation_funcs_t const * const AIAnimationFuncTable/r
+    void (__cdecl *pfnStart)(int, const entityState_s *, ActorAnimStates);
+                                        // XREF: BG_Dog_SetNewAnimationState+56/r
+                                        // BG_Dog_SetNewAnimationState+77/r
+    void (__cdecl *pfnThink)(int, const entityState_s *);
+                                        // XREF: BG_Dog_UpdateAnimationState(int,entityState_s const *,actorInfo_t *)+AE/r
+                                        // BG_Dog_UpdateAnimationState(int,entityState_s const *,actorInfo_t *)+C5/r
+    int (__cdecl *pfnLength)(int, const entityState_s *);
+    void (__cdecl *pfnSetAtEnd)(int, const entityState_s *, actorInfo_t *);
+                                        // XREF: BG_Actor_FastForwardAnimState(int,entityState_s const *,actorInfo_t *)+19/r
+                                        // BG_Actor_FastForwardAnimState(int,entityState_s const *,actorInfo_t *)+34/r
+};
+
+const ai_animation_funcs_t AIAnimationFuncTable[47] =
+{
+  { NULL, NULL, NULL, NULL },
+  { BG_Dog_Move_Run, BG_Dog_Move_Run_Think, NULL, NULL },
+  { BG_Dog_Move_Start, NULL, NULL, NULL },
+  { BG_Dog_Move_Stop, NULL, NULL, NULL },
+  { BG_Dog_Move_Walk, BG_Dog_Move_Walk_Think, NULL, NULL },
+  { BG_Dog_Move_Turn_Left, NULL, NULL, NULL },
+  { BG_Dog_Move_Turn_Right, NULL, NULL, NULL },
+  { BG_Dog_Move_Run_Turn_Left, NULL, NULL, NULL },
+  { BG_Dog_Move_Run_Turn_Right, NULL, NULL, NULL },
+  { BG_Dog_Move_Turn_Around_Left, NULL, NULL, NULL },
+  { BG_Dog_Move_Turn_Around_Right, NULL, NULL, NULL },
+  { BG_Dog_Move_Run_Turn_Around_Left, NULL, NULL, NULL },
+  { BG_Dog_Move_Run_Turn_Around_Right, NULL, NULL, NULL },
+  { NULL, NULL, NULL, NULL },
+  { BG_Dog_Stop_Idle, BG_Dog_Look_At, NULL, NULL },
+  { BG_Dog_Stop_AttackIdle, BG_Dog_Look_At, NULL, NULL },
+  { BG_Dog_Stop_AttackIdle_Bark, BG_Dog_Look_At, NULL, NULL },
+  { BG_Dog_Stop_AttackIdle_Growl, BG_Dog_Look_At, NULL, NULL },
+  { BG_Dog_Pain_Main, NULL, NULL, NULL },
+  { BG_Dog_Pain_Front, NULL, NULL, NULL },
+  { BG_Dog_Pain_Back, NULL, NULL, NULL },
+  { BG_Dog_Pain_Left, NULL, NULL, NULL },
+  { BG_Dog_Pain_Right, NULL, NULL, NULL },
+  { BG_Dog_Run_Pain_Front, NULL, NULL, NULL },
+  { BG_Dog_Run_Pain_Back, NULL, NULL, NULL },
+  { BG_Dog_Run_Pain_Left, NULL, NULL, NULL },
+  { BG_Dog_Run_Pain_Right, NULL, NULL, NULL },
+  { BG_Dog_Death_Front, NULL, NULL, BG_Dog_Death_Fast_Forward_Front },
+  { BG_Dog_Death_Back, NULL, NULL, BG_Dog_Death_Fast_Forward_Back },
+  { BG_Dog_Death_Left, NULL, NULL, BG_Dog_Death_Fast_Forward_Left },
+  { BG_Dog_Death_Right, NULL, NULL, BG_Dog_Death_Fast_Forward_Right },
+  { BG_Dog_Flashed, NULL, NULL, NULL },
+  { BG_Dog_Combat_AttackIdle, NULL, NULL, NULL },
+  { BG_Dog_Combat_AttackIdle_Bark, NULL, NULL, NULL },
+  { BG_Dog_Combat_AttackIdle_Growl, NULL, NULL, NULL },
+  { BG_Dog_Combat_Attack_Run, NULL, NULL, NULL },
+  { BG_Dog_Combat_Attack_Player_Close_Range, NULL, NULL, NULL },
+  { BG_Dog_Combat_Attack_Miss, BG_Dog_Look_At, NULL, NULL },
+  { BG_Dog_Combat_Attack_Miss_Left, NULL, NULL, NULL },
+  { BG_Dog_Combat_Attack_Miss_Right, NULL, NULL, NULL },
+  { BG_Dog_Traverse_Jump_Up_40, NULL, NULL, NULL },
+  { BG_Dog_Traverse_Jump_Up_80, NULL, NULL, NULL },
+  { BG_Dog_Traverse_Jump_Down_40, NULL, NULL, NULL },
+  { BG_Dog_Traverse_Jump_Down_80, NULL, NULL, NULL },
+  { BG_Dog_Traverse_Wallhop, NULL, NULL, NULL },
+  { BG_Dog_Traverse_Window, NULL, NULL, NULL },
+  { BG_Dog_Traverse_Through_Hole_42, NULL, NULL, NULL }
+};
+
+
 
 int __cdecl BG_Actor_GetAnimStateIndex(unsigned __int16 animStateName)
 {
@@ -93,7 +306,7 @@ void __cdecl BG_Dog_UpdateAnimationState(int localClientNum, const entityState_s
   int newAnimationState; // [esp+10h] [ebp-4h]
 
   lf = &actorInfo->animInfo;
-  newAnimationState = es->un2.animState.state;
+  newAnimationState = es->animState.state;
   if ( ApplyNewAnimState(actorInfo->pXAnimTree, &actorInfo->animInfo.lerp, newAnimationState) )
   {
     BG_Dog_SetNewAnimationState(localClientNum, &actorInfo->animInfo, &lf->lerp, newAnimationState, es);
@@ -149,6 +362,6 @@ bool __cdecl ApplyNewAnimState(XAnimTree_s *pAnimTree, actorLerpFrame_t *lf, int
 
 void __cdecl BG_Dog_SetAnimState(entityState_s *es, int animState)
 {
-  es->un2.animState.state = animState | es->un2.animState.state & 0x40 ^ 0x40;
+  es->animState.state = animState | es->animState.state & 0x40 ^ 0x40;
 }
 

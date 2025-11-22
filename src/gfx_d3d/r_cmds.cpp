@@ -4,7 +4,7 @@ void __cdecl R_RegisterCmds()
 {
   Cmd_AddCommandInternal("screenshot", R_Cmd_Screenshot, &R_Cmd_Screenshot_VAR);
   Cmd_AddCommandInternal("screenshotJpeg", R_Cmd_ScreenshotJpeg, &R_Cmd_ScreenshotJpeg_VAR);
-  Cmd_AddCommandInternal("imagelist", BG_EvalVehicleName, &R_ImageList_f_VAR);
+  Cmd_AddCommandInternal("imagelist", BLOPS_NULLSUB, &R_ImageList_f_VAR);
   Cmd_AddCommandInternal("r_applyPicmip", R_Cmd_ApplyPicmip, &R_Cmd_ApplyPicmip_VAR);
   Cmd_AddCommandInternal("reloadmaterialtextures", R_Cmd_ReloadMaterialTextures, &R_Cmd_ReloadMaterialTextures_VAR);
   Cmd_AddCommandInternal("r_loadsun", R_Cmd_LoadSun, &R_Cmd_LoadSun_VAR);

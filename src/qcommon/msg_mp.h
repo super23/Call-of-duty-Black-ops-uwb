@@ -1,5 +1,6 @@
 #pragma once
 #include <universal/q_shared.h>
+#include <qcommon/bitarray.h>
 #include "ent.h"
 
 enum netsrc_t : __int32
@@ -79,6 +80,39 @@ struct archivedEntity_s // sizeof=0x100
                                         // CM_UnlinkEntity(svEntity_s *)+75/o ...
     archivedEntityShared_t r;           // XREF: SV_ArchiveSnapshot(msg_t *)+86A/w
                                         // SV_ArchiveSnapshot(msg_t *)+87F/r ...
+};
+
+struct __declspec(align(2)) usercmd_s // sizeof=0x34
+{                                       // XREF: clientSession_t/r
+                                        // clientSession_t/r ...
+    int serverTime;                     // XREF: CG_CalcVehicleViewValues(int)+1543/r
+                                        // CG_Calc3rdPersonVehicleViewValues(int)+29F/r ...
+    bitarray<51> button_bits;           // XREF: PM_AirMove+15/o
+                                        // PM_SwimMove+15/o ...
+    int angles[3];                      // XREF: CG_CheckPlayerMovement+B/o
+                                        // CG_CheckPlayerMovement+E/o
+    unsigned __int16 weapon;
+    unsigned __int16 offHandIndex;
+    unsigned __int16 lastWeaponAltModeSwitch;
+    char forwardmove;                   // XREF: CG_RadiantCamCalcView(int)+73/r
+                                        // CG_CheckPlayerMovement:loc_49A9CE/r
+    char rightmove;                     // XREF: CG_RadiantCamCalcView(int)+81/r
+                                        // CG_CheckPlayerMovement+26/r
+    char upmove;
+    char pitchmove;                     // XREF: CG_CalcVehicleViewValues(int)+1516/r
+                                        // CG_Calc3rdPersonVehicleViewValues(int)+249/r ...
+    char yawmove;                       // XREF: CG_CalcVehicleViewValues(int)+130D/r
+                                        // CG_CalcVehicleViewValues(int)+131D/r ...
+    // padding byte
+    float meleeChargeYaw;
+    unsigned __int8 meleeChargeDist;
+    // padding byte
+    // padding byte
+    // padding byte
+    float rollmove;
+    char selectedLocation[2];
+    unsigned __int8 selectedYaw;
+    // padding byte
 };
 
 struct playerState_s;

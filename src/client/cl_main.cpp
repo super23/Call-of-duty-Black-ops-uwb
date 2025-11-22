@@ -11,7 +11,7 @@ void __cdecl CL_RunNetworkFrame(int localClientNum)
     firstSignedInController = -1;
     for ( i = 0; i < 1; ++i )
     {
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
       if ( Live_IsSignedIn(i)
         && !CG_IsShowingZombieMap()
         && Flame_GetLocalClientSourceRange()
@@ -53,7 +53,7 @@ void __cdecl CL_Command_ProvisionallyDisableAllClients()
 
   for ( localClientNum = 0; localClientNum < 1; ++localClientNum )
   {
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     if ( !s_dontUnlockControllers )
       Com_LocalClient_SetBeingUsed(localClientNum, 0);
   }
@@ -68,7 +68,7 @@ void __cdecl CL_Command_DisableAllButPrimaryClients()
   {
     if ( !Com_LocalClient_IsPrimary(localClientNum) )
     {
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
       Com_LocalClient_SetBeingUsed(localClientNum, 0);
     }
   }
@@ -80,7 +80,7 @@ void __cdecl CL_Command_DisableAllClients()
 
   for ( localClientNum = 0; localClientNum < 1; ++localClientNum )
   {
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     Com_LocalClient_SetBeingUsed(localClientNum, 0);
   }
 }
@@ -95,7 +95,7 @@ void __cdecl CL_Command_SetClientBeingUsedAndPrimaryAndActive()
 {
   Com_LocalClient_SetBeingUsed(0, 1);
   Com_LocalClient_SetPrimary(0, 1);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 
 void __cdecl CL_Command_SetClientPrimary()
@@ -111,12 +111,12 @@ void __cdecl CL_Command_SetClientBeingUsed()
 void __cdecl CL_Command_SetClientBeingUsedAndActive()
 {
   Com_LocalClient_SetBeingUsed(0, 1);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 
 void __cdecl CL_Command_SetClientNotBeingUsed()
 {
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   Com_LocalClient_SetBeingUsed(0, 0);
 }
 
@@ -367,6 +367,6 @@ void __cdecl CL_DrawSpinnerLoadbar(
 
 void __cdecl CL_RegisterDvars()
 {
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 

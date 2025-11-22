@@ -8,6 +8,17 @@ enum scriptInstance_t : __int32
     SCRIPT_INSTANCE_MAX   = 0x2,
 };
 
+struct ScriptFunctions // sizeof=0xC
+{                                       // XREF: ?CGScr_LoadClientScriptsAndAnims@@YAXXZ/r
+                                        // CGScr_LoadScriptsAndAnims/r
+    int maxSize;                        // XREF: CGScr_LoadClientScriptsAndAnims(void)+9/w
+                                        // CGScr_LoadClientScriptsAndAnims(void)+43/w ...
+    int count;                          // XREF: CGScr_LoadClientScriptsAndAnims(void)+10/w
+                                        // CGScr_LoadClientScriptsAndAnims(void)+40/r ...
+    int *address;                       // XREF: CGScr_LoadClientScriptsAndAnims(void)+1D/w
+                                        // CGScr_LoadScriptsAndAnims+1D/w
+};
+
 struct PrecacheEntry // sizeof=0x8
 {                                       // XREF: ?Scr_LoadScript@@YAIW4scriptInstance_t@@PBD@Z/r
     unsigned __int16 filename;

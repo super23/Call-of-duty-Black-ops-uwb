@@ -1,4 +1,12 @@
 #include "snd.h"
+#include <win32/win_main.h>
+#include <universal/assertive.h>
+#include "snd_public_async.h"
+#include <universal/com_math.h>
+#include <cfloat>
+#include <cstring>
+
+snd_local_t g_snd;
 
 bool __cdecl SND_ShouldInit()
 {
@@ -1089,7 +1097,7 @@ void __cdecl SND_SetSoundFileVoiceInfo(
   if ( voice->soundFileInfo.loadingState == SFLS_LOADING && loadingState == SFLS_LOADED )
   {
     Sys_Milliseconds();
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
   }
   voice->soundFileInfo.loadingState = loadingState;
   voice->soundFileInfo.srcChannelCount = srcChannelCount;
@@ -2167,7 +2175,7 @@ void __cdecl SNDL_Update()
     if ( g_DXDeviceThread == GetCurrentThreadId() )
       D3DPERF_EndEvent();
     //PIXBeginNamedEvent(-1, "Driver Post Update");
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     if ( g_DXDeviceThread == GetCurrentThreadId() )
       D3DPERF_EndEvent();
     //PIXBeginNamedEvent(-1, "debug");

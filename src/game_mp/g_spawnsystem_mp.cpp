@@ -2052,11 +2052,11 @@ void SpawnSystem_DebugRender()
           if ( influencerList[j].preset->shape )
           {
             if ( influencerList[j].preset->shape == INFLUENCER_SHAPE_CYLINDER )
-              BG_EvalVehicleName();
+              BLOPS_NULLSUB();
           }
           else
           {
-            BG_EvalVehicleName();
+            BLOPS_NULLSUB();
           }
         }
       }
@@ -2068,14 +2068,14 @@ void SpawnSystem_DebugRender()
     if ( spawnsystem_debug_best_points->current.enabled )
     {
       if ( (point_team & 1) != 0 )
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
       if ( (point_team & 2) != 0 )
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
       if ( (point_team & 4) != 0 )
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
     }
     if ( spawnsystem_debug_showclients->current.enabled )
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
   }
 }
 

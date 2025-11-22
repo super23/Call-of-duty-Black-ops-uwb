@@ -289,7 +289,7 @@ void __cdecl SV_Startup(int controllerIndex)
       Com_Error(ERR_DROP, "Dedicated server authentication failure.\n");
     Com_Printf(0, "should be logged in ok\n");
   }
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( com_maxclients->current.integer > 32
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\server_mp\\sv_init_mp.cpp",
@@ -520,7 +520,7 @@ void __cdecl  SV_SpawnServer(int controllerIndex, char *server, int mapIsPreload
   if ( !mapIsPreloaded )
     Com_Restart();
   if ( com_sv_running->current.enabled )
-    BG_EvalVehicleName(v10);
+    BLOPS_NULLSUB(v10);
   else
     SV_Startup(controllerIndex);
   Dvar_ClearModified(com_maxclients);
@@ -1059,7 +1059,7 @@ void __cdecl SV_Shutdown(const char *finalmsg)
     SV_FinalMessage(finalmsg);
     v1 = va("shutting down: %s", finalmsg);
     SV_SysLog_LogMessage(5, v1);
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     SV_ShutdownGameProgs();
     SV_DropAllClients();
     LiveSteam_Server_Shutdown();

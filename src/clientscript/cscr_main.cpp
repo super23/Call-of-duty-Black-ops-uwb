@@ -501,7 +501,7 @@ void __cdecl Scr_EndLoadScripts(scriptInstance_t inst)
       *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8256),
       *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8252));
   Scr_EndLoadEvaluate(inst);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   SL_ShutdownSystem(inst, 2u);
   if ( com_sv_running->current.enabled )
     Scr_InitDebugger(inst);

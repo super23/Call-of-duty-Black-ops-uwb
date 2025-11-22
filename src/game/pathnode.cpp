@@ -3845,7 +3845,7 @@ void __cdecl G_ProcessPathnodeCommand(const RadiantCommand *command, SpawnVar *s
     nodeIndex = Path_ConvertNodeToIndex(g_radiant_selected_pathnode);
     G_DropPathNodeToFloor(nodeIndex);
     Path_ConnectPathsForSingleNode(g_radiant_selected_pathnode);
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     Com_Printf(5, "Radiant Live Update: Created new path node\n");
     G_AssignGameIdMapping(command->liveUpdateId, nodeIndex);
   }
@@ -3876,7 +3876,7 @@ void __cdecl G_ProcessPathnodeCommand(const RadiantCommand *command, SpawnVar *s
       g_radiant_selected_pathnode->constant.type = NODE_BADNODE;
     }
     g_radiant_selected_pathnode = 0;
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
   }
   else
   {
@@ -3895,7 +3895,7 @@ void __cdecl G_ProcessPathnodeCommand(const RadiantCommand *command, SpawnVar *s
     {
       g_radiant_selected_pathnode = G_FindPathNode(spawnVar, nodetype, gameId);
       node = g_radiant_selected_pathnode;
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
       if ( !node )
         Com_Printf(5, "Radiant Live Update: Can't find pathnode.  Maps out of sync (Radiant/Game), re-bsp!\n");
     }
@@ -3916,7 +3916,7 @@ void __cdecl G_ProcessPathnodeCommand(const RadiantCommand *command, SpawnVar *s
 void __cdecl G_ClearSelectedPathNode()
 {
   g_radiant_selected_pathnode = 0;
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 
 pathnode_parent_t *__thiscall phys_simple_allocator<pathnode_parent_t>::allocate(

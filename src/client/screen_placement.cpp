@@ -1,5 +1,10 @@
 #include "screen_placement.h"
 
+#include <cstring>
+
+ScreenPlacement scrPlaceView[1];
+ScreenPlacement scrPlaceFull;
+
 double __cdecl ScrPlace_HiResGetScale()
 {
   if ( rg.renderHiResShot )

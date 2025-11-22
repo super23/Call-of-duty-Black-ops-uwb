@@ -142,7 +142,7 @@ void __cdecl BG_FillInAllWeaponItems()
   unsigned int weaponIndex; // [esp+0h] [ebp-8h]
   unsigned int weaponCount; // [esp+4h] [ebp-4h]
 
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   weaponCount = BG_GetNumWeapons();
   for ( weaponIndex = 1; weaponIndex < weaponCount; ++weaponIndex )
     BG_SetupWeaponIndex(weaponIndex);

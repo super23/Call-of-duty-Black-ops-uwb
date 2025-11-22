@@ -114,7 +114,7 @@ void __cdecl Scr_VM_Init(scriptInstance_t inst)
                       0,
                       0,
                       "Used to toggle systems in script on and off on the server.");
-  Cmd_AddCommandInternal("scrProfileInfo", BG_EvalVehicleName, &VM_DumpScriptProfileInfo_VAR);
+  Cmd_AddCommandInternal("scrProfileInfo", BLOPS_NULLSUB, &VM_DumpScriptProfileInfo_VAR);
 }
 
 void __cdecl Scr_Settings(int developer, int developer_script, int abort_on_error, scriptInstance_t inst)

@@ -4720,7 +4720,7 @@ int __cdecl Scr_UpdateDebugSocket(scriptInstance_t inst)
       case 36:
       case 37:
       case 40:
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
         goto LABEL_20;
       case 21:
         Scr_ToggleBreakpointRemote(inst);
@@ -4732,7 +4732,7 @@ int __cdecl Scr_UpdateDebugSocket(scriptInstance_t inst)
         Scr_KeepAliveRemote(inst);
         goto LABEL_20;
       case 41:
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
         if ( !dirty || gScrDebuggerGlob[inst].scriptWatch.dirty )
           goto LABEL_20;
         newEvent = 1;

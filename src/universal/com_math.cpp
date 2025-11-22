@@ -1,5 +1,9 @@
 #include "com_math.h"
 
+#include <stdlib.h>
+#include "assertive.h"
+#include <cmath>
+
 double __cdecl random()
 {
   return (double)rand() / 32768.0;
@@ -12,27 +16,27 @@ double __cdecl crandom()
 
 void __cdecl GaussianRandom(float *f0, float *f1)
 {
-  long double v2; // [esp+0h] [ebp-10h]
-  float x; // [esp+4h] [ebp-Ch]
-  float y; // [esp+8h] [ebp-8h]
-  float w; // [esp+Ch] [ebp-4h]
-  float wa; // [esp+Ch] [ebp-4h]
+    float v2; // [esp+0h] [ebp-1Ch]
+    float v3; // [esp+4h] [ebp-18h]
+    float v4; // [esp+8h] [ebp-14h]
+    float x; // [esp+10h] [ebp-Ch]
+    float y; // [esp+14h] [ebp-8h]
+    float w; // [esp+18h] [ebp-4h]
 
-  if ( !f0 && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\universal\\com_math.cpp", 173, 0, "%s", "f0") )
-    __debugbreak();
-  if ( !f1 && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\universal\\com_math.cpp", 174, 0, "%s", "f1") )
-    __debugbreak();
-  do
-  {
-    *((float *)&v2 + 1) = crandom();
-    y = crandom();
-    w = (float)(*((float *)&v2 + 1) * *((float *)&v2 + 1)) + (float)(y * y);
-  }
-  while ( w > 1.0 );
-  __libm_sse2_log(v2);
-  wa = fsqrt((float)(-2.0 * w) / w);
-  *f0 = x * wa;
-  *f1 = y * wa;
+    iassert(f0);
+    iassert(f1);
+
+    do
+    {
+        x = crandom();
+        y = crandom();
+        w = x * x + y * y;
+    } while (w > 1.0);
+    v4 = log(w);
+    v3 = v4 * -2.0 / w;
+    v2 = sqrt(v3);
+    *f0 = x * v2;
+    *f1 = y * v2;
 }
 
 unsigned int __cdecl RandWithSeed(int *seed)
@@ -1521,7 +1525,7 @@ void __cdecl FinitePerspectiveMatrix(float tanHalfFovX, float tanHalfFovY, float
 }
 
 // local variable allocation has failed, the output may be wrong!
-void  SpotLightViewMatrix(unsigned int a1@<ebp>, const float *direction, float rotation, float (*mtx)[4])
+void  SpotLightViewMatrix(const float *direction, float rotation, float (*mtx)[4])
 {
   long double v4; // [esp-14h] [ebp-CCh]
   long double v5; // [esp-14h] [ebp-CCh]
@@ -1565,7 +1569,6 @@ void  SpotLightViewMatrix(unsigned int a1@<ebp>, const float *direction, float r
 
 // local variable allocation has failed, the output may be wrong!
 void  SpotLightViewMatrixDir3(
-        unsigned int a1@<ebp>,
         const float *dirx,
         const float *diry,
         const float *dirz,
@@ -3162,3 +3165,19 @@ void __cdecl AxisCopy(const float (*in)[3], float (*out)[3])
   (*out)[8] = (*in)[8];
 }
 
+void __cdecl Vec3Lerp(const float *start, const float *end, float fraction, float *endpos)
+{
+    *endpos = (float)((float)(*end - *start) * fraction) + *start;
+    endpos[1] = (float)((float)(end[1] - start[1]) * fraction) + start[1];
+    endpos[2] = (float)((float)(end[2] - start[2]) * fraction) + start[2];
+}
+
+float __cdecl Vec3DistanceSq(const float *p1, const float *p2)
+{
+    float v_4; // [esp+4h] [ebp-8h]
+    float v_8; // [esp+8h] [ebp-4h]
+
+    v_4 = p2[1] - p1[1];
+    v_8 = p2[2] - p1[2];
+    return v_8 * v_8 + v_4 * v_4 + (float)(*p2 - *p1) * (float)(*p2 - *p1);
+}

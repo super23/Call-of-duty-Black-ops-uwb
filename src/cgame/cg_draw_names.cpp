@@ -782,7 +782,7 @@ void __cdecl CG_DrawCrosshairNames(int localClientNum)
       if ( CG_IsValidCrosshairEntity(localClientNum, cgameGlob, cent, entnum) )
       {
         myTeam = cgameGlob->bgs.clientinfo[cgameGlob->nextSnap->ps.clientNum].team;
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
         if ( myTeam == 3 || myTeam && myTeam == cgameGlob->bgs.clientinfo[cgameGlob->crosshairClientNum].team )
           alpha = CG_FadeCrosshairNameAlpha(
                     cgameGlob->time,

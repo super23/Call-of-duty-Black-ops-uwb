@@ -1282,7 +1282,7 @@ void __cdecl UI_AcceptFriend()
   {
     __debugbreak();
   }
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 
 void __cdecl UI_DeclineFriend()
@@ -1297,7 +1297,7 @@ void __cdecl UI_DeclineFriend()
   {
     __debugbreak();
   }
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 
 void __cdecl UI_AcceptInvite()

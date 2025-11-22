@@ -9,7 +9,7 @@ void __cdecl UI_track_init()
   g_mem_track_filename = "ui_utils";
   TRACK_ui_utils();
   g_mem_track_filename = "ui_atoms";
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   g_mem_track_filename = "ui_memtrack";
   TRACK_g_memtrack();
   g_mem_track_filename = "ui_shared_obj";

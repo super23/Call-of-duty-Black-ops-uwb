@@ -1,5 +1,28 @@
 #pragma once
 
+struct ScreenPlacement // sizeof=0x78
+{                                       // XREF: .data:ScreenPlacement * scrPlaceView/r
+                                        // .data:ScreenPlacement scrPlaceFull/r ...
+    float scaleVirtualToReal[2];        // XREF: AimAssist_UpdateTweakables+98/r
+                                        // AimAssist_UpdateTweakables+E8/r ...
+    float scaleVirtualToFull[2];        // XREF: UI_Refresh(int)+32B/r
+                                        // UI_Refresh(int)+348/r ...
+    float scaleRealToVirtual[2];
+    float virtualViewableMin[2];
+    float virtualViewableMax[2];
+    float virtualTweakableMin[2];
+    float virtualTweakableMax[2];
+    float realViewportBase[2];
+    float realViewportSize[2];          // XREF: CG_DrawGenericOverlay+13F/r
+                                        // CG_DrawGenericOverlay+152/r ...
+    float realViewportMid[2];
+    float realViewableMin[2];
+    float realViewableMax[2];
+    float realTweakableMin[2];
+    float realTweakableMax[2];
+    float subScreen[2];
+};
+
 double __cdecl ScrPlace_HiResGetScale();
 void __cdecl ScrPlace_HiResApplyRect(float *x, float *y, float *w, float *h);
 void __cdecl ScrPlace_SetupUI3DForFullscreen(ScreenPlacement *ui3DScrPlace, ScreenPlacement *fullScrPlace);
@@ -48,3 +71,6 @@ void __cdecl ScrPlace_ApplyRect(
         float *h,
         int horzAlign,
         int vertAlign);
+
+extern ScreenPlacement scrPlaceView[1];
+extern ScreenPlacement scrPlaceFull;

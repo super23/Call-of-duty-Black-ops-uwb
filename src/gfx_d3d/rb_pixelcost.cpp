@@ -72,7 +72,7 @@ void __cdecl R_PixelCost_BeginSurface(GfxCmdBufContext context)
     if ( !RB_PixelCost_DoesPrimMatch(packedKey) )
       RB_PixelCost_ResetPrim(packedKey);
     ++pixelCostGlob.expectedCount;
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     RB_HW_BeginOcclusionQuery(gfxAssets.pixelCountQuery[r_glob.backEndFrameCount % 4]);
   }
   else if ( pixelCostMode == GFX_PIXEL_COST_MODE_MEASURE_MSEC )
@@ -81,7 +81,7 @@ void __cdecl R_PixelCost_BeginSurface(GfxCmdBufContext context)
     if ( !RB_PixelCost_DoesPrimMatch(packedKeya) )
       RB_PixelCost_ResetPrim(packedKeya);
     ++pixelCostGlob.expectedCount;
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
   }
   else
   {
@@ -255,7 +255,7 @@ void __cdecl R_PixelCost_EndSurface(GfxCmdBufContext context)
     gfxAssets.pixelCountQuery[r_glob.backEndFrameCount % 4]->Issue(
       gfxAssets.pixelCountQuery[r_glob.backEndFrameCount % 4],
       1u);
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     pixelCount = RB_HW_ReadOcclusionQuery(gfxAssets.pixelCountQuery[r_glob.backEndFrameCount % 4]);
     if ( pixelCount )
     {
@@ -283,7 +283,7 @@ void __cdecl R_PixelCost_EndSurface(GfxCmdBufContext context)
   }
   else if ( pixelCostMode == GFX_PIXEL_COST_MODE_MEASURE_MSEC )
   {
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     RB_PixelCost_AccumulateMsec();
   }
   else

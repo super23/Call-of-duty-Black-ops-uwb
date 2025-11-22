@@ -1058,7 +1058,7 @@ void __cdecl Com_TempMeminfo_f()
   {
     __debugbreak();
   }
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   Com_Printf(0, "Related commands: meminfo, imagelist, gfx_world, gfx_model, cg_drawfps, com_statmon, tempmeminfo\n");
 }
 

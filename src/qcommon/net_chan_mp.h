@@ -51,13 +51,7 @@ struct netProfileInfo_t // sizeof=0x5E0
     netProfileStream_t recieve;
 };
 
-enum netsrc_t : __int32
-{                                       // XREF: msg_t/r netchan_t/r ...
-    NS_CLIENT1    = 0x0,
-    NS_SERVER     = 0x1,
-    NS_MAXCLIENTS = 0x1,
-    NS_PACKET     = 0x2,
-};
+enum netsrc_t : __int32;
 
 struct netchan_t // sizeof=0x6C0
 {                                       // XREF: clientConnection_t/r

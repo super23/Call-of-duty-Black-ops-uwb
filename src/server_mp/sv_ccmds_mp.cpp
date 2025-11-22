@@ -150,7 +150,7 @@ void __cdecl SV_AddOperatorCommands()
     Cmd_AddCommandInternal("map_rotate", Cbuf_AddServerText_f, &SV_MapRotate_f_VAR);
     Cmd_AddServerCommandInternal("map_rotate", SV_MapRotate_f, &SV_MapRotate_f_VAR_SERVER);
     Cmd_AddCommandInternal("gameCompleteStatus", Cbuf_AddServerText_f, &SV_GameCompleteStatus_f_VAR);
-    Cmd_AddServerCommandInternal("gameCompleteStatus", BG_EvalVehicleName, &SV_GameCompleteStatus_f_VAR_SERVER);
+    Cmd_AddServerCommandInternal("gameCompleteStatus", BLOPS_NULLSUB, &SV_GameCompleteStatus_f_VAR_SERVER);
     Cmd_AddCommandInternal("devmap", Cbuf_AddServerText_f, &SV_Map_f_VAR);
     Cmd_AddServerCommandInternal("devmap", SV_Map_f, &SV_Map_f_VAR_SERVER);
     Cmd_SetAutoComplete("devmap", "maps/mp", "d3dbsp");

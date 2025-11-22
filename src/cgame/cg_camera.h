@@ -29,7 +29,6 @@ void __cdecl CG_CalculateGunnerOffset_Sway(
         float ssSwayScale,
         int frametime);
 void __cdecl CG_OffsetVehicleGunner(int localClientNum, cg_s *cgameGlob);
-void __cdecl Vec3Lerp(const float *start, const float *end, float fraction, float *endpos);
 void __cdecl CG_OffsetVehicleAnimCam(int localClientNum);
 void __cdecl CG_GetExtraCamOrigin(int localClientNum, float *out);
 void __cdecl CG_CalcExtraCamViewValues(int localClientNum);

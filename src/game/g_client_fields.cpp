@@ -48,7 +48,7 @@ void __cdecl ClientScr_SetSessionTeam(gclient_s *pSelf)
   }
   if ( pSelf - level.clients >= level.maxclients )
     Scr_Error("client is not pointing to the level.clients array", 0);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   ClientUserinfoChanged(pSelf - level.clients);
   CalculateRanks();
 }

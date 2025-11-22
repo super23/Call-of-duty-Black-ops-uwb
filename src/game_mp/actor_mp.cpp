@@ -1454,7 +1454,7 @@ actor_think_result_t __fastcall Actor_CallThink(actor_s *self)
   {
     __debugbreak();
   }
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( self->transitionCount )
   {
     Actor_ThinkStateTransitions(self);
@@ -1560,7 +1560,7 @@ actor_think_result_t __fastcall Actor_CallThink(actor_s *self)
   {
     __debugbreak();
   }
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   return eThinkResult;
 }
 
@@ -4499,7 +4499,7 @@ void __fastcall Actor_PredictAnim(actor_s *self)
   if ( !self->ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\actor_mp.cpp", 5152, 0, "%s", "ent") )
     __debugbreak();
   v1.intValue = Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue;
-  G_DObjUpdateServerTime(ent, v1.intValue, BG_EvalVehicleName);
+  G_DObjUpdateServerTime(ent, v1.intValue, BLOPS_NULLSUB);
   Scr_AddInt(1, SCRIPTINSTANCE_SERVER);
 }
 

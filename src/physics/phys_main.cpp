@@ -1372,7 +1372,7 @@ PhysObjUserData * Phys_CreateBodyFromState@<eax>(
       rigid_body::set_inertia(v16, &v8);
       create_broad_phase_info(v102->body);
       if ( do_collision_test )
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
       Sys_LeaveCriticalSection(CRITSECT_PHYSICS);
       return v101;
     }
@@ -4217,7 +4217,7 @@ void __cdecl print_smodel(cStaticModel_s *smodel, int refcount, const float *dim
   int ntris; // [esp+2Ch] [ebp-4h]
 
   model = smodel->xmodel;
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   Com_Printf(
     20,
     "%-42s\t refs( %4d ) lods( %d ) ncol_tris( %4d )   avr dims( %5.0f, %5.0f, %5.0f )\n",
@@ -4412,7 +4412,7 @@ void  UpdateRigidBody(float a1@<ebp>, float delta_t)
   gravity_dir.y = a1;
   gravity_dir.z = retaddr;
   //PIXBeginNamedEvent(-1, "update 1");
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   debug_loop();
   free_chull_lists();
   Sys_EnterCriticalSection(CRITSECT_PHYSICS_UPDATE);

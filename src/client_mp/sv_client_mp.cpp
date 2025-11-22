@@ -664,7 +664,7 @@ void __cdecl SV_FreeClient(client_t *cl)
   {
     __debugbreak();
   }
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   SV_CloseDownload(cl);
   if ( SV_Loaded() )
     ClientDisconnect(cl - svs.clients);

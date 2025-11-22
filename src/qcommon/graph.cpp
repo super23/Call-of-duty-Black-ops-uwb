@@ -1,4 +1,8 @@
 #include "graph.h"
+#include <universal/assertive.h>
+#include <universal/q_shared.h>
+#include <universal/com_loadutils.h>
+#include <universal/q_parse.h>
 
 void __cdecl GraphFloat_Load(GraphFloat *graph, char *fileName, float scale)
 {

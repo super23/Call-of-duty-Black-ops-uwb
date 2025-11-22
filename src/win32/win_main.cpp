@@ -116,7 +116,7 @@ void __cdecl  Sys_DirectXFatalError()
   ActiveWindow = GetActiveWindow();
   MessageBoxA(ActiveWindow, v1, v2, 0x10u);
   ShellExecuteA(0, "open", "Docs\\TechHelp\\Tech Help\\Information\\DirectX.htm", 0, 0, 3);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   exit(-1);
 }
 
@@ -139,7 +139,7 @@ void __cdecl  Sys_OutOfMemErrorInternal(const char *filename, int line)
   v4 = Win_LocalizeRef("WIN_OUT_OF_MEM_BODY");
   ActiveWindow = GetActiveWindow();
   MessageBoxA(ActiveWindow, v4, v5, 0x10u);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   exit(-1);
 }
 
@@ -184,7 +184,7 @@ void  Sys_Error(char *error, ...)
   }
   FixWindowsDesktop();
   Sys_SetErrorText(string);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   exit(0);
 }
 
@@ -203,8 +203,8 @@ void __cdecl  Sys_Quit()
   RefreshQuitOnErrorCondition();
   Dvar_Shutdown();
   Cmd_Shutdown();
-  BG_EvalVehicleName();
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
+  BLOPS_NULLSUB();
   Sys_ShutdownEvents();
   SL_Shutdown(SCRIPTINSTANCE_SERVER);
   SL_Shutdown(SCRIPTINSTANCE_CLIENT);
@@ -547,7 +547,7 @@ void  Sys_NoFreeFilesError()
   v1 = Win_LocalizeRef("WIN_DISK_FULL_BODY");
   ActiveWindow = GetActiveWindow();
   MessageBoxA(ActiveWindow, v1, v2, 0x10u);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   exit(-1);
 }
 
@@ -792,7 +792,7 @@ int __stdcall WinMain(HINSTANCE__ *hInstance, HINSTANCE__ *hPrevInstance, char *
       Win_RegisterClass();
       SetErrorMode(1u);
       Sys_Milliseconds();
-      BG_EvalVehicleName(SCRIPT_DEBUGGER_SMOKE_TEST_SUCCESS_EXIT_CODE);
+      BLOPS_NULLSUB(SCRIPT_DEBUGGER_SMOKE_TEST_SUCCESS_EXIT_CODE);
       tlPrintf("Hello from the wonderful world of TL\n");
       Sys_SetupTLCallbacks((int)&loc_900000);
       if ( !Sys_IsMainThread()

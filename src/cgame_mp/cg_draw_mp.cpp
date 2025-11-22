@@ -1537,7 +1537,7 @@ void __cdecl CG_GenerateSceneCodeMeshes(int localClientNum)
   ropeVertsCmd.refdef_tanHalfFovX = clientGlobals->refdef.tanHalfFovX;
   ropeVertsCmd.refdef_tanHalfFovY = clientGlobals->refdef.tanHalfFovY;
   R_Rope_GenerateVerts_Camera(&ropeVertsCmd);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
   Flame_Generate_Verts(localClientNum);

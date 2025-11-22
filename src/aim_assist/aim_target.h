@@ -9,7 +9,6 @@ void __cdecl expandMins(float *mins, float *point);
 void __cdecl expandMaxs(float *maxs, float *point);
 void __cdecl AimTarget_ProcessEntityInternal(int localClientNum, const centity_s *ent);
 bool __cdecl AimTarget_IsTargetValid(const cg_s *cgameGlob, const centity_s *targetEnt);
-double __cdecl Vec3DistanceSq(const float *p1, const float *p2);
 double __cdecl AimTarget_GetTargetRadius(const centity_s *targetEnt);
 void __cdecl AimTarget_GetTargetBounds(const centity_s *targetEnt, float *mins, float *maxs);
 int __cdecl AimTarget_GetTagUpdateInterval(const centity_s *ent);

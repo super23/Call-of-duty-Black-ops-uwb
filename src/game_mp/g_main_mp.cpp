@@ -2674,7 +2674,7 @@ void  G_RunFrame(__m128 a1@<xmm0>, int levelTime)
   }
   *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = 0;
   ShowEntityInfo();
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   GlassSv_Update();
   LiveSteam_Server_RunCallbacks();
 }

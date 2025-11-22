@@ -1268,7 +1268,7 @@ bool __cdecl Scr_LoadAnimTreeInternal(
 
   useArchive = 1;
   if ( com_sv_running->current.enabled )
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
   if ( strlen(filename) + 15 >= 0x40
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\clientscript\\cscr_animtree.cpp",

@@ -3,7 +3,7 @@
 void __cdecl R_ProcessCmd_UpdateFxSpotLight(FxCmd *cmd)
 {
   //PIXBeginNamedEvent(-1, "R_ProcessCmd_UpdateFxSpotLight");
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   FX_UpdateSpotLight(cmd);
   Sys_SetUpdateSpotLightEffectEvent();
   if ( g_DXDeviceThread == GetCurrentThreadId() )

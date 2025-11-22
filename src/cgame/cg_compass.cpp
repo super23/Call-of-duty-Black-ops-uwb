@@ -826,7 +826,7 @@ void __cdecl CG_CompassCalcDimensions(
     *y = rect->y;
     *w = rect->w * compassSize->current.value;
     *h = rect->h * compassSize->current.value;
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     if ( *w <= 0.0 || *h <= 0.0 )
       Com_Error(ERR_FATAL, "Compass ownerdraw had width or height of 0");
   }
@@ -2423,7 +2423,7 @@ void __cdecl CG_CompassDrawPlayer(
       return;
     w = compassPlayerWidth->current.value * compassSize->current.value;
     h = compassPlayerHeight->current.value * compassSize->current.value;
-    BG_EvalVehicleName(compassType);
+    BLOPS_NULLSUB();
     x = 0.0f;
     y = 0.0f;
   }

@@ -244,7 +244,7 @@ void __cdecl R_StreamUpdate_SetupInitialImageList()
 {
   R_StreamSetDefaultConfig(1);
   if ( r_streamLowDetail && r_streamLowDetail->current.enabled )
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
   else
     memset((unsigned __int8 *)&streamFrontendGlob.imageTouchBits[0][104], 0, 0x210u);
   LOBYTE(streamFrontendGlob.sortedImages[349]) = 1;
@@ -653,7 +653,7 @@ void __cdecl R_Stream_ReleaseImage(GfxImage *image, bool lock, bool delayDirty)
       {
         __debugbreak();
       }
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
     }
     imageIndex = DB_GetImageIndex(image);
     imagePartIndex = imageIndex;
@@ -861,7 +861,7 @@ char __cdecl R_StreamUpdate(const float *viewPos)
   if ( r_streamLowDetail->modified )
   {
     if ( r_streamLowDetail->current.enabled )
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
     else
       memset((unsigned __int8 *)&streamFrontendGlob.imageTouchBits[0][104], 0, 0x210u);
     Dvar_ClearModified(r_streamLowDetail);

@@ -108,7 +108,7 @@ void __cdecl FX_InitSystem(int localClientNum)
   FX_LinkSystemBuffers(&system->system, systemBuffers);
   FX_RegisterDvars();
   FX_CreateDevGui();
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   FX_ResetSystem(&system->system);
   system->system.msecNow = 0;
   system->system.msecDraw = -1;

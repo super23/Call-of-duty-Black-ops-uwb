@@ -1,4 +1,224 @@
 #include "bg_misc.h"
+#include <universal/q_shared.h>
+#include <universal/dvar.h>
+
+const dvar_s *bg_viewKickScale;
+const dvar_s *bg_viewKickMax;
+const dvar_s *bg_viewKickMin;
+const dvar_s *bg_viewKickRandom;
+const dvar_s *player_view_pitch_up;
+const dvar_s *player_view_pitch_down;
+const dvar_s *player_lean_shift;
+const dvar_s *player_lean_shift_crouch;
+const dvar_s *player_lean_rotate;
+const dvar_s *player_lean_rotate_crouch;
+const dvar_s *player_useSlopeAnims;
+const dvar_s *bg_ladder_yawcap;
+const dvar_s *bg_prone_yawcap;
+const dvar_s *bg_foliagesnd_minspeed;
+const dvar_s *bg_foliagesnd_maxspeed;
+const dvar_s *bg_foliagesnd_slowinterval;
+const dvar_s *bg_foliagesnd_fastinterval;
+const dvar_s *bg_foliagesnd_resetinterval;
+const dvar_s *bg_friendlyFire;
+const dvar_s *bg_fallDamageMinHeight;
+const dvar_s *bg_fallDamageMaxHeight;
+const dvar_s *friction;
+const dvar_s *stopspeed;
+const dvar_s *cg_ufo_scaler;
+const dvar_s *bg_swingSpeed;
+const dvar_s *bg_proneSwingSpeed;
+const dvar_s *bg_legYawTolerance;
+const dvar_s *bg_legYawCrouchTolerance;
+const dvar_s *bg_legYawProneTolerance;
+const dvar_s *bg_viewBobAmplitudeBase;
+const dvar_s *bg_viewBobAmplitudeSprinting;
+const dvar_s *bg_viewBobAmplitudeDtp;
+const dvar_s *bg_viewBobAmplitudeSwimming;
+const dvar_s *bg_viewBobAmplitudeStanding;
+const dvar_s *bg_viewBobAmplitudeStandingAds;
+const dvar_s *bg_viewBobAmplitudeDucked;
+const dvar_s *bg_viewBobAmplitudeDuckedAds;
+const dvar_s *bg_viewBobAmplitudeProne;
+const dvar_s *bg_viewBobAmplitudeRoll;
+const dvar_s *bg_viewBobMax;
+const dvar_s *bg_forceDurationOverride;
+const dvar_s *bg_blendTimeOverride;
+const dvar_s *bg_weaponBobAmplitudeBase;
+const dvar_s *bg_weaponBobAmplitudeSprinting;
+const dvar_s *bg_weaponBobAmplitudeDtp;
+const dvar_s *bg_weaponBobAmplitudeSwimming;
+const dvar_s *bg_weaponBobAmplitudeStanding;
+const dvar_s *bg_weaponBobAmplitudeDucked;
+const dvar_s *bg_weaponBobAmplitudeProne;
+const dvar_s *bg_weaponBobAmplitudeRoll;
+const dvar_s *bg_weaponBobMax;
+const dvar_s *bg_weaponBobLag;
+const dvar_s *bg_weaponBobFrequencySwimming;
+const dvar_s *bg_weaponBobHeavyWeaponScalar;
+const dvar_s *bg_forceExplosiveBullets;
+const dvar_s *bg_aimSpreadMoveSpeedThreshold;
+const dvar_s *bg_maxGrenadeIndicatorSpeed;
+const dvar_s *player_breath_hold_time;
+const dvar_s *player_breath_gasp_time;
+const dvar_s *player_breath_fire_delay;
+const dvar_s *player_breath_gasp_scale;
+const dvar_s *player_breath_hold_lerp;
+const dvar_s *player_breath_gasp_lerp;
+const dvar_s *player_breath_snd_lerp;
+const dvar_s *player_breath_snd_delay;
+const dvar_s *player_scopeExitOnDamage;
+const dvar_s *player_adsExitDelay;
+const dvar_s *player_move_factor_on_torso;
+const dvar_s *player_debugHealth;
+const dvar_s *player_debugSprint;
+const dvar_s *player_sustainAmmo;
+const dvar_s *player_clipSizeMultiplier;
+const dvar_s *player_lastStandBleedoutTime;
+const dvar_s *player_lastStandBleedoutTimeNoRevive;
+const dvar_s *revive_time_taken;
+const dvar_s *player_lastStandHealthOverlayTime;
+const dvar_s *player_reviveTriggerRadius;
+const dvar_s *player_revivePlayerListCycleTime;
+const dvar_s *bg_vsmode_hud;
+const dvar_s *player_enableShuffleAnims;
+const dvar_s *player_animRunThreshhold;
+const dvar_s *player_animWalkThreshhold;
+const dvar_s *player_runbkThreshhold;
+const dvar_s *player_moveThreshhold;
+const dvar_s *player_footstepsThreshhold;
+const dvar_s *player_runThreshhold;
+const dvar_s *player_knockbackMoveThreshhold;
+const dvar_s *player_sprintThreshhold;
+const dvar_s *player_waterSpeedScale;
+const dvar_s *player_floatSpeed;
+const dvar_s *player_disableWeaponsInWater;
+const dvar_s *player_sliding_friction;
+const dvar_s *player_sliding_wishspeed;
+const dvar_s *player_sliding_velocity_cap;
+const dvar_s *player_strafeSpeedScale;
+const dvar_s *player_backSpeedScale;
+const dvar_s *player_strafeAnimCosAngle;
+const dvar_s *player_slopeAnimAngle;
+const dvar_s *player_spectateSpeedScale;
+const dvar_s *player_enduranceSpeedScale;
+const dvar_s *player_sprintForwardMinimum;
+const dvar_s *player_sprintSpeedScale;
+const dvar_s *player_sprintUnlimited;
+const dvar_s *player_sprintTime;
+const dvar_s *player_sprintMinTime;
+const dvar_s *player_sprintRechargePause;
+const dvar_s *player_sprintStrafeSpeedScale;
+const dvar_s *player_sprintCameraBob;
+const dvar_s *player_turnRateScale;
+const dvar_s *player_turnAnims;
+const dvar_s *player_bayonetLaunchProof;
+const dvar_s *player_bayonetLaunchDebugging;
+const dvar_s *player_bayonetLaunchZCap;
+const dvar_s *xanim_debug;
+const dvar_s *animscript_debug;
+const dvar_s *anim_debugSpeeds;
+const dvar_s *animScript_listAnims;
+const dvar_s *player_dmgtimer_timePerPoint;
+const dvar_s *player_dmgtimer_maxTime;
+const dvar_s *player_dmgtimer_minScale;
+const dvar_s *player_dmgtimer_stumbleTime;
+const dvar_s *player_dmgtimer_flinchTime;
+const dvar_s *bg_shock_soundLoop;
+const dvar_s *bg_shock_soundLoopSilent;
+const dvar_s *bg_shock_soundEnd;
+const dvar_s *bg_shock_soundEndAbort;
+const dvar_s *bg_shock_screenType;
+const dvar_s *bg_shock_screenBlurBlendTime;
+const dvar_s *bg_shock_screenBlurBlendFadeTime;
+const dvar_s *bg_shock_screenFlashWhiteFadeTime;
+const dvar_s *bg_shock_screenFlashShotFadeTime;
+const dvar_s *bg_shock_viewKickPeriod;
+const dvar_s *bg_shock_viewKickRadius;
+const dvar_s *bg_shock_viewKickFadeTime;
+const dvar_s *bg_shock_sound;
+const dvar_s *bg_shock_soundFadeInTime;
+const dvar_s *bg_shock_soundFadeOutTime;
+const dvar_s *bg_shock_soundLoopFadeTime;
+const dvar_s *bg_shock_soundLoopEndDelay;
+const dvar_s *bg_shock_soundRoomType;
+const dvar_s *bg_shock_soundDryLevel;
+const dvar_s *bg_shock_soundWetLevel;
+const dvar_s *bg_shock_soundModEndDelay;
+const dvar_s *bg_shock_soundSnapshot;
+const dvar_s *bg_shock_lookControl;
+const dvar_s *bg_shock_lookControl_maxpitchspeed;
+const dvar_s *bg_shock_lookControl_maxyawspeed;
+const dvar_s *bg_shock_lookControl_mousesensitivityscale;
+const dvar_s *bg_shock_lookControl_fadeTime;
+const dvar_s *bg_shock_movement;
+const dvar_s *bg_shock_animation;
+const dvar_s *bg_shock_visionset_name;
+const dvar_s *bg_shock_visionset_inTime;
+const dvar_s *bg_shock_visionset_outTime;
+const dvar_s *player_meleeRange;
+const dvar_s *player_meleeWidth;
+const dvar_s *player_meleeHeight;
+const dvar_s *player_bayonetRange;
+const dvar_s *player_bayonetTargetDist;
+const dvar_s *player_burstFireCooldown;
+const dvar_s *bg_gravity;
+const dvar_s *bg_lowGravity;
+const dvar_s *player_swimTime;
+const dvar_s *player_swimDamage;
+const dvar_s *player_swimDamagerInterval;
+const dvar_s *player_viewLockEnt;
+const dvar_s *player_viewRateScale;
+const dvar_s *player_topDownCamMode;
+const dvar_s *player_topDownCamOffset;
+const dvar_s *player_topDownCamAngles;
+const dvar_s *player_topDownCamCenterPos;
+const dvar_s *player_topDownCursorDist;
+const dvar_s *player_topDownCursorPos;
+const dvar_s *player_forceRedCrosshair;
+const dvar_s *bullet_penetrationMinFxDist;
+const dvar_s *cg_cinematicFullscreen;
+const dvar_s *cg_debugMounting;
+const dvar_s *player_AimBlend_Back_Low;
+const dvar_s *player_AimBlend_Back_Mid;
+const dvar_s *player_AimBlend_Back_Up;
+const dvar_s *player_AimBlend_Pelvis;
+const dvar_s *player_AimBlend_Neck;
+const dvar_s *player_AimBlend_Head;
+const dvar_s *player_AimBlend_Shoulder;
+const dvar_s *dog_MeleeDamage;
+const dvar_s *vehControlMode;
+const dvar_s *vehRecenterDelay;
+const dvar_s *vehLockTurretToPlayerView;
+const dvar_s *vehLocationalVehicleSeatEntry;
+const dvar_s *vehCameraTurretOffset;
+const dvar_s *vehCameraTurretOffsetADS;
+const dvar_s *vehicle_perk_boost_duration_seconds;
+const dvar_s *vehicle_riding;
+const dvar_s *vehicle_selfCollision;
+const dvar_s *g_bDebugRenderPlayerCollision;
+const dvar_s *bg_disableWeaponPlantingInWater;
+const dvar_s *bg_plantInWaterDepth;
+const dvar_s *bg_drawGrenadeInHand;
+const dvar_s *bg_playStandToCrouchAnims;
+const dvar_s *bg_maxWeaponAnimScale;
+const dvar_s *bg_gunXOffset;
+const dvar_s *bg_weaponleftbone;
+const dvar_s *bg_weaponrightbone;
+const dvar_s *bg_slopeFrames;
+const dvar_s *debug_rope;
+const dvar_s *vehicle_sounds_cutoff;
+const dvar_s *footstep_sounds_cutoff;
+const dvar_s *show_reticle_during_swimming;
+const dvar_s *ragdoll_reactivation_cutoff;
+const dvar_s *bg_teleportAlignTime;
+const dvar_s *bg_enableIKActiveFix;
+const dvar_s *waterbrush_entity;
+const dvar_s *dive2swim;
+const dvar_s *dive_recharge;
+const dvar_s *playerPushAmount;
+const dvar_s *bg_freeCamClipToHeliPatch;
+
 
 void __cdecl BG_RegisterDvars()
 {
@@ -34,32 +254,32 @@ void __cdecl BG_RegisterDvars()
                              "Maximum angle that the player can look down");
   player_lean_shift = _Dvar_RegisterVec2(
                         "player_lean_shift",
-                        COERCE_UNSIGNED_INT(5.0),
-                        COERCE_UNSIGNED_INT(2.5),
+                        unsigned int(5.0),
+                        unsigned int(2.5),
                         0.0,
                         20.0,
                         0x80u,
                         "Amount to shift the player 3rd person model when leaning(x:left, y:right)");
   player_lean_shift_crouch = _Dvar_RegisterVec2(
                                "player_lean_shift_crouch",
-                               COERCE_UNSIGNED_INT(12.5),
-                               COERCE_UNSIGNED_INT(2.5),
+                               unsigned int(12.5),
+                               unsigned int(2.5),
                                0.0,
                                20.0,
                                0x80u,
                                "Amount to shift the player 3rd person model when crouch leaning(x:left, y:right)");
   player_lean_rotate = _Dvar_RegisterVec2(
                          "player_lean_rotate",
-                         COERCE_UNSIGNED_INT(1.25),
-                         COERCE_UNSIGNED_INT(1.25),
+                         unsigned int(1.25),
+                         unsigned int(1.25),
                          0.0,
                          3.0,
                          0x80u,
                          "Amount to rotate the player 3rd person model when leaning(x:left, y:right)");
   player_lean_rotate_crouch = _Dvar_RegisterVec2(
                                 "player_lean_rotate_crouch",
-                                COERCE_UNSIGNED_INT(1.0),
-                                COERCE_UNSIGNED_INT(1.0),
+                                unsigned int(1.0),
+                                unsigned int(1.0),
                                 0.0,
                                 3.0,
                                 0x80u,
@@ -186,64 +406,64 @@ void __cdecl BG_RegisterDvars()
                               "The base speed-based view bob amplitude");
   bg_viewBobAmplitudeSprinting = _Dvar_RegisterVec2(
                                    "bg_viewBobAmplitudeSprinting",
-                                   COERCE_UNSIGNED_INT(0.02),
-                                   COERCE_UNSIGNED_INT(0.014),
+                                   unsigned int(0.02),
+                                   unsigned int(0.014),
                                    0.0,
                                    1.0,
                                    0x180u,
                                    "The multiplier to apply to the player's speed to get the bob amplitude while sprinting");
   bg_viewBobAmplitudeDtp = _Dvar_RegisterVec2(
                              "bg_viewBobAmplitudeDtp",
-                             COERCE_UNSIGNED_INT(0.0020000001),
-                             COERCE_UNSIGNED_INT(0.0020000001),
+                             unsigned int(0.0020000001),
+                             unsigned int(0.0020000001),
                              0.0,
                              1.0,
                              0x180u,
                              "The multiplier to apply to the player's speed to get the bob amplitude while diving to prone");
   bg_viewBobAmplitudeSwimming = _Dvar_RegisterVec2(
                                   "bg_viewBobAmplitudeSwimming",
-                                  COERCE_UNSIGNED_INT(3.0),
-                                  COERCE_UNSIGNED_INT(2.0),
+                                  unsigned int(3.0),
+                                  unsigned int(2.0),
                                   0.0,
                                   8.0,
                                   0x4080u,
                                   "The multiplier to apply to the player's speed to get the bob amplitude while swimming");
   bg_viewBobAmplitudeStanding = _Dvar_RegisterVec2(
                                   "bg_viewBobAmplitudeStanding",
-                                  COERCE_UNSIGNED_INT(0.0070000002),
-                                  COERCE_UNSIGNED_INT(0.0070000002),
+                                  unsigned int(0.0070000002),
+                                  unsigned int(0.0070000002),
                                   0.0,
                                   1.0,
                                   0x4080u,
                                   "The multiplier to apply to the player's speed to get the bob amplitude while standing");
   bg_viewBobAmplitudeStandingAds = _Dvar_RegisterVec2(
                                      "bg_viewBobAmplitudeStandingAds",
-                                     COERCE_UNSIGNED_INT(0.0070000002),
-                                     COERCE_UNSIGNED_INT(0.0070000002),
+                                     unsigned int(0.0070000002),
+                                     unsigned int(0.0070000002),
                                      0.0,
                                      1.0,
                                      0x1180u,
                                      "The multiplier to apply to the player's speed to get the view bob amplitude while standing and ADS");
   bg_viewBobAmplitudeDucked = _Dvar_RegisterVec2(
                                 "bg_viewBobAmplitudeDucked",
-                                COERCE_UNSIGNED_INT(0.0074999998),
-                                COERCE_UNSIGNED_INT(0.0074999998),
+                                unsigned int(0.0074999998),
+                                unsigned int(0.0074999998),
                                 0.0,
                                 1.0,
                                 0x180u,
                                 "The multiplier to apply to the player's speed to get the bob amplitude while ducking");
   bg_viewBobAmplitudeDuckedAds = _Dvar_RegisterVec2(
                                    "bg_viewBobAmplitudeDuckedAds",
-                                   COERCE_UNSIGNED_INT(0.0074999998),
-                                   COERCE_UNSIGNED_INT(0.0074999998),
+                                   unsigned int(0.0074999998),
+                                   unsigned int(0.0074999998),
                                    0.0,
                                    1.0,
                                    0x180u,
                                    "The multiplier to apply to the player's speed to get the view bob amplitude while ducking ADS");
   bg_viewBobAmplitudeProne = _Dvar_RegisterVec2(
                                "bg_viewBobAmplitudeProne",
-                               COERCE_UNSIGNED_INT(0.079999998),
-                               COERCE_UNSIGNED_INT(0.039999999),
+                               unsigned int(0.079999998),
+                               unsigned int(0.039999999),
                                0.0,
                                1.0,
                                0x180u,
@@ -279,48 +499,48 @@ void __cdecl BG_RegisterDvars()
                                 "The base speed-based weapon bob amplitude");
   bg_weaponBobAmplitudeSprinting = _Dvar_RegisterVec2(
                                      "bg_weaponBobAmplitudeSprinting",
-                                     COERCE_UNSIGNED_INT(0.02),
-                                     COERCE_UNSIGNED_INT(0.014),
+                                     unsigned int(0.02),
+                                     unsigned int(0.014),
                                      0.0,
                                      1.0,
                                      0x180u,
                                      "The multiplier to apply to the player's speed to get the weapon bob amplitude while sprinting");
   bg_weaponBobAmplitudeDtp = _Dvar_RegisterVec2(
                                "bg_weaponBobAmplitudeDtp",
-                               COERCE_UNSIGNED_INT(0.0020000001),
-                               COERCE_UNSIGNED_INT(0.0020000001),
+                               unsigned int(0.0020000001),
+                               unsigned int(0.0020000001),
                                0.0,
                                1.0,
                                0x180u,
                                "The multiplier to apply to the player's speed to get the weapon bob amplitude while diving to prone");
   bg_weaponBobAmplitudeSwimming = _Dvar_RegisterVec2(
                                     "bg_weaponBobAmplitudeSwimming",
-                                    COERCE_UNSIGNED_INT(4.0),
-                                    COERCE_UNSIGNED_INT(4.0),
+                                    unsigned int(4.0),
+                                    unsigned int(4.0),
                                     0.0,
                                     8.0,
                                     0x4080u,
                                     "The multiplier to apply to the player's speed to get the weapon bob amplitude while swimming");
   bg_weaponBobAmplitudeStanding = _Dvar_RegisterVec2(
                                     "bg_weaponBobAmplitudeStanding",
-                                    COERCE_UNSIGNED_INT(0.055),
-                                    COERCE_UNSIGNED_INT(0.025),
+                                    unsigned int(0.055),
+                                    unsigned int(0.025),
                                     0.0,
                                     1.0,
                                     0x4080u,
                                     "The multiplier to apply to the player's speed to get the weapon bob amplitude while standing");
   bg_weaponBobAmplitudeDucked = _Dvar_RegisterVec2(
                                   "bg_weaponBobAmplitudeDucked",
-                                  COERCE_UNSIGNED_INT(0.045000002),
-                                  COERCE_UNSIGNED_INT(0.025),
+                                  unsigned int(0.045000002),
+                                  unsigned int(0.025),
                                   0.0,
                                   1.0,
                                   0x180u,
                                   "The multiplier to apply to the player's speed to get the weapon bob amplitude while ducking");
   bg_weaponBobAmplitudeProne = _Dvar_RegisterVec2(
                                  "bg_weaponBobAmplitudeProne",
-                                 COERCE_UNSIGNED_INT(0.02),
-                                 COERCE_UNSIGNED_INT(0.0049999999),
+                                 unsigned int(0.02),
+                                 unsigned int(0.0049999999),
                                  0.0,
                                  1.0,
                                  0x180u,
@@ -1046,27 +1266,27 @@ void __cdecl BG_RegisterDvars()
   player_topDownCamMode = _Dvar_RegisterInt("player_topDownCamMode", 0, 0, 4, 0x1000u, "Enabled the top down cam.");
   player_topDownCamOffset = _Dvar_RegisterVec3(
                               "player_topDownCamOffset",
-                              COERCE_UNSIGNED_INT(0.0),
-                              COERCE_UNSIGNED_INT(0.0),
-                              COERCE_UNSIGNED_INT(500.0),
+                              unsigned int(0.0),
+                              unsigned int(0.0),
+                              unsigned int(500.0),
                               -3000.0,
                               3000.0,
                               0x1000u,
                               "Sets the camera position relative to the player for the top down cam");
   player_topDownCamAngles = _Dvar_RegisterVec3(
                               "player_topDownCamAngles",
-                              COERCE_UNSIGNED_INT(75.0),
-                              COERCE_UNSIGNED_INT(0.0),
-                              COERCE_UNSIGNED_INT(0.0),
+                              unsigned int(75.0),
+                              unsigned int(0.0),
+                              unsigned int(0.0),
                               -180.0,
                               180.0,
                               0x1000u,
                               "Sets the pitch for the top down cam");
   player_topDownCamCenterPos = _Dvar_RegisterVec3(
                                  "player_topDownCamCenterPos",
-                                 COERCE_UNSIGNED_INT(-7926.0),
-                                 COERCE_UNSIGNED_INT(-2838.0),
-                                 COERCE_UNSIGNED_INT(-88.0),
+                                 unsigned int(-7926.0),
+                                 unsigned int(-2838.0),
+                                 unsigned int(-88.0),
                                  -20000.0,
                                  20000.0,
                                  0x1000u,
@@ -1080,8 +1300,8 @@ void __cdecl BG_RegisterDvars()
                                "Distance the virtual mouse cursor is from the player.");
   player_topDownCursorPos = _Dvar_RegisterVec2(
                               "player_topDownCursorPos",
-                              COERCE_UNSIGNED_INT(0.0),
-                              COERCE_UNSIGNED_INT(0.0),
+                              unsigned int(0.0),
+                              unsigned int(0.0),
                               -3.4028235e38,
                               3.4028235e38,
                               0x1000u,
@@ -1112,63 +1332,63 @@ void __cdecl BG_RegisterDvars()
                        "Render debug lines that show where mountable weapons are trying to be placed");
   player_AimBlend_Back_Low = _Dvar_RegisterVec3(
                                "player_AimBlend_Back_Low",
-                               COERCE_UNSIGNED_INT(0.0),
-                               COERCE_UNSIGNED_INT(0.30000001),
-                               COERCE_UNSIGNED_INT(0.5),
+                               unsigned int(0.0),
+                               unsigned int(0.30000001),
+                               unsigned int(0.5),
                                -1.0,
                                1.0,
                                0,
                                "3rd person player view aim blend - lower back");
   player_AimBlend_Back_Mid = _Dvar_RegisterVec3(
                                "player_AimBlend_Back_Mid",
-                               COERCE_UNSIGNED_INT(0.1),
-                               COERCE_UNSIGNED_INT(0.2),
-                               COERCE_UNSIGNED_INT(0.5),
+                               unsigned int(0.1),
+                               unsigned int(0.2),
+                               unsigned int(0.5),
                                -1.0,
                                1.0,
                                0,
                                "3rd person player view aim blend - mid back");
   player_AimBlend_Back_Up = _Dvar_RegisterVec3(
                               "player_AimBlend_Back_Up",
-                              COERCE_UNSIGNED_INT(0.5),
-                              COERCE_UNSIGNED_INT(0.1),
-                              COERCE_UNSIGNED_INT(-0.60000002),
+                              unsigned int(0.5),
+                              unsigned int(0.1),
+                              unsigned int(-0.60000002),
                               -1.0,
                               1.0,
                               0,
                               "3rd person player view aim blend - upper back");
   player_AimBlend_Pelvis = _Dvar_RegisterVec3(
                              "player_AimBlend_Pelvis",
-                             COERCE_UNSIGNED_INT(0.40000001),
-                             COERCE_UNSIGNED_INT(0.40000001),
-                             COERCE_UNSIGNED_INT(0.0),
+                             unsigned int(0.40000001),
+                             unsigned int(0.40000001),
+                             unsigned int(0.0),
                              -1.0,
                              1.0,
                              0,
                              "3rd person player view aim blend - pelvis");
   player_AimBlend_Neck = _Dvar_RegisterVec3(
                            "player_AimBlend_Neck",
-                           COERCE_UNSIGNED_INT(0.30000001),
-                           COERCE_UNSIGNED_INT(0.30000001),
-                           COERCE_UNSIGNED_INT(0.0),
+                           unsigned int(0.30000001),
+                           unsigned int(0.30000001),
+                           unsigned int(0.0),
                            -1.0,
                            1.0,
                            0,
                            "3rd person player view aim blend - neck");
   player_AimBlend_Head = _Dvar_RegisterVec3(
                            "player_AimBlend_Head",
-                           COERCE_UNSIGNED_INT(0.0),
-                           COERCE_UNSIGNED_INT(0.0),
-                           COERCE_UNSIGNED_INT(0.0),
+                           unsigned int(0.0),
+                           unsigned int(0.0),
+                           unsigned int(0.0),
                            -1.0,
                            1.0,
                            0,
                            "3rd person player view aim blend - head");
   player_AimBlend_Shoulder = _Dvar_RegisterVec3(
                                "player_AimBlend_Shoulder",
-                               COERCE_UNSIGNED_INT(1.0),
-                               COERCE_UNSIGNED_INT(1.0),
-                               COERCE_UNSIGNED_INT(1.0),
+                               unsigned int(1.0),
+                               unsigned int(1.0),
+                               unsigned int(1.0),
                                -1.0,
                                1.0,
                                0,
@@ -1200,18 +1420,18 @@ void __cdecl BG_RegisterDvars()
                                     "Assigns the player seat based on the entry location, NOT first in first available position");
   vehCameraTurretOffset = _Dvar_RegisterVec3(
                             "vehCameraTurretOffset",
-                            COERCE_UNSIGNED_INT(0.0),
-                            COERCE_UNSIGNED_INT(0.0),
-                            COERCE_UNSIGNED_INT(0.0),
+                            unsigned int(0.0),
+                            unsigned int(0.0),
+                            unsigned int(0.0),
                             -300.0,
                             300.0,
                             0x80u,
                             "Vehicle turret camera offset");
   vehCameraTurretOffsetADS = _Dvar_RegisterVec3(
                                "vehCameraTurretOffsetADS",
-                               COERCE_UNSIGNED_INT(0.0),
-                               COERCE_UNSIGNED_INT(0.0),
-                               COERCE_UNSIGNED_INT(0.0),
+                               unsigned int(0.0),
+                               unsigned int(0.0),
+                               unsigned int(0.0),
                                -300.0,
                                300.0,
                                0x80u,

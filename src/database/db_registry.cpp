@@ -797,7 +797,7 @@ XAssetHeader __cdecl DB_FindXAssetHeader(XAssetType type, char *name, bool error
       if ( !Sys_IsDatabaseReady2() )
       {
         if ( Sys_IsMainThread() )
-          BG_EvalVehicleName();
+          BLOPS_NULLSUB();
         break;
       }
     }
@@ -811,7 +811,7 @@ XAssetHeader __cdecl DB_FindXAssetHeader(XAssetType type, char *name, bool error
     else
     {
       if ( Sys_IsMainThread() )
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
       if ( Sys_IsRenderThread() )
         RB_Resource_Update(5);
       suspendedThread = Sys_HaveSuspendedDiscReads(THREAD_OWNER_DATABASE);
@@ -3882,7 +3882,7 @@ void __thiscall DB_ArchiveAssets(jpeg_decompress_struct *cinfo)
     if ( Sys_IsMainThread() )
       depth = R_PopRemoteScreenUpdate();
     R_ClearAllStaticModelCacheRefs();
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     DB_SaveDObjs();
     DB_RestartEffects_Begin();
     if ( Sys_IsMainThread() )
@@ -4042,7 +4042,7 @@ void DB_UnarchiveAssets()
     __debugbreak();
   }
   g_archiveBuf = 0;
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   DB_LoadDObjs();
   DB_RestartEffects_Finish();
   DB_ExternalInitAssets();
@@ -4058,7 +4058,7 @@ void DB_UnarchiveAssets()
     __debugbreak();
   }
   if ( Sys_IsMainThread() )
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
 }
 
 void __cdecl DB_Cleanup()

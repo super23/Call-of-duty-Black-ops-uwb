@@ -635,6 +635,6 @@ void __cdecl CL_ShutdownDebugData()
   R_DebugFree((void **)&cls.debug.svStringsBuffer.durations);
   memset((unsigned __int8 *)&cls.debug, 0, sizeof(cls.debug));
   R_ShutdownDebug();
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 

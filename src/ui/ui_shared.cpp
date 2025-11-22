@@ -8272,7 +8272,7 @@ void __cdecl Window_Paint(
         }
         break;
       case 2u:
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
         break;
       case 3u:
         if ( (Window_GetDynamicFlags(dc->contextIndex, &item->parent->window) & 0x2000) != 0 )
@@ -8579,8 +8579,8 @@ LABEL_42:
           w->borderColor);
         break;
       case 4u:
-        BG_EvalVehicleName();
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
+        BLOPS_NULLSUB();
         break;
       case 5u:
         value = ui_borderLowLightScale->current.value;
@@ -9838,7 +9838,7 @@ LABEL_89:
             {
               if ( !item->animInfo || !item->animInfo->animating )
               {
-                BG_EvalVehicleName();
+                BLOPS_NULLSUB();
                 listPtr->drawPadding = (int)(float)(listPtr->elementHeight - size);
               }
               break;

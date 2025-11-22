@@ -832,7 +832,7 @@ void __cdecl NET_ShutdownDebug()
     }
   }
   if ( Sys_IsRemoteDebugClient() )
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
 }
 
 void __cdecl NET_RestartDebug()

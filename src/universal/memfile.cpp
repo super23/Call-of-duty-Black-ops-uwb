@@ -114,7 +114,7 @@ void __cdecl MemFile_StartSegment(MemoryFile *memFile, int index)
         {
           __debugbreak();
         }
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
       }
       else
       {

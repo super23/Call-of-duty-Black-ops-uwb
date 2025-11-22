@@ -1352,7 +1352,7 @@ void  debug_render(int a1@<ebp>, PhysObjUserData *userData)
   }
   for ( i = userData->m_gjk_geom_list.m_first_geom; i; i = i->m_next_geom )
     render_gjk_geom(COERCE_FLOAT(&v7), i, (const phys_mat44 *)pt);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 
 void  clip_winding(int a1@<ebp>, phys_static_array<phys_vec3,512> *winding, const plane_lt *clip)

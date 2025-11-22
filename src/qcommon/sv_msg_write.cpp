@@ -562,7 +562,7 @@ void __cdecl MSG_WriteEntityIndex(const SnapshotInfo_s *snapInfo, msg_t *msg, in
   {
     __debugbreak();
   }
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( index - msg->lastEntityRef <= 0 )
   {
     v4 = va((const char *)&cinfo.min_DCT_scaled_size, msg->lastEntityRef, index);
@@ -577,7 +577,7 @@ void __cdecl MSG_WriteEntityIndex(const SnapshotInfo_s *snapInfo, msg_t *msg, in
   }
   if ( index - msg->lastEntityRef == 1 )
   {
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     MSG_WriteBit1(msg);
   }
   else
@@ -585,7 +585,7 @@ void __cdecl MSG_WriteEntityIndex(const SnapshotInfo_s *snapInfo, msg_t *msg, in
     MSG_WriteBit0(msg);
     if ( indexBits == 10 && index - msg->lastEntityRef < 16 )
     {
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
       if ( index - msg->lastEntityRef <= 0 )
       {
         v5 = va((const char *)cinfo.quant_tbl_ptrs, index, msg->lastEntityRef);
@@ -603,7 +603,7 @@ void __cdecl MSG_WriteEntityIndex(const SnapshotInfo_s *snapInfo, msg_t *msg, in
     }
     else
     {
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
       if ( indexBits == 10 )
         MSG_WriteBit1(msg);
       MSG_WriteBits(msg, index, indexBits);

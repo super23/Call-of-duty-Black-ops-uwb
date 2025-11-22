@@ -1,5 +1,12 @@
 #include "monkey_comm.h"
 
+#include <winsock.h>
+#include <qcommon/common.h>
+#include <universal/assertive.h>
+
+bool g_MonkeyConnected;
+SOCKET g_MonkeySock;
+
 char __cdecl Monkey_InitCommunication(const char *server)
 {
   int err; // [esp+0h] [ebp-1B4h]
@@ -45,7 +52,7 @@ char __cdecl Monkey_InitCommunication(const char *server)
     {
       memset(&zookeeper.sin_port, 0, 14);
       zookeeper.sin_family = 2;
-      zookeeper.sin_port = htons(0x1B58u);
+      zookeeper.sin_port = htons(7000);
       zookeeper.sin_addr.S_un.S_addr = addr;
       if ( connect(g_MonkeySock, (const struct sockaddr *)&zookeeper, 16) )
       {

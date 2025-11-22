@@ -126,13 +126,13 @@ void __cdecl Session_DeleteSession(SessionData_s *session)
       session->sessionHandle = 0;
     }
   }
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   memset((unsigned __int8 *)session->registeredUsers, 0, sizeof(session->registeredUsers));
   session->flags = 0;
   session->privateSlots = 0;
   session->publicSlots = 0;
   session->keysGenerated = 0;
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 
 void __cdecl Session_DeleteHandle(bool *sessionHandle)
@@ -252,7 +252,7 @@ void __cdecl Session_StartHost(SessionData_s *session, int sessionFlags, int num
   sessionCreateData[sessionCreateSlot].active = 1;
   sessionCreateData[sessionCreateSlot].session = session;
   sessionCreateOverlappedIO->data = (void *)(8 * sessionCreateSlot + 173258800);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( sessionCreateControllerIndex
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\live\\live_sessions_win.cpp",

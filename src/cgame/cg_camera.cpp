@@ -1297,13 +1297,6 @@ void __cdecl CG_OffsetVehicleGunner(int localClientNum, cg_s *cgameGlob)
   }
 }
 
-void __cdecl Vec3Lerp(const float *start, const float *end, float fraction, float *endpos)
-{
-  *endpos = (float)((float)(*end - *start) * fraction) + *start;
-  endpos[1] = (float)((float)(end[1] - start[1]) * fraction) + start[1];
-  endpos[2] = (float)((float)(end[2] - start[2]) * fraction) + start[2];
-}
-
 void __cdecl CG_OffsetVehicleAnimCam(int localClientNum)
 {
   float v1; // [esp+Ch] [ebp-84h]

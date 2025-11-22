@@ -162,7 +162,7 @@ void __cdecl Scr_InitEvaluate(scriptInstance_t inst)
   gScrEvaluateGlob[inst].archivedCanonicalStringsBuf = 0;
   dword_9D3A048[4 * inst] = 0;
   dword_9D3A04C[4 * inst] = 0;
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 
 void __cdecl Scr_EndLoadEvaluate(scriptInstance_t inst)
@@ -191,7 +191,7 @@ void __cdecl Scr_ShutdownEvaluate(scriptInstance_t inst)
     Hunk_UserFree(g_DebugHunkUser, (void *)dword_9D3A04C[4 * inst]);
     dword_9D3A04C[4 * inst] = 0;
   }
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 
 unsigned __int16 __cdecl Scr_CompileCanonicalString(scriptInstance_t inst, unsigned int stringValue)

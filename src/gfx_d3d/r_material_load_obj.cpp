@@ -551,8 +551,8 @@ char __cdecl Material_LoadPass(
                            paramSet.varyingInputs,
                            paramSet.varyingInputCount,
                            pass);
-        BG_EvalVehicleName();
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
+        BLOPS_NULLSUB();
         Material_LoadDeclTypes((const char **)text, pass);
         strstr((unsigned __int8 *)*text, "vertexDef");
         if ( v5 )
@@ -565,8 +565,8 @@ char __cdecl Material_LoadPass(
       else
       {
 LABEL_8:
-        BG_EvalVehicleName();
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
+        BLOPS_NULLSUB();
         return 0;
       }
     }
@@ -578,7 +578,7 @@ LABEL_8:
   }
   else
   {
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     return 0;
   }
 }
@@ -1816,7 +1816,7 @@ void __cdecl Material_AddShaderFile(GfxAssembledShaderText *prog, const char *sh
 {
   if ( prog->fileCount < 0x80 )
   {
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     I_strncpyz(prog->files[prog->fileCount].fileName, shaderFileName, 256);
     prog->files[prog->fileCount].srcLine = srcLine;
     prog->files[prog->fileCount++].destLine = prog->currentDestLine;

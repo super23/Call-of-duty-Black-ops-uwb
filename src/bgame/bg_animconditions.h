@@ -30,4 +30,3 @@ void __cdecl BG_LocalEvalAttachment(pmove_t *pm);
 void __cdecl BG_LocalEvalVehicleName(pmove_t *pm);
 void __cdecl BG_LocalEvalVehicleSeatTo(pmove_t *pm);
 void __cdecl BG_LocalEvalEvent(pmove_t *pm);
-void __cdecl BG_EvalVehicleName();

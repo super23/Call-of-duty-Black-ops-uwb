@@ -467,7 +467,7 @@ void __cdecl CL_ParseGamestate(int localClientNum, msg_t *msg)
       FS_Restart(localClientNum, clc->checksumFeed);
     }
     if ( net_lanauthorize->current.enabled || !Sys_IsLANAddress(clc->serverAddress) )
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
     CL_InitDownloads(localClientNum);
     cmd = MSG_ReadByte(msg);
     if ( cmd != 6

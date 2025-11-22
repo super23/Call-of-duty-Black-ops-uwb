@@ -37,7 +37,7 @@ void __cdecl CG_InitConsoleCommands()
   Cmd_AddCommandInternal("updateFilmTweaks", UpdateFilmTweaks_f, &UpdateFilmTweaks_f_VAR);
   Cmd_AddCommandInternal("updateCharPrimaryTweaks", UpdateCharPrimaryTweaks_f, &UpdateCharPrimaryTweaks_f_VAR);
   Cmd_AddCommandInternal("updateBloomTweaks", UpdateBloomTweaks_f, &UpdateBloomTweaks_f_VAR);
-  Cmd_AddCommandInternal("togglebandwidthprofile", BG_EvalVehicleName, &CG_ToggleBandwidthProfiling_f_VAR);
+  Cmd_AddCommandInternal("togglebandwidthprofile", BLOPS_NULLSUB, &CG_ToggleBandwidthProfiling_f_VAR);
   Cmd_AddCommandInternal("mr", 0, &mr_VAR);
   Cmd_AddCommandInternal("kill", 0, &kill_VAR);
   Cmd_AddCommandInternal("give", 0, &give_VAR);

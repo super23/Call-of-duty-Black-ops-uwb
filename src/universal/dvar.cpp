@@ -1736,7 +1736,7 @@ void __cdecl Dvar_ClearLatchedValue(dvar_s *dvar)
     Dvar_SetLatchedValue(dvar, dvar->current);
 }
 
-const dvar_s *__cdecl _Dvar_RegisterBool(char *dvarName, bool value, unsigned __int16 flags, const char *description)
+const dvar_s *__cdecl _Dvar_RegisterBool(const char *dvarName, bool value, unsigned __int16 flags, const char *description)
 {
   DvarLimits v5; // [esp-14h] [ebp-3Ch] BYREF
   DvarValue dvarValue; // [esp+10h] [ebp-18h]
@@ -2380,7 +2380,7 @@ const dvar_s *__cdecl _Dvar_RegisterVec4(
 
 const dvar_s *__cdecl _Dvar_RegisterString(
         const char *dvarName,
-        char *value,
+        const char *value,
         unsigned __int16 flags,
         const char *description)
 {

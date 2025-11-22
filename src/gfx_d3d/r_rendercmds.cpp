@@ -504,7 +504,7 @@ void __cdecl R_ToggleSmpFrameCmd(char type)
   {
     __debugbreak();
   }
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   //PIXBeginNamedEvent(-1, "wait renderer");
   sem = R_ReleaseDXDeviceOwnership();
   Sys_WaitRenderer();
@@ -524,7 +524,7 @@ void __cdecl R_ToggleSmpFrameCmd(char type)
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
   R_UpdateSkinCacheUsage();
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   R_UnlockSkinnedCache();
   v1 = R_AcquireDXDeviceOwnership(0);
   front_end_data = frontEndDataOut;
@@ -2389,7 +2389,7 @@ void __cdecl R_BeginRemoteScreenUpdate()
             __debugbreak();
         }
         ++r_glob.remoteScreenUpdateNesting;
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
         Sys_NotifyRenderer();
       }
     }

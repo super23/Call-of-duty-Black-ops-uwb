@@ -460,7 +460,7 @@ void __cdecl Gamer//Profile_SaveProfile(int controllerIndex)
   }
   Gamer//Profile_CreateExeBindingsConfig(controllerIndex);
   Gamer//Profile_CreateCommonBindingsConfig(controllerIndex);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 
 void __cdecl Gamer//Profile_CreateExeBindingsConfig(int controllerIndex)
@@ -664,9 +664,9 @@ bool __cdecl Gamer//Profile_IsNewLocalProfile(int controllerIndex)
 void __cdecl Gamer//Profile_InitAllProfiles()
 {
   memset((unsigned __int8 *)gamerSettings, 0, sizeof(gamerSettings));
-  BG_EvalVehicleName();
-  BG_EvalVehicleName();
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
+  BLOPS_NULLSUB();
+  BLOPS_NULLSUB();
   Gamer//Profile_UpdateProfileFromDvars(0, PROFILE_NO_WRITE);
 }
 
@@ -701,7 +701,7 @@ void __cdecl Gamer//Profile_LogOutProfile(int controllerIndex)
     __debugbreak();
   }
   Com_Printf(16, "Logging out gamerprofile on controller %i\n", controllerIndex);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   Gamer//Profile_UpdateProfileFromDvars(controllerIndex, PROFILE_NO_WRITE);
 }
 

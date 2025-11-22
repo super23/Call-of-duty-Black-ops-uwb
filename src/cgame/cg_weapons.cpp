@@ -4955,7 +4955,7 @@ void __cdecl CG_FireWeapon(
       BG_WeaponFireRecoil(&cgameGlob->predictedPlayerState, cgameGlob->recoilSpeed, cgameGlob->kickAVel);
     }
     CG_FireWeapon_VehicleFire((int)localClientNum, cent, ps, event, tagName);
-    BG_EvalVehicleName(localClientNum);
+    BLOPS_NULLSUB();
     if ( ent->eType == 11 || weaponDef->fireType == WEAPON_FIRETYPE_MINIGUN && cent->pose.eType == 12 )
     {
       firstPersonFlash = localPlayerUsingVehicleWeapon || playerUsingTurret;
@@ -4982,7 +4982,7 @@ void __cdecl CG_FireWeapon(
       if ( v8 )
       {
         CG_CompassAddWeaponPingInfo((int)localClientNum, cent, origin, 200);
-        BG_EvalVehicleName(localClientNum);
+        BLOPS_NULLSUB();
       }
     }
     if ( !BG_GetWeaponDef(weapon)->bBoltAction )

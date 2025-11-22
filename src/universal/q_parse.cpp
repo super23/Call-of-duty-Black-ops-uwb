@@ -1,4 +1,36 @@
 #include "q_parse.h"
+#include <qcommon/common.h>
+#include <qcommon/threads.h>
+#include "assertive.h"
+#include <stdarg.h>
+#include <string.h>
+#include <stdlib.h>
+
+ParseThreadInfo g_parse[4];
+const char toastPopupTitle = 0;
+
+static const char *punctuation[17] =
+{
+  "+=",
+  "-=",
+  "*=",
+  "/=",
+  "&=",
+  "|=",
+  "++",
+  "--",
+  "&&",
+  "||",
+  "<=",
+  ">=",
+  "==",
+  "!=",
+  "<<",
+  ">>",
+  NULL
+};
+
+
 
 void __cdecl Com_InitParse()
 {
@@ -34,7 +66,7 @@ void __cdecl Com_BeginParseSession(const char *filename)
     Com_Printf(24, "Already parsing:\n");
     for ( i = 0; i < parse->parseInfoNum; ++i )
       Com_Printf(24, "%i. %s\n", i, parse->parseInfo[i].parseFile);
-    Com_Error(ERR_FATAL, &byte_D0BA00, filename);
+    Com_Error(ERR_FATAL, "Com_BeginParseSession: session overflow trying to parse %s", filename);
   }
   pi = &parse->parseInfo[++parse->parseInfoNum];
   Com_InitParseInfo(pi);
@@ -66,7 +98,7 @@ void __cdecl Com_EndParseSession()
 
   parse = Com_GetParseThreadInfo();
   if ( !parse->parseInfoNum )
-    Com_Error(ERR_FATAL, &byte_D0BAB0);
+    Com_Error(ERR_FATAL, "Com_EndParseSession: session underflow");
   --parse->parseInfoNum;
 }
 
@@ -203,7 +235,7 @@ const char *__cdecl Com_GetScriptWarningPrefix()
   return pi->warningPrefix;
 }
 
-void Com_ScriptErrorDrop(char *msg, ...)
+void Com_ScriptErrorDrop(const char *msg, ...)
 {
   char string[4096]; // [esp+0h] [ebp-1010h] BYREF
   char *ap; // [esp+1004h] [ebp-Ch]
@@ -218,12 +250,12 @@ void Com_ScriptErrorDrop(char *msg, ...)
   _vsnprintf(string, 0x1000u, msg, va);
   ap = 0;
   if ( ParseThreadInfo->parseInfoNum )
-    Com_Error(ERR_DROP, &byte_D0BB1C, v3->errorPrefix, v3->parseFile, v3->lines, string);
+    Com_Error(ERR_DROP, "%sFile %s, line %i: %s", v3->errorPrefix, v3->parseFile, v3->lines, string);
   else
-    Com_Error(ERR_DROP, off_C5DB40, string);
+    Com_Error(ERR_DROP, "%s", string);
 }
 
-void Com_ScriptError(char *msg, ...)
+void Com_ScriptError(const char *msg, ...)
 {
   char string[4096]; // [esp+0h] [ebp-1010h] BYREF
   char *ap; // [esp+1004h] [ebp-Ch]
@@ -243,7 +275,7 @@ void Com_ScriptError(char *msg, ...)
     Com_PrintError(24, "%s", string);
 }
 
-void Com_ScriptWarning(char *msg, ...)
+void Com_ScriptWarning(const char *msg, ...)
 {
   char string[4096]; // [esp+0h] [ebp-1010h] BYREF
   char *ap; // [esp+1004h] [ebp-Ch]

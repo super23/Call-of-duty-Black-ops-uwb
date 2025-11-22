@@ -23,7 +23,7 @@ void __cdecl CG_track_init()
   g_mem_track_filename = "cg_localents";
   TRACK_cg_localents();
   g_mem_track_filename = "cg_players";
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   g_mem_track_filename = "aim_assist";
   TRACK_aim_assist();
   g_mem_track_filename = "aim_target";

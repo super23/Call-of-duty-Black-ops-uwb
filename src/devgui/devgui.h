@@ -1,4 +1,77 @@
 #pragma once
+#include <universal/dvar.h>
+#include <qcommon/graph.h>
+
+enum DevGuiTokenResult : __int32
+{                                       // XREF: DevGui_ConstructPath_r/r
+                                        // DevGui_IsValidPath/r ...
+    DEVGUI_TOKEN_ERROR = 0x0,
+    DEVGUI_TOKEN_MORE  = 0x1,
+    DEVGUI_TOKEN_LAST  = 0x2,
+};
+
+union DevMenuChild // sizeof=0x4
+{                                       // XREF: DevGui_ChooseOrigin:loc_598083/r
+                                        // DevGui_Init(void)+7D/w ...
+    const char *command;
+    const dvar_s *dvar;
+    DevGraph *graph;
+    unsigned __int16 menu;
+};
+
+struct DevMenuItem // sizeof=0x28
+{                                       // XREF: devguiGlob_t/r
+                                        // devguiGlob_t/r
+    char label[26];                     // XREF: DevGui_Init(void)+4B/w
+                                        // DevGui_Init(void)+59/w
+    unsigned __int8 childType;          // XREF: DevGui_Init(void)+6D/w
+    unsigned __int8 childMenuMemory;    // XREF: DevGui_Init(void)+74/w
+    __int16 sortKey;
+    unsigned __int16 nextSibling;       // XREF: DevGui_Init(void)+86/w
+    unsigned __int16 prevSibling;       // XREF: DevGui_Init(void)+8F/w
+    unsigned __int16 parent;            // XREF: DevGui_Init(void)+97/w
+    DevMenuChild child;                 // XREF: DevGui_ChooseOrigin:loc_598083/r
+                                        // DevGui_Init(void)+7D/w ...
+};
+
+struct devguiGlob_t // sizeof=0x14050
+{                                       // XREF: .data:devguiGlob/r
+    DevMenuItem menus[2048];            // XREF: DevGui_Init(void)+4B/w
+                                        // DevGui_Init(void)+59/w
+    DevMenuItem *nextFreeMenu;          // XREF: DevGui_CreateMenu:loc_596776/r
+                                        // DevGui_CreateMenu+3E/w ...
+    DevMenuItem topmostMenu;            // XREF: DevGui_CreateMenu:loc_596834/o
+                                        // DevGui_FindMenu:loc_596A50/o ...
+    bool bindNextKey;                   // XREF: DevGui_Draw(int):loc_5977B1/r
+                                        // DevGui_KeyPressed(int)+13/r ...
+    bool isActive;                      // XREF: DevGui_FreeMenu_r+28/w
+                                        // DevGui_OpenMenu(char const *):loc_5975FC/w ...
+    bool isInitialized;                 // XREF: DevGui_Init(void)+109/w
+                                        // DevGui_IsInitialized(void)+3/r
+    bool editingMenuItem;               // XREF: DevGui_FreeMenu_r+2F/w
+                                        // DevGui_OpenMenu(char const *)+EA/w ...
+    unsigned __int16 selectedMenu;      // XREF: DevGui_FreeMenu_r:loc_597461/r
+                                        // DevGui_FreeMenu_r+22/w ...
+    // padding byte
+    // padding byte
+    int selRow;                         // XREF: DevGui_OpenMenu(char const *):loc_597643/w
+                                        // DevGui_DrawSliders+215/r ...
+    bool editingKnot;                   // XREF: DevGui_DrawGraph+345/r
+                                        // DevGui_Init(void)+B6/w ...
+    // padding byte
+    // padding byte
+    // padding byte
+    int top;                            // XREF: DevGui_Draw(int)+AF/r
+                                        // DevGui_ChooseOrigin+E8/r ...
+    int bottom;                         // XREF: DevGui_DrawMenuVertically+FC/r
+                                        // DevGui_DrawSliders+10E/r ...
+    int left;                           // XREF: DevGui_Draw(int):loc_597766/r
+                                        // DevGui_ChooseOrigin+DE/r ...
+    int right;                          // XREF: DevGui_ChooseOrigin+F1/r
+                                        // DevGui_ChooseOrigin+101/r ...
+    int sliderWidth;                    // XREF: DevGui_DrawSliders:loc_5981AE/r
+                                        // DevGui_DrawGraph:loc_599562/r ...
+};
 
 void __cdecl DevGui_AddDvar(const char *path, const dvar_s *dvar);
 devguiGlob_t *__cdecl DevGui_GetMenu(unsigned __int16 handle);
@@ -8,7 +81,7 @@ int __cdecl DevGui_CreateMenu();
 unsigned __int16 __cdecl DevGui_GetMenuHandle(DevMenuItem *menu);
 int __cdecl DevGui_CompareMenus(const DevMenuItem *menu0, const DevMenuItem *menu1);
 unsigned __int16 __cdecl DevGui_FindMenu(unsigned __int16 parentHandle, const char *label);
-int __cdecl DevGui_PathToken(const char **pathInOut, char *label, __int16 *sortKeyOut);
+DevGuiTokenResult __cdecl DevGui_PathToken(const char **pathInOut, char *label, __int16 *sortKeyOut);
 char __cdecl DevGui_IsValidPath(const char *path);
 void __cdecl DevGui_AddCommand(const char *path, char *command);
 void __cdecl DevGui_AddGraph(const char *path, DevGraph *graph);

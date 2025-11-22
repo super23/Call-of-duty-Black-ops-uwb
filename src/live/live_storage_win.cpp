@@ -121,7 +121,7 @@ void __cdecl LiveStorage_ReadStatsIfDirChanged()
   if ( !G_ExitAfterToolComplete() )
   {
     if ( I_stricmp(g_statsDir, fs_gameDirVar->current.string) )
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
   }
 }
 

@@ -996,7 +996,7 @@ void __cdecl Scr_AddSourceBufferInternal(
     NewSourceBuffer->len = len;
     NewSourceBuffer->sortedIndex = -1;
     NewSourceBuffer->archive = archive;
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     if ( v8 )
       gScrParserPub[inst].sourceBuf = v8;
   }

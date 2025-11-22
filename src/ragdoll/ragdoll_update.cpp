@@ -1574,7 +1574,7 @@ char  Ragdoll_TunnelTest@<al>(cStaticModel_s *a1@<ebp>, RagdollBody *body)
       {
         phys_exec_debug_callback(*(void **)LODWORD(last_position.w));
       }
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
     }
     ++LODWORD(orientation[3]);
     boneOrientations = (BoneOrientation *)((char *)boneOrientations + 28);

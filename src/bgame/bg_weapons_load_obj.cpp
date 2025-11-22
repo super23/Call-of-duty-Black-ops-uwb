@@ -1218,7 +1218,7 @@ WeaponVariantDef *__cdecl BG_LoadWeaponVariantDefInternal(const char *folder, ch
     *((unsigned int *)weapFullDef + 16) = &toastPopupTitle;
     *((unsigned int *)weapFullDef + 18) = &toastPopupTitle;
   }
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   return (WeaponVariantDef *)weapFullDef;
 }
 

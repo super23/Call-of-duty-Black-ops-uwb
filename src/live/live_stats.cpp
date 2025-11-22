@@ -3815,7 +3815,7 @@ void __cdecl LiveStats_ValidateStats(int controllerIndex)
   int statsBackupVersion; // [esp+64h] [ebp-4h] BYREF
 
   if ( !LiveStorage_GetStatsChecksumValid(controllerIndex, STATS_LOCATION_NORMAL) )
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
   statsKeys[0] = MP_PLAYERSTATSKEY_SCORE;
   statsKeys[1] = MP_PLAYERSTATSKEY_PLEVEL;
   statsKeys[2] = MP_PLAYERSTATSKEY_TIMEPLAYEDTOTAL;
@@ -3852,7 +3852,7 @@ void __cdecl LiveStats_ValidateStats(int controllerIndex)
            statsKeys[currentStatsKey]) )
     {
       if ( currentStatsValue < backupStatsValue )
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
     }
     else
     {
@@ -3873,7 +3873,7 @@ void __cdecl LiveStats_ValidateStats(int controllerIndex)
     STATS_LOCATION_FORCE_NORMAL,
     MP_PLAYERSTATSKEY_STATS_VERSION);
   if ( statsBackupVersion != statsInitialVersion )
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
 }
 
 char __cdecl LiveStats_GetIntPlayerStatByKey(

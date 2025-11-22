@@ -1,4 +1,14 @@
 #include "devgui.h"
+#include <universal/assertive.h>
+#include <qcommon/common.h>
+#include <string.h>
+#include <universal/com_memory.h>
+#include <clientscript/cscr_main.h>
+#include <qcommon/cmd.h>
+#include <gfx_d3d/r_font.h>
+#include <client_mp/cl_main_mp.h>
+
+devguiGlob_t devguiGlob;
 
 void __cdecl DevGui_AddDvar(const char *path, const dvar_s *dvar)
 {
@@ -156,7 +166,7 @@ unsigned __int16 __cdecl DevGui_FindMenu(unsigned __int16 parentHandle, const ch
   return 0;
 }
 
-int __cdecl DevGui_PathToken(const char **pathInOut, char *label, __int16 *sortKeyOut)
+DevGuiTokenResult __cdecl DevGui_PathToken(const char **pathInOut, char *label, __int16 *sortKeyOut)
 {
   const char *path; // [esp+0h] [ebp-10h]
   __int16 sign; // [esp+4h] [ebp-Ch]
@@ -201,13 +211,13 @@ int __cdecl DevGui_PathToken(const char **pathInOut, char *label, __int16 *sortK
         ++path;
       }
       if ( *path < 48 || *path > 57 )
-        return 0;
+        return DEVGUI_TOKEN_ERROR;
       do
         sortKey = 10 * sortKey + *path++ - 48;
       while ( *path >= 48 && *path <= 57 );
       *sortKeyOut = sign * sortKey;
       if ( *path && (*path != 47 || path[1] == 47) )
-        return 0;
+        return DEVGUI_TOKEN_ERROR;
     }
     else
     {
@@ -215,7 +225,7 @@ int __cdecl DevGui_PathToken(const char **pathInOut, char *label, __int16 *sortK
       {
         label[labelLen] = 0;
         *pathInOut = path;
-        return 1;
+        return DEVGUI_TOKEN_MORE;
       }
       if ( labelLen < 25 )
         label[labelLen++] = *path;
@@ -223,10 +233,10 @@ int __cdecl DevGui_PathToken(const char **pathInOut, char *label, __int16 *sortK
     }
   }
   if ( !labelLen )
-    return 0;
+    return DEVGUI_TOKEN_ERROR;
   *pathInOut = path;
   label[labelLen] = 0;
-  return 2;
+  return DEVGUI_TOKEN_LAST;
 }
 
 char __cdecl DevGui_IsValidPath(const char *path)

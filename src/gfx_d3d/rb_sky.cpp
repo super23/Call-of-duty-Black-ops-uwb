@@ -532,7 +532,7 @@ void __cdecl RB_AddSunEffects(SunFlareDynamic *sunFlare)
                                     * *(float *)(gfxCmdBufSourceState.sceneDef.time + 276)))
                     + (float)(rgp.world->sun.sunFxPosition[2] * *(float *)(gfxCmdBufSourceState.sceneDef.time + 280));
   if ( sunFlare->lastDot > 0.0 )
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
 }
 
 void __cdecl RB_DrawSunPostEffects(unsigned int localClientNum, float sunVisibilityAdjust)

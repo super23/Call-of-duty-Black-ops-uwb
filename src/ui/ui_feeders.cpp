@@ -915,7 +915,7 @@ const char *__cdecl UI_FeederItemText_NewCategories(
   if ( column != 1 )
   {
     if ( column == 2 && listboxPtr->cursorPos[contextIndex] == index && Window_HasFocus(contextIndex, &item->window) )
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
     return &toastPopupTitle;
   }
   if ( index < 0 || index >= Playlist_GetCategoryCount() )
@@ -962,7 +962,7 @@ char *__cdecl UI_FeederItemText_NewPlaylists(
     if ( column == 1 )
       return UI_FeederItemText_Playlists(controllerIndex, index);
     if ( column == 2 && listboxPtr->cursorPos[contextIndex] == index && Window_HasFocus(contextIndex, &item->window) )
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
   }
   else
   {
@@ -1006,7 +1006,7 @@ char *__cdecl UI_FeederItemText_DynamicMenu(
     else if ( column == 2 )
     {
       if ( listPtr->cursorPos[contextIndex] == index )
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
       return (char *)&toastPopupTitle;
     }
     else if ( listPtr->rows[index].status == 2 )

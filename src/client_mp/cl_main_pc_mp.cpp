@@ -333,7 +333,7 @@ void __cdecl CL_Connect_f()
 
 void __cdecl CL_PC_SignInLive()
 {
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 
 void __cdecl CL_InitServerInfo(serverInfo_t *server, netadr_t adr)
@@ -2246,6 +2246,6 @@ void __thiscall bdReference<bdCommonAddr>::operator=(bdReference<bdRemoteTask> *
 
 void __cdecl CL_PC_SignIn()
 {
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 

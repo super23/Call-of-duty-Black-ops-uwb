@@ -128,7 +128,7 @@ void __cdecl R_DrawStaticModelDrawSurfNonOptimized(GfxStaticModelDrawStream *dra
         list[index],
         drawStream->dynSModelView,
         drawStream->dynSModelState);
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     R_DrawIndexedPrimitive(&context.state->prim, &args);
   }
 }
@@ -262,7 +262,7 @@ void __cdecl R_DrawStaticModelDrawSurfLightingNonOptimized(
         list[index],
         drawStream->dynSModelView,
         drawStream->dynSModelState);
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     R_DrawIndexedPrimitive(&context.state->prim, &args);
   }
 }

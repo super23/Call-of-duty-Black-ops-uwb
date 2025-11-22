@@ -206,7 +206,7 @@ void Com_OpenLogFile()
   }
 }
 
-void Com_Printf(int channel, char *fmt, ...)
+void Com_Printf(int channel, const char *fmt, ...)
 {
   char string[4100]; // [esp+8h] [ebp-1008h] BYREF
   va_list va; // [esp+1020h] [ebp+10h] BYREF
@@ -220,7 +220,7 @@ void Com_Printf(int channel, char *fmt, ...)
   }
 }
 
-void Com_DPrintf(int channel, char *fmt, ...)
+void Com_DPrintf(int channel, const char *fmt, ...)
 {
   char string[4100]; // [esp+8h] [ebp-1008h] BYREF
   va_list va; // [esp+1020h] [ebp+10h] BYREF
@@ -236,7 +236,7 @@ void Com_DPrintf(int channel, char *fmt, ...)
   }
 }
 
-void Com_PrintError(int channel, char *fmt, ...)
+void Com_PrintError(int channel, const char *fmt, ...)
 {
   char dest; // [esp+14h] [ebp-1008h] BYREF
   _BYTE v3[4095]; // [esp+15h] [ebp-1007h] BYREF
@@ -255,7 +255,7 @@ void Com_PrintError(int channel, char *fmt, ...)
   Com_PrintMessage(channel, &dest, 3);
 }
 
-void Com_PrintWarning(int channel, char *fmt, ...)
+void Com_PrintWarning(int channel, const char *fmt, ...)
 {
   char dest; // [esp+14h] [ebp-1008h] BYREF
   _BYTE v3[4095]; // [esp+15h] [ebp-1007h] BYREF
@@ -316,14 +316,14 @@ void __cdecl Com_InitDynamicMemorySystems()
   IsMenuLevel = Com_IsMenuLevel(0);
   Demo_AllocatePlaybackMemory(IsMenuLevel);
   Com_IsMenuLevel(0);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( useFastFile->current.enabled )
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
 }
 
 void __cdecl Com_ShutdownDynamicMemorySystems()
 {
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   Demo_DeallocatePlaybackMemory();
   GlassCl_FreeMemory();
   R_UI3D_Shutdown();
@@ -534,7 +534,7 @@ void __cdecl  Com_Quit_f()
     FS_ShutdownServerIwdNames();
     FS_ShutdownServerReferencedIwds();
     FS_ShutdownServerReferencedFFs();
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
   }
   Sys_Quit();
 }
@@ -1296,7 +1296,7 @@ void __cdecl Com_Init(char *commandLine)
   {
     if ( *Dvar_GetString("com_errorMessage") )
       Com_LoadUiFastFile();
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     Com_LoadFrontEnd();
   }
   UI_LoadArenas();
@@ -1365,7 +1365,7 @@ void Com_ErrorCleanup()
   if ( fs_debug && fs_debug->current.integer == 2 )
     Dvar_SetInt((dvar_s *)fs_debug, 0);
   Com_CleanupBsp();
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   Com_ResetParseSessions();
   CL_FlushDebugServerData();
   CL_UpdateDebugServerData();
@@ -1484,7 +1484,7 @@ void __cdecl Com_Init_Try_Block_Function(char *commandLine)
     PMem_BeginAlloc("$init", 1u, TRACK_MISC);
   }
   Stream_Init();
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( useFastFile->current.enabled )
     Com_InitCodeXAssets();
   CL_InitKeyCommands();
@@ -2323,7 +2323,7 @@ unsigned intCom_Frame_Try_Block_Function()
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
   Monkey_Frame();
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   Phys_RunToTime(svsHeader.time);
   DWDedicatedLobbyPump();
   result = GetCurrentThreadId();
@@ -2343,7 +2343,7 @@ void __cdecl Com_WriteConfiguration(int localClientNum)
       dvar_modifiedFlags &= ~1u;
       I_strncpyz(configFile, "config_mp.cfg", 128);
       Com_WriteConfigToFile(localClientNum, configFile);
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
     }
   }
 }
@@ -2544,7 +2544,7 @@ void __cdecl Com_Restart()
   Com_ShutdownDObj();
   DObjShutdown();
   XAnimShutdown();
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   Com_ShutdownDynamicMemorySystems();
   if ( useFastFile->current.enabled )
   {

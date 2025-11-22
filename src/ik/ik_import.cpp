@@ -2261,7 +2261,7 @@ double __cdecl IKImport_GetLayerLerp(IKState *ikState, IKLayerNames layerName, f
       bOn = v9;
       if ( v9 )
       {
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
         bOn = ikState->actorLookAtEntityScale > 0.0;
         layerLerpTime = -1.0f;
         li->lerp = ikState->actorLookAtEntityScale;

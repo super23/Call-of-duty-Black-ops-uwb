@@ -454,11 +454,11 @@ void __cdecl CG_MapRestart(int localClientNum, int savepersist)
   GlassCl_Reset(localClientNum);
   if ( Flame_GetLocalClientSourceRange() )
   {
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     Phys_Init();
   }
   DynEntCl_InitEntities(localClientNum);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   R_InitPrimaryLights(cgameGlob->refdef.primaryLights);
   R_ClearShadowedPrimaryLightHistory(localClientNum);
   if ( CL_LocalClient_IsFirstActive(localClientNum) )

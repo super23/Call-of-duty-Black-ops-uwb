@@ -625,7 +625,7 @@ void __cdecl Bullet_Process(
   hitEntId = Trace_GetDynEntHitId(&br->trace, &drawType);
   if ( hitEntId != 0xFFFF )
     DynEntSv_Damage(hitEntId, drawType, br->hitPos, bp->dir, damage, 0);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( weapDef->bBulletImpactExplode && weapDef->iExplosionInnerDamage )
   {
     v8 = (float)(weapDef->damageConeAngle * 0.017453292);

@@ -1,4 +1,295 @@
 #include "cg_main_mp.h"
+#include <universal/q_shared.h>
+#include <universal/com_memory.h>
+#include <universal/assertive.h>
+#include <universal/dvar.h>
+#include "cg_view_mp.h"
+#include <DynEntity/DynEntity_client.h>
+#include <cgame/offhandweapons.h>
+#include <cgame/cg_compass.h>
+#include <cgame/cg_spikeacoustic.h>
+#include <cgame/cg_ammocounter.h>
+#include <cgame/cg_visionsets.h>
+#include "cg_scoreboard_mp.h"
+#include <cgame/cg_hudelem.h>
+#include <cgame/cg_weapon_options.h>
+#include <turret/turret_placement.h>
+#include <bgame/bg_misc.h>
+#include <game_mp/g_main_mp.h>
+
+const char *debugOverlayNames[4] =
+{ "Off", "ViewmodelInfo", "FontTest", NULL };
+
+
+const dvar_s *cg_loadScripts;
+const dvar_s *cg_usingClientScripts;
+const dvar_s *cg_drawGun;
+const dvar_s *cg_cursorHints;
+const dvar_s *cg_retrieveHintTime;
+const dvar_s *cg_retrieveHintTimeStuck;
+const dvar_s *cg_weaponHintsCoD1Style;
+const dvar_s *cg_hintFadeTime;
+const dvar_s *cg_seatHintFadeTime;
+const dvar_s *cg_fov;
+const dvar_s *cg_fov_default;
+const dvar_s *cg_fov_default_thirdperson;
+const dvar_s *cg_fovScale;
+const dvar_s *cg_fovMin;
+const dvar_s *cg_fovExtraCam;
+const dvar_s *cg_fovCompMax;
+const dvar_s *cg_adsZoomToggleStyle;
+const dvar_s *cg_viewVehicleInfluenceGunner;
+const dvar_s *cg_viewVehicleInfluenceGunnerFiring;
+const dvar_s *cg_draw2D;
+const dvar_s *cg_drawErrorMessages;
+const dvar_s *cg_drawHealth;
+const dvar_s *cg_drawBreathHint;
+const dvar_s *cg_drawMantleHint;
+const dvar_s *cg_wadefps;
+const dvar_s *cg_drawFPS;
+const dvar_s *cg_drawFPSScale;
+const dvar_s *cg_drawBudgets;
+const dvar_s *cg_drawDynSModelBudget;
+const dvar_s *cg_development;
+const dvar_s *cg_drawAnimAttachTags;
+const dvar_s *cg_drawFPSOnly;
+const dvar_s *cg_profile_physics;
+const dvar_s *cg_drawFPSLabels;
+const dvar_s *cg_debugInfoCornerOffset;
+const dvar_s *cg_drawVersion;
+const dvar_s *cg_drawVersionX;
+const dvar_s *cg_drawVersionY;
+const dvar_s *cg_readTitleStorageLocally;
+const dvar_s *snd_drawInfo;
+const dvar_s *snd_drawSort;
+const dvar_s *cg_drawScriptUsage;
+const dvar_s *cg_drawMaterial;
+const dvar_s *cg_drawModelAxis;
+const dvar_s *cg_drawSnapshot;
+const dvar_s *cg_drawSnapshotTime;
+const dvar_s *cg_drawCrosshair;
+const dvar_s *cg_drawCrosshair3D;
+const dvar_s *cg_drawHoldBreathHint;
+const dvar_s *cg_drawTurretCrosshair;
+const dvar_s *cg_drawCrosshairNames;
+const dvar_s *cg_drawCrosshairNamesPosX;
+const dvar_s *cg_drawCrosshairNamesPosY;
+const dvar_s *cg_drawShellshock;
+const dvar_s *cg_hudStanceFlash;
+const dvar_s *cg_hudStanceHintPrints;
+const dvar_s *cg_hudDamageIconWidth;
+const dvar_s *cg_hudDamageIconHeight;
+const dvar_s *cg_hudDamageIconOffset;
+const dvar_s *cg_hudDamageIconTime;
+const dvar_s *cg_hudDamageDirectionalIconTime;
+const dvar_s *cg_hudDamageIconInScope;
+const dvar_s *cg_hudGrenadeIconMaxRangeFrag;
+const dvar_s *cg_hudGrenadeIconMaxRangeFlash;
+const dvar_s *cg_hudGrenadeIconMaxHeight;
+const dvar_s *cg_hudGrenadeIconInScope;
+const dvar_s *cg_hudGrenadeIconOffset;
+const dvar_s *cg_hudGrenadeIconHeight;
+const dvar_s *cg_hudGrenadeIconWidth;
+const dvar_s *cg_hudGrenadeIconEnabledFlash;
+const dvar_s *cg_hudGrenadePointerHeight;
+const dvar_s *cg_hudGrenadePointerWidth;
+const dvar_s *cg_hudGrenadePointerPivot;
+const dvar_s *cg_hudGrenadePointerPulseFreq;
+const dvar_s *cg_hudGrenadePointerPulseMax;
+const dvar_s *cg_hudGrenadePointerPulseMin;
+const dvar_s *cg_hudChatPosition;
+const dvar_s *cg_hudSayPosition;
+const dvar_s *cg_hudChatIntermissionPosition;
+const dvar_s *cg_hudVotePosition;
+const dvar_s *cg_debugDrawSafeAreas;
+const dvar_s *cg_drawLagometer;
+const dvar_s *drawEntityCount;
+const dvar_s *drawEntityCountPos;
+const dvar_s *drawEntityCountSize;
+const dvar_s *drawServerBandwidth;
+const dvar_s *drawServerBandwidthPos;
+const dvar_s *drawServerBandwidthSize;
+const dvar_s *drawKillcamData;
+const dvar_s *drawKillcamDataPos;
+const dvar_s *drawKillcamDataSize;
+const dvar_s *cg_hudProneY;
+const dvar_s *cg_mapLocationSelectionCursorSpeed;
+const dvar_s *cg_mapLocationSelectionRotationSpeed;
+const dvar_s *cg_hudGrenadeIndicatorFadeUp;
+const dvar_s *cg_hudGrenadeIndicatorTargetColor;
+const dvar_s *cg_hudGrenadeIndicatorStartColor;
+const dvar_s *cg_weaponCycleDelay;
+const dvar_s *cg_crosshairAlpha;
+const dvar_s *cg_crosshairAlphaMin;
+const dvar_s *cg_crosshairDynamic;
+const dvar_s *cg_crosshairEnemyColor;
+const dvar_s *cg_brass;
+const dvar_s *cg_gun_fovcomp_x;
+const dvar_s *cg_gun_fovcomp_y;
+const dvar_s *cg_gun_fovcomp_z;
+const dvar_s *cg_gun_x;
+const dvar_s *cg_gun_y;
+const dvar_s *cg_gun_z;
+const dvar_s *cg_gun_move_f;
+const dvar_s *cg_gun_move_r;
+const dvar_s *cg_gun_move_u;
+const dvar_s *cg_gun_ofs_f;
+const dvar_s *cg_gun_ofs_r;
+const dvar_s *cg_gun_ofs_u;
+const dvar_s *cg_gun_move_rate;
+const dvar_s *cg_gun_move_minspeed;
+const dvar_s *cg_centertime;
+const dvar_s *cg_debugPosition;
+const dvar_s *cg_debugEvents;
+const dvar_s *cg_errorDecay;
+const dvar_s *cg_nopredict;
+const dvar_s *cg_showmiss;
+const dvar_s *cg_footsteps;
+const dvar_s *cg_footprints;
+const dvar_s *cg_footprintsDistortWater;
+const dvar_s *cg_footprintsDebug;
+const dvar_s *cg_waterTrailRippleFrequency;
+const dvar_s *cg_waterTrailRippleVariance;
+const dvar_s *cg_treadmarks;
+const dvar_s *cg_firstPersonTracerChance;
+const dvar_s *cg_laserForceOn;
+const dvar_s *cg_laserRange;
+const dvar_s *cg_laserRangePlayer;
+const dvar_s *cg_laserRadius;
+const dvar_s *cg_laserLight;
+const dvar_s *cg_laserLightBodyTweak;
+const dvar_s *cg_laserLightRadius;
+const dvar_s *cg_laserLightBeginOffset;
+const dvar_s *cg_laserEndOffset;
+const dvar_s *cg_laserLightEndOffset;
+const dvar_s *cg_laserFlarePct;
+const dvar_s *cg_marks_ents_player_only;
+const dvar_s *cg_tracerChance;
+const dvar_s *cg_tracerWidth;
+const dvar_s *cg_tracerSpeed;
+const dvar_s *cg_tracerLength;
+const dvar_s *cg_tracerNoDrawTime;
+const dvar_s *cg_tracerScale;
+const dvar_s *cg_tracerScaleMinDist;
+const dvar_s *cg_tracerScaleDistRange;
+const dvar_s *cg_tracerScrewDist;
+const dvar_s *cg_tracerScrewRadius;
+const dvar_s *cg_bulletWidth;
+const dvar_s *cg_bulletLength;
+const dvar_s *cg_thirdPersonRange;
+const dvar_s *cg_thirdPersonAngle;
+const dvar_s *cg_thirdPersonFocusDist;
+const dvar_s *cg_thirdPerson;
+const dvar_s *cg_thirdPersonMode;
+const dvar_s *cg_chatTime;
+const dvar_s *cg_chatHeight;
+const dvar_s *cg_predictItems;
+const dvar_s *cg_spectateThirdPerson;
+const dvar_s *cg_teamChatsOnly;
+const dvar_s *cg_use_colored_smoke;
+const dvar_s *cg_fakefireWizbyChance;
+const dvar_s *cg_paused;
+const dvar_s *cg_drawpaused;
+const dvar_s *cg_synchronousClients;
+const dvar_s *cg_debug_overlay_viewport;
+const dvar_s *cg_fs_debug;
+const dvar_s *cg_debugFace;
+const dvar_s *cg_dumpAnims;
+const dvar_s *cg_developer;
+const dvar_s *cg_minicon;
+const dvar_s *cg_subtitles;
+const dvar_s *cg_subtitleMinTime;
+const dvar_s *cg_subtitleWidthStandard;
+const dvar_s *cg_subtitleWidthWidescreen;
+const dvar_s *cg_gameMessageWidth;
+const dvar_s *cg_gameBoldMessageWidth;
+const dvar_s *cg_descriptiveText;
+const dvar_s *cg_youInKillCamSize;
+const dvar_s *cg_scriptIconSize;
+const dvar_s *cg_connectionIconSize;
+const dvar_s *cg_voiceIconSize;
+const dvar_s *cg_constantSizeHeadIcons;
+const dvar_s *cg_headIconMinScreenRadius;
+const dvar_s *cg_overheadNamesMaxDist;
+const dvar_s *cg_overheadNamesNearDist;
+const dvar_s *cg_overheadNamesFarDist;
+const dvar_s *cg_overheadNamesFarScale;
+const dvar_s *cg_overheadNamesSize;
+const dvar_s *cg_overheadIconSize;
+const dvar_s *cg_overheadRankSize;
+const dvar_s *cg_overheadNamesGlow;
+const dvar_s *cg_overheadNamesFont;
+const dvar_s *cg_drawFriendlyNames;
+const dvar_s *cg_enemyNameFadeIn;
+const dvar_s *cg_friendlyNameFadeIn;
+const dvar_s *cg_enemyNameFadeOut;
+const dvar_s *cg_friendlyNameFadeOut;
+const dvar_s *cg_drawThroughWalls;
+const dvar_s *cg_playerHighlightTargetSize;
+const dvar_s *cg_playerHighlightEnemyColor;
+const dvar_s *cg_playerHighlightBrightness;
+const dvar_s *cg_playerHighlightMinFade;
+const dvar_s *cg_playerHighlightBlinkTime;
+const dvar_s *cg_corpseHighlightFadeTime;
+const dvar_s *cg_cameraSpikeHighlightBrightness;
+const dvar_s *cg_cameraSpikeEnemyColor;
+const dvar_s *cg_adsZScaleMax;
+const dvar_s *cg_infraredHighlightScale;
+const dvar_s *cg_infraredHighlightOffset;
+const dvar_s *cg_allow_mature;
+const dvar_s *cg_mature;
+const dvar_s *cg_blood;
+const dvar_s *cg_invalidCmdHintDuration;
+const dvar_s *cg_invalidCmdHintBlinkInterval;
+const dvar_s *cg_viewZSmoothingMin;
+const dvar_s *cg_viewZSmoothingMax;
+const dvar_s *cg_viewZSmoothingTime;
+const dvar_s *overrideNVGModelWithKnife;
+const dvar_s *cg_visionSetLerpMaxIncreasePerFrame;
+const dvar_s *cg_visionSetLerpMaxDecreasePerFrame;
+const dvar_s *cg_flareVisionSetFadeDuration;
+const dvar_s *cg_turretBipodOffset;
+const dvar_s *cg_AllPlayerNamesVisible;
+const dvar_s *cg_ScoresColor_MyTeam;
+const dvar_s *cg_ScoresColor_EnemyTeam;
+const dvar_s *cg_ScoresColor_Spectator;
+const dvar_s *cg_ScoresColor_Free;
+const dvar_s *cg_ScoresColor_Allies;
+const dvar_s *cg_ScoresColor_Axis;
+const dvar_s *cg_TeamName_Allies;
+const dvar_s *cg_TeamName_Axis;
+const dvar_s *cg_TeamColor_Allies;
+const dvar_s *cg_TeamColor_Axis;
+const dvar_s *cg_TeamColor_MyTeam;
+const dvar_s *cg_TeamColor_EnemyTeam;
+const dvar_s *cg_TeamColor_MyTeamAlt;
+const dvar_s *cg_TeamColor_EnemyTeamAlt;
+const dvar_s *cg_TeamColor_Squad;
+const dvar_s *cg_TeamColor_Spectator;
+const dvar_s *cg_TeamColor_Free;
+const dvar_s *cg_proneFeetCollisionHull;
+
+const dvar_s *g_compassShowEnemies;
+const dvar_s *cg_drawWVisDebug;
+const dvar_s *debugOverlay;
+const dvar_s *cg_motionblur_duration;
+const dvar_s *cg_motionblur_fadeout;
+const dvar_s *cg_timedDamageDuration;
+const dvar_s *cg_MinDownedPulseRate;
+const dvar_s *cg_MaxDownedPulseRate;
+const dvar_s *cg_playerFrustumHalfHeight;
+const dvar_s *cg_overheadNamesTagUpdateInterval;
+const dvar_s *cg_canSeeFriendlyFrustumUpdateInterval;
+const dvar_s *cg_canSeeFriendlyFrustumExpand;
+const dvar_s *cg_canSeeFriendlyFrustumMinDistance;
+const dvar_s *cg_watersheeting;
+const dvar_s *cg_debug_triggers;
+const dvar_s *cg_cameraWaterClip;
+const dvar_s *cg_cameraVehicleExitTweenTime;
+const dvar_s *cg_vehicle_piece_damagesfx_threshold;
+const dvar_s *cg_debugLocHit;
+const dvar_s *cg_debugLocHitTime;
+
 
 unsigned __int8 *__cdecl Hunk_AllocXAnimCreate(unsigned int size)
 {
@@ -2546,7 +2837,7 @@ void __cdecl CG_Init(int localClientNum, int serverMessageNum, int serverCommand
   if ( !g_mapLoaded && !useFastFile->current.enabled )
   {
     CG_LoadingString(localClientNum, "sound aliases");
-    BG_EvalVehicleName((jpeg_decompress_struct *)cgs->mapname);
+    BLOPS_NULLSUB((jpeg_decompress_struct *)cgs->mapname);
   }
   CG_SetupWeaponDef(localClientNum);
   if ( !com_sv_running->current.enabled && !CG_HasClientSystemBeenInitialzed() )
@@ -2601,7 +2892,7 @@ void __cdecl CG_Init(int localClientNum, int serverMessageNum, int serverCommand
   CG_SetupGameInformation(localClientNum);
   CG_LoadHudMenu(localClientNum);
   CG_SetGridTable();
-  BG_EvalVehicleName((jpeg_decompress_struct *)localClientNum);
+  BLOPS_NULLSUB((jpeg_decompress_struct *)localClientNum);
   CG_InitEntities(localClientNum);
   CG_InitLocalEntities(localClientNum);
   DynEntCl_InitEntities(localClientNum);

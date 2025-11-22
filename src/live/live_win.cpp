@@ -40,7 +40,7 @@ char __cdecl Live_RequireUserToPlayOnline()
   }
   else
   {
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     return 0;
   }
 }
@@ -287,14 +287,14 @@ void __cdecl Live_InitPlatform()
     dw_popup = _Dvar_RegisterString("dw_popup", (char *)&toastPopupTitle, 0, "Online services popup");
     Live_InitFavourites();
     for ( controllerIndex = 0; controllerIndex < 1; ++controllerIndex )
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
     LiveGroups_Init();
     PCache_Init();
     Cmd_AddCommandInternal(
       "initiateDemonWareConnect",
       Live_InitiateDemonWareConnect_f,
       &Live_InitiateDemonWareConnect_f_VAR);
-    Cmd_AddCommandInternal("updateInfoForInGameList", BG_EvalVehicleName, &Live_UpdateInfoForInGameList_f_VAR);
+    Cmd_AddCommandInternal("updateInfoForInGameList", BLOPS_NULLSUB, &Live_UpdateInfoForInGameList_f_VAR);
     Cmd_AddCommandInternal("JoinsessionInProgress", Live_JoinSessionInProgress_f, &Live_JoinSessionInProgress_f_VAR);
     Cmd_AddCommandInternal("sendinvite", Live_SendInvite_f, &Live_SendInvite_f_VAR);
     Cmd_AddCommandInternal("acceptinvite", Live_AcceptInvite_f, &Live_AcceptInvite_f_VAR);
@@ -308,7 +308,7 @@ void __cdecl Live_InitPlatform()
     LB_Init();
     LiveStorage_Init();
     Friends_Init();
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     LiveCounter_Init();
     xblive_loggedin = _Dvar_RegisterBool("xblive_loggedin", 0, 0, "User is logged into online service");
     xenon_voiceDebug = _Dvar_RegisterBool("xenon_voiceDebug", 0, 0, "Debug voice communication");
@@ -677,10 +677,10 @@ bool __cdecl Live_UserSignedInToLive(int controllerIndex, char **disconnectMessa
   Live_RequestSessionsFromFriends();
   LiveStorage_SetAllStatsNotFetched(controllerIndex);
   LiveStorage_ReadStats(controllerIndex, 0, 0);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( (s_signInRequirement[controllerIndex] & 4) != 0 )
   {
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     if ( Live_ContentRatingAllowed() )
     {
       LocalClientNum = Com_ControllerIndex_GetLocalClientNum(controllerIndex);
@@ -1047,7 +1047,7 @@ bool __cdecl Live_UserSignedOut(int controllerIndex)
   {
     Flame_GetLocalClientSourceRange();
     CL_GetLocalClientConnectionState(localClientNum);
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     Com_LocalClient_SetBeingUsed(localClientNum, 0);
     if ( (s_signInRequirement[controllerIndex] & 7) == 0 )
       Com_Printf(16, "Controller #%i signed out\n", controllerIndex);

@@ -1,5 +1,80 @@
 #include "aim_assist.h"
 
+#include <cstring>
+#include <qcommon/graph.h>
+#include <qcommon/cmd.h>
+#include <universal/dvar.h>
+#include <client/screen_placement.h>
+#include <bgame/bg_local.h>
+#include <bgame/bg_weapons.h>
+#include <cgame/cg_weapons.h>
+#include <bgame/bg_weapons_def.h>
+#include <bgame/bg_weapons_ammo.h>
+#include <cgame_mp/cg_local_mp.h>
+#include <demo/demo_common.h>
+#include <universal/com_math_anglevectors.h>
+#include "aim_target.h"
+#include <universal/com_math.h>
+#include <clientscript/scr_const.h>
+#include <xanim/dobj.h>
+#include <qcommon/dobj_management.h>
+#include <cgame_mp/cg_ents_mp.h>
+#include <clientscript/cscr_stringlist.h>
+#include <qcommon/common.h>
+#include <cgame_mp/cg_main_mp.h>
+#include <cmath>
+
+AimAssistGlobals aaGlobArray[1];
+GraphFloat aaInputGraph[4];
+
+const dvar_s *aim_aimAssistRangeScale;
+const dvar_s *aim_autoAimRangeScale;
+const dvar_s *aim_input_graph_enabled;
+const dvar_s *aim_input_graph_enabled;
+const dvar_s *aim_input_graph_debug;
+const dvar_s *aim_input_graph_index;
+const dvar_s *aim_turnrate_pitch;
+const dvar_s *aim_turnrate_pitch_ads;
+const dvar_s *aim_turnrate_yaw;
+const dvar_s *aim_turnrate_yaw_ads;
+const dvar_s *aim_accel_turnrate_enabled;
+const dvar_s *aim_accel_turnrate_debug;
+const dvar_s *aim_accel_turnrate_lerp;
+const dvar_s *aim_slowdown_enabled;
+const dvar_s *aim_slowdown_debug;
+const dvar_s *aim_slowdown_region_width;
+const dvar_s *aim_slowdown_region_height;
+const dvar_s *aim_slowdown_region_extended_width;
+const dvar_s *aim_slowdown_region_extended_height;
+const dvar_s *aim_slowdown_pitch_scale;
+const dvar_s *aim_slowdown_pitch_scale_ads;
+const dvar_s *aim_slowdown_yaw_scale;
+const dvar_s *aim_slowdown_yaw_scale_ads;
+const dvar_s *aim_autoaim_lerp;
+const dvar_s *aim_autoaim_enabled;
+const dvar_s *aim_autoaim_debug;
+const dvar_s *aim_autoaim_region_width;
+const dvar_s *aim_autoaim_region_height;
+const dvar_s *aim_automelee_enabled;
+const dvar_s *aim_automelee_debug;
+const dvar_s *aim_automelee_lerp;
+const dvar_s *aim_automelee_region_width;
+const dvar_s *aim_automelee_region_height;
+const dvar_s *aim_automelee_range;
+const dvar_s *aim_autobayonet_range;
+const dvar_s *aim_view_sensitivity_override;
+const dvar_s *aim_lockon_enabled;
+const dvar_s *aim_lockon_debug;
+const dvar_s *aim_lockon_deflection;
+const dvar_s *aim_lockon_strength;
+const dvar_s *aim_lockon_pitch_strength;
+const dvar_s *aim_lockon_region_width;
+const dvar_s *aim_lockon_region_height;
+const dvar_s *aim_scale_view_axis;
+const dvar_s *aim_assist_script_disable;
+const dvar_s *aim_assist_min_target_distance;
+
+
 void __cdecl AimAssist_Init(int localClientNum)
 {
   char graphName[128]; // [esp+4h] [ebp-88h] BYREF
@@ -20,7 +95,7 @@ void __cdecl AimAssist_Init(int localClientNum)
   }
 }
 
-const dvar_s *AimAssist_RegisterDvars()
+void AimAssist_RegisterDvars()
 {
   const dvar_s *result; // eax
 
@@ -270,15 +345,13 @@ const dvar_s *AimAssist_RegisterDvars()
                                 0,
                                 0x4000u,
                                 "Override aim assist from script: set to true to disable code aim assist (i.e. for meatshield)");
-  result = _Dvar_RegisterFloat(
-             "aim_assist_min_target_distance",
-             10000.0,
-             0.0,
-             10000.0,
-             0x5000u,
-             "Aim assist will not work on targets beyond this distance");
-  aim_assist_min_target_distance = result;
-  return result;
+  aim_assist_min_target_distance = _Dvar_RegisterFloat(
+      "aim_assist_min_target_distance",
+      10000.0,
+      0.0,
+      10000.0,
+      0x5000u,
+      "Aim assist will not work on targets beyond this distance");
 }
 
 void __cdecl AimAssist_Setup(int localClientNum, const playerState_s *ps)
@@ -303,8 +376,8 @@ void __cdecl AimAssist_Setup(int localClientNum, const playerState_s *ps)
   aaGlob->initialized = 1;
   aaGlob->fovTurnRateScale = 1.0f;
   aaGlob->fovScaleInv = 1.0f;
-  aaGlob->screenWidth = *(float *)&dword_2D9E6C0[30 * localClientNum];
-  aaGlob->screenHeight = *(float *)&dword_2D9E6C4[30 * localClientNum];
+  aaGlob->screenWidth = scrPlaceView[localClientNum].realViewportSize[0];
+  aaGlob->screenHeight = scrPlaceView[localClientNum].realViewportSize[1];
   aaGlob->autoAimTargetEnt = 1023;
   aaGlob->autoMeleeTargetEnt = 1023;
   aaGlob->lockOnTargetEnt = 1023;
@@ -468,7 +541,7 @@ void __cdecl AimAssist_UpdateScreenTargets(
     v5[2] = viewAngles[2];
     AnglesToAxis(viewAngles, aaGlob->viewAxis);
     AimAssist_FovScale(aaGlob, tanHalfFovY);
-    AimAssist_CreateScreenMatrix((int)&savedregs, aaGlob, tanHalfFovX, tanHalfFovY);
+    AimAssist_CreateScreenMatrix(aaGlob, tanHalfFovX, tanHalfFovY);
     aaGlob->screenTargetCount = 0;
     AimTarget_GetClientTargetList(localClientNum, (AimTargetGlob **)&targetList, &targetCount);
     for ( targetIndex = 0; targetIndex < targetCount; ++targetIndex )
@@ -510,34 +583,17 @@ void __cdecl AimAssist_UpdateScreenTargets(
 
 void __cdecl AimAssist_FovScale(AimAssistGlobals *aaGlob, float tanHalfFovY)
 {
-  double v2; // xmm0_8
-  long double var8; // [esp+8h] [ebp-8h]
-  float tanHalfBaseFovY; // [esp+Ch] [ebp-4h]
+    float v2; // [esp+8h] [ebp-Ch]
+    float v3; // [esp+Ch] [ebp-8h]
+    float tanHalfBaseFovY; // [esp+10h] [ebp-4h]
 
-  if ( !aaGlob
-    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\aim_assist\\aim_assist.cpp", 648, 0, "%s", "aaGlob") )
-  {
-    __debugbreak();
-  }
-  *((float *)&var8 + 1) = 0.47780272f;
-  aaGlob->fovTurnRateScale = tanHalfFovY / 0.47780272;
-  *(float *)&var8 = (float)(cg_fov->current.value * 0.017453292) * 0.5;
-  v2 = *(float *)&var8;
-  __libm_sse2_tan(var8);
-  *(float *)&v2 = v2;
-  tanHalfBaseFovY = *(float *)&v2 * 0.75;
-  if ( (float)(*(float *)&v2 * 0.75) == 0.0
-    && !Assert_MyHandler(
-          "C:\\projects_pc\\cod\\codsrc\\src\\aim_assist\\aim_assist.cpp",
-          657,
-          0,
-          "%s\n\t(tanHalfBaseFovY) = %g",
-          "(tanHalfBaseFovY != 0.0f)",
-          tanHalfBaseFovY) )
-  {
-    __debugbreak();
-  }
-  aaGlob->fovScaleInv = tanHalfBaseFovY / tanHalfFovY;
+    iassert(aaGlob);
+    aaGlob->fovTurnRateScale = tanHalfFovY / (float)0.47780272;
+    v3 = cg_fov->current.value * 0.01745329238474369 * 0.5;
+    v2 = tan(v3);
+    tanHalfBaseFovY = v2 * 0.75;
+    iassert(tanHalfBaseFovY != 0.0f);
+    aaGlob->fovScaleInv = tanHalfBaseFovY / tanHalfFovY;
 }
 
 void  AimAssist_CreateScreenMatrix(
@@ -1880,7 +1936,6 @@ const AimScreenTarget *__cdecl AimAssist_GetPrevOrBestTarget(
 void __cdecl AimAssist_ApplyAutoMelee(const AimInput *input, AimOutput *output)
 {
   int integer; // [esp+10h] [ebp-5Ch]
-  bool v3; // [esp+14h] [ebp-58h]
   float targetDir[2]; // [esp+38h] [ebp-34h] BYREF
   float dist; // [esp+40h] [ebp-2Ch]
   const AimScreenTarget *screenTarget; // [esp+44h] [ebp-28h]
@@ -1911,8 +1966,8 @@ void __cdecl AimAssist_ApplyAutoMelee(const AimInput *input, AimOutput *output)
   isBayonet = BG_IsBayonetWeapon(aaGlob->ps.weapIndex);
   if ( !aim_automelee_enabled->current.enabled || !aaGlob->ps.weapIndex )
     goto LABEL_24;
-  v3 = bitarray<51>::testBit(&input->button_bits, 2u) && !bitarray<51>::testBit(&aaGlob->prev_button_bits, 2u);
-  meleeing = v3;
+  //v3 = bitarray<51>::testBit(&input->button_bits, 2u) && !bitarray<51>::testBit(&aaGlob->prev_button_bits, 2u);
+  meleeing = input->button_bits.testBit(2) && !aaGlob->prev_button_bits.testBit(2);
   if ( BG_GetWeaponDef(aaGlob->ps.weapIndex)->meleeChargeRange == 0.0 )
   {
     if ( isBayonet )
@@ -2307,20 +2362,5 @@ void __cdecl AimAssist_DrawTargets(int localClientNum, const playerState_s *ps, 
       }
     }
   }
-}
-
-bool __thiscall bitarray<51>::testBit(bitarray<51> *this, unsigned int pos)
-{
-  if ( pos >= 0x33
-    && !Assert_MyHandler(
-          "c:\\projects_pc\\cod\\codsrc\\src\\universal\\../qcommon/bitarray.h",
-          109,
-          0,
-          "%s",
-          "pos < BIT_COUNT") )
-  {
-    __debugbreak();
-  }
-  return (this->array[pos >> 5] & (0x80000000 >> (pos & 0x1F))) != 0;
 }
 

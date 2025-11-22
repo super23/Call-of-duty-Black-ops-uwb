@@ -614,7 +614,7 @@ void __cdecl UI_Project_OwnerDraw(
     switch ( ownerDraw )
     {
       case 131:
-        BG_EvalVehicleName();
+        BLOPS_NULLSUB();
         break;
       case 133:
         UI_DrawBlurMaterial(contextIndex, &rect, color);
@@ -2316,7 +2316,7 @@ void __cdecl UI_RunMenuScript_StartListenServer()
   Dvar_SetStringByName("sv_mapRotationCurrent", v1);
   for ( value = UI_GetMapRotationToken(); value && I_strcmp(value->token, map); value = UI_GetMapRotationToken() )
     ;
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   v2 = va("wait ; wait ; map %s\n", map);
   Cbuf_AddText(0, v2);
 }
@@ -2336,8 +2336,8 @@ void __cdecl UI_RunMenuScript_StartServer(int localClientNum)
   Dvar_SetString((dvar_s *)sv_mapRotationCurrent, sv_mapRotation->current.string);
   for ( value = UI_GetMapRotationToken(); value && I_strcmp(value->token, map); value = UI_GetMapRotationToken() )
     ;
-  BG_EvalVehicleName();
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
+  BLOPS_NULLSUB();
   v2 = va("wait ; wait ; map %s\n", map);
   Cbuf_AddText(localClientNum, v2);
 }

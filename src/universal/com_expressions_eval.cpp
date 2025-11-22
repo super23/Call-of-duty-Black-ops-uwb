@@ -12425,7 +12425,7 @@ char __cdecl EvaluateExpression(
   rpn = statement->rpn;
   s_currentStatement = statement;
   if ( uiscript_debug && uiscript_debug->current.integer )
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
   memset((unsigned __int8 *)&dst, 0, sizeof(dst));
   for ( i = rpn; i->type != 3; ++i )
   {
@@ -12588,7 +12588,7 @@ void Expression_Error(const char *str, ...)
     offset = &buf[strlen(buf) + 1] - &buf[1];
     _vsnprintf(&buf[offset], 0x400u, str, va);
     buf[1023] = 0;
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     Com_PrintMessage(16, buf, 3);
   }
 }
@@ -12606,7 +12606,7 @@ void Expression_Warn(const char *str, ...)
     offset = &buf[strlen(buf) + 1] - &buf[1];
     _vsnprintf(&buf[offset], 0x400u, str, va);
     buf[1023] = 0;
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     Com_PrintMessage(16, buf, 2);
   }
 }

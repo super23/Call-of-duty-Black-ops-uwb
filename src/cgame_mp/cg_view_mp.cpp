@@ -3965,7 +3965,7 @@ LABEL_22:
   CG_UpdateBolt(localClientNum);
   CG_UpdateEnemyScramblerAlpha(localClientNum);
   CG_ProcessDestructibleEvents();
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   delayedEnt = CG_AddPacketEntities(localClientNum);
   AimTarget_UpdateClientTargets((jpeg_decompress_struct *)localClientNum);
   if ( !cgameGlob->predictedPlayerState.locationSelectionInfo
@@ -4188,7 +4188,7 @@ LABEL_22:
     cgameGlob->refdef.tanHalfFovY);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   CG_UpdateSceneDepthOfField(localClientNum);
   CG_UpdateWaterSheetingFX(cgameGlob);
   CG_UpdateFlameFX(cgameGlob);

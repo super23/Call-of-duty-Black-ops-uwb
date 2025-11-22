@@ -934,7 +934,7 @@ void __cdecl Weapon_Flamethrower_Update(gentity_s *ent, weaponParms *wp)
   flameWeaponConfig.damageInterval = wp->weapDef->damageInterval;
   Time = G_GetTime();
   SV_Flame_Update_Source(ent->s.number, &flameWeaponConfig, Time);
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 
 void __cdecl Weapon_Flamethrower_Fire(gentity_s *ent, weaponParms *wp)

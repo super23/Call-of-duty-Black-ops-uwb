@@ -60,6 +60,7 @@ struct field_t // sizeof=0x118
 
 struct XAnim_s;
 struct clientState_s;
+struct XAnimTree_s;
 
 void *__cdecl Com_LiveAllocate(unsigned int size);
 void __cdecl Com_LiveDeallocate(void *data);
@@ -72,10 +73,10 @@ void __cdecl Com_EndRedirect();
 void __cdecl Com_PrintMessage(int channel, char *msg, int error);
 void __cdecl Com_LogPrintMessage(int channel, char *msg);
 void Com_OpenLogFile();
-void Com_Printf(int channel, char *fmt, ...);
-void Com_DPrintf(int channel, char *fmt, ...);
-void Com_PrintError(int channel, char *fmt, ...);
-void Com_PrintWarning(int channel, char *fmt, ...);
+void Com_Printf(int channel, const char *fmt, ...);
+void Com_DPrintf(int channel, const char *fmt, ...);
+void Com_PrintError(int channel, const char *fmt, ...);
+void Com_PrintWarning(int channel, const char *fmt, ...);
 void __cdecl Com_Shutdown(const char *finalmsg);
 void __cdecl Com_ShutdownInternal(const char *finalmsg);
 void __cdecl Com_InitDynamicRender();

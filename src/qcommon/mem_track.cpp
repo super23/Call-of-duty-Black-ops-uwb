@@ -770,7 +770,7 @@ void __cdecl track_init()
     g_mem_track_filename = "com_math";
     TRACK_com_math();
     g_mem_track_filename = "fx_draw";
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     g_mem_track_filename = "fx_random";
     TRACK_fx_random();
     g_mem_track_filename = "fx_marks";
@@ -810,11 +810,11 @@ void __cdecl track_init()
     g_mem_track_filename = "com_memory";
     TRACK_com_memory();
     g_mem_track_filename = "sv_init";
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     g_mem_track_filename = "zutil";
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     g_mem_track_filename = "memfile";
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     g_mem_track_filename = "cl_main";
     TRACK_cl_main();
     g_mem_track_filename = "cl_console";
@@ -828,7 +828,7 @@ void __cdecl track_init()
     g_mem_track_filename = "win_input";
     TRACK_win_input();
     g_mem_track_filename = "cl_srcn";
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     g_mem_track_filename = "cl_cgame";
     TRACK_cl_cgame();
     g_mem_track_filename = "statmonitor";
@@ -836,7 +836,7 @@ void __cdecl track_init()
     g_mem_track_filename = "snd";
     TRACK_snd();
     g_mem_track_filename = "snd_driver";
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     g_mem_track_filename = "stringed_hooks";
     TRACK_stringed_hooks();
     g_mem_track_filename = "devgui";
@@ -1215,8 +1215,8 @@ void __cdecl track_PrintAllInfo()
   if ( Sys_IsMainThread() )
   {
     track_PrintInfo();
-    BG_EvalVehicleName();
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
+    BLOPS_NULLSUB();
   }
 }
 

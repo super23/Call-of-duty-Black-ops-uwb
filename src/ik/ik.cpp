@@ -455,7 +455,7 @@ void __cdecl IK_UpdateStatusFunctions(IKState *ikState)
     ikState->gunnerCrouch = IKImport_GetGunnerCrouch(ikState);
     if ( IKImport_GetLayerLerp(ikState, IKLAYER_TERRAIN_MAPPING, flt_E12704) > 0.0 )
       IKImport_UpdateCollisionCache(ikState);
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     IKImport_GetEntityXform((gentity_s *)&savedregs, ikState);
     IK_CheckSolverLayers(ikState);
     ikState->lastUpdateStatusFlags = ikState->timeMS;

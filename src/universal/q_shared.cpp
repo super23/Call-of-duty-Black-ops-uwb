@@ -1,4 +1,10 @@
 #include "q_shared.h"
+#include "assertive.h"
+#include <string.h>
+#include <qcommon/msg_mp.h>
+#include <ctype.h>
+#include <qcommon/common.h>
+#include <stdarg.h>
 
 unsigned __int8 __cdecl ColorIndex(unsigned __int8 c)
 {
@@ -440,7 +446,7 @@ void __cdecl I_strncat(char *dest, int size, const char *src)
   }
   destLen = strlen(dest);
   if ( destLen >= size )
-    Com_Error(ERR_FATAL, &byte_D0BE18);
+    Com_Error(ERR_FATAL, "I_strncat: already overflowed");
   I_strncpyz(&dest[destLen], src, size - destLen);
 }
 
@@ -1435,7 +1441,8 @@ double __cdecl CMD_GetAnalogButtonValue(usercmd_s *cmd, unsigned int whichBit)
     numBits = 3;
   if ( numBits == 1 )
   {
-    if ( bitarray<51>::testBit(&cmd->button_bits, whichBit) )
+    //if ( bitarray<51>::testBit(&cmd->button_bits, whichBit) )
+    if ( cmd->button_bits.testBit(whichBit) )
       return 1.0;
     else
       return 0.0;
@@ -1445,7 +1452,8 @@ double __cdecl CMD_GetAnalogButtonValue(usercmd_s *cmd, unsigned int whichBit)
     val = 0;
     for ( i = 0; i < numBits; ++i )
     {
-      if ( bitarray<51>::testBit(&cmd->button_bits, i + whichBit) )
+      //if ( bitarray<51>::testBit(&cmd->button_bits, i + whichBit) )
+      if ( cmd->button_bits.testBit(i + whichBit) )
         val |= 1 << i;
     }
     return (double)val / (double)((1 << numBits) - 1);

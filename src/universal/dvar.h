@@ -1,5 +1,112 @@
 #pragma once
 
+enum DvarSetSource : __int32
+{                                       // XREF: Dvar_SetVariant/r
+    DVAR_SOURCE_INTERNAL = 0x0,
+    DVAR_SOURCE_EXTERNAL = 0x1,
+    DVAR_SOURCE_SCRIPT   = 0x2,
+    DVAR_SOURCE_DEVGUI   = 0x3,
+};
+
+enum dvarType_t : __int32
+{                                       // XREF: dvar_s/r
+                                         // ?Dvar_ValueInDomain@@YA_NW4dvarType_t@@TDvarValue@@TDvarLimits@@@Z/r ...
+     DVAR_TYPE_BOOL = 0x0,
+     DVAR_TYPE_FLOAT = 0x1,
+     DVAR_TYPE_FLOAT_2 = 0x2,
+     DVAR_TYPE_FLOAT_3 = 0x3,
+     DVAR_TYPE_FLOAT_4 = 0x4,
+     DVAR_TYPE_INT = 0x5,
+     DVAR_TYPE_ENUM = 0x6,
+     DVAR_TYPE_STRING = 0x7,
+     DVAR_TYPE_COLOR = 0x8,
+     DVAR_TYPE_INT64 = 0x9,
+     DVAR_TYPE_LINEAR_COLOR_RGB = 0xA,
+     DVAR_TYPE_COLOR_XYZ = 0xB,
+     DVAR_TYPE_COUNT = 0xC,
+};
+
+union DvarValue // sizeof=0x10
+{                                       // XREF: CL_CommitDvarToProfiles+58/w
+                                        // CL_CommitDvarToProfiles+5E/w ...
+    bool enabled;
+    int integer;
+    unsigned int unsignedInt;
+    __int64 integer64;
+    unsigned __int64 unsignedInt64;
+    float value;
+    float vector[4];
+    const char *string;
+    unsigned __int8 color[4];
+};
+
+struct DvarLimits_enum // sizeof=0x8
+{                                       // XREF: DvarLimits/r
+    int stringCount;
+    const char **strings;
+};
+
+struct DvarLimits_int // sizeof=0x8
+{                                       // XREF: DvarLimits/r
+    int min;
+    int max;
+};
+
+struct DvarLimits_int64 // sizeof=0x10
+{                                       // XREF: DvarLimits/r
+    __int64 min;
+    __int64 max;
+};
+
+struct DvarLimits_float // sizeof=0x8
+{                                       // XREF: DvarLimits/r
+    float min;
+    float max;
+};
+
+struct DvarLimits_vector // sizeof=0x8
+{                                       // XREF: DvarLimits/r
+    float min;
+    float max;
+};
+
+union DvarLimits // sizeof=0x10
+{                                       // XREF: Dvar_ValueInDomain(dvarType_t,DvarValue,DvarLimits):$LN17_36/r
+                                        // Dvar_ValueInDomain(dvarType_t,DvarValue,DvarLimits)+61/r ...
+    DvarLimits_enum enumeration;
+    DvarLimits_int integer;
+    DvarLimits_int64 integer64;
+    DvarLimits_float value;
+    DvarLimits_vector vector;
+};
+
+struct __declspec(align(8)) dvar_s // sizeof=0x70
+{                                       // XREF: .data:dvarPool/r
+                                        // dvar_t/r
+    const char *name;
+    const char *description;
+    int hash;
+    unsigned int flags;                 // XREF: Dvar_ResetScriptInfo(void)+4A/r
+                                        // Dvar_ResetScriptInfo(void)+5C/w
+    dvarType_t type;
+    bool modified;
+    bool loadedFromSaveGame;
+    // padding byte
+    // padding byte
+    DvarValue current;
+    DvarValue latched;
+    DvarValue reset;
+    DvarValue saved;
+    DvarLimits domain;
+    dvar_s *hashNext;
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+};
+
+struct FastCriticalSection;
+
 void __cdecl Dvar_Sort();
 void __cdecl Dvar_ForEach(void (__cdecl *callback)(const dvar_s *, void *), void *userData);
 void __cdecl Dvar_ForEachName(void (__cdecl *callback)(const char *));
@@ -88,7 +195,7 @@ void __cdecl Dvar_SetLatchedValue(dvar_s *dvar, DvarValue value);
 void __cdecl Dvar_AssignLatchedStringValue(dvar_s *dvar, DvarValue *dest, char *string);
 char __cdecl Dvar_CanChangeValue(const dvar_s *dvar, DvarValue value, DvarSetSource source);
 void __cdecl Dvar_ClearLatchedValue(dvar_s *dvar);
-const dvar_s *__cdecl _Dvar_RegisterBool(char *dvarName, bool value, unsigned __int16 flags, const char *description);
+const dvar_s *__cdecl _Dvar_RegisterBool(const char *dvarName, bool value, unsigned __int16 flags, const char *description);
 const dvar_s *__cdecl Dvar_RegisterVariant(
         char *dvarName,
         dvarType_t type,
@@ -184,7 +291,7 @@ const dvar_s *__cdecl _Dvar_RegisterVec4(
         const char *description);
 const dvar_s *__cdecl _Dvar_RegisterString(
         const char *dvarName,
-        char *value,
+        const char *value,
         unsigned __int16 flags,
         const char *description);
 const dvar_s *__cdecl _Dvar_RegisterEnum(

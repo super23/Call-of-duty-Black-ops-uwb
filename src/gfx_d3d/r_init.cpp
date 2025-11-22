@@ -1355,7 +1355,7 @@ char __cdecl R_InitHardware(const GfxWindowParms *wndParms)
   Com_Printf(8, "Using %d GPU(s).\n", dx.gpuCount);
   R_StoreWindowSettings(wndParms);
   RB_InitSceneViewport();
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   semaphore = R_AcquireDXDeviceOwnership(0);
   failed = R_CreateForInitOrReset() == 0;
   if ( semaphore )
@@ -1373,7 +1373,7 @@ char __cdecl R_InitHardware(const GfxWindowParms *wndParms)
   R_InitSystems();
   if ( v5 )
     R_ReleaseDXDeviceOwnership();
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   R_FinishAttachingToWindow(wndParms);
   return 1;
 }
@@ -1605,7 +1605,7 @@ void R_Register()
 {
   R_RegisterDvars();
   R_RegisterCmds();
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 
 void R_InitGlobalStructs()
@@ -1812,7 +1812,7 @@ void __cdecl R_BeginRegistration(vidConfig_t *vidConfigOut)
     __debugbreak();
   }
   r_glob.startedRenderThread = 1;
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
 }
 
 void __cdecl R_EndRegistration()
@@ -1822,7 +1822,7 @@ void __cdecl R_EndRegistration()
   {
     __debugbreak();
   }
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( !useFastFile->current.enabled )
   {
     R_SyncRenderThread();

@@ -179,7 +179,7 @@ void __cdecl dwNetStop()
 
   Sys_EnterCriticalSection(CRITSECT_DEMONWARE);
   addressMap = dwGetAddressMap();
-  BG_EvalVehicleName();
+  BLOPS_NULLSUB();
   if ( addressMap )
     bdArray<bdReference<bdCommonAddr>>::~bdArray<bdReference<bdCommonAddr>>(addressMap);
   net = bdSingleton<bdNetImpl>::getInstance();

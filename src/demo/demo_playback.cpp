@@ -1527,7 +1527,7 @@ void __cdecl Demo_ProcessPlayback()
   {
     MSG_GotoBookmark(&demo.msg, &bookmark);
     Demo_SeekFile(demo.demoFileHandle, bookmarkOffset, 2);
-    BG_EvalVehicleName();
+    BLOPS_NULLSUB();
     dword_FB2C3C[4 * localClientNum] = 6;
     v0 = Cmd_Argv(1);
     I_strncpyz(cls.servername, v0, 256);

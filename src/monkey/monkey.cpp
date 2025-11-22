@@ -1,4 +1,24 @@
 #include "monkey.h"
+#include "monkey_comm.h"
+
+#include <cstring>
+#include <universal/q_shared.h>
+#include <Windows.h>
+#include <universal/dvar.h>
+#include <universal/assertive.h>
+#include <qcommon/common.h>
+#include <qcommon/cmd.h>
+#include <win32/win_common.h>
+#include <universal/timing.h>
+
+char g_MonkeyPrintBuffer[0x20000];
+unsigned int g_MonkeyPrintBufferSize;
+bool g_MonkeyGrabPrints;
+bool g_MonkeyIsRunning;
+unsigned __int64 g_MonkeyOokTimer;
+unsigned __int64 g_MonkeyOokTimeoutTicks;
+
+const dvar_s *in_monkey;
 
 void __cdecl Monkey_Error(const char *text)
 {
@@ -143,7 +163,7 @@ void __cdecl Monkey_Frame()
 void __cdecl Monkey_KeepAlive()
 {
   LARGE_INTEGER PerformanceCount; // [esp+8h] [ebp-18h] BYREF
-  char *string; // [esp+10h] [ebp-10h]
+  const char *string; // [esp+10h] [ebp-10h]
   const char *ook; // [esp+14h] [ebp-Ch]
   unsigned __int64 now; // [esp+18h] [ebp-8h]
 

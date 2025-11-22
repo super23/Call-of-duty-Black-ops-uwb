@@ -214,7 +214,7 @@ void __cdecl Net_DisplayProfile(int localClientNum)
     if ( net_iProfilingOn == 1 )
       CL_Netchan_PrintProfileStats(localClientNum, 0);
     else
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
   }
 }
 
@@ -246,7 +246,7 @@ void __cdecl Net_Dump//Profile_f()
     if ( net_iProfilingOn == 1 )
       CL_Netchan_PrintProfileStats(0, 1);
     else
-      BG_EvalVehicleName();
+      BLOPS_NULLSUB();
   }
   else
   {
