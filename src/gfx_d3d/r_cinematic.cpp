@@ -872,7 +872,7 @@ char __cdecl R_Cinematic_Advance(bool force_wait)
         bt += 8;
         p_Buffer += 12;
       }
-      PIXBeginNamedEvent(-1, "R_Cinematic_Thread2");
+      //PIXBeginNamedEvent(-1, "R_Cinematic_Thread2");
       BinkDoFrame(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth);
       while ( R_Cinematic_BinkShouldSkip(useCustomSkipLogic)
            && ((cinematicGlob.playbackFlags & 2) != 0
@@ -1751,7 +1751,7 @@ void __cdecl R_Cinematic_UpdateFrame(bool force_wait)
 {
   CINE_JQ_CMD cmd; // [esp+14h] [ebp-8h] BYREF
 
-  PIXBeginNamedEvent(-1, "R_Cinematic_UpdateFrame");
+  //PIXBeginNamedEvent(-1, "R_Cinematic_UpdateFrame");
   if ( g_cinematicInitialized )
   {
     do

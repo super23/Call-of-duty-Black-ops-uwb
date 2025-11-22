@@ -91,13 +91,13 @@ void __cdecl R_DepthPrepassCallback(const GfxViewInfo *userData, GfxCmdBufContex
   R_SetWindShaderConstants(context.source);
   memcpy(&info, &viewInfo->drawList[3], sizeof(info));
   info.baseTechType = baseTechType;
-  PIXBeginNamedEvent(-1, "zprepass decalInfo");
+  //PIXBeginNamedEvent(-1, "zprepass decalInfo");
   R_DrawSurfs(context, 0, &info);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
   memcpy(&info, viewInfo->drawList, sizeof(info));
   info.baseTechType = baseTechType;
-  PIXBeginNamedEvent(-1, "zprepass litInfo");
+  //PIXBeginNamedEvent(-1, "zprepass litInfo");
   R_DrawSurfs(context, 0, &info);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();

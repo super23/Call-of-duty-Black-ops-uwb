@@ -1,8 +1,0 @@
-G_GetPlayerCorpseIndex
-G_GetFreePlayerCorpseIndex
-PlayerCorpse_Free
-G_RunCorpseMove
-G_BounceCorpse
-G_GetAnimDeltaForCorpse
-G_RunCorpse
-G_RunCorpseAnimate

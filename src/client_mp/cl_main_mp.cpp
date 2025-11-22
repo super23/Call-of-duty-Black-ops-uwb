@@ -2903,7 +2903,7 @@ void __cdecl CL_RunOncePerClientFrame(int localClientNum, int msec)
 {
   int ControllerIndex; // eax
 
-  PIXBeginNamedEvent(-1, "CL_RunOncePerClientFrame");
+  //PIXBeginNamedEvent(-1, "CL_RunOncePerClientFrame");
   CL_RunNetworkFrame(localClientNum);
   if ( UI_IsFullscreen(localClientNum) )
     CL_SyncGpu();

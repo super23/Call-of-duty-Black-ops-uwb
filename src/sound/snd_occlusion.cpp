@@ -36,7 +36,7 @@ double __cdecl SND_LosOcclusionTrace(bool fancy, int *cache, const float *listen
   up_playback_ray_step = 40.0 / (float)playback_rays;
   side_listen_ray_step = 30.0 / (float)listen_rays;
   side_playback_ray_step = 50.0 / (float)playback_rays;
-  PIXBeginNamedEvent(-1, "Occlusion Trace");
+  //PIXBeginNamedEvent(-1, "Occlusion Trace");
   if ( CG_SightTracePoint(cache, listener, playback, 49, &result) )
   {
     up[0] = *(float *)&FLOAT_0_0;
@@ -222,7 +222,7 @@ void  SND_TraceProximity(
 
   v32 = a1;
   v33 = retaddr;
-  PIXBeginNamedEvent(-1, "proximity");
+  //PIXBeginNamedEvent(-1, "proximity");
   v31 = *front;
   v30 = *((unsigned int *)front + 1);
   __libm_sse2_atan2(v7, v12);

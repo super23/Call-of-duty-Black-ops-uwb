@@ -459,7 +459,7 @@ void __cdecl Rope_UpdateInternal(const RopeUpdateCmdData *cmd)
 {
   int ri; // [esp+10h] [ebp-Ch]
 
-  PIXBeginNamedEvent(-1, "Rope_UpdateInternal");
+  //PIXBeginNamedEvent(-1, "Rope_UpdateInternal");
   for ( ri = 0; ri < cmd->ropeCount; ++ri )
   {
     if ( cmd->ropes[ri].m_in_use )
@@ -1030,7 +1030,7 @@ void  Rope_Update(int a1@<ebp>, int localClientNum, int curtime)
   if ( !Com_IsMenuLevel(0) )
   {
     v8 = va("Rope_Update %i/%i", g_update_count, g_ropeCount);
-    PIXBeginNamedEvent(-1, v8);
+    //PIXBeginNamedEvent(-1, v8);
     g_update_count = 0;
     v7 = curtime - g_rope_sys_time;
     if ( curtime - g_rope_sys_time > 0 )
@@ -1079,7 +1079,7 @@ void __cdecl Rope_Render(unsigned int localClientNum)
 {
   int ri; // [esp+8h] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "Rope_Render");
+  //PIXBeginNamedEvent(-1, "Rope_Render");
   if ( localClientNum
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\physics\\rope.cpp",
@@ -1435,7 +1435,7 @@ void __cdecl Rope_Trace(const float *p0, const float *p1)
   float mins[3]; // [esp+9Ch] [ebp-18h] BYREF
   float maxs[3]; // [esp+A8h] [ebp-Ch] BYREF
 
-  PIXBeginNamedEvent(-1, "Rope_Trace");
+  //PIXBeginNamedEvent(-1, "Rope_Trace");
   ud[0] = *p1 - *p0;
   ud[1] = p1[1] - p0[1];
   ud[2] = p1[2] - p0[2];

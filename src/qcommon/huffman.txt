@@ -1,9 +1,0 @@
-get_bit
-Huff_offsetReceive
-huffman_send
-add_bit
-Huff_offsetTransmit
-Huff_Init
-Huff_initNode
-nodeCmp
-Huff_BuildFromData

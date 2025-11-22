@@ -6,7 +6,7 @@ void __cdecl RB_SunShadowMaps(const GfxBackEndData *data, const GfxViewInfo *vie
   int partitionIndex; // [esp+28h] [ebp-4h]
   int savedregs; // [esp+2Ch] [ebp+0h] BYREF
 
-  PIXBeginNamedEvent(-1, "RB_SunShadowMaps");
+  //PIXBeginNamedEvent(-1, "RB_SunShadowMaps");
   if ( pixelCostMode )
   {
     if ( GetCurrentThreadId() == g_DXDeviceThread )
@@ -20,10 +20,10 @@ void __cdecl RB_SunShadowMaps(const GfxBackEndData *data, const GfxViewInfo *vie
       __debugbreak();
     }
     R_InitContext(data, &cmdBuf);
-    PIXBeginNamedEvent(-1, "Sun Shadow Maps");
+    //PIXBeginNamedEvent(-1, "Sun Shadow Maps");
     for ( partitionIndex = 0; partitionIndex < 2; ++partitionIndex )
     {
-      PIXBeginNamedEvent(-1, "Sun Shadow Map %d", partitionIndex);
+      //PIXBeginNamedEvent(-1, "Sun Shadow Map %d", partitionIndex);
       R_DrawSunShadowMap((int)&savedregs, viewInfo, partitionIndex, &cmdBuf);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         D3DPERF_EndEvent();

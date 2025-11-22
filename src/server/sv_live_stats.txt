@@ -1,4 +1,0 @@
-SV_GetClientNumForBdOnlineUserID
-SV_GetBdUidFromFileInfo
-SV_GetClientFromFileInfo
-SV_GetPlayerXuid

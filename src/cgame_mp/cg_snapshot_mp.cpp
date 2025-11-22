@@ -1571,7 +1571,7 @@ void __cdecl CG_ProcessSnapshots(int localClientNum)
   snapshot_s *snapa; // [esp+Ch] [ebp-8h]
   int n; // [esp+10h] [ebp-4h] BYREF
 
-  PIXBeginNamedEvent(-1, "process snapshots");
+  //PIXBeginNamedEvent(-1, "process snapshots");
   g_processEvents = 0;
   cgameGlob = CG_GetLocalClientGlobals(localClientNum);
   CL_GetCurrentSnapshotNumber(localClientNum, &n, &cgameGlob->latestSnapshotTime);

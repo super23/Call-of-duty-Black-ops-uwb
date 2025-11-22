@@ -1218,7 +1218,7 @@ void __cdecl turret_think(gentity_s *self)
   const WeaponDef *weapDef; // [esp+2Ch] [ebp-4h]
 
   overheatFiring = 0;
-  PIXBeginNamedEvent(-1, "Turret_think");
+  //PIXBeginNamedEvent(-1, "Turret_think");
   pTurretInfo = self->pTurretInfo;
   if ( !pTurretInfo
     && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\turret.cpp", 2442, 0, "%s", "pTurretInfo") )

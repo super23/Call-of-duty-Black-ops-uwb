@@ -1,6 +1,0 @@
-_lzo_config_check
-__lzo_init_v2
-__lzopro_lzo_init_v2
-lzopro_lzo1x_1_11_compress
-lzopro_lzo1x_1_11_compress_core
-lzopro_lzo1x_decompress

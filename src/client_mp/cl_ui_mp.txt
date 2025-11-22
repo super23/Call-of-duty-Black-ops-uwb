@@ -1,9 +1,0 @@
-CL_GetClientState
-CL_AllowPopup
-Key_KeynumToStringBuf
-CL_GetClientName
-CL_GetClientClanName
-CL_LocalClientIsInGame
-CL_ShutdownUI
-CL_InitUI
-UI_LoadSoundAliases

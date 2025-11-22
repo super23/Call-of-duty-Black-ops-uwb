@@ -1,3 +1,0 @@
-CL_AllocSkelMemory
-CL_GetSkelTimeStamp
-CL_DObjCreateSkelForBones

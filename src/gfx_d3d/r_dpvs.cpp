@@ -304,7 +304,7 @@ void __cdecl R_AddAllSceneEntSurfacesCamera(const GfxViewInfo *viewInfo)
   int visibleLightCount; // [esp+140h] [ebp-8h]
   GfxLightingInfo *dynentLightingInfo; // [esp+144h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "R_AddAllSceneEntSurfacesCamera");
+  //PIXBeginNamedEvent(-1, "R_AddAllSceneEntSurfacesCamera");
   drawSurfs[0] = scene.drawSurfs[2];
   lastDrawSurfs[0] = &scene.drawSurfs[2][scene.maxDrawSurfCount[2]];
   drawSurfs[1] = scene.drawSurfs[5];
@@ -314,7 +314,7 @@ void __cdecl R_AddAllSceneEntSurfacesCamera(const GfxViewInfo *viewInfo)
   dobjLightingFinished = 0;
   modelLightingFinished = 0;
   dobjLightingInfo = lightingInfo;
-  PIXBeginNamedEvent(-1, "sceneDObj lighting");
+  //PIXBeginNamedEvent(-1, "sceneDObj lighting");
   visibleLightCount = viewInfo->visibleLightCount;
   visibleLights = viewInfo->visibleLights;
   LaunchDobjLightingJobs(viewInfo, scene.sceneDObjCount, scene.sceneDObjVisData[0], lightingInfo);
@@ -337,7 +337,7 @@ void __cdecl R_AddAllSceneEntSurfacesCamera(const GfxViewInfo *viewInfo)
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
   modelLightingInfo = (GfxLightingInfo *)(8 * lightingInfoUsed + 176473584);
-  PIXBeginNamedEvent(-1, "sceneModel lighting");
+  //PIXBeginNamedEvent(-1, "sceneModel lighting");
   LaunchModelLightingJobs(viewInfo, scene.sceneModelCount, scene.sceneModelVisData[0], modelLightingInfo);
   lightingInfoUseda = scene.sceneModelCount + lightingInfoUsed;
   if ( scene.sceneDynModelCount + lightingInfoUseda > 0x400 )
@@ -357,7 +357,7 @@ void __cdecl R_AddAllSceneEntSurfacesCamera(const GfxViewInfo *viewInfo)
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
   dynentLightingInfo = (GfxLightingInfo *)(8 * lightingInfoUseda + 176473584);
-  PIXBeginNamedEvent(-1, "sceneDynModel lighting");
+  //PIXBeginNamedEvent(-1, "sceneDynModel lighting");
   if ( scene.sceneDynModelCount >= 0x400
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_dpvs.cpp",
@@ -376,7 +376,7 @@ void __cdecl R_AddAllSceneEntSurfacesCamera(const GfxViewInfo *viewInfo)
     dynentLightingInfo);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(0, "wait r_model_lighting");
+  //PIXBeginNamedEvent(0, "wait r_model_lighting");
   Sys_AssistAndWaitWorkerCmdInternal(&r_model_lightingWorkerCmd);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
@@ -410,7 +410,7 @@ void __cdecl R_AddAllSceneEntSurfacesCamera(const GfxViewInfo *viewInfo)
     lastDrawSurfs,
     visibleLights,
     visibleLightCount);
-  PIXBeginNamedEvent(-1, "sceneBrush addsurfaces");
+  //PIXBeginNamedEvent(-1, "sceneBrush addsurfaces");
   sceneEntCount = scene.sceneBrushCount;
   sceneEntVisData = scene.sceneBrushVisData[0];
   for ( sceneEntIndex = 0; sceneEntIndex < sceneEntCount; ++sceneEntIndex )
@@ -473,7 +473,7 @@ void __cdecl R_AddAllSceneEntSurfacesCamera(const GfxViewInfo *viewInfo)
   }
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "glassBrush addsurfaces");
+  //PIXBeginNamedEvent(-1, "glassBrush addsurfaces");
   glassBrushCount = scene.glassBrushCount;
   for ( glassIndex = 0; glassIndex < glassBrushCount; ++glassIndex )
   {
@@ -506,7 +506,7 @@ void __cdecl R_AddAllSceneEntSurfacesCamera(const GfxViewInfo *viewInfo)
   }
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "sceneDynBrush addsurfaces");
+  //PIXBeginNamedEvent(-1, "sceneDynBrush addsurfaces");
   sceneEntCount = scene.sceneDynBrushCount;
   sceneEntVisData = rgp.world->dpvsDyn.dynEntVisData[1][0];
   for ( sceneEntIndex = 0; sceneEntIndex < sceneEntCount; ++sceneEntIndex )
@@ -552,19 +552,19 @@ void __cdecl R_AddAllSceneEntSurfacesCamera(const GfxViewInfo *viewInfo)
     D3DPERF_EndEvent();
   drawSurfCount = drawSurfs[0] - scene.drawSurfs[2];
   scene.drawSurfCount[2] = drawSurfCount;
-  PIXBeginNamedEvent(-1, "sort surfs ENT_CAMERA_LIT");
+  //PIXBeginNamedEvent(-1, "sort surfs ENT_CAMERA_LIT");
   R_SortDrawSurfs(scene.drawSurfs[2], drawSurfCount);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
   drawSurfCount = drawSurfs[1] - scene.drawSurfs[5];
   scene.drawSurfCount[5] = drawSurfCount;
-  PIXBeginNamedEvent(-1, "sort surfs ENT_CAMERA_DECAL");
+  //PIXBeginNamedEvent(-1, "sort surfs ENT_CAMERA_DECAL");
   R_SortDrawSurfs(scene.drawSurfs[5], drawSurfCount);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
   drawSurfCount = drawSurfs[2] - scene.drawSurfs[12];
   scene.drawSurfCount[12] = drawSurfCount;
-  PIXBeginNamedEvent(-1, "sort surfs ENT_CAMERA_EMISSIVE");
+  //PIXBeginNamedEvent(-1, "sort surfs ENT_CAMERA_EMISSIVE");
   R_SortDrawSurfs(scene.drawSurfs[12], drawSurfCount);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
@@ -634,7 +634,7 @@ void __cdecl FinishDobjLighting(
   GfxSceneEntity *sceneEnt; // [esp+34h] [ebp-Ch]
   unsigned int sceneEntIndex; // [esp+38h] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "FinishDobjLighting");
+  //PIXBeginNamedEvent(-1, "FinishDobjLighting");
   for ( sceneEntIndex = 0; sceneEntIndex < sceneEntCount; ++sceneEntIndex )
   {
     if ( sceneEntVisData[sceneEntIndex] == 1 )
@@ -731,7 +731,7 @@ void __cdecl FinishModelLighting(
   unsigned int sceneEntIndex; // [esp+50h] [ebp-Ch]
   XModel *skyModel; // [esp+58h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "FinishModelLighting");
+  //PIXBeginNamedEvent(-1, "FinishModelLighting");
   skyModel = R_MapGetSkyboxModel();
   for ( sceneEntIndex = 0; sceneEntIndex < sceneEntCount; ++sceneEntIndex )
   {
@@ -872,7 +872,7 @@ void __cdecl FinishDynEntLighting(
   GfxSceneDynModel *sceneDynModel; // [esp+64h] [ebp-Ch]
   unsigned int sceneEntIndex; // [esp+6Ch] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "FinishDynEntLighting");
+  //PIXBeginNamedEvent(-1, "FinishDynEntLighting");
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
   for ( sceneEntIndex = 0; sceneEntIndex < sceneEntCount; ++sceneEntIndex )
@@ -1083,7 +1083,7 @@ void __cdecl R_AddAllSceneEntSurfacesRangeSunShadow(unsigned int partitionIndex)
   }
   drawSurfCount = drawSurf - scene.drawSurfs[stage];
   scene.drawSurfCount[stage] = drawSurfCount;
-  PIXBeginNamedEvent(-1, "sort surfs");
+  //PIXBeginNamedEvent(-1, "sort surfs");
   R_SortDrawSurfs(scene.drawSurfs[stage], drawSurfCount);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
@@ -1193,7 +1193,7 @@ void __cdecl R_AddAllSceneEntSurfacesSpotShadow(
   }
   drawSurfCount = drawSurf - scene.drawSurfs[stage];
   scene.drawSurfCount[stage] = drawSurfCount;
-  PIXBeginNamedEvent(-1, "sort surfs");
+  //PIXBeginNamedEvent(-1, "sort surfs");
   R_SortDrawSurfs(scene.drawSurfs[stage], drawSurfCount);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
@@ -4636,7 +4636,7 @@ void __cdecl R_AddWorldSurfacesDpvs(const GfxViewParms *viewParms, int cameraCel
     __debugbreak();
   }
   rg.debugViewParms = viewParms;
-  PIXBeginNamedEvent(-1, "R_AddWorldSurfacesPortalWalk");
+  //PIXBeginNamedEvent(-1, "R_AddWorldSurfacesPortalWalk");
   R_AddWorldSurfacesPortalWalk(cameraCellIndex);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();

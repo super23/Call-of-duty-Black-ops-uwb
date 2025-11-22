@@ -4,7 +4,7 @@ void __cdecl RB_DrawComposites()
 {
   const void *cmds; // [esp+14h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "RB_DrawComposites");
+  //PIXBeginNamedEvent(-1, "RB_DrawComposites");
   cmds = backEndData->compositingCmds;
   if ( cmds )
   {

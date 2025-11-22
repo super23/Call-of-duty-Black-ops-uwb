@@ -729,7 +729,7 @@ void __cdecl SV_ShutdownGameVM(int clearScripts)
   {
     __debugbreak();
   }
-  PIXBeginNamedEvent(-1, "SV_ShutdownGameVM");
+  //PIXBeginNamedEvent(-1, "SV_ShutdownGameVM");
   G_ShutdownGame(clearScripts);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
@@ -748,7 +748,7 @@ void __cdecl  SV_InitGameVM(int restart, int registerDvars)
   unsigned intv2; // eax
   int i; // [esp+Ch] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "SV_InitGameVM");
+  //PIXBeginNamedEvent(-1, "SV_InitGameVM");
   G_ResetEntityParsePoint();
   SV_ResetSkeletonCache();
   if ( (com_maxclients->current.integer < 1 || com_maxclients->current.integer > 32)

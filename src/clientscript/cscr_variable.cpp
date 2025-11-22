@@ -2495,7 +2495,7 @@ unsigned int __cdecl AllocChildThread(scriptInstance_t inst, unsigned int self, 
   return id;
 }
 
-ObjectInfo::<unnamed_type_u> __cdecl Scr_GetSelf(scriptInstance_t inst, unsigned int threadId)
+unsigned int __cdecl Scr_GetSelf(scriptInstance_t inst, unsigned int threadId)
 {
   if ( (gScrVarGlob[inst].variableList[threadId + 1].w.status & 0x60) == 0
     && !Assert_MyHandler(
@@ -6715,7 +6715,7 @@ void __cdecl Scr_AddArrayKeys(unsigned int parentId, scriptInstance_t inst)
   }
 }
 
-scr_entref_t *__cdecl Scr_GetEntityIdRef(scr_entref_t *__return_ptr retstr, scriptInstance_t inst, unsigned int entId)
+scr_entref_t __cdecl Scr_GetEntityIdRef(scr_entref_t *__return_ptr retstr, scriptInstance_t inst, unsigned int entId)
 {
   int v3; // eax
   int entref; // [esp+0h] [ebp-Ch]
@@ -7315,7 +7315,7 @@ char *__cdecl Scr_GetSourceFile_LoadObj(char *filename)
   return (char *)sourceBuffer;
 }
 
-XModelPiece *__cdecl Scr_GetSourceFile_FastFile(const char *filename)
+char *__cdecl Scr_GetSourceFile_FastFile(const char *filename)
 {
   const char *v1; // eax
   RawFile *rawfile; // [esp+4h] [ebp-4h]
@@ -7326,7 +7326,7 @@ XModelPiece *__cdecl Scr_GetSourceFile_FastFile(const char *filename)
     v1 = va(&byte_D2A990, filename);
     Com_Error(ERR_DROP, v1);
   }
-  return (XModelPiece *)rawfile->buffer;
+  return rawfile->buffer;
 }
 
 void __cdecl Scr_AddFields_FastFile(scriptInstance_t inst, const char *path, const char *extension)

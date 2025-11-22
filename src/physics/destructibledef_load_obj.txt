@@ -1,7 +1,0 @@
-DestructiblePiece_ParseDefSpecificFieldType
-DestructiblePiece_SetFlag
-DestructiblePieceLoadFile
-DestructibleDef_Strcpy
-Destructible_ParseDefSpecificFieldType
-DestructibleDefLoadFile
-XModelGetBoneIndex

@@ -1,9 +1,0 @@
-Sys_SetBlockSystemHotkeys
-LowLevelKeyboardProc
-Sys_AllowVidRestart
-Sys_UpdateHotkeyBlock
-MainWndProc
-VID_AppActivate
-MapKey
-AdustKeyForNumericKeypad
-IsNumLockAffectedVK

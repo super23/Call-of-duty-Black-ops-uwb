@@ -1,4 +1,0 @@
-dwRecordEvent
-dwRecordEventAscii
-dwRecordEventFormat
-dwRecordEventComplete

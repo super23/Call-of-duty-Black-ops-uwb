@@ -1,4 +1,0 @@
-R_InitDrawMethod
-R_SetDefaultLitTechTypes
-R_ForceLitTechType
-R_UpdateDrawMethod

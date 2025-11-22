@@ -1,5 +1,0 @@
-SpotWouldTelefrag
-PointCouldSeeSpawn
-SpawnActor
-G_DropActorSpawnersToFloor
-SP_actor_spawner

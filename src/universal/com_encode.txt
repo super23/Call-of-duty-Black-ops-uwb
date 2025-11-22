@@ -1,3 +1,0 @@
-Com_EncodeYEnc
-YEncIsCritical
-Com_DecodeYEnc

@@ -18,7 +18,7 @@ int __fastcall Actor_Negotiation_Think(actor_s *pSelf)
   const char *v3; // eax
   ai_animmode_t eAnimMode; // [esp+34h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "negotiationthink");
+  //PIXBeginNamedEvent(-1, "negotiationthink");
   eAnimMode = AI_ANIM_USE_BOTH_DELTAS_NOGRAVITY;
   if ( pSelf->eTraverseMode == AI_TRAVERSE_GRAVITY )
   {

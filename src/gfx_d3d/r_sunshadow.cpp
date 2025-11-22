@@ -954,7 +954,7 @@ void __cdecl R_SunShadowMaps()
   {
     __debugbreak();
   }
-  PIXBeginNamedEvent(-1, "shadow maps");
+  //PIXBeginNamedEvent(-1, "shadow maps");
   shadowGlob.defaultShadowCasterTechnique = Material_GetTechnique(
                                               rgp.depthPrepassMaterial,
                                               gfxMetrics.shadowmapBuildTechType);
@@ -987,7 +987,7 @@ void __cdecl R_MergeAndEmitSunShadowMapsSurfs(GfxViewInfo *viewInfo)
   GfxSunShadow *sunShadow; // [esp+1Ch] [ebp-8h]
 
   sunShadow = &frontEndDataOut->sunShadow;
-  PIXBeginNamedEvent(-1, "emit sun shadow map surfs");
+  //PIXBeginNamedEvent(-1, "emit sun shadow map surfs");
   if ( frontEndDataOut->sunLight.type != 1
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_sunshadow.cpp",

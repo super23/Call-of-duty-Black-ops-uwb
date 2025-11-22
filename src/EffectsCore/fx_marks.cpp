@@ -348,7 +348,7 @@ void __cdecl FX_CreateImpactMark(
         int randomSeed,
         unsigned int markEntnum)
 {
-  PIXBeginNamedEvent(-1, "FX_CreateImpactMark");
+  //PIXBeginNamedEvent(-1, "FX_CreateImpactMark");
   FX_CreateImpactMarkInternal(localClientNum, elemDef, spatialFrame, randomSeed, markEntnum);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
@@ -416,7 +416,7 @@ void __cdecl FX_ImpactMark(
   FxMarksSystem *marksSystem; // [esp+30h] [ebp-2Ch]
   float axis[3][3]; // [esp+38h] [ebp-24h] BYREF
 
-  PIXBeginNamedEvent(-1, "FX_ImpactMark");
+  //PIXBeginNamedEvent(-1, "FX_ImpactMark");
   marksSystem = FX_GetMarksSystem(localClientNum);
   if ( fx_marks->current.enabled && !marksSystem->noMarks )
   {
@@ -500,7 +500,7 @@ void __cdecl FX_ImpactMark_Generate(
   float *viewOffset; // [esp+12E0h] [ebp-18h]
   unsigned int callbackContext[5]; // [esp+12E4h] [ebp-14h] BYREF
 
-  PIXBeginNamedEvent(-1, "FX_ImpactMark_Generate");
+  //PIXBeginNamedEvent(-1, "FX_ImpactMark_Generate");
   viewOffset = (float *)FX_GetSystem(localClientNum);
   if ( CG_IsShowingZombieMap() )
   {
@@ -1365,7 +1365,7 @@ int __cdecl fx_add_markCallback(jqBatch *batch)
   const FxAddMarkCmd *cmd; // [esp+14h] [ebp-4h]
 
   cmd = (const FxAddMarkCmd *)jqLockData(batch);
-  PIXBeginNamedEvent(-1, "fx_add_mark");
+  //PIXBeginNamedEvent(-1, "fx_add_mark");
   FX_CreateImpactMarkInternal(cmd->localClientNum, cmd->elemDef, &cmd->spatialFrame, cmd->randomSeed, cmd->markEntnum);
   jqUnlockData(batch);
   if ( GetCurrentThreadId() == g_DXDeviceThread )

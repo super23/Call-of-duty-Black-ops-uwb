@@ -144,7 +144,7 @@ void __cdecl SV_BotThink(client_t *bot, usercmd_s *cmd)
   unsigned int clientNum; // [esp+5Ch] [ebp-8h]
 
   Name = va("SV_BotThink '%s'", bot->name);
-  PIXBeginNamedEvent(-1, Name);
+  //PIXBeginNamedEvent(-1, Name);
   if ( !bot->bIsTestClient
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\server_mp\\sv_bot_mp.cpp",
@@ -297,7 +297,7 @@ void __cdecl Bot_UpdateSight(bot_info_t *botInfo, const client_t *bot)
   float enemyOrigin[3]; // [esp+88h] [ebp-18h] BYREF
   float botOrigin[3]; // [esp+94h] [ebp-Ch] BYREF
 
-  PIXBeginNamedEvent(-1, "Bot_UpdateSight");
+  //PIXBeginNamedEvent(-1, "Bot_UpdateSight");
   col_context_t::col_context_t(&context);
   if ( botInfo->threat.enemy )
   {
@@ -406,7 +406,7 @@ void __cdecl Bot_UpdateThreat(bot_info_t *botInfo, const client_t *bot)
   bot_threat_t *threat; // [esp+764h] [ebp-8h]
   int botTeam; // [esp+768h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Bot_UpdateThreat");
+  //PIXBeginNamedEvent(-1, "Bot_UpdateThreat");
   botTeam = bot->gentity->client->sess.cs.team;
   ps = (const playerState_s *)G_GetPlayerState(bot->gentity->s.number);
   if ( botTeam == 3 )
@@ -542,7 +542,7 @@ bool __cdecl Bot_IsFacingEnemy(const client_t *bot, const gentity_s *enemy, floa
   float distSq; // [esp+5Ch] [ebp-10h]
   float vDelta[3]; // [esp+60h] [ebp-Ch] BYREF
 
-  PIXBeginNamedEvent(-1, "Bot_IsFacingEnemy");
+  //PIXBeginNamedEvent(-1, "Bot_IsFacingEnemy");
   if ( enemy )
   {
     currentOrigin = bot->gentity->r.currentOrigin;
@@ -583,7 +583,7 @@ char __cdecl Bot_IsInRangeOfEnemy(const client_t *bot, const gentity_s *enemy, f
   bool v4; // [esp+28h] [ebp-Ch]
   const WeaponDef *weapDef; // [esp+2Ch] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "Bot_IsInRangeOfEnemy");
+  //PIXBeginNamedEvent(-1, "Bot_IsInRangeOfEnemy");
   if ( enemy )
   {
     *distSq = Vec3DistanceSq(bot->gentity->r.currentOrigin, enemy->r.currentOrigin);
@@ -696,7 +696,7 @@ bool __cdecl Bot_ThreatSightCheck(const client_t *bot, const gentity_s *enemy, f
   float botOrigin[3]; // [esp+68h] [ebp-10h] BYREF
   int hitNum; // [esp+74h] [ebp-4h] BYREF
 
-  PIXBeginNamedEvent(-1, "Bot_ThreatSightCheck");
+  //PIXBeginNamedEvent(-1, "Bot_ThreatSightCheck");
   col_context_t::col_context_t(&context);
   if ( g_botFovCos <= fovDot )
   {
@@ -749,7 +749,7 @@ void __cdecl Bot_UpdateWeapon(const bot_info_t *botInfo, const client_t *bot, us
   const WeaponDef *weapDefa; // [esp+40h] [ebp-4h]
   const WeaponDef *weapDefb; // [esp+40h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Bot_UpdateWeapon");
+  //PIXBeginNamedEvent(-1, "Bot_UpdateWeapon");
   ps = G_GetPlayerState(bot->gentity->s.number);
   if ( ps->ps.weaponstate )
   {
@@ -841,7 +841,7 @@ void __cdecl Bot_UpdateMovement(bot_info_t *botInfo, const client_t *bot, usercm
 {
   const gentity_s *enemy; // [esp+1Ch] [ebp-20h]
 
-  PIXBeginNamedEvent(-1, "Bot_UpdateMovement");
+  //PIXBeginNamedEvent(-1, "Bot_UpdateMovement");
   if ( !sv_botsAllowMovement->current.enabled )
   {
     cmd->forwardmove = 0;
@@ -927,7 +927,7 @@ void __cdecl Bot_GetStrafeInput(const client_t *bot, bot_info_t *botInfo, usercm
   const playerState_s *ps; // [esp+98h] [ebp-8h]
   float distSq; // [esp+9Ch] [ebp-4h] BYREF
 
-  PIXBeginNamedEvent(-1, "Bot_GetStrafeInput");
+  //PIXBeginNamedEvent(-1, "Bot_GetStrafeInput");
   ps = (const playerState_s *)G_GetPlayerState(bot->gentity->s.number);
   if ( (botInfo->flags & 0x40) != 0 )
   {
@@ -995,7 +995,7 @@ void __cdecl Bot_UpdatePath(bot_info_t *botInfo, const client_t *bot)
   const pathnode_t *node; // [esp+44h] [ebp-10h]
   gclient_s *ps; // [esp+50h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Bot_UpdatePath");
+  //PIXBeginNamedEvent(-1, "Bot_UpdatePath");
   if ( botInfo->sightHitNum && Bot_UpdateScriptGoal(botInfo, bot) )
   {
     if ( g_DXDeviceThread != GetCurrentThreadId() )
@@ -1092,7 +1092,7 @@ char __cdecl Bot_IsMovingFoward(const bot_info_t *botInfo, const client_t *bot, 
   float vForward[3]; // [esp+38h] [ebp-10h] BYREF
   float vDot; // [esp+44h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Bot_IsMovingFoward");
+  //PIXBeginNamedEvent(-1, "Bot_IsMovingFoward");
   if ( (botInfo->flags & 0x10) != 0 )
   {
     if ( g_DXDeviceThread == GetCurrentThreadId() )
@@ -1138,7 +1138,7 @@ bool __cdecl Bot_IsThrowingGrenade(const bot_info_t *botInfo, const client_t *bo
 
 char __cdecl Bot_PointInGoal(const float *point, const path_t *path, float goalRadius)
 {
-  PIXBeginNamedEvent(-1, "Bot_PointInGoal");
+  //PIXBeginNamedEvent(-1, "Bot_PointInGoal");
   if ( goalRadius == 0.0 )
     goalRadius = sv_botGoalRadius->current.value;
   if ( Path_Exists(path) && goalRadius * goalRadius > Vec3DistanceSq(point, (const float *)path) )
@@ -1159,7 +1159,7 @@ bool __cdecl Bot_GetPathToGoal(const client_t *bot, const float *goal, path_t *p
 {
   bool v5; // [esp+Ah] [ebp-2h]
 
-  PIXBeginNamedEvent(-1, "Bot_GetPathToGoal");
+  //PIXBeginNamedEvent(-1, "Bot_GetPathToGoal");
   Path_Begin(path);
   if ( allowMantle )
     Path_FindPath(path, TEAM_FREE, bot->gentity->r.currentOrigin, goal, 1);
@@ -1187,7 +1187,7 @@ char __cdecl Bot_PathValid(const gentity_s *bot, const path_t *path)
   const playerState_s *ps; // [esp+C4h] [ebp-10h]
   float vStart[3]; // [esp+C8h] [ebp-Ch] BYREF
 
-  PIXBeginNamedEvent(-1, "Bot_PathValid");
+  //PIXBeginNamedEvent(-1, "Bot_PathValid");
   memset(&trace, 0, 16);
   if ( Path_Exists(path) )
   {
@@ -1278,7 +1278,7 @@ char __cdecl Bot_IsAtNegotiationNode(bot_info_t *botInfo, const client_t *bot, p
   float distSq; // [esp+84h] [ebp-Ch]
   float end_z; // [esp+88h] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "Bot_IsAtNegotiationNode");
+  //PIXBeginNamedEvent(-1, "Bot_IsAtNegotiationNode");
   if ( (botInfo->flags & 0x80) != 0 )
   {
     if ( path->wNegotiationStartNode - 1 >= 0 )
@@ -1371,7 +1371,7 @@ char __cdecl Bot_IsAtNegotiationNode(bot_info_t *botInfo, const client_t *bot, p
 
 char __cdecl Bot_UpdateScriptGoal(bot_info_t *botInfo, const client_t *bot)
 {
-  PIXBeginNamedEvent(-1, "Bot_UpdateScriptGoal");
+  //PIXBeginNamedEvent(-1, "Bot_UpdateScriptGoal");
   if ( (botInfo->flags & 4) != 0 )
   {
     if ( Bot_PointInGoal(bot->gentity->r.currentOrigin, &botInfo->path, botInfo->scriptGoalRadius) )
@@ -1415,7 +1415,7 @@ char __cdecl Bot_UpdateScriptEnemy(bot_info_t *botInfo, const client_t *bot)
 {
   const gentity_s *enemy; // [esp+1Ch] [ebp-24h]
 
-  PIXBeginNamedEvent(-1, "Bot_UpdateScriptEnemy");
+  //PIXBeginNamedEvent(-1, "Bot_UpdateScriptEnemy");
   if ( (botInfo->flags & 8) != 0 )
   {
     if ( botInfo->threat.enemy && botInfo->threat.enemy->r.inuse )
@@ -1534,7 +1534,7 @@ void __cdecl Bot_UpdateDirection(bot_info_t *botInfo, const client_t *bot, userc
   const WeaponDef *weapDef; // [esp+10Ch] [ebp-8h]
   const playerState_s *enemyPs; // [esp+110h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Bot_UpdateDirection");
+  //PIXBeginNamedEvent(-1, "Bot_UpdateDirection");
   ps = (const playerState_s *)G_GetPlayerState(bot->gentity->s.number);
   weapDef = BG_GetWeaponDef(ps->weapon);
   if ( botInfo->threat.enemy && botInfo->threat.deathEndTime )
@@ -1734,7 +1734,7 @@ double __cdecl Bot_UpdatePitch(float currentPitch, float targetPitch, bool force
   float v6; // [esp+24h] [ebp-14h]
   float rate; // [esp+28h] [ebp-10h]
 
-  PIXBeginNamedEvent(-1, "Bot_UpdatePitch");
+  //PIXBeginNamedEvent(-1, "Bot_UpdatePitch");
   rate = sv_botPitchSpeed->current.value;
   if ( forceSlow )
     rate = sv_botPitchSpeedAds->current.value;
@@ -1768,7 +1768,7 @@ double __cdecl Bot_UpdateYaw(float currentYaw, float targetYaw, bool forceSlow, 
   float rateb; // [esp+30h] [ebp-Ch]
   float diff; // [esp+34h] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "Bot_UpdateYaw");
+  //PIXBeginNamedEvent(-1, "Bot_UpdateYaw");
   rate = sv_botYawSpeed->current.value;
   if ( forceSlow )
     rate = sv_botYawSpeedAds->current.value;
@@ -1807,7 +1807,7 @@ void __cdecl Bot_UpdateMantle(bot_info_t *botInfo, const client_t *bot, usercmd_
 {
   gclient_s *ps; // [esp+24h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Bot_UpdateMantle");
+  //PIXBeginNamedEvent(-1, "Bot_UpdateMantle");
   ps = G_GetPlayerState(bot->gentity->s.number);
   if ( (ps->ps.pm_flags & 4) != 0 || (ps->ps.pm_flags & 0x4000) != 0 )
   {
@@ -1865,7 +1865,7 @@ void __cdecl Bot_UpdateSpeed(bot_info_t *botInfo, const client_t *bot, usercmd_s
   gclient_s *ps; // [esp+20h] [ebp-8h]
   const WeaponDef *weapDef; // [esp+24h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Bot_UpdateSpeed");
+  //PIXBeginNamedEvent(-1, "Bot_UpdateSpeed");
   ps = G_GetPlayerState(bot->gentity->s.number);
   weapDef = BG_GetWeaponDef(ps->ps.weapon);
   weapVariantDef = BG_GetWeaponVariantDef(ps->ps.weapon);
@@ -1982,7 +1982,7 @@ void __cdecl Bot_UpdateStance(bot_info_t *botInfo, const client_t *bot, usercmd_
 {
   gclient_s *ps; // [esp+10h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Bot_UpdateStance");
+  //PIXBeginNamedEvent(-1, "Bot_UpdateStance");
   if ( Path_Exists(&botInfo->path)
     && !Bot_IsAtNegotiationNode(botInfo, bot, &botInfo->path)
     && sv_botCrouchDistance->current.value > botInfo->path.fLookaheadDist
@@ -2020,7 +2020,7 @@ void __cdecl Bot_UpdateSprint(bot_info_t *botInfo, const client_t *bot, usercmd_
   const playerState_s *ps; // [esp+58h] [ebp-8h]
   float distSq; // [esp+5Ch] [ebp-4h] BYREF
 
-  PIXBeginNamedEvent(-1, "Bot_UpdateSprint");
+  //PIXBeginNamedEvent(-1, "Bot_UpdateSprint");
   ps = (const playerState_s *)G_GetPlayerState(bot->gentity->s.number);
   if ( bitarray<51>::testBit(&cmd->button_bits, 0xBu) )
   {
@@ -2092,7 +2092,7 @@ void __cdecl Bot_UpdateReload(bot_info_t *botInfo, const client_t *bot, usercmd_
   gclient_s *ps; // [esp+34h] [ebp-8h]
   const WeaponDef *weapDef; // [esp+38h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Bot_UpdateReload");
+  //PIXBeginNamedEvent(-1, "Bot_UpdateReload");
   ps = G_GetPlayerState(bot->gentity->s.number);
   if ( ps->ps.weapon && !ps->ps.weaponstate && !BG_WeaponIsClipOnly(ps->ps.weapon) )
   {
@@ -2128,7 +2128,7 @@ void __cdecl Bot_UpdateCombat(bot_info_t *botInfo, const client_t *bot, usercmd_
   gclient_s *ps; // [esp+7Ch] [ebp-8h]
   const WeaponDef *weapDef; // [esp+80h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Bot_UpdateCombat");
+  //PIXBeginNamedEvent(-1, "Bot_UpdateCombat");
   ps = G_GetPlayerState(bot->gentity->s.number);
   if ( Bot_IsFlashbanged(bot) )
   {
@@ -2277,7 +2277,7 @@ LABEL_95:
 
 char __cdecl Bot_UpdateMelee(bot_info_t *botInfo, const client_t *bot, usercmd_s *cmd)
 {
-  PIXBeginNamedEvent(-1, "Bot_UpdateMelee");
+  //PIXBeginNamedEvent(-1, "Bot_UpdateMelee");
   if ( sv_botsPressMeleeBtn->current.enabled )
   {
     if ( botInfo->sightHitNum )
@@ -2321,7 +2321,7 @@ char __cdecl Bot_UpdateGrenadeThrow(bot_info_t *botInfo, const client_t *bot, us
   const WeaponDef *weapDef; // [esp+94h] [ebp-8h]
   int offHandIndex; // [esp+98h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Bot_UpdateGrenadeThrow");
+  //PIXBeginNamedEvent(-1, "Bot_UpdateGrenadeThrow");
   if ( sv_botsPressAttackBtn->current.enabled )
   {
     ps = (const playerState_s *)G_GetPlayerState(bot->gentity->s.number);
@@ -2440,7 +2440,7 @@ char __cdecl Bot_GrenadeSightTrace(const client_t *bot, float projectileSpeed, f
   const playerState_s *ps; // [esp+70h] [ebp-10h]
   float vStart[3]; // [esp+74h] [ebp-Ch] BYREF
 
-  PIXBeginNamedEvent(-1, "Bot_GrenadeSightTrace");
+  //PIXBeginNamedEvent(-1, "Bot_GrenadeSightTrace");
   col_context_t::col_context_t(&context);
   ps = (const playerState_s *)G_GetPlayerState(bot->gentity->s.number);
   angles[0] = ps->viewangles[0];
@@ -2494,7 +2494,7 @@ char __cdecl Bot_GrenadeInRange(
   float numerator; // [esp+68h] [ebp-10h]
   float vUp[3]; // [esp+6Ch] [ebp-Ch] BYREF
 
-  PIXBeginNamedEvent(-1, "Bot_GrenadeInRange");
+  //PIXBeginNamedEvent(-1, "Bot_GrenadeInRange");
   AngleVectors(angles, vForward, 0, vUp);
   iProjectileSpeed = (float)weapDef->iProjectileSpeed;
   iProjectileSpeedRelativeUp = (float)weapDef->iProjectileSpeedRelativeUp;
@@ -2556,7 +2556,7 @@ char __cdecl Bot_GrenadePickType(const bot_info_t *botInfo, const playerState_s 
   const gentity_s *enemy; // [esp+14h] [ebp-10h]
   unsigned int offHandIndex; // [esp+20h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Bot_GrenadePickType");
+  //PIXBeginNamedEvent(-1, "Bot_GrenadePickType");
   *slot = OFFHAND_SLOT_LETHAL_GRENADE;
   offHandIndex = BG_GetFirstAvailableOffhand(ps, *slot);
   if ( BG_GetWeaponDef(offHandIndex)->rotateType == WEAPROTATE_BLADE_ROTATE && botInfo->sightHitNum )
@@ -2605,7 +2605,7 @@ char __cdecl Bot_ShouldThrowGrenade(bot_info_t *botInfo, const client_t *bot)
   float dot; // [esp+C4h] [ebp-8h] BYREF
   float distSq; // [esp+C8h] [ebp-4h] BYREF
 
-  PIXBeginNamedEvent(-1, "Bot_ShouldThrowGrenade");
+  //PIXBeginNamedEvent(-1, "Bot_ShouldThrowGrenade");
   if ( sv_botAllowGrenades->current.enabled )
   {
     ps = G_GetPlayerState(bot->gentity->s.number);
@@ -2783,7 +2783,7 @@ char __cdecl Bot_ShouldThrowGrenade(bot_info_t *botInfo, const client_t *bot)
 
 void __cdecl Bot_Clear(bot_info_t *botInfo)
 {
-  PIXBeginNamedEvent(-1, "Bot_Clear");
+  //PIXBeginNamedEvent(-1, "Bot_Clear");
   memset((unsigned __int8 *)botInfo, 0, sizeof(bot_info_t));
   Path_Clear(&botInfo->path);
   if ( g_DXDeviceThread == GetCurrentThreadId() )

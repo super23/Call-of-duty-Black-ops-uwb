@@ -2031,7 +2031,7 @@ void  Phys_AddCacheImpulses(int a1@<ebp>)
 
   v11 = a1;
   impulse = retaddr;
-  PIXBeginNamedEvent(-1, "Phys_AddCacheImpulses");
+  //PIXBeginNamedEvent(-1, "Phys_AddCacheImpulses");
   for ( body = 0; (int)body < gImpulseCacheNum; body = (rigid_body *)((char *)body + 1) )
   {
     LODWORD(pos.w) = &gImpulseCache[(unsigned int)body];
@@ -4411,7 +4411,7 @@ void  UpdateRigidBody(float a1@<ebp>, float delta_t)
 
   gravity_dir.y = a1;
   gravity_dir.z = retaddr;
-  PIXBeginNamedEvent(-1, "update 1");
+  //PIXBeginNamedEvent(-1, "update 1");
   BG_EvalVehicleName();
   debug_loop();
   free_chull_lists();
@@ -4446,11 +4446,11 @@ void  UpdateRigidBody(float a1@<ebp>, float delta_t)
   NitrousVehicle::frame_prolog_all_systems(t);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "phys_frame_advance");
+  //PIXBeginNamedEvent(-1, "phys_frame_advance");
   phys_sys::phys_frame_advance(t);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "update 2");
+  //PIXBeginNamedEvent(-1, "update 2");
   NitrousVehicle::debug_render_all();
   NitrousVehicle::frame_epilog_all_systems(t);
   process_destructible_hits();
@@ -4638,7 +4638,7 @@ void __cdecl Phys_RunToTime(int timeNow)
   proftimer_physics_frame_advance.stamp = tlPcGetTick().QuadPart;
   ++proftimer_physics_frame_advance.calls;
   v1 = va("Physics update (obj=%d)", physGlob.objects.m_list_count);
-  PIXBeginNamedEvent(-1, v1);
+  //PIXBeginNamedEvent(-1, v1);
   if ( !physInited
     && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp", 2680, 0, "%s", "physInited") )
   {
@@ -4648,7 +4648,7 @@ void __cdecl Phys_RunToTime(int timeNow)
   time_msec = timeNow - physGlob.timeLastUpdate;
   if ( timeNow != physGlob.timeLastUpdate )
   {
-    PIXBeginNamedEvent(-1, "auto_rigid_body");
+    //PIXBeginNamedEvent(-1, "auto_rigid_body");
     if ( GetCurrentThreadId() == g_DXDeviceThread )
       D3DPERF_EndEvent();
     auto_rigid_body::update((auto_rigid_body *)&savedregs);
@@ -4670,7 +4670,7 @@ void __cdecl Phys_RunToTime(int timeNow)
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
   proftimer_physics_frame_advance.value += *(_QWORD *)&tlPcGetTick() - proftimer_physics_frame_advance.stamp;
-  PIXBeginNamedEvent(-1, "Ragdoll_Update/XDoll_Update");
+  //PIXBeginNamedEvent(-1, "Ragdoll_Update/XDoll_Update");
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
   Ragdoll_Update(time_msec);

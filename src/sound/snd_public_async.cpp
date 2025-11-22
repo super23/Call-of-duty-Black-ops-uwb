@@ -1152,7 +1152,7 @@ void __cdecl SND_EntStateFrame()
   snd_ent_state *state; // [esp+28h] [ebp-8h]
   unsigned int i; // [esp+2Ch] [ebp-4h]
 
-  PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "SND_EntStateFrame");
+  //PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "SND_EntStateFrame");
   for ( i = 0; i < 0x600; ++i )
   {
     state = g_snd.entStateIndex[i];
@@ -1464,7 +1464,7 @@ void __cdecl SND_UpdateWait()
 
 int __cdecl updatesound_workerCallback(jqBatch *batch)
 {
-  PIXBeginNamedEvent(-1, "updatesound_worker");
+  //PIXBeginNamedEvent(-1, "updatesound_worker");
   jqLockData(batch);
   jqUnlockData(batch);
   SND_Frame();
@@ -1498,7 +1498,7 @@ volatile int *SND_Frame()
   {
     __debugbreak();
   }
-  PIXBeginNamedEvent(-1, "SND_Frame");
+  //PIXBeginNamedEvent(-1, "SND_Frame");
   SND_EntStateFrame();
   SND_CommandPump();
   SNDL_Update();

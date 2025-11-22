@@ -478,7 +478,7 @@ void __cdecl SV_TracePointToEntity(const pointtrace_t *clip, svEntity_s *check, 
   obj = SV_LocationalTraceDObj(clip, touch);
   if ( !obj )
   {
-    PIXBeginNamedEvent(-1, "SV_TracePointToEntity 2");
+    //PIXBeginNamedEvent(-1, "SV_TracePointToEntity 2");
     if ( touch->r.bmodel || touch->s.eType != 6 )
     {
       if ( (check->linkcontents & clip->contentmask) == 0 )
@@ -551,7 +551,7 @@ LABEL_79:
       return;
     goto LABEL_79;
   }
-  PIXBeginNamedEvent(-1, "SV_TracePointToEntity 1");
+  //PIXBeginNamedEvent(-1, "SV_TracePointToEntity 1");
   if ( (touch->r.svFlags & 4) != 0 )
   {
     if ( !DObjHasContents(obj, clip->contentmask) )
@@ -988,7 +988,7 @@ void __cdecl SV_TracePoint(trace_t *results, const float *start, const float *en
   int v6; // [esp+4h] [ebp-9Ch]
   pointtrace_t clip; // [esp+58h] [ebp-48h] BYREF
 
-  PIXBeginNamedEvent(-1, "SV_TracePoint");
+  //PIXBeginNamedEvent(-1, "SV_TracePoint");
   if ( ((*(unsigned int *)start & 0x7F800000) == 0x7F800000
      || ((unsigned int)start[1] & 0x7F800000) == 0x7F800000
      || ((unsigned int)start[2] & 0x7F800000) == 0x7F800000)
@@ -1155,7 +1155,7 @@ void __cdecl SV_TraceCapsule(
   moveclip_t clip; // [esp+64h] [ebp-78h] BYREF
   float delta[3]; // [esp+D0h] [ebp-Ch]
 
-  PIXBeginNamedEvent(-1, "SV_TraceCapsule");
+  //PIXBeginNamedEvent(-1, "SV_TraceCapsule");
   if ( !mins && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_world.cpp", 885, 0, "%s", "mins") )
     __debugbreak();
   if ( !maxs && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_world.cpp", 885, 0, "%s", "maxs") )
@@ -1364,7 +1364,7 @@ bool __cdecl SV_SightTraceCapsule(
   sightclip_t clip; // [esp+48h] [ebp-58h] BYREF
   float delta[3]; // [esp+94h] [ebp-Ch]
 
-  PIXBeginNamedEvent(-1, "SV_SightTrace");
+  //PIXBeginNamedEvent(-1, "SV_SightTrace");
   if ( !mins && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_world.cpp", 941, 0, "%s", "mins") )
     __debugbreak();
   if ( !maxs && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_world.cpp", 941, 0, "%s", "maxs") )
@@ -1494,7 +1494,7 @@ bool __cdecl SV_SightTracePoint(int *hitNum, const float *start, const float *en
   bool v5; // [esp+30h] [ebp-3Ch]
   sightpointtrace_t clip; // [esp+3Ch] [ebp-30h] BYREF
 
-  PIXBeginNamedEvent(-1, "SV_SightTracePoint");
+  //PIXBeginNamedEvent(-1, "SV_SightTracePoint");
   if ( ((*(unsigned int *)start & 0x7F800000) == 0x7F800000
      || ((unsigned int)start[1] & 0x7F800000) == 0x7F800000
      || ((unsigned int)start[2] & 0x7F800000) == 0x7F800000)
@@ -1590,7 +1590,7 @@ void __cdecl G_TraceCapsule(
 {
   IgnoreEntParams ignoreEntParams; // [esp+8h] [ebp-10h] BYREF
 
-  PIXBeginNamedEvent(-1, "G_TraceCapsule");
+  //PIXBeginNamedEvent(-1, "G_TraceCapsule");
   SV_SetupIgnoreEntParams(&ignoreEntParams, passEntityNum);
   context->ignoreEntParams = &ignoreEntParams;
   context->mask = contentmask;

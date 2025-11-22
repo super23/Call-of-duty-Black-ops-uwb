@@ -43,7 +43,7 @@ int __fastcall Actor_Death_Think(actor_s *self)
 {
   int savedregs; // [esp+20h] [ebp+0h] BYREF
 
-  PIXBeginNamedEvent(-1, "deaththink");
+  //PIXBeginNamedEvent(-1, "deaththink");
   if ( !self && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_death.cpp", 95, 0, "%s", "self") )
     __debugbreak();
   self->pszDebugInfo = "death";

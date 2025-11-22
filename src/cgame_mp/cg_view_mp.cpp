@@ -4024,7 +4024,7 @@ LABEL_22:
   Rope_Update((int)&savedregs, localClientNum, cgameGlob->time);
   CG_ApplyWeaponTurnRateCap(localClientNum);
   CL_Input(localClientNum);
-  PIXBeginNamedEvent(-1, "player state");
+  //PIXBeginNamedEvent(-1, "player state");
   CG_PredictPlayerState(localClientNum);
   CG_TransitionPlayerState(localClientNum, &cgameGlob->predictedPlayerState, &cgameGlob->oldTransPlayerState);
   if ( cg_pmove[localClientNum].ps && cg_pmove[localClientNum].ps->waterlevel >= 3 )
@@ -4087,14 +4087,14 @@ LABEL_22:
   }
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "view anim");
+  //PIXBeginNamedEvent(-1, "view anim");
   CG_UpdateViewWeaponAnim(localClientNum, 0);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
   dword_A05AC7C = 0;
   if ( CL_LocalClient_IsFirstActive(localClientNum) && cgameGlob->snap )
   {
-    PIXBeginNamedEvent(-1, "pending triggers");
+    //PIXBeginNamedEvent(-1, "pending triggers");
     if ( cg_level.currentTriggerListSize
       && !Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
@@ -4131,7 +4131,7 @@ LABEL_22:
     if ( g_DXDeviceThread == GetCurrentThreadId() )
       D3DPERF_EndEvent();
   }
-  PIXBeginNamedEvent(-1, "view values");
+  //PIXBeginNamedEvent(-1, "view values");
   UpdateKillCamEntityCache(localClientNum);
   CG_CalcViewValues(localClientNum);
   LerpKillCamView(localClientNum);
@@ -4142,7 +4142,7 @@ LABEL_22:
   CG_DrawWaterTrail(localClientNum);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "player entity");
+  //PIXBeginNamedEvent(-1, "player entity");
   if ( r_lockPvs->current.enabled )
   {
     R_PvsLock_GetViewOrigin(fxcam.vieworg);
@@ -4174,12 +4174,12 @@ LABEL_22:
   FX_MarkUpdateClientTime(localClientNum, cgameGlob->frametime);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "remaining fx");
+  //PIXBeginNamedEvent(-1, "remaining fx");
   R_UpdateRemainingEffects(&fxUpdateCmd);
   Rope_Render(localClientNum);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "aim assist");
+  //PIXBeginNamedEvent(-1, "aim assist");
   AimAssist_UpdateScreenTargets(
     localClientNum,
     cgameGlob->refdef.vieworg,
@@ -4195,7 +4195,7 @@ LABEL_22:
   CG_UpdatePoisonFX(cgameGlob);
   CG_UpdateElectrifiedFX(cgameGlob);
   CG_UpdateGenericFilter(cgameGlob);
-  PIXBeginNamedEvent(-1, "draw 2D");
+  //PIXBeginNamedEvent(-1, "draw 2D");
   R_AddCmdProjectionSet2D();
   DrawShellshockBlend(localClientNum);
   if ( CG_IsInfrared(localClientNum) )
@@ -4475,7 +4475,7 @@ void __cdecl CG_UpdateEntInfo(int localClientNum)
   int num; // [esp+C48h] [ebp-8h]
   int entnum; // [esp+C4Ch] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "update ent info");
+  //PIXBeginNamedEvent(-1, "update ent info");
   cgameGlob = CG_GetLocalClientGlobals(localClientNum);
   for ( num = 0; num < cgameGlob->nextSnap->numEntities; ++num )
   {
@@ -4541,7 +4541,7 @@ void __cdecl CG_UpdateIKTiming(int localClientNum)
 {
   cg_s *cgameGlob; // [esp+8h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "update ik timing");
+  //PIXBeginNamedEvent(-1, "update ik timing");
   cgameGlob = CG_GetLocalClientGlobals(localClientNum);
   IK_UpdateTimeAll(cgameGlob->time, localClientNum, 0);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
@@ -5096,7 +5096,7 @@ int __cdecl CG_DrawExtraCamFrame(
   ExtraCamClientStateRestore clientRestore; // [esp+C8h] [ebp-3A8h] BYREF
 
   Name = va("CG_DrawExtraCamFrame c=%d", localClientNum);
-  PIXBeginNamedEvent(-1, Name);
+  //PIXBeginNamedEvent(-1, Name);
   ExtraCamClientStateRestore::ExtraCamClientStateRestore(&clientRestore, localClientNum);
   if ( !Sys_IsMainThread()
     && !Assert_MyHandler(

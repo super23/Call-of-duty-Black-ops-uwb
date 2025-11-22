@@ -42,7 +42,7 @@ void __cdecl Demo_SaveInternal(unsigned __int8 *data, int size, bool writeInfoFi
   unsigned int bytesWritten; // [esp+Ch] [ebp-34h]
   msg_t compressedMsg; // [esp+10h] [ebp-30h] BYREF
 
-  PIXBeginNamedEvent(-16711681, "Demo Recording - Demo_SaveInternal()");
+  //PIXBeginNamedEvent(-16711681, "Demo Recording - Demo_SaveInternal()");
   memset(demo.memBlock.compressedMsgBuf, 0, sizeof(demo.memBlock.compressedMsgBuf));
   MSG_Init(&compressedMsg, demo.memBlock.compressedMsgBuf, 49152);
   compressedSize = MSG_CompressWithZLib(data, size, demo.memBlock.compressedMsgBuf, 0xC000u);
@@ -130,7 +130,7 @@ void __cdecl Demo_SaveToStreamBuffer(unsigned __int8 *data, unsigned int dataSiz
   int fillAmount; // [esp+14h] [ebp-10h]
   int diffBefore; // [esp+18h] [ebp-Ch]
 
-  PIXBeginNamedEvent(-1, "Demo_SaveToStreamBuffer");
+  //PIXBeginNamedEvent(-1, "Demo_SaveToStreamBuffer");
   if ( !s_uploadStreamData.active )
   {
     if ( g_DXDeviceThread != GetCurrentThreadId() )
@@ -372,7 +372,7 @@ int __cdecl Demo_SaveCallback(jqBatch *batch)
 {
   unsigned int *cmd; // [esp+14h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Demo_SaveCmd");
+  //PIXBeginNamedEvent(-1, "Demo_SaveCmd");
   cmd = jqLockData(batch);
   Demo_SaveInternal((unsigned __int8 *)*cmd, cmd[1], *((_BYTE *)cmd + 8));
   jqUnlockData(batch);
@@ -723,7 +723,7 @@ void __cdecl Demo_WriteServerCommands(msg_t *msg)
 
   v9 = 0;
   v6 = 0;
-  PIXBeginNamedEvent(-16711681, "Demo Recording - Writing Server Commands");
+  //PIXBeginNamedEvent(-16711681, "Demo Recording - Writing Server Commands");
   memset((unsigned __int8 *)dst, 0, sizeof(dst));
   for ( clientNum = 0; clientNum < demo.header.maxClients; ++clientNum )
   {
@@ -810,7 +810,7 @@ void __cdecl Demo_WriteMatchState(msg_t *msg)
   int bitsStart; // [esp+14h] [ebp-4h]
   int savedregs; // [esp+18h] [ebp+0h] BYREF
 
-  PIXBeginNamedEvent(-16711681, "Demo Recording - Writing MatchState");
+  //PIXBeginNamedEvent(-16711681, "Demo Recording - Writing MatchState");
   g_snapInfo.clientNum = g_democlientindex;
   g_snapInfo.client = &svs.clients[g_democlientindex].header;
   MSG_ClearLastReferencedEntity(msg);
@@ -837,7 +837,7 @@ void __cdecl Demo_WritePlayerStates(msg_t *msg)
   playerState_s dst; // [esp+18h] [ebp-26B0h] BYREF
   int UsedBitCount; // [esp+26C4h] [ebp-4h]
 
-  PIXBeginNamedEvent(-16711681, "Demo Recording - Writing PlayerStates");
+  //PIXBeginNamedEvent(-16711681, "Demo Recording - Writing PlayerStates");
   v7 = Demo_IsInFinalKillcam();
   for ( clientNum = 0; clientNum < demo.header.maxClients; ++clientNum )
   {
@@ -934,7 +934,7 @@ void __cdecl Demo_WritePacketEntities(msg_t *msg)
   value = 0;
   v23 = 0;
   v14 = 0;
-  PIXBeginNamedEvent(-16711681, "Demo Recording - Writing EntityStates");
+  //PIXBeginNamedEvent(-16711681, "Demo Recording - Writing EntityStates");
   for ( i = 0; i < sv.bpsWindow[10]; ++i )
   {
     v24 = (entityState_s *)(sv.bpsWindow[8] + i * sv.bpsWindow[9]);
@@ -1085,7 +1085,7 @@ void __cdecl Demo_WritePacketClients(msg_t *msg)
   numClients = 0;
   oldIndex = 0;
   newIndex = 0;
-  PIXBeginNamedEvent(-16711681, "Demo Recording - Writing ClientStates");
+  //PIXBeginNamedEvent(-16711681, "Demo Recording - Writing ClientStates");
   for ( i = 0; i < demo.header.maxClients; ++i )
   {
     if ( svs.clients[i].header.state >= 5 )

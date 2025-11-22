@@ -1,9 +1,0 @@
-Sys_SystemMemoryMB
-Sys_DetectVideoCard
-Sys_DetectCpuVendorAndName
-Sys_CopyCpuidString
-Sys_SupportsSSE
-Sys_SetAutoConfigureGHz
-Sys_GetPhysicalCpuCount
-Sys_AddApicIdIfUnique
-Sys_BenchmarkGHz

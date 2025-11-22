@@ -7,7 +7,7 @@ int __cdecl nuge_physicsCallback(jqBatch *batch)
 
   realbatch = jqLockData(batch);
   Name = va("nuge_physics: %s", *(const char **)realbatch[3]);
-  PIXBeginNamedEvent(-1, Name);
+  //PIXBeginNamedEvent(-1, Name);
   (*(void (__cdecl **)(unsigned int *))(realbatch[3] + 8))(realbatch);
   jqUnlockData(batch);
   if ( GetCurrentThreadId() == g_DXDeviceThread )

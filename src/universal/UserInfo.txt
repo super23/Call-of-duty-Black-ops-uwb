@@ -1,8 +1,0 @@
-PublicProfileInfo::PublicProfileInfo
-PublicProfileInfo::serialize
-PublicProfileInfo::deserialize
-PublicProfileInfo::sizeOf
-PrivateProfileInfo::PrivateProfileInfo
-PrivateProfileInfo::serialize
-PrivateProfileInfo::deserialize
-PrivateProfileInfo::sizeOf

@@ -1175,7 +1175,7 @@ void  R_SkinXModelCmd(int a1@<ebp>, SkinXModelCmd *data)
   v2 = alloca(10480);
   if ( Sys_QueryD3DDeviceOKEvent() )
   {
-    PIXBeginNamedEvent(-1, "R_SkinXModelCmd");
+    //PIXBeginNamedEvent(-1, "R_SkinXModelCmd");
     sseEnabled = sys_SSE->current.enabled && r_sse_skinning->current.enabled;
     v24 = sseEnabled;
     sseStateUsed = 0;

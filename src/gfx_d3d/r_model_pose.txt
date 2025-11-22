@@ -1,4 +1,0 @@
-R_UpdateSceneEntBounds
-R_DObjCalcPose
-R_SetNoDraw
-R_UpdateGfxEntityBoundsCmd

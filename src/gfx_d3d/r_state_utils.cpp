@@ -367,7 +367,7 @@ void __cdecl R_Set2D(GfxCmdBufSourceState *source)
 
   if ( source->scissorViewport.width != 2 )
   {
-    PIXBeginNamedEvent(-1, "R_Set2D");
+    //PIXBeginNamedEvent(-1, "R_Set2D");
     source->scissorViewport.width = 2;
     LOBYTE(source[1].matrices.matrix[0].m[2][2]) = 1;
     source->skinnedPlacement.base.origin[0] = *(float *)&FLOAT_0_0;
@@ -473,7 +473,7 @@ void __cdecl R_Set3D(GfxCmdBufSourceState *source)
   }
   if ( source->scissorViewport.width != 1 )
   {
-    PIXBeginNamedEvent(-1, "R_Set3D");
+    //PIXBeginNamedEvent(-1, "R_Set3D");
     source->scissorViewport.width = 1;
     memcpy(source->viewParms.viewMatrix.m[3], (const void *)source->sceneDef.time, 0x140u);
     if ( source->viewParms.zFar == 0.0 )

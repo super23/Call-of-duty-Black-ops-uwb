@@ -167,13 +167,13 @@ void __cdecl R_BeginPixMaterial(GfxCmdBufState *state)
       }
       if ( state->pixMaterial )
         PIXEndNamedEvent();
-      PIXBeginNamedEvent(-1, material->info.name);
+      //PIXBeginNamedEvent(-1, material->info.name);
     }
     if ( state->pixTechnique != technique )
     {
       if ( state->pixTechnique )
         PIXEndNamedEvent();
-      PIXBeginNamedEvent(-1, technique->name);
+      //PIXBeginNamedEvent(-1, technique->name);
     }
     state->pixMaterial = material;
     state->pixTechnique = technique;

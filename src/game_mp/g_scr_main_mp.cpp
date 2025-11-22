@@ -2870,7 +2870,7 @@ void __cdecl ScrCmd_IsTouching(scr_entref_t entref)
   float vMaxs[3]; // [esp+54h] [ebp-18h] BYREF
   float extraBoundary[3]; // [esp+60h] [ebp-Ch] BYREF
 
-  PIXBeginNamedEvent(-1, "ScrCmd_IsTouching");
+  //PIXBeginNamedEvent(-1, "ScrCmd_IsTouching");
   bTouching = 0;
   pEnt = GetEntity(entref);
   if ( pEnt->r.bmodel || (pEnt->r.svFlags & 0x60) != 0 )
@@ -2988,7 +2988,7 @@ void __cdecl ScrCmd_IsTouchingSwept(scr_entref_t entref)
   gentity_s *pTemp; // [esp+60h] [ebp-10h]
   float vMaxs[3]; // [esp+64h] [ebp-Ch] BYREF
 
-  PIXBeginNamedEvent(-1, "ScrCmd_IsTouchingSwept");
+  //PIXBeginNamedEvent(-1, "ScrCmd_IsTouchingSwept");
   bTouching = 0;
   pEnt = GetEntity(entref);
   if ( pEnt->r.bmodel || (pEnt->r.svFlags & 0x60) != 0 )
@@ -3186,7 +3186,7 @@ void __cdecl ScrCmd_PlaySoundToTeam(scr_entref_t entref)
   int entIndex; // [esp+20h] [ebp-Ch]
   gentity_s *clientEnt; // [esp+28h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "ScrCmd_PlaySoundToTeam");
+  //PIXBeginNamedEvent(-1, "ScrCmd_PlaySoundToTeam");
   team = (unsigned __int16)Scr_GetConstString(1u, SCRIPTINSTANCE_SERVER).floatValue;
   if ( team != scr_const.allies && team != scr_const.axis )
   {
@@ -3552,7 +3552,7 @@ void __cdecl ScrCmd_DoDamage(scr_entref_t entref)
   gentity_s *inflictor; // [esp+B0h] [ebp-8h]
   hitLocation_t hitLoc; // [esp+B4h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "ScrCmd_DoDamage");
+  //PIXBeginNamedEvent(-1, "ScrCmd_DoDamage");
   dflags = 0;
   attacker = 0;
   inflictor = 0;
@@ -3935,7 +3935,7 @@ void __cdecl GScr_ShootTurret(scr_entref_t entref)
   const char *v2; // eax
   gentity_s *ent; // [esp+Ch] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "shootturret");
+  //PIXBeginNamedEvent(-1, "shootturret");
   ent = GetEntity(entref);
   if ( !ent->pTurretInfo )
   {
@@ -6276,7 +6276,7 @@ unsigned intScr_BulletTrace()
   float vStart[3]; // [esp+9Ch] [ebp-10h] BYREF
   unsigned __int16 hitEntId; // [esp+A8h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Scr_BulletTrace");
+  //PIXBeginNamedEvent(-1, "Scr_BulletTrace");
   pIgnoreEnt = 0;
   iIgnoreEntNum = 1023;
   iClipMask = (int)&cls.recentServers[7538].game[14];
@@ -9898,7 +9898,7 @@ void __cdecl GScr_ShellShock(scr_entref_t entref)
   char s[1024]; // [esp+50h] [ebp-408h] BYREF
   int id; // [esp+454h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "GScr_ShellShock");
+  //PIXBeginNamedEvent(-1, "GScr_ShellShock");
   SV_CheckThread();
   ent = GetPlayerEntity(entref);
   if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) != 2 )
@@ -11199,7 +11199,7 @@ unsigned intGScr_SetPlayerStatsForMatchRecording()
   unsigned int statValue; // [esp+Ch] [ebp-Ch]
   gentity_s *ent; // [esp+14h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "GScr_SetPlayerStatsForMatchRecording");
+  //PIXBeginNamedEvent(-1, "GScr_SetPlayerStatsForMatchRecording");
   if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) != 3 )
     Scr_ParamError(0, "recordPlayerStats [player] [statName] [value]", SCRIPTINSTANCE_SERVER);
   ent = Scr_GetEntity(0);
@@ -14023,7 +14023,7 @@ void __cdecl GScr_AddSphereInfluencer()
   gentity_s *ent; // [esp+68h] [ebp-8h]
   float score; // [esp+6Ch] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "GScr_AddSphereInfluencer");
+  //PIXBeginNamedEvent(-1, "GScr_AddSphereInfluencer");
   if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) < 6
     || (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) > 9 )
   {
@@ -15498,7 +15498,7 @@ void GScr_PixBeginEvent()
 
   String = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
   v1 = va("SCRIPT: %s", String);
-  PIXBeginNamedEvent(0, v1);
+  //PIXBeginNamedEvent(0, v1);
 }
 
 void GScr_PixMarker()
@@ -15850,7 +15850,7 @@ void __cdecl G_FlagAnimForUpdate(gentity_s *ent)
 
 void __cdecl GScr_SetAnim(scr_entref_t entref)
 {
-  PIXBeginNamedEvent(-1, "SetAnim");
+  //PIXBeginNamedEvent(-1, "SetAnim");
   GScr_SetAnimInternal(entref, 1);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();

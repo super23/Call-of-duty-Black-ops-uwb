@@ -1,3 +1,0 @@
-CM_CalcTraceExtents
-intersect_extents_aabb
-intersect_extents_sphere

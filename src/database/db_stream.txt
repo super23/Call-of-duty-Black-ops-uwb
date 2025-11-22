@@ -1,8 +1,0 @@
-DB_InitStreams
-DB_PushStreamPos
-DB_SetStreamIndex
-DB_PopStreamPos
-DB_GetStreamPos
-DB_AllocStreamPos
-DB_IncStreamPos
-DB_InsertPointer

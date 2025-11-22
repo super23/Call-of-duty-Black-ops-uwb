@@ -4102,7 +4102,7 @@ void __cdecl VM_Resume(scriptInstance_t inst, unsigned int timeId)
   unsigned int stackId; // [esp+20h] [ebp-Ch]
   unsigned int startLocalId; // [esp+28h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "VM_Resume");
+  //PIXBeginNamedEvent(-1, "VM_Resume");
   if ( (_UNKNOWN *)MEMORY[0xA05AC98][4298 * inst] != (_UNKNOWN *)((char *)&MEMORY[0xA05AFB0] + 17192 * inst)
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\clientscript\\cscr_vm.cpp",

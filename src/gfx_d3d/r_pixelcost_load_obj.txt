@@ -1,2 +1,0 @@
-RB_PixelCost_BuildColorCodeMap
-R_PixelCost_PrintColorCodeKey

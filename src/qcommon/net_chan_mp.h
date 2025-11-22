@@ -1,4 +1,88 @@
 #pragma once
+#include "msg_mp.h"
+
+enum netadrtype_t : __int32
+{                                       // XREF: netadr_t/r
+    NA_BOT       = 0x0,
+    NA_BAD       = 0x1,
+    NA_LOOPBACK  = 0x2,
+    NA_BROADCAST = 0x3,
+    NA_IP        = 0x4,
+};
+
+struct netadr_t // sizeof=0x10
+{                                       // XREF: G_InitGrenadeEntity(gentity_s *,gentity_s *)+355/o
+    netadrtype_t type;                  // XREF: CL_ConnectionlessPacket(int,netadr_t,msg_t *,int)+1FF/r
+                                        // CL_ConnectionlessPacket(int,netadr_t,msg_t *,int)+24B/r ...
+    unsigned __int8 ip[4];              // XREF: CL_ConnectionlessPacket(int,netadr_t,msg_t *,int)+204/r
+                                        // CL_ConnectionlessPacket(int,netadr_t,msg_t *,int)+250/r ...
+    unsigned __int16 port;              // XREF: CL_ConnectionlessPacket(int,netadr_t,msg_t *,int)+20A/r
+                                        // CL_ConnectionlessPacket(int,netadr_t,msg_t *,int)+256/r ...
+    // padding byte
+    // padding byte
+    int addrHandleIndex;                // XREF: CL_ConnectionlessPacket(int,netadr_t,msg_t *,int)+210/r
+};
+
+struct netProfilePacket_t // sizeof=0xC
+{                                       // XREF: netProfileStream_t/r
+    int iTime;
+    int iSize;
+    int bFragment;
+};
+
+struct netProfileStream_t // sizeof=0x2F0
+{                                       // XREF: netProfileInfo_t/r
+                                        // netProfileInfo_t/r
+    netProfilePacket_t packets[60];
+    int iCurrPacket;
+    int iBytesPerSecond;
+    int iLastBPSCalcTime;
+    int iCountedPackets;
+    int iCountedFragments;
+    int iFragmentPercentage;
+    int iLargestPacket;
+    int iSmallestPacket;
+};
+
+struct netProfileInfo_t // sizeof=0x5E0
+{                                       // XREF: netchan_t/r
+                                        // clientConnection_t/r ...
+    netProfileStream_t send;
+    netProfileStream_t recieve;
+};
+
+enum netsrc_t : __int32
+{                                       // XREF: msg_t/r netchan_t/r ...
+    NS_CLIENT1    = 0x0,
+    NS_SERVER     = 0x1,
+    NS_MAXCLIENTS = 0x1,
+    NS_PACKET     = 0x2,
+};
+
+struct netchan_t // sizeof=0x6C0
+{                                       // XREF: clientConnection_t/r
+                                        // clientHeader_t/r
+    int outgoingSequence;
+    netsrc_t sock;
+    int dropped;
+    int incomingSequence;
+    netadr_t remoteAddress;
+    int qport;
+    int fragmentSequence;
+    int fragmentLength;
+    unsigned __int8 *fragmentBuffer;
+    int fragmentBufferSize;
+    int unsentFragments;
+    int unsentFragmentStart;
+    int unsentLength;
+    unsigned __int8 *unsentBuffer;
+    int unsentBufferSize;
+    int reliable_fragments;
+    unsigned __int8 fragment_send_count[128];
+    unsigned int fragment_ack[4];
+    int lowest_send_count;
+    netProfileInfo_t prof;
+};
 
 char *__cdecl NET_AdrToString(netadr_t a);
 char *__cdecl NET_AdrToStringDW(netadr_t a);
@@ -9,7 +93,7 @@ void __cdecl NetProf_NewRecievePacket(netchan_t *pChan, int iSize, int bFragment
 void __cdecl NetProf_UpdateStatistics(netProfileStream_t *pStream);
 void __cdecl Net_DisplayProfile(int localClientNum);
 void __cdecl Netchan_Init(__int16 port);
-void __cdecl Net_Dump//Profile_f();
+void __cdecl Net_Dump_Profile_f();
 void __cdecl Net_GetQPort_f();
 void __cdecl Net_SetQPort_f();
 void __cdecl Netchan_Setup(

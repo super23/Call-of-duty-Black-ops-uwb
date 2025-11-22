@@ -1,4 +1,0 @@
-Demo_GetAnalyzePrintDataType
-Demo_RecordProfileData
-Demo_PrintProfileData
-Demo_DrawDebugInformation

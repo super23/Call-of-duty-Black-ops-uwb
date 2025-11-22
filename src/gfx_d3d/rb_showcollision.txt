@@ -1,3 +1,0 @@
-RB_ShowCollision
-BuildFrustumPlanes
-RB_DrawCollisionPoly

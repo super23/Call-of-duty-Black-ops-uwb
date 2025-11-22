@@ -678,7 +678,7 @@ void __cdecl DynEntCl_ProcessEntities(int localClientNum, int time)
 
   if ( !r_reflectionProbeGenerate->current.enabled )
   {
-    PIXBeginNamedEvent(-1, "process dyn ents");
+    //PIXBeginNamedEvent(-1, "process dyn ents");
     dynEntCount = DynEnt_GetEntityCount(DYNENT_COLL_CLIENT_FIRST);
     for ( dynEntId = 0; dynEntId < (int)dynEntCount; ++dynEntId )
     {
@@ -1526,7 +1526,7 @@ void __cdecl DynEntCl_PointTrace(const pointtrace_t *clip, trace_t *results)
   _QWORD start[2]; // [esp+28h] [ebp-20h] BYREF
   _QWORD end[2]; // [esp+38h] [ebp-10h] BYREF
 
-  PIXBeginNamedEvent(-1, "dyn_pointtrace");
+  //PIXBeginNamedEvent(-1, "dyn_pointtrace");
   if ( !clip
     && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\DynEntity\\DynEntity_client.cpp", 1380, 0, "%s", "clip") )
   {
@@ -2473,7 +2473,7 @@ void __cdecl DynEntCl_EntityImpactEvent(
   centity_s *cent; // [esp+7Ch] [ebp-4h]
   int savedregs; // [esp+80h] [ebp+0h] BYREF
 
-  PIXBeginNamedEvent(-1, "DynEntCl_EntityImpactEvent");
+  //PIXBeginNamedEvent(-1, "DynEntCl_EntityImpactEvent");
   if ( trace->hitType != TRACE_HITTYPE_ENTITY )
   {
     if ( g_DXDeviceThread != GetCurrentThreadId() )
@@ -2675,7 +2675,7 @@ char __cdecl DynEntCl_DynEntImpactEvent(
   float hitPos[3]; // [esp+F8h] [ebp-10h] BYREF
   unsigned __int16 dynEntId; // [esp+104h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "DynEntCl_DynEntImpactEvent");
+  //PIXBeginNamedEvent(-1, "DynEntCl_DynEntImpactEvent");
   TraceExtents::TraceExtents(&clip.extents);
   memset(&trace, 0, 16);
   if ( !start

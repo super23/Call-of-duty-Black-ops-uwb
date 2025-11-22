@@ -896,7 +896,7 @@ menuDef_t *__cdecl Menus_FindByName(const UiContext *dc, const char *p)
   menuDef_t *v3; // [esp+14h] [ebp-Ch]
   int i; // [esp+1Ch] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Menus_FindByName");
+  //PIXBeginNamedEvent(-1, "Menus_FindByName");
   for ( i = 0; i < dc->menuCount; ++i )
   {
     if ( !I_stricmp(dc->Menus[i]->window.name, p) )
@@ -8004,7 +8004,7 @@ char  Menu_Paint@<al>(
   {
     goto LABEL_20;
   }
-  PIXBeginNamedEvent(-1, "Menu_IsVisible");
+  //PIXBeginNamedEvent(-1, "Menu_IsVisible");
   if ( !Menu_IsVisible((GenericEventHandler *)&dummyDef.onEvent, localClientNum, dc, menu) )
   {
     if ( GetCurrentThreadId() == g_DXDeviceThread )
@@ -8016,7 +8016,7 @@ LABEL_20:
   }
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "Menu_AnyItemsVisible");
+  //PIXBeginNamedEvent(-1, "Menu_AnyItemsVisible");
   v14 = 0;
   for ( i = 0; i < menu->itemCount && !v14; ++i )
   {
@@ -8039,7 +8039,7 @@ LABEL_20:
   if ( menu->blurRadius != 0.0 && !zombietron->current.enabled )
     dc->blurRadiusOut = fsqrt((float)(menu->blurRadius * menu->blurRadius) + (float)(dc->blurRadiusOut
                                                                                    * dc->blurRadiusOut));
-  PIXBeginNamedEvent(-1, "Item_UpdateAnimation");
+  //PIXBeginNamedEvent(-1, "Item_UpdateAnimation");
   for ( j = 0; j < menu->itemCount; ++j )
   {
     if ( menu->items[j]->animInfo && menu->items[j]->animInfo->animating )
@@ -8048,7 +8048,7 @@ LABEL_20:
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
   Menu_PerformTransitionEffects(localClientNum, dc, menu);
-  PIXBeginNamedEvent(-1, "Menu_UpdatePosition");
+  //PIXBeginNamedEvent(-1, "Menu_UpdatePosition");
   if ( menu->rectXExp.filename )
     menu->window.rect.x = GetExpressionFloat(localClientNum, (itemDef_s *)&v22, &menu->rectXExp);
   if ( menu->rectYExp.filename )
@@ -8060,7 +8060,7 @@ LABEL_20:
   {
     if ( menu->window.background )
     {
-      PIXBeginNamedEvent(-1, "UI_DrawHandlePic");
+      //PIXBeginNamedEvent(-1, "UI_DrawHandlePic");
       Rect = Window_GetRect(&menu->window);
       UI_DrawHandlePic(
         &scrPlaceView[dc->contextIndex],
@@ -8076,7 +8076,7 @@ LABEL_20:
         D3DPERF_EndEvent();
     }
   }
-  PIXBeginNamedEvent(-1, "Window_Paint");
+  //PIXBeginNamedEvent(-1, "Window_Paint");
   Window_Paint(
     localClientNum,
     dc,
@@ -8090,7 +8090,7 @@ LABEL_20:
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
   v7 = va("Item_Paint (%d)", menu->itemCount);
-  PIXBeginNamedEvent(-1, v7);
+  //PIXBeginNamedEvent(-1, v7);
   for ( k = 0; k < menu->itemCount; ++k )
   {
     if ( (Window_GetDynamicFlags(dc->contextIndex, &menu->window) & 0x82000) != 0 || menu->fadeTimeCounter == -3 )
@@ -8113,7 +8113,7 @@ LABEL_20:
     D3DPERF_EndEvent();
   menu->window.rect.x = menu->initialRectInfo.x;
   menu->window.rect.y = menu->initialRectInfo.y;
-  PIXBeginNamedEvent(-1, "g_debugMode");
+  //PIXBeginNamedEvent(-1, "g_debugMode");
   if ( g_debugMode )
   {
     v10 = Window_GetRect(&menu->window);
@@ -8648,9 +8648,9 @@ void __cdecl Item_Paint(int localClientNum, UiContext *dc, itemDef_s *item)
       if ( item->forecolorAExp.filename )
         item->window.foreColor[3] = GetExpressionFloat(localClientNum, item, &item->forecolorAExp);
       if ( item->window.name )
-        PIXBeginNamedEvent(-1, "Item_IsVisible %s", item->window.name);
+        //PIXBeginNamedEvent(-1, "Item_IsVisible %s", item->window.name);
       else
-        PIXBeginNamedEvent(-1, "Item_IsVisible");
+        //PIXBeginNamedEvent(-1, "Item_IsVisible");
       if ( Item_IsVisible(localClientNum, dc->contextIndex, item) )
       {
         if ( GetCurrentThreadId() == g_DXDeviceThread )
@@ -10590,8 +10590,8 @@ void __cdecl Menu_PaintAll(int localClientNum, UiContext *dc)
   scrPlaceStack.contextIndex = contextIndex;
   scrPlaceStackPtr = &scrPlaceStack;
   showVisibleList = ui_showList->current.enabled;
-  PIXBeginNamedEvent(-1, "menu paint all");
-  PIXBeginNamedEvent(-1, "Menu_PaintAll_BeginVisibleList");
+  //PIXBeginNamedEvent(-1, "menu paint all");
+  //PIXBeginNamedEvent(-1, "Menu_PaintAll_BeginVisibleList");
   if ( showVisibleList )
     Menu_PaintAll_BeginVisibleList(visibleList, 0x400u);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
@@ -10600,7 +10600,7 @@ void __cdecl Menu_PaintAll(int localClientNum, UiContext *dc)
   if ( captureFunc )
     captureFunc(localClientNum, dc, captureData);
   toastPopupMenu = Menus_FindByName(dc, "menu_toast_popup");
-  PIXBeginNamedEvent(-1, "menu paint");
+  //PIXBeginNamedEvent(-1, "menu paint");
   for ( menuIndex = 0; menuIndex < Menu_Count(dc); ++menuIndex )
   {
     menu = dc->Menus[menuIndex];
@@ -10609,7 +10609,7 @@ void __cdecl Menu_PaintAll(int localClientNum, UiContext *dc)
     if ( !Menus_MenuIsInStack(dc, menu) && menu != toastPopupMenu )
     {
       v2 = va("Menu_Paint %s", menu->window.name);
-      PIXBeginNamedEvent(-1, v2);
+      //PIXBeginNamedEvent(-1, v2);
       drew = Menu_Paint(
                (GenericEventHandler *)&savedregs,
                localClientNum,
@@ -10640,7 +10640,7 @@ void __cdecl Menu_PaintAll(int localClientNum, UiContext *dc)
       break;
     }
   }
-  PIXBeginNamedEvent(-1, "blurMenu");
+  //PIXBeginNamedEvent(-1, "blurMenu");
   blurMenu = Menus_FindByName(dc, "UIBlur");
   if ( blurMenu )
   {
@@ -10671,7 +10671,7 @@ void __cdecl Menu_PaintAll(int localClientNum, UiContext *dc)
       menub->fadeTimeCounter = -1;
     }
   }
-  PIXBeginNamedEvent(-1, "UI3DOverride");
+  //PIXBeginNamedEvent(-1, "UI3DOverride");
   blurFocus = GetBlurFocus(localClientNum, dc);
   if ( blurFocus != -1 )
   {
@@ -10709,7 +10709,7 @@ void __cdecl Menu_PaintAll(int localClientNum, UiContext *dc)
   }
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "g_debugMode");
+  //PIXBeginNamedEvent(-1, "g_debugMode");
   if ( g_debugMode )
   {
     FontHandle = UI_GetFontHandle(&scrPlaceView[dc->contextIndex], 0, 0.5);
@@ -10747,7 +10747,7 @@ void __cdecl Menu_PaintAll(int localClientNum, UiContext *dc)
   }
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "Menu_PaintAll_DrawVisibleList");
+  //PIXBeginNamedEvent(-1, "Menu_PaintAll_DrawVisibleList");
   if ( showVisibleList )
     Menu_PaintAll_DrawVisibleList(visibleList, dc);
   if ( GetCurrentThreadId() == g_DXDeviceThread )

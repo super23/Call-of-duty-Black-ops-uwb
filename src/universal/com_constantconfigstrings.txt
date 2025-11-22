@@ -1,7 +1,0 @@
-CCS_ClearConstantConfigStrings
-CCS_ValidateChecksums
-CCS_GetChecksum
-CCS_ShouldLoadConstConfigStrings
-CCS_LoadConstantConfigStrings
-CCS_GetConfigStringValue
-CCS_GetConfigStringNum

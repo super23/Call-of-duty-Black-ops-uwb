@@ -1,3 +1,0 @@
-CL_WriteVoicePacket
-CL_VoicePacket
-CL_IsPlayerTalking

@@ -1,7 +1,0 @@
-rigid_body::set_inertia
-rigid_body::set_mass
-user_rigid_body::setPosition
-rigid_body::set
-rigid_body::add_force
-user_rigid_body::set
-environment_rigid_body::set

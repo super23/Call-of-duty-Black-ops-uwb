@@ -1,2 +1,0 @@
-R_StaticModelGetMemoryUsage
-R_StaticModelGetMemoryUsageInst

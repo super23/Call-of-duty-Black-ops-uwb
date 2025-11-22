@@ -1,8 +1,0 @@
-Flame_Class_Fire_Init
-Flame_Class_Fire_Alloc
-Flame_Class_Fire_Free
-Flame_Class_Fire_Age
-Flame_Class_Fire_Spawn
-Flame_Class_Fire_Render_Item
-Flame_Class_Fire_Render_All
-Flame_Class_Fire_Render_Local_List

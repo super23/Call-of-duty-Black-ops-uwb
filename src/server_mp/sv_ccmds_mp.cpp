@@ -41,7 +41,7 @@ void __cdecl SV_MapRestart(int fast_restart)
   int savepersist; // [esp+28h] [ebp-50h]
   char mapname[68]; // [esp+30h] [ebp-48h] BYREF
 
-  PIXBeginNamedEvent(-1, "SV_MapRestart");
+  //PIXBeginNamedEvent(-1, "SV_MapRestart");
   Com_SyncThreads();
   track_hunk_ClearToStart();
   if ( com_sv_running->current.enabled )

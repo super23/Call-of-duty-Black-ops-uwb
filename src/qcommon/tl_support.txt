@@ -1,9 +1,0 @@
-Sys_SetupTLCallbacks
-TL_Warning
-TL_ReadFile
-TL_ReleaseFile
-TL_DebugPrint
-TL_MemAlloc
-TL_MemRealloc
-TL_MemFree
-TL_CriticalError

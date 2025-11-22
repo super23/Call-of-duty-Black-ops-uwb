@@ -1,8 +1,0 @@
-Live_ShowConnectingDialog
-Live_DemonwareDisconnectCleanup
-Live_IsPublicOnlineMatch
-Live_IsWagerMatch
-Live_IsCombatTrainingMatch
-Live_ComErrorIfBuildExpired
-Live_Init
-Live_CountGuestsInUse

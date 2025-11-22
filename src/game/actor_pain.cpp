@@ -36,7 +36,7 @@ void __fastcall Actor_Pain_Finish(actor_s *self, ai_state_t eNextState)
 
 int __fastcall Actor_Pain_Think(actor_s *self)
 {
-  PIXBeginNamedEvent(-1, "painthink");
+  //PIXBeginNamedEvent(-1, "painthink");
   if ( !self && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_pain.cpp", 83, 0, "%s", "self") )
     __debugbreak();
   if ( !self->ent

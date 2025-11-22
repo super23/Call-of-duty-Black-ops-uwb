@@ -1,5 +1,110 @@
 #pragma once
 
+#include "cscr_main.h"
+
+union ObjectInfo_u // sizeof=0x4
+{                                       // XREF: ObjectInfo/r
+    unsigned __int16 entnum;
+    unsigned __int16 size;
+    unsigned int nextEntId;
+    unsigned int self;
+};
+
+struct ObjectInfo // sizeof=0x8
+{                                       // XREF: VariableValueInternal::<unnamed_type_u>/r
+    unsigned __int16 refCount;
+    // padding byte
+    // padding byte
+    ObjectInfo_u u;
+};
+
+struct __declspec(align(4)) VariableStackBuffer // sizeof=0x10
+{
+    const char *pos;
+    unsigned __int16 size;
+    unsigned __int16 bufLen;
+    unsigned int localId;
+    unsigned __int8 time;
+    char buf[1];
+    // padding byte
+    // padding byte
+};
+
+union VariableUnion // sizeof=0x4
+{                                       // XREF: Scr_EmitAnimationInternal+8E/w
+    int intValue;
+    float floatValue;
+    unsigned int stringValue;
+    const float *vectorValue;
+    const char *codePosValue;
+    unsigned int pointerValue;
+    VariableStackBuffer *stackValue;
+    unsigned int entityOffset;
+};
+
+union VariableValueInternal_u // sizeof=0x8
+{                                       // XREF: VariableValueInternal/r
+    unsigned int next;
+    VariableUnion u;
+    ObjectInfo o;
+};
+
+union VariableValueInternal_w // sizeof=0x4
+{                                       // XREF: VariableValueInternal/r
+    unsigned int status;
+    unsigned int type;
+    unsigned int name;
+    unsigned int classnum;
+    unsigned int notifyName;
+    unsigned int waitTime;
+    unsigned int parentLocalId;
+};
+
+union VariableValueInternal_v // sizeof=0x4
+{                                       // XREF: VariableValueInternal/r
+    unsigned int next;
+    unsigned int index;
+};
+
+union Variable_u // sizeof=0x4
+{                                       // XREF: MakeVariableExternal+3E8/w
+                                        // MakeVariableExternal+403/r ...
+    unsigned int prev;
+    unsigned int prevSibling;
+};
+
+struct Variable // sizeof=0x8
+{                                       // XREF: VariableValueInternal/r
+                                        // MakeVariableExternal/r
+    unsigned int id;                    // XREF: MakeVariableExternal+3E5/w
+                                        // MakeVariableExternal+3FE/r
+    Variable_u u;       // XREF: MakeVariableExternal+3E8/w
+                                        // MakeVariableExternal+403/r
+};
+
+struct VariableValueInternal // sizeof=0x1C
+{
+    Variable hash;
+    VariableValueInternal_u u;
+    VariableValueInternal_w w;
+    VariableValueInternal_v v;
+    unsigned int nextSibling;
+};
+
+struct VariableValue // sizeof=0x8
+{                                       // XREF: CompareArrayIndices+79/r
+    VariableUnion u;                    // XREF: Scr_EmitAnimationInternal+8E/w
+    int type;                           // XREF: Scr_EmitAnimationInternal+84/w
+};
+
+struct scr_entref_t // sizeof=0x6
+{                                       // XREF: ?Scr_GetPathnode@@YAPAUpathnode_t@@IW4scriptInstance_t@@@Z/r
+    unsigned __int16 entnum;            // XREF: CScr_PlaySoundOnEntity+12/r
+    unsigned __int16 classnum;          // XREF: CScr_PlaySoundOnEntity+6/r
+    unsigned __int16 client;            // XREF: CScr_PlaySoundOnEntity:loc_4EB534/r
+};
+
+
 void __cdecl Scr_DumpScriptThreads(scriptInstance_t inst);
 int __cdecl ThreadInfoCompare(unsigned int *info1, unsigned int *info2);
 void __cdecl Scr_DumpScriptVariables(
@@ -61,7 +166,7 @@ unsigned int __cdecl AllocVariable(scriptInstance_t inst);
 unsigned int __cdecl Scr_AllocArray(scriptInstance_t inst);
 unsigned int __cdecl AllocThread(scriptInstance_t inst, unsigned int self);
 unsigned int __cdecl AllocChildThread(scriptInstance_t inst, unsigned int self, unsigned int parentLocalId);
-ObjectInfo::<unnamed_type_u> __cdecl Scr_GetSelf(scriptInstance_t inst, unsigned int threadId);
+unsigned int __cdecl Scr_GetSelf(scriptInstance_t inst, unsigned int threadId);
 void __cdecl FreeValue(scriptInstance_t inst, unsigned int id);
 void __cdecl RemoveRefToObject(scriptInstance_t inst, unsigned int id);
 void __cdecl FreeVariable(scriptInstance_t inst, unsigned int id);
@@ -105,7 +210,7 @@ void __cdecl RemoveArrayVariable(scriptInstance_t inst, unsigned int parentId, u
 void __cdecl SafeRemoveVariable(scriptInstance_t inst, unsigned int parentId, unsigned int unsignedValue);
 void __cdecl RemoveVariableValue(scriptInstance_t inst, unsigned int parentId, unsigned int index);
 void __cdecl SetNewVariableValue(scriptInstance_t inst, unsigned int id, VariableValue *value);
-VariableValueInternal::<unnamed_type_u> *__cdecl GetVariableValueAddress(scriptInstance_t inst, unsigned int id);
+VariableValueInternal_u *__cdecl GetVariableValueAddress(scriptInstance_t inst, unsigned int id);
 void __cdecl SetVariableEntityFieldValue(
         scriptInstance_t inst,
         unsigned int entId,
@@ -178,7 +283,7 @@ void __cdecl ClearArray(scriptInstance_t inst, unsigned int parentId, VariableVa
 void __cdecl SafeRemoveArrayVariable(scriptInstance_t inst, unsigned int parentId, unsigned int unsignedValue);
 void __cdecl SetEmptyArray(scriptInstance_t inst, unsigned int parentId);
 void __cdecl Scr_AddArrayKeys(unsigned int parentId, scriptInstance_t inst);
-scr_entref_t *__cdecl Scr_GetEntityIdRef(scr_entref_t *__return_ptr retstr, scriptInstance_t inst, unsigned int entId);
+scr_entref_t __cdecl Scr_GetEntityIdRef(scriptInstance_t inst, unsigned int entId);
 void __cdecl Scr_CopyEntityNum(
         unsigned int fromEntnum,
         unsigned int toEntnum,
@@ -194,7 +299,7 @@ void __cdecl Scr_AddFields(const char *path, char *extension, scriptInstance_t i
 void __cdecl Scr_AddFields_LoadObj(scriptInstance_t inst, const char *path, char *extension);
 void __cdecl Scr_AddFieldsForFile(scriptInstance_t inst, char *filename);
 char *__cdecl Scr_GetSourceFile_LoadObj(char *filename);
-XModelPiece *__cdecl Scr_GetSourceFile_FastFile(const char *filename);
+char *__cdecl Scr_GetSourceFile_FastFile(const char *filename);
 void __cdecl Scr_AddFields_FastFile(scriptInstance_t inst, const char *path, const char *extension);
 void __cdecl Scr_FreeValue(scriptInstance_t inst, unsigned int id);
 void __cdecl Scr_AllocGameVariable(scriptInstance_t inst);

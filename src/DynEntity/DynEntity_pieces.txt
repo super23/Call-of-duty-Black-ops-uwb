@@ -1,6 +1,0 @@
-DynEntPieces_RegisterDvars
-DynEntPieces_AddDrawSurfs
-DynEntPieces_SpawnPhysicsModel
-DynEntPieces_SpawnPhysObj
-DynEntPieces_CalcForceDir
-DynEntPieces_SpawnPieces

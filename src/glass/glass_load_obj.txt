@@ -1,3 +1,0 @@
-GetGlasses_LoadObj
-GetGlasses_FastFile
-GetGlasses

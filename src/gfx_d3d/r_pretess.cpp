@@ -59,7 +59,7 @@ void __cdecl R_MergeAndEmitDrawSurfLists(unsigned int firstStage, unsigned int s
   unsigned int drawSurfCount[40]; // [esp+E0h] [ebp-A0h]
   unsigned int stageCounta; // [esp+18Ch] [ebp+Ch]
 
-  PIXBeginNamedEvent(-1, "R_MergeAndEmitDrawSurfLists");
+  //PIXBeginNamedEvent(-1, "R_MergeAndEmitDrawSurfLists");
   if ( (!stageCount || stageCount > 0x27)
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_pretess.cpp",

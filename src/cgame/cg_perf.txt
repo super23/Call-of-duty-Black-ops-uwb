@@ -1,3 +1,0 @@
-CG_PerfInit
-CG_PerfUpdate
-UpdateData

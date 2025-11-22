@@ -1,5 +1,7 @@
 #pragma once
 
+#include "cscr_main.h"
+
 char *__cdecl SL_ConvertToString(unsigned int stringValue, scriptInstance_t inst);
 RefString *__cdecl GetRefString(scriptInstance_t inst, unsigned int stringValue);
 char *__cdecl SL_DebugConvertToString(unsigned int stringValue, scriptInstance_t inst);

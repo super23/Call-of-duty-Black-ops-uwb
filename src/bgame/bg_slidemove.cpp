@@ -845,7 +845,7 @@ void  gjk_trace(int a1@<ebp>, const gjk_trace_input_t *gti, list_gjk_trace_outpu
 
   v27[0] = a1;
   v27[1] = retaddr;
-  PIXBeginNamedEvent(-1, "gjk_trace_query");
+  //PIXBeginNamedEvent(-1, "gjk_trace_query");
   x = gti->m_query_input.m_cg_position.x;
   m_gcci = gti->m_gcci;
   v24 = m_gcci->m_cg_to_world_xform.w.x;
@@ -908,7 +908,7 @@ void  gjk_trace(int a1@<ebp>, const gjk_trace_input_t *gti, list_gjk_trace_outpu
     sort_gi_list(v13, gi_i);
     if ( g_DXDeviceThread == GetCurrentThreadId() )
       D3DPERF_EndEvent();
-    PIXBeginNamedEvent(-1, "gjk_trace_collide");
+    //PIXBeginNamedEvent(-1, "gjk_trace_collide");
     v10 = (gjk_trace_output_t *)phys_transient_allocator::allocate(
                                   gti->m_allocator,
                                   80,

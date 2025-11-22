@@ -404,15 +404,15 @@ void __cdecl R_GenerateSortedPrimarySpotShadowDrawSurfs(
             PrimaryLightCount) )
       __debugbreak();
   }
-  PIXBeginNamedEvent(-1, "bsp surfaces");
+  //PIXBeginNamedEvent(-1, "bsp surfaces");
   R_AddAllBspDrawSurfacesSpotShadow(spotShadowIndex, shadowableLightIndex);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "static model surfaces");
+  //PIXBeginNamedEvent(-1, "static model surfaces");
   R_AddAllStaticModelSurfacesSpotShadow(viewIndex, spotShadowIndex, shadowableLightIndex);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "scene ent surfaces");
+  //PIXBeginNamedEvent(-1, "scene ent surfaces");
   R_AddAllSceneEntSurfacesSpotShadow(viewInfo, spotShadowIndex, shadowableLightIndex);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
@@ -426,7 +426,7 @@ void __cdecl R_EmitSpotShadowMapSurfs(GfxViewInfo *viewInfo)
   GfxSpotShadow *spotShadow; // [esp+18h] [ebp-8h]
   unsigned int spotShadowIndex; // [esp+1Ch] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "emit spot shadow map surfs");
+  //PIXBeginNamedEvent(-1, "emit spot shadow map surfs");
   for ( spotShadowIndex = 0; spotShadowIndex < frontEndDataOut->spotShadowCount; ++spotShadowIndex )
   {
     spotShadow = &frontEndDataOut->spotShadows[spotShadowIndex];

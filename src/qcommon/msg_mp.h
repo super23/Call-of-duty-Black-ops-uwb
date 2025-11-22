@@ -1,4 +1,88 @@
 #pragma once
+#include <universal/q_shared.h>
+#include "ent.h"
+
+enum netsrc_t : __int32
+{                                       // XREF: msg_t/r netchan_t/r ...
+    NS_CLIENT1    = 0x0,
+    NS_SERVER     = 0x1,
+    NS_MAXCLIENTS = 0x1,
+    NS_PACKET     = 0x2,
+};
+
+struct __declspec(align(4)) msg_bookmark_t // sizeof=0x18
+{                                       // XREF: demoKeyFrame/r
+                                        // ?Demo_ProcessPlayback@@YAXXZ/r
+    int overflowed;
+    int cursize;
+    int bit;
+    int lastEntityRef;
+    int readcount;
+    unsigned __int8 bitByte;
+    // padding byte
+    // padding byte
+    // padding byte
+};
+
+struct msg_t // sizeof=0x30
+{                                       // XREF: .data:msg_t fakemsg/r
+                                        // .data:g_archiveMsg/r ...
+    int overflowed;                     // XREF: BG_EmblemsWriteString(short,CompositeEmblemLayer *,int)+44/r
+                                        // BG_EmblemsWriteString(short,CompositeEmblemLayer *,int):loc_41A8E0/r ...
+    int readOnly;
+    unsigned __int8 *data;              // XREF: BG_EmblemsWriteString(short,CompositeEmblemLayer *,int)+88/r
+                                        // CL_WritePacket(int):loc_552720/r ...
+    unsigned __int8 *splitData;
+    int maxsize;                        // XREF: CL_ReadDemoNetworkPacket+116/r
+    int cursize;                        // XREF: BG_EmblemsWriteString(short,CompositeEmblemLayer *,int)+84/r
+                                        // BG_EmblemsReadString(char const *,short *,CompositeEmblemLayer *,int)+43/w ...
+    int splitSize;
+    int readcount;                      // XREF: CL_ReadDemoNetworkPacket+180/w
+                                        // CL_ParseServerMessage(int,msg_t *)+103/r ...
+    int bit;                            // XREF: SV_SendClientVoiceData(client_t *):loc_71EFFC/r
+                                        // Demo_Forward_f(void)+4CA/r ...
+    int lastEntityRef;
+    int flush;
+    netsrc_t targetLocalNetID;
+};
+
+struct NetField // sizeof=0x1C
+{                                       // XREF: .rdata:helicopterEntityStateFields/r
+                                        // .rdata:planeStateFields/r ...
+    const char *name;
+    int offset;
+    int size;
+    int bits;
+    unsigned __int8 changeHints;
+    // padding byte
+    // padding byte
+    // padding byte
+    const char *bitsStr;
+    const char *changeHintsStr;
+};
+
+struct archivedEntityShared_t // sizeof=0x20
+{                                       // XREF: archivedEntity_s/r
+    int svFlags;                        // XREF: SV_ArchiveSnapshot(msg_t *)+86A/w
+                                        // SV_ArchiveSnapshot(msg_t *)+87F/r ...
+    int clientMask[1];                  // XREF: SV_ArchiveSnapshot(msg_t *)+89A/w
+    float absmin[3];                    // XREF: SV_ArchiveSnapshot(msg_t *)+8BC/w
+                                        // SV_ArchiveSnapshot(msg_t *)+8CF/w ...
+    float absmax[3];                    // XREF: SV_ArchiveSnapshot(msg_t *)+906/w
+                                        // SV_ArchiveSnapshot(msg_t *)+919/w ...
+};
+
+struct archivedEntity_s // sizeof=0x100
+{                                       // XREF: svEntity_s/r
+                                        // archivedEntity_t/r ...
+    entityState_s s;                    // XREF: CM_GetWaterHeight(float const * const,float,float)+107/o
+                                        // CM_UnlinkEntity(svEntity_s *)+75/o ...
+    archivedEntityShared_t r;           // XREF: SV_ArchiveSnapshot(msg_t *)+86A/w
+                                        // SV_ArchiveSnapshot(msg_t *)+87F/r ...
+};
+
+struct playerState_s;
+struct hudelem_s;
 
 float (*__cdecl MSG_GetMapCenter())[3];
 int __cdecl GetMinBitCountForNum(unsigned int num);
@@ -143,7 +227,3 @@ void __cdecl MSG_ReadDeltaHudElems(msg_t *msg, int time, const hudelem_s *from, 
 void __cdecl MSG_InitHuffman();
 void MSG_initHuffmanInternal();
 void __cdecl MSG_DumpNetFieldChanges_f();
-char __thiscall bitarray<51>::areAllBitsEqual(
-        bitarray<51> *this,
-        const bitarray<51> *otherBitSet,
-        const bitarray<51> *ignoreMaskBitSet);

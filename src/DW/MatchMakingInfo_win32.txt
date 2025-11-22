@@ -1,8 +1,0 @@
-MatchMakingInfo::MatchMakingInfo
-MatchMakingInfo::serialize
-MatchMakingInfo::deserialize
-MatchMakingInfo::sizeOf
-MatchMakingInfo::setSessionKey
-MatchMakingInfo::getSessionKey
-MatchMakingInfo::doUpdate
-bdReference<bdByteBuffer>::~bdReference<bdByteBuffer>

@@ -2230,7 +2230,7 @@ int __cdecl BG_UnlockablesGetItemIndexFromName(const char *itemName)
   int itemIndex; // [esp+24h] [ebp-Ch]
   int searchHash; // [esp+28h] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "BG_UnlockablesGetItemIndexFromName");
+  //PIXBeginNamedEvent(-1, "BG_UnlockablesGetItemIndexFromName");
   if ( !s_unlockableItems.maxItem
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_unlockable_items.cpp",

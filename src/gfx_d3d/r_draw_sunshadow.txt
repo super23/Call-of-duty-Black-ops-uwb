@@ -1,2 +1,0 @@
-R_DrawSunShadowMap
-R_DrawSunShadowMapCallback

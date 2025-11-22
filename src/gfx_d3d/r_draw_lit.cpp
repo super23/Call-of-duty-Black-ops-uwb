@@ -97,7 +97,7 @@ void  R_DrawCloakHDR(int a1@<ebp>, const GfxViewInfo *viewInfo, GfxCmdBuf *cmdBu
   v11[0] = a1;
   v11[1] = retaddr;
   v4 = alloca(6864);
-  PIXBeginNamedEvent(-1, "R_DrawCloak");
+  //PIXBeginNamedEvent(-1, "R_DrawCloak");
   R_InitCmdBufSourceState(&v10, &viewInfo->input, 1);
   R_SetRenderTargetSize(&v10, viewInfo->sceneComposition.mainSceneMSAA);
   R_SetViewportStruct(&v10, &viewInfo->cullViewInfo.sceneViewport);
@@ -314,7 +314,7 @@ void  R_DrawDecal(int a1@<ebp>, const GfxViewInfo *viewInfo, GfxCmdBuf *cmdBuf, 
   v11[0] = a1;
   v11[1] = retaddr;
   v4 = alloca(6864);
-  PIXBeginNamedEvent(-1, "R_DrawDecal");
+  //PIXBeginNamedEvent(-1, "R_DrawDecal");
   R_InitCmdBufSourceState(&v10, &viewInfo->input, 1);
   R_SetRenderTargetSize(&v10, viewInfo->sceneComposition.mainSceneMSAA);
   R_SetViewportStruct(&v10, &viewInfo->cullViewInfo.sceneViewport);

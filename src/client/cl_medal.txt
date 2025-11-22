@@ -1,4 +1,0 @@
-CG_GetMedalData
-CG_GetMedalLocalizedXP
-CG_GetWagerMedalData
-CG_GetWagerMedalLocalizedCP

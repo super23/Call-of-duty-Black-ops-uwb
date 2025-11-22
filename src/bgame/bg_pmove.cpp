@@ -1470,7 +1470,7 @@ void __cdecl Pmove_1(pmove_t *pm)
   playerState_s *ps; // [esp+28h] [ebp-4h]
 
   Name = va("Pmove %d", pm->ps->clientNum);
-  PIXBeginNamedEvent(-1, Name);
+  //PIXBeginNamedEvent(-1, Name);
   ps = pm->ps;
   if ( !pm->ps && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp", 6753, 0, "%s", "ps") )
     __debugbreak();
@@ -1939,7 +1939,7 @@ LABEL_151:
           PM_CheckLadderMove(pm, &pml);
           PM_CheckMeleeCharge(pm, &pml);
           Dtp_CheckForEnd(pm);
-          PIXBeginNamedEvent(0, "PM_Move");
+          //PIXBeginNamedEvent(0, "PM_Move");
           if ( (ps->pm_flags & 8) != 0 )
           {
             PM_LadderMove(pm, &pml);

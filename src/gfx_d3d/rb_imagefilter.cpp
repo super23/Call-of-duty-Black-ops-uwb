@@ -10,7 +10,7 @@ void __cdecl RB_GaussianFilterImage(float radius, unsigned __int8 srcRenderTarge
   int dstHeight; // [esp+48h] [ebp-1394h]
   GfxImageFilter filter; // [esp+4Ch] [ebp-1390h] BYREF
 
-  PIXBeginNamedEvent(-1, "RB_GaussianFilterImage");
+  //PIXBeginNamedEvent(-1, "RB_GaussianFilterImage");
   RB_VirtualToSceneRadius(radius, &radiusX, &radiusY);
   srcWidth = (unsigned __int16)word_B50E83C[10 * srcRenderTargetId];
   srcHeight = (unsigned __int16)word_B50E83E[10 * srcRenderTargetId];

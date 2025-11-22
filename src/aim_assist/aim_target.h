@@ -1,9 +1,10 @@
 #pragma once
+#include "aim_assist.h"
 
 int __cdecl AimTarget_GetTagPos(int localClientNum, const centity_s *cent, unsigned int tagName, float *pos);
 AimTargetGlob *__cdecl AimTarget_GetGlobArray(int localClientNum);
 void __cdecl AimTarget_Init(int localClientNum);
-const dvar_s *AimTarget_RegisterDvars();
+void AimTarget_RegisterDvars();
 void __cdecl expandMins(float *mins, float *point);
 void __cdecl expandMaxs(float *maxs, float *point);
 void __cdecl AimTarget_ProcessEntityInternal(int localClientNum, const centity_s *ent);
@@ -19,7 +20,7 @@ void __cdecl AimTarget_CreateTarget(int localClientNum, const centity_s *targetE
 void __cdecl AimTarget_AddTargetToList(int localClientNum, const AimTarget *target);
 int __cdecl AimTarget_CompareTargets(const AimTarget *targetA, const AimTarget *targetB);
 bool __cdecl AimTarget_PlayerInValidState(const playerState_s *ps);
-void __cdecl AimTarget_UpdateClientTargets(jpeg_decompress_struct *localClientNum);
+void __cdecl AimTarget_UpdateClientTargets(int localClientNum);
 void __cdecl AimTarget_ClearTargetList(int localClientNum);
 void __cdecl AimTarget_ProcessEntity(int localClientNum, const centity_s *ent);
 void __cdecl AimTarget_GetClientTargetList(int localClientNum, AimTargetGlob **targetList, int *targetCount);

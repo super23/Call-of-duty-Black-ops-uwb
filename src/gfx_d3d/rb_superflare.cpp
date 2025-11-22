@@ -82,7 +82,7 @@ void __cdecl RB_DrawSuperFlareOccluders(const GfxViewInfo *viewInfo)
 
   if ( r_superFlare_enable->current.enabled )
   {
-    PIXBeginNamedEvent(-1, "RB_SuperFlareVisibility");
+    //PIXBeginNamedEvent(-1, "RB_SuperFlareVisibility");
     FilterInfo = &viewInfo->genericFilter;
     for ( iFilter = 0; iFilter < 3; ++iFilter )
     {

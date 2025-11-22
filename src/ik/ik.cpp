@@ -469,7 +469,7 @@ void __cdecl IK_UpdateEntity(unsigned int entityNum, unsigned __int8 *model, boo
 
   if ( isLocalBones )
   {
-    PIXBeginNamedEvent(-1, "IK - update bones");
+    //PIXBeginNamedEvent(-1, "IK - update bones");
     ikState = IK_GetIKStateForEntity(entityNum, model, 0);
     if ( !ikState )
     {

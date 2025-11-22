@@ -1,8 +1,0 @@
-R_InitWind
-R_SetWindDirection
-R_SetVariantWindSpringAngle
-R_SetVariantWindRustleAngle
-R_WindStartBackend
-R_SetWindShaderConstants
-RB_SetCustomWindConstants
-R_SetLocalWind

@@ -1,3 +1,0 @@
-R_DebugAlloc
-R_DebugFree
-R_DebugFreeAll

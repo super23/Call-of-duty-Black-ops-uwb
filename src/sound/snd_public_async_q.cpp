@@ -253,7 +253,7 @@ unsigned int __cdecl SND_CommandPump()
   unsigned int count; // [esp+8h] [ebp-8h]
   const snd_command *cmd; // [esp+Ch] [ebp-4h]
 
-  PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "SND_CommandPump");
+  //PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "SND_CommandPump");
   if ( !g_snd.command_init
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
@@ -295,13 +295,13 @@ void __cdecl SND_CommandProcess(const snd_command *cmd)
   switch ( cmd->type )
   {
     case SND_COMMAND_ALIAS_NAME:
-      PIXBeginNamedEvent(-1, "SNDL_AliasName");
+      //PIXBeginNamedEvent(-1, "SNDL_AliasName");
       SNDL_AliasName(cmd->context.alias_name.name, cmd->context.alias_name.id);
       if ( g_DXDeviceThread == GetCurrentThreadId() )
         goto LABEL_65;
       break;
     case SND_COMMAND_PLAY:
-      PIXBeginNamedEvent(-1, "SNDL_Play");
+      //PIXBeginNamedEvent(-1, "SNDL_Play");
       SNDL_Play(
         cmd->context.play.alias,
         cmd->context.play.fadeTimeMs,
@@ -315,37 +315,37 @@ void __cdecl SND_CommandProcess(const snd_command *cmd)
         goto LABEL_65;
       break;
     case SND_COMMAND_STOP_ALIAS:
-      PIXBeginNamedEvent(-1, "SNDL_StopSoundAliasOnEnt");
+      //PIXBeginNamedEvent(-1, "SNDL_StopSoundAliasOnEnt");
       SNDL_StopSoundAliasOnEnt(cmd->context.stop_alias.ent, cmd->context.stop_alias.alias_name);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         goto LABEL_65;
       break;
     case SND_COMMAND_STOP_ENT:
-      PIXBeginNamedEvent(-1, "SNDL_StopSoundsOnEnt");
+      //PIXBeginNamedEvent(-1, "SNDL_StopSoundsOnEnt");
       SNDL_StopSoundsOnEnt(cmd->context.stop_alias.ent);
       if ( g_DXDeviceThread == GetCurrentThreadId() )
         goto LABEL_65;
       break;
     case SND_COMMAND_CINEMATIC_START:
-      PIXBeginNamedEvent(-1, "SNDL_NotifyCinematicStart");
+      //PIXBeginNamedEvent(-1, "SNDL_NotifyCinematicStart");
       SNDL_NotifyCinematicStart(cmd->context.notify_cinematic_start.volume);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         goto LABEL_65;
       break;
     case SND_COMMAND_CINEMATIC_END:
-      PIXBeginNamedEvent(-1, "SNDL_NotifyCinematicEnd");
+      //PIXBeginNamedEvent(-1, "SNDL_NotifyCinematicEnd");
       SNDL_NotifyCinematicEnd();
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         goto LABEL_65;
       break;
     case SND_COMMAND_DISCONNECT_LISTENER:
-      PIXBeginNamedEvent(-1, "SNDL_DisconnectListener");
+      //PIXBeginNamedEvent(-1, "SNDL_DisconnectListener");
       SNDL_DisconnectListener(cmd->context.stop_alias.ent.handle);
       if ( g_DXDeviceThread == GetCurrentThreadId() )
         goto LABEL_65;
       break;
     case SND_COMMAND_SET_LISTENER:
-      PIXBeginNamedEvent(-1, "SNDL_SetListener");
+      //PIXBeginNamedEvent(-1, "SNDL_SetListener");
       SNDL_SetListener(
         cmd->context.stop_alias.ent.handle,
         cmd->context.play.fadeTimeMs,
@@ -356,25 +356,25 @@ void __cdecl SND_CommandProcess(const snd_command *cmd)
         goto LABEL_65;
       break;
     case SND_COMMAND_STOP_SOUNDS:
-      PIXBeginNamedEvent(-1, "SNDL_StopSounds");
+      //PIXBeginNamedEvent(-1, "SNDL_StopSounds");
       SNDL_StopSounds(cmd->context.stop_sounds.flags);
       if ( g_DXDeviceThread == GetCurrentThreadId() )
         goto LABEL_65;
       break;
     case SND_COMMAND_FADE_IN:
-      PIXBeginNamedEvent(-1, "SNDL_FadeIn");
+      //PIXBeginNamedEvent(-1, "SNDL_FadeIn");
       SNDL_FadeIn();
       if ( g_DXDeviceThread == GetCurrentThreadId() )
         goto LABEL_65;
       break;
     case SND_COMMAND_FADE_OUT:
-      PIXBeginNamedEvent(-1, "SNDL_FadeOut");
+      //PIXBeginNamedEvent(-1, "SNDL_FadeOut");
       SNDL_FadeOut();
       if ( g_DXDeviceThread == GetCurrentThreadId() )
         goto LABEL_65;
       break;
     case SND_COMMAND_SET_ENVIRONMENT_EFFECTS:
-      PIXBeginNamedEvent(-1, "SNDL_SetEnvironmentEffects");
+      //PIXBeginNamedEvent(-1, "SNDL_SetEnvironmentEffects");
       SNDL_SetEnvironmentEffects(
         cmd->context.stop_alias.ent.handle,
         cmd->context.stop_alias.alias_name,
@@ -385,19 +385,19 @@ void __cdecl SND_CommandProcess(const snd_command *cmd)
         goto LABEL_65;
       break;
     case SND_COMMAND_DEACTIVATE_ENVIRONMENT_EFFECTS:
-      PIXBeginNamedEvent(-1, "SNDL_DeactivateEnvironmentEffects");
+      //PIXBeginNamedEvent(-1, "SNDL_DeactivateEnvironmentEffects");
       SNDL_DeactivateEnvironmentEffects(cmd->context.stop_alias.ent.handle, cmd->context.play.fadeTimeMs);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         goto LABEL_65;
       break;
     case SND_COMMAND_SET_PLAYBACK_ATTENUATION:
-      PIXBeginNamedEvent(-1, "SNDL_SetPlaybackAttenuation");
+      //PIXBeginNamedEvent(-1, "SNDL_SetPlaybackAttenuation");
       SNDL_SetPlaybackAttenuation(cmd->context.stop_alias.ent.handle, cmd->context.set_playback_attenuation.attenuation);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         goto LABEL_65;
       break;
     case SND_COMMAND_SET_PLAYBACK_ATTENUATION_RATE:
-      PIXBeginNamedEvent(-1, "SNDL_SetPlaybackAttenuationRate");
+      //PIXBeginNamedEvent(-1, "SNDL_SetPlaybackAttenuationRate");
       SNDL_SetPlaybackAttenuationRate(
         cmd->context.stop_alias.ent.handle,
         cmd->context.set_playback_attenuation.attenuation);
@@ -405,25 +405,25 @@ void __cdecl SND_CommandProcess(const snd_command *cmd)
         goto LABEL_65;
       break;
     case SND_COMMAND_SET_PLAYBACK_PITCH:
-      PIXBeginNamedEvent(-1, "SNDL_SetPlaybackPitch");
+      //PIXBeginNamedEvent(-1, "SNDL_SetPlaybackPitch");
       SNDL_SetPlaybackPitch(cmd->context.stop_alias.ent.handle, cmd->context.set_playback_attenuation.attenuation);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         goto LABEL_65;
       break;
     case SND_COMMAND_SET_PLAYBACK_PITCH_RATE:
-      PIXBeginNamedEvent(-1, "SNDL_SetPlaybackPitchRate");
+      //PIXBeginNamedEvent(-1, "SNDL_SetPlaybackPitchRate");
       SNDL_SetPlaybackPitchRate(cmd->context.stop_alias.ent.handle, cmd->context.set_playback_attenuation.attenuation);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         goto LABEL_65;
       break;
     case SND_COMMAND_STOP_PLAYBACK:
-      PIXBeginNamedEvent(-1, "SNDL_StopPlayback");
+      //PIXBeginNamedEvent(-1, "SNDL_StopPlayback");
       SNDL_StopPlayback(cmd->context.stop_alias.ent.handle);
       if ( g_DXDeviceThread == GetCurrentThreadId() )
         goto LABEL_65;
       break;
     case SND_COMMAND_SNAPSHOT:
-      PIXBeginNamedEvent(-1, "SNDL_SetSnapshot");
+      //PIXBeginNamedEvent(-1, "SNDL_SetSnapshot");
       SNDL_SetSnapshot(
         cmd->context.snapshot.type,
         cmd->context.stop_alias.alias_name,
@@ -433,7 +433,7 @@ void __cdecl SND_CommandProcess(const snd_command *cmd)
         goto LABEL_65;
       break;
     case SND_COMMAND_SET_ENT_STATE:
-      PIXBeginNamedEvent(-1, "SNDL_SetEntState");
+      //PIXBeginNamedEvent(-1, "SNDL_SetEntState");
       SNDL_SetEntState(
         cmd->context.stop_alias.ent,
         &cmd->context.set_playback_attenuation.attenuation,
@@ -443,7 +443,7 @@ void __cdecl SND_CommandProcess(const snd_command *cmd)
         goto LABEL_65;
       break;
     case SND_COMMAND_SET_GAME_STATE:
-      PIXBeginNamedEvent(-1, "SNDL_SetGameState");
+      //PIXBeginNamedEvent(-1, "SNDL_SetGameState");
       SNDL_SetGameState(
         cmd->context.alias_name.name[1],
         cmd->context.alias_name.name[0],
@@ -454,19 +454,19 @@ void __cdecl SND_CommandProcess(const snd_command *cmd)
         goto LABEL_65;
       break;
     case SND_COMMAND_PLAY_LOOP_AT:
-      PIXBeginNamedEvent(-1, "SNDL_PlayLoopAt");
+      //PIXBeginNamedEvent(-1, "SNDL_PlayLoopAt");
       SNDL_PlayLoopAt(cmd->context.play.alias, &cmd->context.set_playback_attenuation.attenuation);
       if ( g_DXDeviceThread == GetCurrentThreadId() )
         goto LABEL_65;
       break;
     case SND_COMMAND_STOP_LOOP_AT:
-      PIXBeginNamedEvent(-1, "SNDL_StopLoopAt");
+      //PIXBeginNamedEvent(-1, "SNDL_StopLoopAt");
       SNDL_StopLoopAt(cmd->context.play.alias, &cmd->context.set_playback_attenuation.attenuation);
       if ( g_DXDeviceThread == GetCurrentThreadId() )
         goto LABEL_65;
       break;
     case SND_COMMAND_PLAY_LINE_AT:
-      PIXBeginNamedEvent(-1, "SNDL_PlayLineAt");
+      //PIXBeginNamedEvent(-1, "SNDL_PlayLineAt");
       SNDL_PlayLineAt(
         cmd->context.play.alias,
         &cmd->context.set_playback_attenuation.attenuation,
@@ -475,7 +475,7 @@ void __cdecl SND_CommandProcess(const snd_command *cmd)
         goto LABEL_65;
       break;
     case SND_COMMAND_STOP_LINE_AT:
-      PIXBeginNamedEvent(-1, "SNDL_StopLineAt");
+      //PIXBeginNamedEvent(-1, "SNDL_StopLineAt");
       SNDL_StopLineAt(
         cmd->context.play.alias,
         &cmd->context.set_playback_attenuation.attenuation,
@@ -484,25 +484,25 @@ void __cdecl SND_CommandProcess(const snd_command *cmd)
         goto LABEL_65;
       break;
     case SND_COMMAND_GAME_RESET:
-      PIXBeginNamedEvent(-1, "SNDL_GameReset");
+      //PIXBeginNamedEvent(-1, "SNDL_GameReset");
       SNDL_GameReset();
       if ( g_DXDeviceThread == GetCurrentThreadId() )
         goto LABEL_65;
       break;
     case SND_COMMAND_SET_CONTEXT:
-      PIXBeginNamedEvent(-1, "SNDL_SetContext");
+      //PIXBeginNamedEvent(-1, "SNDL_SetContext");
       SNDL_SetContext(cmd->context.play.alias, cmd->context.stop_alias.alias_name);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         goto LABEL_65;
       break;
     case SND_COMMAND_SCRIPT_TIMESCALE:
-      PIXBeginNamedEvent(-1, "SNDL_SetContext");
+      //PIXBeginNamedEvent(-1, "SNDL_SetContext");
       SNDL_SetScriptTimescale(cmd->context.notify_cinematic_start.volume);
       if ( g_DXDeviceThread == GetCurrentThreadId() )
         goto LABEL_65;
       break;
     case SND_COMMAND_UPDATE_LOOPS:
-      PIXBeginNamedEvent(-1, "SNDL_UpdateLoopingSounds");
+      //PIXBeginNamedEvent(-1, "SNDL_UpdateLoopingSounds");
       SNDL_UpdateLoopingSounds();
       if ( g_DXDeviceThread == GetCurrentThreadId() )
 LABEL_65:
@@ -571,7 +571,7 @@ int __cdecl SND_NextNotifyIndex(__int16 i)
 
 void __cdecl SND_NotifyPush(snd_notify *cmd)
 {
-  PIXBeginNamedEvent(-1, "SND_NotifyPush");
+  //PIXBeginNamedEvent(-1, "SND_NotifyPush");
   if ( !g_snd.command_init
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
@@ -746,7 +746,7 @@ void __cdecl SND_NotifyPump()
 {
   const snd_notify *cmd; // [esp+8h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "SND_NotifyPump");
+  //PIXBeginNamedEvent(-1, "SND_NotifyPump");
   if ( !g_snd.command_init
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
@@ -773,25 +773,25 @@ void __cdecl SND_NotifyProcess(const snd_notify *cmd)
   switch ( cmd->type )
   {
     case SND_NOTIFY_ENT_UPDATE:
-      PIXBeginNamedEvent(-1, "SND_SetEntState");
+      //PIXBeginNamedEvent(-1, "SND_SetEntState");
       SND_SetEntState(cmd->context.ent_update.handle);
       if ( g_DXDeviceThread == GetCurrentThreadId() )
         goto LABEL_8;
       break;
     case SND_NOTIFY_SUBTITLE:
-      PIXBeginNamedEvent(-1, "CG_SubtitleSndLengthNotify");
+      //PIXBeginNamedEvent(-1, "CG_SubtitleSndLengthNotify");
       CG_SubtitleSndLengthNotify(cmd->context.ent_update.handle.handle, cmd->context.subtitle.subtitle);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         goto LABEL_8;
       break;
     case SND_NOTIFY_LENGTH:
-      PIXBeginNamedEvent(-1, "CG_ScriptSndLengthNotify");
+      //PIXBeginNamedEvent(-1, "CG_ScriptSndLengthNotify");
       BG_EvalVehicleName();
       if ( g_DXDeviceThread == GetCurrentThreadId() )
         goto LABEL_8;
       break;
     case SND_NOTIFY_PLAYBACK_UPDATE:
-      PIXBeginNamedEvent(-1, "update playback");
+      //PIXBeginNamedEvent(-1, "update playback");
       if ( !cmd->context.ent_update.handle.handle
         && !Assert_MyHandler(
               "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
@@ -819,7 +819,7 @@ void __cdecl SND_NotifyProcess(const snd_notify *cmd)
         goto LABEL_8;
       break;
     case SND_NOTIFY_PLAYBACK_FREE:
-      PIXBeginNamedEvent(-1, "SND_FreePlayback");
+      //PIXBeginNamedEvent(-1, "SND_FreePlayback");
       SND_FreePlayback(cmd->context.playback_free.playback);
       if ( g_DXDeviceThread == GetCurrentThreadId() )
 LABEL_8:

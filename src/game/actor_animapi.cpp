@@ -68,7 +68,7 @@ void __fastcall Actor_SetAnimScript(
         ai_animmode_t animMode,
         scriptAnimAIFunctionTypes_t animScript)
 {
-  PIXBeginNamedEvent(-1, "setanimscript");
+  //PIXBeginNamedEvent(-1, "setanimscript");
   if ( !self && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_animapi.cpp", 111, 0, "%s", "self") )
     __debugbreak();
   if ( !pAnimScriptFunc

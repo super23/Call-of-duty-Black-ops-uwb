@@ -2,7 +2,7 @@
 
 void __fastcall Actor_Generic_Suspend(actor_s *self, ai_state_t eNextState)
 {
-  PIXBeginNamedEvent(-1, "genericsuspend");
+  //PIXBeginNamedEvent(-1, "genericsuspend");
   if ( self->stateLevel >= 6
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_generic.cpp",

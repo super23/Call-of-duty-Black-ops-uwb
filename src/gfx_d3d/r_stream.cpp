@@ -844,7 +844,7 @@ char __cdecl R_StreamUpdate(const float *viewPos)
 {
   char updateCalled; // [esp+13h] [ebp-1h]
 
-  PIXBeginNamedEvent(-1, "stream update");
+  //PIXBeginNamedEvent(-1, "stream update");
   updateCalled = 0;
   if ( r_streamClear->current.enabled || r_stream->modified )
   {
@@ -981,7 +981,7 @@ void __cdecl R_StreamUpdate_EndQuery()
   {
     __debugbreak();
   }
-  PIXBeginNamedEvent(-1, "wait r_stream_sort");
+  //PIXBeginNamedEvent(-1, "wait r_stream_sort");
   Sys_WaitWorkerCmdInternal(&r_stream_sortWorkerCmd);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
@@ -1004,7 +1004,7 @@ unsigned intR_StreamUpdate_EndQuery_Internal()
   int imagePart; // [esp+48h] [ebp-4h]
 
   sortedIndex = 0;
-  PIXBeginNamedEvent(-1, "R_Stream EndQuery");
+  //PIXBeginNamedEvent(-1, "R_Stream EndQuery");
   if ( Sys_IsRenderThread() )
     R_StreamUpdate_ProcessFileCallbacks();
 LABEL_3:
@@ -1281,7 +1281,7 @@ char __cdecl R_StreamUpdate_FindImageAndOptimize(const float *viewPos)
       __debugbreak();
     }
     maxDistSq = r_streamMaxDist->current.value * r_streamMaxDist->current.value;
-    PIXBeginNamedEvent(-1, "R_Stream update");
+    //PIXBeginNamedEvent(-1, "R_Stream update");
     dword_ADD7010 = 1;
     dword_ADD700C = 0;
     if ( rgp.world && viewPos )
@@ -1374,7 +1374,7 @@ void __cdecl R_StreamUpdate_AddForcedImages(float forceImportance, float touchIm
   int bitIndexa; // [esp+30h] [ebp-8h]
   int index; // [esp+34h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "r_stream_add_forced_images");
+  //PIXBeginNamedEvent(-1, "r_stream_add_forced_images");
   streamFrontendGlob.sortedImages[345] ^= 1u;
   for ( index = 0; index < 132; ++index )
   {
@@ -1732,7 +1732,7 @@ void __cdecl R_StreamUpdatePerClient(const float *viewPos)
     Sys_EnterCriticalSection(CRITSECT_STREAM_SYNC_COMMAND);
     if ( dword_ADD7010 && dword_ADD700C != -1 )
     {
-      PIXBeginNamedEvent(-1, "R_Stream update per client");
+      //PIXBeginNamedEvent(-1, "R_Stream update per client");
       maxDistSq = r_streamMaxDist->current.value * r_streamMaxDist->current.value;
       if ( dword_ADD700C > 0 )
       {
@@ -2036,7 +2036,7 @@ void __cdecl R_Stream_UpdateStaticModelsCmd(char *data)
 {
   unsigned int instId; // [esp+34h] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "R_Stream_UpdateStaticModelsCmd");
+  //PIXBeginNamedEvent(-1, "R_Stream_UpdateStaticModelsCmd");
   s_viewPos = *(float4 *)(data + 4);
   for ( instId = 0; instId < g_worldDpvs->smodelCount; ++instId )
     R_StreamUpdateStaticModel(instId, (const float *)data + 1, *((float *)data + 4), (float *)data + 5);
@@ -2092,7 +2092,7 @@ void __cdecl R_Stream_UpdateStaticSurfacesCmd(char *data)
 {
   unsigned int surfId; // [esp+10h] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "R_Stream_UpdateStaticSurfacesCmd");
+  //PIXBeginNamedEvent(-1, "R_Stream_UpdateStaticSurfacesCmd");
   s_viewPos = *(float4 *)(data + 4);
   for ( surfId = 0; surfId < g_worldDpvs->staticSurfaceCount; ++surfId )
     R_StreamUpdateWorldSurface(surfId, (const float *)data + 1, *((float *)data + 4), (float *)data + 5);
@@ -2226,7 +2226,7 @@ double __cdecl FastPointDistSqFromBounds(float4 mins, float4 maxs)
 
 void __cdecl R_Stream_SortCmd(_BYTE *data)
 {
-  PIXBeginNamedEvent(-1, "R_Stream_SortCmd");
+  //PIXBeginNamedEvent(-1, "R_Stream_SortCmd");
   R_StreamUpdate_EndQuerySort(data[4]);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
@@ -2237,7 +2237,7 @@ void __cdecl R_StreamUpdate_EndQuerySort(bool diskOrder)
   int index; // [esp+A0h] [ebp-8h]
   int imagePartIndex; // [esp+A4h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "R_Stream EndQuerySort");
+  //PIXBeginNamedEvent(-1, "R_Stream EndQuerySort");
   index = 0;
   while ( index < list_count )
   {
@@ -2285,7 +2285,7 @@ void __cdecl R_StreamUpdate_EndQuerySort(bool diskOrder)
 
 void __cdecl R_Stream_CombineCmd()
 {
-  PIXBeginNamedEvent(-1, "R_Stream_CombineCmd");
+  //PIXBeginNamedEvent(-1, "R_Stream_CombineCmd");
   R_StreamUpdate_CombineImportance();
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
@@ -2305,7 +2305,7 @@ unsigned intR_StreamUpdate_CombineImportance()
   unsigned int mask; // [esp+100h] [ebp-8h]
   unsigned int modelIndex; // [esp+104h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "R_Stream combine xmodels");
+  //PIXBeginNamedEvent(-1, "R_Stream combine xmodels");
   for ( modelIndex = 0; modelIndex < 0x3E8; ++modelIndex )
   {
     mask = 1 << (modelIndex & 0x1F);
@@ -2348,7 +2348,7 @@ unsigned intR_StreamUpdate_CombineImportance()
   }
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "R_Stream combine materials");
+  //PIXBeginNamedEvent(-1, "R_Stream combine materials");
   for ( materialIndex = 0; materialIndex < 0x1000; ++materialIndex )
   {
     if ( *(float *)&streamFrontendGlob.materialImportanceBits[materialIndex - 4096] != 0.0
@@ -2501,7 +2501,7 @@ void __cdecl R_StreamUpdateStatic(const float *viewPos, float maxDistSq, float *
   {
     __debugbreak();
   }
-  PIXBeginNamedEvent(-1, "R_Stream update static");
+  //PIXBeginNamedEvent(-1, "R_Stream update static");
   *(_QWORD *)s_viewPos.v = *(_QWORD *)viewPos;
   *(_QWORD *)&s_viewPos.unitVec[2].packed = *((_QWORD *)viewPos + 1);
   if ( rgp.world->streamInfo.aabbTreeCount > 0 )

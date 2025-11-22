@@ -56,7 +56,7 @@ void __cdecl Actor_MoveAlongPathWithTeam(actor_s *self, bool bRun, bool bUseInte
   ai_teammove_t eTeamMove; // [esp+2Ch] [ebp-8h]
   bool wasMoving; // [esp+33h] [ebp-1h]
 
-  PIXBeginNamedEvent(-1, "movealongpath");
+  //PIXBeginNamedEvent(-1, "movealongpath");
   if ( !Actor_HasPath(self)
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_team_move.cpp",

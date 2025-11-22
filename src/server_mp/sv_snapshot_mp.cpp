@@ -3130,14 +3130,14 @@ void __cdecl SV_SendClientMessages()
   int maxBytesPerFrame; // [esp+108h] [ebp-4h]
 
   numclients = 0;
-  PIXBeginNamedEvent(-1, "SV_SendClientMessages");
+  //PIXBeginNamedEvent(-1, "SV_SendClientMessages");
   sv.ubpsWindow[14] = 0;
   *(unsigned int *)&sv.gametype[36] = 0;
   memset(valid, 0, sizeof(valid));
   maxclients = com_maxclients->current.integer;
   maxBytesPerFrame = Live_GetNecessaryBandwidth() / 160;
   startClient = (lastClientSent + 1) % maxclients;
-  PIXBeginNamedEvent(-1, "extra messages");
+  //PIXBeginNamedEvent(-1, "extra messages");
   for ( clientCounter = 0; clientCounter < maxclients; ++clientCounter )
   {
     clientNum = (clientCounter + startClient) % maxclients;
@@ -3164,7 +3164,7 @@ void __cdecl SV_SendClientMessages()
         valid[clientNum] = 1;
         if ( sv.ubpsWindow[14] < maxBytesPerFrame && (c->header.state == 5 || c->header.state == 1) )
         {
-          PIXBeginNamedEvent(-1, "SV_BuildClientSnapshot");
+          //PIXBeginNamedEvent(-1, "SV_BuildClientSnapshot");
           SV_BuildClientSnapshot(c);
           if ( GetCurrentThreadId() == g_DXDeviceThread )
             D3DPERF_EndEvent();
@@ -3175,7 +3175,7 @@ void __cdecl SV_SendClientMessages()
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
   SV_SetServerStaticHeader();
-  PIXBeginNamedEvent(-1, "SV_SendClientSnapshot");
+  //PIXBeginNamedEvent(-1, "SV_SendClientSnapshot");
   for ( clientCounter = 0; clientCounter < maxclients; ++clientCounter )
   {
     clientNum = (clientCounter + startClient) % maxclients;
@@ -3186,11 +3186,11 @@ void __cdecl SV_SendClientMessages()
         break;
       lastClientSent = clientNum;
       v0 = va("SV_SendClientSnapshot %d", clientNum);
-      PIXBeginNamedEvent(-1, v0);
+      //PIXBeginNamedEvent(-1, v0);
       SV_BeginClientSnapshot(ca, &msg);
       if ( ca->header.state == 5 || ca->header.state == 1 )
       {
-        PIXBeginNamedEvent(-1, "SV_WriteSnapshotToClient");
+        //PIXBeginNamedEvent(-1, "SV_WriteSnapshotToClient");
         SV_WriteSnapshotToClient(ca, &msg);
         if ( GetCurrentThreadId() == g_DXDeviceThread )
           D3DPERF_EndEvent();
@@ -3209,7 +3209,7 @@ void __cdecl SV_SendClientMessages()
     lastClientSent = -1;
   if ( Demo_ShouldBuildDemoSnapshot() && Demo_IsRecording() )
   {
-    PIXBeginNamedEvent(-1, "Demo_BuildDemoSnapshot");
+    //PIXBeginNamedEvent(-1, "Demo_BuildDemoSnapshot");
     cb = &svs.clients[Demo_GetDemoClientIndex()];
     if ( !cb->bIsDemoClient
       && !Assert_MyHandler(
@@ -3267,7 +3267,7 @@ void __cdecl SV_SendClientMessages()
   g_archivingSnapshot = 1;
   if ( sv.state == SS_GAME )
   {
-    PIXBeginNamedEvent(-1, "SV_ArchiveSnapshot");
+    //PIXBeginNamedEvent(-1, "SV_ArchiveSnapshot");
     MSG_Init(&g_archiveMsg, tempServerMsgBuf, 0x10000);
     SV_ArchiveSnapshot(&g_archiveMsg);
     if ( GetCurrentThreadId() == g_DXDeviceThread )

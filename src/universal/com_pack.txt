@@ -1,8 +1,0 @@
-Vec3PackUnitVec
-Vec3UnpackUnitVec
-Vec4PackQuat
-FloatPack9S
-FloatPack10S
-Vec2PackTexCoords
-Vec2UnpackTexCoords
-Vec3PackNormAxis

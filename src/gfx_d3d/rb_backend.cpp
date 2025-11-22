@@ -741,7 +741,7 @@ void __cdecl RB_StretchPicCmd(GfxRenderCommandExecState *execState)
     v1 = va("\"%s\"", cmd->material->info.name);
   else
     v1 = va("\"%s\"", "noname");
-  PIXBeginNamedEvent(-1, v1);
+  //PIXBeginNamedEvent(-1, v1);
   RB_DrawStretchPicW(
     cmd->material,
     cmd->x,
@@ -1443,7 +1443,7 @@ void __cdecl R_DrawSurfs(GfxCmdBufContext context, GfxCmdBufState *prepassState,
     __debugbreak();
   }
   if ( context.state->prim.device != dx.device )
-    PIXBeginNamedEvent(-1, "draw surf");
+    //PIXBeginNamedEvent(-1, "draw surf");
   R_BeginPixMaterials(context.state);
   if ( prepassContext.state )
     R_BeginPixMaterials(prepassContext.state);
@@ -4434,7 +4434,7 @@ void __cdecl RB_DrawText2DCmd(GfxRenderCommandExecState *execState)
   v1 = *((float *)execState->cmd + 4) * 0.017453292;
   cosAngle = cos(v1);
   sinAngle = sin(v1);
-  PIXBeginNamedEvent(-1, (const char *)execState->cmd + 92);
+  //PIXBeginNamedEvent(-1, (const char *)execState->cmd + 92);
   DrawText2D(
     cmd->text,
     cmd->x,
@@ -4805,7 +4805,7 @@ void __cdecl RB_ExecuteRenderCommandsLoop(const void *cmds, int *ui3dTextureWind
   GfxRenderCommandExecState execState; // [esp+2Ch] [ebp-8h] BYREF
   const void *prevCmd; // [esp+30h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "RB_ExecuteRenderCommandsLoop");
+  //PIXBeginNamedEvent(-1, "RB_ExecuteRenderCommandsLoop");
   if ( rt.image )
     R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x28u, rt.image);
   if ( rgp.heatMapImage )
@@ -4880,7 +4880,7 @@ void __cdecl RB_ExecuteRenderCommandsLoop(const void *cmds, int *ui3dTextureWind
       {
         __debugbreak();
       }
-      PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], gfxRenderCommandNames[header->id]);
+      //PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], gfxRenderCommandNames[header->id]);
       RB_RenderCommandTable[header->id](&execState);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         D3DPERF_EndEvent();
@@ -4951,7 +4951,7 @@ void __cdecl RB_Draw3D()
         }
         viewInfoa = &data->viewInfo[v];
         Name = va("RB_Draw3D c=%d v=%d/%d", viewInfoa->localClientNum, v, data->viewInfoCount);
-        PIXBeginNamedEvent(-1, Name);
+        //PIXBeginNamedEvent(-1, Name);
         RB_ResetStatTracking(v);
         RB_Draw3DInternal(viewInfoa);
         if ( GetCurrentThreadId() == g_DXDeviceThread )
@@ -4961,7 +4961,7 @@ void __cdecl RB_Draw3D()
     else
     {
       v0 = va("RB_Draw3D c=%d v=%d/%d", viewInfo->localClientNum, data->viewInfoIndex, data->viewInfoCount);
-      PIXBeginNamedEvent(-1, v0);
+      //PIXBeginNamedEvent(-1, v0);
       RB_ResetStatTracking(data->viewInfoIndex);
       RB_Draw3DInternal(viewInfo);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
@@ -4976,7 +4976,7 @@ void __cdecl RB_CallExecuteRenderCommands()
   int semaphore; // [esp+18h] [ebp-Ch]
   int hr; // [esp+1Ch] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "RB_CallExecuteRenderCommands");
+  //PIXBeginNamedEvent(-1, "RB_CallExecuteRenderCommands");
   if ( !backEndData
     && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_backend.cpp", 6163, 0, "%s", "backEndData") )
   {
@@ -5032,7 +5032,7 @@ void __cdecl RB_CallExecuteRenderCommands()
     RB_SetUI3DSamplerAndConstants(&gfxCmdBufSourceState, &backEndData->rbUI3D);
     if ( backEndData->cmds )
     {
-      PIXBeginNamedEvent(-1, "backEndData->cmds");
+      //PIXBeginNamedEvent(-1, "backEndData->cmds");
       RB_ExecuteRenderCommandsLoop(backEndData->cmds, 0);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         D3DPERF_EndEvent();
@@ -5109,7 +5109,7 @@ void __cdecl RB_UpdateDynamicBuffers(GfxBackEndData *backendData)
   unsigned __int8 *bufferb; // [esp+18h] [ebp-8h]
   unsigned __int8 *bufferc; // [esp+18h] [ebp-8h]
 
-  PIXBeginNamedEvent(0, "RB_UpdateDynamicBuffers");
+  //PIXBeginNamedEvent(0, "RB_UpdateDynamicBuffers");
   buffer = (unsigned __int8 *)R_LockVertexBuffer(
                                 backendData->skinnedCacheVb->buffer,
                                 0,
@@ -5343,7 +5343,7 @@ void __cdecl RB_RenderCommandFrame(const GfxBackEndData *data)
     clientNum = data->viewInfo[viewInfoIdx].localClientNum;
   }
   Name = va("exec cmds c=%d v=%d", clientNum, viewInfoIdx);
-  PIXBeginNamedEvent(-1, Name);
+  //PIXBeginNamedEvent(-1, Name);
   RB_BeginFrame(data);
   RB_DrawComposites();
   RB_Draw3D();
@@ -5353,7 +5353,7 @@ void __cdecl RB_RenderCommandFrame(const GfxBackEndData *data)
   backEndData = 0;
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "Sys_RenderCompleted()");
+  //PIXBeginNamedEvent(-1, "Sys_RenderCompleted()");
   Sys_RenderCompleted();
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
@@ -5364,7 +5364,7 @@ void __cdecl RB_RenderCommandFrame(const GfxBackEndData *data)
     if ( semaphore )
       R_AcquireDXDeviceOwnership(0);
   }
-  PIXBeginNamedEvent(-1, "end frame");
+  //PIXBeginNamedEvent(-1, "end frame");
   RB_EndFrame(drawType);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
@@ -5527,7 +5527,7 @@ void __cdecl RB_SaveScreen_BlendBlurred(const GfxBlendSaveScreenBlurredParam *p,
 
   if ( p->enabled )
   {
-    PIXBeginNamedEvent(-1, "RB_SaveScreen_BlendBlurred");
+    //PIXBeginNamedEvent(-1, "RB_SaveScreen_BlendBlurred");
     if ( tess.indexCount )
       RB_EndTessSurface();
     R_Set2D(&gfxCmdBufSourceState);
@@ -5624,7 +5624,7 @@ void __cdecl RB_SaveScreen_BlendFlashed(const GfxBlendSaveScreenFlashedParam *p,
 
   if ( p->enabled )
   {
-    PIXBeginNamedEvent(-1, "RB_SaveScreen_BlendFlashed");
+    //PIXBeginNamedEvent(-1, "RB_SaveScreen_BlendFlashed");
     if ( tess.indexCount )
       RB_EndTessSurface();
     R_Set2D(&gfxCmdBufSourceState);
@@ -5700,7 +5700,7 @@ void __cdecl RB_SaveScreen(const GfxSaveScreenParam *p, const GfxViewInfo *viewI
 
   if ( p->mode )
   {
-    PIXBeginNamedEvent(-1, "RB_SaveScreen");
+    //PIXBeginNamedEvent(-1, "RB_SaveScreen");
     if ( p->screenTimerId >= 4u
       && !Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_backend.cpp",

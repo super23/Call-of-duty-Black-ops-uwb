@@ -1,5 +1,0 @@
-SV_ArchiveSnapshot
-SV_GentityNumLocal
-G_GetClientStateLocal
-G_GetMatchStateLocal
-GetFollowPlayerStateLocal

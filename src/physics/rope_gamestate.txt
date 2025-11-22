@@ -1,3 +1,0 @@
-GetEntityIndex
-Rope_WriteGameState
-Rope_ReadGameState

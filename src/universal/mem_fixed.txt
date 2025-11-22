@@ -1,5 +1,0 @@
-Hunk_FixedInit
-Hunk_FixedReset
-Hunk_FixedDestroy
-Hunk_FixedAlloc
-Hunk_FixedFree

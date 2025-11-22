@@ -1,4 +1,0 @@
-Decode_Init
-Decode_SetOptions
-Decode_Shutdown
-Decode_Sample

@@ -1,6 +1,0 @@
-MatchMaking_PC_QUICKMATCH_Query::MatchMaking_PC_QUICKMATCH_Query
-MatchMaking_PC_QUICKMATCH_Query::serialize
-MatchMaking_PC_WAGER_Query::MatchMaking_PC_WAGER_Query
-MatchMaking_PC_WAGER_Query::serialize
-MatchMaking_PC_GEO_Query::MatchMaking_PC_GEO_Query
-MatchMaking_PC_GEO_Query::serialize

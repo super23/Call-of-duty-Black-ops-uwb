@@ -537,7 +537,7 @@ void __cdecl CG_PointTraceToEntity(const pointtrace_t *clip, unsigned int entInd
   int partBits[5]; // [esp+1CCh] [ebp-20h] BYREF
   float absMins[3]; // [esp+1E0h] [ebp-Ch] BYREF
 
-  PIXBeginNamedEvent(-1, "CG_PointTraceToEntity");
+  //PIXBeginNamedEvent(-1, "CG_PointTraceToEntity");
   if ( !clip && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp", 573, 0, "%s", "clip") )
     __debugbreak();
   if ( entIndex >= 0x600
@@ -599,7 +599,7 @@ LABEL_97:
   {
     if ( !dobjEA )
     {
-      PIXBeginNamedEvent(-1, "non_dobj");
+      //PIXBeginNamedEvent(-1, "non_dobj");
       if ( !p_nextState->solid
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp", 691, 0, "%s", "es->solid") )
       {
@@ -727,7 +727,7 @@ LABEL_113:
       goto LABEL_117;
     }
     dobj = dobjEA;
-    PIXBeginNamedEvent(-1, "dobj");
+    //PIXBeginNamedEvent(-1, "dobj");
     hasCollMap = DObjHasCollmap(dobjEA);
     character = cent->nextState.eType == 19
              || cent->nextState.eType == 17
@@ -772,7 +772,7 @@ LABEL_113:
     {
       v3 = DObjGetName(dobj);
       Name = va("char: %s", v3);
-      PIXBeginNamedEvent(-1, Name);
+      //PIXBeginNamedEvent(-1, Name);
       DObjTracelinePartBits(dobj, partBits);
       CG_DObjCalcPose(&centEA->pose, dobj, partBits);
       DObjTraceline(dobj, localStart, localEnd, clip->priorityMap, &objTrace);
@@ -783,7 +783,7 @@ LABEL_113:
     {
       v4 = DObjGetName(dobj);
       v9 = va("non_char: %s", v4);
-      PIXBeginNamedEvent(-1, v9);
+      //PIXBeginNamedEvent(-1, v9);
       DObjGeomTracelinePartBits(dobj, clip->contentmask, partBits);
       CG_DObjCalcPose(&centEA->pose, dobj, partBits);
       DObjGeomTraceline(dobj, localStart, localEnd, clip->contentmask, &objTrace);
@@ -824,7 +824,7 @@ void __cdecl CG_PointTraceToEntities(const pointtrace_t *clip, trace_t *results)
   _QWORD start[2]; // [esp+18h] [ebp-20h] BYREF
   _QWORD end[2]; // [esp+28h] [ebp-10h] BYREF
 
-  PIXBeginNamedEvent(-1, "cg_pointtracetoentities");
+  //PIXBeginNamedEvent(-1, "cg_pointtracetoentities");
   if ( !clip && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp", 839, 0, "%s", "clip") )
     __debugbreak();
   if ( !results && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp", 840, 0, "%s", "results") )
@@ -1024,7 +1024,7 @@ void __cdecl CG_TraceCapsule(
   moveclip_t clip; // [esp+4Ch] [ebp-78h] BYREF
   float delta[3]; // [esp+B8h] [ebp-Ch]
 
-  PIXBeginNamedEvent(-1, "CG_TraceCapsule");
+  //PIXBeginNamedEvent(-1, "CG_TraceCapsule");
   if ( !results && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp", 863, 0, "%s", "results") )
     __debugbreak();
   if ( !mins && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp", 864, 0, "%s", "mins") )
@@ -1173,7 +1173,7 @@ void __cdecl CG_ClipMoveToEntities(const moveclip_t *clip, trace_t *results)
   _QWORD start[2]; // [esp+1Ch] [ebp-20h] BYREF
   _QWORD end[2]; // [esp+2Ch] [ebp-10h] BYREF
 
-  PIXBeginNamedEvent(-1, "cg_clipmovetoentities");
+  //PIXBeginNamedEvent(-1, "cg_clipmovetoentities");
   if ( !clip && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp", 543, 0, "%s", "clip") )
     __debugbreak();
   if ( !results && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp", 544, 0, "%s", "results") )
@@ -1652,7 +1652,7 @@ void __cdecl CG_TracePoint(
   pointtrace_t clip; // [esp+58h] [ebp-58h] BYREF
   IgnoreEntParams ignoreEntParams; // [esp+A0h] [ebp-10h] BYREF
 
-  PIXBeginNamedEvent(-1, "CG_TracePoint");
+  //PIXBeginNamedEvent(-1, "CG_TracePoint");
   if ( ((*(unsigned int *)start & 0x7F800000) == 0x7F800000
      || ((unsigned int)start[1] & 0x7F800000) == 0x7F800000
      || ((unsigned int)start[2] & 0x7F800000) == 0x7F800000)
@@ -1917,7 +1917,7 @@ int __cdecl CG_AreaEntities(const float *mins, const float *maxs, int *entityLis
   int count; // [esp+20h] [ebp-20h]
   CEntityAreaParms areaParms; // [esp+24h] [ebp-1Ch] BYREF
 
-  PIXBeginNamedEvent(-1, "CG_AreaEntities");
+  //PIXBeginNamedEvent(-1, "CG_AreaEntities");
   if ( !mins && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp", 1097, 0, "%s", "mins") )
     __debugbreak();
   if ( !maxs && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp", 1097, 0, "%s", "maxs") )

@@ -1,2 +1,0 @@
-Load_ScriptStringCustom
-Mark_ScriptStringCustom

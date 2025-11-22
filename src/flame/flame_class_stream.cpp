@@ -508,7 +508,7 @@ void __cdecl CG_Flame_Render()
 {
   const flameStream_s *stream; // [esp+14h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "CG_Flame_Render");
+  //PIXBeginNamedEvent(-1, "CG_Flame_Render");
   stream = flameStreamsUsed;
   if ( flameStreamsUsed && !Flame_GetLocalClientSourceRange() )
   {

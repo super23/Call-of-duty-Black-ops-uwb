@@ -1,9 +1,0 @@
-IK_Layer_TerrainMapping
-IK_Layer_ApplyFootIK
-IK_Layer_ApplyHandIK
-IK_Layer_LeftHandOnGun
-IK_Layer_PlayerControllers
-IK_Layer_PlayerPitch
-IK_Layer_LookAtEntity
-IK_Layer_PreventHeadClip
-IK_ProcessLayers

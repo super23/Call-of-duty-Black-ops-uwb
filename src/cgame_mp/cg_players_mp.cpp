@@ -592,7 +592,7 @@ void __cdecl CG_Player(int localClientNum, centity_s *cent)
         ci = &cgameGlob->bgs.clientinfo[iClientNum];
         if ( cent->tree != cgameGlob->bgs.clientinfo[iClientNum].pXAnimTree )
           cent->tree = ci->pXAnimTree;
-        PIXBeginNamedEvent(-1, "script");
+        //PIXBeginNamedEvent(-1, "script");
         if ( cent->tree )
         {
           v8 = cg_loadScripts && cg_loadScripts->current.enabled;
@@ -608,7 +608,7 @@ void __cdecl CG_Player(int localClientNum, centity_s *cent)
           D3DPERF_EndEvent();
         CG_UpdateMinigunSpin(localClientNum, cgameGlob, cent);
         CG_UpdatePerkSounds(localClientNum, cgameGlob);
-        PIXBeginNamedEvent(-1, "sliding");
+        //PIXBeginNamedEvent(-1, "sliding");
         if ( BG_IsSliding(ci) )
         {
           time = CG_GetLocalClientGlobals(localClientNum)->time;
@@ -632,7 +632,7 @@ void __cdecl CG_Player(int localClientNum, centity_s *cent)
         }
         if ( g_DXDeviceThread == GetCurrentThreadId() )
           D3DPERF_EndEvent();
-        PIXBeginNamedEvent(-1, "triggers");
+        //PIXBeginNamedEvent(-1, "triggers");
         if ( CL_LocalClient_IsFirstActive(localClientNum) )
           CG_DoTouchTriggers(cent, localClientNum);
         if ( GetCurrentThreadId() == g_DXDeviceThread )
@@ -655,7 +655,7 @@ void __cdecl CG_Player(int localClientNum, centity_s *cent)
             LocalClientGlobals = CG_GetLocalClientGlobals(localClientNum);
             CG_DObjGetWorldTagPos(&LocalClientGlobals->predictedPlayerEntity.pose, obj, scr_const.tag_flash, v17);
           }
-          PIXBeginNamedEvent(-1, "animation");
+          //PIXBeginNamedEvent(-1, "animation");
           BG_PlayerAnimation(localClientNum, p_nextState, ci);
           if ( CG_Player_ApplyVehicleAnimOffsets(localClientNum, p_nextState, cent, ci) )
           {
@@ -663,15 +663,15 @@ void __cdecl CG_Player(int localClientNum, centity_s *cent)
               CG_PlayerTurretPositionAndBlend(localClientNum, cent);
             if ( g_DXDeviceThread == GetCurrentThreadId() )
               D3DPERF_EndEvent();
-            PIXBeginNamedEvent(-1, "pre controllers");
+            //PIXBeginNamedEvent(-1, "pre controllers");
             CG_Player_PreControllers(obj, cent);
             if ( g_DXDeviceThread == GetCurrentThreadId() )
               D3DPERF_EndEvent();
-            PIXBeginNamedEvent(-1, "weapon visibility");
+            //PIXBeginNamedEvent(-1, "weapon visibility");
             CG_UpdateWeaponVisibilityImmediate(localClientNum, cent);
             if ( g_DXDeviceThread == GetCurrentThreadId() )
               D3DPERF_EndEvent();
-            PIXBeginNamedEvent(-1, "R_AddDObjToScene");
+            //PIXBeginNamedEvent(-1, "R_AddDObjToScene");
             lightingOrigin[0] = cent->pose.origin[0];
             lightingOrigin[1] = cent->pose.origin[1];
             lightingOrigin[2] = cent->pose.origin[2];
@@ -795,7 +795,7 @@ void __cdecl CG_Player(int localClientNum, centity_s *cent)
               D3DPERF_EndEvent();
             if ( (p_nextState->lerp.eFlags & 0x40000) == 0 )
             {
-              PIXBeginNamedEvent(-1, "CG_AddPlayerWeapon");
+              //PIXBeginNamedEvent(-1, "CG_AddPlayerWeapon");
               placement.base.origin[0] = cent->pose.origin[0];
               placement.base.origin[1] = cent->pose.origin[1];
               placement.base.origin[2] = cent->pose.origin[2];

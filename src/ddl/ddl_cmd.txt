@@ -1,3 +1,0 @@
-DDL_Cmd_GetAsset_f
-DDL_Cmd_Show_f
-DDL_Cmd_Init

@@ -1,1 +1,0 @@
-Clan_GetName

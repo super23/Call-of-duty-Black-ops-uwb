@@ -1578,7 +1578,7 @@ void __cdecl FireBulletPenetrate(
   char traceHita; // [esp+2A4h] [ebp+28h]
   char traceHitb; // [esp+2A4h] [ebp+28h]
 
-  PIXBeginNamedEvent(-1, "FireBulletPenetrate");
+  //PIXBeginNamedEvent(-1, "FireBulletPenetrate");
   memset(&revBr, 0, 16);
   if ( !bp && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_weapons.cpp", 2837, 0, "%s", "bp") )
     __debugbreak();
@@ -1973,7 +1973,7 @@ char __cdecl BulletTrace(
   centity_s *Entity; // [esp+Ch] [ebp-2Ch]
   unsigned __int16 hitEntId; // [esp+34h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "BulletTrace");
+  //PIXBeginNamedEvent(-1, "BulletTrace");
   if ( !bp && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_weapons.cpp", 2684, 0, "%s", "bp") )
     __debugbreak();
   if ( !weapDef
@@ -4903,7 +4903,7 @@ void __cdecl CG_FireWeapon(
   const WeaponVariantDef *weaponVariantDef; // [esp+ACh] [ebp-8h]
   bool playerUsingTurret; // [esp+B3h] [ebp-1h]
 
-  PIXBeginNamedEvent(-1, "CG_FireWeapon");
+  //PIXBeginNamedEvent(-1, "CG_FireWeapon");
   ent = &cent->nextState;
   if ( !weapon )
     weapon = ent->weapon;
@@ -5062,7 +5062,7 @@ void __cdecl DrawBulletImpacts(
   float aimSpreadAmount; // [esp+1E8h] [ebp-34h]
   orientation_t gunOrient; // [esp+1ECh] [ebp-30h] BYREF
 
-  PIXBeginNamedEvent(-1, "DrawBulletImpacts");
+  //PIXBeginNamedEvent(-1, "DrawBulletImpacts");
   weaponDef = BG_GetWeaponDef(weapon);
   cgameGlob = CG_GetLocalClientGlobals(localClientNum);
   secondBarrel = 0;
@@ -5759,7 +5759,7 @@ void __cdecl CG_SndWeaponFire(snd_weapon_shot *shot)
   int firesound; // [esp+2Ch] [ebp-Ch]
   const WeaponDef *weaponDef; // [esp+34h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "CG_SndWeaponFire");
+  //PIXBeginNamedEvent(-1, "CG_SndWeaponFire");
   weaponDef = BG_GetWeaponDef(shot->weapon);
   if ( !weaponDef
     && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_weapons.cpp", 6363, 0, "%s", "weaponDef") )
@@ -5893,7 +5893,7 @@ void __cdecl CG_WeaponFireSingle(
   bool simulate; // [esp+61h] [ebp-3h]
   bool isAuto; // [esp+63h] [ebp-1h]
 
-  PIXBeginNamedEvent(-1, "CG_WeaponFireSingle");
+  //PIXBeginNamedEvent(-1, "CG_WeaponFireSingle");
   if ( ((*(unsigned int *)origin & 0x7F800000) == 0x7F800000
      || ((unsigned int)origin[1] & 0x7F800000) == 0x7F800000
      || ((unsigned int)origin[2] & 0x7F800000) == 0x7F800000)
@@ -5969,7 +5969,7 @@ void __cdecl CG_SndPingAutoSim(snd_weapon_shot *shot)
   snd_autosim *found_sim; // [esp+3Ch] [ebp-Ch]
   snd_autosim *free_sim; // [esp+44h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "CG_SndPingAutoSim");
+  //PIXBeginNamedEvent(-1, "CG_SndPingAutoSim");
   free_sim = 0;
   found_sim = 0;
   for ( i = 0; i < 0x40; ++i )

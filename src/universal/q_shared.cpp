@@ -131,15 +131,15 @@ double __cdecl FloatReadNoSwap(int n)
   return *(float *)&n;
 }
 
-FloatWriteSwap::__l2::<unnamed_type_dat1> __cdecl FloatWriteSwap(float f)
+FloatWriteSwap_union __cdecl FloatWriteSwap(float f)
 {
-  FloatWriteSwap::__l2::<unnamed_type_dat1> dat2; // [esp+4h] [ebp-4h]
+    FloatWriteSwap_union dat2; // [esp+4h] [ebp-4h]
 
-  dat2.b[0] = HIBYTE(f);
-  dat2.b[1] = BYTE2(f);
-  dat2.b[2] = BYTE1(f);
-  dat2.b[3] = LOBYTE(f);
-  return dat2;
+    dat2.b[0] = HIBYTE(f);
+    dat2.b[1] = BYTE2(f);
+    dat2.b[2] = BYTE1(f);
+    dat2.b[3] = LOBYTE(f);
+    return dat2;
 }
 
 void __cdecl Swap_InitLittleEndian()

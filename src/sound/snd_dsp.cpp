@@ -1222,7 +1222,7 @@ void __cdecl SND_DspFxSourceMono(
   v7 = (const snd_dsp_source_params *)params;
   if ( params->bpfF < -0.0000152879 )
   {
-    PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "lpf");
+    //PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "lpf");
     SND_OcclusionLpfCoef(v7->lpfAttenuation, v7->lpfRatio, v7->frameRate, &b0, (float *)&params);
     SND_DspOnePoleFilterMono(frameCount, frames, b0, *(float *)&params, &v6->lpfy);
     PIXEndNamedEvent();
@@ -1231,7 +1231,7 @@ void __cdecl SND_DspFxSourceMono(
   params = &v7->futz;
   if ( blend > 0.0000152879 )
   {
-    PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "futz");
+    //PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "futz");
     SND_DspFutzMono(params, &v6->futz, v7->frameRate, frameCount, frames, tempa, tempb);
     PIXEndNamedEvent();
   }
@@ -1303,7 +1303,7 @@ void __cdecl SND_DspFxMasterNoVoiceSingleChannel(
         snd_dsp_master_no_voice_state *state,
         snd_dsp_meters *meters)
 {
-  PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "comp");
+  //PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "comp");
   if ( params->compE > 0.0000152879 )
   {
     if ( fabs(params->compPG - 1.0) > 0.0000152879 )
@@ -1341,7 +1341,7 @@ void __cdecl SND_DspFxMasterSingleChannel(
   if ( !meters && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_dsp.cpp", 2109, 0, "%s", "meters") )
     __debugbreak();
   SND_DspScaleCache(frameCount, params->eqG, frames);
-  PIXBeginNamedEvent(-1, "eq");
+  //PIXBeginNamedEvent(-1, "eq");
   if ( params->lowE <= 0.0000152879 )
   {
     memset(state, 0, 0x20u);
@@ -1387,7 +1387,7 @@ void __cdecl SND_DspFxMasterSingleChannel(
     SND_DspBiquadNanCheck(&state->hi);
   }
   PIXEndNamedEvent();
-  PIXBeginNamedEvent(-1, "limit");
+  //PIXBeginNamedEvent(-1, "limit");
   if ( params->limitE > 0.0000152879 )
   {
     if ( fabs(params->limitPG - 1.0) > 0.0000152879 )

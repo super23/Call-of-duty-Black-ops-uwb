@@ -1,5 +1,0 @@
-RB_AllocSuperFlareQueries
-RB_FreeSuperFlareQueries
-RB_DrawSuperFlareOccluders
-RB_DrawSuperFlareOccluder
-RB_SetSuperFlareQuads

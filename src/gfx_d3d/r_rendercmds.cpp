@@ -434,7 +434,7 @@ unsigned intR_PerformanceCounters()
 {
   unsigned intresult; // eax
 
-  PIXBeginNamedEvent(-1, "dev perf counters");
+  //PIXBeginNamedEvent(-1, "dev perf counters");
   result = GetCurrentThreadId();
   if ( result == (unsigned int)g_DXDeviceThread )
   {
@@ -505,7 +505,7 @@ void __cdecl R_ToggleSmpFrameCmd(char type)
     __debugbreak();
   }
   BG_EvalVehicleName();
-  PIXBeginNamedEvent(-1, "wait renderer");
+  //PIXBeginNamedEvent(-1, "wait renderer");
   sem = R_ReleaseDXDeviceOwnership();
   Sys_WaitRenderer();
   if ( sem )
@@ -515,7 +515,7 @@ void __cdecl R_ToggleSmpFrameCmd(char type)
   RB_CopyBackendStats();
   if ( (type & 2) != 0 )
     R_PerformanceCounters();
-  PIXBeginNamedEvent(-1, "wait frontend workercmds");
+  //PIXBeginNamedEvent(-1, "wait frontend workercmds");
   semaphore = R_ReleaseDXDeviceOwnership();
   while ( !R_FinishedFrontendWorkerCmds() )
     NET_Sleep(1u);
@@ -723,7 +723,7 @@ unsigned intR_ToggleSmpFrame()
   volatile int surfPos; // [esp+0h] [ebp-20h]
   DebugGlobals *debugGlobalsEntry; // [esp+1Ch] [ebp-4h]
 
-  PIXBeginNamedEvent((int)&cls.rankedServers[537].city[61], "R_ToggleSmpFrame");
+  //PIXBeginNamedEvent((int)&cls.rankedServers[537].city[61], "R_ToggleSmpFrame");
   if ( !rg.viewInfoCount )
     CG_PerfUpdate();
   s_smpFrame = (s_smpFrame + 1) % 2;
@@ -768,7 +768,7 @@ unsigned intR_ToggleSmpFrame()
   frontEndDataOut->modelLightingPatchCount = 0;
   frontEndDataOut->skinnedCacheVb->used = 0;
   s_cmdList = frontEndDataOut->commands;
-  PIXBeginNamedEvent(-1, "dev clear buffers");
+  //PIXBeginNamedEvent(-1, "dev clear buffers");
   if ( frontEndDataOut->drawSurfCount > 0x8000u
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_rendercmds.cpp",

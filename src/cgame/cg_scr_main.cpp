@@ -931,7 +931,7 @@ unsigned intCScr_Distance()
   float v0[3]; // [esp+24h] [ebp-1Ch] BYREF
   float v1[3]; // [esp+34h] [ebp-Ch] BYREF
 
-  PIXBeginNamedEvent(-1, "CScr_Distance");
+  //PIXBeginNamedEvent(-1, "CScr_Distance");
   Scr_GetVector(0, v0, SCRIPTINSTANCE_CLIENT);
   Scr_GetVector(1u, v1, SCRIPTINSTANCE_CLIENT);
   value = Vec3Distance(v0, v1);
@@ -1514,7 +1514,7 @@ unsigned intCScr_SetDvar()
   const char *text; // [esp+444h] [ebp-8h]
   char *pCh; // [esp+448h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "SetDvar");
+  //PIXBeginNamedEvent(-1, "SetDvar");
   dvarName = Scr_GetString(0, SCRIPTINSTANCE_CLIENT);
   text = Scr_GetString(1u, SCRIPTINSTANCE_CLIENT);
   strlen(text);
@@ -1947,7 +1947,7 @@ unsigned intCScr_PlayLoopSound()
   float fadeTimea; // [esp+38h] [ebp-Ch]
   int entId; // [esp+40h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "CScr_PlayLoopSound");
+  //PIXBeginNamedEvent(-1, "CScr_PlayLoopSound");
   localClientNum = CScr_GetLocalClientNum(0).intValue;
   entId = Scr_GetInt(1u, SCRIPTINSTANCE_CLIENT).intValue;
   if ( (unsigned int)localClientNum >= 2
@@ -2030,7 +2030,7 @@ unsigned intCScr_StopLoopSound()
   float fadeTime; // [esp+30h] [ebp-Ch]
   int entId; // [esp+38h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "CScr_StopLoopSound");
+  //PIXBeginNamedEvent(-1, "CScr_StopLoopSound");
   localClientNum = CScr_GetLocalClientNum(0).intValue;
   entId = Scr_GetInt(1u, SCRIPTINSTANCE_CLIENT).intValue;
   if ( (unsigned int)localClientNum >= 2
@@ -2449,7 +2449,7 @@ unsigned intCScr_SetSoundVolume()
   VariableUnion v1; // eax
   float x; // [esp+24h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "setsoundvol");
+  //PIXBeginNamedEvent(-1, "setsoundvol");
   if ( Scr_GetNumParam(SCRIPTINSTANCE_CLIENT) != 2 )
   {
     Scr_ParamError(0, "setsoundvolume takes two parameters.", SCRIPTINSTANCE_CLIENT);
@@ -2494,7 +2494,7 @@ unsigned intCScr_SetSoundPitch()
   VariableUnion v1; // eax
   float x; // [esp+24h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "setsoundpitch");
+  //PIXBeginNamedEvent(-1, "setsoundpitch");
   if ( Scr_GetNumParam(SCRIPTINSTANCE_CLIENT) != 2 )
   {
     Scr_ParamError(0, "setsoundpitch takes two parameters.", SCRIPTINSTANCE_CLIENT);
@@ -3258,7 +3258,7 @@ unsigned intCScr_Spawn()
   int localClientNum; // [esp+30h] [ebp-8h]
   centity_s *ent; // [esp+34h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "spawn");
+  //PIXBeginNamedEvent(-1, "spawn");
   localClientNum = CScr_GetLocalClientNum(0).intValue;
   Scr_GetVector(1u, origin, SCRIPTINSTANCE_CLIENT);
   ent = CG_Spawn(localClientNum);
@@ -3862,7 +3862,7 @@ void __cdecl CScrCmd_IsDriving(scr_entref_t entref)
   const cg_s *cgameGlob; // [esp+2Ch] [ebp-10h]
   VariableUnion localClientNum; // [esp+30h] [ebp-Ch]
 
-  PIXBeginNamedEvent(-1, "CScrCmd_IsDriving");
+  //PIXBeginNamedEvent(-1, "CScrCmd_IsDriving");
   if ( entref.classnum )
   {
     Scr_Error(SCRIPTINSTANCE_CLIENT, "not an entity", 0);
@@ -3908,7 +3908,7 @@ void __cdecl CScrCmd_IsLocalClientDriver(scr_entref_t entref)
   const cg_s *cgameGlob; // [esp+2Ch] [ebp-10h]
   VariableUnion localClientNum; // [esp+30h] [ebp-Ch]
 
-  PIXBeginNamedEvent(-1, "CScrCmd_IsLocalClientDriver");
+  //PIXBeginNamedEvent(-1, "CScrCmd_IsLocalClientDriver");
   if ( entref.classnum )
   {
     Scr_Error(SCRIPTINSTANCE_CLIENT, "not an entity", 0);
@@ -3960,7 +3960,7 @@ void __cdecl CScrCmd_GetLocalClientDriver(scr_entref_t entref)
   int i; // [esp+20h] [ebp-10h]
   centity_s *pSelf; // [esp+24h] [ebp-Ch]
 
-  PIXBeginNamedEvent(-1, "CScrCmd_GetLocalClientDriver");
+  //PIXBeginNamedEvent(-1, "CScrCmd_GetLocalClientDriver");
   if ( entref.classnum )
   {
     Scr_Error(SCRIPTINSTANCE_CLIENT, "not an entity", 0);
@@ -4019,7 +4019,7 @@ void __cdecl CScrCmd_GetWheelSurface(scr_entref_t entref)
   unsigned int wheelName; // [esp+24h] [ebp-8h]
   int wheel; // [esp+28h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "CScrCmd_GetWheelSurface");
+  //PIXBeginNamedEvent(-1, "CScrCmd_GetWheelSurface");
   if ( entref.classnum )
   {
     Scr_Error(SCRIPTINSTANCE_CLIENT, "not an entity", 0);
@@ -4748,7 +4748,7 @@ unsigned int __cdecl CScr_PlayFXInternal(int localClientNum, int fxId, float *an
   fxDef = CG_GetLocalClientStaticGlobals(localClientNum)->fxs[fxId];
   if ( !fxDef && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_scr_main.cpp", 5067, 0, "%s", "fxDef") )
     __debugbreak();
-  PIXBeginNamedEvent(-1, "CScr_PlayFXInternal");
+  //PIXBeginNamedEvent(-1, "CScr_PlayFXInternal");
   AnglesToAxis(angles, axis);
   v6 = FX_PlayOrientedEffect(localClientNum, fxDef, time, pos, axis);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
@@ -5161,7 +5161,7 @@ unsigned intCScr_BulletTrace()
   iIgnoreEntNum = 1023;
   iClipMask = (int)&cls.recentServers[7543].countrycode[1];
   memset(&trace, 0, 16);
-  PIXBeginNamedEvent(-1, "CScr_BulletTrace");
+  //PIXBeginNamedEvent(-1, "CScr_BulletTrace");
   Scr_GetVector(0, vStart, SCRIPTINSTANCE_CLIENT);
   Scr_GetVector(1u, vEnd, SCRIPTINSTANCE_CLIENT);
   if ( !Scr_GetInt(2u, SCRIPTINSTANCE_CLIENT).intValue )
@@ -5235,7 +5235,7 @@ unsigned intCScr_TracePoint()
   float p0[3]; // [esp+74h] [ebp-10h] BYREF
   int mask; // [esp+80h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "CScr_TracePoint");
+  //PIXBeginNamedEvent(-1, "CScr_TracePoint");
   Scr_GetVector(0, p0, SCRIPTINSTANCE_CLIENT);
   Scr_GetVector(1u, p1, SCRIPTINSTANCE_CLIENT);
   mask = (int)&cls.recentServers[7543].countrycode[1];

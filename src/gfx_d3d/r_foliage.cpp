@@ -679,7 +679,7 @@ int __cdecl dyn_smodel_drawstateCallback(jqBatch *batch)
   unsigned int *cmd; // [esp+14h] [ebp-4h]
 
   cmd = jqLockData(batch);
-  PIXBeginNamedEvent(-1, "dyn_smodel_drawstate");
+  //PIXBeginNamedEvent(-1, "dyn_smodel_drawstate");
   R_CalcVisDynSModelDrawState(
     (const unsigned __int16 *)cmd[1],
     cmd[2],
@@ -825,7 +825,7 @@ void __cdecl R_CalcVisDynSModelDrawState(
 
 void __cdecl R_DynSModelWaitWorker()
 {
-  PIXBeginNamedEvent(-1, "R_DynSModelWaitWorker");
+  //PIXBeginNamedEvent(-1, "R_DynSModelWaitWorker");
   Sys_AssistAndWaitWorkerCmdInternal(&dyn_smodel_drawstateWorkerCmd);
   g_drawStateWorkerSharedBuffer.inUse = 0;
   if ( g_DXDeviceThread == GetCurrentThreadId() )
@@ -878,7 +878,7 @@ void __cdecl R_DynSModelBuildClientView(
   float forceFrequency[2]; // [esp+214h] [ebp-Ch]
   PerFrameFoliageInfo *frameInfo; // [esp+21Ch] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "R_DynSModelBuildClientView");
+  //PIXBeginNamedEvent(-1, "R_DynSModelBuildClientView");
   localClientNum = clientVis->localClientNum;
   R_DynSModelWaitWorker();
   if ( g_drawStateWorkerSharedBuffer.inUse

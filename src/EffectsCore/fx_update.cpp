@@ -2523,7 +2523,7 @@ void __cdecl FX_UpdateBatch(
 {
   FxEffectContainer *remoteEffect; // [esp+28h] [ebp-14h]
 
-  PIXBeginNamedEvent(-1, "FX_UpdateBatch");
+  //PIXBeginNamedEvent(-1, "FX_UpdateBatch");
   if ( !system
     && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_update.cpp", 2131, 0, "%s", "system") )
   {
@@ -2682,7 +2682,7 @@ bool __cdecl FX_ShouldProcessEffect(
 
 void __cdecl FX_Update(FxSystem *system, FxSystem *remoteSystem, int localClientNum, bool nonBoltedEffectsOnly)
 {
-  PIXBeginNamedEvent(-1, "FX_Update()");
+  //PIXBeginNamedEvent(-1, "FX_Update()");
   FX_UpdateBatch(
     system,
     remoteSystem,

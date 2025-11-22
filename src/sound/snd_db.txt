@@ -1,2 +1,0 @@
-SND_ParseInit
-SND_AliasGetFileName

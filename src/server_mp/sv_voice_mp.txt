@@ -1,8 +1,0 @@
-SV_VoiceEnabled
-SV_SendClientVoiceData
-SV_WriteVoiceDataToClient
-SV_ClientWantsVoiceData
-SV_ClientHasClientMuted
-SV_QueueVoicePacket
-SV_UserVoice
-SV_PreGameUserVoice

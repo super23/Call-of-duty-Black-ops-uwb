@@ -1,9 +1,0 @@
-G_SetEntityParsePoint
-G_ResetEntityParsePoint
-G_GetEntityParsePoint
-G_GetEntityToken
-G_ParseSpawnVars
-G_AddSpawnVarToken
-G_SpawnString
-G_NewString
-vtos

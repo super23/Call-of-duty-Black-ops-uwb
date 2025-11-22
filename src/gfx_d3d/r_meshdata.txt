@@ -1,9 +1,0 @@
-R_BeginMeshVerts
-R_EndMeshVerts
-R_ReserveMeshIndices
-R_ReserveMeshVerts
-R_GetMeshVerts
-R_ResetMesh
-R_SetQuadMeshData
-R_SetQuadMesh
-R_DrawQuadMesh

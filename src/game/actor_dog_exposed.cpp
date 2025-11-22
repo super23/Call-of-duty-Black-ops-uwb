@@ -63,7 +63,7 @@ actor_think_result_t __fastcall Actor_Dog_Exposed_Think(actor_s *self)
   int enemyInGoal; // [esp+48h] [ebp-8h]
   int attackScriptRunning; // [esp+4Ch] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "dogexposedthink");
+  //PIXBeginNamedEvent(-1, "dogexposedthink");
   if ( !self
     && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_dog_exposed.cpp", 624, 0, "%s", "self") )
   {

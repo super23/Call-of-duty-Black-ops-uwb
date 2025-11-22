@@ -1,3 +1,0 @@
-speex_alloc
-speex_free
-speex_realloc

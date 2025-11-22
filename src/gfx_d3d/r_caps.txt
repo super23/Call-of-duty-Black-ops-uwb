@@ -1,2 +1,0 @@
-R_CheckDxCaps
-R_RespondToMissingCaps

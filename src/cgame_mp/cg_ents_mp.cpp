@@ -1068,7 +1068,7 @@ void __cdecl CG_AddPacketEntity(int localClientNum, unsigned int entnum)
   unsigned int eType; // [esp+D8h] [ebp-4h]
   int savedregs; // [esp+DCh] [ebp+0h] BYREF
 
-  PIXBeginNamedEvent(-1, "CG_AddPacketEntity");
+  //PIXBeginNamedEvent(-1, "CG_AddPacketEntity");
   cgameGlob = CG_GetLocalClientGlobals(localClientNum);
   cent = CG_GetEntity(localClientNum, entnum);
   eType = cent->nextState.eType;
@@ -1336,7 +1336,7 @@ int __cdecl CG_AddPacketEntities(int localClientNum)
   unsigned int eType; // [esp+88h] [ebp-4h]
 
   nextStateOffset = 488;
-  PIXBeginNamedEvent(-1, "add packet ents");
+  //PIXBeginNamedEvent(-1, "add packet ents");
   cgs = CG_GetLocalClientStaticGlobals(localClientNum);
   contextKey = cgs[1].processedSnapshotNum;
   LOBYTE(cgs[1].processedSnapshotNum) = LOBYTE(cgs[1].processedSnapshotNum) == 0;
@@ -1347,7 +1347,7 @@ int __cdecl CG_AddPacketEntities(int localClientNum)
   if ( numEntities )
     _mm_prefetch((const char *)&CG_GetEntity(localClientNum, cgameGlob->nextSnap->entities[0].number)->nextState, 1);
   postPSEntNum = 1023;
-  PIXBeginNamedEvent(-1, "server ents");
+  //PIXBeginNamedEvent(-1, "server ents");
   DelayListInit(&delayList);
   for ( num = 0; num < numEntities; ++num )
   {
@@ -1365,14 +1365,14 @@ int __cdecl CG_AddPacketEntities(int localClientNum)
   UpdateDelayedPacketEnts(localClientNum, &delayList, &postPSEntNum, contextKey);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "fake ents");
+  //PIXBeginNamedEvent(-1, "fake ents");
   for ( num = 0; num < 512; ++num )
     CG_ProcessFakeEntity(localClientNum, &cg_fakeEntitiesArray[512 * localClientNum + num]);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
   if ( g_processEvents )
   {
-    PIXBeginNamedEvent(-1, "process events");
+    //PIXBeginNamedEvent(-1, "process events");
     for ( num = 0; num < cgameGlob->nextSnap->numEntities; ++num )
     {
       entnum = cgameGlob->nextSnap->entities[num].number;
@@ -3486,7 +3486,7 @@ void __cdecl CG_DObjCalcBone(const cpose_t *pose, DObj *obj, int boneIndex)
   }
   else
   {
-    PIXBeginNamedEvent(-1, "CG_DObjCalcBone");
+    //PIXBeginNamedEvent(-1, "CG_DObjCalcBone");
     DObjGetHierarchyBits(obj, boneIndex, partBits);
     CG_DoControllers(pose, obj, partBits);
     DObjCalcSkel(obj, partBits);
@@ -3575,31 +3575,31 @@ void __cdecl CG_ProcessEntity(int localClientNum, centity_s *cent)
   switch ( cent->nextState.eType )
   {
     case ET_GENERAL:
-      PIXBeginNamedEvent(-1, "CG_General");
+      //PIXBeginNamedEvent(-1, "CG_General");
       CG_General(localClientNum, cent);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         goto LABEL_30;
       break;
     case ET_PLAYER:
-      PIXBeginNamedEvent(-1, "CG_Player");
+      //PIXBeginNamedEvent(-1, "CG_Player");
       CG_Player(localClientNum, cent);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         goto LABEL_30;
       break;
     case ET_PLAYER_CORPSE:
-      PIXBeginNamedEvent(-1, "CG_Corpse");
+      //PIXBeginNamedEvent(-1, "CG_Corpse");
       CG_Corpse(localClientNum, cent);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         goto LABEL_30;
       break;
     case ET_ITEM:
-      PIXBeginNamedEvent(-1, "CG_Item");
+      //PIXBeginNamedEvent(-1, "CG_Item");
       CG_Item(localClientNum, cent);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         goto LABEL_30;
       break;
     case ET_MISSILE:
-      PIXBeginNamedEvent(-1, "CG_Missile");
+      //PIXBeginNamedEvent(-1, "CG_Missile");
       CG_Missile(localClientNum, cent);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         goto LABEL_30;
@@ -3611,20 +3611,20 @@ void __cdecl CG_ProcessEntity(int localClientNum, centity_s *cent)
     case ET_SCRIPTMOVER:
       goto $LN7_8;
     case ET_PRIMARY_LIGHT:
-      PIXBeginNamedEvent(-1, "CG_PrimaryLight");
+      //PIXBeginNamedEvent(-1, "CG_PrimaryLight");
       CG_PrimaryLight(localClientNum, cent);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         goto LABEL_30;
       break;
     case ET_MG42:
-      PIXBeginNamedEvent(-1, "CG_mg42");
+      //PIXBeginNamedEvent(-1, "CG_mg42");
       CG_mg42(localClientNum, cent);
       CG_CompassUpdateTurretInfo(localClientNum, cent->nextState.number);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         goto LABEL_30;
       break;
     case ET_HELICOPTER:
-      PIXBeginNamedEvent(-1, "CG_Vehicle");
+      //PIXBeginNamedEvent(-1, "CG_Vehicle");
       CG_Vehicle(localClientNum, cent);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         goto LABEL_30;
@@ -3632,14 +3632,14 @@ void __cdecl CG_ProcessEntity(int localClientNum, centity_s *cent)
     case ET_PLANE:
       CG_CompassUpdateVehicleInfo(localClientNum, cent->nextState.number);
 $LN7_8:
-      PIXBeginNamedEvent(-1, "CG_ScriptMover");
+      //PIXBeginNamedEvent(-1, "CG_ScriptMover");
       CG_ScriptMover(localClientNum, cent);
       if ( GetCurrentThreadId() != g_DXDeviceThread )
         break;
       goto LABEL_30;
     case ET_VEHICLE:
     case ET_VEHICLE_CORPSE:
-      PIXBeginNamedEvent(-1, "CG_Vehicle");
+      //PIXBeginNamedEvent(-1, "CG_Vehicle");
       CG_Vehicle(localClientNum, cent);
       if ( GetCurrentThreadId() != g_DXDeviceThread )
         break;
@@ -4106,7 +4106,7 @@ void __cdecl CG_Vehicle(int localClientNum, centity_s *cent)
   int altXModel; // [esp+78h] [ebp-8h]
   entityState_s *ns; // [esp+7Ch] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "CG_Vehicle");
+  //PIXBeginNamedEvent(-1, "CG_Vehicle");
   ns = &cent->nextState;
   if ( (cent->nextState.lerp.eFlags & 0x20) != 0 )
   {
@@ -4269,7 +4269,7 @@ void __cdecl CG_ProcessFxEntity(int localClientNum, centity_s *cent)
   }
   if ( cent->nextState.eType == 9 )
   {
-    PIXBeginNamedEvent(-1, "CG_LoopFx");
+    //PIXBeginNamedEvent(-1, "CG_LoopFx");
     CG_LoopFx(localClientNum, cent);
     if ( g_DXDeviceThread != GetCurrentThreadId() )
       return;
@@ -4286,7 +4286,7 @@ void __cdecl CG_ProcessFxEntity(int localClientNum, centity_s *cent)
   {
     __debugbreak();
   }
-  PIXBeginNamedEvent(-1, "CG_Fx");
+  //PIXBeginNamedEvent(-1, "CG_Fx");
   CG_Fx(localClientNum, cent);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
 LABEL_11:

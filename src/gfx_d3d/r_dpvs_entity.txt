@@ -1,4 +1,0 @@
-R_AddEntitySurfacesInFrustumCmd
-R_BoundsInCell
-R_BoundsInCell_r
-R_ForceAddEntitySurfacesInFrustumCmd

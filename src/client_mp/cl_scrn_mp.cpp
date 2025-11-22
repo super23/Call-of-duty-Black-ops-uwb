@@ -15,7 +15,7 @@ void __cdecl SCR_Init()
 
 void __cdecl CL_DrawScreen(int localClientNum)
 {
-  PIXBeginNamedEvent(-1, "CL_DrawScreen");
+  //PIXBeginNamedEvent(-1, "CL_DrawScreen");
   if ( !cls.rendererStarted )
   {
     if ( g_DXDeviceThread != GetCurrentThreadId() )
@@ -99,7 +99,7 @@ void __cdecl CL_UpdateUIVisibilityBits(int localClientNum)
   bool uiActive; // [esp+F1h] [ebp-Bh]
   bool spectatingClient; // [esp+F2h] [ebp-Ah]
 
-  PIXBeginNamedEvent(-1, "CL_UpdateUIVisibilityBits");
+  //PIXBeginNamedEvent(-1, "CL_UpdateUIVisibilityBits");
   spectatingClient = 0;
   inKillCam = 0;
   uiActive = 0;
@@ -487,7 +487,7 @@ int  CL_CGameRendering@<eax>(int a1@<esi>, int localClientNum)
   if ( CL_GetLocalClientConnectionState(localClientNum) != 10 )
     return 0;
   Name = va("CL_CGameRendering(cl=%d)", localClientNum);
-  PIXBeginNamedEvent(-1, Name);
+  //PIXBeginNamedEvent(-1, Name);
   R_UI3D_PerframeInit();
   R_BeginClientCmdList2D();
   if ( extraCamActive )
@@ -600,7 +600,7 @@ int  CL_CGameRendering@<eax>(int a1@<esi>, int localClientNum)
       CG_DrawExtraCamFrame(localClientNum, LocalClientGlobals->serverTime, v4, CUBEMAPSHOT_NONE, 0, v6);
       rg.renderHiResShot = hiRes;
     }
-    PIXBeginNamedEvent(-1, "wait Draw2D");
+    //PIXBeginNamedEvent(-1, "wait Draw2D");
     if ( GetCurrentThreadId() == g_DXDeviceThread )
       D3DPERF_EndEvent();
     R_AddCmdEndOfList();

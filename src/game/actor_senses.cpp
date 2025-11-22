@@ -48,7 +48,7 @@ char __fastcall Actor_SightTrace(actor_s *self, const float *start, const float 
   col_context_t context; // [esp+44h] [ebp-30h] BYREF
   int hitNum; // [esp+70h] [ebp-4h] BYREF
 
-  PIXBeginNamedEvent(-1, "Actor_SightTrace");
+  //PIXBeginNamedEvent(-1, "Actor_SightTrace");
   col_context_t::col_context_t(&context);
   ++self->iTraceCount;
   if ( g_visitor )
@@ -403,7 +403,7 @@ void __fastcall Actor_UpdateSight(actor_s *self)
   sentient_sort_t check[48]; // [esp+84h] [ebp-188h] BYREF
   int iCheckCount; // [esp+208h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Actor_UpdateSight");
+  //PIXBeginNamedEvent(-1, "Actor_UpdateSight");
   if ( !self && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_senses.cpp", 675, 0, "%s", "self") )
     __debugbreak();
   if ( !self->sentient
@@ -412,7 +412,7 @@ void __fastcall Actor_UpdateSight(actor_s *self)
     __debugbreak();
   }
   iTeamFlags = 1 << Sentient_EnemyTeam(self->sentient->eTeam);
-  PIXBeginNamedEvent(-1, "sight 1");
+  //PIXBeginNamedEvent(-1, "sight 1");
   iCheckCount = 0;
   for ( sentient = Sentient_FirstSentient(iTeamFlags); sentient; sentient = Sentient_NextSentient(sentient, iTeamFlags) )
   {
@@ -455,7 +455,7 @@ void __fastcall Actor_UpdateSight(actor_s *self)
     qsort(check, iCheckCount, 8u, (int (__cdecl *)(const void *, const void *))compare_sentient_sort);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "sight 2");
+  //PIXBeginNamedEvent(-1, "sight 2");
   iOldTraceCount = self->iTraceCount;
   for ( i = 0; i < iCheckCount; ++i )
   {
@@ -512,7 +512,7 @@ void __fastcall Actor_UpdateLastEnemySightPos(actor_s *self)
 {
   sentient_s *enemy; // [esp+28h] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "Actor_UpdateLastEnemySightPos");
+  //PIXBeginNamedEvent(-1, "Actor_UpdateLastEnemySightPos");
   enemy = Actor_GetTargetSentient(self);
   if ( enemy )
   {

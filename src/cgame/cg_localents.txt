@@ -1,5 +1,0 @@
-CG_InitLocalEntities
-CG_AllocLocalEntity
-CG_FreeLocalEntity
-CG_AddLocalEntityTracerBeams
-CG_AddMovingTracer

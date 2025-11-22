@@ -499,7 +499,7 @@ void __cdecl Flame_List_Sub_Local(flameGeneric_s *item, flameGeneric_s **localLi
 
 void __cdecl CG_Flame_Age_All_Objects(int time)
 {
-  PIXBeginNamedEvent(-1, "CG_Flame_Age_All_Objects");
+  //PIXBeginNamedEvent(-1, "CG_Flame_Age_All_Objects");
   cl_flames.m_alloc_count = 0;
   Flame_Class_Chunk_Age(0, time);
   Flame_Class_Fire_Age(0, time);
@@ -512,7 +512,7 @@ void __cdecl CG_Flame_Age_All_Objects(int time)
 
 void __cdecl SV_Flame_Age_All_Objects(int time)
 {
-  PIXBeginNamedEvent(-1, "SV_Flame_Age_All_Objects");
+  //PIXBeginNamedEvent(-1, "SV_Flame_Age_All_Objects");
   sv_flames.m_alloc_count = 0;
   Flame_Class_Chunk_Age(1, time);
   Flame_Class_Fire_Age(1, time);
@@ -992,7 +992,7 @@ void __cdecl Flame_Generate_Verts(int localClientNum)
   int i; // [esp+10h] [ebp-4h]
 
   Name = va("Flame_Generate_Verts(cl=%d)", localClientNum);
-  PIXBeginNamedEvent(-1, Name);
+  //PIXBeginNamedEvent(-1, Name);
   if ( flame_render->current.enabled )
   {
     Flame_Class_Smoke_Render_All(localClientNum);

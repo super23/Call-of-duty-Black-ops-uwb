@@ -2245,7 +2245,7 @@ bool __fastcall Path_PredictionTrace(
   actor_s *actor; // [esp+108h] [ebp-8h]
   unsigned __int16 hitEntId; // [esp+10Ch] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "pathpredictiontrace");
+  //PIXBeginNamedEvent(-1, "pathpredictiontrace");
   memset(&trace, 0, 16);
   traceMin[0] = PREDICTION_TRACE_MIN[0];
   traceMin[1] = PREDICTION_TRACE_MIN[1];

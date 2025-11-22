@@ -1,5 +1,25 @@
 #include "aim_target.h"
 
+#include <cstring>
+#include <xanim/dobj.h>
+#include <qcommon/dobj_management.h>
+#include <bgame/bg_local.h>
+#include <cgame_mp/cg_ents_mp.h>
+#include <clientscript/cscr_stringlist.h>
+#include <qcommon/common.h>
+#include <qcommon/cmd.h>
+#include <universal/dvar.h>
+
+AimTargetGlob atGlobArray[1];
+
+const dvar_s *aim_target_sentient_radius;
+const dvar_s *aim_target_sentient_half_height;
+const dvar_s *aim_target_frustum_expand_on_screen;
+const dvar_s *aim_target_frustum_expand_fast_updates;
+const dvar_s *aim_target_frustum_min_distance;
+const dvar_s *aim_target_aim_tag_fast_update_interval;
+const dvar_s *aim_target_aim_tag_slow_update_interval;
+
 int __cdecl AimTarget_GetTagPos(int localClientNum, const centity_s *cent, unsigned int tagName, float *pos)
 {
   char *v5; // eax
@@ -35,10 +55,8 @@ void __cdecl AimTarget_Init(int localClientNum)
   Cbuf_InsertText(0, "exec devgui_aimassist\n");
 }
 
-const dvar_s *AimTarget_RegisterDvars()
+void AimTarget_RegisterDvars()
 {
-  const dvar_s *result; // eax
-
   aim_target_sentient_radius = _Dvar_RegisterFloat(
                                  "aim_target_sentient_radius",
                                  10.0,
@@ -83,15 +101,13 @@ const dvar_s *AimTarget_RegisterDvars()
                                               0x80u,
                                               "How often the aim target tag is updated instead of pulled from cache insid"
                                               "e of the \"fast\" zone.");
-  result = _Dvar_RegisterInt(
+  aim_target_aim_tag_slow_update_interval = _Dvar_RegisterInt(
              "aim_target_aim_tag_slow_update_interval",
              131,
              1,
              10000,
              0x80u,
              "How often the aim target tag is updated instead of pulled from cache inside of the \"fast\" zone.");
-  aim_target_aim_tag_slow_update_interval = result;
-  return result;
 }
 
 void __cdecl expandMins(float *mins, float *point)
@@ -120,7 +136,7 @@ void __cdecl AimTarget_ProcessEntityInternal(int localClientNum, const centity_s
   AimTarget target; // [esp+40h] [ebp-34h] BYREF
   unsigned int visBone; // [esp+70h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "AimTarget_ProcessEntity");
+  //PIXBeginNamedEvent(-1, "AimTarget_ProcessEntity");
   cgameGlob = CG_GetLocalClientGlobals(localClientNum);
   if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\aim_assist\\aim_target.cpp", 902, 0, "%s", "ent") )
     __debugbreak();
@@ -723,7 +739,7 @@ bool __cdecl AimTarget_PlayerInValidState(const playerState_s *ps)
   return result;
 }
 
-void __cdecl AimTarget_UpdateClientTargets(jpeg_decompress_struct *localClientNum)
+void __cdecl AimTarget_UpdateClientTargets(int localClientNum)
 {
   int eType; // [esp+0h] [ebp-30h]
   cg_s *cgameGlob; // [esp+18h] [ebp-18h]
@@ -780,7 +796,7 @@ LABEL_23:
         goto LABEL_23;
     }
   }
-  PIXBeginNamedEvent(-1, "aim assist epilog");
+  //PIXBeginNamedEvent(-1, "aim assist epilog");
   BG_EvalVehicleName(localClientNum);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();

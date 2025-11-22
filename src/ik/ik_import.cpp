@@ -907,7 +907,7 @@ bool __cdecl IKImport_IsIKEntity(unsigned __int8 *model)
 {
   bool IsIKEntity_Internal; // [esp+9h] [ebp-3h]
 
-  PIXBeginNamedEvent(-1, "IKImport_IsIKEntity");
+  //PIXBeginNamedEvent(-1, "IKImport_IsIKEntity");
   IsIKEntity_Internal = IKImport_IsIKEntity_Internal(model);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
@@ -1423,7 +1423,7 @@ bool __cdecl IKImport_TraceBox(
 
   memset(&tr, 0, 16);
   col_context_t::col_context_t(&context);
-  PIXBeginNamedEvent(-1, "IK Trace");
+  //PIXBeginNamedEvent(-1, "IK Trace");
   collCache = &ikState->collisionCache;
   context.prims = ikState->collisionCache.proximity_data.prims;
   context.nprims = ikState->collisionCache.proximity_data.nprims;

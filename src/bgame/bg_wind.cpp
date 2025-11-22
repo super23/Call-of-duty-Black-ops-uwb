@@ -414,7 +414,7 @@ void  CG_UpdateWind(int a1@<ebp>, int a2@<esi>, int cur_time)
   v47 = a1;
   v48 = retaddr;
   LODWORD(v7) = a2;
-  PIXBeginNamedEvent(-1, "CG_UpdateWind");
+  //PIXBeginNamedEvent(-1, "CG_UpdateWind");
   if ( (_S1_0 & 1) == 0 )
   {
     _S1_0 |= 1u;

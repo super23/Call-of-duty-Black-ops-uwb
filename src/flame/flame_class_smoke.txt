@@ -1,7 +1,0 @@
-Flame_Class_Smoke_Init
-Flame_Class_Smoke_Alloc
-Flame_Class_Smoke_Free
-Flame_Class_Smoke_Age
-Flame_Class_Smoke_Spawn
-Flame_Class_Smoke_Render_Item
-Flame_Class_Smoke_Render_All

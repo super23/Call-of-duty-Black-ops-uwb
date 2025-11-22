@@ -367,7 +367,7 @@ void __cdecl  G_InitGame(int levelTime, int randomSeed, int restart, int registe
   {
     __debugbreak();
   }
-  PIXBeginNamedEvent(-1, "G_InitGame");
+  //PIXBeginNamedEvent(-1, "G_InitGame");
   Com_Printf(15, "------- Game Initialization -------\n");
   Com_Printf(15, "gamename: %s\n", aCallOfDuty_0);
   Com_Printf(15, "gamedate: %s\n", "Nov  5 2010");
@@ -2405,7 +2405,7 @@ void  G_RunFrame(__m128 a1@<xmm0>, int levelTime)
   {
     __debugbreak();
   }
-  PIXBeginNamedEvent(-1, "Update clients");
+  //PIXBeginNamedEvent(-1, "Update clients");
   ent = g_entities;
   i = 0;
   while ( i < level.maxclients )
@@ -2437,7 +2437,7 @@ void  G_RunFrame(__m128 a1@<xmm0>, int levelTime)
   SV_Flame_Age_All_Objects(Time);
   v3 = G_GetTime();
   IK_UpdateTimeAll(v3, -1, 0);
-  PIXBeginNamedEvent(-1, "G_XAnimUpdate");
+  //PIXBeginNamedEvent(-1, "G_XAnimUpdate");
   ent = g_entities;
   i = 0;
   while ( i < level.num_entities )
@@ -2451,7 +2451,7 @@ void  G_RunFrame(__m128 a1@<xmm0>, int levelTime)
     D3DPERF_EndEvent();
   memset(entIndex, 0, 0x400u);
   index = 0;
-  PIXBeginNamedEvent(-1, "G_TriggerChecks");
+  //PIXBeginNamedEvent(-1, "G_TriggerChecks");
   if ( level.currentTriggerListSize
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp",
@@ -2516,7 +2516,7 @@ void  G_RunFrame(__m128 a1@<xmm0>, int levelTime)
       trigger_info->useCount = v4->useCount;
       trigger_info->otherUseCount = v4->otherUseCount;
     }
-    PIXBeginNamedEvent(-1, "Scr_RunCurrentThreads");
+    //PIXBeginNamedEvent(-1, "Scr_RunCurrentThreads");
     Scr_RunCurrentThreads(SCRIPTINSTANCE_SERVER);
     if ( g_DXDeviceThread == GetCurrentThreadId() )
       D3DPERF_EndEvent();
@@ -2543,7 +2543,7 @@ void  G_RunFrame(__m128 a1@<xmm0>, int levelTime)
     ++i;
     ++ent;
   }
-  PIXBeginNamedEvent(-1, "G_XAnimUpdate");
+  //PIXBeginNamedEvent(-1, "G_XAnimUpdate");
   ent = g_entities;
   i = 0;
   while ( i < level.num_entities )
@@ -2556,7 +2556,7 @@ void  G_RunFrame(__m128 a1@<xmm0>, int levelTime)
     D3DPERF_EndEvent();
   Scr_IncTime(SCRIPTINSTANCE_SERVER);
   SV_ResetSkeletonCache();
-  PIXBeginNamedEvent(-1, "G_RunFrameForEntity");
+  //PIXBeginNamedEvent(-1, "G_RunFrameForEntity");
   if ( level.currentEntityThink != -1
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp",
@@ -2582,15 +2582,15 @@ void  G_RunFrame(__m128 a1@<xmm0>, int levelTime)
   level.currentEntityThink = -1;
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "G_UpdateObjectiveToClients");
+  //PIXBeginNamedEvent(-1, "G_UpdateObjectiveToClients");
   G_UpdateObjectiveToClients();
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "G_UpdateHudElemsToClients");
+  //PIXBeginNamedEvent(-1, "G_UpdateHudElemsToClients");
   G_UpdateHudElemsToClients();
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "ClientEndFrame");
+  //PIXBeginNamedEvent(-1, "ClientEndFrame");
   ent = g_entities;
   i = 0;
   while ( i < level.maxclients )
@@ -2636,7 +2636,7 @@ void  G_RunFrame(__m128 a1@<xmm0>, int levelTime)
   }
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "CheckTeamStatus");
+  //PIXBeginNamedEvent(-1, "CheckTeamStatus");
   CheckTeamStatus();
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();

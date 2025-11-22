@@ -2857,7 +2857,7 @@ void __cdecl CG_ProcessDestructibleEvents()
   destructible_event_t *de; // [esp+20h] [ebp-Ch]
   int i; // [esp+24h] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "CG_ProcessDestructibleEvents");
+  //PIXBeginNamedEvent(-1, "CG_ProcessDestructibleEvents");
   for ( i = 0; i < g_destructible_events_count; ++i )
   {
     de = &g_destructible_events[i];
@@ -2945,7 +2945,7 @@ void __cdecl CG_DestructibleDamage(
   }
   else
   {
-    PIXBeginNamedEvent(-1, "CG_DestructibleDamage2");
+    //PIXBeginNamedEvent(-1, "CG_DestructibleDamage2");
     destructible = self->destructible;
     if ( destructible )
     {
@@ -3050,7 +3050,7 @@ bool __cdecl CG_DestructibleDamage(
   bool needDObjUpdate; // [esp+93h] [ebp-5h]
   int entity_index; // [esp+94h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "CG_DestructibleDamage1");
+  //PIXBeginNamedEvent(-1, "CG_DestructibleDamage1");
   if ( !self->destructible )
     self->destructible = Destructible_GetDestructible(self->nextState.number);
   destructible = self->destructible;

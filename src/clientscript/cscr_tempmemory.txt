@@ -1,5 +1,0 @@
-TempMemoryReset
-TempMalloc
-TempMallocAlign
-TempMallocAlignStrict
-TempMemorySetPos

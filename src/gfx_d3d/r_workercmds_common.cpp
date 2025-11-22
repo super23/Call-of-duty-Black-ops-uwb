@@ -2,7 +2,7 @@
 
 void __cdecl R_ProcessCmd_UpdateFxSpotLight(FxCmd *cmd)
 {
-  PIXBeginNamedEvent(-1, "R_ProcessCmd_UpdateFxSpotLight");
+  //PIXBeginNamedEvent(-1, "R_ProcessCmd_UpdateFxSpotLight");
   BG_EvalVehicleName();
   FX_UpdateSpotLight(cmd);
   Sys_SetUpdateSpotLightEffectEvent();
@@ -12,7 +12,7 @@ void __cdecl R_ProcessCmd_UpdateFxSpotLight(FxCmd *cmd)
 
 void __cdecl R_ProcessCmd_UpdateFxNonDependent(FxCmd *cmd)
 {
-  PIXBeginNamedEvent(-1, "R_ProcessCmd_UpdateFxNonDependent");
+  //PIXBeginNamedEvent(-1, "R_ProcessCmd_UpdateFxNonDependent");
   FX_UpdateNonDependent(cmd);
   Sys_SetUpdateNonDependentEffectsEvent();
   if ( g_DXDeviceThread == GetCurrentThreadId() )
@@ -23,8 +23,8 @@ void __cdecl R_DrawEffects(FxCmd *cmd)
 {
   FxGenerateVertsCmd genVertsCmd; // [esp+10h] [ebp-58h] BYREF
 
-  PIXBeginNamedEvent(-1, "R_DrawEffects");
-  PIXBeginNamedEvent(-1, "fx surfs");
+  //PIXBeginNamedEvent(-1, "R_DrawEffects");
+  //PIXBeginNamedEvent(-1, "fx surfs");
   FX_AddNonSpriteDrawSurfs(cmd);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
@@ -39,7 +39,7 @@ void __cdecl R_DrawEffects(FxCmd *cmd)
 
 void __cdecl R_ProcessCmd_UpdateFxRemaining(FxCmd *cmd)
 {
-  PIXBeginNamedEvent(-1, "R_ProcessCmd_UpdateFxRemaining");
+  //PIXBeginNamedEvent(-1, "R_ProcessCmd_UpdateFxRemaining");
   if ( !Sys_QueryD3DDeviceOKEvent() )
   {
     if ( g_DXDeviceThread != GetCurrentThreadId() )
@@ -48,12 +48,12 @@ void __cdecl R_ProcessCmd_UpdateFxRemaining(FxCmd *cmd)
   }
   CG_AddSceneTracerBeams(cmd->localClientNum);
   CG_GenerateSceneVerts(cmd->localClientNum);
-  PIXBeginNamedEvent(-1, "wait for fx_update");
+  //PIXBeginNamedEvent(-1, "wait for fx_update");
   if ( sys_smp_allowed->current.enabled )
     Sys_WaitUpdateNonDependentEffectsCompleted();
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "wait for fx_add_mark");
+  //PIXBeginNamedEvent(-1, "wait for fx_add_mark");
   Sys_AssistAndWaitWorkerCmdInternal(&fx_add_markWorkerCmd);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
@@ -66,7 +66,7 @@ LABEL_11:
 
 void __cdecl R_UpdateSpotLightEffect(FxCmd *cmd)
 {
-  PIXBeginNamedEvent(-1, "R_UpdateSpotLightEffect");
+  //PIXBeginNamedEvent(-1, "R_UpdateSpotLightEffect");
   Sys_ResetUpdateSpotLightEffectEvent();
   Sys_AddWorkerCmdInternal(&fx_update_spotWorkerCmd, (unsigned __int8 *)cmd, 0);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
@@ -75,7 +75,7 @@ void __cdecl R_UpdateSpotLightEffect(FxCmd *cmd)
 
 void __cdecl R_UpdateNonDependentEffects(FxCmd *cmd)
 {
-  PIXBeginNamedEvent(-1, "R_UpdateNonDependentEffects");
+  //PIXBeginNamedEvent(-1, "R_UpdateNonDependentEffects");
   Sys_ResetUpdateNonDependentEffectsEvent();
   Sys_AddWorkerCmdInternal(&fx_updateWorkerCmd, (unsigned __int8 *)cmd, 0);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
@@ -84,7 +84,7 @@ void __cdecl R_UpdateNonDependentEffects(FxCmd *cmd)
 
 void __cdecl R_UpdateRemainingEffects(FxCmd *cmd)
 {
-  PIXBeginNamedEvent(-1, "R_UpdateRemainingEffects");
+  //PIXBeginNamedEvent(-1, "R_UpdateRemainingEffects");
   Sys_AddWorkerCmdInternal(&fx_update_remainingWorkerCmd, (unsigned __int8 *)cmd, 0);
   Sys_AddWorkerCmdInternal(&fx_update_remaining_ppuWorkerCmd, (unsigned __int8 *)cmd, 0);
   if ( GetCurrentThreadId() == g_DXDeviceThread )

@@ -1,2 +1,0 @@
-zcalloc
-zcfree

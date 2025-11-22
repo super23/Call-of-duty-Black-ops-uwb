@@ -1,3 +1,0 @@
-DB_AllocXBlocks
-DB_MemAlloc
-DB_FreeXBlocks

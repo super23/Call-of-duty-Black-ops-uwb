@@ -1,5 +1,0 @@
-FX_EffectFromHandle
-FX_ElemFromHandle
-FX_GetElemVisuals
-MemFile_WriteCString
-FX_PoolFromHandle_Generic<FxElem,FxElemContainer,2048>

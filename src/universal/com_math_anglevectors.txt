@@ -1,7 +1,0 @@
-AngleVectors
-AnglesToAxis
-AnglesToQuat
-QuatToAxis
-AxisToSignedAngles
-vectosignedangles
-vectosignedpitch

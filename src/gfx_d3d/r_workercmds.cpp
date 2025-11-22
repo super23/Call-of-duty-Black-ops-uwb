@@ -4,7 +4,7 @@ int __cdecl r_dpvs_entityCallback(jqBatch *batch)
 {
   unsigned __int16 *data; // [esp+10h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "r_dpvs_entity");
+  //PIXBeginNamedEvent(-1, "r_dpvs_entity");
   data = (unsigned __int16 *)jqLockData(batch);
   R_AddEntitySurfacesInFrustumCmd(data);
   jqUnlockData(batch);
@@ -22,7 +22,7 @@ int __cdecl r_model_skinCallback(jqBatch *batch)
   if ( R_DynamicFenceBusy() )
     return 1;
   *frontEndDataOut->dynamicBufferCurrentFrame = frontEndDataOut->frameCount;
-  PIXBeginNamedEvent(-1, "r_model_skin");
+  //PIXBeginNamedEvent(-1, "r_model_skin");
   R_SkinXModelCmd((int)&savedregs, (SkinXModelCmd *)data);
   jqUnlockData(batch);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
@@ -39,7 +39,7 @@ int __cdecl r_dpvs_staticCallback(jqBatch *batch)
 {
   unsigned int *data; // [esp+10h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "r_dpvs_static");
+  //PIXBeginNamedEvent(-1, "r_dpvs_static");
   data = jqLockData(batch);
   R_AddCellStaticSurfacesInFrustumCmd((DpvsStaticCellCmd *)data);
   jqUnlockData(batch);
@@ -52,7 +52,7 @@ int __cdecl r_dpvs_dynmodelCallback(jqBatch *batch)
 {
   unsigned int *data; // [esp+10h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "r_dpvs_dynmodel");
+  //PIXBeginNamedEvent(-1, "r_dpvs_dynmodel");
   data = jqLockData(batch);
   R_AddCellDynModelSurfacesInFrustumCmd((const DpvsPlane **)data);
   jqUnlockData(batch);
@@ -66,7 +66,7 @@ int __cdecl r_dpvs_sceneentCallback(jqBatch *batch)
   GfxWorldDpvsPlanes *data; // [esp+10h] [ebp-4h]
   int savedregs; // [esp+14h] [ebp+0h] BYREF
 
-  PIXBeginNamedEvent(-1, "r_dpvs_sceneent");
+  //PIXBeginNamedEvent(-1, "r_dpvs_sceneent");
   data = (GfxWorldDpvsPlanes *)jqLockData(batch);
   R_AddCellSceneEntSurfacesInFrustumCmd((unsigned int)&savedregs, data);
   jqUnlockData(batch);
@@ -79,7 +79,7 @@ int __cdecl r_dpvs_dynbrushCallback(jqBatch *batch)
 {
   unsigned int *data; // [esp+10h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "r_dpvs_dynbrush");
+  //PIXBeginNamedEvent(-1, "r_dpvs_dynbrush");
   data = jqLockData(batch);
   R_AddCellDynBrushSurfacesInFrustumCmd((const DpvsPlane **)data);
   jqUnlockData(batch);
@@ -95,7 +95,7 @@ int __cdecl r_waterCallback(jqBatch *batch)
   data = jqLockData(batch);
   if ( R_UploadWaterPending() )
     return 1;
-  PIXBeginNamedEvent(-1, "r_water");
+  //PIXBeginNamedEvent(-1, "r_water");
   R_UploadWaterTextureInternal((water_t **)data);
   jqUnlockData(batch);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
@@ -123,7 +123,7 @@ int __cdecl r_water_simCallback(jqBatch *batch)
   data = (const WaterSimulationCmd *)jqLockData(batch);
   if ( R_EndFenceBusy() )
     return 1;
-  PIXBeginNamedEvent(-1, "r_water_sim");
+  //PIXBeginNamedEvent(-1, "r_water_sim");
   R_WaterSimulationCmd(data);
   jqUnlockData(batch);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
@@ -140,7 +140,7 @@ int __cdecl r_spot_shadow_entCallback(jqBatch *batch)
 {
   unsigned int *data; // [esp+10h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "r_spot_shadow_ent");
+  //PIXBeginNamedEvent(-1, "r_spot_shadow_ent");
   data = jqLockData(batch);
   R_AddSpotShadowEntCmd((const GfxSpotShadowEntCmd *)data);
   jqUnlockData(batch);
@@ -153,7 +153,7 @@ int __cdecl fx_updateCallback(jqBatch *batch)
 {
   unsigned int *data; // [esp+10h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "fx_update");
+  //PIXBeginNamedEvent(-1, "fx_update");
   data = jqLockData(batch);
   R_ProcessCmd_UpdateFxNonDependent((FxCmd *)data);
   jqUnlockData(batch);
@@ -171,7 +171,7 @@ int __cdecl fx_update_remainingCallback(jqBatch *batch)
   if ( R_FXUpdateRemainingWait() )
     return 1;
   Name = va("fx_update_remaining cl=%d", data->localClientNum);
-  PIXBeginNamedEvent(-1, Name);
+  //PIXBeginNamedEvent(-1, Name);
   FX_UpdateRemaining(data);
   jqUnlockData(batch);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
@@ -198,7 +198,7 @@ int __cdecl fx_update_remaining_ppuCallback(jqBatch *batch)
   if ( R_FXUpdateRemainingPPUWait() )
     return 1;
   Name = va("fx_update_remaining_ppu cl=%d", data->localClientNum);
-  PIXBeginNamedEvent(-1, Name);
+  //PIXBeginNamedEvent(-1, Name);
   R_ProcessCmd_UpdateFxRemaining(data);
   jqUnlockData(batch);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
@@ -227,7 +227,7 @@ int __cdecl fx_drawCallback(jqBatch *batch)
     return 1;
   }
   *frontEndDataOut->dynamicBufferCurrentFrame = frontEndDataOut->frameCount;
-  PIXBeginNamedEvent(-1, "fx_draw");
+  //PIXBeginNamedEvent(-1, "fx_draw");
   if ( Sys_QueryD3DDeviceOKEvent() )
     FX_GenerateVerts((FxGenerateVertsCmd *)data);
   jqUnlockData(batch);
@@ -240,7 +240,7 @@ int __cdecl dobj_skelCallback(jqBatch *batch)
 {
   unsigned int *data; // [esp+10h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "dobj_skel");
+  //PIXBeginNamedEvent(-1, "dobj_skel");
   data = jqLockData(batch);
   R_UpdateGfxEntityBoundsCmd((GfxSceneEntity **)data);
   jqUnlockData(batch);
@@ -253,7 +253,7 @@ int __cdecl dobj_skinCallback(jqBatch *batch)
 {
   unsigned int *data; // [esp+10h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "dobj_skin");
+  //PIXBeginNamedEvent(-1, "dobj_skin");
   data = jqLockData(batch);
   R_SkinGfxEntityCmd((GfxSceneEntity **)data);
   jqUnlockData(batch);
@@ -267,7 +267,7 @@ int __cdecl r_model_lightingCallback(jqBatch *batch)
   CalcLightingCmd *data; // [esp+8h] [ebp-4h]
 
   data = (CalcLightingCmd *)jqLockData(batch);
-  PIXBeginNamedEvent(-1, "r_model_lighting");
+  //PIXBeginNamedEvent(-1, "r_model_lighting");
   R_CalcModelLightingCmd(data);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
@@ -280,7 +280,7 @@ int __cdecl r_add_sceneentCallback(jqBatch *batch)
   unsigned int *data; // [esp+8h] [ebp-4h]
 
   data = jqLockData(batch);
-  PIXBeginNamedEvent(-1, "r_add_sceneent");
+  //PIXBeginNamedEvent(-1, "r_add_sceneent");
   R_AddAllSceneEntSurfacesCamera((const GfxViewInfo *)*data);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
@@ -301,7 +301,7 @@ int __cdecl fx_marks_drawCallback(jqBatch *batch)
   *frontEndDataOut->dynamicBufferCurrentFrame = frontEndDataOut->frameCount;
   if ( Sys_QueryD3DDeviceOKEvent() )
   {
-    PIXBeginNamedEvent(-1, "fx_marks_draw");
+    //PIXBeginNamedEvent(-1, "fx_marks_draw");
     FX_GenerateMarkVertsForWorld(data[1], (const GfxLight *)data[9], data[10]);
     if ( GetCurrentThreadId() == g_DXDeviceThread )
       D3DPERF_EndEvent();
@@ -315,7 +315,7 @@ int __cdecl fx_update_spotCallback(jqBatch *batch)
   unsigned int *data; // [esp+8h] [ebp-4h]
 
   data = jqLockData(batch);
-  PIXBeginNamedEvent(-1, "fx_update_spot");
+  //PIXBeginNamedEvent(-1, "fx_update_spot");
   R_ProcessCmd_UpdateFxSpotLight((FxCmd *)data);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();

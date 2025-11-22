@@ -1045,16 +1045,16 @@ void R_EndDumpStaticModelLodInfo()
 
 void __cdecl R_SortAllStaticModelSurfacesCamera()
 {
-  PIXBeginNamedEvent(-1, "R_SortAllStaticModelSurfacesCamera");
-  PIXBeginNamedEvent(-1, "sort surfs SMODEL_CAMERA_LIT");
+  //PIXBeginNamedEvent(-1, "R_SortAllStaticModelSurfacesCamera");
+  //PIXBeginNamedEvent(-1, "sort surfs SMODEL_CAMERA_LIT");
   R_SortDrawSurfs(scene.drawSurfs[1], scene.drawSurfCount[1]);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "sort surfs SMODEL_CAMERA_DECAL");
+  //PIXBeginNamedEvent(-1, "sort surfs SMODEL_CAMERA_DECAL");
   R_SortDrawSurfs(scene.drawSurfs[4], scene.drawSurfCount[4]);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "sort surfs SMODEL_CAMERA_EMISSIVE");
+  //PIXBeginNamedEvent(-1, "sort surfs SMODEL_CAMERA_EMISSIVE");
   R_SortDrawSurfs(scene.drawSurfs[11], scene.drawSurfCount[11]);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();
@@ -1064,11 +1064,11 @@ void __cdecl R_SortAllStaticModelSurfacesCamera()
 
 void __cdecl R_SortAllStaticModelSurfacesSunShadow()
 {
-  PIXBeginNamedEvent(-1, "sort surfs");
+  //PIXBeginNamedEvent(-1, "sort surfs");
   R_SortDrawSurfs(scene.drawSurfs[20], scene.drawSurfCount[20]);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "sort surfs");
+  //PIXBeginNamedEvent(-1, "sort surfs");
   R_SortDrawSurfs(scene.drawSurfs[24], scene.drawSurfCount[24]);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
@@ -1521,7 +1521,7 @@ void __cdecl R_AddAllStaticModelSurfacesSpotShadow(
   R_EndCmdBuf(&surfData.delayedCmdBuf);
   surfData.drawSurf[2].end = (GfxDrawSurf *)(surfData.drawSurf[0].current - scene.drawSurfs[v18]);
   scene.drawSurfCount[v18] = (volatile int)surfData.drawSurf[2].end;
-  PIXBeginNamedEvent(-1, "sort surfs");
+  //PIXBeginNamedEvent(-1, "sort surfs");
   R_SortDrawSurfs(scene.drawSurfs[v18], (int)surfData.drawSurf[2].end);
   if ( GetCurrentThreadId() == g_DXDeviceThread )
     D3DPERF_EndEvent();

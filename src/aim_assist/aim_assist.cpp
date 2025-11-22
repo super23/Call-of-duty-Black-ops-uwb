@@ -540,28 +540,22 @@ void __cdecl AimAssist_FovScale(AimAssistGlobals *aaGlob, float tanHalfFovY)
   aaGlob->fovScaleInv = tanHalfBaseFovY / tanHalfFovY;
 }
 
-// local variable allocation has failed, the output may be wrong!
 void  AimAssist_CreateScreenMatrix(
-        int a1@<ebp>,
         AimAssistGlobals *aaGlob,
         float tanHalfFovX,
         float tanHalfFovY)
 {
-  _BYTE v4[200]; // [esp+10h] [ebp-CCh] OVERLAPPED BYREF
-  _UNKNOWN *retaddr; // [esp+DCh] [ebp+0h]
+    float viewMtx[4][4]; // [esp+Ch] [ebp-C0h] BYREF
+    float projMtx[4][4]; // [esp+4Ch] [ebp-80h] BYREF
+    float screenMtx[4][4]; // [esp+8Ch] [ebp-40h] BYREF
 
-  *(unsigned int *)&v4[192] = a1;
-  *(unsigned int *)&v4[196] = retaddr;
-  if ( !aaGlob
-    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\aim_assist\\aim_assist.cpp", 671, 0, "%s", "aaGlob") )
-  {
-    __debugbreak();
-  }
-  MatrixForViewer(aaGlob->viewOrigin, aaGlob->viewAxis, (float (*)[4])&v4[128]);
-  InfinitePerspectiveMatrix(tanHalfFovX, tanHalfFovY, 1.0, (float (*)[4])&v4[64]);
-  MatrixMultiply44((const float (*)[4])&v4[128], (const float (*)[4])&v4[64], (float (*)[4])v4);
-  MatrixTranspose44((const float *)v4, aaGlob->screenMtx[0]);
-  MatrixInverse44(aaGlob->screenMtx[0], aaGlob->invScreenMtx[0]);
+    iassert(aaGlob);
+
+    MatrixForViewer(viewMtx, aaGlob->viewOrigin, aaGlob->viewAxis);
+    InfinitePerspectiveMatrix(projMtx, tanHalfFovX, tanHalfFovY, 1.0);
+    MatrixMultiply44(viewMtx, projMtx, screenMtx);
+    MatrixTranspose44(screenMtx, aaGlob->screenMtx);
+    MatrixInverse44(aaGlob->screenMtx, aaGlob->invScreenMtx);
 }
 
 char __cdecl AimAssist_ConvertToClipBounds(
@@ -1843,22 +1837,6 @@ void __cdecl AimAssist_ApplyLockOn(const AimInput *input, AimOutput *output)
       output->pitch = output->pitch - (float)(pitchTurnRate * input->deltaTime);
     }
   }
-}
-
-cg_s *__cdecl CG_GetLocalClientGlobals(int localClientNum)
-{
-  if ( localClientNum
-    && !Assert_MyHandler(
-          "c:\\projects_pc\\cod\\codsrc\\src\\cgame\\../cgame_mp/cg_local_mp.h",
-          1830,
-          0,
-          "%s\n\t(localClientNum) = %i",
-          "(localClientNum == 0)",
-          localClientNum) )
-  {
-    __debugbreak();
-  }
-  return cgArray;
 }
 
 const AimScreenTarget *__cdecl AimAssist_GetPrevOrBestTarget(

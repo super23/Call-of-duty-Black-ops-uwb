@@ -1,4 +1,0 @@
-CG_LoadingString
-CG_DrawInformation
-CG_IsShowingProgress_LoadObj
-CG_IsShowingProgress_FastFile

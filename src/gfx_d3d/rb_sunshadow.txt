@@ -1,5 +1,0 @@
-RB_SunShadowMaps
-RB_GetShadowOverlayDepthBounds
-RB_DrawSunShadowOverlay
-RB_SunShadowOverlayPoint
-RB_SetSunShadowOverlayScaleAndBias

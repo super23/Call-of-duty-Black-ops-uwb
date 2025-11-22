@@ -158,7 +158,7 @@ void __fastcall Actor_UpdateThreat(actor_s *self)
   sentient_info_t *pInfo; // [esp+8Ch] [ebp-Ch]
   int threat; // [esp+94h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Actor_UpdateThreat");
+  //PIXBeginNamedEvent(-1, "Actor_UpdateThreat");
   if ( !self && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_threat.cpp", 1001, 0, "%s", "self") )
     __debugbreak();
   if ( !self->sentient

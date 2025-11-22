@@ -139,7 +139,7 @@ void __cdecl SV_ArchiveSnapshot(msg_t *msg)
     v40 = 0;
     clientNum = 0;
     v22 = 0;
-    PIXBeginNamedEvent(3158271, "clients");
+    //PIXBeginNamedEvent(3158271, "clients");
     while ( clientNum < maxclients || v22 < num_clients )
     {
       if ( clientNum >= maxclients || svsHeader.clients[clientNum].header.state >= 3 )
@@ -215,7 +215,7 @@ void __cdecl SV_ArchiveSnapshot(msg_t *msg)
     MSG_WriteBit0(msg);
     MSG_ClearLastReferencedEntity(msg);
     v30 = NAN;
-    PIXBeginNamedEvent(3158271, "entities");
+    //PIXBeginNamedEvent(3158271, "entities");
     for ( num = 0; num < svsHeader.num_entities; ++num )
     {
       v28 = SV_GentityNumLocal(num);
@@ -297,7 +297,7 @@ LABEL_120:
     goto skipDelta;
   }
 LABEL_84:
-  PIXBeginNamedEvent(3158271, "write delta");
+  //PIXBeginNamedEvent(3158271, "write delta");
   MSG_WriteBit1(msg);
   MSG_WriteLong(msg, svsHeader.time);
   MSG_WriteLong(msg, svsHeader.physicsTime);

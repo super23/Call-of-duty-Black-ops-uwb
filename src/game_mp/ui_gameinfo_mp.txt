@@ -1,9 +1,0 @@
-UI_ParseInfos
-UI_LoadArenas
-UI_LoadModArenas
-UI_LoadModsMap
-UI_LoadArenasFromFile
-UI_LoadArenasFromFile_LoadObj
-UI_LoadArenasFromFile_FastFile
-UI_LoadMaps
-UI_LoadCustomMatchGameTypes

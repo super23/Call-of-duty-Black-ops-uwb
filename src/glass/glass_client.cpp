@@ -81,7 +81,7 @@ void __thiscall GlassesClient::Update(GlassesClient *this, int localClientNum)
 {
   unsigned int i; // [esp+Ch] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "GlassesClient.Update");
+  //PIXBeginNamedEvent(-1, "GlassesClient.Update");
   for ( i = 0; i < this->numGlasses; ++i )
     GlassClient::Update(&this->glasses[i], localClientNum);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
@@ -176,7 +176,7 @@ void __thiscall GlassesClient::WriteDemoSnapshot(GlassesClient *this, msg_t *msg
   GlassClient *glass; // [esp+10h] [ebp-Ch]
   unsigned int i; // [esp+14h] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "GlassesClient.WriteDemoSnapshot");
+  //PIXBeginNamedEvent(-1, "GlassesClient.WriteDemoSnapshot");
   MSG_WriteBit1(msg);
   MSG_WriteBit1(msg);
   MSG_WriteShort(msg, this->numGlasses);
@@ -214,7 +214,7 @@ void __thiscall GlassesClient::PreShatterNext(GlassesClient *this)
   GlassClient *gls; // [esp+14h] [ebp-Ch]
   unsigned int i; // [esp+18h] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "GlassesClient.PreShatterNext");
+  //PIXBeginNamedEvent(-1, "GlassesClient.PreShatterNext");
   for ( i = 0; i < this->numGlasses; ++i )
   {
     gls = &this->glasses[this->lastPreShatter++];
@@ -547,7 +547,7 @@ void __thiscall GlassClient::Shatter(GlassClient *this, const float *pos, const 
   float glassExtent; // [esp+684h] [ebp-Ch]
   GlassShard *shard; // [esp+68Ch] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "GlassClient.Shatter");
+  //PIXBeginNamedEvent(-1, "GlassClient.Shatter");
   shard = GlassRenderer::AllocShard(clGlasses->renderer);
   if ( shard )
   {
@@ -556,7 +556,7 @@ void __thiscall GlassClient::Shatter(GlassClient *this, const float *pos, const 
       glassExtent = GlassShard::Outline::Extent(&shard->outline);
       if ( this->outlines )
       {
-        PIXBeginNamedEvent(-1, "GlassClient.Shatter.outlines");
+        //PIXBeginNamedEvent(-1, "GlassClient.Shatter.outlines");
         numNewShards = GlassClient::Outlines::InitShards(this->outlines, shard, newShards, 400);
         GlassShard::Remove(shard, (GlassShard::RemoveReason)8, 0);
         GlassRenderer::FreeShardMemory(clGlasses->renderer, &this->outlines->numOutlines);
@@ -617,7 +617,7 @@ char __thiscall GlassClient::PreShatter(GlassClient *this)
 
   if ( (this->state.val.i & 0xF) == 2 || this->outlines )
     return 0;
-  PIXBeginNamedEvent(-1, "GlassClient.PreShatter");
+  //PIXBeginNamedEvent(-1, "GlassClient.PreShatter");
   shard = GlassRenderer::AllocShard(clGlasses->renderer);
   if ( shard )
   {
@@ -719,7 +719,7 @@ int __thiscall GlassClient::Outlines::InitShards(
   unsigned int i; // [esp+648h] [ebp-Ch]
   int numNewShards; // [esp+64Ch] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "InitShards");
+  //PIXBeginNamedEvent(-1, "InitShards");
   numNewShards = 0;
   for ( i = 0; i < this->numOutlines; ++i )
   {
@@ -852,7 +852,7 @@ void __cdecl GlassCl_WaitGenerateVerts()
 {
   if ( clGlasses && clGlasses->renderer->smpGlass->current.enabled )
   {
-    PIXBeginNamedEvent(-1, "GlassCl_WaitGenerateVerts");
+    //PIXBeginNamedEvent(-1, "GlassCl_WaitGenerateVerts");
     GlassRenderer::BeginUpdate((colgeom_visitor_t *)clGlasses->renderer);
     if ( g_DXDeviceThread == GetCurrentThreadId() )
       D3DPERF_EndEvent();
@@ -910,7 +910,7 @@ void __thiscall GlassesClient::TracePoint(GlassesClient *this, const pointtrace_
   float maxs[3]; // [esp+22Ch] [ebp-14h] BYREF
   unsigned int num; // [esp+23Ch] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "GlassesClient.TracePoint");
+  //PIXBeginNamedEvent(-1, "GlassesClient.TracePoint");
   Vec3Min(clip->extents.start.vec.v, clip->extents.end.vec.v, mins);
   Vec3Max(clip->extents.start.vec.v, clip->extents.end.vec.v, maxs);
   num = GlassesClient::AreaGlasses(this, mins, maxs, glss, 0x80u);
@@ -1053,7 +1053,7 @@ void __thiscall GlassesClient::ClipMoveTrace(GlassesClient *this, const moveclip
   float maxs[3]; // [esp+288h] [ebp-14h] BYREF
   unsigned int num; // [esp+298h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "GlassesClient.ClipMoveTrace");
+  //PIXBeginNamedEvent(-1, "GlassesClient.ClipMoveTrace");
   for ( i = 0; i < 3; ++i )
   {
     if ( (float)(clip->extents.end.vec.v[i] - clip->extents.start.vec.v[i]) < 0.0 )

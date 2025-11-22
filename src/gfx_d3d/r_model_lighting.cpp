@@ -440,7 +440,7 @@ void __cdecl R_CalcModelLighting(
   unsigned __int16 dest; // [esp+Ch] [ebp-8h]
   unsigned __int8 lightingAtPoint; // [esp+13h] [ebp-1h]
 
-  PIXBeginNamedEvent(-1, "model lighting");
+  //PIXBeginNamedEvent(-1, "model lighting");
   dest = truncate_cast<unsigned short>(entryIndex);
   if ( nonSunPrimaryLightIndex >= rgp.world->primaryLightCount
     && !Assert_MyHandler(
@@ -503,7 +503,7 @@ void __cdecl R_SetAllStaticModelLighting()
   unsigned int indexLow; // [esp+20h] [ebp-10h]
   unsigned int wordIndex; // [esp+28h] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "R_SetAllStaticModelLighting");
+  //PIXBeginNamedEvent(-1, "R_SetAllStaticModelLighting");
   if ( !smodelLightGlob.local.anyNewLighting )
   {
     if ( g_DXDeviceThread != GetCurrentThreadId() )

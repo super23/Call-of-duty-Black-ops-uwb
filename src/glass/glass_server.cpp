@@ -103,7 +103,7 @@ void __thiscall GlassesServer::Update(GlassesServer *this)
 
   if ( this->numGlasses )
   {
-    PIXBeginNamedEvent(-1, "GlassesServer.Update");
+    //PIXBeginNamedEvent(-1, "GlassesServer.Update");
     for ( i = 0; i < this->numGlasses; ++i )
     {
       if ( (this->glasses[i].state.val.i & 0xF) == 1 )
@@ -293,7 +293,7 @@ void __cdecl GlassSv_ClipMoveTrace(const moveclip_t *clip, trace_t *results)
 
   if ( (clip->contentmask & 0x10) != 0 && svGlasses.numGlasses )
   {
-    PIXBeginNamedEvent(-1, "GlassSv_ClipMoveTrace");
+    //PIXBeginNamedEvent(-1, "GlassSv_ClipMoveTrace");
     for ( i = 0; i < 3; ++i )
     {
       if ( (float)(clip->extents.end.vec.v[i] - clip->extents.start.vec.v[i]) < 0.0 )
@@ -372,7 +372,7 @@ void __cdecl GlassSv_PointTrace(const pointtrace_t *clip, trace_t *results)
 
   if ( (clip->contentmask & 0x10) != 0 && svGlasses.numGlasses )
   {
-    PIXBeginNamedEvent(-1, "GlassSv_PointTrace");
+    //PIXBeginNamedEvent(-1, "GlassSv_PointTrace");
     for ( i = 0; i < svGlasses.numGlasses; ++i )
     {
       glass = &svGlasses.glasses[i];
@@ -424,7 +424,7 @@ void __cdecl GlassSv_Damage(unsigned int glassId, int damage, int mod, float *po
   char v6; // [esp+4h] [ebp-20h]
   GlassServer *glass; // [esp+20h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "GlassSv_Damage");
+  //PIXBeginNamedEvent(-1, "GlassSv_Damage");
   if ( glassId >= svGlasses.numGlasses
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_server.cpp",
@@ -483,7 +483,7 @@ void __cdecl GlassSv_RadiusDamage(
 
   if ( svGlasses.numGlasses )
   {
-    PIXBeginNamedEvent(-1, "GlassSv_RadiusDamage");
+    //PIXBeginNamedEvent(-1, "GlassSv_RadiusDamage");
     MAX_CLOSESTS = 100;
     radiusSqr = radius * radius;
     LODWORD(v9) = COERCE_UNSIGNED_INT(1.4142135 * radius) ^ _mask__NegFloat_;
@@ -640,7 +640,7 @@ void __cdecl GlassSv_PredictTouch(gentity_s *other)
       v31 = actor->Physics.vVelocity[1];
       v32 = actor->Physics.vVelocity[2];
     }
-    PIXBeginNamedEvent(-1, "GlassSv_PredictTouch");
+    //PIXBeginNamedEvent(-1, "GlassSv_PredictTouch");
     maxs = other->r.absmax[0];
     v28 = other->r.absmax[1];
     v29 = other->r.absmax[2];
@@ -716,7 +716,7 @@ void __thiscall GlassesServer::WriteSnapshotToClient(GlassesServer *this, msg_t 
   _numGlasses = this->numGlasses;
   if ( _numGlasses )
   {
-    PIXBeginNamedEvent(-1, "GlassesServer::WriteSnapshotToClient");
+    //PIXBeginNamedEvent(-1, "GlassesServer::WriteSnapshotToClient");
     sendFull = 1;
     numChanges = 0;
     if ( sinceTime > 0 )

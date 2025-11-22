@@ -1,6 +1,0 @@
-R_BuildQuadStampCodeMeshVerts
-R_GenerateQuadStampCodeMeshVerts
-R_GenerateQuadStampCodeMeshVertsArray
-really_fast_sincos
-fast_round
-PackTwoShorts

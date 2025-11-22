@@ -1061,7 +1061,7 @@ void __cdecl DObjTracelinePartBits(DObj *obj, int *partBits)
   XBoneInfo *boneInfo; // [esp+24h] [ebp-Ch]
   XModel **models; // [esp+2Ch] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "traceline_bits");
+  //PIXBeginNamedEvent(-1, "traceline_bits");
   *partBits = 0;
   partBits[1] = 0;
   partBits[2] = 0;
@@ -1159,7 +1159,7 @@ void __cdecl DObjTraceline(DObj *obj, float *start, float *end, unsigned __int8 
   float hitSign; // [esp+3F4h] [ebp-8h]
   unsigned int currentPriority; // [esp+3F8h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "dobjtraceline");
+  //PIXBeginNamedEvent(-1, "dobjtraceline");
   trace->sflags = 0;
   trace->modelIndex = 0;
   trace->partName = 0;
@@ -1629,7 +1629,7 @@ void __cdecl DObjGeomTraceline(DObj *obj, float *localStart, float *localEnd, in
   unsigned int i; // [esp+68h] [ebp-8h]
   XModel **models; // [esp+6Ch] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "geomtraceline");
+  //PIXBeginNamedEvent(-1, "geomtraceline");
   memset(&trace, 0, 16);
   results->modelIndex = 0;
   results->partName = 0;
@@ -1708,7 +1708,7 @@ void __cdecl DObjGeomTracelinePartBits(DObj *obj, int contentmask, int *partBits
   unsigned int i; // [esp+18h] [ebp-8h]
   XModel **models; // [esp+1Ch] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "geomtraceline_bits");
+  //PIXBeginNamedEvent(-1, "geomtraceline_bits");
   *partBits = 0;
   partBits[1] = 0;
   partBits[2] = 0;

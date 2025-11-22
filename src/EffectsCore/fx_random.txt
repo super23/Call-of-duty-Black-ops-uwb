@@ -1,2 +1,0 @@
-FX_InitRandom
-FX_RandomDir

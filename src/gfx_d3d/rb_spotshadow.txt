@@ -1,5 +1,0 @@
-R_DrawSpotShadowMapCallback
-RB_SpotShadowMaps
-R_DrawSpotShadowMapArray
-RB_DrawSpotShadowOverlay
-RB_SetSpotShadowOverlayScaleAndBias

@@ -1,5 +1,0 @@
-Session_BuildQoSPayload
-Session_GetQosPayloadBuffer
-Session_GetQosPayloadBufferSize
-Session_IsHost
-Session_HostNum

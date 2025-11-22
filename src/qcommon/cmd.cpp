@@ -60,7 +60,7 @@ void __cdecl Cbuf_AddText(int localClientNum, const char *text)
   Sys_LeaveCriticalSection(CRITSECT_CBUF);
 }
 
-void __cdecl Cbuf_InsertText(int localClientNum, char *text)
+void __cdecl Cbuf_InsertText(int localClientNum, const char *text)
 {
   unsigned int v2; // [esp+4h] [ebp-1Ch]
   CmdText *cmd_text; // [esp+14h] [ebp-Ch]
@@ -352,7 +352,7 @@ void __cdecl Cbuf_ExecuteBufferUI(int localClientNum, int controllerIndex, itemD
 
 void __cdecl Cbuf_Execute(int localClientNum, int controllerIndex)
 {
-  PIXBeginNamedEvent(-1, "Cbuf_Execute");
+  //PIXBeginNamedEvent(-1, "Cbuf_Execute");
   if ( cmd_insideCBufExecute[localClientNum]
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cmd.cpp",

@@ -1,3 +1,0 @@
-RB_TouchAllImages
-RB_TouchImage
-RB_CompareTouchImages

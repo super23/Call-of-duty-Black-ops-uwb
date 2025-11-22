@@ -3776,7 +3776,7 @@ void __cdecl PlayerCmd_finishPlayerDamage(scr_entref_t entref)
         pSelf->client->ps.damageTimer = (int)max_damage_time;
       pSelf->client->ps.damageDuration = pSelf->client->ps.damageTimer;
       pSelf->health -= damage;
-      PIXBeginNamedEvent(-1, "damage notify");
+      //PIXBeginNamedEvent(-1, "damage notify");
       Scr_AddEntity(attacker, SCRIPTINSTANCE_SERVER);
       Scr_AddInt(damage, SCRIPTINSTANCE_SERVER);
       Scr_Notify(pSelf, scr_const.damage, 2u);
@@ -3786,7 +3786,7 @@ void __cdecl PlayerCmd_finishPlayerDamage(scr_entref_t entref)
         Com_Printf(1, "No die handler for player entity type %i", pSelf->handler);
       if ( pSelf->health > 0 )
       {
-        PIXBeginNamedEvent(-1, "pain");
+        //PIXBeginNamedEvent(-1, "pain");
         ApplyKnockBack(pSelf, damage, localdir, dflags, 0);
         pain = (void (__cdecl *)(gentity_s *, gentity_s *, int, const float *, const int, const float *, const hitLocation_t, const int))dword_E07CE4[12 * pSelf->handler];
         if ( pain )
@@ -3797,7 +3797,7 @@ void __cdecl PlayerCmd_finishPlayerDamage(scr_entref_t entref)
       }
       if ( !pSelf->client->lastStand && (pSelf->client->ps.perks[1] & 0x20) != 0 && !pSelf->client->ps.waterlevel )
       {
-        PIXBeginNamedEvent(-1, "enter last stand");
+        //PIXBeginNamedEvent(-1, "enter last stand");
         if ( (pSelf->client->ps.pm_flags & 2) != 0 )
         {
           BG_AnimScriptEvent(&g_pmove[pSelf->client->ps.clientNum], ANIM_ET_CROUCH_TO_LASTSTAND, 0, 1);
@@ -3830,7 +3830,7 @@ void __cdecl PlayerCmd_finishPlayerDamage(scr_entref_t entref)
       }
       if ( pSelf->health > 0 )
         goto LABEL_130;
-      PIXBeginNamedEvent(-1, "die");
+      //PIXBeginNamedEvent(-1, "die");
       if ( tempBulletHitEntity )
         tempBulletHitEntity->s.un1.scale |= 2u;
       if ( pSelf->health <= 0xFFFFFC18 )
@@ -4742,7 +4742,7 @@ void __cdecl PlayerCmd_spawn(scr_entref_t entref)
   float spawn_angles[3]; // [esp+10h] [ebp-18h] BYREF
   float spawn_origin[3]; // [esp+1Ch] [ebp-Ch] BYREF
 
-  PIXBeginNamedEvent(-1, "PlayerCmd_spawn");
+  //PIXBeginNamedEvent(-1, "PlayerCmd_spawn");
   if ( entref.classnum )
   {
     Scr_ObjectError("not an entity", SCRIPTINSTANCE_SERVER);

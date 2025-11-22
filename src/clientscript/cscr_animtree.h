@@ -1,5 +1,16 @@
 #pragma once
 
+#include "cscr_main.h"
+
+struct XAnim_s;
+
+struct scr_animtree_t // sizeof=0x4
+{                                       // XREF: animScriptData_t/r
+    XAnim_s *anims;                     // XREF: BG_FindAnimTree+1A/w
+};
+
+
+
 XExpr::MathTypes __cdecl EqualTypeSameResult(const ParseValue *params, int iNumParams, scriptInstance_t inst);
 void __cdecl AnimTreeCompileError(scriptInstance_t inst, const char *msg);
 XExpr::MathTypes __cdecl EqualTypeAllowScalar(const ParseValue *params, int iNumParams, scriptInstance_t inst);

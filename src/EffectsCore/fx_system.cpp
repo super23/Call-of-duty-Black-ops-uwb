@@ -863,7 +863,7 @@ unsigned int __cdecl FX_SpawnEffect(
   char isSpotLightEffect; // [esp+8Bh] [ebp-5h]
   unsigned int elemClass; // [esp+8Ch] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "FX_SpawnEffect");
+  //PIXBeginNamedEvent(-1, "FX_SpawnEffect");
   if ( zombietron->current.enabled && system->localClientNum )
   {
     if ( GetCurrentThreadId() == g_DXDeviceThread )

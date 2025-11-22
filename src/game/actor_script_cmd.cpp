@@ -273,7 +273,7 @@ void __cdecl ActorCmd_CanSee(scr_entref_t entref)
   actor_s *self; // [esp+14h] [ebp-8h]
   int iLatency; // [esp+18h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "ActorCmd_CanSee");
+  //PIXBeginNamedEvent(-1, "ActorCmd_CanSee");
   self = Actor_Get(entref);
   pOther = Scr_GetEntity(0);
   if ( !pOther
@@ -310,7 +310,7 @@ void __cdecl ActorCmd_MayMoveToPoint(scr_entref_t entref)
   actor_s *self; // [esp+5Ch] [ebp-10h]
   float myPos[3]; // [esp+60h] [ebp-Ch] BYREF
 
-  PIXBeginNamedEvent(-1, "MayMoveToPoint");
+  //PIXBeginNamedEvent(-1, "MayMoveToPoint");
   self = Actor_Get(entref);
   Scr_GetVector(0, vPoint, SCRIPTINSTANCE_SERVER);
   checkDrop = (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) <= 1
@@ -458,7 +458,7 @@ void __cdecl ActorCmd_MayMoveFromPointToPoint(scr_entref_t entref)
   actor_s *self; // [esp+54h] [ebp-10h]
   float vStart[3]; // [esp+58h] [ebp-Ch] BYREF
 
-  PIXBeginNamedEvent(-1, "MayMoveFromPointToPoint");
+  //PIXBeginNamedEvent(-1, "MayMoveFromPointToPoint");
   self = Actor_Get(entref);
   Scr_GetVector(0, vStart, SCRIPTINSTANCE_SERVER);
   Scr_GetVector(1u, vEnd, SCRIPTINSTANCE_SERVER);
@@ -939,7 +939,7 @@ void __cdecl ActorCmd_GetMotionAngle(scr_entref_t entref)
   float fDeltaYaw; // [esp+2Ch] [ebp-8h]
   actor_s *self; // [esp+30h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "GetMotionAngle");
+  //PIXBeginNamedEvent(-1, "GetMotionAngle");
   self = Actor_Get(entref);
   if ( (float)((float)(self->Physics.vVelocity[0] * self->Physics.vVelocity[0])
              + (float)(self->Physics.vVelocity[1] * self->Physics.vVelocity[1])) <= 1.0 )

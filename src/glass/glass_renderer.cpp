@@ -639,7 +639,7 @@ void __thiscall GlassRenderer::Update(GlassRenderer *this, int threadId)
   {
     __debugbreak();
   }
-  PIXBeginNamedEvent(-1, "Glasses Update");
+  //PIXBeginNamedEvent(-1, "Glasses Update");
   GlassRenderer::CrashGlass(this);
   GlassRenderer::Broom(this);
   p_rendererLock = &this->rendererLock;
@@ -702,7 +702,7 @@ void __thiscall GlassRenderer::Update(GlassRenderer *this, int threadId)
     this->stat.numOOMGroups = 0;
     this->stat.numMovingShards = 0;
   }
-  PIXBeginNamedEvent(0, "ShardGroup.Update");
+  //PIXBeginNamedEvent(0, "ShardGroup.Update");
   std::list<GlassShard *,SmallAllocatorTemplate<GlassShard *>>::_Const_iterator<1>::_Const_iterator<1>(
     (std::list<GlassPhysics *,SmallAllocatorTemplate<GlassPhysics * *> >::_Const_iterator<1> *)&grp,
     (std::_List_nod<GlassPhysics *,SmallAllocatorTemplate<GlassPhysics * *> >::_Node *)this->groupsAllocator->used._Myhead->_Next,
@@ -761,7 +761,7 @@ void __thiscall GlassRenderer::GenerateVerts(
     __debugbreak();
   }
   Name = va("Glass.GenVerts(c=%d v=%d t=%d)", localClientNum, viewIndex, threadId);
-  PIXBeginNamedEvent(-1, Name);
+  //PIXBeginNamedEvent(-1, Name);
   p_rendererLock = &this->rendererLock;
   do
   {
@@ -820,7 +820,7 @@ void __thiscall GlassRenderer::ExplosionEvent(
   std::list<ShardGroup *,SmallAllocatorTemplate<ShardGroup * *> >::_Const_iterator<1> v12; // [esp+48h] [ebp-14h]
   std::list<ShardGroup *,SmallAllocatorTemplate<ShardGroup * *> >::_Const_iterator<1> grp; // [esp+50h] [ebp-Ch] BYREF
 
-  PIXBeginNamedEvent(-1, "GlassRenderer.ExplosionEvent");
+  //PIXBeginNamedEvent(-1, "GlassRenderer.ExplosionEvent");
   std::list<GlassShard *,SmallAllocatorTemplate<GlassShard * *>>::begin(
     (std::list<GlassPhysics *,SmallAllocatorTemplate<GlassPhysics * *> > *)&this->groupsAllocator->used,
     (std::list<GlassShard *,SmallAllocatorTemplate<GlassShard *> >::_Iterator<1> *)&grp);
@@ -860,7 +860,7 @@ int __thiscall GlassRenderer::TracePoint(GlassRenderer *this, float *p0, const f
   std::list<ShardGroup *,SmallAllocatorTemplate<ShardGroup * *> >::_Const_iterator<1> grp; // [esp+44h] [ebp-10h] BYREF
   int numHits; // [esp+50h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "GlassRenderer.TracePoint");
+  //PIXBeginNamedEvent(-1, "GlassRenderer.TracePoint");
   numHits = 0;
   std::list<GlassShard *,SmallAllocatorTemplate<GlassShard * *>>::begin(
     (std::list<GlassPhysics *,SmallAllocatorTemplate<GlassPhysics * *> > *)&this->groupsAllocator->used,
@@ -1361,7 +1361,7 @@ void __thiscall GlassRenderer::ExecuteActions(GlassRenderer *this)
 {
   GlassRenderer::Action *action; // [esp+20h] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "GlassRenderer.ExecuteActions");
+  //PIXBeginNamedEvent(-1, "GlassRenderer.ExecuteActions");
   while ( this->actionOutputIndex != this->actionInputIndex )
   {
     action = &this->actions[this->actionOutputIndex % 0xC8u];
@@ -1553,7 +1553,7 @@ void __thiscall GlassRenderer::DoMaintenance(GlassRenderer *this)
   unsigned int numToFree; // [esp+130h] [ebp-8h]
 
   Sys_WaitInterlockedCompareExchange(&this->rendererLock.lock, 1, 0);
-  PIXBeginNamedEvent(-1, "GlassRenderer.DoMaintenance");
+  //PIXBeginNamedEvent(-1, "GlassRenderer.DoMaintenance");
   if ( this->doMaintenance->current.enabled )
   {
     if ( (double)this->shardsAllocator->used._Mysize
@@ -1562,7 +1562,7 @@ void __thiscall GlassRenderer::DoMaintenance(GlassRenderer *this)
       v5 = (char *)this->shardMemoryAllocator.tail - (char *)this->shardMemoryAllocator.head;
       if ( (float)(1.0 - 0.89999998) > (float)((float)Allocator::GetFree(&this->shardMemoryAllocator) / (float)v5) )
       {
-        PIXBeginNamedEvent(-1, "Too much shard memory");
+        //PIXBeginNamedEvent(-1, "Too much shard memory");
         GlassRenderer::GetSmallestShards(this, 0x32u, 1, 0);
         targetFree = (int)(float)((float)((char *)this->shardMemoryAllocator.tail
                                         - (char *)this->shardMemoryAllocator.head)
@@ -1597,7 +1597,7 @@ void __thiscall GlassRenderer::DoMaintenance(GlassRenderer *this)
     }
     else
     {
-      PIXBeginNamedEvent(-1, "Too many shards");
+      //PIXBeginNamedEvent(-1, "Too many shards");
       numToFree = this->shardsAllocator->used._Mysize
                 - (__int64)((double)(this->shardsAllocator->free._Mysize + this->shardsAllocator->used._Mysize)
                           * 0.89999998
@@ -1629,7 +1629,7 @@ void __thiscall GlassRenderer::DoMaintenance(GlassRenderer *this)
       if ( g_DXDeviceThread == GetCurrentThreadId() )
         D3DPERF_EndEvent();
     }
-    PIXBeginNamedEvent(-1, "Defrag shard work memory");
+    //PIXBeginNamedEvent(-1, "Defrag shard work memory");
     Allocator::Defrag(&this->shardMemoryAllocator, (void (__cdecl *)(void *))GlassShard::Defrag, 10);
     if ( GetCurrentThreadId() == g_DXDeviceThread )
       D3DPERF_EndEvent();
@@ -2244,7 +2244,7 @@ void __thiscall ShardGroup::GenerateVerts(ShardGroup *this, bool firstView, unsi
       ShardGroup::FreeRenderMemory(this);
     if ( !this->renderIndices )
     {
-      PIXBeginNamedEvent(-1, "ShardGroup.GenerateVerts");
+      //PIXBeginNamedEvent(-1, "ShardGroup.GenerateVerts");
       this->highLod = needHighLod;
       ShardGroup::FreeRenderMemory(this);
       this->numIndices = 0;
@@ -2412,7 +2412,7 @@ int __thiscall ShardGroup::TracePoint(ShardGroup *this, float *p0, const float *
     && maxs[1] >= this->worldBBoxMin[1]
     && maxs[2] >= this->worldBBoxMin[2] )
   {
-    PIXBeginNamedEvent(-1, "ShardGroup.TracePoint");
+    //PIXBeginNamedEvent(-1, "ShardGroup.TracePoint");
     dir[0] = *p1 - *p0;
     dir[1] = p1[1] - p0[1];
     dir[2] = p1[2] - p0[2];

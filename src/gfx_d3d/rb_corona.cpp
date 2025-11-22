@@ -13,7 +13,7 @@ void __cdecl RB_DrawCoronas(unsigned int localClientNum)
   CoronaState *state; // [esp+44h] [ebp-10h]
   int frameTime; // [esp+4Ch] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "RB_DrawCoronas");
+  //PIXBeginNamedEvent(-1, "RB_DrawCoronas");
   if ( localClientNum >= gfxCfg.maxClientViews
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_corona.cpp",

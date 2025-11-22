@@ -1,8 +1,0 @@
-R_Rope_GenerateVerts_Camera
-R_Rope_GenerateVerts_Internal
-R_Rope_GenerateVerts_SunShadow
-R_Rope_ClearAll
-R_Rope_Add
-R_Rope_GetInfo
-R_Rope_CalcVisibility
-R_Rope_GetMaterialFromGfxWorld

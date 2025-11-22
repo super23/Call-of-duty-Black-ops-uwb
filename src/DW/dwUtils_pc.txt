@@ -1,7 +1,0 @@
-dwGetOnlineUserID
-dwGetOnlineUserName
-dwXnaddrtonetadr
-SV_SendClientChallenge
-CL_HandleSVDWChallenge
-Com_GametypeToInt
-Com_IntToGametype

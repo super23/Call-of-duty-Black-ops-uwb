@@ -176,7 +176,7 @@ void __cdecl CG_DrawCrosshair(int localClientNum)
   float transScale; // [esp+154h] [ebp-8h] BYREF
   float centerX; // [esp+158h] [ebp-4h] BYREF
 
-  PIXBeginNamedEvent(-1, "CG_DrawCrosshair");
+  //PIXBeginNamedEvent(-1, "CG_DrawCrosshair");
   cgameGlob = CG_GetLocalClientGlobals(localClientNum);
   ps = &cgameGlob->predictedPlayerState;
   if ( !cg_drawGun

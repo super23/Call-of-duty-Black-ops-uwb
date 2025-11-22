@@ -877,7 +877,7 @@ void __cdecl R_MarkFragments_Go(
 {
   bool error; // [esp+33h] [ebp-1h]
 
-  PIXBeginNamedEvent(-1, "R_MarkFragments_Go");
+  //PIXBeginNamedEvent(-1, "R_MarkFragments_Go");
   if ( !markInfo->material
     && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_marks.cpp", 2435, 0, "%s", "markInfo->material") )
   {
@@ -960,7 +960,7 @@ char __cdecl R_MarkFragments_WorldBrushes(MarkInfo *markInfo)
   bool anyMarks; // [esp+42Fh] [ebp-1h] BYREF
   int savedregs; // [esp+430h] [ebp+0h] BYREF
 
-  PIXBeginNamedEvent(-1, "markfragments worldbrushes");
+  //PIXBeginNamedEvent(-1, "markfragments worldbrushes");
   if ( (markInfo->usedTriCount || markInfo->usedPointCount)
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_marks.cpp",
@@ -1504,7 +1504,7 @@ char __cdecl R_MarkFragments_EntBrushes(MarkInfo *markInfo)
   bool anyMarks; // [esp+1A7h] [ebp-Dh] BYREF
   float markDir[3]; // [esp+1A8h] [ebp-Ch] BYREF
 
-  PIXBeginNamedEvent(-1, "markfragments entbrushes");
+  //PIXBeginNamedEvent(-1, "markfragments entbrushes");
   brushModelCollidedCount = markInfo->sceneBModelCollidedCount;
   for ( brushModelCollidedIndex = 0; brushModelCollidedIndex != brushModelCollidedCount; ++brushModelCollidedIndex )
   {
@@ -1607,7 +1607,7 @@ char __cdecl R_MarkFragments_Glass(MarkInfo *markInfo)
   bool anyMarks; // [esp+18Bh] [ebp-Dh] BYREF
   float markDir[3]; // [esp+18Ch] [ebp-Ch] BYREF
 
-  PIXBeginNamedEvent(-1, "markfragments glass");
+  //PIXBeginNamedEvent(-1, "markfragments glass");
   num = GlassCl_AreaGlasses(markInfo->mins, markInfo->maxs, glasses, 8u);
   for ( i = 0; i < num; ++i )
   {
@@ -1731,7 +1731,7 @@ char __cdecl R_MarkFragments_SceneDObjs(MarkInfo *markInfo)
   unsigned __int16 entnum; // [esp+8Ch] [ebp-8h]
   int sceneDObjCollidedIndex; // [esp+90h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "markfragments scenedobj");
+  //PIXBeginNamedEvent(-1, "markfragments scenedobj");
   sceneDObjCollidedIndex = 0;
 LABEL_2:
   if ( sceneDObjCollidedIndex == markInfo->sceneDObjCollidedCount )
@@ -2017,7 +2017,7 @@ char __cdecl R_MarkFragments_StaticModels(MarkInfo *markInfo)
   float modelAxis[3][3]; // [esp+A4h] [ebp-28h] BYREF
   int smodelIndex; // [esp+C8h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "markfragments smodel");
+  //PIXBeginNamedEvent(-1, "markfragments smodel");
   for ( smodelCollidedIndex = 0; smodelCollidedIndex != markInfo->smodelCollidedCount; ++smodelCollidedIndex )
   {
     if ( (markInfo->usedTriCount || markInfo->usedPointCount)

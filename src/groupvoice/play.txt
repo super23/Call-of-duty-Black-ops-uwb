@@ -1,8 +1,0 @@
-Sound_UpdateSample
-Sound_NewSample
-Sound_DestroySample
-Sound_StopSample
-Sound_Frame
-Sound_SampleFrame
-Sound_Init
-Sound_Shutdown

@@ -2684,7 +2684,7 @@ void __cdecl SV_ClientThink(client_t *cl, usercmd_s *cmd)
   char *Name; // [esp+20h] [ebp-8h]
 
   Name = va("SV_ClientThink '%s'", cl->name);
-  PIXBeginNamedEvent(-1, Name);
+  //PIXBeginNamedEvent(-1, Name);
   if ( (unsigned int)(cl - svs.clients) >= com_maxclients->current.integer
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\server_mp\\sv_client_mp.cpp",

@@ -277,7 +277,7 @@ unsigned __int8 *RB_Resource_Update_Internal()
   r_resource_action *action; // [esp+B8h] [ebp-8h]
   int resourceIndex; // [esp+BCh] [ebp-4h]
 
-  PIXBeginNamedEvent(0, "RB_Resource_Update");
+  //PIXBeginNamedEvent(0, "RB_Resource_Update");
   RB_Resource_Lock();
   resourceIndex = 0;
   while ( resourceIndex < numResourceActions )

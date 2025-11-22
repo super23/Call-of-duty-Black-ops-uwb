@@ -1455,7 +1455,7 @@ unsigned int __cdecl SND_ContinueLoopingSound(
 {
   signed int i; // [esp+40h] [ebp-4h]
 
-  PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "SND_ContinueLoopingSound");
+  //PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "SND_ContinueLoopingSound");
   for ( i = 0; i < 74; ++i )
   {
     if ( g_snd.voiceAliasHash[i]
@@ -2129,8 +2129,8 @@ void __cdecl SNDL_Update()
 
   if ( SND_Active() )
   {
-    PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "SNDL_Update");
-    PIXBeginNamedEvent(-1, "time update");
+    //PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "SNDL_Update");
+    //PIXBeginNamedEvent(-1, "time update");
     v0 = Sys_Milliseconds();
     frametime = v0 - g_snd.time;
     g_snd.time = v0;
@@ -2143,34 +2143,34 @@ void __cdecl SNDL_Update()
                     + (float)((float)(1.0 - snd_timescale_filter->current.value) * g_snd.timescale);
     if ( g_DXDeviceThread == GetCurrentThreadId() )
       D3DPERF_EndEvent();
-    PIXBeginNamedEvent(-1, "SND_UpdateStaticSounds");
+    //PIXBeginNamedEvent(-1, "SND_UpdateStaticSounds");
     SND_UpdateStaticSounds();
     if ( GetCurrentThreadId() == g_DXDeviceThread )
       D3DPERF_EndEvent();
     SD_PreUpdate();
     SND_UpdatePause();
-    PIXBeginNamedEvent(-1, "faders");
+    //PIXBeginNamedEvent(-1, "faders");
     SND_UpdateMasterVolumes(fdt);
     SND_UpdateRoomEffects(frametime);
     if ( g_DXDeviceThread == GetCurrentThreadId() )
       D3DPERF_EndEvent();
-    PIXBeginNamedEvent(-1, "mixing");
+    //PIXBeginNamedEvent(-1, "mixing");
     SND_UpdateSnapshot(fdt);
     if ( g_DXDeviceThread == GetCurrentThreadId() )
       D3DPERF_EndEvent();
-    PIXBeginNamedEvent(-1, "systems");
+    //PIXBeginNamedEvent(-1, "systems");
     SND_LosOcclusionUpdate();
     if ( g_DXDeviceThread == GetCurrentThreadId() )
       D3DPERF_EndEvent();
-    PIXBeginNamedEvent(-1, "update voices");
+    //PIXBeginNamedEvent(-1, "update voices");
     SND_UpdateVoices(frametime);
     if ( g_DXDeviceThread == GetCurrentThreadId() )
       D3DPERF_EndEvent();
-    PIXBeginNamedEvent(-1, "Driver Post Update");
+    //PIXBeginNamedEvent(-1, "Driver Post Update");
     BG_EvalVehicleName();
     if ( g_DXDeviceThread == GetCurrentThreadId() )
       D3DPERF_EndEvent();
-    PIXBeginNamedEvent(-1, "debug");
+    //PIXBeginNamedEvent(-1, "debug");
     SND_DebugDrawWorldSounds(snd_draw3D->current.integer);
     if ( GetCurrentThreadId() == g_DXDeviceThread )
       D3DPERF_EndEvent();
@@ -2277,7 +2277,7 @@ void __cdecl SND_UpdateVoices(int frametime)
   else
     dt = *(float *)&FLOAT_0_0;
   count = 0;
-  PIXBeginNamedEvent(-1, "SND_UpdateVoicePosition");
+  //PIXBeginNamedEvent(-1, "SND_UpdateVoicePosition");
   for ( i = 0; i < 0x4A; ++i )
   {
     if ( g_snd.voiceAliasHash[i] )
@@ -2285,7 +2285,7 @@ void __cdecl SND_UpdateVoices(int frametime)
   }
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "SND_UpdateVoice");
+  //PIXBeginNamedEvent(-1, "SND_UpdateVoice");
   for ( j = 0; j < 0x4A; ++j )
   {
     if ( g_snd.voiceAliasHash[j] )
@@ -2293,7 +2293,7 @@ void __cdecl SND_UpdateVoices(int frametime)
   }
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-1, "SD_UpdateVoice");
+  //PIXBeginNamedEvent(-1, "SD_UpdateVoice");
   for ( voiceIndex = 0; voiceIndex < 0x4A; ++voiceIndex )
   {
     if ( g_snd.voiceAliasHash[voiceIndex] )

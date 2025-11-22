@@ -1,7 +1,0 @@
-R_CalculateTriangleArea2D
-R_CalculateTriangleArea3D
-R_CalculateTriangleTopMipAabb
-R_CalculateMinimalAabbForSpheres
-R_CalculateTriangleTextureGradient
-R_CalculateTexelDensityFromGradient
-R_StreamGetMaterialTextureSize

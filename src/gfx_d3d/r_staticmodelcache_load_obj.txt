@@ -1,9 +1,0 @@
-R_AssignSModelCacheResources
-R_AssignSModelCacheIndex
-R_CompareSModelStats_Score
-R_GetEntryCount
-R_OptimalSModelResourceStats
-R_AddSModelListStats
-R_GetSModelCacheAllocBits
-R_MaxModelsInDistRange
-R_CompareSModels_Model

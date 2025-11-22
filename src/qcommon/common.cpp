@@ -750,7 +750,7 @@ void __cdecl Com_EventLoop()
   sysEvent_t v1; // [esp+30h] [ebp-34h]
   sysEvent_t ev; // [esp+4Ch] [ebp-18h]
 
-  PIXBeginNamedEvent(-1, "Com_EventLoop");
+  //PIXBeginNamedEvent(-1, "Com_EventLoop");
   while ( 1 )
   {
     v1 = *Sys_GetEvent(&result);
@@ -2274,7 +2274,7 @@ unsigned intCom_Frame_Try_Block_Function()
             -1) )
       __debugbreak();
   }
-  PIXBeginNamedEvent(-1, "Com_Frame");
+  //PIXBeginNamedEvent(-1, "Com_Frame");
   Com_WriteConfiguration(0);
   Sys_UpdateHotkeyBlock();
   SetAnimCheck(com_animCheck->current.color[0], SCRIPTINSTANCE_SERVER);
@@ -2317,7 +2317,7 @@ unsigned intCom_Frame_Try_Block_Function()
   Demo_Frame(msec);
   mseca = Com_ModifyMsec(msec);
   LiveSteam_Frame();
-  PIXBeginNamedEvent(-1, "SV frame");
+  //PIXBeginNamedEvent(-1, "SV frame");
   v3 = Com_LocalClient_GetControllerIndex(0);
   SV_Frame(v3, mseca);
   if ( GetCurrentThreadId() == g_DXDeviceThread )

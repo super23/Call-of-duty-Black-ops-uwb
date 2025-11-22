@@ -1,9 +1,0 @@
-CG_DrawFlashDamage
-CG_DrawDamageDirectionIndicators
-CG_ClearHudGrenades
-CG_AddHudGrenade_PositionCheck
-CG_GrenadeIndicator_GetPlayerPosition
-CG_AddHudGrenade
-CG_DrawGrenadeIndicators
-CG_DrawWarningPointer
-CG_DrawWarningIcon

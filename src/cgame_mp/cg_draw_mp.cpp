@@ -1300,7 +1300,7 @@ void __cdecl CG_UpdatePlayerNames(int localClientNum)
 
 void __cdecl CG_UpdatePlayerNamesInternal(int localClientNum)
 {
-  PIXBeginNamedEvent(-1, "CG_UpdatePlayerNames");
+  //PIXBeginNamedEvent(-1, "CG_UpdatePlayerNames");
   if ( CG_AreAllPlayerNamesVisible() )
   {
     CG_DrawVisibleNames(localClientNum);
@@ -1514,7 +1514,7 @@ void __cdecl CG_DrawMissileCam(int localClientNum)
 
 void __cdecl CG_AddSceneTracerBeams(int localClientNum)
 {
-  PIXBeginNamedEvent(-1, "CG_AddSceneTracerBeams");
+  //PIXBeginNamedEvent(-1, "CG_AddSceneTracerBeams");
   CG_AddLocalEntityTracerBeams(localClientNum);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
@@ -1525,8 +1525,8 @@ void __cdecl CG_GenerateSceneCodeMeshes(int localClientNum)
   RopeGenerateVertsCmd ropeVertsCmd; // [esp+14h] [ebp-48h] BYREF
   cg_s *clientGlobals; // [esp+54h] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "CG_GenerateSceneCodeMeshes");
-  PIXBeginNamedEvent(-1, "Rope generate verts");
+  //PIXBeginNamedEvent(-1, "CG_GenerateSceneCodeMeshes");
+  //PIXBeginNamedEvent(-1, "Rope generate verts");
   ropeVertsCmd.localClientNum = localClientNum;
   ropeVertsCmd.ropeInfo = R_Rope_GetInfo();
   clientGlobals = CG_GetLocalClientGlobals(localClientNum);
@@ -1547,7 +1547,7 @@ void __cdecl CG_GenerateSceneCodeMeshes(int localClientNum)
 
 void __cdecl CG_GenerateSceneVerts(int localClientNum)
 {
-  PIXBeginNamedEvent(-1, "CG_GenerateSceneVerts");
+  //PIXBeginNamedEvent(-1, "CG_GenerateSceneVerts");
   CG_AddAllPlayerSpriteDrawSurfs(localClientNum);
   CG_AddDrawSurfsFor3dHudElems(localClientNum);
   CG_RenderFire();

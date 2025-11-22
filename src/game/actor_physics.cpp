@@ -181,7 +181,7 @@ bool __cdecl Actor_Physics_1(actor_physics_t *pPhys)
 {
   bool bSuccess; // [esp+2Ch] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Actor_Physics");
+  //PIXBeginNamedEvent(-1, "Actor_Physics");
   g_pPhys = pPhys;
   pPhys->iHitEntnum = 1023;
   pPhys->iNumTouch = 0;

@@ -1,20 +1,51 @@
 #pragma once
 
+#include <cstdio> // FILE
+
+enum AssertOccurance : __int32
+{                                       // XREF: AssertNotify/r
+    FIRST_TIME = 0x0,
+    RECURSIVE = 0x1,
+};
+
 void __cdecl FixWindowsDesktop();
-int __stdcall HideWindowCallback(HWND__ *hwnd, int lParam);
 int __cdecl Assert_DoStackTrace(char *msg, int nIgnore, int type, int *context);
 int __cdecl LoadMapFiles(char *msg);
 void __cdecl LoadMapFilesForDir(const char *dir);
-char __cdecl ParseMapFile(_iobuf *fp, unsigned int baseAddress, const char *mapName);
+char __cdecl ParseMapFile(FILE *fp, unsigned int baseAddress, const char *mapName);
 void __cdecl ParseError(const char *msg);
-char __cdecl ReadLine(_iobuf *fp);
-char __cdecl SkipLines(int lineCount, _iobuf *fp);
-HINSTANCE__ *__cdecl GetModuleBase(char *name);
+char __cdecl ReadLine(FILE *fp);
+char __cdecl SkipLines(int lineCount, FILE *fp);
 void __cdecl Assert_ResetAddressInfo();
 void __cdecl Assert_SetMonkeyCallbackHandler(void (__cdecl *AssertCallbackFunc)(const char *));
-bool Assert_MyHandler(char *filename, int line, int type, const char *fmt, ...);
 bool CopyMessageToClipboard();
 char __cdecl AssertNotify(int type, AssertOccurance occurance);
 void __cdecl Assert_BuildAssertMessage(char *expr, char *filename, int line, int type, int skipLevels, char *message);
 void __cdecl RefreshQuitOnErrorCondition();
 bool __cdecl QuitOnError();
+
+
+bool Assert_MyHandler(const char *filename, int line, int type, const char *fmt, ...);
+
+#ifdef _DEBUG 
+#define iassert(expression) (void)(                                                       \
+            (!!(expression)) ||                                                          \
+            (Assert_MyHandler(__FILE__, (unsigned)(__LINE__), 0, "%s", #expression), 0) \
+        )
+
+#define vassert(expression, fmt, ...)  (void)(                                                       \
+            (!!(expression)) ||                                                          \
+            (Assert_MyHandler(__FILE__, (unsigned)(__LINE__), 0, "%s\n\t" fmt, #expression, __VA_ARGS__), 0) \
+        )
+
+#define bcassert(expression, maxv) vassert(((expression) < (maxv)), #expression "%d does not index [0, %d)", expression, maxv)
+#define bcassert2(expression, maxv) vassert(((expression) <= (maxv)), #expression "%d does not index [0, %d]", expression, maxv)
+
+#define alwaysfails 0
+#else
+#define iassert(expression)
+#define vassert(expression, fmt, ...)
+#define bcassert(expression, maxv)
+#define bcassert2(expression, maxv)
+#define alwaysfails 0
+#endif

@@ -806,9 +806,9 @@ void __cdecl Flame_Phys_Update_Items(bool is_server)
   if ( nflames )
   {
     if ( is_server )
-      PIXBeginNamedEvent(-1, "sv_flame_physics");
+      //PIXBeginNamedEvent(-1, "sv_flame_physics");
     else
-      PIXBeginNamedEvent(-1, "cl_flame_physics");
+      //PIXBeginNamedEvent(-1, "cl_flame_physics");
     v4 = &phys_static_array<flameGeneric_s *,1000>::operator[](v3, 0)[nflames];
     _First = phys_static_array<flameGeneric_s *,1000>::operator[](v3, 0);
     std::_Sort<flameGeneric_s * *,int,Flame_SortByStream>(_First, v4, v4 - _First, 0);

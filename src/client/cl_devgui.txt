@@ -1,8 +1,0 @@
-CL_DevGuiFrame
-CL_CreateDevGui
-CL_RegisterDevGuiDvars
-CL_CreateMapMenuEntries
-CL_CreateMapMenuEntriesForLocation
-CL_AddMapDirSlider
-CL_DestroyDevGui
-CL_UnregisterDevGuiDvars

@@ -1333,7 +1333,7 @@ void __cdecl RB_BloomLDR(const GfxViewInfo *viewInfo)
   unsigned __int8 tmp; // [esp+63h] [ebp-1h]
   int savedregs; // [esp+64h] [ebp+0h] BYREF
 
-  PIXBeginNamedEvent(-1, "LDR Bloom");
+  //PIXBeginNamedEvent(-1, "LDR Bloom");
   R_SetRenderTargetSize(&gfxCmdBufSourceState, 0x19u);
   R_SetRenderTarget(gfxCmdBufContext, 0x19u);
   R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, 0x19u);
@@ -2368,7 +2368,7 @@ void __cdecl RB_ReviveFX(const GfxViewInfo *viewInfo)
   float finalMatrix[4][4]; // [esp+A4h] [ebp-80h] BYREF
   float whiteTempMatrix[4][4]; // [esp+E4h] [ebp-40h] BYREF
 
-  PIXBeginNamedEvent(-1, "RB_ReviveFX");
+  //PIXBeginNamedEvent(-1, "RB_ReviveFX");
   RB_GaussianFilterImage(6.4000001, 6u, 0xCu);
   R_SetRenderTargetSize(&gfxCmdBufSourceState, 3u);
   R_SetRenderTarget(gfxCmdBufContext, 3u);
@@ -2446,7 +2446,7 @@ void __cdecl RB_ProcessPostEffects(const GfxViewInfo *viewInfo)
     RB_GetResolvedScene();
     if ( RB_UsingFlameFX(viewInfo) )
     {
-      PIXBeginNamedEvent(-1, "RB_ApplyFlameFX");
+      //PIXBeginNamedEvent(-1, "RB_ApplyFlameFX");
       RB_FlameFX(viewInfo);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         goto LABEL_28;
@@ -2455,7 +2455,7 @@ void __cdecl RB_ProcessPostEffects(const GfxViewInfo *viewInfo)
     {
       if ( RB_UsingReviveFX(viewInfo) )
       {
-        PIXBeginNamedEvent(-1, "RB_ApplyReviveFX");
+        //PIXBeginNamedEvent(-1, "RB_ApplyReviveFX");
         RB_ReviveFX(viewInfo);
         if ( GetCurrentThreadId() == g_DXDeviceThread )
           D3DPERF_EndEvent();
@@ -2463,21 +2463,21 @@ void __cdecl RB_ProcessPostEffects(const GfxViewInfo *viewInfo)
       }
       if ( RB_UsingElectrifiedFX(viewInfo) )
       {
-        PIXBeginNamedEvent(-1, "RB_ApplyElectrifiedFX");
+        //PIXBeginNamedEvent(-1, "RB_ApplyElectrifiedFX");
         RB_ElectrifiedFX(viewInfo);
         if ( GetCurrentThreadId() == g_DXDeviceThread )
           goto LABEL_28;
       }
       else if ( RB_UsingTransportedFX(viewInfo) )
       {
-        PIXBeginNamedEvent(-1, "RB_ApplyTransportedFX");
+        //PIXBeginNamedEvent(-1, "RB_ApplyTransportedFX");
         RB_TransportedFX(viewInfo);
         if ( GetCurrentThreadId() == g_DXDeviceThread )
           goto LABEL_28;
       }
       else if ( RB_UsingWaterSheetingFX(viewInfo) )
       {
-        PIXBeginNamedEvent(-1, "RB_WaterSheetingFX");
+        //PIXBeginNamedEvent(-1, "RB_WaterSheetingFX");
         RB_WaterSheetingFX(viewInfo);
         if ( GetCurrentThreadId() == g_DXDeviceThread )
           goto LABEL_28;
@@ -2488,13 +2488,13 @@ void __cdecl RB_ProcessPostEffects(const GfxViewInfo *viewInfo)
         {
           if ( !RB_UsingDepthOfFieldFX(viewInfo) )
             goto LABEL_29;
-          PIXBeginNamedEvent(-1, "RB_ApplyDepthOfField");
+          //PIXBeginNamedEvent(-1, "RB_ApplyDepthOfField");
           RB_ApplyDepthOfField(COERCE_FLOAT(&savedregs), viewInfo);
           if ( GetCurrentThreadId() != g_DXDeviceThread )
             goto LABEL_29;
           goto LABEL_28;
         }
-        PIXBeginNamedEvent(-1, "RB_PoisonFX");
+        //PIXBeginNamedEvent(-1, "RB_PoisonFX");
         RB_PoisonFX(viewInfo);
         if ( GetCurrentThreadId() == g_DXDeviceThread )
 LABEL_28:
@@ -2504,7 +2504,7 @@ LABEL_28:
 LABEL_29:
     if ( RB_UsingGenericFilter(viewInfo) && !rg.renderHiResShot )
     {
-      PIXBeginNamedEvent(-1, "genericFilter effect");
+      //PIXBeginNamedEvent(-1, "genericFilter effect");
       RB_GenericFilterFX((const GfxMatrix *)&savedregs, viewInfo);
       if ( GetCurrentThreadId() == g_DXDeviceThread )
         D3DPERF_EndEvent();
@@ -2523,7 +2523,7 @@ LABEL_29:
       {
         __debugbreak();
       }
-      PIXBeginNamedEvent(-1, "RB_BlurScreen()");
+      //PIXBeginNamedEvent(-1, "RB_BlurScreen()");
       RB_BlurScreen(viewInfo, blurRadius);
       if ( g_DXDeviceThread == GetCurrentThreadId() )
         D3DPERF_EndEvent();
@@ -2532,7 +2532,7 @@ LABEL_29:
       || viewInfo->saveScreenFx.blendFlashedParam.enabled
       || viewInfo->saveScreenFx.saveScreenParam.mode )
     {
-      PIXBeginNamedEvent(-1, "saveScreenFx");
+      //PIXBeginNamedEvent(-1, "saveScreenFx");
       RB_SaveScreen_BlendBlurred(&viewInfo->saveScreenFx.blendBlurredParam, viewInfo);
       RB_SaveScreen_BlendFlashed(&viewInfo->saveScreenFx.blendFlashedParam, viewInfo);
       RB_SaveScreen(&viewInfo->saveScreenFx.saveScreenParam, viewInfo);

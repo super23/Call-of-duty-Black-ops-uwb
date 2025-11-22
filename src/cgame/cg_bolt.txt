@@ -1,4 +1,0 @@
-CG_InitBolt
-CG_AddBolt
-CG_UpdateBolt
-AssignToSmallerType<int>

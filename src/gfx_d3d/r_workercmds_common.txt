@@ -1,9 +1,0 @@
-R_ProcessCmd_UpdateFxSpotLight
-R_ProcessCmd_UpdateFxNonDependent
-R_DrawEffects
-R_ProcessCmd_UpdateFxRemaining
-R_UpdateSpotLightEffect
-R_UpdateNonDependentEffects
-R_UpdateRemainingEffects
-R_UpdateXModelBoundsDelayed
-R_SkinGfxEntityDelayed

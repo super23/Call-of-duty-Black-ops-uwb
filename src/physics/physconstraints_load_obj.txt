@@ -1,7 +1,0 @@
-PhysConstraintsLoadFile
-PhysConstraints_Strcpy
-CON_ParseSpecificField
-PhysConstraintsPostLoadFixup
-PhysConstraintsPrecache
-PhysConstraintsUpdateField
-GetPhysConstraints

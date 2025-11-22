@@ -1,3 +1,0 @@
-StatMon_Warning
-StatMon_GetStatsArray
-StatMon_Reset

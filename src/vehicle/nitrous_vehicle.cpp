@@ -2096,7 +2096,7 @@ void __cdecl NitrousVehicle::frame_prolog_all_systems(float delta_t)
   phys_free_list<NitrousVehicle>::T_internal_base *i; // [esp+14h] [ebp-8h]
   int savedregs; // [esp+1Ch] [ebp+0h] BYREF
 
-  PIXBeginNamedEvent(-1, "NitrousVehicle::frame_prolog");
+  //PIXBeginNamedEvent(-1, "NitrousVehicle::frame_prolog");
   for ( i = g_rb_vehicle_list.m_dummy_head.m_next_T_internal;
         &g_rb_vehicle_list != (phys_free_list<NitrousVehicle> *)i;
         i = i->m_next_T_internal )
@@ -2111,7 +2111,7 @@ void __cdecl NitrousVehicle::frame_epilog_all_systems(float delta_t)
 {
   phys_free_list<NitrousVehicle>::T_internal_base *i; // [esp+14h] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "NitrousVehicle::frame_epilog");
+  //PIXBeginNamedEvent(-1, "NitrousVehicle::frame_epilog");
   for ( i = g_rb_vehicle_list.m_dummy_head.m_next_T_internal;
         &g_rb_vehicle_list != (phys_free_list<NitrousVehicle> *)i;
         i = i->m_next_T_internal )
@@ -3615,7 +3615,7 @@ void __cdecl G_ClearVehicleInputs()
 
   if ( g_rb_vehicle_list.m_list_count > 0 )
   {
-    PIXBeginNamedEvent(-1, "G_ClearVehicleInputs");
+    //PIXBeginNamedEvent(-1, "G_ClearVehicleInputs");
     Sys_EnterCriticalSection(CRITSECT_PHYSICS_UPDATE);
     Sys_EnterCriticalSection(CRITSECT_PHYSICS);
     for ( i = g_rb_vehicle_list.m_dummy_head.m_next_T_internal;

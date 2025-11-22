@@ -755,7 +755,7 @@ void __cdecl CG_Draw2dHudElems(int localClientNum, int foreground)
   hudelem_s *elems[1025]; // [esp+30h] [ebp-1008h] BYREF
   int elemCount; // [esp+1034h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "CG_Draw2dHudElems");
+  //PIXBeginNamedEvent(-1, "CG_Draw2dHudElems");
   cgameGlob = CG_GetLocalClientGlobals(localClientNum);
   elemCount = GetSortedHudElems(localClientNum, elems);
   v4 = cgameGlob->nextSnap->ps.pm_type < 9;
@@ -2440,7 +2440,7 @@ void __cdecl RB_DrawWaypoints(int localClientNum)
   hudelem_s *elems[62]; // [esp+28h] [ebp-100h] BYREF
   int elemCount; // [esp+124h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "RB_DrawWaypoints");
+  //PIXBeginNamedEvent(-1, "RB_DrawWaypoints");
   if ( !r_highRezWaypoints )
   {
     if ( g_DXDeviceThread != GetCurrentThreadId() )

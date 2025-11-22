@@ -1,7 +1,0 @@
-Com_SurfaceTypeFromName
-Com_SurfaceTypeToName
-Com_SurfaceBurns
-Com_SurfaceFloats
-Com_SurfaceDensity
-Com_SurfaceFrictionScale
-Com_SurfaceBounceScale

@@ -467,7 +467,7 @@ void __cdecl CG_ScanForCrosshairEntityInternal(int localClientNum)
 
   memset(&trace, 0, 16);
   hitEntTeam = TEAM_FREE;
-  PIXBeginNamedEvent(-1, "CG_ScanForCrosshairEntity");
+  //PIXBeginNamedEvent(-1, "CG_ScanForCrosshairEntity");
   fadeOutTime = cg_friendlyNameFadeOut->current.integer;
   owner = 0;
   fCheckDist = FLOAT_8192_0;

@@ -1,3 +1,0 @@
-G_ParseWeaponAccurayGraphs
-G_ParseWeaponAccurayGraphInternal
-G_ParseAIWeaponAccurayGraphFile

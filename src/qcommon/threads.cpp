@@ -429,7 +429,7 @@ void __cdecl Sys_FrontEndSleep()
   int semaphore; // [esp+8h] [ebp-4h]
 
   semaphore = R_ReleaseDXDeviceOwnership();
-  PIXBeginNamedEvent(-1, "frontend sleep");
+  //PIXBeginNamedEvent(-1, "frontend sleep");
   Sys_WaitForSingleObject(&rendererRunningEvent);
   if ( semaphore )
     R_AcquireDXDeviceOwnership(0);
@@ -480,7 +480,7 @@ void __cdecl Sys_SleepServer()
 {
   bool result; // [esp+8h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "sleep server");
+  //PIXBeginNamedEvent(-1, "sleep server");
   result = Sys_WaitForSingleObjectTimeout(&wakeServerEvent, 0);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
@@ -671,7 +671,7 @@ void __cdecl Sys_ResetUpdateSpotLightEffectEvent()
 
 void __cdecl Sys_WaitUpdateNonDependentEffectsCompleted()
 {
-  PIXBeginNamedEvent(-1, "wait non-dependent fx");
+  //PIXBeginNamedEvent(-1, "wait non-dependent fx");
   Sys_WaitForSingleObject(&updateEffectsEvent);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();

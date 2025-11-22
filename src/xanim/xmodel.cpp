@@ -205,7 +205,7 @@ int __cdecl XModelTraceLine(
   float s; // [esp+A8h] [ebp-8h]
   unsigned int i; // [esp+ACh] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "xmodeltraceline");
+  //PIXBeginNamedEvent(-1, "xmodeltraceline");
   TraceExtents::TraceExtents(&boneExtents);
   if ( model->collLod >= 0 )
   {
@@ -343,7 +343,7 @@ int __cdecl XModelTraceLineAnimated(
   float axis[4][3]; // [esp+1F4h] [ebp-34h] BYREF
   const DObjAnimMat *boneMtx; // [esp+224h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "xmodeltracelineanimated");
+  //PIXBeginNamedEvent(-1, "xmodeltracelineanimated");
   TraceExtents::TraceExtents(&boneExtents);
   model = obj->localModels[modelIndex];
   if ( model->collLod >= 0 )

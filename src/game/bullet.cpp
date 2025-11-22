@@ -11,7 +11,7 @@ char __cdecl BulletTrace(
   centity_s *Entity; // [esp+Ch] [ebp-2Ch]
   unsigned __int16 hitEntId; // [esp+34h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "BulletTrace");
+  //PIXBeginNamedEvent(-1, "BulletTrace");
   if ( !bp && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_weapons.cpp", 2684, 0, "%s", "bp") )
     __debugbreak();
   if ( !weapDef

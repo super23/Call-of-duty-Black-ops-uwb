@@ -651,7 +651,7 @@ int __fastcall Actor_BadPlace_Flee_Think(actor_s *self)
 {
   bool isInBadPlace; // [esp+32h] [ebp-2h]
 
-  PIXBeginNamedEvent(-1, "fleethink");
+  //PIXBeginNamedEvent(-1, "fleethink");
   if ( !self && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_badplace.cpp", 1025, 0, "%s", "self") )
     __debugbreak();
   if ( self->aiBadPlace == AI_BADPLACE_NONE )

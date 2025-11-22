@@ -1,8 +1,0 @@
-R_ExtraCam_AspectRatio
-R_ExtraCam_Init
-CreateExtraCamRenderTargets
-R_ExtraCam_Shutdown
-R_ExtraCam_RenderTargetWidth
-R_ExtraCam_RenderTargetHeight
-R_ExtraCam_GfxResourcesReady
-R_ExtraCam_UseShadowmap

@@ -249,7 +249,7 @@ char __fastcall Actor_Exposed_StartReacquireMove(actor_s *self)
 
 void __fastcall Actor_Exposed_FlashBanged(actor_s *self)
 {
-  PIXBeginNamedEvent(-1, "flashbanged");
+  //PIXBeginNamedEvent(-1, "flashbanged");
   if ( !self->flashBanged
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_exposed.cpp",

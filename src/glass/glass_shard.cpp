@@ -1793,7 +1793,7 @@ int __thiscall GlassShard::Shatter(GlassShard *this, GlassShard **newShards, int
   unsigned __int64 *timer_8; // [esp+BCh] [ebp-10h]
   int maxSplitTries; // [esp+C8h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "GlassShard.Shatter");
+  //PIXBeginNamedEvent(-1, "GlassShard.Shatter");
   timer_8 = &clGlasses->renderer->shatterTimer;
   timer = tlPcGetTick();
   ++clGlasses->renderer->numShatters;
@@ -1828,7 +1828,7 @@ int __thiscall GlassShard::Shatter(GlassShard *this, GlassShard **newShards, int
   dword_A707084 = 0;
   dword_A707088 = 0;
   dword_A70708C = 0;
-  PIXBeginNamedEvent(0, "Split");
+  //PIXBeginNamedEvent(0, "Split");
   while ( numNewShards < v5 && GlassShard::CanSplit(*newShards, maxShardSize, minShardSize) && maxSplitTries > 0 )
   {
     ns = 0;
@@ -1924,7 +1924,7 @@ void __thiscall GlassShard::InitPhysics(
     v7 = FLOAT_1_0;
   numKeepShards = (int)(float)((float)((float)((float)numNewShards * this->group->glassDef->shardLifeProbablility) * v7)
                              + 0.5);
-  PIXBeginNamedEvent(0, "InitPhysics");
+  //PIXBeginNamedEvent(0, "InitPhysics");
   for ( j = 0; j < numNewShards; ++j )
   {
     GlassShard::InitMesh(newShards[j]);
@@ -2383,7 +2383,7 @@ LABEL_23:
   v7 = GlassShard::Outline::Length(&this->outline);
   if ( dists[0].dist <= v7 * EDGE_DIST_RATIO )
   {
-    PIXBeginNamedEvent(-1, "Split 1");
+    //PIXBeginNamedEvent(-1, "Split 1");
     hitPoint2d[0] = dists[0].closestPoint[0];
     hitPoint2d[1] = dists[0].closestPoint[1];
     GlassShard::ToWorldPos(this, hitPoint2d, hitPoint3d, 0);
@@ -2402,7 +2402,7 @@ LABEL_23:
   }
   else
   {
-    PIXBeginNamedEvent(-1, "Chip");
+    //PIXBeginNamedEvent(-1, "Chip");
     if ( GlassShard::Chip(this, dists, hitPoint2d, &newShards[numNewShards], minShardSize) )
       ++numNewShards;
     if ( g_DXDeviceThread != GetCurrentThreadId() )
@@ -2476,7 +2476,7 @@ LABEL_38:
     {
       fixedShard = newShards[1];
     }
-    PIXBeginNamedEvent(-1, "Split 2");
+    //PIXBeginNamedEvent(-1, "Split 2");
     maxSplits = 10;
     maxSplitTries = 30;
     while ( numNewShards < maxSplits
@@ -2527,7 +2527,7 @@ LABEL_38:
       dword_A70708C,
       dword_A707084);
   }
-  PIXBeginNamedEvent(0, "InitPhysics");
+  //PIXBeginNamedEvent(0, "InitPhysics");
   for ( k = 0; k < numNewShards; ++k )
   {
     GlassShard::InitMesh(newShards[k]);

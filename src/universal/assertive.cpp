@@ -1,5 +1,53 @@
 #include "assertive.h"
 
+#include <Windows.h>
+
+static HINSTANCE__ *__cdecl GetModuleBase(char *name)
+{
+    const char *v2; // [esp+Ch] [ebp-11Ch]
+    char moduleName[264]; // [esp+10h] [ebp-118h] BYREF
+    HINSTANCE__ *moduleHandle; // [esp+11Ch] [ebp-Ch]
+    int nameLength; // [esp+120h] [ebp-8h]
+    int nameIndex; // [esp+124h] [ebp-4h]
+
+    v2 = &name[strlen(name) + 1];
+    nameLength = v2 - (name + 1);
+    for (nameIndex = nameLength - 1;
+        nameIndex >= 0 && name[nameIndex] != 46 && name[nameIndex] != 47 && name[nameIndex] != 92;
+        --nameIndex)
+    {
+        ;
+    }
+    if (nameIndex >= 0 && name[nameIndex] == 46)
+        nameLength = nameIndex;
+    memcpy((unsigned __int8 *)moduleName, (unsigned __int8 *)name, nameLength);
+    strcpy(&moduleName[nameLength], ".exe");
+    moduleHandle = GetModuleHandleA(moduleName);
+    if (moduleHandle)
+        return moduleHandle;
+    strcpy(&moduleName[nameLength], ".dll");
+    return GetModuleHandleA(moduleName);
+}
+
+static int __stdcall HideWindowCallback(HWND__ *hwnd, int lParam)
+{
+    int styleEx; // [esp+14h] [ebp-40Ch]
+    char caption[1024]; // [esp+18h] [ebp-408h] BYREF
+    int style; // [esp+41Ch] [ebp-4h]
+
+    if (GetWindowTextA(hwnd, caption, 1024) && strcmp(caption, Com_GetBuildDisplayNameR()))
+        return 1;
+    style = GetWindowLongA(hwnd, -16);
+    styleEx = GetWindowLongA(hwnd, -20);
+    if ((style & 0x10000000) != 0)
+    {
+        g_hwndGame[g_hiddenCount++] = hwnd;
+        SetWindowLongA(hwnd, -16, style & 0xEFFFFFFF);
+        SetWindowLongA(hwnd, -20, styleEx & 0xFFFFFFF7);
+    }
+    return 1;
+}
+
 void __cdecl FixWindowsDesktop()
 {
   unsigned intCurrentThreadId; // eax
@@ -23,24 +71,7 @@ void __cdecl FixWindowsDesktop()
   ReleaseDC(hwndDesktop, hdc);
 }
 
-int __stdcall HideWindowCallback(HWND__ *hwnd, int lParam)
-{
-  int styleEx; // [esp+14h] [ebp-40Ch]
-  char caption[1024]; // [esp+18h] [ebp-408h] BYREF
-  int style; // [esp+41Ch] [ebp-4h]
 
-  if ( GetWindowTextA(hwnd, caption, 1024) && strcmp(caption, Com_GetBuildDisplayNameR()) )
-    return 1;
-  style = GetWindowLongA(hwnd, -16);
-  styleEx = GetWindowLongA(hwnd, -20);
-  if ( (style & 0x10000000) != 0 )
-  {
-    g_hwndGame[g_hiddenCount++] = hwnd;
-    SetWindowLongA(hwnd, -16, style & 0xEFFFFFFF);
-    SetWindowLongA(hwnd, -20, styleEx & 0xFFFFFFF7);
-  }
-  return 1;
-}
 
 int __cdecl Assert_DoStackTrace(char *msg, int nIgnore, int type, int *context)
 {
@@ -512,33 +543,6 @@ char __cdecl SkipLines(int lineCount, _iobuf *fp)
   return 1;
 }
 
-HINSTANCE__ *__cdecl GetModuleBase(char *name)
-{
-  const char *v2; // [esp+Ch] [ebp-11Ch]
-  char moduleName[264]; // [esp+10h] [ebp-118h] BYREF
-  HINSTANCE__ *moduleHandle; // [esp+11Ch] [ebp-Ch]
-  int nameLength; // [esp+120h] [ebp-8h]
-  int nameIndex; // [esp+124h] [ebp-4h]
-
-  v2 = &name[strlen(name) + 1];
-  nameLength = v2 - (name + 1);
-  for ( nameIndex = nameLength - 1;
-        nameIndex >= 0 && name[nameIndex] != 46 && name[nameIndex] != 47 && name[nameIndex] != 92;
-        --nameIndex )
-  {
-    ;
-  }
-  if ( nameIndex >= 0 && name[nameIndex] == 46 )
-    nameLength = nameIndex;
-  memcpy((unsigned __int8 *)moduleName, (unsigned __int8 *)name, nameLength);
-  strcpy(&moduleName[nameLength], ".exe");
-  moduleHandle = GetModuleHandleA(moduleName);
-  if ( moduleHandle )
-    return moduleHandle;
-  strcpy(&moduleName[nameLength], ".dll");
-  return GetModuleHandleA(moduleName);
-}
-
 void __cdecl Assert_ResetAddressInfo()
 {
   g_assertAddressCount = 0;
@@ -549,7 +553,7 @@ void __cdecl Assert_SetMonkeyCallbackHandler(void (__cdecl *AssertCallbackFunc)(
   MonkeyAssertCallback = AssertCallbackFunc;
 }
 
-bool Assert_MyHandler(char *filename, int line, int type, const char *fmt, ...)
+bool Assert_MyHandler(const char *filename, int line, int type, const char *fmt, ...)
 {
   char *v4; // eax
   char shouldBreak; // [esp+3h] [ebp-5h]

@@ -319,7 +319,7 @@ void __cdecl Demo_TagPlayers(int localClientNum, demoTagPlayers *players)
 
   if ( players->count < 29 )
   {
-    PIXBeginNamedEvent(-16711681, "Demo_TagPlayers - Tagging Players");
+    //PIXBeginNamedEvent(-16711681, "Demo_TagPlayers - Tagging Players");
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     playerIndex = Demo_GetPlayerIndexForClientNum(cgameGlob->clientNum, cgameGlob->time);
     HIDWORD(v2) = HIDWORD(demo.info.connectedPlayers[playerIndex].xuid);
@@ -1119,13 +1119,13 @@ void __cdecl Demo_ResetWorldInformation(int localClientNum, int time)
   cgameGlob->cursorHintString = -1;
   cgameGlob->prevViewmodelWeapon = 0;
   Con_Close(localClientNum);
-  PIXBeginNamedEvent(-16711681, "Resetting World - FX Rewind");
+  //PIXBeginNamedEvent(-16711681, "Resetting World - FX Rewind");
   CG_RestartSmokeGrenades(localClientNum);
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
   cgameGlob->newPlayerViewmodel = 1;
   cgameGlob->clearMarks = 1;
-  PIXBeginNamedEvent(-16711681, "Resetting World - Reset Destructibles & Compass Data");
+  //PIXBeginNamedEvent(-16711681, "Resetting World - Reset Destructibles & Compass Data");
   CG_RestartDestructibles(localClientNum);
   CG_ResetCompassData(localClientNum, time);
   CG_ClearPopUpUI(localClientNum);
@@ -1146,7 +1146,7 @@ void __cdecl Demo_ResetWorldInformation(int localClientNum, int time)
   Flame_Reset();
   IK_ResetTime();
   NitrousVehicle::reset_vehicle_physics();
-  PIXBeginNamedEvent(-16711681, "Resetting World - Client Script Notify");
+  //PIXBeginNamedEvent(-16711681, "Resetting World - Client Script Notify");
   if ( cg_scr_mp_data.demo_jump )
   {
     Scr_AddInt(LocalClientGlobals->snap.serverTime, SCRIPTINSTANCE_CLIENT);
@@ -1156,7 +1156,7 @@ void __cdecl Demo_ResetWorldInformation(int localClientNum, int time)
   }
   if ( g_DXDeviceThread == GetCurrentThreadId() )
     D3DPERF_EndEvent();
-  PIXBeginNamedEvent(-16711681, "Resetting World - Centity Resets");
+  //PIXBeginNamedEvent(-16711681, "Resetting World - Centity Resets");
   for ( i = 0; i < 1024; ++i )
   {
     cent = CG_GetEntity(localClientNum, i);
@@ -3121,7 +3121,7 @@ void __cdecl Demo_WriteConfigStrings(int localClientNum, msg_t *msg)
   int ia; // [esp+58h] [ebp-8h]
   int bitsStart; // [esp+5Ch] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Demo - Write Config Strings");
+  //PIXBeginNamedEvent(-1, "Demo - Write Config Strings");
   CL_GetLocalClientGlobals(localClientNum);
   MSG_WriteByte(msg, 2u);
   configStringCount = 0;
@@ -3311,7 +3311,7 @@ void __cdecl Demo_ReadConfigStrings(int localClientNum, msg_t *msg)
   int nextConstConfigStringNumber; // [esp+60h] [ebp-8h]
   int bitsStart; // [esp+64h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Demo - Read Config Strings");
+  //PIXBeginNamedEvent(-1, "Demo - Read Config Strings");
   CL_GetLocalClientGlobals(localClientNum);
   bitsStart = MSG_GetNumBitsRead(msg);
   numConfigStrings = MSG_ReadShort(msg);
@@ -3420,7 +3420,7 @@ void __cdecl Demo_GenerateKeyFrameSnapshot(
   msg_t msg; // [esp+Ch] [ebp-30h] BYREF
   int savedregs; // [esp+3Ch] [ebp+0h] BYREF
 
-  PIXBeginNamedEvent(-1, "Keyframe - Generation");
+  //PIXBeginNamedEvent(-1, "Keyframe - Generation");
   MSG_Init(&msg, demo.msgBuf1, 49152);
   if ( Demo_IsClipPlaying() )
   {
@@ -3458,7 +3458,7 @@ void __cdecl Demo_WriteKeyFrameInformation(int localClientNum)
   clientActive_t *LocalClientGlobals; // [esp+Ch] [ebp-Ch]
   clientConnection_t *clc; // [esp+14h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "Keyframe - Writing");
+  //PIXBeginNamedEvent(-1, "Keyframe - Writing");
   LocalClientGlobals = CL_GetLocalClientGlobals(localClientNum);
   clc = CL_GetLocalClientConnection(localClientNum);
   if ( demo.playback->keyframeMsg.cursize + demo.playback->keyframeBufferIndex > (int)&loc_4FFFFE + 2 )
@@ -5240,7 +5240,7 @@ void __cdecl Demo_WriteDemoPreviewPoint(int localClientNum, int restorePoint)
   LocalClientGlobals = CL_GetLocalClientGlobals(localClientNum);
   clc = CL_GetLocalClientConnection(localClientNum);
   demo.playback->demoCompleteStateForRestorationPoint[restorePoint] = Demo_IsCompleted();
-  PIXBeginNamedEvent(-1, "Preview Keyframe - Generation");
+  //PIXBeginNamedEvent(-1, "Preview Keyframe - Generation");
   MSG_Init(&msg, demo.msgBuf1, 49152);
   demo.playback->forceWriteClipCommands = 1;
   Demo_WriteClipCommandsInternal(localClientNum, &msg, 0);

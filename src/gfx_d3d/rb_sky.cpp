@@ -240,7 +240,7 @@ void __cdecl RB_DrawSun(unsigned int localClientNum)
 {
   SunFlareDynamic *sunFlare; // [esp+18h] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "RB_DrawSun");
+  //PIXBeginNamedEvent(-1, "RB_DrawSun");
   if ( !rgp.world
     && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_sky.cpp", 618, 0, "%s", "rgp.world") )
   {
@@ -289,7 +289,7 @@ void __cdecl RB_DrawSunQuerySprite(SunFlareDynamic *sunFlare)
   float lastVisibility; // [esp+54h] [ebp-8h]
   int queryIndex; // [esp+58h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "RB_DrawSunQuerySprite");
+  //PIXBeginNamedEvent(-1, "RB_DrawSunQuerySprite");
   if ( !sunFlare
     && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_sky.cpp", 322, 0, "%s", "sunFlare") )
   {
@@ -540,7 +540,7 @@ void __cdecl RB_DrawSunPostEffects(unsigned int localClientNum, float sunVisibil
   int frameTime; // [esp+18h] [ebp-Ch]
   SunFlareDynamic *sunFlare; // [esp+1Ch] [ebp-8h]
 
-  PIXBeginNamedEvent(-1, "RB_DrawSunPostEffects");
+  //PIXBeginNamedEvent(-1, "RB_DrawSunPostEffects");
   if ( localClientNum >= 4
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_sky.cpp",
@@ -590,7 +590,7 @@ void __cdecl RB_DrawSunFlare(SunFlareDynamic *sunFlare, int frameTime)
   float size; // [esp+38h] [ebp-Ch]
   float alpha; // [esp+40h] [ebp-4h]
 
-  PIXBeginNamedEvent(-1, "RB_DrawSunFlare");
+  //PIXBeginNamedEvent(-1, "RB_DrawSunFlare");
   if ( !sunFlare
     && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_sky.cpp", 485, 0, "%s", "sunFlare") )
   {
@@ -733,7 +733,7 @@ void __cdecl RB_DrawBlindAndGlare(SunFlareDynamic *sunFlare, int frameTime)
   float glare; // [esp+34h] [ebp-Ch] BYREF
   GfxColor color; // [esp+3Ch] [ebp-4h] BYREF
 
-  PIXBeginNamedEvent(-1, "RB_DrawBlindAndGlare");
+  //PIXBeginNamedEvent(-1, "RB_DrawBlindAndGlare");
   if ( !sunFlare
     && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_sky.cpp", 592, 0, "%s", "sunFlare") )
   {

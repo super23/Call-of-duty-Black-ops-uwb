@@ -1,8 +1,0 @@
-SND_DebugInit
-SND_DebugFini
-SND_DebugDrawWorldSounds
-DebugDrawWorldSound3D
-FontSizeForDistance
-SND_PlayLocal_f
-RelativeToListener
-SND_GetSoundOverlay

@@ -1,2 +1,0 @@
-FX_SetGlobalWind
-FX_GetGlobalWind
