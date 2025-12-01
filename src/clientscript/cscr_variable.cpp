@@ -4802,7 +4802,7 @@ void __cdecl Scr_EvalEquality(scriptInstance_t inst, VariableValue *value1, Vari
       break;
     case 5:
       value1->type = 6;
-      value1->u.intValue = COERCE_FLOAT(COERCE_UNSIGNED_INT(value1->u.floatValue - value2->u.floatValue) & _mask__AbsFloat_) < 0.000001;
+      value1->u.intValue = fabs(value1->u.floatValue - value2->u.floatValue) < 0.000001;
       break;
     case 6:
       value1->u.intValue = value1->u.intValue == value2->u.intValue;

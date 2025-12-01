@@ -1628,7 +1628,7 @@ int __cdecl BG_AnimScriptEvent(pmove_t *pm, scriptAnimEventTypes_t event, int is
                                      + 120 * scriptCommand->animIndex[i]
                                      + 84)
                      / (float)ps->weaponTime;
-      if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(forcedAnimRate - 1.0) & _mask__AbsFloat_) <= bg_maxWeaponAnimScale->current.value )
+      if ( fabs(forcedAnimRate - 1.0) <= bg_maxWeaponAnimScale->current.value )
       {
         *(float *)(**(unsigned int **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)
                  + 120 * scriptCommand->animIndex[i]
@@ -1656,7 +1656,7 @@ int __cdecl BG_AnimScriptEvent(pmove_t *pm, scriptAnimEventTypes_t event, int is
                                       + 120 * scriptCommand->animIndex[i]
                                       + 84)
                       / (float)ps->weaponDelay;
-      if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(forcedAnimRatea - 1.0) & _mask__AbsFloat_) <= bg_maxWeaponAnimScale->current.value )
+      if ( fabs(forcedAnimRatea - 1.0) <= bg_maxWeaponAnimScale->current.value )
       {
         *(float *)(**(unsigned int **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)
                  + 120 * scriptCommand->animIndex[i]

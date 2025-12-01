@@ -82,7 +82,7 @@ void __cdecl Mantle_CreateAnims(void *(__cdecl *xanimAlloc)(int))
     {
       animIndex = Trans_GetUpIndex(transIndex);
       XAnimGetAbsDelta(s_mantleAnims, animIndex, rot, delta, 1.0);
-      if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(delta[0] - 16.0) & _mask__AbsFloat_) > 1.0 )
+      if ( fabs(delta[0] - 16.0) > 1.0 )
         Com_Error(
           ERR_DROP,
           "Mantle anim [%s] has X translation %f, should be %f\n",

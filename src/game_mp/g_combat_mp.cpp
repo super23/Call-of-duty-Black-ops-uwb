@@ -1024,11 +1024,11 @@ double __cdecl CanDamage(
     centerToCorner[0] = absMaxs[0] - dest[0][0];
     centerToCorner[1] = absMaxs[1] - dest[0][1];
     centerToCorner[2] = absMaxs[2] - dest[0][2];
-    radiusRight = COERCE_FLOAT(COERCE_UNSIGNED_INT(v1[1] * (float)(absMaxs[1] - dest[0][1])) & _mask__AbsFloat_)
-                + COERCE_FLOAT(COERCE_UNSIGNED_INT(v1[0] * (float)(absMaxs[0] - dest[0][0])) & _mask__AbsFloat_);
-    radiusUp = (float)(COERCE_FLOAT(COERCE_UNSIGNED_INT(up[0] * (float)(absMaxs[0] - dest[0][0])) & _mask__AbsFloat_)
-                     + COERCE_FLOAT(COERCE_UNSIGNED_INT(up[1] * (float)(absMaxs[1] - dest[0][1])) & _mask__AbsFloat_))
-             + COERCE_FLOAT(COERCE_UNSIGNED_INT(up[2] * (float)(absMaxs[2] - dest[0][2])) & _mask__AbsFloat_);
+    radiusRight = fabs(v1[1] * (float)(absMaxs[1] - dest[0][1]))
+                + fabs(v1[0] * (float)(absMaxs[0] - dest[0][0]));
+    radiusUp = (float)(fabs(up[0] * (float)(absMaxs[0] - dest[0][0]))
+                     + fabs(up[1] * (float)(absMaxs[1] - dest[0][1])))
+             + fabs(up[2] * (float)(absMaxs[2] - dest[0][2]));
     v1[0] = radiusRight * v1[0];
     v1[1] = radiusRight * v1[1];
     v1[2] = radiusRight * v1[2];

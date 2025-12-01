@@ -2463,7 +2463,7 @@ double __cdecl DevGui_PickFloatScrollStep(float min, float max)
   {
     step = range * 0.0099999998;
     roundedStep = (float)(int)((float)(range * 0.0099999998) + 9.313225746154785e-10);
-    if ( roundedStep != 0.0 && COERCE_FLOAT(COERCE_UNSIGNED_INT(roundedStep - step) & _mask__AbsFloat_) < 0.1 )
+    if ( roundedStep != 0.0 && fabs(roundedStep - step) < 0.1 )
       return (float)(int)((float)(range * 0.0099999998) + 9.313225746154785e-10);
   }
   return step;
@@ -2591,7 +2591,7 @@ void __cdecl DevGui_UpdateGraph(int localClientNum, float deltaTime)
       }
       else
       {
-        graphUpdated = COERCE_FLOAT(COERCE_UNSIGNED_INT(updatedY - knot_4) & _mask__AbsFloat_) > 0.000001;
+        graphUpdated = fabs(updatedY - knot_4) > 0.000001;
         graph->knots[graph->selectedKnot][1] = (float)((float)(updatedY - knot_4) * 4.0)
                                              + graph->knots[graph->selectedKnot][1];
         v6 = graph->knots[graph->selectedKnot][1];
@@ -2609,7 +2609,7 @@ void __cdecl DevGui_UpdateGraph(int localClientNum, float deltaTime)
     else
     {
       deltaY = updatedY - knot_4;
-      v5 = COERCE_FLOAT(COERCE_UNSIGNED_INT(updatedX - knot) & _mask__AbsFloat_) > 0.000001
+      v5 = fabs(updatedX - knot) > 0.000001
         || fabs(deltaY) > 0.000001;
       graphUpdated = v5;
       graph->knots[graph->selectedKnot][0] = (float)((float)(updatedX - knot) * 3.0)

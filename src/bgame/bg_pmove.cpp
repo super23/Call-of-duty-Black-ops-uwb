@@ -1619,13 +1619,9 @@ void __cdecl PmoveSingle(pmove_t *pm)
     ps->pm_flags &= ~0x200u;
   }
   else if ( (pm->cmd.forwardmove == pm->oldcmd.forwardmove
-          || COERCE_FLOAT(COERCE_UNSIGNED_INT((float)pm->cmd.forwardmove) & _mask__AbsFloat_) <= COERCE_FLOAT(
-                                                                                                   COERCE_UNSIGNED_INT((float)pm->oldcmd.forwardmove)
-                                                                                                 & _mask__AbsFloat_))
+          || fabs((float)pm->cmd.forwardmove) <= fabs((float)pm->oldcmd.forwardmove))
          && (pm->cmd.rightmove == pm->oldcmd.rightmove
-          || COERCE_FLOAT(COERCE_UNSIGNED_INT((float)pm->cmd.rightmove) & _mask__AbsFloat_) <= COERCE_FLOAT(
-                                                                                                 COERCE_UNSIGNED_INT((float)pm->oldcmd.rightmove)
-                                                                                               & _mask__AbsFloat_)) )
+          || fabs((float)pm->cmd.rightmove) <= fabs((float)pm->oldcmd.rightmove)) )
   {
     if ( (ps->pm_flags & 0x10) == 0 && (ps->weaponstate < 6u || ps->weaponstate == 10) )
     {
@@ -2856,7 +2852,7 @@ double __cdecl PM_CmdScale_Walk(pmove_t *pm, usercmd_s *cmd)
   else
     LODWORD(v2) = COERCE_UNSIGNED_INT((float)cmd->forwardmove * player_backSpeedScale->current.value) & _mask__AbsFloat_;
   if ( (float)(v2
-             - COERCE_FLOAT(COERCE_UNSIGNED_INT((float)cmd->rightmove * player_strafeSpeedScale->current.value) & _mask__AbsFloat_)) < 0.0 )
+             - fabs((float)cmd->rightmove * player_strafeSpeedScale->current.value)) < 0.0 )
     LODWORD(v4) = COERCE_UNSIGNED_INT((float)cmd->rightmove * player_strafeSpeedScale->current.value) & _mask__AbsFloat_;
   else
     v4 = v2;

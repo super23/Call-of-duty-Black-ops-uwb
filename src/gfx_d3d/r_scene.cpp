@@ -476,7 +476,7 @@ void __cdecl R_AddOmniLightToScene(const float *org, const float (*axis)[3], int
         {
           v17 = &scene.addedLight[i];
           if ( v17->type == 3
-            && COERCE_FLOAT(COERCE_UNSIGNED_INT(radiusa - v17->radius) & _mask__AbsFloat_) < 10.0
+            && fabs(radiusa - v17->radius) < 10.0
             && 10.0 * 10.0 > Vec3DistanceSq(org, v17->origin) )
           {
             v17->origin[0] = (float)(0.5 * *org) + (float)(0.5 * v17->origin[0]);
@@ -2311,7 +2311,7 @@ void  R_SetSkyDynamicIntensity(float a1@<ebp>, const float *viewForward, GfxCmdB
     __libm_sse2_cos(v4);
     interp = (float)(90.0 - dotAngle0) * 0.017453292;
     skyIntensity = interp - v12;
-    if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(interp - v12) & _mask__AbsFloat_) <= 0.000099999997 )
+    if ( fabs(interp - v12) <= 0.000099999997 )
     {
       textX = 0.0f;
     }

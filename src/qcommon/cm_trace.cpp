@@ -727,7 +727,7 @@ void __cdecl CM_TestBoxInBrush(const traceWork_t *tw, const cbrush_t *brush, tra
         __debugbreak();
       }
       dist = (float)(plane->dist + tw->radius)
-           + COERCE_FLOAT(COERCE_UNSIGNED_INT(plane->normal[2] * tw->offsetZ) & _mask__AbsFloat_);
+           + fabs(plane->normal[2] * tw->offsetZ);
       if ( (LODWORD(dist) & 0x7F800000) == 0x7F800000
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp", 292, 0, "%s", "!IS_NAN(dist)") )
       {
@@ -2539,7 +2539,7 @@ int __cdecl CM_SightTraceThroughBrush(const traceWork_t *tw, const cbrush_t *bru
       __debugbreak();
     }
     dist = (float)(plane->dist + tw->radius)
-         + COERCE_FLOAT(COERCE_UNSIGNED_INT(plane->normal[2] * tw->offsetZ) & _mask__AbsFloat_);
+         + fabs(plane->normal[2] * tw->offsetZ);
     if ( (LODWORD(dist) & 0x7F800000) == 0x7F800000
       && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp", 2015, 0, "%s", "!IS_NAN(dist)") )
     {

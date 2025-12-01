@@ -621,7 +621,7 @@ bool __cdecl CanLocalPlayerHearActorFootsteps(int localClientNum, const float *a
              + (float)(delta_4 * delta_4)) > (float)(compassEnemyFootstepMaxRange->current.value
                                                    * compassEnemyFootstepMaxRange->current.value) )
     return 0;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(actorPos[2] - ps->origin[2]) & _mask__AbsFloat_) > compassEnemyFootstepMaxZ->current.value )
+  if ( fabs(actorPos[2] - ps->origin[2]) > compassEnemyFootstepMaxZ->current.value )
     return 0;
   snap = cgameGlob->snap;
   nextSnap = cgameGlob->nextSnap;

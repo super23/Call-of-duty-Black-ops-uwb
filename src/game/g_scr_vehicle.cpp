@@ -658,8 +658,8 @@ void __cdecl VEH_CalcAccel(gentity_s *ent, char *move, float *bodyAccel, float *
     maxSpeed = veh->joltSpeed;
     accel = veh->joltDecel;
   }
-  xAccel = COERCE_FLOAT(COERCE_UNSIGNED_INT((float)*move) & _mask__AbsFloat_) / 127.0;
-  yAccel = COERCE_FLOAT(COERCE_UNSIGNED_INT((float)move[1]) & _mask__AbsFloat_) / 127.0;
+  xAccel = fabs((float)*move) / 127.0;
+  yAccel = fabs((float)move[1]) / 127.0;
   if ( *move <= 0 )
   {
     if ( *move >= 0 )
@@ -7197,7 +7197,7 @@ void __cdecl VEH_CheckHorizontalVelocityToGoal(
     {
       oldSpeed = Vec2Length(phys->vel);
       requiredDecel = (float)((float)(horizontalSpeed * horizontalSpeed) / (float)(2.0 * horizontalDist)) * 0.050000001;
-      if ( requiredDecel > COERCE_FLOAT(COERCE_UNSIGNED_INT(newSpeed - oldSpeed) & _mask__AbsFloat_) )
+      if ( requiredDecel > fabs(newSpeed - oldSpeed) )
       {
         newVel[0] = (float)((float)(oldSpeed - requiredDecel) / newSpeed) * newVel[0];
         newVel[1] = (float)((float)(oldSpeed - requiredDecel) / newSpeed) * newVel[1];
@@ -7477,7 +7477,7 @@ bool __cdecl VEH_CheckIfGoalYawChanged(gentity_s *ent, float desiredYaw)
 
   veh = ent->scr_vehicle;
   return BG_GetVehicleInfo(veh->infoIdx)->type == 2
-      && COERCE_FLOAT(COERCE_UNSIGNED_INT(desiredYaw - veh->phys.angles[1]) & _mask__AbsFloat_) > 1.0;
+      && fabs(desiredYaw - veh->phys.angles[1]) > 1.0;
 }
 
 void __cdecl VEH_UpdateHover(gentity_s *ent)
@@ -7631,13 +7631,13 @@ void __cdecl VEH_UpdatePlaneOnCurve(gentity_s *ent)
       {
         if ( yawDiff < 0.0
           && COERCE_FLOAT(LODWORD(phys->maxRollAngle) ^ _mask__NegFloat_) <= phys->angles[2]
-          && COERCE_FLOAT(COERCE_UNSIGNED_INT((float)(2.0 * yawDiff) - phys->prevAngles[2]) & _mask__AbsFloat_) > 2.0 )
+          && fabs((float)(2.0 * yawDiff) - phys->prevAngles[2]) > 2.0 )
         {
           phys->angles[2] = phys->angles[2] - 1.0;
         }
       }
       else if ( phys->angles[2] <= phys->maxRollAngle
-             && COERCE_FLOAT(COERCE_UNSIGNED_INT((float)(2.0 * yawDiff) - phys->prevAngles[2]) & _mask__AbsFloat_) > 2.0 )
+             && fabs((float)(2.0 * yawDiff) - phys->prevAngles[2]) > 2.0 )
       {
         phys->angles[2] = phys->angles[2] + 1.0;
       }

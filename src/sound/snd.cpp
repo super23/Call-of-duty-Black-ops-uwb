@@ -402,8 +402,8 @@ void __cdecl SND_SetVoiceStartInfo(unsigned int index, SndStartAliasInfo *SndSta
   position[2] = SndStartAliasInfo->org[2];
   voice->voiceStartTime = Sys_Milliseconds();
   voice->pitchShift = 0;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT((float)((float)alias->pitchMin / 32767.0) - 1.0) & _mask__AbsFloat_) > 0.0000152879
-    || COERCE_FLOAT(COERCE_UNSIGNED_INT((float)((float)alias->pitchMax / 32767.0) - 1.0) & _mask__AbsFloat_) > 0.0000152879
+  if ( fabs((float)((float)alias->pitchMin / 32767.0) - 1.0) > 0.0000152879
+    || fabs((float)((float)alias->pitchMax / 32767.0) - 1.0) > 0.0000152879
     || (alias->flags & 0x10) >> 4 )
   {
     voice->pitchShift = 1;
@@ -778,7 +778,7 @@ void __cdecl SND_FaderUpdate(snd_fader_t *fader, float dt)
     v4 = -1.0f;
   else
     v4 = 1.0f;
-  if ( (float)(COERCE_FLOAT(COERCE_UNSIGNED_INT(goal - value) & _mask__AbsFloat_) - (float)(rate * dt)) < 0.0 )
+  if ( (float)(fabs(goal - value) - (float)(rate * dt)) < 0.0 )
     LODWORD(v3) = COERCE_UNSIGNED_INT(goal - value) & _mask__AbsFloat_;
   else
     v3 = rate * dt;
@@ -2927,9 +2927,9 @@ double __cdecl SND_GetPitch(snd_voice_t *voice)
     __debugbreak();
   }
   pitchb = pitcha * snd_global_pitch->current.value;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(pitchb - 1.0) & _mask__AbsFloat_) > 0.0000152879 )
+  if ( fabs(pitchb - 1.0) > 0.0000152879 )
     voice->pitchShift = 1;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(pitchb - 1.0) & _mask__AbsFloat_) < 0.0000152879 )
+  if ( fabs(pitchb - 1.0) < 0.0000152879 )
     pitchb = 1.0f;
   if ( (float)(pitchb - 1.9) < 0.0 )
     v3 = pitchb;
@@ -4030,7 +4030,7 @@ double __cdecl SND_GetOmni(const snd_voice_t *voice)
   globalOmni = snd_omnidirectionalPercentage->current.value;
   if ( !alias && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd.cpp", 3225, 0, "%s", "alias") )
     __debugbreak();
-  if ( globalOmni >= COERCE_FLOAT(COERCE_UNSIGNED_INT((float)alias->envelopPercentage / 65535.0) & _mask__AbsFloat_) )
+  if ( globalOmni >= fabs((float)alias->envelopPercentage / 65535.0) )
     return globalOmni;
   if ( (float)((float)alias->envelopPercentage / 65535.0) >= 0.0 )
   {

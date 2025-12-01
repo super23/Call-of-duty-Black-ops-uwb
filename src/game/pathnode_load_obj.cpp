@@ -1378,7 +1378,7 @@ bool __cdecl Path_CanLinkNodes(pathnode_t *pNodeFrom, pathnode_t *pNodeTo, float
             return 0;
           }
         }
-        v5 = COERCE_FLOAT(COERCE_UNSIGNED_INT(phys.vOrigin[2] - pNodeTo->constant.vOrigin[2]) & _mask__AbsFloat_) <= 18.0;
+        v5 = fabs(phys.vOrigin[2] - pNodeTo->constant.vOrigin[2]) <= 18.0;
         phys.proximity_data.__vftable = (colgeom_visitor_inlined_t<200>_vtbl *)&visitor_base_t::`vftable';
         return v5;
       }

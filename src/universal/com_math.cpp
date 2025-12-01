@@ -99,9 +99,9 @@ double __cdecl DiffTrack(float tgt, float cur, float rate, float deltaTime)
   float step; // [esp+8h] [ebp-4h]
 
   step = (float)(rate * (float)(tgt - cur)) * deltaTime;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(tgt - cur) & _mask__AbsFloat_) <= 0.001 )
+  if ( fabs(tgt - cur) <= 0.001 )
     return tgt;
-  if ( fabs(step) <= COERCE_FLOAT(COERCE_UNSIGNED_INT(tgt - cur) & _mask__AbsFloat_) )
+  if ( fabs(step) <= fabs(tgt - cur) )
     return cur + step;
   return tgt;
 }
@@ -2151,7 +2151,7 @@ void __cdecl SnapPointToIntersectingPlanes(const float **planes, float *xyz, flo
   for ( axis = 0; axis < 3; ++axis )
   {
     rounded = (float)(int)((float)(xyz[axis] / snapGrid) + 9.313225746154785e-10) * snapGrid;
-    if ( snapEpsilon <= COERCE_FLOAT(COERCE_UNSIGNED_INT(rounded - xyz[axis]) & _mask__AbsFloat_) )
+    if ( snapEpsilon <= fabs(rounded - xyz[axis]) )
       snapped[axis] = xyz[axis];
     else
       snapped[axis] = rounded;
@@ -2721,15 +2721,9 @@ bool __cdecl CullBoxFromCone(
                                                + (float)((float)((float)(scale * perpendicular_4) + coneDir[1])
                                                        * deltaMid_4))
                                        + (float)((float)((float)(scale * perpendicular_8) + coneDir[2]) * deltaMid_8))
-                               - COERCE_FLOAT(
-                                   COERCE_UNSIGNED_INT(*boxHalfSize * (float)((float)(scale * perpendicular) + *coneDir))
-                                 & _mask__AbsFloat_))
-                       - COERCE_FLOAT(
-                           COERCE_UNSIGNED_INT(boxHalfSize[1] * (float)((float)(scale * perpendicular_4) + coneDir[1]))
-                         & _mask__AbsFloat_))
-               - COERCE_FLOAT(
-                   COERCE_UNSIGNED_INT(boxHalfSize[2] * (float)((float)(scale * perpendicular_8) + coneDir[2]))
-                 & _mask__AbsFloat_)) >= 0.0;
+                               - fabs(*boxHalfSize * (float)((float)(scale * perpendicular) + *coneDir)))
+                       - fabs(boxHalfSize[1] * (float)((float)(scale * perpendicular_4) + coneDir[1])))
+               - fabs(boxHalfSize[2] * (float)((float)(scale * perpendicular_8) + coneDir[2]))) >= 0.0;
 }
 
 bool __cdecl CullBoxFromSphere(const float *sphereOrg, float radius, const float *boxCenter, const float *boxHalfSize)
@@ -2738,21 +2732,21 @@ bool __cdecl CullBoxFromSphere(const float *sphereOrg, float radius, const float
   float v6; // [esp+4h] [ebp-38h]
   float v7; // [esp+8h] [ebp-34h]
 
-  if ( (float)((float)(COERCE_FLOAT(COERCE_UNSIGNED_INT(*sphereOrg - *boxCenter) & _mask__AbsFloat_) - *boxHalfSize)
+  if ( (float)((float)(fabs(*sphereOrg - *boxCenter) - *boxHalfSize)
              - 0.0) < 0.0 )
     v7 = 0.0f;
   else
-    v7 = COERCE_FLOAT(COERCE_UNSIGNED_INT(*sphereOrg - *boxCenter) & _mask__AbsFloat_) - *boxHalfSize;
-  if ( (float)((float)(COERCE_FLOAT(COERCE_UNSIGNED_INT(sphereOrg[1] - boxCenter[1]) & _mask__AbsFloat_) - boxHalfSize[1])
+    v7 = fabs(*sphereOrg - *boxCenter) - *boxHalfSize;
+  if ( (float)((float)(fabs(sphereOrg[1] - boxCenter[1]) - boxHalfSize[1])
              - 0.0) < 0.0 )
     v6 = 0.0f;
   else
-    v6 = COERCE_FLOAT(COERCE_UNSIGNED_INT(sphereOrg[1] - boxCenter[1]) & _mask__AbsFloat_) - boxHalfSize[1];
-  if ( (float)((float)(COERCE_FLOAT(COERCE_UNSIGNED_INT(sphereOrg[2] - boxCenter[2]) & _mask__AbsFloat_) - boxHalfSize[2])
+    v6 = fabs(sphereOrg[1] - boxCenter[1]) - boxHalfSize[1];
+  if ( (float)((float)(fabs(sphereOrg[2] - boxCenter[2]) - boxHalfSize[2])
              - 0.0) < 0.0 )
     v5 = 0.0f;
   else
-    v5 = COERCE_FLOAT(COERCE_UNSIGNED_INT(sphereOrg[2] - boxCenter[2]) & _mask__AbsFloat_) - boxHalfSize[2];
+    v5 = fabs(sphereOrg[2] - boxCenter[2]) - boxHalfSize[2];
   return (float)((float)((float)(v7 * v7) + (float)(v6 * v6)) + (float)(v5 * v5)) > (float)(radius * radius);
 }
 
@@ -2842,15 +2836,9 @@ bool __cdecl CullBoxFromConicSectionOfSphere(
                                                + (float)((float)((float)(scale * perpendicular_4) + coneDir[1])
                                                        * deltaMid_4))
                                        + (float)((float)((float)(scale * perpendicular_8) + coneDir[2]) * deltaMid_8))
-                               - COERCE_FLOAT(
-                                   COERCE_UNSIGNED_INT(*boxHalfSize * (float)((float)(scale * perpendicular) + *coneDir))
-                                 & _mask__AbsFloat_))
-                       - COERCE_FLOAT(
-                           COERCE_UNSIGNED_INT(boxHalfSize[1] * (float)((float)(scale * perpendicular_4) + coneDir[1]))
-                         & _mask__AbsFloat_))
-               - COERCE_FLOAT(
-                   COERCE_UNSIGNED_INT(boxHalfSize[2] * (float)((float)(scale * perpendicular_8) + coneDir[2]))
-                 & _mask__AbsFloat_)) >= 0.0;
+                               - fabs(*boxHalfSize * (float)((float)(scale * perpendicular) + *coneDir)))
+                       - fabs(boxHalfSize[1] * (float)((float)(scale * perpendicular_4) + coneDir[1])))
+               - fabs(boxHalfSize[2] * (float)((float)(scale * perpendicular_8) + coneDir[2]))) >= 0.0;
 }
 
 bool __cdecl CullSphereFromCone(

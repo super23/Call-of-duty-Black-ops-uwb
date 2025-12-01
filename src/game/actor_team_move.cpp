@@ -2,7 +2,7 @@
 
 bool __cdecl Actor_AtDifferentElevation(float *vOrgSelf, float *vOrgOther)
 {
-  return COERCE_FLOAT(COERCE_UNSIGNED_INT(vOrgSelf[2] - vOrgOther[2]) & _mask__AbsFloat_) >= 80.0;
+  return fabs(vOrgSelf[2] - vOrgOther[2]) >= 80.0;
 }
 
 void __fastcall Actor_TeamMoveBlocked(actor_s *self)

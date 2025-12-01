@@ -3256,7 +3256,7 @@ double __cdecl FX_GetClientVisibility(int localClientNum, const float *start, co
         projDir[1] = visBlocker->origin[1] - start[1];
         projDir[2] = visBlocker->origin[2] - start[2];
         dot = (float)((float)(projDir[0] * dir[0]) + (float)(projDir[1] * dir[1])) + (float)(projDir[2] * dir[2]);
-        if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(dot - halfLen) & _mask__AbsFloat_) <= halfLen )
+        if ( fabs(dot - halfLen) <= halfLen )
         {
           projPt[0] = (float)(dot * dir[0]) + *start;
           projPt[1] = (float)(dot * dir[1]) + start[1];

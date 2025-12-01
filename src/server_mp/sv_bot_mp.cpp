@@ -198,7 +198,7 @@ LABEL_41:
       return;
     goto LABEL_41;
   }
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(botFov - sv_botFov->current.value) & _mask__AbsFloat_) > 0.000001 )
+  if ( fabs(botFov - sv_botFov->current.value) > 0.000001 )
   {
     botFov = sv_botFov->current.value;
     g_botFovCos = cos((float)((float)(botFov * 0.5) * 0.017453292));
@@ -1289,7 +1289,7 @@ char __cdecl Bot_IsAtNegotiationNode(bot_info_t *botInfo, const client_t *bot, p
       distSq = Vec3DistanceSq(bot->gentity->r.currentOrigin, path->pts[path->wNegotiationStartNode - 1].vOrigPoint);
       if ( (float)(end_z - start_z) >= -24.0
         || distSq >= 4096.0
-        || COERCE_FLOAT(COERCE_UNSIGNED_INT(end_z - bot->gentity->r.currentOrigin[2]) & _mask__AbsFloat_) >= 5.0 )
+        || fabs(end_z - bot->gentity->r.currentOrigin[2]) >= 5.0 )
       {
         if ( g_DXDeviceThread == GetCurrentThreadId() )
           D3DPERF_EndEvent();
@@ -1624,7 +1624,7 @@ LABEL_4:
                 Path_Clear(&botInfo->path);
               if ( fabs(angle) <= 5.0 && ps->fWeaponPosFrac <= 0.000001 )
               {
-                if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(ps->viewangles[0] - botInfo->targetPitch) & _mask__AbsFloat_) <= 0.5
+                if ( fabs(ps->viewangles[0] - botInfo->targetPitch) <= 0.5
                   || fabs(botInfo->targetPitch) > sv_botPitchDown->current.value )
                 {
                   botInfo->targetPitch = flrand(sv_botPitchUp->current.value, sv_botPitchDown->current.value);

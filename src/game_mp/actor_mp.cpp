@@ -3421,7 +3421,7 @@ int __cdecl Actor_MoveAwayNoWorse(actor_s *self)
 
 bool __cdecl Actor_AtDifferentElevation(float *vOrgSelf, float *vOrgOther)
 {
-  return COERCE_FLOAT(COERCE_UNSIGNED_INT(vOrgSelf[2] - vOrgOther[2]) & _mask__AbsFloat_) >= 80.0;
+  return fabs(vOrgSelf[2] - vOrgOther[2]) >= 80.0;
 }
 
 void __cdecl actor_controller(const gentity_s *self, int *partBits)

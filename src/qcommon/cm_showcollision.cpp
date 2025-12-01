@@ -446,9 +446,7 @@ void __cdecl CM_AddColinearExteriorPointToWindingProjected(
   {
     __debugbreak();
   }
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(w->p[index1][i] - w->p[index0][i]) & _mask__AbsFloat_) < COERCE_FLOAT(
-                                                                                                   COERCE_UNSIGNED_INT(w->p[index1][j] - w->p[index0][j])
-                                                                                                 & _mask__AbsFloat_) )
+  if ( fabs(w->p[index1][i] - w->p[index0][i]) < fabs(w->p[index1][j] - w->p[index0][j]) )
   {
     axis = j;
     delta = w->p[index1][j] - w->p[index0][j];
@@ -547,9 +545,7 @@ double __cdecl CM_RepresentativeTriangleFromWinding(const winding_t *w, const fl
         va[1] = w->p[i][1] - w->p[j][1];
         va[2] = w->p[i][2] - w->p[j][2];
         Vec3Cross(va, vb, vc);
-        if ( COERCE_FLOAT(
-               COERCE_UNSIGNED_INT((float)((float)(vc[0] * *normal) + (float)(vc[1] * normal[1])) + (float)(vc[2] * normal[2]))
-             & _mask__AbsFloat_) > areaBest )
+        if ( fabs((float)((float)(vc[0] * *normal) + (float)(vc[1] * normal[1])) + (float)(vc[2] * normal[2])) > areaBest )
         {
           LODWORD(areaBest) = COERCE_UNSIGNED_INT(
                                 (float)((float)(vc[0] * *normal) + (float)(vc[1] * normal[1]))

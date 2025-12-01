@@ -4143,7 +4143,7 @@ void __cdecl MissileVerticalSteerToTarget(
   if ( *toTargetHorzRelDir >= 0.0 )
   {
     weapDef = BG_GetWeaponDef(ent->s.weapon);
-    steer[2] = (float)((float)((float)(COERCE_FLOAT(COERCE_UNSIGNED_INT(*toTargetHorzRelDir * currentHorzSpeed) & _mask__AbsFloat_)
+    steer[2] = (float)((float)((float)(fabs(*toTargetHorzRelDir * currentHorzSpeed)
                                      * vertDistToTarg)
                              / horzDistToTarg)
                      - ent->s.lerp.pos.trDelta[2])
@@ -4533,7 +4533,7 @@ char  JavelinClimbExceededAngle@<al>(float a1@<ebp>, gentity_s *ent, const float
              / (float)(targetPos[2] - ent->s.lerp.pos.trBase[2]));
   __libm_sse2_atan(v5);
   *(float *)&v3 = v3;
-  if ( value <= COERCE_FLOAT(COERCE_UNSIGNED_INT(*(float *)&v3 * 57.295776) & _mask__AbsFloat_) )
+  if ( value <= fabs(*(float *)&v3 * 57.295776) )
     return 0;
   if ( missileDebugText->current.enabled )
     Com_Printf(15, "Javelin: *** Exceeded climb angle ***\n");

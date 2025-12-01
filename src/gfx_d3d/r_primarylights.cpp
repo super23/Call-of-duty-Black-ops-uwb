@@ -474,26 +474,26 @@ char __cdecl R_CullBoxFromLightRegionHull(
   GfxLightRegionAxis *dir; // [esp+6Ch] [ebp-Ch]
   unsigned int axisIter; // [esp+74h] [ebp-4h]
 
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(*boxMidPoint - hull->kdopMidPoint[0]) & _mask__AbsFloat_) >= (float)(*boxHalfSize + hull->kdopHalfSize[0]) )
+  if ( fabs(*boxMidPoint - hull->kdopMidPoint[0]) >= (float)(*boxHalfSize + hull->kdopHalfSize[0]) )
     return 1;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(boxMidPoint[1] - hull->kdopMidPoint[1]) & _mask__AbsFloat_) >= (float)(boxHalfSize[1] + hull->kdopHalfSize[1]) )
+  if ( fabs(boxMidPoint[1] - hull->kdopMidPoint[1]) >= (float)(boxHalfSize[1] + hull->kdopHalfSize[1]) )
     return 1;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(boxMidPoint[2] - hull->kdopMidPoint[2]) & _mask__AbsFloat_) >= (float)(boxHalfSize[2] + hull->kdopHalfSize[2]) )
+  if ( fabs(boxMidPoint[2] - hull->kdopMidPoint[2]) >= (float)(boxHalfSize[2] + hull->kdopHalfSize[2]) )
     return 1;
   halfSizeOnAxis = *boxHalfSize + boxHalfSize[1];
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT((float)(*boxMidPoint + boxMidPoint[1]) - hull->kdopMidPoint[3]) & _mask__AbsFloat_) >= (float)(halfSizeOnAxis + hull->kdopHalfSize[3]) )
+  if ( fabs((float)(*boxMidPoint + boxMidPoint[1]) - hull->kdopMidPoint[3]) >= (float)(halfSizeOnAxis + hull->kdopHalfSize[3]) )
     return 1;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT((float)(*boxMidPoint - boxMidPoint[1]) - hull->kdopMidPoint[4]) & _mask__AbsFloat_) >= (float)(halfSizeOnAxis + hull->kdopHalfSize[4]) )
+  if ( fabs((float)(*boxMidPoint - boxMidPoint[1]) - hull->kdopMidPoint[4]) >= (float)(halfSizeOnAxis + hull->kdopHalfSize[4]) )
     return 1;
   halfSizeOnAxisa = *boxHalfSize + boxHalfSize[2];
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT((float)(*boxMidPoint + boxMidPoint[2]) - hull->kdopMidPoint[5]) & _mask__AbsFloat_) >= (float)(halfSizeOnAxisa + hull->kdopHalfSize[5]) )
+  if ( fabs((float)(*boxMidPoint + boxMidPoint[2]) - hull->kdopMidPoint[5]) >= (float)(halfSizeOnAxisa + hull->kdopHalfSize[5]) )
     return 1;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT((float)(*boxMidPoint - boxMidPoint[2]) - hull->kdopMidPoint[6]) & _mask__AbsFloat_) >= (float)(halfSizeOnAxisa + hull->kdopHalfSize[6]) )
+  if ( fabs((float)(*boxMidPoint - boxMidPoint[2]) - hull->kdopMidPoint[6]) >= (float)(halfSizeOnAxisa + hull->kdopHalfSize[6]) )
     return 1;
   halfSizeOnAxisb = boxHalfSize[1] + boxHalfSize[2];
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT((float)(boxMidPoint[1] + boxMidPoint[2]) - hull->kdopMidPoint[7]) & _mask__AbsFloat_) >= (float)(halfSizeOnAxisb + hull->kdopHalfSize[7]) )
+  if ( fabs((float)(boxMidPoint[1] + boxMidPoint[2]) - hull->kdopMidPoint[7]) >= (float)(halfSizeOnAxisb + hull->kdopHalfSize[7]) )
     return 1;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT((float)(boxMidPoint[1] - boxMidPoint[2]) - hull->kdopMidPoint[8]) & _mask__AbsFloat_) >= (float)(halfSizeOnAxisb + hull->kdopHalfSize[8]) )
+  if ( fabs((float)(boxMidPoint[1] - boxMidPoint[2]) - hull->kdopMidPoint[8]) >= (float)(halfSizeOnAxisb + hull->kdopHalfSize[8]) )
     return 1;
   for ( axisIter = 0; axisIter < hull->axisCount; ++axisIter )
   {
@@ -861,23 +861,23 @@ char __cdecl R_CullSphereFromLightRegionHull(const GfxLightRegionHull *hull, con
 {
   unsigned int axisIter; // [esp+58h] [ebp-4h]
 
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(*origin - hull->kdopMidPoint[0]) & _mask__AbsFloat_) >= (float)(radius + hull->kdopHalfSize[0]) )
+  if ( fabs(*origin - hull->kdopMidPoint[0]) >= (float)(radius + hull->kdopHalfSize[0]) )
     return 1;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(origin[1] - hull->kdopMidPoint[1]) & _mask__AbsFloat_) >= (float)(radius + hull->kdopHalfSize[1]) )
+  if ( fabs(origin[1] - hull->kdopMidPoint[1]) >= (float)(radius + hull->kdopHalfSize[1]) )
     return 1;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(origin[2] - hull->kdopMidPoint[2]) & _mask__AbsFloat_) >= (float)(radius + hull->kdopHalfSize[2]) )
+  if ( fabs(origin[2] - hull->kdopMidPoint[2]) >= (float)(radius + hull->kdopHalfSize[2]) )
     return 1;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT((float)(*origin + origin[1]) - hull->kdopMidPoint[3]) & _mask__AbsFloat_) >= (float)(radius + hull->kdopHalfSize[3]) )
+  if ( fabs((float)(*origin + origin[1]) - hull->kdopMidPoint[3]) >= (float)(radius + hull->kdopHalfSize[3]) )
     return 1;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT((float)(*origin - origin[1]) - hull->kdopMidPoint[4]) & _mask__AbsFloat_) >= (float)(radius + hull->kdopHalfSize[4]) )
+  if ( fabs((float)(*origin - origin[1]) - hull->kdopMidPoint[4]) >= (float)(radius + hull->kdopHalfSize[4]) )
     return 1;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT((float)(*origin + origin[2]) - hull->kdopMidPoint[5]) & _mask__AbsFloat_) >= (float)(radius + hull->kdopHalfSize[5]) )
+  if ( fabs((float)(*origin + origin[2]) - hull->kdopMidPoint[5]) >= (float)(radius + hull->kdopHalfSize[5]) )
     return 1;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT((float)(*origin - origin[2]) - hull->kdopMidPoint[6]) & _mask__AbsFloat_) >= (float)(radius + hull->kdopHalfSize[6]) )
+  if ( fabs((float)(*origin - origin[2]) - hull->kdopMidPoint[6]) >= (float)(radius + hull->kdopHalfSize[6]) )
     return 1;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT((float)(origin[1] + origin[2]) - hull->kdopMidPoint[7]) & _mask__AbsFloat_) >= (float)(radius + hull->kdopHalfSize[7]) )
+  if ( fabs((float)(origin[1] + origin[2]) - hull->kdopMidPoint[7]) >= (float)(radius + hull->kdopHalfSize[7]) )
     return 1;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT((float)(origin[1] - origin[2]) - hull->kdopMidPoint[8]) & _mask__AbsFloat_) >= (float)(radius + hull->kdopHalfSize[8]) )
+  if ( fabs((float)(origin[1] - origin[2]) - hull->kdopMidPoint[8]) >= (float)(radius + hull->kdopHalfSize[8]) )
     return 1;
   for ( axisIter = 0; axisIter < hull->axisCount; ++axisIter )
   {

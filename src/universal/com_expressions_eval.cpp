@@ -12235,7 +12235,7 @@ void __cdecl ApproxEquals(int localClientNum, itemDef_s *item, OperandStack *dat
     valueA = GetSourceFloat(list.operands);
     valueB = GetSourceFloat(&list.operands[1]);
     tolerance = GetSourceFloat(&list.operands[2]);
-    if ( tolerance > COERCE_FLOAT(COERCE_UNSIGNED_INT(valueA - valueB) & _mask__AbsFloat_) )
+    if ( tolerance > fabs(valueA - valueB) )
       operandResult.internals.intVal = 1;
   }
   else

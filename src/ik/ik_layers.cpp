@@ -787,9 +787,9 @@ void  IK_Layer_TerrainMapping(float a1@<ebp>, IKState *ikState)
                       *(float *)&v96[1] = 10.0f;
                       v246 = v246 + *(float *)&v96[v280];
                     }
-                    else if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(fastLerpScalar[1] - modifiedFeet) & _mask__AbsFloat_) > IK_TERRAIN_MAPPING_VELOCITY_SCALAR[0] )
+                    else if ( fabs(fastLerpScalar[1] - modifiedFeet) > IK_TERRAIN_MAPPING_VELOCITY_SCALAR[0] )
                     {
-                      v95 = (float)((float)(COERCE_FLOAT(COERCE_UNSIGNED_INT(fastLerpScalar[1] - modifiedFeet) & _mask__AbsFloat_)
+                      v95 = (float)((float)(fabs(fastLerpScalar[1] - modifiedFeet)
                                           / IK_TERRAIN_MAPPING_VELOCITY_SCALAR[0])
                                   * 3.0)
                           + 1.0;

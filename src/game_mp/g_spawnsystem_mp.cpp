@@ -2023,11 +2023,9 @@ void SpawnSystem_DebugRender()
       {
         newSizeScale = 1.0 - CMD_GetAnalogButtonValue(&localPlayer->client->sess.cmd, 0x13u);
         diff = newSizeScale - sizeScale;
-        if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(newSizeScale - sizeScale) & _mask__AbsFloat_) > 0.001 )
+        if ( fabs(newSizeScale - sizeScale) > 0.001 )
         {
-          if ( COERCE_FLOAT(
-                 COERCE_UNSIGNED_INT((float)(diff * speedScale) * (float)((float)level.frametime * 0.001))
-               & _mask__AbsFloat_) <= fabs(diff) )
+          if ( fabs((float)(diff * speedScale) * (float)((float)level.frametime * 0.001)) <= fabs(diff) )
             sizeScale = sizeScale + (float)((float)(diff * speedScale) * (float)((float)level.frametime * 0.001));
           else
             sizeScale = newSizeScale;

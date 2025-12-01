@@ -225,9 +225,7 @@ double __cdecl RepresentativeTriangleFromWinding(
         va[1] = (float)(*xyz)[3 * i + 1] - (float)(*xyz)[3 * j + 1];
         va[2] = (float)(*xyz)[3 * i + 2] - (float)(*xyz)[3 * j + 2];
         Vec3Cross(va, vb, vc);
-        if ( COERCE_FLOAT(
-               COERCE_UNSIGNED_INT((float)((float)(vc[0] * *normal) + (float)(vc[1] * normal[1])) + (float)(vc[2] * normal[2]))
-             & _mask__AbsFloat_) > areaBest )
+        if ( fabs((float)((float)(vc[0] * *normal) + (float)(vc[1] * normal[1])) + (float)(vc[2] * normal[2])) > areaBest )
         {
           LODWORD(areaBest) = COERCE_UNSIGNED_INT(
                                 (float)((float)(vc[0] * *normal) + (float)(vc[1] * normal[1]))

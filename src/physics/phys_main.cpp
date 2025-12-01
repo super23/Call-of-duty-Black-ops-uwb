@@ -3306,9 +3306,7 @@ double __userpurge phys_convex_hull::tetrahedron_volume@<st0>(
   v10 = v13;
   v11 = v12;
   v6 = phys_cross(&vol, &v15, &v19);
-  return (float)(COERCE_FLOAT(
-                   COERCE_UNSIGNED_INT((float)((float)(v9 * v6->x) + (float)(v10 * v6->y)) + (float)(v11 * v6->z))
-                 & _mask__AbsFloat_)
+  return (float)(fabs((float)((float)(v9 * v6->x) + (float)(v10 * v6->y)) + (float)(v11 * v6->z))
                / 6.0);
 }
 

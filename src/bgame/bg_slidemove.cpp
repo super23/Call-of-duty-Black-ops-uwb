@@ -4202,7 +4202,7 @@ LABEL_27:
       {
         if ( PM_VerifyPronePosition(pm, start_o, start_v) )
         {
-          if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(ps->origin[2] - down_o[2]) & _mask__AbsFloat_) > 0.5 )
+          if ( fabs(ps->origin[2] - down_o[2]) > 0.5 )
           {
             iDelta = (int)((float)(ps->origin[2] - down_o[2]) + 9.313225746154785e-10);
             if ( iDelta )
@@ -4214,7 +4214,7 @@ LABEL_27:
               }
               fSpeedScale = (float)(1.0 - 0.80000001)
                           + (float)((float)(1.0
-                                          - (float)(COERCE_FLOAT(COERCE_UNSIGNED_INT(ps->origin[2] - start_o[2]) & _mask__AbsFloat_)
+                                          - (float)(fabs(ps->origin[2] - start_o[2])
                                                   / fStepSize))
                                   * 0.80000001);
               v3 = ps->velocity;

@@ -2110,8 +2110,8 @@ void __cdecl CG_Calc3rdPersonVehicleViewValues(int localClientNum)
     cmdNumber = CL_GetCurrentCmdNumber(localClientNum);
     if ( CL_GetUserCmd(localClientNum, cmdNumber, &cmd) )
     {
-      if ( COERCE_FLOAT(COERCE_UNSIGNED_INT((float)cmd.pitchmove) & _mask__AbsFloat_) > 10.0
-        || COERCE_FLOAT(COERCE_UNSIGNED_INT((float)cmd.yawmove) & _mask__AbsFloat_) > 10.0 )
+      if ( fabs((float)cmd.pitchmove) > 10.0
+        || fabs((float)cmd.yawmove) > 10.0 )
       {
         cgameGlob->cameraData.lastViewInputTime = cmd.serverTime;
       }
@@ -2161,7 +2161,7 @@ void __cdecl CG_Calc3rdPersonVehicleViewValues(int localClientNum)
     maxpitch = info->thirdPersonCameraMaxPitchClamp;
     vehiclePitchOffset = GetPitchOffsetRelativeToADirection(vehicle->pose.angles, newLookDir);
     normalizedPitch = AngleNormalize180(newLookAngles[0]);
-    if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(maxpitch - minpitch) & _mask__AbsFloat_) <= 0.001 )
+    if ( fabs(maxpitch - minpitch) <= 0.001 )
     {
       newLookAngles[0] = minpitch + vehiclePitchOffset;
     }

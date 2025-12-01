@@ -2295,7 +2295,7 @@ bool __fastcall Path_PredictionTrace(
       if ( vTraceEndPos[2] < vSource[2] || trace.fraction == 1.0 || trace.normal.vec.v[2] >= 0.69999999 )
       {
         vTraceEndPos[2] = vTraceEndPos[2] + stepheight;
-        v10 = COERCE_FLOAT(COERCE_UNSIGNED_INT(vTraceEndPos[2] - vEndPos[2]) & _mask__AbsFloat_) < 48.0;
+        v10 = fabs(vTraceEndPos[2] - vEndPos[2]) < 48.0;
         if ( g_DXDeviceThread == GetCurrentThreadId() )
           D3DPERF_EndEvent();
         return v10;
@@ -5410,9 +5410,7 @@ double __userpurge CustomSearchInfo_FindPathWithWidth::EvaluateHeuristic@<st0>(
   vOrigin = pSuccessor->constant.vOrigin;
   v7 = pSuccessor->constant.vOrigin[0] - *vGoalPos;
   dist = pSuccessor->constant.vOrigin[1] - vGoalPos[1];
-  v4 = (float)(COERCE_FLOAT(
-                 COERCE_UNSIGNED_INT((float)((float)(this->perp[0] * v7) + (float)(this->perp[1] * dist)) - this->width)
-               & _mask__AbsFloat_)
+  v4 = (float)(fabs((float)((float)(this->perp[0] * v7) + (float)(this->perp[1] * dist)) - this->width)
              * 0.0069077001);
   __libm_sse2_exp(v6);
   *(float *)&v4 = v4;

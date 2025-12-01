@@ -139,11 +139,11 @@ bool __cdecl R_WatersEquivalent(const water_t *w0, const water_t *w1)
     return 0;
   if ( w0->Lx != w1->Lx || w0->Lz != w1->Lz )
     return 0;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(w0->amplitude - w1->amplitude) & _mask__AbsFloat_) > 0.001 )
+  if ( fabs(w0->amplitude - w1->amplitude) > 0.001 )
     return 0;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(w0->gravity - w1->gravity) & _mask__AbsFloat_) > 0.1 )
+  if ( fabs(w0->gravity - w1->gravity) > 0.1 )
     return 0;
-  if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(w0->windvel - w1->windvel) & _mask__AbsFloat_) > 0.1 )
+  if ( fabs(w0->windvel - w1->windvel) > 0.1 )
     return 0;
   v3 = sqrtf(
          (float)((float)(w0->winddir[0] * w0->winddir[0]) + (float)(w0->winddir[1] * w0->winddir[1]))

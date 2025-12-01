@@ -59,9 +59,7 @@ void __cdecl UpdateData(CG_PerfData *data, int value)
   data->average = (float)data->total / (float)data->count;
   for ( ia = 0; ia < data->count && (data->index - ia) % 32 >= 0; ++ia )
     data->variance = data->variance
-                   + COERCE_FLOAT(
-                       COERCE_UNSIGNED_INT((float)data->history[(data->index - ia) % 32] - data->average)
-                     & _mask__AbsFloat_);
+                   + fabs((float)data->history[(data->index - ia) % 32] - data->average);
   data->variance = data->variance / (float)data->count;
   ++data->index;
 }

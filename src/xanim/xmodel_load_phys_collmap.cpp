@@ -3,7 +3,7 @@
 bool __cdecl PlaneEqual(const float *p1, const float *p2)
 {
   return VecNCompareCustomEpsilon(p1, p2, 0.001, 3)
-      && COERCE_FLOAT(COERCE_UNSIGNED_INT(p1[3] - p2[3]) & _mask__AbsFloat_) < 0.001;
+      && fabs(p1[3] - p2[3]) < 0.001;
 }
 
 char __cdecl RemoveDuplicateBrushPlanes(
@@ -89,7 +89,7 @@ char __cdecl SnapAxialVector(float *normal)
 
   for ( axis = 0; axis < 3; ++axis )
   {
-    if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(normal[axis] - 1.0) & _mask__AbsFloat_) < 0.0000001 )
+    if ( fabs(normal[axis] - 1.0) < 0.0000001 )
     {
       *normal = 0.0f;
       normal[1] = 0.0f;
@@ -97,7 +97,7 @@ char __cdecl SnapAxialVector(float *normal)
       normal[axis] = 1.0f;
       return 1;
     }
-    if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(normal[axis] - -1.0) & _mask__AbsFloat_) < 0.0000001 )
+    if ( fabs(normal[axis] - -1.0) < 0.0000001 )
     {
       *normal = 0.0f;
       normal[1] = 0.0f;
@@ -1314,9 +1314,9 @@ void __cdecl GetGeomAABB(const PhysGeomInfo *geom, float *mins, float *maxs)
     }
     for ( axisIndex = 0; axisIndex < 3; ++axisIndex )
     {
-      axisRange = (float)(COERCE_FLOAT(COERCE_UNSIGNED_INT(geom->orientation[0][axisIndex] * range) & _mask__AbsFloat_)
-                        + COERCE_FLOAT(COERCE_UNSIGNED_INT(geom->orientation[1][axisIndex] * range_4) & _mask__AbsFloat_))
-                + COERCE_FLOAT(COERCE_UNSIGNED_INT(geom->orientation[2][axisIndex] * range_8) & _mask__AbsFloat_);
+      axisRange = (float)(fabs(geom->orientation[0][axisIndex] * range)
+                        + fabs(geom->orientation[1][axisIndex] * range_4))
+                + fabs(geom->orientation[2][axisIndex] * range_8);
       mins[axisIndex] = geom->offset[axisIndex] - axisRange;
       maxs[axisIndex] = geom->offset[axisIndex] + axisRange;
     }

@@ -738,7 +738,7 @@ void __cdecl CM_TraceCapsuleThroughBorder(const traceWork_t *tw, const Collision
       {
         __debugbreak();
       }
-      if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(edgePoint_8 - tw->extents.start.vec.v[2]) & _mask__AbsFloat_) <= tw->offsetZ )
+      if ( fabs(edgePoint_8 - tw->extents.start.vec.v[2]) <= tw->offsetZ )
       {
         v14 = border->distEq[1];
         trace->normal.vec.u[0] = LODWORD(border->distEq[0]);
@@ -885,7 +885,7 @@ LABEL_55:
     {
       __debugbreak();
     }
-    if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(tw->extents.start.vec.v[2] - edgePoint_8a) & _mask__AbsFloat_) <= tw->offsetZ )
+    if ( fabs(tw->extents.start.vec.v[2] - edgePoint_8a) <= tw->offsetZ )
     {
       v13 = border->distEq[1];
       trace->normal.vec.u[0] = LODWORD(border->distEq[0]);

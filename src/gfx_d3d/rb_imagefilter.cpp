@@ -86,15 +86,11 @@ int __cdecl RB_GenerateGaussianFilterChain(
     if ( v9 > 1.3895605 )
       passRadius = FLOAT_1_3895605;
     radiusX = (float)(sqrtf(
-                        COERCE_FLOAT(
-                          COERCE_UNSIGNED_INT((float)(radiusX * radiusX) - (float)(passRadius * passRadius))
-                        & _mask__AbsFloat_))
+                        fabs((float)(radiusX * radiusX) - (float)(passRadius * passRadius)))
                     * (float)dstWidth)
             / (float)srcWidth;
     radiusY = (float)(sqrtf(
-                        COERCE_FLOAT(
-                          COERCE_UNSIGNED_INT((float)(radiusY * radiusY) - (float)(passRadius * passRadius))
-                        & _mask__AbsFloat_))
+                        fabs((float)(radiusY * radiusY) - (float)(passRadius * passRadius)))
                     * (float)dstHeight)
             / (float)srcHeight;
     if ( passCount >= passLimit
@@ -111,7 +107,7 @@ int __cdecl RB_GenerateGaussianFilterChain(
   }
   while ( passCount < 32 && (radiusX >= 0.32950512 || radiusY >= 0.32950512) )
   {
-    if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(radiusX - radiusY) & _mask__AbsFloat_) < 0.32950512 )
+    if ( fabs(radiusX - radiusY) < 0.32950512 )
     {
       passRadius = (float)(radiusX + radiusY) * 0.5;
       if ( passRadius <= 1.3895605 )

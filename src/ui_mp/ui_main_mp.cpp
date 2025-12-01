@@ -1090,7 +1090,7 @@ void __cdecl UI_DrawCombatRecordBarGraph(int contextIndex, rectDef_s *rect)
     startIndex = 0;
     while ( currIndex >= 0 )
     {
-      barHeight = (float)(COERCE_FLOAT(COERCE_UNSIGNED_INT((float)recentEarnings[currIndex]) & _mask__AbsFloat_)
+      barHeight = (float)(fabs((float)recentEarnings[currIndex])
                         / (float)maxEarnings)
                 * (float)(rect->h / 2.0);
       if ( recentEarnings[currIndex] <= 0 )

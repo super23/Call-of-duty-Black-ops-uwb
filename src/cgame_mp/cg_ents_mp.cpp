@@ -1995,9 +1995,7 @@ void __cdecl CG_ClampPrimaryLightDir(GfxLight *light, const ComPrimaryLight *ref
 
 bool __cdecl Vec3IsNormalized(const float *v)
 {
-  return COERCE_FLOAT(
-           COERCE_UNSIGNED_INT((float)((float)((float)(*v * *v) + (float)(v[1] * v[1])) + (float)(v[2] * v[2])) - 1.0)
-         & _mask__AbsFloat_) < 0.0020000001;
+  return fabs((float)((float)((float)(*v * *v) + (float)(v[1] * v[1])) + (float)(v[2] * v[2])) - 1.0) < 0.0020000001;
 }
 
 bool __cdecl CG_ShouldDelayEntityPacketPostPS(int localClientNum, centity_s *cent)

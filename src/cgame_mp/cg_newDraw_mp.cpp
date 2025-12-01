@@ -2789,7 +2789,7 @@ void __cdecl CG_DrawDemoControls(int localClientNum, const rectDef_s *rect, Mate
     if ( !Demo_IsClipPlaying() )
     {
       activityBlockX = timelineX;
-      activityBlockW = COERCE_FLOAT(COERCE_UNSIGNED_INT((float)(startTime - connectTime) / (float)duration) & _mask__AbsFloat_)
+      activityBlockW = fabs((float)(startTime - connectTime) / (float)duration)
                      * timelineWidth;
       CL_DrawStretchPic(
         &scrPlaceView[localClientNum],
@@ -2805,12 +2805,10 @@ void __cdecl CG_DrawDemoControls(int localClientNum, const rectDef_s *rect, Mate
         1.0,
         activityBlockColor,
         cgMedia.whiteMaterial);
-      activityBlockX = (float)(COERCE_FLOAT(
-                                 COERCE_UNSIGNED_INT((float)(disconnectTime - startTime) / (float)duration)
-                               & _mask__AbsFloat_)
+      activityBlockX = (float)(fabs((float)(disconnectTime - startTime) / (float)duration)
                              * timelineWidth)
                      + timelineX;
-      activityBlockW = COERCE_FLOAT(COERCE_UNSIGNED_INT((float)(endTime - disconnectTime) / (float)duration) & _mask__AbsFloat_)
+      activityBlockW = fabs((float)(endTime - disconnectTime) / (float)duration)
                      * timelineWidth;
       CL_DrawStretchPic(
         &scrPlaceView[localClientNum],

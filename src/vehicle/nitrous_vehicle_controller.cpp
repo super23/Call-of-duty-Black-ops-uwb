@@ -868,9 +868,7 @@ void __userpurge NitrousVehicleController::UpdateControlsDefault(
       v7 = (float *)(p_m_mat + 16);
       velocity = NitrousVehicle::get_velocity(rbveh, (phys_vec3 *)&v6);
       v4 = rbveh->m_forward_vel <= 1.0
-        && (float)(COERCE_FLOAT(
-                     COERCE_UNSIGNED_INT((float)((float)(velocity->x * *v7) + (float)(velocity->y * v7[1])) + (float)(velocity->z * v7[2]))
-                   & _mask__AbsFloat_)
+        && (float)(fabs((float)((float)(velocity->x * *v7) + (float)(velocity->y * v7[1])) + (float)(velocity->z * v7[2]))
                  - 2.0) > fabs(rbveh->m_forward_vel)
         && required_stop_time > v20->m_stopped_time;
       if ( rbveh->m_forward_vel > 1.0 || v4 )

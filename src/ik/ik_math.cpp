@@ -1823,7 +1823,7 @@ void __cdecl ikNormalizedMatrixAssert_func(float (*mat)[4])
           __debugbreak();
       }
       len = Abs(&(*mat)[4 * j]);
-      if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(1.0 - len) & _mask__AbsFloat_) >= 0.0020000001 )
+      if ( fabs(1.0 - len) >= 0.0020000001 )
       {
         v2 = va("len == %f", len);
         if ( !Assert_MyHandler(
@@ -1836,7 +1836,7 @@ void __cdecl ikNormalizedMatrixAssert_func(float (*mat)[4])
           __debugbreak();
       }
     }
-    if ( COERCE_FLOAT(COERCE_UNSIGNED_INT(1.0 - (*mat)[15]) & _mask__AbsFloat_) >= 0.0020000001 )
+    if ( fabs(1.0 - (*mat)[15]) >= 0.0020000001 )
     {
       v3 = va("mat[3][3] == %f", (*mat)[15]);
       if ( !Assert_MyHandler(

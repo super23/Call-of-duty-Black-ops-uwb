@@ -4456,7 +4456,7 @@ void __cdecl CG_CacheKillCamLookAtEntityOrigin(int localClientNum)
       if ( obj )
       {
         if ( CG_DObjGetWorldTagPos(&centTarget->pose, obj, scr_const.j_head, vPos) )
-          heightOffset = COERCE_FLOAT(COERCE_UNSIGNED_INT(vPos[2] - centTarget->pose.origin[2]) & _mask__AbsFloat_)
+          heightOffset = fabs(vPos[2] - centTarget->pose.origin[2])
                        * 0.5;
       }
       cgameGlob->killCamLookAt[2] = cgameGlob->killCamLookAt[2] + heightOffset;

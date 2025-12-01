@@ -309,7 +309,7 @@ __int64 __cdecl DevGui_UpdateIntScroll(float deltaTime, __int64 value, __int64 m
   {
     stepTimea = s_input.sliderScrollTime
               / (double)range
-              / COERCE_FLOAT(COERCE_UNSIGNED_INT(s_input.analogAxis[axis] * s_input.scrollScale) & _mask__AbsFloat_);
+              / fabs(s_input.analogAxis[axis] * s_input.scrollScale);
     if ( stepTimea > s_input.sliderScrollMaxTimeStep )
       stepTimea = s_input.sliderScrollMaxTimeStep;
     s_input.analogSliderTime = s_input.analogSliderTime + deltaTime;

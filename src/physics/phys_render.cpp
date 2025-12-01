@@ -1800,7 +1800,7 @@ void  calc_winding(
       memcpy(v5, phys_static_array<plane_lt,512>::operator[](planes, *(int *)&v5[32]), 0x20u);
       if ( (float)((float)((float)(*(float *)i * *(float *)v5) + (float)(*(float *)(i + 4) * *(float *)&v5[4]))
                  + (float)(*(float *)(i + 8) * *(float *)&v5[8])) <= 0.99989998
-        || COERCE_FLOAT(COERCE_UNSIGNED_INT(*(float *)(i + 16) - *(float *)&v5[16]) & _mask__AbsFloat_) >= 0.001 )
+        || fabs(*(float *)(i + 16) - *(float *)&v5[16]) >= 0.001 )
       {
         *(unsigned int *)v5 ^= _mask__NegFloat_;
         *(unsigned int *)&v5[4] ^= _mask__NegFloat_;

@@ -2124,7 +2124,7 @@ void __cdecl FX_ConvertTrail_CompileVertices(
         v6[1] = emittedVertPtrIter->pos[1] - outVertPtrIter->pos[1];
         v5 = Vec2Length(v6);
         if ( v5 <= SNAP_TOLERANCE_POS
-          && COERCE_FLOAT(COERCE_UNSIGNED_INT(outVertPtrIter->texCoord - emittedVertPtrIter->texCoord) & _mask__AbsFloat_) <= SNAP_TOLERANCE_TEXCOORD
+          && fabs(outVertPtrIter->texCoord - emittedVertPtrIter->texCoord) <= SNAP_TOLERANCE_TEXCOORD
           && SNAP_TOLERANCE_NORM <= (float)((float)(outVertPtrIter->normal[0] * emittedVertPtrIter->normal[0])
                                           + (float)(outVertPtrIter->normal[1] * emittedVertPtrIter->normal[1])) )
         {
