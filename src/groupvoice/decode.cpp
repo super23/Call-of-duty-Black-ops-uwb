@@ -1,4 +1,6 @@
 #include "decode.h"
+#include <qcommon/common.h>
+#include <speex/speex.h>
 
 char __cdecl Decode_Init(int bandwidthEnum)
 {
