@@ -1,5 +1,11 @@
 #pragma once
 
+struct flameFire_t // sizeof=0x64
+{
+    flameGeneric_s gen;
+    flameRender_s *flameRend;
+};
+
 void __cdecl Flame_Class_Fire_Init();
 flameFire_t *__cdecl Flame_Class_Fire_Alloc();
 void __cdecl Flame_Class_Fire_Free(bool is_server, flameFire_t *fire);

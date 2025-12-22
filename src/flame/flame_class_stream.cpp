@@ -1,18 +1,43 @@
 #include "flame_class_stream.h"
+#include "flame_class_drips.h"
+#include <gfx_d3d/r_scene.h>
+#include "flame_cull.h"
+#include "flame_class_chunk.h"
+#include <qcommon/common.h>
+#include <cgame/cg_scr_main.h>
+#include <demo/demo_playback.h>
+#include <EffectsCore/fx_update.h>
+#include <universal/CurveManager.h>
+#include <EffectsCore/fx_beam.h>
+
+flameStream_s *flameStreamsFree;
+flameStream_s *flameStreamsUsed;
+
+flameStream_s flameStreams[64]; 
+flameRenderList_s flameStreamRenderList[64];
+
+flameStream_s sv_flameStreams[64];
+flameStream_s *sv_flameStreamsFree;
+flameStream_s *sv_flameStreamsUsed;
+
+int g_StreamCount;
+int g_StreamCountWaterMark;
 
 void __cdecl Flame_Class_Stream_Init()
 {
     int i; // [esp+0h] [ebp-4h]
 
     memset((unsigned __int8 *)&flameStreams, 0, 0x2300u);
-    Flame_List_Init(&flameStreams, 140, 64);
+    Flame_List_Init((flameGeneric_s*)&flameStreams[0], 140, 64);
     flameStreamsFree = (flameStream_s *)&flameStreams;
     flameStreamsUsed = 0;
-    for ( i = 0; i < 64; ++i )
-        dword_9CB7B80[35 * i] = &flameStreamRenderList[i];
-    memset((unsigned __int8 *)&sv_flameStreams, 0, 0x2300u);
-    Flame_List_Init(&sv_flameStreams, 140, 64);
-    sv_flameStreamsFree = (flameStream_s *)&sv_flameStreams;
+    for (i = 0; i < 64; ++i)
+    {
+        flameStreams[i].renderList = &flameStreamRenderList[i];
+    }
+    memset((void *)&sv_flameStreams[0], 0, sizeof(sv_flameStreams));
+    Flame_List_Init(&sv_flameStreams[0].gen, 140, 64);
+    sv_flameStreamsFree = sv_flameStreams;
     sv_flameStreamsUsed = 0;
     ++g_StreamCount;
 }
@@ -120,7 +145,7 @@ void __cdecl Flame_Class_Stream_Light_Chunks(const flameStream_s *stream)
         R_AddOmniLightToScene(
             median_point,
             dummyAxis,
-            COERCE_INT(stream->flameVars->flameVar_streamPrimaryLightRadius + radius_flutter),
+            (stream->flameVars->flameVar_streamPrimaryLightRadius + radius_flutter),
             (float)(stream->flameVars->flameVar_streamPrimaryLightR + red_flutter) * color_fade,
             (float)(stream->flameVars->flameVar_streamPrimaryLightG + green_flutter) * color_fade,
             (float)(stream->flameVars->flameVar_streamPrimaryLightB + blue_flutter) * color_fade);
@@ -329,6 +354,7 @@ void __cdecl Flame_Class_Stream_Fire_Chunks(
     }
 }
 
+int curve;
 void __cdecl Flame_Class_Stream_Render_Item(
                 int localClientNum,
                 const flameStream_s *stream,
@@ -408,6 +434,7 @@ void __cdecl Flame_Class_Stream_Render_Item(
                         }
                         curve = cCurveManager::GetFreeCurve();
                         cCurveManager::AddNodeToCurve(curve, beam.begin);
+                        
                         if ( isFire )
                             v6 = stream->flameVars->flameVar_streamFlameLength * stream->flameVars->flameVar_streamFlameLength;
                         else
@@ -512,8 +539,8 @@ void __cdecl CG_Flame_Render()
     stream = flameStreamsUsed;
     if ( flameStreamsUsed && !Flame_GetLocalClientSourceRange() )
     {
-        if ( GetCurrentThreadId() != g_DXDeviceThread )
-            return;
+        //if ( GetCurrentThreadId() != g_DXDeviceThread )
+        //    return;
 LABEL_10:
         //D3DPERF_EndEvent();
         return;

@@ -1,4 +1,6 @@
 #include "flame_damage.h"
+#include <game_mp/g_main_mp.h>
+#include <game_mp/g_combat_mp.h>
 
 void __cdecl SV_Flame_Apply_Damage(gentity_s *ent)
 {

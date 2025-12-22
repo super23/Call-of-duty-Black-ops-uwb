@@ -1,6 +1,8 @@
 #pragma once
 #include <gfx_d3d/r_material.h>
+#include <universal/dvar.h>
 #include "flame_physics.h"
+#include "flame_class_stream.h"
 
 struct cg_s;
 struct centity_s;
@@ -62,23 +64,6 @@ struct flameChunk_s // sizeof=0x70
         int lastSpawnFire;
         int spawnDripsInterval;
         int spawnSmokeInterval;
-};
-
-struct flameStream_s // sizeof=0x8C
-{                                                                             // XREF: flameStream_t/r
-                                                                                // FlameStreams/r
-        flameGeneric_s gen;
-        flameRenderList_s *renderList;            // XREF: Flame_Class_Stream_Init(void)+70/w
-        flameTable *flameVars;
-        flameChunk_s *chunkList;
-        int lastSmokeChunkTime;
-        int lastDripChunkTime;
-        int entityNum;
-        int damage;
-        float damageDuration;
-        float damageInterval;
-        int isKillcamFlame;
-        int firingThroughGeo;
 };
 
 struct __declspec(align(4)) flameSource_t // sizeof=0x58
@@ -260,6 +245,16 @@ struct flameWeaponConfig_t // sizeof=0x44
                                                                                 // Weapon_Flamethrower_Fire(gentity_s *,weaponParms *)+27C/w
 };
 
+struct flameVarDef_t // sizeof=0x18
+{
+    const char *dvarName;
+    const char *name;
+    float defaultVal;
+    float minVal;
+    float maxVal;
+    const char *description;
+};
+
 void __cdecl Flame_Init_FlameVars();
 void __cdecl Flame_Reset_FlameVars();
 void __cdecl Flame_Init_Classes();
@@ -274,7 +269,7 @@ void __cdecl Flame_CMD_Test_Toggle();
 void __cdecl Flame_CMD_Use_Dvars_Toggle();
 void __cdecl Flame_DVarsToFlameVars(flameTable *fTable);
 flameTable *__cdecl Flame_FindFlameTable(const char *tableName);
-double __cdecl Flame_SwayRand(float x, float y, int time);
+float __cdecl Flame_SwayRand(float x, float y, int time);
 flameSource_t *__cdecl SV_Flame_Source_Get(int entityNum);
 flameSource_t *__cdecl Flame_Source_Get(int entityNum);
 flameRender_s *__cdecl Flame_Get_FlameRender(const char *name);
@@ -300,7 +295,7 @@ void    Flame_Render_Sprites(
                 flameGeneric_s **flameGenericList,
                 int numItems);
 int __cdecl Flame_GetLocalClientFlameSource(int localClientNum, int EntNum);
-bool __cdecl Flame_GetLocalClientSourceRange(const char *__formal);
+bool __cdecl Flame_GetLocalClientSourceRange(const char *__formal = 0);
 void __cdecl Flame_Source_Update(flameSource_t *source, flameWeaponConfig_t *weaponConfig);
 void __cdecl SV_Flame_Update_Source_Internal(
                 flameSource_t *source,
@@ -321,3 +316,24 @@ double __cdecl Flame_Random(bool is_server);
 double __cdecl Flame_CRandom(bool is_server);
 double __cdecl Flame_CalcTimeScale(int startTime, int endTime);
 double __cdecl Flame_CalcInvStartSpeed(float invInitialSpeed, float speedScale);
+
+extern phys_static_array<flameGeneric_s *, 1000> sv_flames;
+extern phys_static_array<flameGeneric_s *, 1000> cl_flames;
+
+extern const dvar_t *flame_test;
+extern const dvar_t *flame_use_dvars;
+extern const dvar_t *flame_render;
+extern const dvar_t *flame_team_damage;
+extern const dvar_t *flame_debug_render;
+extern const dvar_t *flame_config_valid;
+extern const dvar_t *default_flameVars_initialHitDamage;
+extern const dvar_t *default_flameVars_timedDamageDuration;
+extern const dvar_t *default_flameVars_timedDamageInterval;
+extern const dvar_t *flameVar_editingFlameTable;
+extern const dvar_t *flameVar_lastFlameTable;
+extern const dvar_t *flame_kick_offset;
+extern const dvar_t *flame_kick_speed;
+extern const dvar_t *flame_kick_recover_speed;
+
+extern unsigned int flame_spawn_id;
+extern unsigned int flame_freeze_id;

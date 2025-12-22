@@ -1,4 +1,11 @@
 #pragma once
+#include "flame_system.h"
+
+struct flameDrips_t // sizeof=0x64
+{
+    flameGeneric_s gen;
+    flameRender_s *flameRend;
+};
 
 void __cdecl Flame_Class_Drips_Init();
 flameDrips_t *__cdecl Flame_Class_Drips_Alloc(bool is_server);

@@ -1,4 +1,24 @@
 #pragma once
+#include "flame_system.h"
+
+struct flameStream_s // sizeof=0x8C
+{                                                                             // XREF: flameStream_t/r
+    flameGeneric_s gen;
+    flameRenderList_s *renderList;            // XREF: Flame_Class_Stream_Init(void)+70/w
+    flameTable *flameVars;
+    flameChunk_s *chunkList;
+    int lastSmokeChunkTime;
+    int lastDripChunkTime;
+    int entityNum;
+    int damage;
+    float damageDuration;
+    float damageInterval;
+    int isKillcamFlame;
+    int firingThroughGeo;
+};
+
+struct flameSource_t;
+struct flameWeaponConfig_t;
 
 void __cdecl Flame_Class_Stream_Init();
 flameStream_s *__cdecl Flame_Class_Stream_Alloc(bool is_server);
@@ -9,7 +29,7 @@ void __cdecl Flame_Class_Stream_Fire_Chunks(
                 flameSource_t *source,
                 flameWeaponConfig_t *weaponConfig,
                 int inTime,
-                flameRender_s *flameRend);
+                struct flameRender_s *flameRend);
 void __cdecl Flame_Class_Stream_Render_Item(
                 int localClientNum,
                 const flameStream_s *stream,

@@ -1,22 +1,46 @@
 #include "flame_physics.h"
+#include "flame_system.h"
+#include <tl/tl_system.h>
+#include <DynEntity/DynEntity_coll.h>
+#include <server_mp/sv_main_mp.h>
+#include <qcommon/cm_tracebox.h>
+#include <server/sv_world.h>
+#include <game_mp/g_main_mp.h>
+#include <clientscript/scr_const.h>
+#include <qcommon/cm_load.h>
+#include <DynEntity/DynEntity_server.h>
+#include <glass/glass_server.h>
+#include <game_mp/g_combat_mp.h>
+#include <DynEntity/DynEntity_client.h>
+#include <DynEntity/DynEntity_load_obj.h>
+#include <qcommon/dobj_management.h>
+#include <cgame_mp/cg_local_mp.h>
+#include <cgame/cg_world.h>
+#include <physics/destructible.h>
+#include <glass/glass_client.h>
+#include <game_mp/g_trigger_mp.h>
+#include <bgame/bg_fire.h>
+#include <game/g_weapon.h>
+#include <game/g_debug.h>
+#include <gfx_d3d/r_dpvs.h>
+#include <qcommon/cm_world.h>
+#include <algorithm>
+#include <client/splitscreen.h>
+#include <cgame/cg_drawtools.h>
 
 cdl_proftimer sv_flame_proftimer;
 cdl_proftimer cl_flame_proftimer;
 
-void __thiscall colgeom_visitor_inlined_t<500>::reset(colgeom_visitor_inlined_t<200> *this)
-{
-    hybrid_vector *p_m_mx; // ecx
+colgeom_visitor_inlined_t<500> cl_flame_chunks_proximity_cache;
+colgeom_visitor_inlined_t<500> sv_flame_chunks_proximity_cache;
 
-    this->nprims = 0;
-    this->overflow = 0;
-    this->m_mn.vec.v[0] = FLOAT_9_9999997e37;
-    this->m_mn.vec.v[1] = FLOAT_9_9999997e37;
-    this->m_mn.vec.v[2] = FLOAT_9_9999997e37;
-    p_m_mx = &this->m_mx;
-    p_m_mx->vec.v[0] = FLOAT_N9_9999997e37;
-    p_m_mx->vec.v[1] = FLOAT_N9_9999997e37;
-    p_m_mx->vec.v[2] = FLOAT_N9_9999997e37;
-}
+float FLAME_OVERCLIP = 0.001f;
+
+float mins[3] = { -8.0, -8.0, -8.0 };
+float maxs[3] = { 8.0, 8.0, 8.0 };
+float size[3] = { 8.0, 8.0, 8.0 };
+
+
 
 void __cdecl Flame_ClipVelocity(const float *in, const float *normal, float *out)
 {
@@ -24,8 +48,8 @@ void __cdecl Flame_ClipVelocity(const float *in, const float *normal, float *out
     float v4; // [esp+0h] [ebp-Ch]
 
     v3 = (float)((float)(*in * *normal) + (float)(in[1] * normal[1])) + (float)(in[2] * normal[2]);
-    LODWORD(v4) = COERCE_UNSIGNED_INT(v3 - (float)(FLAME_OVERCLIP * fabs(v3)))
-                            ^ _mask__NegFloat_;
+    //LODWORD(v4) = COERCE_UNSIGNED_INT(v3 - (float)(FLAME_OVERCLIP * fabs(v3))) ^ _mask__NegFloat_;
+    v4 = -(v3 - (float)(FLAME_OVERCLIP * fabs(v3)));
     *out = (float)(v4 * *normal) + *in;
     out[1] = (float)(v4 * normal[1]) + in[1];
     out[2] = (float)(v4 * normal[2]) + in[2];
@@ -34,9 +58,9 @@ void __cdecl Flame_ClipVelocity(const float *in, const float *normal, float *out
 void __cdecl trace_sphere(trace_t *trace, const float *start, const float *end, float radius, col_context_t *context)
 {
     const CollisionAabbTree *tree; // [esp+20h] [ebp-70h]
-    float *v8; // [esp+28h] [ebp-68h]
+    const float *v8; // [esp+28h] [ebp-68h]
     const CollisionAabbTree *v9; // [esp+2Ch] [ebp-64h]
-    float *halfSize; // [esp+30h] [ebp-60h]
+    const float *halfSize; // [esp+30h] [ebp-60h]
     const CollisionAabbTree *v11; // [esp+34h] [ebp-5Ch]
     int i; // [esp+40h] [ebp-50h]
     float dir[3]; // [esp+44h] [ebp-4Ch] BYREF
@@ -225,6 +249,7 @@ void __cdecl Flame_Phys_Collision(
     }
 }
 
+float radius_2 = 1.0f;
 void __cdecl Flame_Server_Trace(
                 trace_t *trace,
                 flameGeneric_s *gen,
@@ -265,7 +290,7 @@ void __cdecl Flame_Server_Trace(
     unsigned int entnum; // [esp+198h] [ebp-8h]
     svEntity_s *check; // [esp+19Ch] [ebp-4h]
 
-    TraceExtents::TraceExtents(&clip.extents);
+    //TraceExtents::TraceExtents(&clip.extents);
     trace_sphere(trace, startPos, endPos, radius_2, context);
     if ( trace->fraction > 0.0 )
     {
@@ -343,7 +368,7 @@ void __cdecl Flame_Server_Trace(
             for ( j = 0; j < num; ++j )
             {
                 id = (*dynEnts)[drawType][j];
-                colType = drawType + 2;
+                colType = (DynEntityCollType)(drawType + 2);
                 coll = &cm.dynEntCollList[drawType + 2][id];
                 if ( bounds[0][2] > coll->linkMaxs[2] )
                     break;
@@ -400,6 +425,7 @@ double __cdecl point_aabb_dist2(float *a, const float *mn, float *mx)
              + (float)(*a - a_proj) * (float)(*a - a_proj);
 }
 
+float radius_3 = 1.0f;
 void __cdecl Flame_Client_Trace(
                 trace_t *trace,
                 flameGeneric_s *gen,
@@ -439,7 +465,7 @@ void __cdecl Flame_Client_Trace(
     trace_t trace2; // [esp+104h] [ebp-54h] BYREF
     float bounds[2][3]; // [esp+140h] [ebp-18h] BYREF
 
-    TraceExtents::TraceExtents(&clip.extents);
+    //TraceExtents::TraceExtents(&clip.extents);
     trace_sphere(trace, startPos, endPos, radius_3, context);
     if ( trace->fraction > 0.0 )
     {
@@ -460,7 +486,7 @@ void __cdecl Flame_Client_Trace(
             for ( i = 0; i < num; ++i )
             {
                 id = (*dynEnts)[drawType][i];
-                colType = drawType;
+                colType = (DynEntityCollType)drawType;
                 coll = &cm.dynEntCollList[drawType][id];
                 if ( bounds[0][2] > coll->linkMaxs[2] )
                     break;
@@ -516,7 +542,7 @@ void __cdecl Flame_Client_Trace(
                         actorMins[2] = 0.0f;
                         actorMaxs[0] = 15.0f;
                         actorMaxs[1] = 15.0f;
-                        actorMaxs[2] = FLOAT_48_0;
+                        actorMaxs[2] = 48.0f;
                         absMin[0] = ent->pose.origin[0] + -15.0;
                         absMin[1] = ent->pose.origin[1] + -15.0;
                         absMin[2] = ent->pose.origin[2] + 0.0;
@@ -675,7 +701,7 @@ void __cdecl Flame_Impact_Process(bool is_server, flameGeneric_s *gen, trace_t *
             v11 = hitEnt->s.eType == 1 || hitEnt->s.eType == 2 && !trace->sflags;
             hitFlesh = v11;
             if ( v11 )
-                trace->sflags = (int)&off_700000;
+                trace->sflags = 0x700000;
             if ( attacker->s.number != hitEntId )
             {
                 if ( (float)gen->stream->damage > 0.0 )
@@ -709,7 +735,7 @@ void __cdecl Flame_Impact_Process(bool is_server, flameGeneric_s *gen, trace_t *
                     v21[2] = 0.0f;
                     dflags = 0;
                     targetWasAlive = hitEnt->health > 0;
-                    hitLoc = trace->partGroup;
+                    hitLoc = (hitLocation_t)trace->partGroup;
                     if ( G_GetTime() >= hitEnt->flame_timed_damage[0].end_timestamp
                         || !hitEnt->flame_timed_damage[0].end_timestamp )
                     {
@@ -748,8 +774,9 @@ void __cdecl Flame_Impact_Process(bool is_server, flameGeneric_s *gen, trace_t *
     {
         if ( trace->fraction > 0.0 )
         {
-            isWall = fabs(trace->normal.vec.u[2]) < 0.30000001;
-            if ( (char *)((unsigned int)&bg_vehicleInfos[11].rotorTailStartFx[20] & trace->sflags) != &cls.rankedServers[11866].game[59] )
+            //isWall = COERCE_FLOAT(trace->normal.vec.u[2] & _mask__AbsFloat_) < 0.30000001;
+            isWall = fabsf(trace->normal.vec.u[2]) < 0.30000001;
+            if ((trace->sflags & 0x3F00000) != 0x1400000)
             {
                 if ( isWall )
                 {
@@ -757,7 +784,7 @@ void __cdecl Flame_Impact_Process(bool is_server, flameGeneric_s *gen, trace_t *
                 }
                 else
                 {
-                    WeaponIndexForName = G_GetWeaponIndexForName("m2_flamethrower_mp");
+                    WeaponIndexForName = G_GetWeaponIndexForName((char*)"m2_flamethrower_mp");
                     CG_SetFireToTerrain(
                         gen->phys.origin,
                         1.0,
@@ -788,6 +815,15 @@ void __cdecl Flame_Impact_Process(bool is_server, flameGeneric_s *gen, trace_t *
     }
 }
 
+// Comparator based on stream pointer (can be customized)
+struct Flame_SortByStream
+{
+    bool operator()(flameGeneric_s *a, flameGeneric_s *b) const
+    {
+        return a->stream < b->stream;
+    }
+};
+
 void __cdecl Flame_Phys_Update_Items(bool is_server)
 {
     flameGeneric_s **v1; // eax
@@ -808,19 +844,28 @@ void __cdecl Flame_Phys_Update_Items(bool is_server)
     nflames = v3->m_alloc_count;
     if ( nflames )
     {
-        if ( is_server )
+        if (is_server)
+        {
             //PIXBeginNamedEvent(-1, "sv_flame_physics");
+        }
         else
+        {
             //PIXBeginNamedEvent(-1, "cl_flame_physics");
-        v4 = &phys_static_array<flameGeneric_s *,1000>::operator[](v3, 0)[nflames];
-        _First = phys_static_array<flameGeneric_s *,1000>::operator[](v3, 0);
-        std::_Sort<flameGeneric_s * *,int,Flame_SortByStream>(_First, v4, v4 - _First, 0);
-        prevStream = (*phys_static_array<flameGeneric_s *,1000>::operator[](v3, 0))->stream;
+        }
+        //v4 = &phys_static_array<flameGeneric_s *,1000>::operator[](v3, 0)[nflames];
+        v4 = v3->operator[](nflames);
+
+        //_First = phys_static_array<flameGeneric_s *,1000>::operator[](v3, 0);
+        //std::_Sort<flameGeneric_s * *,int,Flame_SortByStream>(_First, v4, v4 - _First, 0);
+        std::sort(v3->operator[](0), v4, Flame_SortByStream{});
+        //prevStream = (*phys_static_array<flameGeneric_s *,1000>::operator[](v3, 0))->stream;
+        prevStream = (flameStream_s*)((*v3->operator[](0))->stream);
         startIndex = 0;
         count = 0;
         for ( i = 0; i < nflames; ++i )
         {
-            if ( (*phys_static_array<flameGeneric_s *,1000>::operator[](v3, i))->stream == prevStream )
+            //if ( (*phys_static_array<flameGeneric_s *,1000>::operator[](v3, i))->stream == prevStream )
+            if ( (*v3->operator[](i))->stream == prevStream )
             {
                 ++count;
             }
@@ -831,19 +876,26 @@ void __cdecl Flame_Phys_Update_Items(bool is_server)
                 {
                     __debugbreak();
                 }
-                v1 = phys_static_array<flameGeneric_s *,1000>::operator[](v3, startIndex);
+                //v1 = phys_static_array<flameGeneric_s *,1000>::operator[](v3, startIndex);
+                v1 = v3->operator[](startIndex);
                 Flame_Phys_Update_Items_PerStream(is_server, count, v1);
                 startIndex += count;
                 count = 0;
-                if ( i >= nflames - 1 )
+                if (i >= nflames - 1)
+                {
                     prevStream = 0;
+                }
                 else
-                    prevStream = (*phys_static_array<flameGeneric_s *,1000>::operator[](v3, i + 1))->stream;
+                {
+                    //prevStream = (*phys_static_array<flameGeneric_s *, 1000>::operator[](v3, i + 1))->stream;
+                    prevStream = (*v3->operator[](i + 1))->stream;
+                }
             }
         }
         if ( count > 0 )
         {
-            v2 = phys_static_array<flameGeneric_s *,1000>::operator[](v3, startIndex);
+            //v2 = phys_static_array<flameGeneric_s *,1000>::operator[](v3, startIndex);
+            v2 = v3->operator[](startIndex);
             Flame_Phys_Update_Items_PerStream(is_server, count, v2);
         }
         v3->m_alloc_count = 0;
@@ -920,12 +972,15 @@ void __cdecl Flame_Phys_Update_Items_PerStream(bool is_server, int nitems, flame
             Vec3Max(gen->phys.origin, mx, mx);
             Vec3Max(gen->phys.newPos, mx, mx);
         }
+
         mn[0] = mn[0] - size[0];
-        mn[1] = mn[1] - *(float *)&dword_E12A80;
-        mn[2] = mn[2] - *(float *)&dword_E12A84;
+        mn[1] = mn[1] - size[1];
+        mn[2] = mn[2] - size[2];
+
         mx[0] = mx[0] + size[0];
-        mx[1] = mx[1] + *(float *)&dword_E12A80;
-        mx[2] = mx[2] + *(float *)&dword_E12A84;
+        mx[1] = mx[1] + size[1];
+        mx[2] = mx[2] + size[2];
+
         Vec3Lerp(mn, mx, 0.5, center);
         nearestClientDist = FLT_MAX;
         numLocalClients = CL_LocalClient_GetActiveCount();
@@ -962,12 +1017,13 @@ void __cdecl Flame_Phys_Update_Items_PerStream(bool is_server, int nitems, flame
         else
             v3 = &cl_flame_chunks_proximity_cache;
         proximity_cache = v3;
-        colgeom_visitor_inlined_t<500>::reset((colgeom_visitor_inlined_t<200> *)v3);
+        //colgeom_visitor_inlined_t<500>::reset((colgeom_visitor_inlined_t<200> *)v3);
+        v3->reset();
         expand_vec[0] = 1.0f;
         expand_vec[1] = 1.0f;
         expand_vec[2] = 1.0f;
-        proximity_cache->update(proximity_cache, mn, mx, (int)&cls.recentServers[18701].score + 3, expand_vec);
-        col_context_t::col_context_t(&context);
+        proximity_cache->update(mn, mx, (int)&cls.recentServers[18701].score + 3, expand_vec);
+        //col_context_t::col_context_t(&context);
         context.prims = proximity_cache->prims;
         context.nprims = proximity_cache->nprims;
         for ( drawType = 0; drawType < 2; ++drawType )
@@ -1432,73 +1488,3 @@ void __cdecl Flame_Phys_Update_Item_Drip(
         }
     }
 }
-
-void __thiscall colgeom_visitor_inlined_t<500>::visit(
-                colgeom_visitor_inlined_t<500> *this,
-                const CollisionAabbTree *tree)
-{
-    col_prim_t *prim; // [esp+4h] [ebp-4h]
-
-    if ( this->nprims < 500 )
-    {
-        prim = &this->prims[this->nprims++];
-        prim->type = 0;
-        prim->tree = tree;
-    }
-}
-
-void __thiscall colgeom_visitor_inlined_t<500>::visit(colgeom_visitor_inlined_t<500> *this, const cbrush_t *brush)
-{
-    col_prim_t *prim; // [esp+4h] [ebp-4h]
-
-    if ( this->nprims < 500 )
-    {
-        prim = &this->prims[this->nprims++];
-        prim->type = 1;
-        prim->tree = (const CollisionAabbTree *)brush;
-    }
-}
-
-void __thiscall colgeom_visitor_inlined_t<500>::update(
-                colgeom_visitor_inlined_t<500> *this,
-                const float *_mn,
-                const float *_mx,
-                int mask,
-                const float *expand_vec)
-{
-    bool v5; // [esp+0h] [ebp-58h]
-    float result[3]; // [esp+18h] [ebp-40h] BYREF
-    float b[3]; // [esp+24h] [ebp-34h] BYREF
-    float a[3]; // [esp+30h] [ebp-28h] BYREF
-    bool inside; // [esp+3Fh] [ebp-19h]
-    float mx[3]; // [esp+40h] [ebp-18h] BYREF
-    float mn[3]; // [esp+4Ch] [ebp-Ch] BYREF
-
-    a[0] = this->m_mn.vec.v[0] - *_mn;
-    a[1] = this->m_mn.vec.v[1] - _mn[1];
-    a[2] = this->m_mn.vec.v[2] - _mn[2];
-    b[0] = *_mx - this->m_mx.vec.v[0];
-    b[1] = _mx[1] - this->m_mx.vec.v[1];
-    b[2] = _mx[2] - this->m_mx.vec.v[2];
-    Vec3Max(a, b, result);
-    v5 = result[0] < 0.0 && result[1] < 0.0 && result[2] < 0.0;
-    inside = v5;
-    if ( this->m_mask != mask || !inside )
-    {
-        mn[0] = *_mn - *expand_vec;
-        mn[1] = _mn[1] - expand_vec[1];
-        mn[2] = _mn[2] - expand_vec[2];
-        mx[0] = *_mx + *expand_vec;
-        mx[1] = _mx[1] + expand_vec[1];
-        mx[2] = _mx[2] + expand_vec[2];
-        colgeom_visitor_inlined_t<500>::reset((colgeom_visitor_inlined_t<200> *)this);
-        colgeom_visitor_t::intersect_box(this, mn, mx, mask);
-        if ( this->nprims == 500 )
-        {
-            StatMon_Warning(8, 3000, "code_warning_collision");
-            this->nprims = 0;
-            this->overflow = 1;
-        }
-    }
-}
-

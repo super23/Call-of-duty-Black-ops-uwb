@@ -1,4 +1,7 @@
 #include "flame_sound.h"
+#include <cgame_mp/cg_main_mp.h>
+#include <sound/snd_utils.h>
+#include <cgame/cg_sound.h>
 
 void __cdecl Flame_Class_Source_Sound_Init(flameSource_t *source)
 {

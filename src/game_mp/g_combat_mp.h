@@ -125,3 +125,5 @@ int __cdecl G_RadiusDamage(
                 unsigned int weapon);
 unsigned __int16 __cdecl G_GetHitLocationString(hitLocation_t hitLoc);
 int __cdecl G_GetHitLocationIndexFromString(unsigned __int16 sString);
+
+extern unsigned char bulletPriorityMap[20];

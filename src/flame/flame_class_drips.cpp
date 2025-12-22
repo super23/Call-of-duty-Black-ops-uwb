@@ -1,4 +1,17 @@
 #include "flame_class_drips.h"
+#include <cstring>
+#include <cgame_mp/cg_local_mp.h>
+#include <universal/com_math_anglevectors.h>
+#include <cgame/cg_drawtools.h>
+
+flameGeneric_s flameDrips;
+flameDrips_t *flameDripsFree;
+flameDrips_t *flameDripsUsed;
+flameGeneric_s sv_flameDrips;
+flameDrips_t *sv_flameDripsFree;
+flameDrips_t *sv_flameDripsUsed;
+int g_DripsCount;
+int g_DripsCountWaterMark;
 
 void __cdecl Flame_Class_Drips_Init()
 {
@@ -203,10 +216,16 @@ void __cdecl Flame_Class_Drips_Render_Item(int localClientNum, flameDrips_t *fir
     {
         points[0][0] = -1.0f;
         points[0][1] = -1.0f;
-        *(_QWORD *)&points[1][0] = __PAIR64__(LODWORD(-1.0f), LODWORD(1.0f));
+
+        points[1][0] = -1.0f;
+        points[1][1] = 1.0f;
+
         points[2][0] = 1.0f;
         points[2][1] = 1.0f;
-        *(_QWORD *)&points[3][0] = __PAIR64__(LODWORD(1.0f), LODWORD(-1.0f));
+
+        points[3][0] = 1.0f;
+        points[3][1] = -1.0f;
+
         AxisToAngles(clientGlobals->refdef.viewaxis, angles);
         angles[2] = fire->gen.phys.rotation;
         AngleVectors(angles, fwd, right, down);
@@ -287,7 +306,6 @@ void __cdecl Flame_Class_Drips_Render_Local_List(int localClientNum, flameDrips_
         }
         if ( count > 1 )
             Flame_Render_Sprites(
-                COERCE_FLOAT(&savedregs),
                 clientGlobals,
                 start->gen.stream->flameVars->drips,
                 renderList,

@@ -1,5 +1,29 @@
 #include "g_combat_mp.h"
 
+unsigned char bulletPriorityMap[20] =
+{
+  1u,
+  3u,
+  3u,
+  3u,
+  3u,
+  3u,
+  3u,
+  3u,
+  3u,
+  3u,
+  3u,
+  3u,
+  3u,
+  3u,
+  3u,
+  3u,
+  3u,
+  3u,
+  0u,
+  0u
+};
+
 void __cdecl G_ParseHitLocDmgTable()
 {
     unsigned __int16 v0; // ax

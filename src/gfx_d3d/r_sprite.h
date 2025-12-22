@@ -1,4 +1,17 @@
 #pragma once
+#include "r_material.h"
+
+struct __declspec(align(8)) renderQuad_t // sizeof=0x20
+{
+    float pos[4];
+    float rotation;
+    float radius;
+    float lifeFrac;
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+};
 
 void __cdecl R_BuildQuadStampCodeMeshVerts(
                 Material *material,

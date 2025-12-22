@@ -1,4 +1,19 @@
 #include "flame_class_chunk.h"
+#include "flame_class_fire.h"
+#include "flame_class_drips.h"
+#include "flame_class_smoke.h"
+#include <universal/com_math_anglevectors.h>
+#include <cgame_mp/cg_local_mp.h>
+#include <cgame/cg_drawtools.h>
+
+flameGeneric_s flameChunks;
+flameChunk_s *flameChunksFree;
+flameChunk_s *flameChunksUsed;
+flameGeneric_s sv_flameChunks;
+flameChunk_s *sv_flameChunksFree;
+flameChunk_s *sv_flameChunksUsed;
+int g_ChunkCount;
+int g_ChunkCountWaterMark;
 
 void __cdecl Flame_Class_Chunk_Init()
 {
@@ -251,10 +266,16 @@ void __cdecl Flame_Class_Chunk_Render_Item(int localClientNum, flameChunk_s *chu
     {
         points[0][0] = -1.0f;
         points[0][1] = -1.0f;
-        *(_QWORD *)&points[1][0] = __PAIR64__(LODWORD(-1.0f), LODWORD(1.0f));
+
+        points[1][0] = -1.0f;
+        points[1][1] = 1.0f;
+
         points[2][0] = 1.0f;
         points[2][1] = 1.0f;
-        *(_QWORD *)&points[3][0] = __PAIR64__(LODWORD(1.0f), LODWORD(-1.0f));
+
+        points[3][0] = 1.0f;
+        points[3][1] = -1.0f;
+
         AxisToAngles(clientGlobals->refdef.viewaxis, angles);
         angles[2] = chunk->gen.phys.rotation;
         AngleVectors(angles, fwd, right, down);

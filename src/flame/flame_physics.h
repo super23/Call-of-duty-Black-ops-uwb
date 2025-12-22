@@ -1,6 +1,7 @@
 #pragma once
 
 #include <physics/phys_local.h>
+#include <physics/phys_main.h>
 
 struct flamePhysics_t // sizeof=0x34
 {                                                                             // XREF: flameGeneric_s/r

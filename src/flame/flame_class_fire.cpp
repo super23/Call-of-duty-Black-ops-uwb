@@ -1,5 +1,17 @@
 #include "flame_class_fire.h"
 
+#include <cstring>
+#include "flame_physics.h"
+#include <cgame_mp/cg_local_mp.h>
+#include <universal/com_math_anglevectors.h>
+#include <cgame/cg_drawtools.h>
+
+flameGeneric_s flameFire;
+flameFire_t *flameFireFree;
+flameFire_t *flameFireUsed;
+int g_FireCount;
+int g_FireCountWaterMark;
+
 void __cdecl Flame_Class_Fire_Init()
 {
     memset((unsigned __int8 *)&flameFire, 0, 0x3A980u);
@@ -194,10 +206,16 @@ void __cdecl Flame_Class_Fire_Render_Item(int localClientNum, flameFire_t *fire)
     {
         points[0][0] = -1.0f;
         points[0][1] = -1.0f;
-        *(_QWORD *)&points[1][0] = __PAIR64__(LODWORD(-1.0f), LODWORD(1.0f));
+
+        points[1][0] = -1.0f;
+        points[1][1] = 1.0f;
+
         points[2][0] = 1.0f;
         points[2][1] = 1.0f;
-        *(_QWORD *)&points[3][0] = __PAIR64__(LODWORD(1.0f), LODWORD(-1.0f));
+
+        points[3][0] = 1.0f;
+        points[3][1] = -1.0f;
+
         AxisToAngles(clientGlobals->refdef.viewaxis, angles);
         angles[2] = fire->gen.phys.rotation;
         AngleVectors(angles, fwd, right, down);
@@ -278,7 +296,6 @@ void __cdecl Flame_Class_Fire_Render_Local_List(int localClientNum, flameFire_t 
         }
         if ( numItems > 1 )
             Flame_Render_Sprites(
-                COERCE_FLOAT(&savedregs),
                 clientGlobals,
                 start->gen.stream->flameVars->fire,
                 flameGenericList,

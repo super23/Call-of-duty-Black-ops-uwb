@@ -2,7 +2,7 @@
 #include <win32/win_common.h>
 #include "assertive.h"
 
-// really dont see much point to this class, guys ..i.,
+// really dont see much point to this class, guys
 
 int __cdecl cCurveManager::GetFreeCurve()
 {

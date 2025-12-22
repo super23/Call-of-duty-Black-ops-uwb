@@ -1,4 +1,1067 @@
 #include "flame_system.h"
+#include "flame_class_chunk.h"
+#include "flame_class_fire.h"
+#include "flame_class_smoke.h"
+#include "flame_class_stream.h"
+#include "flame_class_drips.h"
+#include <universal/dvar.h>
+#include <universal/q_shared.h>
+#include <bgame/bg_weapons.h>
+#include <bgame/bg_weapons_def.h>
+#include <qcommon/common.h>
+#include <cgame_mp/cg_local_mp.h>
+#include "flame_sound.h"
+#include <gfx_d3d/r_drawsurf.h>
+#include <gfx_d3d/r_sprite.h>
+#include <vehicle/nitrous_vehicle.h>
+#include <clientscript/scr_const.h>
+#include <cgame_mp/cg_vehicles_mp.h>
+#include <cgame/cg_weapons.h>
+#include <demo/demo_playback.h>
+#include <cgame/cg_event.h>
+#include <EffectsCore/fx_update.h>
+#include <universal/com_math_anglevectors.h>
+#include <cgame/cg_drawtools.h>
+#include <cgame/cg_world.h>
+#include <game_mp/g_utils_mp.h>
+
+flameVarDef_t flameVars[128] =
+{
+  {
+    "flameVar_streamChunkGravityStart",
+    "stream/Chunk/GravityStart",
+    200.0,
+    -10000.0,
+    10000.0,
+    "Stream Gravity at Start"
+  },
+  {
+    "flameVar_streamChunkGravityEnd",
+    "stream/Chunk/GravityEnd",
+    -240.0,
+    -10000.0,
+    10000.0,
+    "Stream Gravity at End"
+  },
+  {
+    "flameVar_streamChunkMaxSize",
+    "stream/Chunk/MaxSize",
+    100.0,
+    1.0,
+    500.0,
+    "Maximum size any stream chunk can be"
+  },
+  {
+    "flameVar_streamChunkStartSize",
+    "stream/Chunk/StartSize",
+    3.0,
+    1.0,
+    10.0,
+    "Starting size of each stream chunk"
+  },
+  {
+    "flameVar_streamChunkEndSize",
+    "stream/Chunk/EndSize",
+    60.0,
+    1.0,
+    500.0,
+    "Goal ending size of each stream chunk"
+  },
+  {
+    "flameVar_streamChunkStartSizeRand",
+    "stream/Chunk/StartSizeRand",
+    0.30000001,
+    0.0,
+    1.0,
+    "Maximum percentage of start size to reduce each chunk by randomly"
+  },
+  {
+    "flameVar_streamChunkEndSizeRand",
+    "stream/Chunk/EndSizeRand",
+    0.69999999,
+    0.0,
+    1.0,
+    "Maximum percentage of end size to reduce each chunk by randomly"
+  },
+  {
+    "flameVar_streamChunkDistScalar",
+    "stream/Chunk/DistScalar",
+    1.0,
+    0.1,
+    10.0,
+    "Controls the chunk spacing.. lower values cause more overlapping, with decreased performance"
+  },
+  {
+    "flameVar_streamChunkDistSwayScale",
+    "stream/Chunk/DistSwyScale",
+    0.2,
+    0.02,
+    1.0,
+    "Sets the maximum distance scaling based on angular motion"
+  },
+  {
+    "flameVar_streamChunkDistSwayVelMax",
+    "stream/Chunk/DistSwyVelMax",
+    90.0,
+    1.0,
+    1000.0,
+    "Sets the maximum sway rate, at which the full dist scaling is applied"
+  },
+  {
+    "flameVar_streamChunkSpeed",
+    "stream/Chunk/Speed",
+    800.0,
+    10.0,
+    2000.0,
+    "Speed of chunks when they leave the nozzle"
+  },
+  {
+    "flameVar_streamChunkDecel",
+    "stream/Chunk/Decel",
+    0.40000001,
+    0.0,
+    20.0,
+    "Fraction of current speed to reduce per second"
+  },
+  {
+    "flameVar_streamChunkVelocityAddScale",
+    "stream/Chunk/VelAddScale",
+    0.75,
+    0.0,
+    1.0,
+    "Fraction of movement speed to add to the firing velocity"
+  },
+  {
+    "flameVar_streamChunkDuration",
+    "stream/Chunk/Duration",
+    2.4000001,
+    0.02,
+    10.0,
+    "Lifetime of each chunk in seconds"
+  },
+  {
+    "flameVar_streamChunkDurationScaleMaxVel",
+    "stream/Chunk/DurMaxVel",
+    150.0,
+    0.0,
+    500.0,
+    "Velocity at which to apply full duration scaling"
+  },
+  {
+    "flameVar_streamChunkDurationVelScalar",
+    "stream/Chunk/DurVelScalar",
+    0.40000001,
+    0.0,
+    1.0,
+    "Maximum movement duration scalar"
+  },
+  {
+    "flameVar_streamChunkSizeSpeedScale",
+    "stream/Chunk/SizeSpeedScale",
+    0.0,
+    -5.0,
+    5.0,
+    "Controls the rate at which size increases based on current speed"
+  },
+  {
+    "flameVar_streamChunkSizeAgeScale",
+    "stream/Chunk/SizeAgeScale",
+    -2.0,
+    -5.0,
+    5.0,
+    "Controls the rate at which size increases based on current age"
+  },
+  {
+    "flameVar_streamChunkSpawnFireIntervalStart",
+    "stream/Chunk/SpwnFireStart",
+    0.1,
+    0.0099999998,
+    5.0,
+    "Interval between spawning flames from chunks at start of chunk life"
+  },
+  {
+    "flameVar_streamChunkSpawnFireIntervalEnd",
+    "stream/Chunk/SpwnFireEnd",
+    0.80000001,
+    0.0099999998,
+    5.0,
+    "Interval between spawning flames from chunks at end of chunk life"
+  },
+  {
+    "flameVar_streamChunkSpawnFireMinLifeFrac",
+    "stream/Chunk/SpwnFireMinLife",
+    0.0,
+    0.0,
+    1.0,
+    "Don't spawn fire before this life frac"
+  },
+  {
+    "flameVar_streamChunkSpawnFireMaxLifeFrac",
+    "stream/Chunk/SpwnFireMaxLife",
+    0.89999998,
+    0.1,
+    1.0,
+    "Don't spawn fire after this life frac"
+  },
+  {
+    "flameVar_streamChunkFireMinLifeFrac",
+    "stream/Chunk/FireMinLife",
+    0.80000001,
+    0.0,
+    1.0,
+    "Make sure all flames spawned by chunks are at least this old when spawned"
+  },
+  {
+    "flameVar_streamChunkFireMinLifeFracStart",
+    "stream/Chunk/FireMinLifeStart",
+    0.0,
+    0.0,
+    1.0,
+    "Starting point for adjusting min flame life"
+  },
+  {
+    "flameVar_streamChunkFireMinLifeFracEnd",
+    "stream/Chunk/FireMinLifeEnd",
+    0.2,
+    0.0,
+    1.0,
+    "End point for adjusting min flame life"
+  },
+  {
+    "flameVar_streamChunkDripsMinLifeFrac",
+    "stream/Chunk/DripsMinLife",
+    0.0,
+    0.0,
+    1.0,
+    "Make sure all flames spawned by chunks are at least this old when spawned"
+  },
+  {
+    "flameVar_streamChunkDripsMinLifeFracStart",
+    "stream/Chunk/DripsMinLifeStart",
+    0.0,
+    0.0,
+    1.0,
+    "Starting point for adjusting min drips life"
+  },
+  {
+    "flameVar_streamChunkDripsMinLifeFracEnd",
+    "stream/Chunk/DripsMinLifeEnd",
+    1.0,
+    0.0,
+    1.0,
+    "End point for adjusting min drips life"
+  },
+  {
+    "flameVar_streamChunkRotationRange",
+    "stream/Chunk/RotationRange",
+    180.0,
+    0.0,
+    180.0,
+    "Maximum rotation (roll) of chunks"
+  },
+  {
+    "flameVar_streamSizeRandSinWave",
+    "stream/Chunk/SizeRandSinWave",
+    4.1322398,
+    0.1,
+    50.0,
+    "Stream thickness fluctuation frequency (SINE)"
+  },
+  {
+    "flameVar_streamSizeRandCosWave",
+    "stream/Chunk/SizeRandCosWave",
+    7.23244,
+    0.1,
+    50.0,
+    "Stream thickness fluctuation frequency (COSINE)"
+  },
+  {
+    "flameVar_streamDripsChunkInterval",
+    "stream/Chunk/DripsInterval",
+    0.025,
+    0.0099999998,
+    1.0,
+    "Interval between spawning a chunk that will (in it's lifetime) randomly spawn a Drips particle"
+  },
+  {
+    "flameVar_streamDripsChunkMinFrac",
+    "stream/Chunk/DripsMinFrac",
+    0.0,
+    0.0,
+    1.0,
+    "Minimum life fraction to spawn a Drips particle at"
+  },
+  {
+    "flameVar_streamDripsChunkRandFrac",
+    "stream/Chunk/DripsRandFrac",
+    0.80000001,
+    0.0,
+    1.0,
+    "Random fraction of life frac to add to the minimum fraction when deciding on Drips spawn time"
+  },
+  {
+    "flameVar_streamSmokeChunkInterval",
+    "stream/Chunk/SmokeInterval",
+    0.025,
+    0.0099999998,
+    1.0,
+    "Interval between spawning a chunk that will (in it's lifetime) randomly spawn a smoke particle"
+  },
+  {
+    "flameVar_streamSmokeChunkMinFrac",
+    "stream/Chunk/SmokeMinFrac",
+    0.0,
+    0.0,
+    1.0,
+    "Minimum life fraction to spawn a smoke particle at"
+  },
+  {
+    "flameVar_streamSmokeChunkRandFrac",
+    "stream/Chunk/SmokeRandFrac",
+    0.80000001,
+    0.0,
+    1.0,
+    "Random fraction of life frac to add to the minimum fraction when deciding on smoke spawn time"
+  },
+  {
+    "flameVar_streamChunkCullDistSizeFrac",
+    "stream/Chunk/CullDistSizeFrac",
+    0.2,
+    0.0,
+    3.0,
+    "Cull chunks within this percentage of our size"
+  },
+  {
+    "flameVar_streamChunkCullMinLife",
+    "stream/Chunk/CullMinLife",
+    0.2,
+    0.0,
+    1.0,
+    "Don't cull chunks younger than this age"
+  },
+  {
+    "flameVar_streamChunkCullMaxLife",
+    "stream/Chunk/CullMaxLife",
+    0.80000001,
+    0.0,
+    1.0,
+    "Don't cull chunks older than this age"
+  },
+  {
+    "flameVar_streamFuelSizeStart",
+    "stream/Fuel/SizeStart",
+    1.0,
+    0.1,
+    50.0,
+    "Stream fuel size at start"
+  },
+  {
+    "flameVar_streamFuelSizeEnd",
+    "stream/Fuel/SizeEnd",
+    3.0,
+    0.1,
+    50.0,
+    "Stream fuel size at end"
+  },
+  {
+    "flameVar_streamFuelLength",
+    "stream/Fuel/Length",
+    96.0,
+    0.0099999998,
+    512.0,
+    "Stream fuel length"
+  },
+  {
+    "flameVar_streamFuelNumSegments",
+    "stream/Fuel/NumSegments",
+    16.0,
+    1.0,
+    128.0,
+    "Number of stream fuel segments"
+  },
+  {
+    "flameVar_streamFuelAnimLoopTime",
+    "stream/Fuel/AnimLoopTime",
+    1.0,
+    0.1,
+    5.0,
+    "Animation cycle time for animated fuel sprites"
+  },
+  {
+    "flameVar_streamFlameSizeStart",
+    "stream/Flame/SizeStart",
+    1.0,
+    0.1,
+    50.0,
+    "Stream flame size at start"
+  },
+  {
+    "flameVar_streamFlameSizeEnd",
+    "stream/Flame/SizeEnd",
+    3.0,
+    0.1,
+    50.0,
+    "Stream flame size at end"
+  },
+  {
+    "flameVar_streamFlameLength",
+    "stream/Flame/Length",
+    96.0,
+    0.0099999998,
+    512.0,
+    "Stream flame length"
+  },
+  {
+    "flameVar_streamFlameNumSegments",
+    "stream/Flame/NumSegments",
+    16.0,
+    1.0,
+    128.0,
+    "Number of stream flame segments"
+  },
+  {
+    "flameVar_streamFlameAnimLoopTime",
+    "stream/Flame/AnimLoopTime",
+    1.0,
+    0.1,
+    5.0,
+    "Animation cycle time for animated flame sprites"
+  },
+  {
+    "flameVar_streamPrimaryLightRadius",
+    "stream/Light/PrimaryRadius",
+    375.0,
+    0.0,
+    1000.0,
+    "Primary flamethrower light source radius"
+  },
+  {
+    "flameVar_streamPrimaryLightRadiusFlutter",
+    "stream/Light/PrimaryRadiusFlutter",
+    120.0,
+    0.0,
+    1000.0,
+    "Primary flamethrower light source radius modulation"
+  },
+  {
+    "flameVar_streamPrimaryLightR",
+    "stream/Light/PrimaryR",
+    0.69999999,
+    0.0,
+    1.0,
+    "Primary flamethrower light source color R"
+  },
+  {
+    "flameVar_streamPrimaryLightG",
+    "stream/Light/PrimaryG",
+    0.40000001,
+    0.0,
+    1.0,
+    "Primary flamethrower light source color G"
+  },
+  {
+    "flameVar_streamPrimaryLightB",
+    "stream/Light/PrimaryB",
+    0.0,
+    0.0,
+    1000.0,
+    "Primary flamethrower light source color B"
+  },
+  {
+    "flameVar_streamPrimaryLightFlutterR",
+    "stream/Light/PrimaryFlutterR",
+    0.1,
+    0.0,
+    1.0,
+    "Primary flamethrower light source color modulation R"
+  },
+  {
+    "flameVar_streamPrimaryLightFlutterG",
+    "stream/Light/PrimaryFlutterG",
+    0.1,
+    0.0,
+    1.0,
+    "Primary flamethrower light source color modulation G"
+  },
+  {
+    "flameVar_streamPrimaryLightFlutterB",
+    "stream/Light/PrimaryFlutterB",
+    0.1,
+    0.0,
+    1.0,
+    "Primary flamethrower light source color modulation B"
+  },
+  {
+    "flameVar_fireLife",
+    "stream/fire/Life",
+    0.80000001,
+    0.1,
+    3.0,
+    "Life duration of flames"
+  },
+  {
+    "flameVar_fireLifeRand",
+    "stream/fire/LifeRand",
+    0.60000002,
+    0.0,
+    3.0,
+    "Random additive applied to life duration"
+  },
+  {
+    "flameVar_fireSpeedScale",
+    "stream/fire/SpeedScale",
+    0.75,
+    0.0,
+    1.0,
+    "Fraction of chunk speed that is applied to starting velocity of flames"
+  },
+  {
+    "flameVar_fireSpeedScaleRand",
+    "stream/fire/SpeedScaleRand",
+    0.5,
+    0.0,
+    1.0,
+    "Randomize speed scale by this fraction"
+  },
+  {
+    "flameVar_fireVelocityAddZ",
+    "stream/fire/VelocityAddZ",
+    60.0,
+    -200.0,
+    200.0,
+    "Upwards velocity applied to flame velocity"
+  },
+  {
+    "flameVar_fireVelocityAddZRand",
+    "stream/fire/VelocityAddZRand",
+    -20.0,
+    -200.0,
+    200.0,
+    "Random additive applied to upwards velocity"
+  },
+  {
+    "flameVar_fireVelocityAddSideways",
+    "stream/fire/VelocityAddSideways",
+    0.30000001,
+    0.0,
+    1.0,
+    "Random sideways velocity as fraction of forward velocity"
+  },
+  {
+    "flameVar_fireGravity",
+    "stream/fire/Gravity",
+    -200.0,
+    -500.0,
+    0.0,
+    "Fire gravity at start of life"
+  },
+  {
+    "flameVar_fireGravityEnd",
+    "stream/fire/GravityEnd",
+    -300.0,
+    -500.0,
+    0.0,
+    "Fire gravity at end of life"
+  },
+  {
+    "flameVar_fireMaxRotVel",
+    "stream/fire/MaxRotVel",
+    60.0,
+    0.0,
+    200.0,
+    "Maximum rotational velocity of flame"
+  },
+  {
+    "flameVar_fireFriction",
+    "stream/fire/Friction",
+    4.0,
+    0.0,
+    10.0,
+    "Fraction of starting velocity to deccelerate per second"
+  },
+  {
+    "flameVar_fireEndSizeAdd",
+    "stream/fire/EndSizeAdd",
+    15.0,
+    0.0,
+    100.0,
+    "Add this to the size of the chunk, to give the end size of the flame"
+  },
+  {
+    "flameVar_fireStartSizeScale",
+    "stream/fire/StartSizeScale",
+    1.0,
+    0.1,
+    20.0,
+    "Multiply this by the size of the chunk, to give the start size of the flame"
+  },
+  {
+    "flameVar_fireEndSizeScale",
+    "stream/fire/EndSizeScale",
+    1.0,
+    0.0,
+    20.0,
+    "Multiply this by the size of the chunk, to give the end size of the flame"
+  },
+  {
+    "flameVar_dripsLife",
+    "stream/drips/Life",
+    5.0,
+    0.1,
+    10.0,
+    "Life duration of flames"
+  },
+  {
+    "flameVar_dripsLifeRand",
+    "stream/drips/LifeRand",
+    0.60000002,
+    0.0,
+    3.0,
+    "Random additive applied to life duration"
+  },
+  {
+    "flameVar_dripsSpeedScale",
+    "stream/drips/SpeedScale",
+    0.75,
+    0.0,
+    1.0,
+    "Fraction of chunk speed that is applied to starting velocity of flames"
+  },
+  {
+    "flameVar_dripsSpeedScaleRand",
+    "stream/drips/SpeedScaleRand",
+    0.5,
+    0.0,
+    1.0,
+    "Randomize speed scale by this fraction"
+  },
+  {
+    "flameVar_dripsVelocityAddZ",
+    "stream/drips/VelocityAddZ",
+    60.0,
+    -200.0,
+    200.0,
+    "Upwards velocity applied to flame velocity"
+  },
+  {
+    "flameVar_dripsVelocityAddZRand",
+    "stream/drips/VelocityAddZRand",
+    -20.0,
+    -200.0,
+    200.0,
+    "Random additive applied to upwards velocity"
+  },
+  {
+    "flameVar_dripsVelocityAddSideways",
+    "stream/drips/VelocityAddSideways",
+    0.30000001,
+    0.0,
+    1.0,
+    "Random sideways velocity as fraction of forward velocity"
+  },
+  {
+    "flameVar_dripsGravity",
+    "stream/drips/Gravity",
+    200.0,
+    -1000.0,
+    1000.0,
+    "Fire gravity at start of life"
+  },
+  {
+    "flameVar_dripsGravityEnd",
+    "stream/drips/GravityEnd",
+    200.0,
+    -1000.0,
+    1000.0,
+    "Fire gravity at end of life"
+  },
+  {
+    "flameVar_dripsMaxRotVel",
+    "stream/drips/MaxRotVel",
+    60.0,
+    0.0,
+    200.0,
+    "Maximum rotational velocity of flame"
+  },
+  {
+    "flameVar_dripsFriction",
+    "stream/drips/Friction",
+    4.0,
+    0.0,
+    10.0,
+    "Fraction of starting velocity to deccelerate per second"
+  },
+  {
+    "flameVar_dripsEndSizeAdd",
+    "stream/drips/EndSizeAdd",
+    0.0,
+    0.0,
+    100.0,
+    "Add this to the size of the chunk, to give the end size of the flame"
+  },
+  {
+    "flameVar_dripsStartSizeScale",
+    "stream/drips/StartSizeScale",
+    0.1,
+    0.1,
+    20.0,
+    "Multiply this by the size of the chunk, to give the start size of the flame"
+  },
+  {
+    "flameVar_dripsEndSizeScale",
+    "stream/drips/EndSizeScale",
+    0.0,
+    0.0,
+    20.0,
+    "Multiply this by the size of the chunk, to give the end size of the flame"
+  },
+  {
+    "flameVar_smokeLife",
+    "stream/smoke/Life",
+    2.5,
+    0.1,
+    5.0,
+    "Life duration of smoke"
+  },
+  {
+    "flameVar_smokeLifeRand",
+    "stream/smoke/LifeRand",
+    1.0,
+    0.1,
+    5.0,
+    "Random time to add to life duration of smoke"
+  },
+  {
+    "flameVar_smokeSpeedScale",
+    "stream/smoke/SpeedScale",
+    0.34999999,
+    0.0,
+    1.0,
+    "Fraction of chunk velocity to apply to starting velocity of smoke"
+  },
+  {
+    "flameVar_smokeVelocityAddZ",
+    "stream/smoke/VelocityAddZ",
+    10.0,
+    0.0,
+    100.0,
+    "Upwards velocity applied to starting velocity of smoke"
+  },
+  {
+    "flameVar_smokeGravity",
+    "stream/smoke/Gravity",
+    -80.0,
+    -500.0,
+    0.0,
+    "Starting gravity of smoke"
+  },
+  {
+    "flameVar_smokeGravityEnd",
+    "stream/smoke/GravityEnd",
+    -100.0,
+    -500.0,
+    0.0,
+    "Ending gravity of smoke"
+  },
+  {
+    "flameVar_smokeMaxRotation",
+    "stream/smoke/MaxRotation",
+    20.0,
+    0.0,
+    180.0,
+    "Maximum rotation (ROLL) of smoke"
+  },
+  {
+    "flameVar_smokeMaxRotVel",
+    "stream/smoke/MaxRotVel",
+    20.0,
+    0.0,
+    200.0,
+    "Maximum rotational velocity of smoke"
+  },
+  {
+    "flameVar_smokeFriction",
+    "stream/smoke/Friction",
+    4.0,
+    0.0,
+    10.0,
+    "Fraction of initial velocity to deccelerate per second"
+  },
+  {
+    "flameVar_smokeEndSizeAdd",
+    "stream/smoke/EndSizeAdd",
+    80.0,
+    0.0,
+    200.0,
+    "Add this to the size of the chunk, to give the end size of the smoke"
+  },
+  {
+    "flameVar_smokeStartSizeAdd",
+    "stream/smoke/StartSizeAdd",
+    20.0,
+    0.0,
+    200.0,
+    "Add this to the size of the chunk, to give the start size of the smoke"
+  },
+  {
+    "flameVar_smokeOriginSizeOfsZScale",
+    "stream/smoke/OrgSizeOfsZScale",
+    0.69999999,
+    0.0,
+    3.0,
+    "Fraction of size to add to the Z origin of the smoke"
+  },
+  {
+    "flameVar_smokeOriginOfsZ",
+    "stream/smoke/OriginOfsZ",
+    4.0,
+    -30.0,
+    100.0,
+    "Absoluate value to add to the starting Z origin"
+  },
+  {
+    "flameVar_smokeFadein",
+    "stream/smoke/Fadein",
+    0.5,
+    0.0,
+    1.0,
+    "Fraction of life to spend fading the smoke in"
+  },
+  {
+    "flameVar_smokeFadeout",
+    "stream/smoke/Fadeout",
+    0.5,
+    0.0,
+    1.0,
+    "Fraction of life to spend fading the smoke out"
+  },
+  {
+    "flameVar_smokeMaxAlpha",
+    "stream/smoke/MaxAlpha",
+    0.2,
+    0.0,
+    1.0,
+    "Maximum alpha for smoke"
+  },
+  {
+    "flameVar_smokeBrightness",
+    "stream/smoke/Brightness",
+    0.5,
+    0.0,
+    1.0,
+    "Brightness value of smoke. 1.0 = untouched"
+  },
+  {
+    "flameVar_smokeOriginOffset",
+    "stream/smoke/OriginOffset",
+    72.0,
+    0.0,
+    300.0,
+    "Offset multiplier to shift smoke create location"
+  },
+  {
+    "flameVar_collisionSpeedScale",
+    "collisionSpeedScale",
+    0.60000002,
+    0.0,
+    1.0,
+    "Reduce speed by this scale when colliding with solid objects"
+  },
+  {
+    "flameVar_collisionVolumeScale",
+    "collisionVolumeScale",
+    0.5,
+    0.0,
+    1.0,
+    "Value used to scale the volume/size of the flame chunks used for character collision"
+  },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL },
+  { NULL, NULL, 0.0, 0.0, 0.0, NULL }
+};
+
+cspField_t flameTableFields[] =
+{
+  { "flameVar_streamChunkGravityStart", 0, 7 },
+  { "flameVar_streamChunkGravityEnd", 4, 7 },
+  { "flameVar_streamChunkMaxSize", 8, 7 },
+  { "flameVar_streamChunkStartSize", 12, 7 },
+  { "flameVar_streamChunkEndSize", 16, 7 },
+  { "flameVar_streamChunkStartSizeRand", 20, 7 },
+  { "flameVar_streamChunkEndSizeRand", 24, 7 },
+  { "flameVar_streamChunkDistScalar", 28, 7 },
+  { "flameVar_streamChunkDistSwayScale", 32, 7 },
+  { "flameVar_streamChunkDistSwayVelMax", 36, 7 },
+  { "flameVar_streamChunkSpeed", 40, 7 },
+  { "flameVar_streamChunkDecel", 44, 7 },
+  { "flameVar_streamChunkVelocityAddScale", 48, 7 },
+  { "flameVar_streamChunkDuration", 52, 7 },
+  { "flameVar_streamChunkDurationScaleMaxVel", 56, 7 },
+  { "flameVar_streamChunkDurationVelScalar", 60, 7 },
+  { "flameVar_streamChunkSizeSpeedScale", 64, 7 },
+  { "flameVar_streamChunkSizeAgeScale", 68, 7 },
+  { "flameVar_streamChunkSpawnFireIntervalStart", 72, 7 },
+  { "flameVar_streamChunkSpawnFireIntervalEnd", 76, 7 },
+  { "flameVar_streamChunkSpawnFireMinLifeFrac", 80, 7 },
+  { "flameVar_streamChunkSpawnFireMaxLifeFrac", 84, 7 },
+  { "flameVar_streamChunkFireMinLifeFrac", 88, 7 },
+  { "flameVar_streamChunkFireMinLifeFracStart", 92, 7 },
+  { "flameVar_streamChunkFireMinLifeFracEnd", 96, 7 },
+  { "flameVar_streamChunkDripsMinLifeFrac", 100, 7 },
+  { "flameVar_streamChunkDripsMinLifeFracStart", 104, 7 },
+  { "flameVar_streamChunkDripsMinLifeFracEnd", 108, 7 },
+  { "flameVar_streamChunkRotationRange", 112, 7 },
+  { "flameVar_streamSizeRandSinWave", 116, 7 },
+  { "flameVar_streamSizeRandCosWave", 120, 7 },
+  { "flameVar_streamDripsChunkInterval", 124, 7 },
+  { "flameVar_streamDripsChunkMinFrac", 128, 7 },
+  { "flameVar_streamDripsChunkRandFrac", 132, 7 },
+  { "flameVar_streamSmokeChunkInterval", 136, 7 },
+  { "flameVar_streamSmokeChunkMinFrac", 140, 7 },
+  { "flameVar_streamSmokeChunkRandFrac", 144, 7 },
+  { "flameVar_streamChunkCullDistSizeFrac", 148, 7 },
+  { "flameVar_streamChunkCullMinLife", 152, 7 },
+  { "flameVar_streamChunkCullMaxLife", 156, 7 },
+  { "flameVar_streamFuelSizeStart", 160, 7 },
+  { "flameVar_streamFuelSizeEnd", 164, 7 },
+  { "flameVar_streamFuelLength", 168, 7 },
+  { "flameVar_streamFuelNumSegments", 172, 7 },
+  { "flameVar_streamFuelAnimLoopTime", 176, 7 },
+  { "flameVar_streamFlameSizeStart", 180, 7 },
+  { "flameVar_streamFlameSizeEnd", 184, 7 },
+  { "flameVar_streamFlameLength", 188, 7 },
+  { "flameVar_streamFlameNumSegments", 192, 7 },
+  { "flameVar_streamFlameAnimLoopTime", 196, 7 },
+  { "flameVar_streamPrimaryLightRadius", 200, 7 },
+  { "flameVar_streamPrimaryLightRadiusFlutter", 204, 7 },
+  { "flameVar_streamPrimaryLightR", 208, 7 },
+  { "flameVar_streamPrimaryLightG", 212, 7 },
+  { "flameVar_streamPrimaryLightB", 216, 7 },
+  { "flameVar_streamPrimaryLightFlutterR", 220, 7 },
+  { "flameVar_streamPrimaryLightFlutterG", 224, 7 },
+  { "flameVar_streamPrimaryLightFlutterB", 228, 7 },
+  { "flameVar_fireLife", 232, 7 },
+  { "flameVar_fireLifeRand", 236, 7 },
+  { "flameVar_fireSpeedScale", 240, 7 },
+  { "flameVar_fireSpeedScaleRand", 244, 7 },
+  { "flameVar_fireVelocityAddZ", 248, 7 },
+  { "flameVar_fireVelocityAddZRand", 252, 7 },
+  { "flameVar_fireVelocityAddSideways", 256, 7 },
+  { "flameVar_fireGravity", 260, 7 },
+  { "flameVar_fireGravityEnd", 264, 7 },
+  { "flameVar_fireMaxRotVel", 268, 7 },
+  { "flameVar_fireFriction", 272, 7 },
+  { "flameVar_fireEndSizeAdd", 276, 7 },
+  { "flameVar_fireStartSizeScale", 280, 7 },
+  { "flameVar_fireEndSizeScale", 284, 7 },
+  { "flameVar_dripsLife", 288, 7 },
+  { "flameVar_dripsLifeRand", 292, 7 },
+  { "flameVar_dripsSpeedScale", 296, 7 },
+  { "flameVar_dripsSpeedScaleRand", 300, 7 },
+  { "flameVar_dripsVelocityAddZ", 304, 7 },
+  { "flameVar_dripsVelocityAddZRand", 308, 7 },
+  { "flameVar_dripsVelocityAddSideways", 312, 7 },
+  { "flameVar_dripsGravity", 316, 7 },
+  { "flameVar_dripsGravityEnd", 320, 7 },
+  { "flameVar_dripsMaxRotVel", 324, 7 },
+  { "flameVar_dripsFriction", 328, 7 },
+  { "flameVar_dripsEndSizeAdd", 332, 7 },
+  { "flameVar_dripsStartSizeScale", 336, 7 },
+  { "flameVar_dripsEndSizeScale", 340, 7 },
+  { "flameVar_smokeLife", 344, 7 },
+  { "flameVar_smokeLifeRand", 348, 7 },
+  { "flameVar_smokeSpeedScale", 352, 7 },
+  { "flameVar_smokeVelocityAddZ", 356, 7 },
+  { "flameVar_smokeGravity", 360, 7 },
+  { "flameVar_smokeGravityEnd", 364, 7 },
+  { "flameVar_smokeMaxRotation", 368, 7 },
+  { "flameVar_smokeMaxRotVel", 372, 7 },
+  { "flameVar_smokeFriction", 376, 7 },
+  { "flameVar_smokeEndSizeAdd", 380, 7 },
+  { "flameVar_smokeStartSizeAdd", 384, 7 },
+  { "flameVar_smokeOriginSizeOfsZScale", 388, 7 },
+  { "flameVar_smokeOriginOfsZ", 392, 7 },
+  { "flameVar_smokeFadein", 396, 7 },
+  { "flameVar_smokeFadeout", 400, 7 },
+  { "flameVar_smokeMaxAlpha", 404, 7 },
+  { "flameVar_smokeBrightness", 408, 7 },
+  { "flameVar_smokeOriginOffset", 412, 7 },
+  { "flameVar_collisionSpeedScale", 416, 7 },
+  { "flameVar_collisionVolumeScale", 420, 7 },
+  { "name", 424, 0 },
+  { "fire", 428, 11 },
+  { "smoke", 432, 11 },
+  { "heat", 436, 11 },
+  { "drips", 440, 11 },
+  { "streamFuel", 444, 11 },
+  { "streamFuel2", 448, 11 },
+  { "streamFlame", 452, 11 },
+  { "streamFlame2", 456, 11 },
+  { "flameOffLoopSound", 460, 0 },
+  { "flameIgniteSound", 464, 0 },
+  { "flameOnLoopSound", 468, 0 },
+  { "flameCooldownSound", 472, 0 }
+};
+
+unsigned int flame_freeze_id;
+unsigned int flame_spawn_id;
+
+unsigned __int8 sv_flameSourceLookup[1024];
+unsigned __int8 flameSourceLookup[1024];
+flameSource_t flameSources[64];
+flameSource_t sv_flameSources[64];
+
+flameRender_s flameVarList[16];
+flameVarDef_t flameVars[128];
+int numFlameVars;
+
+const int bg_iNumFlameTableFields = 119;
+
+phys_static_array<flameGeneric_s *, 1000> sv_flames;
+phys_static_array<flameGeneric_s *, 1000> cl_flames;
+
+int numFlameTablesLoaded;
+const char *loadedFlameTables[8];
+
+const dvar_s *flameDvars[128];
+
+const dvar_t *flame_test;
+const dvar_t *flame_use_dvars;
+const dvar_t *flame_render;
+const dvar_t *flame_team_damage;
+const dvar_t *flame_debug_render;
+const dvar_t *flame_config_valid;
+const dvar_t *default_flameVars_initialHitDamage;
+const dvar_t *default_flameVars_timedDamageDuration;
+const dvar_t *default_flameVars_timedDamageInterval;
+const dvar_t *flameVar_editingFlameTable;
+const dvar_t *flameVar_lastFlameTable;
+const dvar_t *flame_kick_offset;
+const dvar_t *flame_kick_speed;
+const dvar_t *flame_kick_recover_speed;
+
+cmd_function_s Flame_CMD_PrintDVarsToConsol_VAR;
+cmd_function_s Flame_CMD_Test_Toggle_VAR;
+cmd_function_s Flame_CMD_Use_Dvars_Toggle_VAR;
 
 void __cdecl Flame_Init_FlameVars()
 {
@@ -8,14 +1071,14 @@ void __cdecl Flame_Init_FlameVars()
     numFlameVars = 0;
     for ( i = 0; i < bg_iNumFlameTableFields; ++i )
     {
-        if ( flameVars[i].dvarName )
+        if (flameVars[i].dvarName)
             flameDvars[i] = _Dvar_RegisterFloat(
-                                                flameVars[i].dvarName,
-                                                *((float *)&unk_E12B68 + 6 * i),
-                                                *((float *)&unk_E12B6C + 6 * i),
-                                                *((float *)&unk_E12B70 + 6 * i),
-                                                0,
-                                                off_E12B74[6 * i]);
+                flameVars[i].dvarName,
+                flameVars[i].defaultVal,
+                flameVars[i].minVal,
+                flameVars[i].maxVal,
+                0,
+                flameVars[i].description);
     }
 }
 
@@ -106,9 +1169,9 @@ void __cdecl Flame_Init_DVars()
                                                                 "This is the previous flametable that was put up for editing, mostly included to help artists");
         flame_kick_offset = _Dvar_RegisterVec3(
                                                     "flame_kick_offset",
-                                                    COERCE_UNSIGNED_INT(-2.0),
-                                                    COERCE_UNSIGNED_INT(0.0),
-                                                    COERCE_UNSIGNED_INT(-0.5),
+                                                    (-2.0),
+                                                    (0.0),
+                                                    (-0.5),
                                                     -3.4028235e38,
                                                     3.4028235e38,
                                                     0x80u,
@@ -152,45 +1215,45 @@ void __cdecl Flame_InitDevGui()
     const WeaponDef *weapDef; // [esp+8h] [ebp-4h]
 
     numFlameTablesLoaded = 0;
-    for ( j = 0; j < BG_GetNumWeapons(); ++j )
+    for (j = 0; j < BG_GetNumWeapons(); ++j)
     {
         weapDef = BG_GetWeaponDef(j);
-        if ( weapDef && weapDef->flameTableFirstPersonPtr && !Flame_TableInDevGui(weapDef->flameTableFirstPerson) )
+        if (weapDef && weapDef->flameTableFirstPersonPtr && !Flame_TableInDevGui(weapDef->flameTableFirstPerson))
         {
-            if ( numFlameTablesLoaded >= 8
+            if (numFlameTablesLoaded >= 8
                 && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_system.cpp",
-                            333,
-                            0,
-                            "%s\n\t(numFlameTablesLoaded) = %i",
-                            "(numFlameTablesLoaded < 8)",
-                            numFlameTablesLoaded) )
+                    "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_system.cpp",
+                    333,
+                    0,
+                    "%s\n\t(numFlameTablesLoaded) = %i",
+                    "(numFlameTablesLoaded < 8)",
+                    numFlameTablesLoaded))
             {
                 __debugbreak();
             }
             loadedFlameTables[numFlameTablesLoaded] = weapDef->flameTableFirstPerson;
-            if ( !numFlameTablesLoaded )
+            if (!numFlameTablesLoaded)
             {
-                Dvar_SetString((dvar_s *)flameVar_editingFlameTable, loadedFlameTables[0]);
+                Dvar_SetString((dvar_s*)flameVar_editingFlameTable, loadedFlameTables[0]);
                 Flame_DVarsToFlameVars(weapDef->flameTableFirstPersonPtr);
             }
             ++numFlameTablesLoaded;
         }
-        if ( weapDef && weapDef->flameTableThirdPersonPtr && !Flame_TableInDevGui(weapDef->flameTableThirdPerson) )
+        if (weapDef && weapDef->flameTableThirdPersonPtr && !Flame_TableInDevGui(weapDef->flameTableThirdPerson))
         {
-            if ( numFlameTablesLoaded >= 8
+            if (numFlameTablesLoaded >= 8
                 && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_system.cpp",
-                            347,
-                            0,
-                            "%s\n\t(numFlameTablesLoaded) = %i",
-                            "(numFlameTablesLoaded < 8)",
-                            numFlameTablesLoaded) )
+                    "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_system.cpp",
+                    347,
+                    0,
+                    "%s\n\t(numFlameTablesLoaded) = %i",
+                    "(numFlameTablesLoaded < 8)",
+                    numFlameTablesLoaded))
             {
                 __debugbreak();
             }
             loadedFlameTables[numFlameTablesLoaded] = weapDef->flameTableThirdPerson;
-            if ( !numFlameTablesLoaded )
+            if (!numFlameTablesLoaded)
             {
                 Dvar_SetString((dvar_s *)flameVar_editingFlameTable, loadedFlameTables[0]);
                 Flame_DVarsToFlameVars(weapDef->flameTableThirdPersonPtr);
@@ -203,20 +1266,20 @@ void __cdecl Flame_InitDevGui()
     Cmd_AddCommandInternal("flame_use_dvars_toggle", Flame_CMD_Use_Dvars_Toggle, &Flame_CMD_Use_Dvars_Toggle_VAR);
     Cbuf_InsertText(0, "devgui_cmd \"FT/Toggle Flamethrower:1\" flame_test_toggle");
     Cbuf_InsertText(0, "devgui_cmd \"FT/Toggle Dvar Use:2\" flame_use_dvars_toggle");
-    for ( i = 0; i < numFlameTablesLoaded; ++i )
+    for (i = 0; i < numFlameTablesLoaded; ++i)
     {
         v0 = va(
-                     "devgui_cmd \"FT/Flametables:3/%s:%i\" \"set flameVar_editingFlameTable %s\"",
-                     loadedFlameTables[i],
-                     i + 1,
-                     loadedFlameTables[i]);
+            "devgui_cmd \"FT/Flametables:3/%s:%i\" \"set flameVar_editingFlameTable %s\"",
+            loadedFlameTables[i],
+            i + 1,
+            loadedFlameTables[i]);
         Cbuf_InsertText(0, v0);
     }
-    for ( ia = 0; ia < 128; ++ia )
+    for (ia = 0; ia < 128; ++ia)
     {
-        if ( (&off_E12B64)[6 * ia] )
+        if (flameVars[ia].name)
         {
-            v1 = va("devgui_dvar \"FT/Edit Dvars:4/%s:%i\" %s", (&off_E12B64)[6 * ia], ia + 1, flameVars[ia].dvarName);
+            v1 = va("devgui_dvar \"FT/Edit Dvars:4/%s:%i\" %s", flameVars[ia].name, ia + 1, flameVars[ia].dvarName);
             Cbuf_InsertText(0, v1);
         }
     }
@@ -340,18 +1403,12 @@ flameTable *__cdecl Flame_FindFlameTable(const char *tableName)
     return 0;
 }
 
-double __cdecl Flame_SwayRand(float x, float y, int time)
+float __cdecl Flame_SwayRand(float x, float y, int time)
 {
-    long double v4; // [esp+0h] [ebp-18h]
-    float v5; // [esp+0h] [ebp-18h]
-    float v6; // [esp+4h] [ebp-14h]
-    float v7; // [esp+8h] [ebp-10h]
+    float sx = fmodf((float)time * x * 3.1415927f * 2.0f, 6.2831855f);
+    float sy = fmodf((float)time * y * 3.1415927f * 2.0f, 6.2831855f);
 
-    v7 = fmod((double)time * x * 3.1415927 + (double)time * x * 3.1415927, 6.2831855);
-    __libm_sse2_sin(v4);
-    v6 = fmod((double)time * y * 3.1415927 + (double)time * y * 3.1415927, 6.2831855);
-    v5 = cos(v6);
-    return v5 * v7;
+    return sinf(sx) * cosf(sy);
 }
 
 flameSource_t *__cdecl SV_Flame_Source_Get(int entityNum)
@@ -599,53 +1656,63 @@ void __cdecl Flame_Render_Sprite(
     R_EndCodeMeshVerts();
 }
 
-void    Flame_Render_Sprites(
-                float a1@<ebp>,
-                cg_s *clientGlobals,
-                Material *material,
-                flameGeneric_s **flameGenericList,
-                int numItems)
+void __cdecl Flame_Render_Sprites(
+    cg_s *clientGlobals,
+    Material *material,
+    flameGeneric_s **flameGenericList,
+    int numItems)
 {
-    void *v5; // esp
-    float *v6; // [esp-4048h] [ebp-4054h]
-    renderQuad_t *v7; // [esp-4044h] [ebp-4050h]
-    renderQuad_t v8[512]; // [esp-4040h] [ebp-404Ch] BYREF
-    int v9; // [esp-34h] [ebp-40h]
-    int v10; // [esp-30h] [ebp-3Ch]
-    float **v11; // [esp-2Ch] [ebp-38h]
-    float v12[13]; // [esp-28h] [ebp-34h] BYREF
-    float retaddr; // [esp+Ch] [ebp+0h]
+    renderQuad_t quads[512];
+    float viewAxis[3][3];
+    int quadCount;
+    int totalCount;
+    flameGeneric_s **cur;
 
-    v12[10] = a1;
-    v12[11] = retaddr;
-    v5 = alloca(16464);
-    LODWORD(v12[9]) = 512;
-    AxisCopy(clientGlobals->refdef.viewaxis, (float (*)[3])v12);
-    v11 = (float **)&flameGenericList[numItems - 1];
+    AxisCopy(clientGlobals->refdef.viewaxis, viewAxis);
+
+    cur = &flameGenericList[numItems - 1];
+
     R_BeginCodeMeshVerts();
-    v10 = 0;
+
+    totalCount = 0;
+
     do
     {
-        v9 = 0;
-        while ( v10 < numItems && v9 < 512 )
+        quadCount = 0;
+
+        while (totalCount < numItems && quadCount < 512)
         {
-            v7 = &v8[v9];
-            v6 = *v11;
-            v7->pos[0] = **v11;
-            v7->pos[1] = v6[1];
-            v7->pos[2] = v6[2];
-            v8[v9].rotation = (*v11)[11];
-            v8[v9].radius = (*v11)[13];
-            v8[v9++].lifeFrac = (float)(*((unsigned int *)*v11 + 15) - *((unsigned int *)*v11 + 16))
-                                                / (float)(*((unsigned int *)*v11 + 17) - *((unsigned int *)*v11 + 16));
-            --v11;
-            ++v10;
+            flameGeneric_s *f = *cur;
+            renderQuad_t *q = &quads[quadCount];
+
+            q->pos[0] = f->phys.origin[0];
+            q->pos[1] = f->phys.origin[1];
+            q->pos[2] = f->phys.origin[2];
+
+            q->rotation = f->phys.rotation;   // +0x2C
+            q->radius = f->size.current;     // +0x34
+
+            q->lifeFrac =
+                (float)(f->age.lastUpdateTime - f->age.startTime) /
+                (float)(f->age.endTime - f->age.startTime);
+
+            --cur;
+            ++quadCount;
+            ++totalCount;
         }
-        R_GenerateQuadStampCodeMeshVertsArray(material, v8, v9, (float (*)[3])v12);
-    }
-    while ( v10 < numItems );
+
+        R_GenerateQuadStampCodeMeshVertsArray(
+            material,
+            quads,
+            quadCount,
+            viewAxis
+        );
+
+    } while (totalCount < numItems);
+
     R_EndCodeMeshVerts();
 }
+
 
 int __cdecl Flame_GetLocalClientFlameSource(int localClientNum, int EntNum)
 {
@@ -779,7 +1846,7 @@ void __cdecl CG_Flame_Update_Source(int localClientNum)
                         weapDef = BG_GetWeaponDef(cent->nextState.weapon);
                         if ( cent->nextState.eType == 14 )
                         {
-                            info = CG_GetVehicleInfo(cent->nextState.un2.vehicleState.vehicleInfoIndex);
+                            info = CG_GetVehicleInfo(cent->nextState.vehicleState.vehicleInfoIndex);
                             for ( gunnerIndex = 0; gunnerIndex < 4; ++gunnerIndex )
                             {
                                 weapon = info->gunnerWeaponIndex[gunnerIndex];
@@ -1028,10 +2095,7 @@ void __cdecl CG_Flame_Update_ViewModel(int localClientNum, centity_s *cent)
                                                                                                                      * (float)cgameGlob->frametime)
                                                                                                      / 1000.0)
                                                                                      + cgameGlob->flamethrowerKickOffset[i];
-            if ( fabs(cgameGlob->flamethrowerKickOffset[i]) > COERCE_FLOAT(
-                                                                                                                                                                                            *(&flame_kick_offset->current.integer
-                                                                                                                                                                                            + i)
-                                                                                                                                                                                        & _mask__AbsFloat_) )
+            if (fabs(cgameGlob->flamethrowerKickOffset[i]) > fabs(flame_kick_offset->current.value))// COERCE_FLOAT(*(&flame_kick_offset->current.integer + i) & _mask__AbsFloat_) )
                 cgameGlob->flamethrowerKickOffset[i] = flame_kick_offset->current.vector[i];
         }
     }
@@ -1060,6 +2124,7 @@ void __cdecl CG_Flame_Update_ViewModel(int localClientNum, centity_s *cent)
     }
 }
 
+int flame_randomseed = 12345; // cool
 double __cdecl Flame_Random(bool is_server)
 {
     if ( is_server )

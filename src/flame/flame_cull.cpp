@@ -1,4 +1,5 @@
 #include "flame_cull.h"
+#include "flame_class_chunk.h"
 
 void __cdecl Flame_Cull_Stream_Chunk(bool is_server, flameChunk_s *cull, flameChunk_s *keep)
 {
