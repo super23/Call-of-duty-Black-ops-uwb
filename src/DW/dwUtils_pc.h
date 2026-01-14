@@ -1,12 +1,13 @@
 #pragma once
 
 #include <Windows.h>
+#include <DemonWare/bdCore/bdSingleton.h>
 
 void __cdecl bdGetRandomUChar8(BYTE *pbBuffer, DWORD dwLen);
 
 // garbage ass class that exists to wrap a 1-liner WinAPI. "Truly" just the worst part of this codebase is all the demonware crap.
 // If I had a slur for Irish people off the top of my head, it would go in here. 
-struct bdTrulyRandomImpl // sizeof=0x0
+struct bdTrulyRandomImpl : bdSingleton<bdTrulyRandomImpl>// sizeof=0x0
 {
     void getRandomUByte8(BYTE *pbBuffer, DWORD dwLen)
     {

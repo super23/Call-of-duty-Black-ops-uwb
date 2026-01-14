@@ -1,4 +1,56 @@
 #include "ui_playlists.h"
+#include <universal/assertive.h>
+#include <universal/q_shared.h>
+#include <cstring>
+#include <universal/q_parse.h>
+#include <qcommon/common.h>
+#include <stringed/stringed_hooks.h>
+#include <live/live_storage_pub.h>
+#include <win32/win_gamerprofile.h>
+#include "ui_main.h"
+#include <universal/memfile.h>
+#include <qcommon/com_clients.h>
+#include <live/live.h>
+#include <live/live_presence_win.h>
+#include <win32/win_content.h>
+#include <client_mp/cl_main_mp.h>
+#include <qcommon/com_gamemodes.h>
+#include <server_mp/sv_main_pc_mp.h>
+#include <live/live_storage_win.h>
+
+const dvar_t *party_linearMapCycle;
+const dvar_t *party_linearMapCycleRandom;
+const dvar_t *party_maxplayers;
+const dvar_t *playlist_excludeGametype;
+const dvar_t *playlist_excludeMap;
+const dvar_t *playlist_excludeGametypeMap;
+const dvar_t *playlist_enabled;
+const dvar_t *playlist_next;
+const dvar_t *playlist_entry;
+
+categoryInfo categories[32];
+int categoryCount;
+
+int totalEntries;
+int s_playlistStringBufferUsed;
+int s_playlistRuleBufferUsed;
+int s_playlistRuleBufferBase;
+int g_currentEntry;
+
+unsigned __int8 s_playlistStringBuffer[32768];
+int playlist_versionNum;
+playlistEntry playlistEntries[8192];
+int prevPlaylist[32];
+playlistInfo playlists[64];
+bool categoryFilter[32];
+categoryInfo categories[32];
+char s_playlistRuleBuffer[32768];
+int numGametypes;
+playlistGametype gametypes[64];
+
+playlistEntry nullPlaylistEntry = { "", "", 0, 0, 0};
+
+
 
 int __cdecl Playlist_GetCategoryIdByName(const char *name)
 {
@@ -99,7 +151,8 @@ void __cdecl Playlist_ParsePlaylists(const char *buffer)
     int index; // [esp+61Ch] [ebp-24h]
     int foundLocalizedName; // [esp+620h] [ebp-20h]
     int playlistNum; // [esp+624h] [ebp-1Ch]
-    parseBlockTypes currentParseBlockType; // [esp+628h] [ebp-18h]
+    //parseBlockTypes currentParseBlockType; // [esp+628h] [ebp-18h]
+    int currentParseBlockType; // [esp+628h] [ebp-18h]
     playlistEntry *entry; // [esp+62Ch] [ebp-14h]
     int currentCategory; // [esp+630h] [ebp-10h]
     const char *token; // [esp+634h] [ebp-Ch]
@@ -1798,7 +1851,7 @@ int __cdecl Playlist_IsLocked(
                             {
                                 if ( Com_LocalClients_GetUsedControllerCount() <= playlists[playlistId].maxLocalPlayers )
                                 {
-                                    if ( playlists[playlistId].disableGuests && Live_CountGuestsInUse(v8) > 0 )
+                                    if ( playlists[playlistId].disableGuests && Live_CountGuestsInUse() > 0 )
                                     {
                                         return 14;
                                     }
@@ -2553,16 +2606,16 @@ void __cdecl Playlist_SetPlaylistEntry(int num)
 
 void __cdecl Playlist_SetSVMapRotation()
 {
-    unsigned __int8 *String; // eax
-    int v1; // eax
-    unsigned __int8 *v2; // eax
-    int v3; // eax
-    unsigned __int8 *v4; // eax
-    int v5; // eax
+    char *String; // eax
+    char *v1; // eax
+    char *v2; // eax
+    char *v3; // eax
+    char *v4; // eax
+    char *v5; // eax
     playlistEntry *v6; // eax
-    unsigned __int8 *scriptName; // [esp-4h] [ebp-8ACh]
-    unsigned __int8 *mapname; // [esp-4h] [ebp-8ACh]
-    unsigned __int8 *v9; // [esp-4h] [ebp-8ACh]
+    char *scriptName; // [esp-4h] [ebp-8ACh]
+    char *mapname; // [esp-4h] [ebp-8ACh]
+    char *v9; // [esp-4h] [ebp-8ACh]
     char *v11; // [esp+Ch] [ebp-89Ch]
     char *v12; // [esp+20h] [ebp-888h]
     char *v14; // [esp+48h] [ebp-860h]
@@ -2595,17 +2648,17 @@ void __cdecl Playlist_SetSVMapRotation()
             {
                 mapname_len = strlen(entry->mapname);
                 gametype_len = strlen(gametypeEntry->scriptName);
-                scriptName = (unsigned __int8 *)gametypeEntry->scriptName;
-                String = (unsigned __int8 *)Dvar_GetString("playlist_excludeGametype");
-                strstr(String, scriptName);
+                scriptName = (char*)gametypeEntry->scriptName;
+                String = (char*)Dvar_GetString("playlist_excludeGametype");
+                v1 = strstr(String, scriptName);
                 if ( v1
-                    || (mapname = (unsigned __int8 *)entry->mapname,
-                            v2 = (unsigned __int8 *)Dvar_GetString("playlist_excludeMap"),
-                            strstr(v2, mapname),
+                    || (mapname = (char *)entry->mapname,
+                            v2 = (char *)Dvar_GetString("playlist_excludeMap"),
+                            v3 = strstr(v2, mapname),
                             v3)
-                    || (v9 = (unsigned __int8 *)va("%s %s", gametypeEntry->scriptName, entry->mapname),
-                            v4 = (unsigned __int8 *)Dvar_GetString("playlist_excludeGametypeMap"),
-                            strstr(v4, v9),
+                    || (v9 = (char *)va("%s %s", gametypeEntry->scriptName, entry->mapname),
+                            v4 = (char *)Dvar_GetString("playlist_excludeGametypeMap"),
+                            v5 = strstr(v4, v9),
                             v5) )
                 {
                     Com_Printf(
@@ -2703,6 +2756,10 @@ void __cdecl Playlist_SVMapRotate()
     Playlist_SetSVMapRotationCurrent(g_currentEntry);
 }
 
+cmd_function_s Playlist_Fetch_f_VAR;
+cmd_function_s Playlist_Fetch_f_VAR_SERVER;
+cmd_function_s Playlist_Pick_f_VAR;
+cmd_function_s Playlist_Pick_f_VAR_SERVER;
 void __cdecl Playlist_Init()
 {
     Cmd_AddCommandInternal("serverplaylistfetch", Cbuf_AddServerText_f, &Playlist_Fetch_f_VAR);
@@ -2712,42 +2769,39 @@ void __cdecl Playlist_Init()
     Playlist_RegisterDvars();
 }
 
-const dvar_s *Playlist_RegisterDvars()
+void Playlist_RegisterDvars()
 {
     int LicenseType; // eax
-    const dvar_s *result; // eax
 
-    _Dvar_RegisterBool("party_linearMapCycle", 0, 0, "We will cycle through the maps linearly if this is true.");
-    _Dvar_RegisterBool(
+    party_linearMapCycle = _Dvar_RegisterBool("party_linearMapCycle", 0, 0, "We will cycle through the maps linearly if this is true.");
+    party_linearMapCycleRandom = _Dvar_RegisterBool(
         "party_linearMapCycleRandom",
         0,
         0,
         "We will cycle through the maps linearly if this is true but picks a random start map.");
-    _Dvar_RegisterInt("party_maxplayers", 18, 1, 32, 0, "Maximum number of players");
+    party_maxplayers = _Dvar_RegisterInt("party_maxplayers", 18, 1, 32, 0, "Maximum number of players");
     playlist_excludeMap = _Dvar_RegisterString(
-                                                    "playlist_excludeMap",
-                                                    (char *)"",
-                                                    1u,
-                                                    "Map,Map to exclude from rotation.");
+        "playlist_excludeMap",
+        "",
+        1u,
+        "Map,Map to exclude from rotation.");
     playlist_excludeGametype = _Dvar_RegisterString(
-                                                             "playlist_excludeGametype",
-                                                             (char *)"",
-                                                             1u,
-                                                             "Gametype,Gametype to exclude from rotation.");
+        "playlist_excludeGametype",
+        "",
+        1u,
+        "Gametype,Gametype to exclude from rotation.");
     playlist_excludeGametypeMap = _Dvar_RegisterString(
-                                                                    "playlist_excludeGametypeMap",
-                                                                    (char *)"",
-                                                                    1u,
-                                                                    "Gametype Map, Gametype Map pairs to exclude from rotation.");
+        "playlist_excludeGametypeMap",
+        "",
+        1u,
+        "Gametype Map, Gametype Map pairs to exclude from rotation.");
     LicenseType = SV_GetLicenseType();
-    if ( SV_IsServerRanked(LicenseType) )
+    if (SV_IsServerRanked(LicenseType))
         playlist_enabled = _Dvar_RegisterBool("playlist_enabled", 1, 0x44u, "The server is using playlist");
     else
         playlist_enabled = _Dvar_RegisterBool("playlist_enabled", 0, 4u, "The server is using playlist");
     playlist_next = _Dvar_RegisterInt("playlist_next", 1, 1, 64, 0, "The server playlist for next map rotation");
-    result = _Dvar_RegisterInt("playlist_entry", 0, 0, 0x2000, 4u, "The current server playlist entry.");
-    playlist_entry = result;
-    return result;
+    playlist_entry = _Dvar_RegisterInt("playlist_entry", 0, 0, 0x2000, 4u, "The current server playlist entry.");
 }
 
 void __cdecl Playlist_Fetch_f()

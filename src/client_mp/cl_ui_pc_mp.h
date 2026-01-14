@@ -1,4 +1,22 @@
 #pragma once
+#include "cl_main_mp.h"
+
+struct FriendInfo // sizeof=0xB8
+{                                       // XREF: .data:friendInfo/r
+                                        // .data:info_0/r ...
+    int status;                         // XREF: SV_BotNameRandomFriend(int,char *,int)+97/r
+                                        // UI_FeederItemText_CommmonPlayerListHandler+26C/r ...
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    unsigned __int64 dwid;              // XREF: UI_FeederItemText_CommmonPlayerListHandler+81/r
+                                        // UI_FeederItemText_CommmonPlayerListHandler+8A/r ...
+    unsigned __int64 steamid;
+    char name[32];                      // XREF: LAN_GetServerInfo(int,int,char *,int)+602/o
+                                        // SV_BotNameRandomFriend(int,char *,int):loc_7030D4/o ...
+    char presence[128];                 // XREF: UI_FeederItemText_CommmonPlayerListHandler+295/o
+};
 
 int __cdecl LAN_AddServer(int source, const char *name, const char *address);
 void __cdecl LAN_GetServerAddressString(int source, int n, char *buf, int buflen);

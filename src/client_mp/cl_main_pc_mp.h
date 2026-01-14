@@ -1,4 +1,5 @@
 #pragma once
+#include "cl_main_mp.h"
 
 netadr_t *__cdecl CL_GetLastRconAddress();
 void __cdecl CL_SetServerInfo(serverInfo_t *server, char *info, __int16 ping);
@@ -75,6 +76,7 @@ int __cdecl CL_QuickMatch_CompareServers(unsigned int *sv1, unsigned int *sv2);
 void __cdecl CL_QuickMatch_Frame();
 bool __cdecl CL_QuickMatch_ShouldChooseSession();
 char *__cdecl CL_LongNameForShortName(const char *shortname);
+
 const bdReference<bdCommonAddr> *__thiscall bdReference<bdCommonAddr>::operator=(
                 bdReference<bdCommonAddr> *this,
                 const bdReference<bdCommonAddr> *other);

@@ -1,5 +1,19 @@
 #pragma once
 
+struct windowDef_t;
+struct menuDef_t;
+struct itemDef_s;
+struct rectDef_s;
+struct editFieldDef_s;
+struct multiDef_s;
+struct enumDvarDef_s;
+struct gameMsgDef_s;
+struct listBoxDef_s;
+struct animParamsDef_t;
+struct focusItemDef_s;
+struct textDef_s;
+struct ownerDrawDef_s;
+
 void __cdecl Window_SetDynamicFlags(int contextIndex, windowDef_t *w, int flags);
 void __cdecl Window_AddDynamicFlags(int contextIndex, windowDef_t *w, int newFlags);
 void __cdecl Window_RemoveDynamicFlags(int contextIndex, windowDef_t *w, int newFlags);

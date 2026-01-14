@@ -35,6 +35,28 @@
 #include <cgame_mp/cg_snapshot_mp.h>
 #include <cgame_mp/cg_servercmds_mp.h>
 #include <EffectsCore/fx_system.h>
+#include <cgame/cg_drawtools.h>
+
+const float g_color_table[17][4] =
+{
+  { 0.0, 0.0, 0.0, 1.0 },
+  { 1.0, 0.2, 0.2, 1.0 },
+  { 0.0, 1.0, 0.0, 1.0 },
+  { 1.0, 1.0, 0.5, 1.0 },
+  { 0.0, 0.0, 1.0, 1.0 },
+  { 0.0, 1.0, 1.0, 1.0 },
+  { 1.0, 0.36000001, 1.0, 1.0 },
+  { 1.0, 1.0, 1.0, 1.0 },
+  { 1.0, 1.0, 1.0, 1.0 },
+  { 1.0, 1.0, 1.0, 1.0 },
+  { 0.85000002, 0.0, 0.0, 1.0 },
+  { 0.2, 0.72000003, 0.47, 1.0 },
+  { 0.97000003, 0.57999998, 0.11, 1.0 },
+  { 0.0, 0.47, 0.76999998, 1.0 },
+  { 0.68000001, 0.75, 0.77999997, 1.0 },
+  { 0.5, 0.28, 0.57999998, 1.0 },
+  { 0.64999998, 0.34999999, 0.0, 1.0 }
+};
 
 char bigConfigString[16384];
 
@@ -1306,13 +1328,13 @@ void __cdecl CL_SetCGameTime(int localClientNum)
             return;
     }
     if ( !LocalClientGlobals->snap.valid )
-        Com_Error(ERR_DROP, &byte_C96B7C);
+        Com_Error(ERR_DROP, "CL_SetCGameTime: !cl->snap.valid");
     if ( !sv_paused->current.integer || !cl_paused->current.integer || !com_sv_running->current.enabled )
     {
         if ( LocalClientGlobals->snap.serverTime < LocalClientGlobals->oldFrameServerTime )
         {
             if ( I_stricmp(cls.servername, "localhost") )
-                Com_Error(ERR_DROP, &byte_C96B40);
+                Com_Error(ERR_DROP, "cl->snap.serverTime < cl->oldFrameServerTime");
             else
                 CL_FirstSnapshot(localClientNum);
         }
@@ -1471,7 +1493,7 @@ void __cdecl CL_UpdateTimeDemo(int localClientNum)
     int Int; // [esp-4h] [ebp-10h]
     clientActive_t *LocalClientGlobals; // [esp+0h] [ebp-Ch]
     clientConnection_t *clc; // [esp+4h] [ebp-8h]
-    unsigned intcurrentTime; // [esp+8h] [ebp-4h]
+    unsigned int currentTime; // [esp+8h] [ebp-4h]
 
     LocalClientGlobals = CL_GetLocalClientGlobals(localClientNum);
     clc = CL_GetLocalClientConnection(localClientNum);
@@ -1486,7 +1508,7 @@ void __cdecl CL_UpdateTimeDemo(int localClientNum)
     if ( clc->timeDemoStart )
     {
         if ( clc->timeDemoLog )
-            FS_Printf(clc->timeDemoLog, "%i,%i\n", clc->timeDemoFrames, currentTime - clc->timeDemoPrev);
+            FS_Printf(clc->timeDemoLog, (char*)"%i,%i\n", clc->timeDemoFrames, currentTime - clc->timeDemoPrev);
     }
     else
     {
@@ -1571,6 +1593,8 @@ void __cdecl CL_DrawString(int x, int y, char *pszString, int bShadow, int iChar
     CG_DrawStringExt(&scrPlaceFull, (float)x, (float)y, pszString, 0, 0, bShadow, (float)iCharHeight);
 }
 
+float color_allies[4];
+float color_axis[4];
 void __cdecl CL_LookupColor(unsigned __int8 c, float *color)
 {
     unsigned __int8 v2; // al

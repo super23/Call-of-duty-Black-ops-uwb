@@ -6,6 +6,11 @@
 template <int BIT_COUNT>
 struct bitarray // sizeof=0x10
 {                                                                             // ...
+    bitarray()
+    {
+        for (int j = 0; j < 2; ++j)
+            this->array[j] = 0;
+    }
     bitarray(unsigned int first, ...)
     {
         unsigned int v2; // kr00_4

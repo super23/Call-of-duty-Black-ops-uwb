@@ -36,6 +36,9 @@ int callDepth;
 
 bool con_ignoreMatchPrefixOnly;
 
+int g_console_field_width = 620;
+float g_console_char_height = 16.0f;
+
 char con_gameMsgWindowNMsgTime_Descs[3][69];
 char con_gameMsgWindowNMsgTime_Names[3][26];
 char con_gameMsgWindowNLineCount_Descs[3][73];

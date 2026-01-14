@@ -30,6 +30,7 @@
 #include <gfx_d3d/r_dvars.h>
 #include <ui/ui_viewer.h>
 #include <client/splitscreen.h>
+#include <gfx_d3d/r_ui3d.h>
 
 int scr_initialized;
 bool updateScreenCalled;

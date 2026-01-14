@@ -1,5 +1,10 @@
 #include "cl_pose_mp.h"
+#include "client_mp.h"
+#include <gfx_d3d/r_scene.h>
+#include <xanim/dobj_utils.h>
 
+int g_maxSkelMemUsed;
+bool showUsage;
 char *__cdecl CL_AllocSkelMemory(unsigned int size)
 {
     char *result; // [esp+4h] [ebp-8h]
@@ -52,6 +57,7 @@ int __cdecl CL_GetSkelTimeStamp()
     return clients[R_GetLocalClientNum()].skelTimeStamp;
 }
 
+int warnCount_0;
 int __cdecl CL_DObjCreateSkelForBones(const DObj *obj, int *partBits, DObjAnimMat **pMatOut)
 {
     char *buf; // [esp+0h] [ebp-Ch]

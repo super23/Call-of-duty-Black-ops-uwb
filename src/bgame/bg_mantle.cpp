@@ -54,9 +54,6 @@ const char *s_mantleAnimNames[11] =
   "player_mantle_over_low"
 };
 
-const float playerMins[3] = { -15.0, -15.0, 0.0 };
-const float playerMaxs[3] = { 15.0, 15.0, 70.0 };
-
 const float turretPronePitchMax = 8.0f;
 const float turretTestDist = 16.0f;
 const float heightTestDist = 3.0f;

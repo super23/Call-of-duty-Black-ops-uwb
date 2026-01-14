@@ -1,5 +1,7 @@
 #include "live_sessions_win.h"
 
+SessionData_s g_serverSession;
+
 void __cdecl Session_ClearDWOverlappedTasks()
 {
     TaskManager_ClearOverlappedTasks(overlappedTasks_2);

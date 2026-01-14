@@ -1169,6 +1169,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DemonWare\bdCore\bdMemory\bdMemory.h" />
+    <ClInclude Include="DemonWare\bdCore\bdSingleton.h" />
     <ClInclude Include="DemonWare\bdCore\bdThread\bdMutex.h" />
     <ClInclude Include="DemonWare\bdPlatform\bdPlatformThread\bdPlatformMutex.h" />
     <ClInclude Include="src\aim_assist\aim_assist.h" />

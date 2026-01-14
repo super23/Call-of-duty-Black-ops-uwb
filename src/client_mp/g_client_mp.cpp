@@ -1,4 +1,19 @@
 #include "g_client_mp.h"
+#include <bgame/bg_misc.h>
+#include <clientscript/scr_const.h>
+#include <game_mp/g_utils_mp.h>
+#include <bgame/bg_weapons_def.h>
+#include <universal/com_math_anglevectors.h>
+#include <server_mp/sv_init_mp.h>
+#include <server/sv_game.h>
+#include <game_mp/g_spawn_mp.h>
+#include <game/turret.h>
+#include <server/sv_world.h>
+#include <clientscript/cscr_stringlist.h>
+#include <game_mp/g_active_mp.h>
+#include <clientscript/cscr_vm.h>
+#include <game_mp/g_cmds_mp.h>
+#include <game_mp/g_team_mp.h>
 
 void __cdecl SetClientViewAngle(gentity_s *ent, const float *angle)
 {
@@ -20,8 +35,7 @@ void __cdecl SetClientViewAngle(gentity_s *ent, const float *angle)
     {
         fDeltad = AngleDelta(ent->client->ps.proneDirection, newAngle[1]);
         fDelta = AngleNormalize180(fDeltad);
-        if ( fDelta > bg_prone_yawcap->current.value
-            || COERCE_FLOAT(bg_prone_yawcap->current.integer ^ _mask__NegFloat_) > fDelta )
+        if ( fDelta > bg_prone_yawcap->current.value || (-bg_prone_yawcap->current.value) > fDelta )
         {
             if ( fDelta <= bg_prone_yawcap->current.value )
                 fDeltaa = fDelta + bg_prone_yawcap->current.value;
@@ -71,32 +85,140 @@ void __cdecl SetClientViewAngle(gentity_s *ent, const float *angle)
         ent->client->ps.delta_angles[2]);
 }
 
-void __cdecl G_GetPlayerViewOrigin_Internal(const playerState_s *ps, float *origin)
+void __cdecl G_GetPlayerViewOrigin_Internal(const playerState_s *ps, float *origin, bool useBodyPosition)
 {
-    if ( (ps->eFlags & 0x300) == 0 )
-        JUMPOUT(0x600000);
-    if ( ps->viewlocked == PLAYERVIEWLOCK_NONE
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_client_mp.cpp", 109, 0, "%s", "ps->viewlocked") )
+    float v3; // [esp+10h] [ebp-A4h]
+    float v4; // [esp+18h] [ebp-9Ch]
+    float v5; // [esp+1Ch] [ebp-98h]
+    float v6; // [esp+20h] [ebp-94h]
+    float viewHeightCurrent; // [esp+2Ch] [ebp-88h]
+    unsigned int weapon; // [esp+40h] [ebp-74h]
+    gentity_s *vehicle; // [esp+44h] [ebp-70h]
+    float viewAxis[3][3]; // [esp+48h] [ebp-6Ch] BYREF
+    float offsetVec[3]; // [esp+6Ch] [ebp-48h] BYREF
+    unsigned __int16 vehicleTag; // [esp+78h] [ebp-3Ch]
+    float playerMtx[4][3]; // [esp+7Ch] [ebp-38h] BYREF
+    const WeaponDef *weapDef; // [esp+ACh] [ebp-8h]
+    gentity_s *turretEnt; // [esp+B0h] [ebp-4h]
+
+    if ((ps->eFlags & 0x300) != 0)
     {
-        __debugbreak();
+        if (ps->viewlocked == PLAYERVIEWLOCK_NONE
+            && !Assert_MyHandler(
+                "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_client_mp.cpp",
+                109,
+                0,
+                "%s",
+                "ps->viewlocked"))
+        {
+            __debugbreak();
+        }
+        if (ps->viewlocked_entNum == 1023
+            && !Assert_MyHandler(
+                "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_client_mp.cpp",
+                110,
+                0,
+                "%s",
+                "ps->viewlocked_entNum != ENTITYNUM_NONE"))
+        {
+            __debugbreak();
+        }
+        turretEnt = &g_entities[ps->viewlocked_entNum];
+        if (!G_DObjGetWorldTagPos(turretEnt, scr_const.tag_player, origin))
+        {
+            Com_Error(ERR_DROP, "G_GetPlayerViewOrigin: Couldn't find [tag_player] on turret");
+            *origin = ps->origin[0];
+            origin[1] = ps->origin[1];
+            origin[2] = ps->origin[2];
+            origin[2] = origin[2] + 8.0;
+        }
     }
-    if ( ps->viewlocked_entNum == 1023
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_client_mp.cpp",
-                    110,
-                    0,
-                    "%s",
-                    "ps->viewlocked_entNum != ENTITYNUM_NONE") )
+    else if ((ps->eFlags & 0x4000) == 0 || useBodyPosition && (ps->eFlags2 & 0x10000000) != 0)
     {
-        __debugbreak();
+        BG_GetPlayerViewOrigin(ps, origin, level.time);
     }
-    if ( !G_DObjGetWorldTagPos(&g_entities[ps->viewlocked_entNum], scr_const.tag_player, origin) )
+    else
     {
-        Com_Error(ERR_DROP, &byte_CB3854);
-        *origin = ps->origin[0];
-        origin[1] = ps->origin[1];
-        origin[2] = ps->origin[2];
-        origin[2] = origin[2] + 8.0;
+        if (ps->viewlocked_entNum == 1023
+            && !Assert_MyHandler(
+                "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_client_mp.cpp",
+                128,
+                0,
+                "%s",
+                "ps->viewlocked_entNum != ENTITYNUM_NONE"))
+        {
+            __debugbreak();
+        }
+        vehicle = &g_entities[ps->viewlocked_entNum];
+        vehicleTag = scr_const.tag_barrel;
+        if (ps->vehiclePos < 1 || ps->vehiclePos > 4)
+        {
+            if (!ps->vehiclePos)
+                vehicleTag = scr_const.tag_player;
+        }
+        else
+        {
+            vehicleTag = scr_const.tag_gunner_barrel1;
+        }
+        if (G_DObjGetWorldTagMatrix(vehicle, vehicleTag, playerMtx)
+            || (vehicleTag = scr_const.tag_player, G_DObjGetWorldTagMatrix(vehicle, scr_const.tag_player, playerMtx)))
+        {
+            weapon = G_GetPlayerWeapon(ps, 0);
+            weapDef = BG_GetWeaponDef(weapon);
+            *origin = playerMtx[3][0];
+            origin[1] = playerMtx[3][1];
+            origin[2] = playerMtx[3][2];
+            if (!ps->vehiclePos)
+            {
+                if ((ps->eFlags2 & 0x10000000) != 0)
+                {
+                    *origin = (float)(60.0 * playerMtx[2][0]) + *origin;
+                    origin[1] = (float)(60.0 * playerMtx[2][1]) + origin[1];
+                    origin[2] = (float)(60.0 * playerMtx[2][2]) + origin[2];
+                }
+                else
+                {
+                    viewHeightCurrent = ps->viewHeightCurrent;
+                    *origin = (float)(viewHeightCurrent * playerMtx[2][0]) + *origin;
+                    origin[1] = (float)(viewHeightCurrent * playerMtx[2][1]) + origin[1];
+                    origin[2] = (float)(viewHeightCurrent * playerMtx[2][2]) + origin[2];
+                }
+            }
+            memset(offsetVec, 0, sizeof(offsetVec));
+            if (weapDef && weapon)
+                BG_CalcVehicleTurretWeaponPosOffset(ps->fWeaponPosFrac, weapDef, offsetVec);
+            if ((-(offsetVec[0])) <= 200.0)
+            {
+                v5 = offsetVec[0];
+                *origin = (float)(offsetVec[0] * playerMtx[0][0]) + *origin;
+                origin[1] = (float)(v5 * playerMtx[0][1]) + origin[1];
+                origin[2] = (float)(v5 * playerMtx[0][2]) + origin[2];
+            }
+            else
+            {
+                AnglesToAxis(ps->viewangles, viewAxis);
+                v6 = offsetVec[0];
+                *origin = (float)(offsetVec[0] * viewAxis[0][0]) + *origin;
+                origin[1] = (float)(v6 * viewAxis[0][1]) + origin[1];
+                origin[2] = (float)(v6 * viewAxis[0][2]) + origin[2];
+            }
+            v4 = offsetVec[1];
+            *origin = (float)(offsetVec[1] * playerMtx[1][0]) + *origin;
+            origin[1] = (float)(v4 * playerMtx[1][1]) + origin[1];
+            origin[2] = (float)(v4 * playerMtx[1][2]) + origin[2];
+            v3 = offsetVec[2];
+            *origin = (float)(offsetVec[2] * playerMtx[2][0]) + *origin;
+            origin[1] = (float)(v3 * playerMtx[2][1]) + origin[1];
+            origin[2] = (float)(v3 * playerMtx[2][2]) + origin[2];
+        }
+        else
+        {
+            Com_Error(ERR_DROP, "G_GetPlayerViewOrigin: Couldn',27h,'t find [tag_player] on vehicle");
+            *origin = ps->origin[0];
+            origin[1] = ps->origin[1];
+            origin[2] = ps->origin[2];
+            origin[2] = origin[2] + 8.0;
+        }
     }
 }
 
@@ -297,7 +419,7 @@ const char *__cdecl ClientConnect(unsigned int clientNum, unsigned int scriptPer
     ci->nextValid = 1;
     client->sess.connected = CON_CONNECTING;
     client->sess.scriptPersId = scriptPersId;
-    client->sess.cs.team = RETURN_ZERO32();
+    client->sess.cs.team = TEAM_FREE;//  RETURN_ZERO32();
     client->sess.sessionState = SESS_STATE_SPECTATOR;
     client->spectatorClient = -1;
     client->sess.forceSpectatorClient = -1;
@@ -314,7 +436,7 @@ const char *__cdecl ClientConnect(unsigned int clientNum, unsigned int scriptPer
     client->ps.moveSpeedScaleMultiplier = client->sess.moveSpeedScaleMultiplier;
     sentient = Sentient_Alloc();
     if ( !sentient )
-        Com_Error(ERR_DROP, &byte_CB3908);
+        Com_Error(ERR_DROP, "No sentient for player.");
     ent->sentient = sentient;
     sentient->ent = ent;
     sentient->eTeam = client->sess.cs.team;
@@ -340,7 +462,7 @@ const char *__cdecl ClientConnect(unsigned int clientNum, unsigned int scriptPer
 
 void __cdecl ClientClearFields(gclient_s *client)
 {
-    EntHandle::setEnt(&client->useHoldEntity, 0);
+    client->useHoldEntity.setEnt(0);
 }
 
 void __cdecl ClientBegin(unsigned int clientNum)
@@ -382,7 +504,7 @@ void __cdecl ClientSpawn(gentity_s *ent, const float *spawn_origin, const float 
     int savedSpawnCount; // [esp+26Ch] [ebp-8h]
     int savedServerTime; // [esp+270h] [ebp-4h]
 
-    clientSession_t::clientSession_t(&savedSess);
+    //clientSession_t::clientSession_t(&savedSess);
     index = ent - g_entities;
     client = ent->client;
     if ( (unsigned int)index >= level.maxclients
@@ -433,26 +555,9 @@ void __cdecl ClientSpawn(gentity_s *ent, const float *spawn_origin, const float 
         {
             __debugbreak();
         }
-        if ( !EntHandle::isDefined(&level.gentities[client->ps.viewlocked_entNum].r.ownerNum)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_client_mp.cpp",
-                        599,
-                        0,
-                        "%s",
-                        "level.gentities[client->ps.viewlocked_entNum].r.ownerNum.isDefined()") )
-        {
-            __debugbreak();
-        }
-        if ( EntHandle::ent(&level.gentities[client->ps.viewlocked_entNum].r.ownerNum) != ent
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_client_mp.cpp",
-                        600,
-                        0,
-                        "%s",
-                        "level.gentities[client->ps.viewlocked_entNum].r.ownerNum.ent() == ent") )
-        {
-            __debugbreak();
-        }
+        iassert(level.gentities[client->ps.viewlocked_entNum].r.ownerNum.isDefined());
+        iassert(level.gentities[client->ps.viewlocked_entNum].r.ownerNum.ent() == ent);
+
         G_ClientStopUsingTurret(&level.gentities[client->ps.viewlocked_entNum]);
     }
     G_EntUnlink(ent);
@@ -567,8 +672,10 @@ LABEL_50:
     {
         __debugbreak();
     }
-    bitarray<51>::resetBit(&client->sess.cmd.button_bits, 8u);
-    bitarray<51>::resetBit(&client->sess.cmd.button_bits, 9u);
+    //bitarray<51>::resetBit(&client->sess.cmd.button_bits, 8u);
+    client->sess.cmd.button_bits.resetBit(8);
+    //bitarray<51>::resetBit(&client->sess.cmd.button_bits, 9u);
+    client->sess.cmd.button_bits.resetBit(9);
     for ( m = 0; m < 2; ++m )
         client->button_bits.array[m] = client->sess.cmd.button_bits.array[m];
     level.clientIsSpawning = 1;
@@ -581,17 +688,17 @@ LABEL_50:
     BG_PlayerStateToEntityState(&client->ps, &ent->s, 1, 1u);
 }
 
-clientSession_t *__thiscall clientSession_t::clientSession_t(clientSession_t *this)
-{
-    int j; // [esp+Ch] [ebp-10h]
-    int i; // [esp+18h] [ebp-4h]
-
-    for ( i = 0; i < 2; ++i )
-        this->cmd.button_bits.array[i] = 0;
-    for ( j = 0; j < 2; ++j )
-        this->oldcmd.button_bits.array[j] = 0;
-    return this;
-}
+//clientSession_t *__thiscall clientSession_t::clientSession_t(clientSession_t *this)
+//{
+//    int j; // [esp+Ch] [ebp-10h]
+//    int i; // [esp+18h] [ebp-4h]
+//
+//    for ( i = 0; i < 2; ++i )
+//        this->cmd.button_bits.array[i] = 0;
+//    for ( j = 0; j < 2; ++j )
+//        this->oldcmd.button_bits.array[j] = 0;
+//    return this;
+//}
 
 void __cdecl ClientDisconnect(unsigned int clientNum)
 {
@@ -638,7 +745,7 @@ void __cdecl ClientDisconnect(unsigned int clientNum)
     if ( client->sess.sessionState == SESS_STATE_SPECTATOR )
         StopFollowing(ent);
     if ( (client->ps.eFlags & 0x4000) != 0 )
-        VEH_UnlinkPlayer(ent, 0, "ClientDisconnect");
+        VEH_UnlinkPlayer(ent, 0, (char*)"ClientDisconnect");
     if ( ent->client != client
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_client_mp.cpp",

@@ -603,6 +603,7 @@ void __cdecl SV_MasterHeartbeat(int controllerIndex)
                     memset((unsigned __int8 *)g_notifyLeave, 0, sizeof(g_notifyLeave));
                 }
             }
+#ifdef KISAK_LIVE_SERVICE
             if ( live_service && live_service->current.enabled )
             {
                 for ( j = 0; j < com_maxclients->current.integer; ++j )
@@ -632,6 +633,7 @@ void __cdecl SV_MasterHeartbeat(int controllerIndex)
                     }
                 }
             }
+#endif
         }
     }
 }

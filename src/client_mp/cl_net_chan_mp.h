@@ -1,4 +1,5 @@
 #pragma once
+#include <qcommon/net_chan_mp.h>
 
 void __cdecl CL_Netchan_TransmitNextFragment(netchan_t *chan);
 void __cdecl CL_Netchan_Transmit(netchan_t *chan, unsigned __int8 *data, int length);

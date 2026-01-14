@@ -1,4 +1,13 @@
 #pragma once
+#include <client/cl_main.h>
+
+struct uiClientState_s // sizeof=0x808
+{                                       // XREF: uiClientState_t/r
+    connstate_t connState;              // XREF: UI_DrawConnectScreen(int)+1AE/r
+    int connectPacketCount;             // XREF: UI_DrawConnectScreen(int)+201/r
+    char servername[1024];              // XREF: UI_DrawConnectScreen(int)+174/o
+    char messageString[1024];
+};
 
 void __cdecl CL_GetClientState(int localClientNum, uiClientState_s *state);
 bool __cdecl CL_AllowPopup(int localClientNum);

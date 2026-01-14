@@ -1,5 +1,131 @@
 #pragma once
 
+#include <universal/dvar.h>
+
+enum parseBlockTypes : __int32
+{                                       // XREF: ?LiveContracts_ParseContracts@@YAXPAD@Z/r
+                                        // ?Playlist_ParsePlaylists@@YAXPBD@Z/r
+    PARSE_UNKNOWN  = 0x0,
+    PARSE_CONTRACT = 0x1,
+};
+
+struct playlistEntry // sizeof=0x14
+{                                       // XREF: .data:nullPlaylistEntry/r
+    const char *mapname;
+    const char *gametype;
+    int fullWeight;
+    int remainingWeight;
+    int ignore;
+};
+
+struct __declspec(align(4)) playlistGametype // sizeof=0x14
+{                                       // XREF: .data:gametypes/r
+    const char *scriptName;             // XREF: Playlist_ParsePlaylists(char const *)+2D0/r
+                                        // Playlist_ParsePlaylists(char const *)+3C1/w ...
+    const char *internalName;           // XREF: Playlist_ParsePlaylists(char const *)+31F/r
+                                        // Playlist_ParsePlaylists(char const *)+39F/w ...
+    const char *localizedName;          // XREF: Playlist_ParsePlaylists(char const *)+2E6/r
+                                        // Playlist_ParsePlaylists(char const *)+30A/r ...
+    const char *rules;                  // XREF: Playlist_ParsePlaylists(char const *)+3B3/w
+                                        // Playlist_ParsePlaylists(char const *)+9E5/r
+    bool teamBased;                     // XREF: Playlist_ParsePlaylists(char const *)+3E7/w
+                                        // Playlist_ParsePlaylists(char const *)+1256/w
+    // padding byte
+    // padding byte
+    // padding byte
+};
+
+struct categoryInfo // sizeof=0x34
+{                                       // XREF: .data:categories/r
+    const char *internalName;           // XREF: Playlist_GetCategoryIdByName(char const *)+57/r
+                                        // Playlist_ParsePlaylists(char const *)+4C3/w ...
+    const char *filter;                 // XREF: Playlist_ParsePlaylists(char const *)+4E6/w
+                                        // Playlist_ParsePlaylists(char const *)+E30/w ...
+    const char *localizedName;          // XREF: Playlist_ParsePlaylists(char const *)+4F8/w
+                                        // Playlist_ParsePlaylists(char const *)+BF3/w ...
+    const char *description;            // XREF: Playlist_ParsePlaylists(char const *)+50B/w
+                                        // Playlist_ParsePlaylists(char const *)+F80/w ...
+    const char *lockdescription;        // XREF: Playlist_ParsePlaylists(char const *)+51E/w
+                                        // Playlist_ParsePlaylists(char const *)+1164/w ...
+    const char *iconName;               // XREF: Playlist_ParsePlaylists(char const *)+530/w
+                                        // Playlist_ParsePlaylists(char const *)+DA9/w ...
+    int unlockXp;                       // XREF: Playlist_ParsePlaylists(char const *)+1605/w
+                                        // Playlist_CategoryIsLocked(int,int,int,int,int,int)+75/r
+    int unlockPLevel;                   // XREF: Playlist_ParsePlaylists(char const *)+16A5/w
+                                        // Playlist_CategoryIsLocked(int,int,int,int,int,int)+93/r ...
+    bool collectorsEditionRequired;     // XREF: Playlist_ParsePlaylists(char const *)+14E8/w
+                                        // Playlist_CategoryIsLocked(int,int,int,int,int,int)+F8/r
+    bool finishedSoloRequired;          // XREF: Playlist_ParsePlaylists(char const *)+1553/w
+                                        // Playlist_CategoryIsLocked(int,int,int,int,int,int)+11D/r
+    // padding byte
+    // padding byte
+    int playlistCount;                  // XREF: Playlist_ParsePlaylists(char const *)+543/w
+                                        // Playlist_ParsePlaylists(char const *)+1B5F/r ...
+    const char *rules;                  // XREF: Playlist_ParsePlaylists(char const *)+4D7/w
+                                        // Playlist_ParsePlaylists(char const *)+A2F/r ...
+    bool visible_dvar;                  // XREF: Playlist_ParsePlaylists(char const *)+1434/w
+                                        // Playlist_CategoryIsLocked(int,int,int,int,int,int)+BD/r
+    // padding byte
+    // padding byte
+    // padding byte
+    const dvar_s *visDvar;              // XREF: Playlist_ParsePlaylists(char const *)+1453/w
+                                        // Playlist_ParsePlaylists(char const *)+1462/r ...
+};
+
+struct playlistInfo // sizeof=0x90
+{                                       // XREF: .data:playlists/r
+    const char *name;                   // XREF: Playlist_ParsePlaylists(char const *)+6AB/w
+                                        // Playlist_ParsePlaylists(char const *)+BB9/w ...
+    const char *description;            // XREF: Playlist_ParsePlaylists(char const *)+6BE/w
+                                        // Playlist_ParsePlaylists(char const *)+F63/w ...
+    const char *lockdescription;        // XREF: Playlist_ParsePlaylists(char const *)+6D1/w
+                                        // Playlist_ParsePlaylists(char const *)+1147/w ...
+    const char *iconName;               // XREF: Playlist_ParsePlaylists(char const *)+6E4/w
+                                        // Playlist_ParsePlaylists(char const *)+D77/w ...
+    const char *rules;                  // XREF: Playlist_ParsePlaylists(char const *)+69C/w
+                                        // Playlist_ParsePlaylists(char const *)+9A1/r ...
+    const char *category[16];           // XREF: Playlist_ParsePlaylists(char const *)+7DF/w
+                                        // Playlist_ParsePlaylists(char const *)+1AF2/w ...
+    int baseEntry;                      // XREF: Playlist_ParsePlaylists(char const *)+6FD/w
+                                        // Playlist_GetEntry(int,int)+61/r
+    int numEntries;                     // XREF: Playlist_ParsePlaylists(char const *)+70C/w
+                                        // Playlist_ParsePlaylists(char const *)+1DEB/r ...
+    int unlockXp;                       // XREF: Playlist_ParsePlaylists(char const *)+72F/w
+                                        // Playlist_ParsePlaylists(char const *)+15D6/w ...
+    int unlockPLevel;                   // XREF: Playlist_ParsePlaylists(char const *)+742/w
+                                        // Playlist_ParsePlaylists(char const *)+1676/w ...
+    int gametypeBan;                    // XREF: Playlist_ParsePlaylists(char const *)+755/w
+                                        // Playlist_ParsePlaylists(char const *)+170F/w ...
+    int maxPartySize;                   // XREF: Playlist_ParsePlaylists(char const *)+768/w
+                                        // Playlist_ParsePlaylists(char const *)+198C/w ...
+    int minPartySize;                   // XREF: Playlist_ParsePlaylists(char const *)+77B/w
+                                        // Playlist_ParsePlaylists(char const *)+19F3/w ...
+    unsigned int requiredDLCMask;       // XREF: Playlist_ParsePlaylists(char const *)+1916/r
+                                        // Playlist_ParsePlaylists(char const *)+1925/w ...
+    bool ranked;                        // XREF: Playlist_ParsePlaylists(char const *)+71F/w
+                                        // Playlist_ParsePlaylists(char const *)+1354/w ...
+    bool collectorsEditionRequired;     // XREF: Playlist_ParsePlaylists(char const *)+14D1/w
+                                        // Playlist_IsLocked(int,int,int,int,int,int)+13E/r
+    bool finishedSoloRequired;          // XREF: Playlist_ParsePlaylists(char const *)+153B/w
+                                        // Playlist_IsLocked(int,int,int,int,int,int)+16A/r
+    // padding byte
+    int wagerBet;                       // XREF: Playlist_ParsePlaylists(char const *)+1779/w
+                                        // Playlist_GetPlaylistDescription(int,int)+71/r ...
+    int wagerEntry;                     // XREF: Playlist_ParsePlaylists(char const *)+17E3/w
+    int maxLocalPlayers;                // XREF: Playlist_ParsePlaylists(char const *)+7A1/w
+                                        // Playlist_ParsePlaylists(char const *)+184D/w ...
+    bool disableGuests;                 // XREF: Playlist_ParsePlaylists(char const *)+7B4/w
+                                        // Playlist_ParsePlaylists(char const *)+189F/w ...
+    bool visible_dvar;                  // XREF: Playlist_ParsePlaylists(char const *)+13D2/w
+                                        // Playlist_IsLocked(int,int,int,int,int,int)+F7/r
+    // padding byte
+    // padding byte
+    const dvar_s *visDvar;              // XREF: Playlist_ParsePlaylists(char const *)+13F1/w
+                                        // Playlist_ParsePlaylists(char const *)+1400/r ...
+    int categoryCount;                  // XREF: Playlist_ParsePlaylists(char const *)+78E/w
+                                        // Playlist_ParsePlaylists(char const *)+1A43/w ...
+};
+
 int __cdecl Playlist_GetCategoryIdByName(const char *name);
 void __cdecl Playlist_ParsePlaylists(const char *buffer);
 char *__cdecl Playlist_Strdup(const char *src);
@@ -60,7 +186,18 @@ void __cdecl Playlist_SetSVMapRotation();
 void __cdecl Playlist_SetSVMapRotationCurrent(int entryNum);
 void __cdecl Playlist_SVMapRotate();
 void __cdecl Playlist_Init();
-const dvar_s *Playlist_RegisterDvars();
+void Playlist_RegisterDvars();
 void __cdecl Playlist_Fetch_f();
 void __cdecl Playlist_Pick_f();
 int __cdecl Playlist_GetWagerAmount(int version, int index, int *wagerAmount);
+
+
+extern const dvar_t *party_linearMapCycle;
+extern const dvar_t *party_linearMapCycleRandom;
+extern const dvar_t *party_maxplayers;
+extern const dvar_t *playlist_excludeGametype;
+extern const dvar_t *playlist_excludeMap;
+extern const dvar_t *playlist_excludeGametypeMap;
+extern const dvar_t *playlist_enabled;
+extern const dvar_t *playlist_next;
+extern const dvar_t *playlist_entry;

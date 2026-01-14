@@ -1,5 +1,40 @@
 #include "cl_input_mp.h"
 #include "cl_main_mp.h"
+#include <client/client.h>
+#include <devgui/devgui.h>
+#include <devgui/devgui_input.h>
+#include <cgame_mp/cg_newDraw_mp.h>
+#include <win32/win_input.h>
+#include <universal/mem_largelocal.h>
+#include <cgame_mp/cg_main_mp.h>
+#include <demo/demo_playback.h>
+#include <win32/win_shared.h>
+#include <universal/com_shared.h>
+#include "cl_parse_mp.h"
+#include "cl_net_chan_mp.h"
+#include <win32/win_net.h>
+#include <client/cl_keys.h>
+#include <qcommon/com_clients.h>
+#include <win32/win_gamepad.h>
+#include "cl_cgame_mp.h"
+#include <aim_assist/aim_assist.h>
+#include <cgame/cg_gamepad.h>
+#include <monkey/monkey.h>
+#include <universal/com_math_anglevectors.h>
+#include <cgame/cg_main.h>
+
+kbutton_t playersKb[1][47];
+bool gAttackEdgeDetected[1];
+bool latch[1];
+
+const dvar_t *cl_analog_attack_threshold;
+const dvar_t *cl_stanceHoldTime;
+const dvar_t *cl_dtpHoldTime;
+const dvar_t *cl_nodelta;
+const dvar_t *cl_inputTimeScaleFrac;
+const dvar_t *cl_dblTapMaxHoldTime;
+const dvar_t *cl_dblTapMaxDelayTime;
+
 
 void __cdecl CL_SetStance(int localClientNum, StanceState stance)
 {
@@ -130,15 +165,17 @@ void __cdecl CL_UpdateCmdButton(
     {
         if ( numBits == 1 )
         {
-            bitarray<51>::setBit(cmdButton_bits, buttonBit);
+            cmdButton_bits->setBit(buttonBit);
         }
         else
         {
             val = (int)(float)((float)((1 << numBits) - 1) * kb[kbButton].val);
             for ( i = 0; i < numBits; ++i )
             {
-                if ( (val & (1 << i)) != 0 )
-                    bitarray<51>::setBit(cmdButton_bits, i + buttonBit);
+                if ((val & (1 << i)) != 0)
+                {
+                    cmdButton_bits->setBit(i + buttonBit);
+                }
             }
         }
     }
@@ -159,7 +196,7 @@ void __cdecl CL_WritePacket(int localClientNum)
     bool forceAngles; // [esp+63h] [ebp-8A9h]
     usercmd_s nullcmd; // [esp+68h] [ebp-8A4h] BYREF
     clientActive_t *LocalClientGlobals; // [esp+9Ch] [ebp-870h]
-    LargeLocal compressedBuf_large_local; // [esp+A0h] [ebp-86Ch] BYREF
+    LargeLocal compressedBuf_large_local(2048); // [esp+A0h] [ebp-86Ch] BYREF
     usercmd_s *oldcmd; // [esp+A8h] [ebp-864h]
     int compressedSize; // [esp+ACh] [ebp-860h]
     connstate_t connstate; // [esp+B0h] [ebp-85Ch]
@@ -174,10 +211,12 @@ void __cdecl CL_WritePacket(int localClientNum)
     int count; // [esp+904h] [ebp-8h]
     int packetNum; // [esp+908h] [ebp-4h]
 
-    for ( j = 0; j < 2; ++j )
-        nullcmd.button_bits.array[j] = 0;
-    LargeLocal::LargeLocal(&compressedBuf_large_local, 2048);
-    compressedBuf = (unsigned __int8 (*)[2048])LargeLocal::GetBuf(&compressedBuf_large_local);
+    //for ( j = 0; j < 2; ++j )
+    //    nullcmd.button_bits.array[j] = 0;
+
+    //LargeLocal::LargeLocal(&compressedBuf_large_local, 2048);
+    //compressedBuf = (unsigned __int8 (*)[2048])LargeLocal::GetBuf(&compressedBuf_large_local);
+    compressedBuf = (unsigned __int8 (*)[2048])compressedBuf_large_local.GetBuf();
     clc = CL_GetLocalClientConnection(localClientNum);
     connstate = CL_GetLocalClientConnectionState(localClientNum);
     if ( clc->demoplaying
@@ -186,160 +225,159 @@ void __cdecl CL_WritePacket(int localClientNum)
         || connstate == CA_CINEMATIC
         || connstate == CA_LOGO )
     {
-        LargeLocal::~LargeLocal(&compressedBuf_large_local);
+        return;
+        //LargeLocal::~LargeLocal(&compressedBuf_large_local);
     }
-    else
+
+    LocalClientGlobals = CL_GetLocalClientGlobals(localClientNum);
+    MSG_SetDefaultUserCmd(&LocalClientGlobals->snap.ps, &nullcmd);
+    oldcmd = &nullcmd;
+    cmd = &nullcmd;
+    memset((unsigned __int8 *)&buf, 0, sizeof(buf));
+    MSG_Init(&buf, data, 2048);
+    MSG_WriteByte(&buf, LocalClientGlobals->serverId);
+    MSG_WriteLong(&buf, clc->serverMessageSequence);
+    MSG_WriteLong(&buf, clc->serverCommandSequence);
+    for ( i = clc->reliableAcknowledge + 1; i <= clc->reliableSequence; ++i )
     {
-        LocalClientGlobals = CL_GetLocalClientGlobals(localClientNum);
-        MSG_SetDefaultUserCmd(&LocalClientGlobals->snap.ps, &nullcmd);
-        oldcmd = &nullcmd;
-        cmd = &nullcmd;
-        memset((unsigned __int8 *)&buf, 0, sizeof(buf));
-        MSG_Init(&buf, data, 2048);
-        MSG_WriteByte(&buf, LocalClientGlobals->serverId);
-        MSG_WriteLong(&buf, clc->serverMessageSequence);
-        MSG_WriteLong(&buf, clc->serverCommandSequence);
-        for ( i = clc->reliableAcknowledge + 1; i <= clc->reliableSequence; ++i )
+        MSG_WriteBits(&buf, 2, 3u);
+        MSG_WriteLong(&buf, i);
+        MSG_WriteString(&buf, clc->reliableCommands[i & 0x7F]);
+    }
+    oldPacketNum = (clc->netchan.outgoingSequence - 1 - cl_packetdup->current.integer) & 0x1F;
+    count = LocalClientGlobals->cmdNumber - LocalClientGlobals->outPackets[oldPacketNum].p_cmdNumber;
+    if ( count > 32 )
+    {
+        count = 32;
+        Com_Printf(14, "MAX_PACKET_USERCMDS\n");
+    }
+    if ( count >= 1 )
+    {
+        if ( cl_showSend->current.enabled )
+            Com_Printf(14, "(%i)", count);
+        if ( clc->demowaiting || clc->demoRequestUncompressedPacket )
         {
-            MSG_WriteBits(&buf, 2, 3u);
-            MSG_WriteLong(&buf, i);
-            MSG_WriteString(&buf, clc->reliableCommands[i & 0x7F]);
+            clc->demoRequestUncompressedPacketTime = Sys_Milliseconds();
+            MSG_WriteBits(&buf, 1, 3u);
         }
-        oldPacketNum = (clc->netchan.outgoingSequence - 1 - cl_packetdup->current.integer) & 0x1F;
-        count = LocalClientGlobals->cmdNumber - LocalClientGlobals->outPackets[oldPacketNum].p_cmdNumber;
-        if ( count > 32 )
+        else if ( !cl_nodelta->current.enabled
+                        && LocalClientGlobals->snap.valid
+                        && clc->serverMessageSequence == LocalClientGlobals->snap.messageNum )
         {
-            count = 32;
-            Com_Printf(14, "MAX_PACKET_USERCMDS\n");
+            MSG_WriteBits(&buf, 0, 3u);
         }
-        if ( count >= 1 )
+        else
         {
-            if ( cl_showSend->current.enabled )
-                Com_Printf(14, "(%i)", count);
-            if ( clc->demowaiting || clc->demoRequestUncompressedPacket )
-            {
-                clc->demoRequestUncompressedPacketTime = Sys_Milliseconds();
-                MSG_WriteBits(&buf, 1, 3u);
-            }
-            else if ( !cl_nodelta->current.enabled
-                         && LocalClientGlobals->snap.valid
-                         && clc->serverMessageSequence == LocalClientGlobals->snap.messageNum )
-            {
-                MSG_WriteBits(&buf, 0, 3u);
-            }
-            else
-            {
-                MSG_WriteBits(&buf, 1, 3u);
-            }
-            MSG_WriteByte(&buf, count);
-            key = clc->checksumFeed;
-            key ^= clc->serverMessageSequence;
-            v1 = Com_HashKey(clc->serverCommands[clc->serverCommandSequence & 0x7F], 32);
-            key ^= v1;
-            if ( cl_debugMessageKey->current.enabled )
-            {
-                v7 = &clc->serverCommands[clc->serverCommandSequence & 0x7F][1];
-                v8 = clc->serverCommands[clc->serverCommandSequence & 0x7F];
-                v6 = clc->serverCommandSequence & 0x7F;
-                v2 = Com_HashKey(v8, 32);
-                Com_Printf(
-                    14,
-                    "key:%i, checksumFeed:%i, messageAcknowledge:%i, Com_HashKey:%i, servercommand(%i):'%s', len:%i\n",
-                    key,
-                    clc->checksumFeed,
-                    clc->serverMessageSequence,
-                    v2,
-                    v6,
-                    v8,
-                    &v8[strlen(v8) + 1] - v7);
-            }
-            forceAngles = CG_IsRemoteGuidingMissile(localClientNum);
-            for ( i = 0; i < count; ++i )
-            {
-                cmd = &LocalClientGlobals->cmds[((unsigned __int8)LocalClientGlobals->cmdNumber - (_BYTE)count + (_BYTE)i + 1)
-                                                                            & 0x7F];
-                MSG_WriteDeltaUsercmdKey(&buf, key, oldcmd, cmd, forceAngles);
-                oldcmd = cmd;
-            }
-            MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameOrigin[0]));
-            MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameOrigin[1]));
-            MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameOrigin[2]));
-            if ( ((LODWORD(LocalClientGlobals->cgameVelocity[0]) & 0x7F800000) == 0x7F800000
-                 || (LODWORD(LocalClientGlobals->cgameVelocity[1]) & 0x7F800000) == 0x7F800000
-                 || (LODWORD(LocalClientGlobals->cgameVelocity[2]) & 0x7F800000) == 0x7F800000)
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\client_mp\\cl_input_mp.cpp",
-                            2969,
-                            0,
-                            "%s",
-                            "!IS_NAN((cl->cgameVelocity)[0]) && !IS_NAN((cl->cgameVelocity)[1]) && !IS_NAN((cl->cgameVelocity)[2])") )
-            {
-                __debugbreak();
-            }
-            MSG_WriteLong(&buf, LocalClientGlobals->cgamePredictedDataServerTime);
-            CL_SavePredictedOriginForServerTime(
-                LocalClientGlobals,
-                LocalClientGlobals->cgamePredictedDataServerTime,
-                LocalClientGlobals->cgameOrigin,
-                LocalClientGlobals->cgameVelocity,
-                LocalClientGlobals->cgameViewangles,
-                LocalClientGlobals->cgameBobCycle,
-                LocalClientGlobals->cgameMovementDir);
-            if ( LocalClientGlobals->cgameVehicle.inVehicle )
-            {
-                MSG_WriteBit1(&buf);
-                MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.origin[0]));
-                MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.origin[1]));
-                MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.origin[2]));
-                MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.angles[0]));
-                MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.angles[1]));
-                MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.angles[2]));
-                MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.tVel[0]));
-                MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.tVel[1]));
-                MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.tVel[2]));
-                MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.aVel[0]));
-                MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.aVel[1]));
-                MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.aVel[2]));
-            }
-            else
-            {
-                MSG_WriteBit0(&buf);
-            }
+            MSG_WriteBits(&buf, 1, 3u);
         }
-        MSG_WriteBits(&buf, 3, 3u);
-        if ( buf.cursize < 9
+        MSG_WriteByte(&buf, count);
+        key = clc->checksumFeed;
+        key ^= clc->serverMessageSequence;
+        v1 = Com_HashKey(clc->serverCommands[clc->serverCommandSequence & 0x7F], 32);
+        key ^= v1;
+        if ( cl_debugMessageKey->current.enabled )
+        {
+            v7 = &clc->serverCommands[clc->serverCommandSequence & 0x7F][1];
+            v8 = clc->serverCommands[clc->serverCommandSequence & 0x7F];
+            v6 = clc->serverCommandSequence & 0x7F;
+            v2 = Com_HashKey(v8, 32);
+            Com_Printf(
+                14,
+                "key:%i, checksumFeed:%i, messageAcknowledge:%i, Com_HashKey:%i, servercommand(%i):'%s', len:%i\n",
+                key,
+                clc->checksumFeed,
+                clc->serverMessageSequence,
+                v2,
+                v6,
+                v8,
+                &v8[strlen(v8) + 1] - v7);
+        }
+        forceAngles = CG_IsRemoteGuidingMissile(localClientNum);
+        for ( i = 0; i < count; ++i )
+        {
+            cmd = &LocalClientGlobals->cmds[((unsigned __int8)LocalClientGlobals->cmdNumber - (_BYTE)count + (_BYTE)i + 1)
+                                                                        & 0x7F];
+            MSG_WriteDeltaUsercmdKey(&buf, key, oldcmd, cmd, forceAngles);
+            oldcmd = cmd;
+        }
+        MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameOrigin[0]));
+        MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameOrigin[1]));
+        MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameOrigin[2]));
+        if ( ((LODWORD(LocalClientGlobals->cgameVelocity[0]) & 0x7F800000) == 0x7F800000
+                || (LODWORD(LocalClientGlobals->cgameVelocity[1]) & 0x7F800000) == 0x7F800000
+                || (LODWORD(LocalClientGlobals->cgameVelocity[2]) & 0x7F800000) == 0x7F800000)
             && !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\client_mp\\cl_input_mp.cpp",
-                        3004,
+                        2969,
                         0,
                         "%s",
-                        "buf.cursize >= CL_ENCODE_START") )
+                        "!IS_NAN((cl->cgameVelocity)[0]) && !IS_NAN((cl->cgameVelocity)[1]) && !IS_NAN((cl->cgameVelocity)[2])") )
         {
             __debugbreak();
         }
-        v3 = buf.data;
-        v4 = (unsigned __int8 *)compressedBuf;
-        *(unsigned int *)compressedBuf = *(unsigned int *)buf.data;
-        *((unsigned int *)v4 + 1) = *((unsigned int *)v3 + 1);
-        v4[8] = v3[8];
-        if ( buf.cursize > 0x800u )
-            Com_Error(ERR_DROP, "Overflow compressed msg buf in CL_WritePacket()");
-        compressedSize = MSG_WriteBitsCompress(0, buf.data + 9, buf.cursize - 9, &(*compressedBuf)[9], 2039) + 9;
-        packetNum = clc->netchan.outgoingSequence & 0x1F;
-        LocalClientGlobals->outPackets[packetNum].p_realtime = cls.realtime;
-        LocalClientGlobals->outPackets[packetNum].p_serverTime = oldcmd->serverTime;
-        LocalClientGlobals->outPackets[packetNum].p_cmdNumber = LocalClientGlobals->cmdNumber;
-        clc->lastPacketSentTime = cls.realtime;
-        if ( cl_showSend->current.enabled )
+        MSG_WriteLong(&buf, LocalClientGlobals->cgamePredictedDataServerTime);
+        CL_SavePredictedOriginForServerTime(
+            LocalClientGlobals,
+            LocalClientGlobals->cgamePredictedDataServerTime,
+            LocalClientGlobals->cgameOrigin,
+            LocalClientGlobals->cgameVelocity,
+            LocalClientGlobals->cgameViewangles,
+            LocalClientGlobals->cgameBobCycle,
+            LocalClientGlobals->cgameMovementDir);
+        if ( LocalClientGlobals->cgameVehicle.inVehicle )
         {
-            v5 = NET_AdrToString(clc->netchan.remoteAddress);
-            Com_Printf(14, "%i to %s\n", compressedSize, v5);
+            MSG_WriteBit1(&buf);
+            MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.origin[0]));
+            MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.origin[1]));
+            MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.origin[2]));
+            MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.angles[0]));
+            MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.angles[1]));
+            MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.angles[2]));
+            MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.tVel[0]));
+            MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.tVel[1]));
+            MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.tVel[2]));
+            MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.aVel[0]));
+            MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.aVel[1]));
+            MSG_WriteLong(&buf, LODWORD(LocalClientGlobals->cgameVehicle.aVel[2]));
         }
-        CL_Netchan_Transmit(&clc->netchan, (unsigned __int8 *)compressedBuf, compressedSize);
-        while ( clc->netchan.unsentFragments )
-            CL_Netchan_TransmitNextFragment(&clc->netchan);
-        LargeLocal::~LargeLocal(&compressedBuf_large_local);
+        else
+        {
+            MSG_WriteBit0(&buf);
+        }
     }
+    MSG_WriteBits(&buf, 3, 3u);
+    if ( buf.cursize < 9
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\client_mp\\cl_input_mp.cpp",
+                    3004,
+                    0,
+                    "%s",
+                    "buf.cursize >= CL_ENCODE_START") )
+    {
+        __debugbreak();
+    }
+    v3 = buf.data;
+    v4 = (unsigned __int8 *)compressedBuf;
+    *(unsigned int *)compressedBuf = *(unsigned int *)buf.data;
+    *((unsigned int *)v4 + 1) = *((unsigned int *)v3 + 1);
+    v4[8] = v3[8];
+    if ( buf.cursize > 0x800u )
+        Com_Error(ERR_DROP, "Overflow compressed msg buf in CL_WritePacket()");
+    compressedSize = MSG_WriteBitsCompress(0, buf.data + 9, buf.cursize - 9, &(*compressedBuf)[9], 2039) + 9;
+    packetNum = clc->netchan.outgoingSequence & 0x1F;
+    LocalClientGlobals->outPackets[packetNum].p_realtime = cls.realtime;
+    LocalClientGlobals->outPackets[packetNum].p_serverTime = oldcmd->serverTime;
+    LocalClientGlobals->outPackets[packetNum].p_cmdNumber = LocalClientGlobals->cmdNumber;
+    clc->lastPacketSentTime = cls.realtime;
+    if ( cl_showSend->current.enabled )
+    {
+        v5 = NET_AdrToString(clc->netchan.remoteAddress);
+        Com_Printf(14, "%i to %s\n", compressedSize, v5);
+    }
+    CL_Netchan_Transmit(&clc->netchan, (unsigned __int8 *)compressedBuf, compressedSize);
+    while ( clc->netchan.unsentFragments )
+        CL_Netchan_TransmitNextFragment(&clc->netchan);
+    //LargeLocal::~LargeLocal(&compressedBuf_large_local);
 }
 
 bool __cdecl CG_IsRemoteGuidingMissile(int localClientNum)
@@ -541,26 +579,29 @@ void __cdecl CL_KeyMove(int localClientNum, usercmd_s *cmd)
     {
         if ( playersKb[localClientNum][27].active )
         {
-            bitarray<51>::setBit(&cmd->button_bits, 8u);
-            bitarray<51>::resetBit(&cmd->button_bits, 9u);
+            cmd->button_bits.setBit(8);
+            cmd->button_bits.resetBit(9);
         }
         else
         {
-            bitarray<51>::setBit(&cmd->button_bits, 9u);
-            bitarray<51>::resetBit(&cmd->button_bits, 8u);
+            cmd->button_bits.setBit(9);
+            cmd->button_bits.resetBit(8);
         }
-        bitarray<51>::setBit(&cmd->button_bits, 0xCu);
+        cmd->button_bits.setBit(12);
     }
     else
     {
         CL_StanceButtonUpdate(localClientNum);
         CL_AddCurrentStanceToCmd(localClientNum, cmd);
     }
+
     CL_DoubleTapButtonUpdate(localClientNum, cmd);
+
     if ( kb[9].active == !LocalClientGlobals->usingAds )
-        bitarray<51>::setBit(&cmd->button_bits, 0xBu);
+        cmd->button_bits.setBit(0xBu);
     else
-        bitarray<51>::resetBit(&cmd->button_bits, 0xBu);
+        cmd->button_bits.resetBit(0xBu);
+
     v3 = (float)127;
     sidea = (int)(CL_KeyState(kb + 7) * v3);
     side = sidea - (int)(CL_KeyState(kb + 6) * v3);
@@ -570,15 +611,15 @@ void __cdecl CL_KeyMove(int localClientNum, usercmd_s *cmd)
     {
         if ( kb[30].active || kb[30].wasPressed )
         {
-            bitarray<51>::setBit(&cmd->button_bits, 1u);
+            cmd->button_bits.setBit(1);
             kb[30].wasPressed = 0;
         }
         else
         {
-            bitarray<51>::resetBit(&cmd->button_bits, 1u);
+            cmd->button_bits.resetBit(1);
         }
     }
-    if ( kb[8].active && !bitarray<51>::testBit(&cmd->button_bits, 1u) )
+    if ( kb[8].active && !cmd->button_bits.testBit(1) )
     {
         v2 = (float)127;
         sideb = side + (int)(CL_KeyState(kb + 1) * v2);
@@ -648,16 +689,16 @@ void __cdecl CL_AddCurrentStanceToCmd(int localClientNum, usercmd_s *cmd)
     switch ( stance )
     {
         case CL_STANCE_CROUCH:
-            bitarray<51>::setBit(&cmd->button_bits, 9u);
-            bitarray<51>::resetBit(&cmd->button_bits, 8u);
+            cmd->button_bits.setBit(9);
+            cmd->button_bits.resetBit(8);
             goto LABEL_12;
         case CL_STANCE_PRONE:
 LABEL_7:
-            bitarray<51>::setBit(&cmd->button_bits, 8u);
-            bitarray<51>::resetBit(&cmd->button_bits, 9u);
+            cmd->button_bits.setBit(8u);
+            cmd->button_bits.resetBit(9u);
             goto LABEL_12;
         case CL_STANCE_DIVE_TO_PRONE:
-            bitarray<51>::setBit(&cmd->button_bits, 0x2Cu);
+            cmd->button_bits.setBit(0x2Cu);
             goto LABEL_7;
     }
     if ( LocalClientGlobals->stance
@@ -670,10 +711,10 @@ LABEL_7:
     {
         __debugbreak();
     }
-    bitarray<51>::resetBit(&cmd->button_bits, 8u);
-    bitarray<51>::resetBit(&cmd->button_bits, 9u);
+    cmd->button_bits.resetBit(8u);
+    cmd->button_bits.resetBit(9u);
 LABEL_12:
-    bitarray<51>::resetBit(&cmd->button_bits, 0xCu);
+    cmd->button_bits.resetBit(0xCu);
 }
 
 void __cdecl CL_DoubleTapButtonUpdate(int localClientNum, usercmd_s *cmd)
@@ -683,7 +724,7 @@ void __cdecl CL_DoubleTapButtonUpdate(int localClientNum, usercmd_s *cmd)
     LocalClientGlobals = CL_GetLocalClientGlobals(localClientNum);
     if ( LocalClientGlobals->useCount == 2 )
     {
-        bitarray<51>::setBit(&cmd->button_bits, 0x32u);
+        cmd->button_bits.setBit(0x32u);
         LocalClientGlobals->useCount = 0;
         LocalClientGlobals->useTime = 0;
     }
@@ -750,21 +791,21 @@ void __cdecl CL_GamepadMove(int localClientNum, usercmd_s *cmd)
                 cmd->yawmove = ClampChar(yawMove + cmd->yawmove);
                 kb = playersKb[localClientNum];
                 if ( kb[9].active == !LocalClientGlobals->usingAds )
-                    bitarray<51>::setBit(&cmd->button_bits, 0xBu);
+                    cmd->button_bits.setBit(0xBu);
                 if ( !kb[3].active )
                 {
                     if ( kb[30].active || kb[30].wasPressed )
                     {
-                        bitarray<51>::setBit(&cmd->button_bits, 1u);
+                        cmd->button_bits.setBit(1u);
                         kb[30].wasPressed = 0;
                     }
                     else
                     {
-                        bitarray<51>::resetBit(&cmd->button_bits, 1u);
+                        cmd->button_bits.resetBit(1u);
                     }
                 }
                 if ( attack >= cl_analog_attack_threshold->current.value )
-                    bitarray<51>::setBit(&cmd->button_bits, 0);
+                    cmd->button_bits.setBit(0);
                 CG_HandleSpecialStateInput(localClientNum, &cmd->button_bits);
                 if ( (Demo_IsPlaying() || (LocalClientGlobals->snap.ps.eFlags2 & 0x40000) == 0)
                     && CG_ShouldUpdateViewAngles(localClientNum) )
@@ -880,16 +921,16 @@ void __cdecl CL_RandomMove(usercmd_s *cmd)
             {
                 if ( playersKb[0][30].active || playersKb[0][30].wasPressed )
                 {
-                    bitarray<51>::setBit(&cmd->button_bits, 1u);
+                    cmd->button_bits.setBit(1u);
                     playersKb[0][30].wasPressed = 0;
                 }
                 else
                 {
-                    bitarray<51>::resetBit(&cmd->button_bits, 1u);
+                    cmd->button_bits.resetBit(1u);
                 }
             }
             if ( attack >= cl_analog_attack_threshold->current.value )
-                bitarray<51>::setBit(&cmd->button_bits, 0);
+                cmd->button_bits.setBit(0);
             anglespeed = (float)cls.frametime * 0.001;
             if ( playersKb[0][9].active )
                 anglespeed = anglespeed * cl_anglespeedkey->current.value;
@@ -959,7 +1000,7 @@ void __cdecl CL_MouseMove(int localClientNum, usercmd_s *cmd)
                             v9 = delta;
                         else
                             v9 = cap;
-                        if ( (float)(COERCE_FLOAT(LODWORD(cap) ^ _mask__NegFloat_) - v9) < 0.0 )
+                        if ( (float)((-(cap)) - v9) < 0.0 )
                             v5 = v9;
                         else
                             v5 = -cap;
@@ -982,7 +1023,7 @@ void __cdecl CL_MouseMove(int localClientNum, usercmd_s *cmd)
                             v8 = deltaa;
                         else
                             v8 = cap;
-                        if ( (float)(COERCE_FLOAT(LODWORD(cap) ^ _mask__NegFloat_) - v8) < 0.0 )
+                        if ( (float)((-(cap)) - v8) < 0.0 )
                             v3 = v8;
                         else
                             v3 = -cap;
@@ -1085,7 +1126,7 @@ void __cdecl CL_CmdButtons(int localClientNum, usercmd_s *cmd)
     CL_UpdateCmdButton(localClientNum, &cmd->button_bits, 44, 43, 1);
     v3 = Key_IsCatcherActive(localClientNum, -1) && !cl_bypassMouseInput->current.enabled;
     if ( v3 && UI_GetActiveMenu(localClientNum) != UIMENU_SCOREBOARD )
-        bitarray<51>::setBit(&cmd->button_bits, 0x1Du);
+        cmd->button_bits.setBit(0x1Du);
     if ( CL_GetLocalClientConnectionState(localClientNum) > CA_CONNECTED )
     {
         LocalClientGlobals = CL_GetLocalClientGlobals(localClientNum);
@@ -1157,7 +1198,7 @@ char __cdecl CG_HandleLocationSelectionInput(int localClientNum, usercmd_s *cmd)
         return 0;
     }
     CL_AddCurrentStanceToCmd(localClientNum, cmd);
-    bitarray<51>::setBit(&cmd->button_bits, 0x1Du);
+    cmd->button_bits.setBit(0x1Du);
     frametime = (float)cgameGlob->frametime * 0.001;
     mapAspectRatio = cgameGlob->compassMapWorldSize[0] / cgameGlob->compassMapWorldSize[1];
     locSelInputState = playerKeys[localClientNum].locSelInputState;
@@ -1290,10 +1331,10 @@ char __cdecl CG_HandleLocationSelectionInput(int localClientNum, usercmd_s *cmd)
             vectoangles(yawVector, diffAngles);
             diffAngles[1] = 360.0 - diffAngles[1];
             cmd->selectedYaw = (int)(diffAngles[1] + 9.313225746154785e-10) / 2;
-            bitarray<51>::setBit(&cmd->button_bits, 0x10u);
+            cmd->button_bits.setBit(0x10u);
         }
         if ( locSelInputState == LOC_SEL_INPUT_CANCEL )
-            bitarray<51>::setBit(&cmd->button_bits, 0x11u);
+            cmd->button_bits.setBit(0x11u);
     }
     return 1;
 }
@@ -1303,6 +1344,115 @@ void __cdecl CL_Input(int localClientNum)
     if ( CL_GetLocalClientConnectionState(localClientNum) == 10 )
         CL_CreateNewCommands(localClientNum);
 }
+
+cmd_function_s IN_CenterView_VAR;
+cmd_function_s IN_UpDown_VAR;
+cmd_function_s IN_UpUp_VAR;
+cmd_function_s IN_DownDown_VAR;
+cmd_function_s IN_DownUp_VAR;
+cmd_function_s IN_LeftDown_VAR;
+cmd_function_s IN_LeftUp_VAR;
+cmd_function_s IN_RightDown_VAR;
+cmd_function_s IN_RightUp_VAR;
+cmd_function_s IN_ForwardDown_VAR;
+cmd_function_s IN_ForwardUp_VAR;
+cmd_function_s IN_BackDown_VAR;
+cmd_function_s IN_BackUp_VAR;
+cmd_function_s IN_LookupDown_VAR;
+cmd_function_s IN_LookupUp_VAR;
+cmd_function_s IN_LookdownDown_VAR;
+cmd_function_s IN_LookdownUp_VAR;
+cmd_function_s IN_StrafeDown_VAR;
+cmd_function_s IN_StrafeUp_VAR;
+cmd_function_s IN_MoveleftDown_VAR;
+cmd_function_s IN_MoveleftUp_VAR;
+cmd_function_s IN_MoverightDown_VAR;
+cmd_function_s IN_MoverightUp_VAR;
+cmd_function_s IN_SpeedDown_VAR;
+cmd_function_s IN_SpeedUp_VAR;
+cmd_function_s IN_Attack_Down_VAR;
+cmd_function_s IN_Attack_Up_VAR;
+cmd_function_s IN_Melee_Down_VAR;
+cmd_function_s IN_Melee_Up_VAR;
+cmd_function_s IN_Breath_Down_VAR;
+cmd_function_s IN_Breath_Up_VAR;
+cmd_function_s IN_MeleeBreath_Down_VAR;
+cmd_function_s IN_MeleeBreath_Up_VAR;
+cmd_function_s IN_Frag_Down_VAR;
+cmd_function_s IN_Frag_Up_VAR;
+cmd_function_s IN_Smoke_Down_VAR;
+cmd_function_s IN_Smoke_Up_VAR;
+cmd_function_s IN_BreathSprint_Down_VAR;
+cmd_function_s IN_BreathSprint_Up_VAR;
+cmd_function_s IN_Activate_Down_VAR;
+cmd_function_s IN_Activate_Up_VAR;
+cmd_function_s IN_Reload_Down_VAR;
+cmd_function_s IN_Reload_Up_VAR;
+cmd_function_s IN_UseReload_Down_VAR;
+cmd_function_s IN_UseReload_Up_VAR;
+cmd_function_s IN_LeanLeft_Down_VAR;
+cmd_function_s IN_LeanLeft_Up_VAR;
+cmd_function_s IN_LeanRight_Down_VAR;
+cmd_function_s IN_LeanRight_Up_VAR;
+cmd_function_s IN_Prone_Down_VAR;
+cmd_function_s IN_Prone_Up_VAR;
+cmd_function_s IN_Stance_Down_VAR;
+cmd_function_s IN_Stance_Up_VAR;
+cmd_function_s IN_MLookDown_VAR;
+cmd_function_s IN_MLookUp_VAR;
+cmd_function_s IN_ToggleADS_VAR;
+cmd_function_s IN_LeaveADS_VAR;
+cmd_function_s IN_Throw_Down_VAR;
+cmd_function_s IN_Throw_Up_VAR;
+cmd_function_s IN_Speed_Throw_Down_VAR;
+cmd_function_s IN_Speed_Throw_Up_VAR;
+cmd_function_s IN_ToggleADS_Throw_Down_VAR;
+cmd_function_s IN_ToggleADS_Throw_Up_VAR;
+cmd_function_s IN_Gas_Down_VAR;
+cmd_function_s IN_Gas_Up_VAR;
+cmd_function_s IN_Reverse_Down_VAR;
+cmd_function_s IN_Reverse_Up_VAR;
+cmd_function_s IN_Handbrake_Down_VAR;
+cmd_function_s IN_Handbrake_Up_VAR;
+cmd_function_s IN_SwitchSeat_Down_VAR;
+cmd_function_s IN_SwitchSeat_Up_VAR;
+cmd_function_s IN_VehicleAttack_Down_VAR;
+cmd_function_s IN_VehicleAttack_Up_VAR;
+cmd_function_s IN_VehicleBoost_Down_VAR;
+cmd_function_s IN_VehicleBoost_Up_VAR;
+cmd_function_s IN_VehicleAttackSecond_Down_VAR;
+cmd_function_s IN_VehicleAttackSecond_Up_VAR;
+cmd_function_s IN_VehicleMoveUp_Down_VAR;
+cmd_function_s IN_VehicleMoveUp_Up_VAR;
+cmd_function_s IN_VehicleMoveDown_Down_VAR;
+cmd_function_s IN_VehicleMoveDown_Up_VAR;
+cmd_function_s IN_VehicleSpecialAbility_Down_VAR;
+cmd_function_s IN_VehicleSpecialAbility_Up_VAR;
+cmd_function_s IN_VehicleFirePickup_Down_VAR;
+cmd_function_s IN_VehicleFirePickup_Up_VAR;
+cmd_function_s IN_VehicleSwapPickup_Down_VAR;
+cmd_function_s IN_VehicleSwapPickup_Up_VAR;
+cmd_function_s IN_VehicleDropDeployable_Down_VAR;
+cmd_function_s IN_VehicleDropDeployable_Up_VAR;
+cmd_function_s IN_LowerStance_VAR;
+cmd_function_s IN_RaiseStance_VAR;
+cmd_function_s IN_ToggleCrouch_VAR;
+cmd_function_s IN_ToggleProne_VAR;
+cmd_function_s IN_GoProne_VAR;
+cmd_function_s IN_GoCrouch_VAR;
+cmd_function_s IN_GoStandDown_VAR;
+cmd_function_s IN_GoStandUp_VAR;
+cmd_function_s IN_SpecNext_Down_VAR;
+cmd_function_s IN_SpecNext_Up_VAR;
+cmd_function_s IN_SpecPrev_Down_VAR;
+cmd_function_s IN_SpecPrev_Up_VAR;
+cmd_function_s IN_ToggleSpec_Down_VAR;
+cmd_function_s IN_ToggleSpec_Up_VAR;
+cmd_function_s IN_ToggleView_VAR;
+cmd_function_s IN_TalkDown_VAR;
+cmd_function_s IN_TalkUp_VAR;
+cmd_function_s IN_SprintDown_VAR;
+cmd_function_s IN_SprintUp_VAR;
 
 void __cdecl CL_InitInput()
 {

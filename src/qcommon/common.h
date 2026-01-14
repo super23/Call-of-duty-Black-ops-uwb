@@ -352,3 +352,5 @@ extern const dvar_t *band_dedicated;
 extern int com_frameNumber;
 extern int com_errorEntered;
 extern int com_expectedHunkUsage;
+extern float com_timescaleValue;
+extern int com_frameTime;

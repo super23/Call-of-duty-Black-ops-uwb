@@ -1,9 +1,9 @@
 #include "MatchMakingInfo_win32.h"
 
-MatchMakingInfo *__thiscall MatchMakingInfo::MatchMakingInfo(MatchMakingInfo *this)
+MatchMakingInfo::MatchMakingInfo() : bdMatchMakingInfo()
 {
-    bdMatchMakingInfo::bdMatchMakingInfo(this);
-    this->__vftable = (MatchMakingInfo_vtbl *)&MatchMakingInfo::`vftable';
+    //bdMatchMakingInfo::bdMatchMakingInfo(this);
+    //this->__vftable = (MatchMakingInfo_vtbl *)&MatchMakingInfo::`vftable';
     this->m_memberNETCODE_VERSION = 0;
     this->m_membermaprotation = 0;
     this->m_memberGAME_TYPE = 0;
@@ -48,10 +48,10 @@ MatchMakingInfo *__thiscall MatchMakingInfo::MatchMakingInfo(MatchMakingInfo *th
     *(unsigned int *)&this->m_membermod[24] = 0;
     *(unsigned int *)&this->m_membermod[28] = 0;
     this->m_membermod[32] = 0;
-    return this;
+    //return this;
 }
 
-void __thiscall MatchMakingInfo::serialize(MatchMakingInfo *this, bdByteBuffer *buffer)
+void __thiscall MatchMakingInfo::serialize(bdByteBuffer *buffer)
 {
     bdMatchMakingInfo::serialize(this, buffer);
     bdByteBuffer::writeInt32(buffer, this->m_memberNETCODE_VERSION);

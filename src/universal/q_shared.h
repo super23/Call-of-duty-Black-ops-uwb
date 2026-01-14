@@ -432,11 +432,19 @@ void __cdecl strreverse(char *begin, char *end);
 char *va(const char *format, ...);
 void __cdecl Com_InitThreadData(int threadContext);
 char *__cdecl Info_ValueForKey(char *s, char *key);
+inline char *__cdecl Info_ValueForKey(char *s, const char *key)
+{
+    return Info_ValueForKey(s, (char *)key);
+}
 void __cdecl Info_NextPair(const char **head, char *key, char *value);
 void __cdecl Info_RemoveKey(char *s, char *key);
 void __cdecl Info_RemoveKey_Big(char *s, char *key);
 bool __cdecl Info_Validate(char *s);
 void __cdecl Info_SetValueForKey(char *s, char *key, const char *value);
+inline void __cdecl Info_SetValueForKey(char *s, const char *key, const char *value)
+{
+    Info_SetValueForKey(s, (char *)key, value);
+}
 void __cdecl Info_SetValueForKey_Big(char *s, char *key, const char *value);
 bool __cdecl ParseConfigStringToStruct(
                 unsigned __int8 *pStruct,

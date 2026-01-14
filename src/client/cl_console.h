@@ -492,8 +492,9 @@ extern field_t historyEditLines[32];
 
 extern bool con_ignoreMatchPrefixOnly;
 
-static const int g_console_field_width = 620;
-static const float g_console_char_height = 16.0f;
+extern int g_console_field_width;
+extern float g_console_char_height;
+
 static const float con_screenPadding = 4.0f;
 static const int con_inputMaxMatchesShown = 24;
 static const float defaultGameMessageTimes[3] = { 5.0, 8.0, 5.0 };

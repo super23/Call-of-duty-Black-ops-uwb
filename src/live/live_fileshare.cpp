@@ -2966,7 +2966,7 @@ void __cdecl Live_FileShare_ClearSearchState()
 {
     const StringTable *fileShareTable; // [esp+4h] [ebp-8h] BYREF
     int i; // [esp+8h] [ebp-4h]
-
+#ifdef KISAK_LIVE_SERVICE
     if ( live_service && live_service->current.enabled )
     {
         for ( i = 0; i < 7; ++i )
@@ -3019,6 +3019,7 @@ void __cdecl Live_FileShare_ClearSearchState()
             }
         }
     }
+#endif
 }
 
 int __cdecl Live_FileShare_SetSpinnerDvars(int offset, int max, dvar_s *valueDvar, dvar_s *textDvar)

@@ -3,6 +3,7 @@
 #include <client_mp/client_mp.h>
 #include <bgame/bg_local.h>
 #include <ddl/ddl_api.h>
+#include <DemonWare/bdCore/bdMemory/bdMemory.h>
 
 template <typename T>
 struct bdReference//<bdByteBuffer> // sizeof=0x4

@@ -48,6 +48,63 @@
 #include "cl_input_mp.h"
 #include <DW/dwNet.h>
 #include <DW/dwMatchMaking.h>
+#include <win32/win_gamerprofile.h>
+#include <win32/win_voice.h>
+#include <live/live_presence_win.h>
+#include <ui/ui_playlists.h>
+#include "cl_scrn_mp.h"
+#include <DW/dwUtils_pc.h>
+#include <win32/win_net.h>
+#include <stringed/stringed_hooks.h>
+#include <client/cl_voice.h>
+#include "cl_net_chan_mp.h"
+#include <universal/reliablemsg.h>
+#include <client/client.h>
+#include <server_mp/sv_main_pc_mp.h>
+#include <ui_mp/ui_main_mp.h>
+#include <client/cl_console.h>
+#include <EffectsCore/fx_system.h>
+#include <universal/physicalmemory.h>
+#include <server_mp/sv_voice_mp.h>
+#include <win32/win_input.h>
+#include <cgame/cg_compass.h>
+#include <client/cl_keys.h>
+#include <ui/ui_screenshot.h>
+#include <bgame/bg_fire.h>
+#include <gfx_d3d/r_ui3d.h>
+#include <game_mp/g_main_mp.h>
+#include <gfx_d3d/r_dvars.h>
+#include <qcommon/com_bsp_load_obj.h>
+#include <qcommon/cm_load.h>
+#include <win32/win_splash.h>
+#include <win32/win_syscon.h>
+#include <win32/win_main.h>
+#include <ui/ui_emblem.h>
+#include <ui/ui_commands.h>
+#include <ui/ui_utils.h>
+#include <ui/ui_keyboard.h>
+#include <ragdoll/ragdoll.h>
+#include <ui_mp/ui_gametype_custom_mp.h>
+#include <clientscript/cscr_vm.h>
+#include <cgame/cg_main.h>
+#include <database/db_file_load.h>
+#include <live/live_pcache_profile.h>
+#include <client/cl_debugdata.h>
+
+const char *customClassDvars[11] =
+{
+  "customclass1",
+  "customclass2",
+  "customclass3",
+  "customclass4",
+  "customclass5",
+  "prestigeclass1",
+  "prestigeclass2",
+  "prestigeclass3",
+  "prestigeclass4",
+  "prestigeclass5",
+  NULL
+};
 
 const dvar_t *cl_noprint;
 const dvar_t *playlist;
@@ -142,6 +199,15 @@ bool cl_serverLoadingMap;
 bool g_waitingForServer;
 bool cl_waitingOnServerToLoadMap[1];
 
+char printBuf[2048];
+int cl_maxLocalClients;
+unsigned int frame_msec;
+int old_com_frameTime;
+
+voiceCommunication_t cl_voiceCommunication[1];
+
+bool g_allowMature = true;
+
 void __cdecl CL_AddReliableCommand(int localClientNum, const char *cmd)
 {
     int ackIndex; // [esp+4h] [ebp-Ch]
@@ -225,8 +291,8 @@ void __cdecl CL_ToggleDemoRecording_f()
     const char *v2; // eax
     const char *v3; // eax
     int v4; // eax
-    unsigned intv5; // [esp-4h] [ebp-10h]
-    unsigned intv6; // [esp-4h] [ebp-10h]
+    unsigned int v5; // [esp-4h] [ebp-10h]
+    unsigned int v6; // [esp-4h] [ebp-10h]
     char *v7; // [esp-4h] [ebp-10h]
     clientConnection_t *clc; // [esp+8h] [ebp-4h]
 
@@ -1110,7 +1176,7 @@ void __cdecl CL_MapLoading(const char *mapname)
         UI_CloseAllMenus(0);
         cl_serverLoadingMap = 1;
         if (!com_sv_running->current.enabled)
-            Cbuf_ExecuteBuffer(0, 0, "selectStringTableEntryInDvar mp/didyouknow.csv 0 didyouknow");
+            Cbuf_ExecuteBuffer(0, 0, (char*)"selectStringTableEntryInDvar mp/didyouknow.csv 0 didyouknow");
         if (clientUIActives[0].connectionState >= CA_CONNECTED && !I_stricmp(cls.servername, "localhost"))
         {
             for (localClientNuma = 0; localClientNuma < 1; ++localClientNuma)
@@ -1364,7 +1430,7 @@ void __cdecl CL_Disconnect(unsigned int localClientNum, bool deactivateClient)
         CL_ClearMutedList();
         if ( connstate >= CA_CONNECTED )
             memset((unsigned __int8 *)clc, 0, sizeof(clientConnection_t));
-        dword_FB2C3C[4 * localClientNum] = 0;
+        clientUIActives[localClientNum].connectionState = CA_DISCONNECTED;
         if ( !cls.wwwDlDisconnected )
             CL_ClearStaticDownload();
         DynEntCl_Shutdown(localClientNum);
@@ -1704,7 +1770,7 @@ void __cdecl CL_DownloadsComplete(int localClientNum)
         {
             __debugbreak();
         }
-        dword_FB2C3C[4 * localClientNum] = 8;
+        clientUIActives[localClientNum].connectionState = CA_LOADING;
         Com_Printf(14, "Setting state to CA_LOADING in CL_DownloadsComplete\n");
         if ( CL_WasMapAlreadyLoaded() )
         {
@@ -1811,11 +1877,11 @@ void __cdecl CL_BeginDownload(const char *localName, const char *remoteName)
 
 void __cdecl CL_NextDownload(int localClientNum)
 {
-    _BYTE *v1; // eax
-    _BYTE *v2; // eax
+    char *v1; // eax
+    char *v2; // eax
     char *localName; // [esp+24h] [ebp-Ch]
     char *s; // [esp+28h] [ebp-8h]
-    unsigned __int8 *sa; // [esp+28h] [ebp-8h]
+    char *sa; // [esp+28h] [ebp-8h]
     char *remoteName; // [esp+2Ch] [ebp-4h]
 
     CL_GetLocalClientConnection(localClientNum);
@@ -1835,7 +1901,7 @@ void __cdecl CL_NextDownload(int localClientNum)
     if ( cls.downloadList[0] == 64 )
         s = &cls.downloadList[1];
     remoteName = s;
-    strchr((unsigned __int8 *)s, 0x40u);
+    v1 = strchr(s, 0x40u);
     if ( v1 )
     {
         *v1 = 0;
@@ -1848,7 +1914,7 @@ void __cdecl CL_NextDownload(int localClientNum)
         }
         else
         {
-            sa = (unsigned __int8 *)&localName[strlen(localName)];
+            sa = &localName[strlen(localName)];
         }
         CL_BeginDownload(localName, remoteName);
         cls.downloadRestart = 1;
@@ -1879,9 +1945,9 @@ void __cdecl CL_InitDownloads(int localClientNum)
             if ( compareResulta == NEED_DOWNLOAD )
             {
                 Com_Printf(14, "Need files: %s\n", cls.downloadList);
-                if ( cls.downloadList[0] )
+                if (cls.downloadList[0])
                 {
-                    dword_FB2C3C[4 * localClientNum] = 6;
+                    clientUIActives[localClientNum].connectionState = CA_CONNECTED;
                     CL_NextDownload(localClientNum);
                     return;
                 }
@@ -1896,11 +1962,11 @@ void __cdecl CL_InitDownloads(int localClientNum)
             compareResult = FS_CompareWithServerFiles(missingfiles, 1024, 0);
             if ( compareResult == NEED_DOWNLOAD )
             {
-                Com_Error(ERR_DROP, &byte_C9B5B0, missingfiles);
+                Com_Error(ERR_DROP, "You are missing some files referenced by the server: %sGo to the Multiplayer options menu to allow downloads", missingfiles);
             }
             else if ( compareResult == NOT_DOWNLOADABLE )
             {
-                Com_Error(ERR_DROP, &byte_C9B588, missingfiles);
+                Com_Error(ERR_DROP, "%s is different from the server", missingfiles);
             }
         }
     }
@@ -1956,11 +2022,13 @@ void __cdecl CL_CheckForResend(int localClientNum)
             {
                 if ( dwGetAddrHandleConnectionTaskStatus(clc->serverAddress.addrHandleIndex) )
                 {
-                    if ( net_lanauthorize->current.enabled || !Sys_IsLANAddress(clc->serverAddress) )
+                    if (net_lanauthorize->current.enabled || !Sys_IsLANAddress(clc->serverAddress))
+                    {
                         //BLOPS_NULLSUB();
+                    }
                     strcpy(pkt, "getchallenge");
                     pktlen = &pkt[strlen(pkt) + 1] - &pkt[1];
-                    PbClientConnecting(1, pkt, &pktlen);
+                    //PbClientConnecting(1, pkt, &pktlen);
                     CL_BuildMd5StrFromCDKey(md5Str);
                     v14 = va("getchallenge 0 \"%s\"", md5Str);
                     serverAddress = clc->serverAddress;
@@ -1993,6 +2061,7 @@ void __cdecl CL_CheckForResend(int localClientNum)
                 }
                 v6 = va("%i", clc->qport);
                 Info_SetValueForKey(info, "qport", v6);
+#ifdef KISAK_LIVE_SERVICE
                 if ( live_service && live_service->current.enabled )
                 {
                     memset((unsigned __int8 *)temp64buff, 0, sizeof(temp64buff));
@@ -2020,6 +2089,7 @@ void __cdecl CL_CheckForResend(int localClientNum)
                         *(&clc->nonce + 1),
                         clc->nonce);
                 }
+#endif
                 memcpy(data, "connect \"", 9);
                 infoLen = &info[strlen(info) + 1] - &info[1];
                 memcpy(&data[9], (unsigned __int8 *)info, infoLen);
@@ -2027,7 +2097,7 @@ void __cdecl CL_CheckForResend(int localClientNum)
                 data[infoLen + 10] = 0;
                 pktlen = infoLen + 10;
                 memcpy((unsigned __int8 *)pkt, data, infoLen + 10);
-                PbClientConnecting(2, pkt, &pktlen);
+                //PbClientConnecting(2, pkt, &pktlen);
                 v15 = infoLen + 10;
                 v12 = clc->serverAddress;
                 v11 = Com_LocalClient_GetNetworkID(localClientNum);
@@ -2036,7 +2106,7 @@ void __cdecl CL_CheckForResend(int localClientNum)
             }
             else if ( connstate != CA_SENDINGSTATS )
             {
-                Com_Error(ERR_FATAL, &byte_C9B620);
+                Com_Error(ERR_FATAL, "CL_CheckForResend: bad connstate");
             }
         }
     }
@@ -2044,6 +2114,7 @@ void __cdecl CL_CheckForResend(int localClientNum)
 
 void __cdecl CL_BuildMd5StrFromCDKey(char *md5Str)
 {
+#if 0
     int j; // [esp+20h] [ebp-C0h]
     int l; // [esp+24h] [ebp-BCh]
     MD5_CTX m1; // [esp+28h] [ebp-B8h] BYREF
@@ -2095,6 +2166,7 @@ void __cdecl CL_BuildMd5StrFromCDKey(char *md5Str)
         m1.digest[13],
         m1.digest[14],
         m1.digest[15]);
+#endif
 }
 
 char *__cdecl strtrm(char *str)
@@ -2165,15 +2237,15 @@ char __cdecl CL_ConnectionlessPacket(int localClientNum, netadr_t from, msg_t *m
     MSG_BeginReading(msg);
     MSG_ReadLong(msg);
     CL_Netchan_AddOOBProfilePacket(localClientNum, msg->cursize);
-    if ( !strnicmp((const char *)msg->data + 4, "PB_", 3u) )
-    {
-        if ( msg->data[7] == 83 || msg->data[7] == 50 || msg->data[7] == 73 )
-            PbSvAddEvent(13, -1, msg->cursize - 4, (char *)msg->data + 4);
-        else
-            PbClAddEvent(13, msg->cursize - 4, (char *)msg->data + 4);
-        return 1;
-    }
-    else
+    //if ( !strnicmp((const char *)msg->data + 4, "PB_", 3u) )
+    //{
+    //    if ( msg->data[7] == 83 || msg->data[7] == 50 || msg->data[7] == 73 )
+    //        PbSvAddEvent(13, -1, msg->cursize - 4, (char *)msg->data + 4);
+    //    else
+    //        PbClAddEvent(13, msg->cursize - 4, (char *)msg->data + 4);
+    //    return 1;
+    //}
+    //else
     {
         s = MSG_ReadStringLine(msg, strBuf, 0x400u);
         if ( !strcmp(s, "R") )
@@ -2198,7 +2270,7 @@ char __cdecl CL_ConnectionlessPacket(int localClientNum, netadr_t from, msg_t *m
                 }
                 Cmd_TokenizeStringNoEval(s);
                 v6 = success;
-                success = CL_DispatchConnectionlessPacket(localClientNum, from, msg, time) || v6;
+                success = CL_DispatchConnectionlessPacket(localClientNum, from, msg) || v6;
                 Cmd_EndTokenizedString();
             }
             if ( sequenceReceived )
@@ -2214,14 +2286,14 @@ char __cdecl CL_ConnectionlessPacket(int localClientNum, netadr_t from, msg_t *m
                 Com_Printf(16, "recv: %s->'%s'\n", v7, v10);
             }
             Cmd_TokenizeStringNoEval(s);
-            success = CL_DispatchConnectionlessPacket(localClientNum, from, msg, time);
+            success = CL_DispatchConnectionlessPacket(localClientNum, from, msg);
             Cmd_EndTokenizedString();
             return success;
         }
     }
 }
 
-char    CL_DispatchConnectionlessPacket@<al>(int a1@<esi>, int localClientNum, netadr_t from, msg_t *msg)
+char    CL_DispatchConnectionlessPacket(int localClientNum, netadr_t from, msg_t *msg)
 {
     const char *v5; // eax
     unsigned __int8 v6; // al
@@ -2292,8 +2364,8 @@ char    CL_DispatchConnectionlessPacket@<al>(int a1@<esi>, int localClientNum, n
             {
                 if ( !I_stricmp(c, "statsOK") )
                 {
-                    if ( dword_FB2C3C[4 * localClientNum] == 7 )
-                        dword_FB2C3C[4 * localClientNum] = 6;
+                    if (clientUIActives[localClientNum].connectionState == CA_SENDINGSTATS)
+                        clientUIActives[localClientNum].connectionState = CA_CONNECTED;
                     else
                         Com_DPrintf(14, "Ignoring statsOK, I'm not CA_SENDINGSTATS\n");
                 }
@@ -2363,9 +2435,9 @@ char    CL_DispatchConnectionlessPacket@<al>(int a1@<esi>, int localClientNum, n
                                 Cbuf_AddText(localClientNum, "uploadStats\n");
                                 StringLine = MSG_ReadStringLine(msg, strBuf, 0x400u);
                                 I_strncpyz(mapname, StringLine, 64);
-                                dword_FB2C3C[4 * localClientNum] = 6;
+                                clientUIActives[localClientNum].connectionState = CA_CONNECTED;
                                 v19 = MSG_ReadStringLine(msg, strBuf, 0x400u);
-                                CL_SetupForNewServerMap(a1, localClientNum, mapname, v19);
+                                CL_SetupForNewServerMap(localClientNum, mapname, v19);
                             }
                             return 1;
                         }
@@ -2412,7 +2484,7 @@ char    CL_DispatchConnectionlessPacket@<al>(int a1@<esi>, int localClientNum, n
                     }
                     else
                     {
-                        dword_FB2C3C[4 * localClientNum] = 6;
+                        clientUIActives[localClientNum].connectionState = CA_CONNECTED;
                         clc->statPacketsToSend = 0;
                     }
                     clc->lastPacketTime = cls.realtime;
@@ -2456,7 +2528,7 @@ char    CL_DispatchConnectionlessPacket@<al>(int a1@<esi>, int localClientNum, n
                             //BLOPS_NULLSUB();
                         if ( isMigration )
                         {
-                            dword_FB2C3C[4 * localClientNum] = 6;
+                            clientUIActives[localClientNum].connectionState = CA_CONNECTED;
                         }
                         else
                         {
@@ -2502,7 +2574,7 @@ char    CL_DispatchConnectionlessPacket@<al>(int a1@<esi>, int localClientNum, n
         clc = CL_GetLocalClientConnection(localClientNum);
         v7 = Cmd_Argv(1);
         clc->challenge = atoi(v7);
-        dword_FB2C3C[4 * localClientNum] = 5;
+        clientUIActives[localClientNum].connectionState = CA_CHALLENGING;
         clc->connectPacketCount = 0;
         clc->connectTime = -99999;
         clc->serverAddress = from;
@@ -2576,6 +2648,11 @@ void __cdecl CL_AllocatePerLocalClientMemory()
     }
 }
 
+const char *PerLocalClientMemoryName = "PerLocalClient";
+unsigned __int8 *perLocalClientMemBuffer;
+HunkUser *perLocalClientMemHunk;
+int cl_allocatedClients = 32;
+unsigned int cl_lastAllocFlags;
 void __cdecl AllocatePerLocalClientMemory(int maxLocalClients, int maxClients, unsigned int flags)
 {
     int mem_needed; // [esp+0h] [ebp-4h]
@@ -2653,7 +2730,7 @@ void __cdecl CL_FreePerLocalClientMemory()
     cl_allocatedClients = 32;
 }
 
-void    CL_InitLoad(int a1@<esi>, char *mapname, const char *gametype)
+void    CL_InitLoad(char *mapname, const char *gametype)
 {
     connstate_t connstate; // [esp+0h] [ebp-4h]
 
@@ -2663,7 +2740,7 @@ void    CL_InitLoad(int a1@<esi>, char *mapname, const char *gametype)
         UI_SetMap(mapname, gametype);
         connstate = CL_GetLocalClientConnectionState(0);
         CL_SetLocalClientConnectionState(0, connstate < CA_CONNECTED ? CA_DISCONNECTED : CA_CONNECTED);
-        SCR_UpdateScreen(a1);
+        SCR_UpdateScreen();
     }
 }
 
@@ -2753,13 +2830,13 @@ bool __cdecl CL_PacketEvent(int localClientNum, netadr_t from, msg_t *msg, int t
                                         && cl_clientDemoType->current.integer == 1 )
                                     {
                                         ControllerIndex = Com_LocalClient_GetControllerIndex(localClientNum);
-                                        Cmd_ExecuteSingleCommand(localClientNum, ControllerIndex, "stoprecord");
+                                        Cmd_ExecuteSingleCommand(localClientNum, ControllerIndex, (char*)"stoprecord");
                                     }
                                 }
                                 if ( clc->demoLiveStream )
                                 {
                                     LocalClientGlobals = CL_GetLocalClientGlobals(localClientNum);
-                                    FS_Printf(clc->demoLiveStream, "%i\n", LocalClientGlobals->serverTime);
+                                    FS_Printf(clc->demoLiveStream, (char *)"%i\n", LocalClientGlobals->serverTime);
                                     if ( cl_demoLiveStreaming->current.integer > 1 )
                                         FS_Flush(clc->demoLiveStream);
                                 }
@@ -3056,7 +3133,7 @@ void __cdecl CL_RunOncePerClientFrame(int localClientNum, int msec)
         if ( CL_GetLocalClientConnectionState(0) == 10 || cl_forceavidemo->current.enabled )
         {
             ControllerIndex = Com_LocalClient_GetControllerIndex(localClientNum);
-            Cmd_ExecuteSingleCommand(0, ControllerIndex, "screenshot silent\n");
+            Cmd_ExecuteSingleCommand(0, ControllerIndex, (char*)"screenshot silent\n");
         }
         msec = (int)(float)((float)(1000.0 / (float)cl_avidemo->current.integer) * com_timescaleValue);
         if ( !msec )
@@ -3415,6 +3492,9 @@ void __cdecl CL_StartHunkUsers()
     }
 }
 
+cmd_function_s CL_DevGuiDvar_f_VAR;
+cmd_function_s CL_DevGuiCmd_f_VAR;
+cmd_function_s CL_DevGuiOpen_f_VAR;
 void CL_InitDevGui()
 {
     DevGui_Init();
@@ -3601,7 +3681,7 @@ void __cdecl CL_DrawLogo(int localClientNum)
 
 void __cdecl CL_StopLogo(int localClientNum)
 {
-    dword_FB2C3C[4 * localClientNum] = 0;
+    clientUIActives[localClientNum].connectionState = CA_DISCONNECTED;
 }
 
 void __cdecl CL_StopLogoOrCinematic(int localClientNum)
@@ -3679,6 +3759,7 @@ bool __cdecl CL_ShouldAllowInGameMenu(int localClientNum)
     return (CG_GetLocalClientGlobals(localClientNum)->matchUIVisibilityFlags & 0x1000) == 0;
 }
 
+bool warned;
 char __cdecl Playlist_ReadFromDisk()
 {
     void *playlistBuffer; // [esp+0h] [ebp-4h] BYREF
@@ -3708,9 +3789,81 @@ void __cdecl CL_PauseGame(bool state)
         Dvar_SetInt((dvar_s *)cl_paused, 0);
 }
 
+cmd_function_s CL_ForwardToServer_f_VAR;
+cmd_function_s CL_Configstrings_f_VAR;
+cmd_function_s CL_Clientinfo_f_VAR;
+cmd_function_s CL_Vid_Restart_f_VAR;
+cmd_function_s CL_Vid_Restart_f_VAR_SERVER;
+cmd_function_s CL_Snd_Restart_f_VAR;
+cmd_function_s CL_Snd_Restart_f_VAR_SERVER;
+cmd_function_s CL_Disconnect_f_VAR;
+cmd_function_s CL_Disconnect_f_VAR_SERVER;
+cmd_function_s CL_Record_f_VAR;
+cmd_function_s CL_StopRecord_f_VAR;
+cmd_function_s CL_PlayDemo_f_VAR_0;
+cmd_function_s CL_PlayDemo_f_VAR_SERVER_0;
+cmd_function_s CL_PlayDemo_f_VAR;
+cmd_function_s CL_PlayDemo_f_VAR_SERVER;
+cmd_function_s CL_ToggleDemoRecording_f_VAR;
+cmd_function_s CL_AnimateUI_f_VAR;
+cmd_function_s CL_TakeHiResShot_VAR;
+cmd_function_s CL_TakeHiResShot2_VAR;
+cmd_function_s CL_TakeHiResShot3_VAR;
+cmd_function_s CL_TakeHiResShot4_VAR;
+cmd_function_s CL_TakeHiResShot8_VAR;
+cmd_function_s CL_PlayLogo_f_VAR;
+cmd_function_s CL_Connect_f_VAR;
+cmd_function_s CL_Connect_f_VAR_SERVER;
+cmd_function_s CL_Reconnect_f_VAR;
+cmd_function_s CL_Reconnect_f_VAR_SERVER;
+cmd_function_s CL_FindServers_f_VAR;
+cmd_function_s CL_Rcon_f_VAR;
+cmd_function_s CL_ShowContextualItemUI_f_VAR;
+cmd_function_s CL_Ping_f_VAR;
+cmd_function_s CL_Ping_f_VAR_SERVER;
+cmd_function_s CL_ServerStatus_f_VAR;
+cmd_function_s CL_ServerStatus_f_VAR_SERVER;
+cmd_function_s CL_Setenv_f_VAR;
+cmd_function_s CL_ShowIP_f_VAR;
+cmd_function_s CL_ToggleMenu_f_VAR;
+cmd_function_s CL_OpenedIWDList_f_VAR;
+cmd_function_s CL_ReferencedIWDList_f_VAR;
+cmd_function_s CL_UpdateLevelHunkUsage_VAR;
+cmd_function_s CL_startSingleplayer_f_VAR;
+cmd_function_s CL_ParseBadPacket_f_VAR;
+cmd_function_s CL_CubemapShot_f_VAR;
+cmd_function_s CL_OpenScriptMenu_f_VAR;
+cmd_function_s UI_SetClanName_f_VAR;
+cmd_function_s UI_ListMenus_f_VAR;
+cmd_function_s UI_Keyboard_New_f_VAR;
+cmd_function_s UI_Clear_Keyboard_Active_f_VAR;
+cmd_function_s UI_Keyboard_Complete_f_VAR;
+cmd_function_s UI_UpdateListboxPos_f_VAR;
+cmd_function_s UI_KeyClearStates_f_VAR;
+cmd_function_s CL_SelectStringTableEntryInDvar_f_VAR;
+cmd_function_s CL_ResetStats_f_VAR;
+cmd_function_s CL_UploadStats_f_VAR;
+cmd_function_s CL_SetupViewport_f_VAR;
+cmd_function_s CL_Command_ProvisionallyDisableAllClients_VAR;
+cmd_function_s CL_Command_DisableAllButPrimaryClients_VAR;
+cmd_function_s CL_Command_DisableAllClients_VAR;
+cmd_function_s CL_Command_SetClientBeingUsedAndPrimary_VAR;
+cmd_function_s CL_Command_SetClientBeingUsedAndPrimaryAndActive_VAR;
+cmd_function_s CL_Command_SetClientBeingUsed_VAR;
+cmd_function_s CL_Command_SetClientBeingUsedAndActive_VAR;
+cmd_function_s CL_Command_SetClientNotBeingUsed_VAR;
+cmd_function_s CL_Command_SetClientPrimary_VAR;
+cmd_function_s CL_Command_SignClientOutOfUI_VAR;
+cmd_function_s Playlist_CmdReadFromDisk_VAR;
+cmd_function_s Playlist_CmdSetCategoryFilter_VAR;
+cmd_function_s Playlist_CmdSetPrevPlaylist_VAR;
+cmd_function_s Playlist_CmdGetPrevPlaylist_VAR;
+cmd_function_s CL_CmdGetOldCustomName_VAR;
+cmd_function_s CL_CmdSetNewCustomName_VAR;
+
 void __cdecl CL_InitOnceForAllClients()
 {
-    unsigned intv0; // eax
+    unsigned int v0; // eax
     int i; // [esp+18h] [ebp-4h]
 
     v0 = Sys_MillisecondsRaw();
@@ -3962,7 +4115,7 @@ void __cdecl CL_InitOnceForAllClients()
         _Dvar_RegisterBool("cg_mature", 1, 1u, "Show Mature Content");
     else
         _Dvar_RegisterBool("cg_mature", 0, 0x41u, "Show Mature Content");
-    cl_serverchallenge = _Dvar_RegisterInt64("cl_serverchallenge", 0, 0, 0x7FFFFFFF, 0, "Challenge sent to server");
+    cl_serverchallenge = _Dvar_RegisterInt64((char*)"cl_serverchallenge", 0, 0, 0x7FFFFFFF, 0, "Challenge sent to server");
     cl_debugMessageKey = _Dvar_RegisterBool("cl_debugMessageKey", 0, 0, "Enable message key debugging information");
     motd = _Dvar_RegisterString("motd", (char *)"", 0, "Message of the day");
     Cmd_AddCommandInternal("cmd", CL_ForwardToServer_f, &CL_ForwardToServer_f_VAR);
@@ -4109,10 +4262,10 @@ void __cdecl CL_PlayDemo_f()
                 Com_sprintf(name, 0x100u, "%s.dm_%d", arg, 7);
             else
                 Com_sprintf(name, 0x100u, "%s", arg);
-            FS_SV_FOpenFileRead(name, "demos", &demofile);
+            FS_SV_FOpenFileRead(name, (char*)"demos", &demofile);
             if ( !demofile )
             {
-                v1 = va(aExeErrNotFound, name);
+                v1 = va("EXE_ERR_NOT_FOUND", name);
                 Com_Error(ERR_DROP, v1);
             }
             CL_AllocatePerLocalClientMemory();
@@ -4122,7 +4275,7 @@ void __cdecl CL_PlayDemo_f()
             I_strncpyz(clc->demoName, v2, 64);
             Con_Close(localClientNum);
             //BLOPS_NULLSUB();
-            dword_FB2C3C[4 * localClientNum] = 6;
+            clientUIActives[localClientNum].connectionState = CA_CONNECTED;
             clc->demofile = demofile;
             clc->demoplaying = 1;
             v3 = Cmd_Argv(0);
@@ -4131,10 +4284,11 @@ void __cdecl CL_PlayDemo_f()
             clc->lastClientArchiveIndex = 0;
             v5 = Cmd_Argv(1);
             I_strncpyz(cls.servername, v5, 256);
-            Cbuf_ExecuteBuffer(0, 0, "selectStringTableEntryInDvar mp/didyouknow.csv 0 didyouknow");
+            Cbuf_ExecuteBuffer(0, 0, (char*)"selectStringTableEntryInDvar mp/didyouknow.csv 0 didyouknow");
             if ( useFastFile->current.enabled )
                 DB_ResetZoneSize(0);
-            while ( dword_FB2C3C[4 * localClientNum] >= 6 && dword_FB2C3C[4 * localClientNum] < 9 )
+            while (clientUIActives[localClientNum].connectionState >= CA_CONNECTED
+                && clientUIActives[localClientNum].connectionState < CA_PRIMED)
                 CL_ReadDemoMessage(localClientNum);
             clc->firstDemoFrameSkipped = 0;
             clc->demoPrevServerTime = 0;
@@ -4399,6 +4553,7 @@ int __cdecl CountBitsEnabled(unsigned int num)
     return HIWORD(numb) + (unsigned __int16)numb;
 }
 
+int recursive;
 void __cdecl CL_Shutdown(int localClientNum)
 {
     if ( !Sys_IsMainThread()
@@ -4604,6 +4759,7 @@ int __cdecl CL_UpdateDirtyPings(int localClientNum, unsigned int source)
 
 void __cdecl CL_ShowIP_f()
 {
+#if 0 // LWSS: disabled for now due to using the trash bd lib
     unsigned __int16 Port; // ax
     bdAddr *v1; // [esp+Ch] [ebp-18h]
     int v2; // [esp+14h] [ebp-10h]
@@ -4617,8 +4773,10 @@ void __cdecl CL_ShowIP_f()
     Port = bdAddr::getPort(v1);
     Com_Printf(0, "Port is %u\n", Port);
     bdReference<bdRemoteTask>::~bdReference<bdRemoteTask>(&v3);
+#endif
 }
 
+char szServerIPAddress[128];
 char *__cdecl CL_GetServerIPAddress()
 {
     clientConnection_t *clc; // [esp+0h] [ebp-4h]
@@ -4643,13 +4801,13 @@ char *__cdecl CL_GetServerIPAddress()
     return szServerIPAddress;
 }
 
-void    CL_SetupForNewServerMap(int a1@<esi>, int localClientNum, char *pszMapName, const char *pszGametype)
+void    CL_SetupForNewServerMap(int localClientNum, char *pszMapName, const char *pszGametype)
 {
     int num; // [esp+0h] [ebp-4h]
 
     Com_Printf(14, "Server changing map %s, gametype %s\n", pszMapName, pszGametype);
     if ( !com_sv_running->current.enabled )
-        Cbuf_ExecuteBuffer(0, 0, "selectStringTableEntryInDvar mp/didyouknow.csv 0 didyouknow");
+        Cbuf_ExecuteBuffer(0, 0, (char*)"selectStringTableEntryInDvar mp/didyouknow.csv 0 didyouknow");
     if ( (!*pszMapName || !*pszGametype)
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\client_mp\\cl_main_mp.cpp",
@@ -4672,7 +4830,7 @@ void    CL_SetupForNewServerMap(int a1@<esi>, int localClientNum, char *pszMapNa
         LoadMapLoadscreen(pszMapName);
         UI_SetMap(pszMapName, pszGametype);
     }
-    SCR_UpdateScreen(a1);
+    SCR_UpdateScreen();
 }
 
 bool __cdecl CL_IsServerLoadingMap()
@@ -5160,186 +5318,67 @@ int __cdecl CL_FilterChar(unsigned __int8 input)
     return input;
 }
 
-bdTrulyRandomImpl *__cdecl bdSingleton<bdTrulyRandomImpl>::getInstance()
-{
-    bool m_cleaningUp; // edx
-    bdAddr *Address; // [esp+0h] [ebp-60h]
-    void (__cdecl *value)(); // [esp+4h] [ebp-5Ch] BYREF
-    bdSingletonRegistryImpl *Instance; // [esp+8h] [ebp-58h]
-    bool v5; // [esp+27h] [ebp-39h]
-    void *v6; // [esp+58h] [ebp-8h]
-    bdAddr *v7; // [esp+5Ch] [ebp-4h]
-
-    if ( !bdSingleton<bdTrulyRandomImpl>::m_instance )
-    {
-        v7 = (bdAddr *)bdMemory::allocate(1u);
-        if ( v7 )
-            Address = bdAddr::getAddress(v7);
-        else
-            Address = 0;
-        bdSingleton<bdTrulyRandomImpl>::m_instance = (bdTrulyRandomImpl *)Address;
-        if ( Address )
-        {
-            value = bdSingleton<bdTrulyRandomImpl>::destroyInstance;
-            Instance = bdSingleton<bdSingletonRegistryImpl>::getInstance();
-            m_cleaningUp = Instance->m_cleaningUp;
-            v5 = !m_cleaningUp;
-            if ( !m_cleaningUp )
-                bdFastArray<void (__cdecl *)(void)>::pushBack(&Instance->m_destroyFunctions, &value);
-            if ( !v5 )
-            {
-                v6 = bdSingleton<bdTrulyRandomImpl>::m_instance;
-                bdMemory::deallocate(bdSingleton<bdTrulyRandomImpl>::m_instance);
-                bdSingleton<bdTrulyRandomImpl>::m_instance = 0;
-                DebugBreak();
-            }
-        }
-        else
-        {
-            DebugBreak();
-        }
-    }
-    return bdSingleton<bdTrulyRandomImpl>::m_instance;
-}
-
-void bdSingleton<bdTrulyRandomImpl>::destroyInstance()
-{
-    if ( bdSingleton<bdTrulyRandomImpl>::m_instance )
-    {
-        bdMemory::deallocate(bdSingleton<bdTrulyRandomImpl>::m_instance);
-        bdSingleton<bdTrulyRandomImpl>::m_instance = 0;
-    }
-}
-
-bdSingletonRegistryImpl *__cdecl bdSingleton<bdSingletonRegistryImpl>::getInstance()
-{
-    bool m_cleaningUp; // edx
-    bdSingletonRegistryImpl *v2; // [esp+4h] [ebp-3Ch]
-    void (__cdecl *value)(); // [esp+8h] [ebp-38h] BYREF
-    bdSingletonRegistryImpl *Instance; // [esp+Ch] [ebp-34h]
-    bool v5; // [esp+2Bh] [ebp-15h]
-    bdSingletonRegistryImpl *v6; // [esp+34h] [ebp-Ch]
-    bdSingletonRegistryImpl *v7; // [esp+38h] [ebp-8h]
-    bdSingletonRegistryImpl *v8; // [esp+3Ch] [ebp-4h]
-
-    if ( !bdSingleton<bdSingletonRegistryImpl>::m_instance )
-    {
-        v8 = (bdSingletonRegistryImpl *)bdMemory::allocate(0x14u);
-        if ( v8 )
-            v2 = bdSingletonRegistryImpl::bdSingletonRegistryImpl(v8);
-        else
-            v2 = 0;
-        bdSingleton<bdSingletonRegistryImpl>::m_instance = v2;
-        if ( v2 )
-        {
-            value = bdSingleton<bdSingletonRegistryImpl>::destroyInstance;
-            Instance = bdSingleton<bdSingletonRegistryImpl>::getInstance();
-            m_cleaningUp = Instance->m_cleaningUp;
-            v5 = !m_cleaningUp;
-            if ( !m_cleaningUp )
-                bdFastArray<void (__cdecl *)(void)>::pushBack(&Instance->m_destroyFunctions, &value);
-            if ( !v5 )
-            {
-                v6 = bdSingleton<bdSingletonRegistryImpl>::m_instance;
-                v7 = bdSingleton<bdSingletonRegistryImpl>::m_instance;
-                if ( bdSingleton<bdSingletonRegistryImpl>::m_instance )
-                    ((void (__thiscall *)(bdSingletonRegistryImpl *, int))v7->~bdSingletonRegistryImpl)(v7, 1);
-                bdSingleton<bdSingletonRegistryImpl>::m_instance = 0;
-                DebugBreak();
-            }
-        }
-        else
-        {
-            DebugBreak();
-        }
-    }
-    return bdSingleton<bdSingletonRegistryImpl>::m_instance;
-}
-
-bdSingletonRegistryImpl *__thiscall bdSingletonRegistryImpl::bdSingletonRegistryImpl(bdSingletonRegistryImpl *this)
-{
-    this->__vftable = (bdSingletonRegistryImpl_vtbl *)&bdSingletonRegistryImpl::`vftable';
-    this->m_destroyFunctions.m_data = 0;
-    this->m_destroyFunctions.m_capacity = 0;
-    this->m_destroyFunctions.m_size = 0;
-    if ( this->m_destroyFunctions.m_capacity )
-        this->m_destroyFunctions.m_data = (void (__cdecl **)())bdMemory::allocate(4 * this->m_destroyFunctions.m_capacity);
-    this->m_cleaningUp = 0;
-    return this;
-}
-
-void bdSingleton<bdSingletonRegistryImpl>::destroyInstance()
-{
-    if ( bdSingleton<bdSingletonRegistryImpl>::m_instance )
-    {
-        ((void (__thiscall *)(bdSingletonRegistryImpl *, int))bdSingleton<bdSingletonRegistryImpl>::m_instance->~bdSingletonRegistryImpl)(
-            bdSingleton<bdSingletonRegistryImpl>::m_instance,
-            1);
-        bdSingleton<bdSingletonRegistryImpl>::m_instance = 0;
-    }
-}
-
-clientStatic_t *__thiscall clientStatic_t::clientStatic_t(clientStatic_t *this)
-{
-    int v3; // [esp+4h] [ebp-38h]
-    char *jj; // [esp+8h] [ebp-34h]
-    int v5; // [esp+Ch] [ebp-30h]
-    char *ii; // [esp+10h] [ebp-2Ch]
-    int v7; // [esp+14h] [ebp-28h]
-    char *n; // [esp+18h] [ebp-24h]
-    int v9; // [esp+1Ch] [ebp-20h]
-    char *m; // [esp+20h] [ebp-1Ch]
-    int v11; // [esp+24h] [ebp-18h]
-    serverInfo_t *k; // [esp+28h] [ebp-14h]
-    int v13; // [esp+2Ch] [ebp-10h]
-    serverInfo_t *j; // [esp+30h] [ebp-Ch]
-    int v15; // [esp+34h] [ebp-8h]
-    serverInfo_t *i; // [esp+38h] [ebp-4h]
-
-    v15 = 128;
-    for ( i = this->localServers; --v15 >= 0; ++i )
-    {
-        bdSecurityKey::bdSecurityKey(&i->xnkey);
-        bdSecurityID::bdSecurityID(&i->xnkid);
-    }
-    v13 = 20000;
-    for ( j = this->rankedServers; --v13 >= 0; ++j )
-    {
-        bdSecurityKey::bdSecurityKey(&j->xnkey);
-        bdSecurityID::bdSecurityID(&j->xnkid);
-    }
-    v11 = 20000;
-    for ( k = this->unrankedServers; --v11 >= 0; ++k )
-    {
-        bdSecurityKey::bdSecurityKey(&k->xnkey);
-        bdSecurityID::bdSecurityID(&k->xnkid);
-    }
-    v9 = 20000;
-    for ( m = (char *)&s_unlockableItems.itemTable[21].challengeIndices[1] + (unsigned int)this; --v9 >= 0; m += 376 )
-    {
-        bdSecurityKey::bdSecurityKey((bdSecurityKey *)(m + 25));
-        bdSecurityID::bdSecurityID((bdSecurityID *)(m + 41));
-    }
-    v7 = 256;
-    for ( n = &cls.rankedServers[16220].hostName[(unsigned int)this + 19]; --v7 >= 0; n += 376 )
-    {
-        bdSecurityKey::bdSecurityKey((bdSecurityKey *)(n + 25));
-        bdSecurityID::bdSecurityID((bdSecurityID *)(n + 41));
-    }
-    v5 = 20000;
-    for ( ii = &cls.rankedServers[16476].hostName[(unsigned int)this + 27]; --v5 >= 0; ii += 376 )
-    {
-        bdSecurityKey::bdSecurityKey((bdSecurityKey *)(ii + 25));
-        bdSecurityID::bdSecurityID((bdSecurityID *)(ii + 41));
-    }
-    v3 = 128;
-    for ( jj = &cls.unrankedServers[16476].hostName[(unsigned int)this + 27]; --v3 >= 0; jj += 376 )
-    {
-        bdSecurityKey::bdSecurityKey((bdSecurityKey *)(jj + 25));
-        bdSecurityID::bdSecurityID((bdSecurityID *)(jj + 41));
-    }
-    return this;
-}
+//clientStatic_t::clientStatic_t()
+//{
+//    //int v3; // [esp+4h] [ebp-38h]
+//    //char *jj; // [esp+8h] [ebp-34h]
+//    //int v5; // [esp+Ch] [ebp-30h]
+//    //char *ii; // [esp+10h] [ebp-2Ch]
+//    //int v7; // [esp+14h] [ebp-28h]
+//    //char *n; // [esp+18h] [ebp-24h]
+//    //int v9; // [esp+1Ch] [ebp-20h]
+//    //char *m; // [esp+20h] [ebp-1Ch]
+//    //int v11; // [esp+24h] [ebp-18h]
+//    //serverInfo_t *k; // [esp+28h] [ebp-14h]
+//    //int v13; // [esp+2Ch] [ebp-10h]
+//    //serverInfo_t *j; // [esp+30h] [ebp-Ch]
+//    //int v15; // [esp+34h] [ebp-8h]
+//    //serverInfo_t *i; // [esp+38h] [ebp-4h]
+//    //
+//    //v15 = 128;
+//    //for ( i = this->localServers; --v15 >= 0; ++i )
+//    //{
+//    //    bdSecurityKey::bdSecurityKey(&i->xnkey);
+//    //    bdSecurityID::bdSecurityID(&i->xnkid);
+//    //}
+//    //v13 = 20000;
+//    //for ( j = this->rankedServers; --v13 >= 0; ++j )
+//    //{
+//    //    bdSecurityKey::bdSecurityKey(&j->xnkey);
+//    //    bdSecurityID::bdSecurityID(&j->xnkid);
+//    //}
+//    //v11 = 20000;
+//    //for ( k = this->unrankedServers; --v11 >= 0; ++k )
+//    //{
+//    //    bdSecurityKey::bdSecurityKey(&k->xnkey);
+//    //    bdSecurityID::bdSecurityID(&k->xnkid);
+//    //}
+//    //v9 = 20000;
+//    //for ( m = (char *)&s_unlockableItems.itemTable[21].challengeIndices[1] + (unsigned int)this; --v9 >= 0; m += 376 )
+//    //{
+//    //    bdSecurityKey::bdSecurityKey((bdSecurityKey *)(m + 25));
+//    //    bdSecurityID::bdSecurityID((bdSecurityID *)(m + 41));
+//    //}
+//    //v7 = 256;
+//    //for ( n = &cls.rankedServers[16220].hostName[(unsigned int)this + 19]; --v7 >= 0; n += 376 )
+//    //{
+//    //    bdSecurityKey::bdSecurityKey((bdSecurityKey *)(n + 25));
+//    //    bdSecurityID::bdSecurityID((bdSecurityID *)(n + 41));
+//    //}
+//    //v5 = 20000;
+//    //for ( ii = &cls.rankedServers[16476].hostName[(unsigned int)this + 27]; --v5 >= 0; ii += 376 )
+//    //{
+//    //    bdSecurityKey::bdSecurityKey((bdSecurityKey *)(ii + 25));
+//    //    bdSecurityID::bdSecurityID((bdSecurityID *)(ii + 41));
+//    //}
+//    //v3 = 128;
+//    //for ( jj = &cls.unrankedServers[16476].hostName[(unsigned int)this + 27]; --v3 >= 0; jj += 376 )
+//    //{
+//    //    bdSecurityKey::bdSecurityKey((bdSecurityKey *)(jj + 25));
+//    //    bdSecurityID::bdSecurityID((bdSecurityID *)(jj + 41));
+//    //}
+//    //return this;
+//}
 
 bool __cdecl CL_IsLocalClientInGame(int localClientNum)
 {

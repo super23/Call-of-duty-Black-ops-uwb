@@ -1,5 +1,13 @@
 #include "live_storage_win.h"
 
+#include <Windows.h>
+#include <universal/assertive.h>
+#include <qcommon/common.h>
+#include <ddl/ddl_api.h>
+#include "live_stats.h"
+#include <server_mp/sv_main_pc_mp.h>
+#include <game_mp/g_main_mp.h>
+
 int __cdecl SystemTimeToInt()
 {
     _SYSTEMTIME systemTime; // [esp+0h] [ebp-14h] BYREF
@@ -78,12 +86,14 @@ void __cdecl SetDvarFromLocString(int controllerIndex, const char *dvarName, cha
 
 void __cdecl LiveStorage_ReadStats(int __formal, bool validate, bool silent)
 {
+#ifdef KISAK_LIVE_SERVICE
     if ( live_service->current.enabled )
     {
         LiveStorage_ReadBasicTrainingStats(0, validate, silent);
         LiveStorage_ReadPlayerGlobalBlob();
         LiveStorage_InitCustomClassesNames();
     }
+#endif
 }
 
 void LiveStorage_InitCustomClassesNames()

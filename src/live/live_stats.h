@@ -485,3 +485,5 @@ extern const dvar_t *ui_numPersonalBests;
 extern const dvar_t *ui_challengeSort;
 extern const dvar_t *recordPointsSpent;
 extern const dvar_t *ui_challengeGameMode;
+
+extern ddlDef_t *g_statsDDL;

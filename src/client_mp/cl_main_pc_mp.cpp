@@ -1,4 +1,35 @@
 #include "cl_main_pc_mp.h"
+#include <qcommon/net_chan_mp.h>
+#include <DW/dwMatchMaking.h>
+#include <client/cl_main.h>
+#include <cgame_mp/cg_newDraw_mp.h>
+#include <cgame_mp/cg_main_mp.h>
+#include <client/client.h>
+#include <sound/snd_public_async.h>
+#include <server_mp/sv_main_mp.h>
+#include <universal/com_constantconfigstrings.h>
+#include <qcommon/com_clients.h>
+#include <client/cl_console.h>
+#include <DW/dwNet.h>
+#include <client/splitscreen.h>
+#include "cl_cgame_mp.h"
+#include <ui/ui_main_pc.h>
+#include <live/live_storage_win.h>
+#include <qcommon/com_gamemodes.h>
+#include <universal/com_files.h>
+#include <win32/win_net.h>
+#include <DW/dwLogOn_pc.h>
+#include "cl_scrn_mp.h"
+#include <win32/win_shared.h>
+#include <DW/dwUtils_pc.h>
+
+struct  //$A3082F8D06891D11850E9B8F334529D3 // sizeof=0x28
+{                                       // XREF: .data:rconGlob/r
+    char password[24];                  // XREF: CL_RconInit(void)+3/w
+                                        // CL_Rcon_f(void):loc_5696BB/r ...
+    netadr_t host;                      // XREF: CL_GetLastRconAddress(void)+3/o
+                                        // CL_RconInit(void)+A/w ...
+} rconGlob;
 
 netadr_t *__cdecl CL_GetLastRconAddress()
 {
@@ -156,7 +187,7 @@ void __cdecl CL_Connect(serverInfo_t *server)
     clientConnection_t *clc; // [esp+10h] [ebp-14h]
     bdSessionID sessionID; // [esp+14h] [ebp-10h] BYREF
 
-    bdSessionID::bdSessionID(&sessionID);
+    //bdSessionID::bdSessionID(&sessionID);
     sessionID.m_sessionID = server->xnkid;
     dwSetSessionID(&sessionID);
     clUI = CL_GetLocalClientUIGlobals(0);
@@ -180,7 +211,7 @@ void __cdecl CL_Connect(serverInfo_t *server)
     cl_serverLoadingMap = 0;
     ControllerIndex = Com_LocalClient_GetControllerIndex(0);
     SV_Frame(ControllerIndex, 0);
-    Cmd_ExecuteSingleCommand(0, 0, "fileShareAbortOperation");
+    Cmd_ExecuteSingleCommand(0, 0, (char*)"fileShareAbortOperation");
     CL_Disconnect(0, 1);
     Con_Close(0);
     dwRegisterSecIDAndKey(&server->xnkid, &server->xnkey);
@@ -229,14 +260,14 @@ void __cdecl CL_Connect(serverInfo_t *server)
         v3 = UI_SafeTranslateString("MENU_CONNECTING_CAPS");
         Dvar_SetStringByName("statusinfo_popmenuTitle", v3);
         Dvar_SetStringByName("statusinfo_popmenuMessage", cls.servername);
-        Dvar_SetStringByName("statusinfo_onEscArg", "disconnect;");
+        Dvar_SetStringByName("statusinfo_onEscArg", (char*)"disconnect;");
         UI_OpenMenu(0, "code_statusinfo_popmenu");
-        bdTaskResult::~bdTaskResult(&sessionID);
+        //bdTaskResult::~bdTaskResult(&sessionID);
     }
     else
     {
         Com_Error(ERR_DROP, "EXE_ERR_INVALID_CD_KEY");
-        bdTaskResult::~bdTaskResult(&sessionID);
+        //bdTaskResult::~bdTaskResult(&sessionID);
     }
 }
 
@@ -302,7 +333,7 @@ void __cdecl CL_Connect_f()
                     clc->connectTime = -99999;
                     clc->connectPacketCount = 0;
                     clc->qport = g_qport;
-                    Cbuf_ExecuteBuffer(0, 0, "selectStringTableEntryInDvar mp/didyouknow.csv 0 didyouknow");
+                    Cbuf_ExecuteBuffer(0, 0, (char*)"selectStringTableEntryInDvar mp/didyouknow.csv 0 didyouknow");
                     UI_CloseAll(0);
                     UI_ClearErrors();
                     SCR_UpdateLoadScreen();

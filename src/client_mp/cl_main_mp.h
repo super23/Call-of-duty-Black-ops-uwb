@@ -11,6 +11,7 @@
 #include <ui/ui_main.h>
 #include <gfx_d3d/fxprimitives.h>
 #include <cgame/cg_shellshock.h>
+#include <ui/ui_shared.h>
 
 struct ClientArchiveData // sizeof=0x30
 {                                                                             // XREF: demoInitialStateBuffer_t/r
@@ -153,7 +154,7 @@ struct clientActive_t // sizeof=0x1A6100
         PredictedVehicleInfo cgameVehicle;
         float viewangles[3];
         int skelTimeStamp;
-        volatile int skelMemPos;
+        volatile unsigned int skelMemPos;
         char skelMemory[262144];
         char *skelMemoryStart;
         bool allowedAllocSkel;
@@ -386,20 +387,36 @@ struct clientLogo_t // sizeof=0x18
 
 struct XNADDR // sizeof=0x19
 {                                                                             // XREF: serverInfo_t/r
-                                                                                // XSESSION_INFO/r
-        unsigned __int8 addrBuff[25];             // XREF: SND_SurfaceTypeToReflectance+19C/o
+    unsigned __int8 addrBuff[25];             // XREF: SND_SurfaceTypeToReflectance+19C/o
 };
 
 struct bdSecurityKey // sizeof=0x10
 {                                                                             // XREF: .data:g_secKey/r
-        unsigned __int8 ab[16];                         // XREF: dwCreateSession(overlappedTask * const,MatchMakingInfo * const)+139/r
+    unsigned __int8 ab[16];                         // XREF: dwCreateSession(overlappedTask * const,MatchMakingInfo * const)+139/r
+
+    bdSecurityKey(const struct bdSecurityKey *src)
+    {
+        memcpy(this->ab, src->ab, sizeof(bdSecurityKey));
+    }
+    bdSecurityKey()
+    {
+        memset(this->ab, 1u, sizeof(bdSecurityKey));
+    }
 };
 
 struct bdSecurityID // sizeof=0x8
 {                                                                             // XREF: bdQoSProbe::bdQoSProbeEntryWrapper/r
-                                                                                // bdEndpoint/r ...
-        unsigned __int8 ab[8];                            // XREF: PM_Weapon_FireWeapon+17D/o
-                                                                                // CL_Disconnect(int,bool)+271/w ...
+    unsigned __int8 ab[8];                            // XREF: PM_Weapon_FireWeapon+17D/o
+
+    bdSecurityID(const struct bdSecurityID *src)
+    {
+        memcpy(this->ab, src->ab, sizeof(bdSecurityID));
+    }
+
+    bdSecurityID()
+    {
+        memset(this->ab, 1u, sizeof(bdSecurityID));
+    }
 };
 
 struct __declspec(align(4)) serverInfo_t // sizeof=0x178
@@ -762,6 +779,9 @@ struct clientStatic_t // sizeof=0x1CF2800
         // padding byte
         // padding byte
         // padding byte
+
+        // should be implicit now with constructors
+        //clientStatic_t();
 };
 
 
@@ -1337,3 +1357,6 @@ extern const dvar_t *cg_mature;
 extern const dvar_t *cl_serverchallenge;
 extern const dvar_t *cl_debugMessageKey;
 extern const dvar_t *motd;
+
+extern unsigned int frame_msec;
+extern int old_com_frameTime;

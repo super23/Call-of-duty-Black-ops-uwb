@@ -1,5 +1,78 @@
 #pragma once
 
+#include <qcommon/bitarray.h>
+
+enum $E73F4D5E40210A2851F956A075585D03 : __int32
+{
+    KB_LEFT                  = 0x0,
+    KB_RIGHT                 = 0x1,
+    KB_FORWARD               = 0x2,
+    KB_BACK                  = 0x3,
+    KB_LOOKUP                = 0x4,
+    KB_LOOKDOWN              = 0x5,
+    KB_MOVELEFT              = 0x6,
+    KB_MOVERIGHT             = 0x7,
+    KB_STRAFE                = 0x8,
+    KB_SPEED                 = 0x9,
+    KB_UP                    = 0xA,
+    KB_DOWN                  = 0xB,
+    KB_ANYUP                 = 0xC,
+    KB_MLOOK                 = 0xD,
+    KB_SPECTATE              = 0xE,
+    KB_SPECNEXT              = 0xF,
+    KB_SPECPREV              = 0x10,
+    KB_ATTACK                = 0x11,
+    KB_BREATH                = 0x12,
+    KB_FRAG                  = 0x13,
+    KB_OFFHANDSECONDARY      = 0x14,
+    KB_MELEE                 = 0x15,
+    KB_ACTIVATE              = 0x16,
+    KB_RELOAD                = 0x17,
+    KB_USE_RELOAD            = 0x18,
+    KB_LEANLEFT              = 0x19,
+    KB_LEANRIGHT             = 0x1A,
+    KB_PRONE                 = 0x1B,
+    KB_CROUCH                = 0x1C,
+    KB_THROW                 = 0x1D,
+    KB_SPRINT                = 0x1E,
+    KB_NIGHTVISION           = 0x1F,
+    KB_GAS                   = 0x20,
+    KB_REVERSE               = 0x21,
+    KB_HANDBRAKE             = 0x22,
+    KB_SWITCHSEAT            = 0x23,
+    KB_VEHICLEATTACK         = 0x24,
+    KB_VEHICLEATTACKSECOND   = 0x25,
+    KB_VEHICLEMOVEUP         = 0x26,
+    KB_VEHICLEMOVEDOWN       = 0x27,
+    KB_VEHICLESPECIALABILITY = 0x28,
+    KB_VEHICLEFIREPICKUP     = 0x29,
+    KB_VEHICLESWAPPICKUP     = 0x2A,
+    KB_VEHICLEDROPDEPLOYABLE = 0x2B,
+    KB_VEHICLEBOOST          = 0x2C,
+    KB_JAM                   = 0x2D,
+    KB_TALK                  = 0x2E,
+    NUM_BUTTONS              = 0x2F,
+};
+
+struct kbutton_t // sizeof=0x18
+{                                       // XREF: .data:playersKb/r
+    int down[2];                        // XREF: IN_TalkDown+3/o
+                                        // IN_TalkUp+3/o
+    unsigned int downtime;
+    unsigned int msec;
+    bool active;                        // XREF: IN_IsTalkKeyHeld(void)+11/r
+    bool wasPressed;
+    // padding byte
+    // padding byte
+    float val;
+};
+
+enum StanceState : __int32;
+
+struct usercmd_s;
+
+
+
 void __cdecl CL_SetStance(int localClientNum, StanceState stance);
 void __cdecl IN_UpdateUseCount();
 void __cdecl IN_UpdateUseHeld();

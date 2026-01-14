@@ -1,4 +1,7 @@
 #pragma once
+#include <bgame/bg_public.h>
+#include <game_mp/g_main_mp.h>
+#include <server_mp/sv_voice_mp.h>
 
 void __cdecl SetClientViewAngle(gentity_s *ent, const float *angle);
 void __cdecl G_GetPlayerViewOrigin_Internal(const playerState_s *ps, float *origin);
@@ -11,7 +14,7 @@ const char *__cdecl ClientConnect(unsigned int clientNum, unsigned int scriptPer
 void __cdecl ClientClearFields(gclient_s *client);
 void __cdecl ClientBegin(unsigned int clientNum);
 void __cdecl ClientSpawn(gentity_s *ent, const float *spawn_origin, const float *spawn_angles);
-clientSession_t *__thiscall clientSession_t::clientSession_t(clientSession_t *this);
+//clientSession_t *__thiscall clientSession_t::clientSession_t(clientSession_t *this); // should be implicit
 void __cdecl ClientDisconnect(unsigned int clientNum);
 unsigned int __cdecl G_GetNonPVSPlayerInfo(gentity_s *pSelf, float *vPosition, int iLastUpdateEnt);
 void __cdecl G_BroadcastVoice(gentity_s *talker, VoicePacket_t *voicePacket);

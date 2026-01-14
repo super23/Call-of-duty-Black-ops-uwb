@@ -1,4 +1,7 @@
 #include "cl_ui_pc_mp.h"
+#include <live/live_win.h>
+#include <live/live_friends_pc.h>
+#include "cl_main_pc_mp.h"
 
 int __cdecl LAN_AddServer(int source, const char *name, const char *address)
 {
@@ -437,15 +440,15 @@ int __cdecl LAN_GetServerStatusScoreBoard(char *serverSecurityID, char *serverSt
 
 void __cdecl CLUI_SetPbClStatus(int status)
 {
-    if ( status )
-    {
-        EnablePbCl();
-        if ( !isPbClEnabled() )
-            Com_SetErrorMessage("MPUI_NOPUNKBUSTER");
-    }
-    else
-    {
-        DisablePbCl();
-    }
+    //if ( status )
+    //{
+    //    EnablePbCl();
+    //    if ( !isPbClEnabled() )
+    //        Com_SetErrorMessage("MPUI_NOPUNKBUSTER");
+    //}
+    //else
+    //{
+    //    DisablePbCl();
+    //}
 }
 

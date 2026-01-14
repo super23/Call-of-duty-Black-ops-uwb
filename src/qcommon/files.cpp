@@ -382,7 +382,7 @@ bool __cdecl FS_serverPak(const char *pak)
     return v1 != 0;
 }
 
-int __cdecl FS_CompareWithServerFiles(char *neededFiles, int len, int dlstring)
+FS_SERVER_COMPARE_RESULT __cdecl FS_CompareWithServerFiles(char *neededFiles, int len, int dlstring)
 {
     char buffer[1024]; // [esp+10h] [ebp-410h] BYREF
     FS_SERVER_COMPARE_RESULT iwdCompareResult; // [esp+414h] [ebp-Ch]
@@ -392,7 +392,7 @@ int __cdecl FS_CompareWithServerFiles(char *neededFiles, int len, int dlstring)
     *neededFiles = 0;
     iwdCompareResult = FS_CompareIwds(neededFiles, len, dlstring);
     if ( iwdCompareResult == NOT_DOWNLOADABLE )
-        return 2;
+        return NOT_DOWNLOADABLE;
     neededIWDStrLen = strlen(neededFiles);
     if ( len < neededIWDStrLen
         && !Assert_MyHandler(
@@ -406,7 +406,7 @@ int __cdecl FS_CompareWithServerFiles(char *neededFiles, int len, int dlstring)
     }
     ffCompareResult = FS_CompareFFs(&neededFiles[neededIWDStrLen], len - neededIWDStrLen, dlstring);
     if ( ffCompareResult != NOT_DOWNLOADABLE )
-        return iwdCompareResult == NEED_DOWNLOAD || ffCompareResult == NEED_DOWNLOAD;
+        return (FS_SERVER_COMPARE_RESULT)(iwdCompareResult == NEED_DOWNLOAD || ffCompareResult == NEED_DOWNLOAD);
     if ( neededIWDStrLen > 0 )
     {
         if ( len > 1024
@@ -422,7 +422,7 @@ int __cdecl FS_CompareWithServerFiles(char *neededFiles, int len, int dlstring)
         I_strncpyz(buffer, &neededFiles[neededIWDStrLen], len);
         I_strncpyz(neededFiles, buffer, len);
     }
-    return 2;
+    return NOT_DOWNLOADABLE;
 }
 
 FS_SERVER_COMPARE_RESULT __cdecl FS_CompareIwds(char *needediwds, int len, int dlstring)

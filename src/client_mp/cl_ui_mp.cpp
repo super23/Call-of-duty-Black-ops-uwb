@@ -1,4 +1,9 @@
 #include "cl_ui_mp.h"
+#include "cl_main_mp.h"
+#include <cgame_mp/cg_main_mp.h>
+#include <client/client.h>
+#include <client/cl_keys.h>
+#include <gfx_d3d/r_rendercmds.h>
 
 void __cdecl CL_GetClientState(int localClientNum, uiClientState_s *state)
 {

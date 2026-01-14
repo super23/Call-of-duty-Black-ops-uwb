@@ -216,7 +216,7 @@ int __cdecl Com_LocalClient_GetControllerIndex(int localClientNum)
     return -1;
 }
 
-int __cdecl Com_LocalClient_GetNetworkID(int localClientNum)
+netsrc_t __cdecl Com_LocalClient_GetNetworkID(int localClientNum)
 {
     int cgsIndex; // [esp+0h] [ebp-4h]
 
@@ -238,7 +238,7 @@ int __cdecl Com_LocalClient_GetNetworkID(int localClientNum)
     }
     if (!Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\com_clients.cpp", 201, 0, "%s", "0"))
         __debugbreak();
-    return 2;
+    return NS_PACKET;
 }
 
 void __cdecl Com_LocalClient_SetControllerIndex(int localClientNum, int controllerIndex)

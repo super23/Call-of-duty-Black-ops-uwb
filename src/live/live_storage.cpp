@@ -3483,6 +3483,7 @@ int LiveStorage_ResetAllFileOps()
 
 char __cdecl LiveStorage_Init()
 {
+#ifdef KISAK_LIVE_SERVICE
     int i; // [esp+0h] [ebp-8h]
     int controllerIndex; // [esp+4h] [ebp-4h]
 
@@ -3602,6 +3603,9 @@ char __cdecl LiveStorage_Init()
     LiveStorage_Init_Platform();
     Live_FileShare_Init();
     return 1;
+#else
+    return 0;
+#endif
 }
 
 void __cdecl LiveStorage_WriteBackupStatsCmd()

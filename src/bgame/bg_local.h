@@ -939,3 +939,6 @@ struct bgs_t // sizeof=0xBF00
     actorInfo_t actorinfo[16];          // XREF: Actor_PostThink(actor_s *)+81/o
                                         // Actor_Negotiation_Think(actor_s *)+2EC/o
 };
+
+static const float playerMins[3] = { -15.0, -15.0, 0.0 };
+static const float playerMaxs[3] = { 15.0, 15.0, 70.0 };

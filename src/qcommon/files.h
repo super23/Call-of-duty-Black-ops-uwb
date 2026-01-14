@@ -13,7 +13,7 @@ void __cdecl FS_NewDir_f();
 void __cdecl FS_TouchFile_f();
 int __cdecl FS_iwIwd(char *iwd, char *base);
 bool __cdecl FS_serverPak(const char *pak);
-int __cdecl FS_CompareWithServerFiles(char *neededFiles, int len, int dlstring);
+FS_SERVER_COMPARE_RESULT __cdecl FS_CompareWithServerFiles(char *neededFiles, int len, int dlstring);
 FS_SERVER_COMPARE_RESULT __cdecl FS_CompareIwds(char *needediwds, int len, int dlstring);
 FS_SERVER_COMPARE_RESULT __cdecl FS_CompareFFs(char *neededFFs, int len, int dlstring);
 void __cdecl FS_RemoveCommands();

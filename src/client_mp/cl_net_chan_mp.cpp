@@ -1,4 +1,7 @@
 #include "cl_net_chan_mp.h"
+#include "cl_main_mp.h"
+#include <cgame_mp/cg_main_mp.h>
+#include "cl_cgame_mp.h"
 
 void __cdecl CL_Netchan_TransmitNextFragment(netchan_t *chan)
 {

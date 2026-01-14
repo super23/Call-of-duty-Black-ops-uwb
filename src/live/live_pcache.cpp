@@ -31,6 +31,7 @@ void __cdecl PCache_Init()
     int index; // [esp+0h] [ebp-4h]
     int indexa; // [esp+0h] [ebp-4h]
 
+#ifdef KISAK_LIVE_SERVICE
     if ( live_service->current.enabled )
     {
         memset((unsigned __int8 *)s_entries, 0, sizeof(s_entries));
@@ -48,6 +49,7 @@ void __cdecl PCache_Init()
         PCache_ProfileInit();
         Cmd_AddCommandInternal("pcacherank", PCache_GetRank_f, &PCache_GetRank_f_VAR);
     }
+#endif
 }
 
 void __cdecl PCache_GetRank_f()

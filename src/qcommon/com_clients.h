@@ -17,7 +17,7 @@ void __cdecl Com_LocalClients_AssignUIContextsForInGame();
 void __cdecl Com_LocalClients_AssignUIContextsForFrontEnd();
 int __cdecl Com_LocalClient_GetUIContextIndex(int localClientNum);
 int __cdecl Com_LocalClient_GetControllerIndex(int localClientNum);
-int __cdecl Com_LocalClient_GetNetworkID(int localClientNum);
+netsrc_t __cdecl Com_LocalClient_GetNetworkID(int localClientNum);
 void __cdecl Com_LocalClient_SetControllerIndex(int localClientNum, int controllerIndex);
 void __cdecl Com_LocalClient_SetPrimary(int localClientNum, bool primary);
 int Com_LocalClient_ClearAllPrimary();

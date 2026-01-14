@@ -1,4 +1,73 @@
 #include "sv_client_mp.h"
+#include <server_mp/sv_main_mp.h>
+#include <live/live_storage_win.h>
+#include <server_mp/sv_init_mp.h>
+#include <qcommon/com_gamemodes.h>
+#include <live/live_stats.h>
+#include <universal/mem_largelocal.h>
+#include <live/live_steam_server.h>
+#include <universal/com_files.h>
+#include <universal/q_parse.h>
+#include "g_client_mp.h"
+#include <game_mp/g_cmds_mp.h>
+#include <universal/com_buildinfo.h>
+#include <win32/win_net.h>
+#include <server_mp/sv_main_pc_mp.h>
+#include <demo/demo_recording.h>
+#include <game_mp/pregame.h>
+#include <server_mp/sv_bot_mp.h>
+#include <server_mp/sv_ccmds_mp.h>
+#include <stringed/stringed_hooks.h>
+#include <DW/MatchRecorder.h>
+#include <qcommon/sv_msg_write_mp.h>
+#include <server_mp/sv_net_chan_mp.h>
+#include <server_mp/sv_snapshot_mp.h>
+#include <universal/com_constantconfigstrings.h>
+#include <clientscript/cscr_stringlist.h>
+#include <qcommon/files.h>
+#include <win32/win_shared.h>
+#include <qcommon/dvar_cmds.h>
+#include <server_mp/sv_snapshot_profile_mp.h>
+#include <qcommon/sv_msg_write.h>
+#include <physics/rope_gamestate.h>
+#include <ui_mp/ui_gametype_custom_mp.h>
+#include <glass/glass_server.h>
+#include <universal/com_memory.h>
+#include <qcommon/com_clients.h>
+#include <win32/win_voice.h>
+#include <live/live_sessions_win.h>
+#include <universal/com_shared.h>
+#include <server/sv_game.h>
+#include <bgame/bg_weapons.h>
+#include <game_mp/g_active_mp.h>
+
+struct ucmd_t // sizeof=0xC
+{                                       // XREF: .data:ucmds/r
+    const char *name;
+    void (__cdecl *func)(client_t *);
+    int allowFromOldServer;
+};
+
+ucmd_t ucmds[13] =
+{
+  { "userinfo", &SV_UpdateUserinfo_f, 0 },
+  { "disconnect", &SV_Disconnect_f, 1 },
+  { "cp", &SV_VerifyIwds_f, 0 },
+  { "vdr", &SV_ResetPureClient_f, 0 },
+  { "download", &SV_BeginDownload_f, 0 },
+  { "nextdl", &SV_NextDownload_f, 0 },
+  { "stopdl", &SV_StopDownload_f, 0 },
+  { "donedl", &SV_DoneDownload_f, 0 },
+  { "retransdl", &SV_RetransmitDownload_f, 0 },
+  { "wwwdl", &SV_WWWDownload_f, 0 },
+  { "muteplayer", &SV_MutePlayer_f, 0 },
+  { "unmuteplayer", &SV_UnmutePlayer_f, 0 },
+  { NULL, NULL, 0 }
+};
+
+
+unsigned __int16 botport;
+unsigned __int64 g_notifyLeave[32];
 
 void __cdecl SV_HandleDWChallengeResponse(netadr_t from, msg_t *msg)
 {
@@ -450,15 +519,15 @@ void __cdecl SV_SteamAuthClientRequest(netadr_t to, unsigned __int64 serverSteam
 {
     unsigned __int8 *msgBuffer; // [esp+0h] [ebp-40h]
     msg_t msg; // [esp+4h] [ebp-3Ch] BYREF
-    LargeLocal msgBuffer_large_local; // [esp+34h] [ebp-Ch] BYREF
+    LargeLocal msgBuffer_large_local(2048); // [esp+34h] [ebp-Ch] BYREF
 
-    LargeLocal::LargeLocal(&msgBuffer_large_local, 2048);
-    msgBuffer = LargeLocal::GetBuf(&msgBuffer_large_local);
+    //LargeLocal::LargeLocal(&msgBuffer_large_local, 2048);
+    msgBuffer = msgBuffer_large_local.GetBuf(); // LargeLocal::GetBuf(&msgBuffer_large_local);
     MSG_Init(&msg, msgBuffer, 2048);
     MSG_WriteString(&msg, "steamauthReq");
     MSG_WriteInt64(&msg, serverSteamID);
     NET_OutOfBandData(NS_SERVER, to, msg.data, msg.cursize);
-    LargeLocal::~LargeLocal(&msgBuffer_large_local);
+    //LargeLocal::~LargeLocal(&msgBuffer_large_local);
 }
 
 void __cdecl SV_SteamAuthClient(netadr_t from, msg_t *msg)
@@ -515,7 +584,7 @@ int __cdecl SV_IsBannedGuid(int guid)
     banned = 0;
     while ( 1 )
     {
-        token = (const char *)Com_Parse(&text);
+        token = Com_Parse(&text)->token;
         if ( !*token )
             break;
         if ( atoi(token) == guid )
@@ -571,11 +640,11 @@ void __cdecl SV_BanClient(client_t *cl)
         {
             Com_Printf(15, "This GUID (%i) is already banned\n", cl->guid);
         }
-        else if ( (FS_FOpenFileByMode("ban.txt", &file, FS_APPEND) & 0x80000000) == 0 )
+        else if ( (FS_FOpenFileByMode((char*)"ban.txt", &file, FS_APPEND) & 0x80000000) == 0 )
         {
             I_strncpyz(cleanName, cl->name, 64);
             I_CleanStr(cleanName);
-            FS_Printf(file, "%i %s\r\n", cl->guid, cleanName);
+            FS_Printf(file, (char *)"%i %s\r\n", cl->guid, cleanName);
             FS_FCloseFile(file);
             SV_DropClient(cl, "EXE_PLAYERKICKED", 1, 1);
             cl->lastPacketTime = svs.time;
@@ -627,7 +696,7 @@ void __cdecl SV_UnbanClient(const char *name)
                 text = line;
             }
         }
-        FS_WriteFile("ban.txt", file, fileSize);
+        FS_WriteFile((char *)"ban.txt", file, fileSize);
         FS_FreeFile(file);
         if ( found )
             Com_Printf(15, "unbanned %i user(s) named %s\n", found, cleanName);
@@ -758,7 +827,7 @@ void __cdecl SV_DirectConnect(netadr_t from)
     if ( version != 1044 )
     {
         BuildName = Com_GetBuildName();
-        v4 = va(aErrorExeServer_0, BuildName);
+        v4 = va("EXE_SERVER_IS_DIFFERENT_VER", BuildName);
         NET_OutOfBandPrint(NS_SERVER, from, v4);
         Com_DPrintf(15, "        rejected connect from protocol version %i (should be %i)\n", version, 1044);
         return;
@@ -845,20 +914,20 @@ LABEL_35:
         cl_pb = atoi(v11);
         if ( NET_IsLocalAddress(from) )
         {
-            v12 = PbAuthClient("localhost", cl_pb, authSvPBguid);
+            //v12 = PbAuthClient("localhost", cl_pb, authSvPBguid);
         }
         else
         {
             fromAddr = NET_AdrToString(from);
-            v12 = PbAuthClient(fromAddr, cl_pb, authSvPBguid);
+            //v12 = PbAuthClient(fromAddr, cl_pb, authSvPBguid);
         }
-        pb_authmsg = v12;
-        if ( v12 )
-        {
-            if ( !I_strnicmp(pb_authmsg, "error\n", 6) )
-                NET_OutOfBandPrint(NS_SERVER, from, pb_authmsg);
-        }
-        else
+        //pb_authmsg = v12;
+        //if ( v12 )
+        //{
+        //    if ( !I_strnicmp(pb_authmsg, "error\n", 6) )
+        //        NET_OutOfBandPrint(NS_SERVER, from, pb_authmsg);
+        //}
+        //else
         {
             i = 0;
             clients = svs.clients;
@@ -985,6 +1054,7 @@ gotnewcl:
             {
                 __debugbreak();
             }
+#ifdef KISAK_LIVE_SERVICE
             if ( live_service && live_service->current.enabled )
             {
                 clientChallange = 0;
@@ -1010,6 +1080,7 @@ gotnewcl:
                     Com_PrintWarning(15, "Failed to parse userId!\n");
                 }
             }
+#endif
             if ( !newcl->bIsTestClient && !newcl->bIsDemoClient )
                 newcl->notifyJoin = 1;
             scriptId = Scr_AllocArray(SCRIPTINSTANCE_SERVER);
@@ -1166,6 +1237,7 @@ void __cdecl SV_SendDisconnect(
     }
 }
 
+
 void __cdecl SV_DropClient(client_t *drop, const char *reason, bool tellThem, bool writeStats)
 {
     const char *v4; // eax
@@ -1177,83 +1249,83 @@ void __cdecl SV_DropClient(client_t *drop, const char *reason, bool tellThem, bo
     int i; // [esp+48h] [ebp-8h]
     int clientNum; // [esp+4Ch] [ebp-4h]
 
-    if ( !drop->header.state
+    if (!drop->header.state
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\server_mp\\sv_client_mp.cpp",
-                    2312,
-                    0,
-                    "%s",
-                    "drop->header.state != CS_FREE") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\server_mp\\sv_client_mp.cpp",
+            2312,
+            0,
+            "%s",
+            "drop->header.state != CS_FREE"))
     {
         __debugbreak();
     }
     dropState = drop->header.state;
-    if ( drop->header.state == 1 )
+    if (drop->header.state == 1)
     {
-        if ( drop->dropReason )
+        if (drop->dropReason)
         {
-            if ( !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\server_mp\\sv_client_mp.cpp",
-                            2319,
-                            0,
-                            "%s\n\t(drop->dropReason) = %s",
-                            "(drop->dropReason == 0)",
-                            drop->dropReason) )
+            if (!Assert_MyHandler(
+                "C:\\projects_pc\\cod\\codsrc\\src\\server_mp\\sv_client_mp.cpp",
+                2319,
+                0,
+                "%s\n\t(drop->dropReason) = %s",
+                "(drop->dropReason == 0)",
+                drop->dropReason))
                 __debugbreak();
         }
     }
     else
     {
         drop->dropReason = 0;
-        if ( dropState < 1
+        if (dropState < 1
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\server_mp\\sv_client_mp.cpp",
-                        2324,
-                        0,
-                        "%s",
-                        "dropState >= CS_ZOMBIE") )
+                "C:\\projects_pc\\cod\\codsrc\\src\\server_mp\\sv_client_mp.cpp",
+                2324,
+                0,
+                "%s",
+                "dropState >= CS_ZOMBIE"))
         {
             __debugbreak();
         }
-        for ( j = 0; j < 32; ++j )
+        for (j = 0; j < 32; ++j)
         {
-            if ( !(MEMORY[0x987FBDC][2 * j] | LODWORD(g_notifyLeave[j])) )
+            if (!(HIDWORD(g_notifyLeave[j]) | LODWORD(g_notifyLeave[j])))
             {
                 LODWORD(g_notifyLeave[j]) = drop->dw_userID;
-                MEMORY[0x987FBDC][2 * j] = HIDWORD(drop->dw_userID);
+                HIDWORD(g_notifyLeave[j]) = HIDWORD(drop->dw_userID);
             }
         }
-        if ( LODWORD(drop->statPacketsReceived) == -1 && HIDWORD(drop->statPacketsReceived) == 7 && writeStats )
+        if (LODWORD(drop->statPacketsReceived) == -1 && HIDWORD(drop->statPacketsReceived) == 7 && writeStats)
             SV_DWWriteClientStats(drop);
-        if ( drop->reservedSlot > 0 )
+        if (drop->reservedSlot > 0)
             SV_FreeReservedSlot(drop->reservedSlot);
         v4 = Com_DisplayName(drop->name, drop->clanAbbrev, 3);
         I_strncpyz(droppedClientName, v4, 32);
         clientNum = drop - svs.clients;
-        if ( (unsigned int)clientNum >= level.maxclients
+        if ((unsigned int)clientNum >= level.maxclients
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\server_mp\\sv_client_mp.cpp",
-                        2360,
-                        0,
-                        "clientNum doesn't index level.maxclients\n\t%i not in [0, %i)",
-                        clientNum,
-                        level.maxclients) )
+                "C:\\projects_pc\\cod\\codsrc\\src\\server_mp\\sv_client_mp.cpp",
+                2360,
+                0,
+                "clientNum doesn't index level.maxclients\n\t%i not in [0, %i)",
+                clientNum,
+                level.maxclients))
         {
             __debugbreak();
         }
-        if ( onlinegame->current.enabled && com_sv_running->current.enabled )
+        if (onlinegame->current.enabled && com_sv_running->current.enabled)
             MatchRecordPlayerDetails(&level.clients[clientNum], reason);
         LiveSteam_Server_ClientSteamDisconnect(drop->steamID);
         SV_FreeClient(drop);
         Com_DPrintf(15, "Going to CS_ZOMBIE from %i for %s due to %s\n", dropState, droppedClientName, reason);
         drop->header.state = 1;
-        if ( !drop->gentity )
+        if (!drop->gentity)
         {
             challenge = svs.challenges;
             i = 0;
-            while ( i < 1024 )
+            while (i < 1024)
             {
-                if ( NET_CompareAdr(drop->header.netchan.remoteAddress, challenge->adr) )
+                if (NET_CompareAdr(drop->header.netchan.remoteAddress, challenge->adr))
                 {
                     challenge->connected = 0;
                     break;
@@ -1262,28 +1334,31 @@ void __cdecl SV_DropClient(client_t *drop, const char *reason, bool tellThem, bo
                 ++challenge;
             }
         }
-        translationForReason = SEH_StringEd_GetString(reason) != 0;
-        if ( I_stricmp(reason, "EXE_DISCONNECTED") )
+        translationForReason = SEH_StringEd_GetString((char*)reason) != 0;
+
+        static const char aC_2[17] = "%c \"\x15%s^7 \x14%s%s\"";
+
+        if (I_stricmp(reason, "EXE_DISCONNECTED"))
         {
-            if ( I_stricmp(reason, "EXE_PLAYERKICKED_BAN") )
+            if (I_stricmp(reason, "EXE_PLAYERKICKED_BAN"))
             {
-                if ( translationForReason )
-                    SV_SendServerCommand(0, SV_CMD_CAN_IGNORE, aC_2, 101, droppedClientName, &unk_CEA724, reason);
+                if (translationForReason)
+                    SV_SendServerCommand(0, SV_CMD_CAN_IGNORE, aC_2, 101, droppedClientName, "", reason);
                 else
                     SV_SendServerCommand(0, SV_CMD_CAN_IGNORE, aC_2, 101, droppedClientName, "", reason);
             }
-            else if ( translationForReason )
+            else if (translationForReason)
             {
-                SV_SendServerCommand(0, SV_CMD_CAN_IGNORE, aC_2, 101, droppedClientName, &unk_CEA724, "EXE_PLAYERKICKED");
+                SV_SendServerCommand(0, SV_CMD_CAN_IGNORE, aC_2, 101, droppedClientName, "", "EXE_PLAYERKICKED"); // KISAKTODO: 1st strings here might not be blank?
             }
             else
             {
                 SV_SendServerCommand(0, SV_CMD_CAN_IGNORE, aC_2, 101, droppedClientName, "", "EXE_PLAYERKICKED");
             }
         }
-        else if ( translationForReason )
+        else if (translationForReason)
         {
-            SV_SendServerCommand(0, SV_CMD_CAN_IGNORE, aC_2, 101, droppedClientName, &unk_CEA724, "EXE_LEFTGAME");
+            SV_SendServerCommand(0, SV_CMD_CAN_IGNORE, aC_2, 101, droppedClientName, "", "EXE_LEFTGAME");
         }
         else
         {
@@ -1291,18 +1366,18 @@ void __cdecl SV_DropClient(client_t *drop, const char *reason, bool tellThem, bo
         }
         Com_Printf(15, "%i:%s %s\n", clientNum, droppedClientName, reason);
         SV_SendServerCommand(0, SV_CMD_RELIABLE, "%c %d", 75, clientNum);
-        if ( tellThem )
+        if (tellThem)
             SV_SendDisconnect(drop, dropState, reason, translationForReason, droppedClientName);
-        if ( drop->bIsTestClient || drop->bIsDemoClient )
+        if (drop->bIsTestClient || drop->bIsDemoClient)
         {
             drop->bIsDemoClient = 0;
             drop->bIsTestClient = 0;
-            if ( drop->header.state == 1 )
+            if (drop->header.state == 1)
                 drop->header.state = 0;
         }
-        for ( i = 0; i < com_maxclients->current.integer && svs.clients[i].header.state < 3; ++i )
+        for (i = 0; i < com_maxclients->current.integer && svs.clients[i].header.state < 3; ++i)
             ;
-        if ( i == com_maxclients->current.integer )
+        if (i == com_maxclients->current.integer)
             SV_Heartbeat_f();
     }
 }
@@ -1358,9 +1433,8 @@ void __cdecl SV_SendClientGameState(client_t *client)
     int Checksum; // eax
     const char *ConfigStringValue; // eax
     char *v7; // eax
-    int v8; // eax
-    int v9; // eax
-    unsigned intv10; // eax
+    const char *v8; // eax
+    const char *v9; // eax
     const char *v11; // [esp-4h] [ebp-1C8h]
     int entNum; // [esp+40h] [ebp-184h]
     int configStringCount; // [esp+44h] [ebp-180h]
@@ -1385,12 +1459,12 @@ void __cdecl SV_SendClientGameState(client_t *client)
     int f; // [esp+1A8h] [ebp-1Ch]
     int nextConstConfigStringNumber; // [esp+1ACh] [ebp-18h]
     entityState_s *base; // [esp+1B0h] [ebp-14h]
-    LargeLocal msgBuffer_large_local; // [esp+1B4h] [ebp-10h] BYREF
+    LargeLocal msgBuffer_large_local(0x10000); // [esp+1B4h] [ebp-10h] BYREF
     int clientNum; // [esp+1BCh] [ebp-8h]
     int totalStringSize; // [esp+1C0h] [ebp-4h]
 
-    LargeLocal::LargeLocal(&msgBuffer_large_local, 0x10000);
-    msgBuffer = LargeLocal::GetBuf(&msgBuffer_large_local);
+    //LargeLocal::LargeLocal(&msgBuffer_large_local, 0x10000);
+    msgBuffer = msgBuffer_large_local.GetBuf(); // LargeLocal::GetBuf(&msgBuffer_large_local);
     if ( (unsigned int)(client - svs.clients) >= com_maxclients->current.integer
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\server_mp\\sv_client_mp.cpp",
@@ -1416,7 +1490,7 @@ void __cdecl SV_SendClientGameState(client_t *client)
                      client->header.netchan.unsentLength,
                      client->header.state);
         SV_SysLog_LogMessage(0, v2);
-        LargeLocal::~LargeLocal(&msgBuffer_large_local);
+        //LargeLocal::~LargeLocal(&msgBuffer_large_local);
         return;
     }
     while ( client->header.state && client->header.netchan.unsentFragments && !client->header.netchan.reliable_fragments )
@@ -1436,7 +1510,7 @@ void __cdecl SV_SendClientGameState(client_t *client)
                          client->header.state);
             SV_SysLog_LogMessage(0, v4);
             SV_DropClient(client, "EXE_TRANSMITERROR", 0, 1);
-            LargeLocal::~LargeLocal(&msgBuffer_large_local);
+            //LargeLocal::~LargeLocal(&msgBuffer_large_local);
             return;
         }
     }
@@ -1448,7 +1522,7 @@ void __cdecl SV_SendClientGameState(client_t *client)
     if ( LODWORD(client->statPacketsReceived) != -1 || HIDWORD(client->statPacketsReceived) != 7 )
     {
         Com_DPrintf(15, "Not sending state to %s, waiting on stats\n", client->name);
-        LargeLocal::~LargeLocal(&msgBuffer_large_local);
+        //LargeLocal::~LargeLocal(&msgBuffer_large_local);
         return;
     }
     memset(&snapInfo, 0, sizeof(snapInfo));
@@ -1545,7 +1619,7 @@ void __cdecl SV_SendClientGameState(client_t *client)
         && sv_writeConfigStrings->current.enabled )
     {
         v7 = va("configStrings_pc_%s_%s.csv", sv_mapname->current.string, g_gametype->current.string);
-        f = FS_SV_FOpenFileWrite(v7, "devOutput");
+        f = FS_SV_FOpenFileWrite(v7, (char*)"devOutput");
     }
     if ( f )
     {
@@ -1556,36 +1630,35 @@ void __cdecl SV_SendClientGameState(client_t *client)
             if ( SV_ConfigStringIsConstant(configStringNuma) && sv.configstrings[configStringNuma] != sv.emptyConfigString )
             {
                 configString = SL_ConvertToString(sv.configstrings[configStringNuma], SCRIPTINSTANCE_SERVER);
-                strchr((unsigned __int8 *)configString, 0x22u);
-                if ( v8 || (strchr((unsigned __int8 *)configString, 0x5Cu), v9) )
+                v8 = strchr(configString, 0x22u);
+                if ( v8 || (v9 = strchr(configString, 0x5Cu), v9) )
                 {
-                    FS_Printf(f, "%i,\"", configStringNuma);
+                    FS_Printf(f, (char*)"%i,\"", configStringNuma);
                     for ( c = (char *)configString; *c; ++c )
                     {
                         if ( *c == 34 )
                         {
-                            FS_Printf(f, "\"\"");
+                            FS_Printf(f, (char *)"\"\"");
                         }
                         else if ( *c == 92 )
                         {
-                            FS_Printf(f, "\\");
+                            FS_Printf(f, (char *)"\\");
                         }
                         else
                         {
-                            FS_Printf(f, "%c", *c);
+                            FS_Printf(f, (char *)"%c", *c);
                         }
                     }
-                    FS_Printf(f, "\"\n");
+                    FS_Printf(f, (char *)"\"\n");
                 }
                 else
                 {
-                    FS_Printf(f, "%i,\"%s\"\n", configStringNuma, configString);
+                    FS_Printf(f, (char *)"%i,\"%s\"\n", configStringNuma, configString);
                 }
             }
         }
         FS_FCloseFile(f);
-        v10 = Sys_Milliseconds();
-        Com_Printf(15, "Finished writing config strings to file (%i mec)\n", v10 - startTime);
+        Com_Printf(15, "Finished writing config strings to file (%i mec)\n", Sys_Milliseconds() - startTime);
     }
     else if ( sv_writeConfigStrings->current.enabled )
     {
@@ -1712,7 +1785,7 @@ process_configString:
         __debugbreak();
     }
     if ( msg.cursize - dataStart > 4000 && onlinegame->current.enabled )
-        StatMon_Warning(12, 20000, "code_warning_gamestate");
+        StatMon_Warning(12, 20000, (char *)"code_warning_gamestate");
     Com_Printf(
         15,
         "Gamestate has %i bytes of config strings (%i total config strings)\n",
@@ -1780,7 +1853,7 @@ process_configString:
         Demo_WriteGamestateToBuffer(clientNum, 3, &msg, client->header.netchan.outgoingSequence);
     SV_SendMessageToClient(&msg, client, 1);
     SV_GetServerStaticHeader();
-    LargeLocal::~LargeLocal(&msgBuffer_large_local);
+    //LargeLocal::~LargeLocal(&msgBuffer_large_local);
 }
 
 bool __cdecl SV_ConfigStringIsConstant(int configStringNum)
@@ -2164,10 +2237,10 @@ LABEL_22:
         }
         else if ( sv_allowDownload->current.enabled )
         {
-            if ( FS_iwIwd(cl->downloadName, "main") )
+            if ( FS_iwIwd(cl->downloadName, (char *)"main") )
             {
                 Com_Printf(15, "clientDownload: %d : \"%s\" cannot download IW iwd files\n", cl - svs.clients, cl->downloadName);
-                Com_sprintf(errorMessage, 0x400u, aExeCantautodlg, cl->downloadName);
+                Com_sprintf(errorMessage, 0x400u, "EXE_CANTAUTODLGAMEPAK %s", cl->downloadName);
                 SV_WriteDownloadErrorMessage(cl, msg, errorMessage);
             }
             else
@@ -2194,7 +2267,7 @@ LABEL_22:
                 else
                 {
                     Com_Printf(15, "clientDownload: %d : \"%s\" file not found on server\n", cl - svs.clients, cl->downloadName);
-                    Com_sprintf(errorMessage, 0x400u, aExeAutodlFilen, cl->downloadName);
+                    Com_sprintf(errorMessage, 0x400u, "EXE_AUTODL_FILENOTONSERVER %s", cl->downloadName);
                     SV_WriteDownloadErrorMessage(cl, msg, errorMessage);
                 }
             }
@@ -2203,9 +2276,9 @@ LABEL_22:
         {
             Com_Printf(15, "clientDownload: %d : \"%s\" download disabled", cl - svs.clients, cl->downloadName);
             if ( sv_pure->current.enabled )
-                Com_sprintf(errorMessage, 0x400u, aExeAutodlServe_0, cl->downloadName);
+                Com_sprintf(errorMessage, 0x400u, "EXE_AUTODL_SERVERDISABLED_PURE %s", cl->downloadName);
             else
-                Com_sprintf(errorMessage, 0x400u, aExeAutodlServe, cl->downloadName);
+                Com_sprintf(errorMessage, 0x400u, "EXE_AUTODL_SERVERDISABLED %s", cl->downloadName);
             SV_WriteDownloadErrorMessage(cl, msg, errorMessage);
         }
     }
@@ -2350,9 +2423,9 @@ void __cdecl SV_StringToLower(const char *source, char *dest, int size)
 char __cdecl SV_ValidateName(client_t *newcl, const char *name)
 {
     const char *String; // eax
-    int v4; // eax
-    int v5; // eax
-    int v6; // eax
+    char *v4; // eax
+    char *v5; // eax
+    char *v6; // eax
     int i; // [esp+10h] [ebp-4Ch]
     client_t *v8; // [esp+14h] [ebp-48h]
     char nameLower[32]; // [esp+18h] [ebp-44h] BYREF
@@ -2363,13 +2436,13 @@ char __cdecl SV_ValidateName(client_t *newcl, const char *name)
     SV_StringToLower(name, nameLower, 32);
     String = Dvar_GetString("sv_noname");
     SV_StringToLower(String, tempLower, 32);
-    strstr((unsigned __int8 *)nameLower, (unsigned __int8 *)tempLower);
+    v4 = strstr(nameLower, tempLower);
     if ( v4 )
         return 0;
-    strstr((unsigned __int8 *)nameLower, "unknown soldier");
+    strstr(nameLower, "unknown soldier");
     if ( v5 )
         return 0;
-    strstr((unsigned __int8 *)nameLower, "democlient");
+    strstr(nameLower, "democlient");
     if ( v6 )
         return 0;
     for ( i = 0; i < com_maxclients->current.integer; ++i )
@@ -2700,8 +2773,8 @@ void __cdecl SV_ClientThink(client_t *cl, usercmd_s *cmd)
     {
         v2 = va("Invalid command time %i from client %s, current server time is %i", cmd->serverTime, cl->name, svs.time);
         Com_PrintError(15, v2);
-        if ( g_DXDeviceThread != GetCurrentThreadId() )
-            return;
+        //if ( g_DXDeviceThread != GetCurrentThreadId() )
+        //    return;
         goto LABEL_11;
     }
     memcpy(&cl->lastUsercmd, cmd, sizeof(cl->lastUsercmd));
@@ -2709,12 +2782,13 @@ void __cdecl SV_ClientThink(client_t *cl, usercmd_s *cmd)
     {
         G_SetLastServerTime(cl - svs.clients, cmd->serverTime);
         ClientThink(cl - svs.clients);
-        if ( GetCurrentThreadId() != g_DXDeviceThread )
-            return;
+        //if ( GetCurrentThreadId() != g_DXDeviceThread )
+        //    return;
         goto LABEL_11;
     }
     //if ( GetCurrentThreadId() == g_DXDeviceThread )
 LABEL_11:
+    ;
         //D3DPERF_EndEvent();
 }
 
@@ -2920,7 +2994,7 @@ void __cdecl SV_UserMove(client_t *cl, msg_t *msg, int delta)
                         Com_Printf(15, "key: %i\n", key);
                         Com_Printf(15, "key ^= cmd->serverTime: %i\n", cmd->serverTime ^ key);
                         Com_Printf(15, "########################################\n");
-                        SV_DropClient(cl, &byte_CEB388, 1, 1);
+                        SV_DropClient(cl, "Corrupted network messaging detected", 1, 1);
                     }
                     oldcmd = cmd;
                 }
@@ -3011,16 +3085,17 @@ void __cdecl SV_UserMove(client_t *cl, msg_t *msg, int delta)
     }
 }
 
+int sv_serverId_value;
 void __cdecl SV_ExecuteClientMessage(client_t *cl, msg_t *msg)
 {
     msg_t v2; // [esp+0h] [ebp-70h] BYREF
     int c; // [esp+30h] [ebp-40h] BYREF
     msg_t msgCompressed; // [esp+34h] [ebp-3Ch] BYREF
     unsigned __int8 (*msgCompressed_buf)[65536]; // [esp+64h] [ebp-Ch]
-    LargeLocal msgCompressed_buf_large_local; // [esp+68h] [ebp-8h] BYREF
+    LargeLocal msgCompressed_buf_large_local(0x10000); // [esp+68h] [ebp-8h] BYREF
 
-    LargeLocal::LargeLocal(&msgCompressed_buf_large_local, 0x10000);
-    msgCompressed_buf = (unsigned __int8 (*)[65536])LargeLocal::GetBuf(&msgCompressed_buf_large_local);
+    //LargeLocal::LargeLocal(&msgCompressed_buf_large_local, 0x10000);
+    msgCompressed_buf = (unsigned __int8 (*)[65536])msgCompressed_buf_large_local.GetBuf(); // LargeLocal::GetBuf(&msgCompressed_buf_large_local);
     if ( (unsigned int)(cl - svs.clients) >= com_maxclients->current.integer
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\server_mp\\sv_client_mp.cpp",
@@ -3044,7 +3119,7 @@ void __cdecl SV_ExecuteClientMessage(client_t *cl, msg_t *msg)
         {
             if ( cl->header.state == 4 )
                 SV_ClientEnterWorld(cl, &cl->lastUsercmd);
-            LargeLocal::~LargeLocal(&msgCompressed_buf_large_local);
+            //LargeLocal::~LargeLocal(&msgCompressed_buf_large_local);
             return;
         }
         if ( SV_ProcessClientCommands(cl, &msgCompressed, 1, &c) && cl->messageAcknowledge > cl->gamestateMessageNum )
@@ -3059,7 +3134,7 @@ void __cdecl SV_ExecuteClientMessage(client_t *cl, msg_t *msg)
             SV_SendClientGameState(cl);
         }
 LABEL_17:
-        LargeLocal::~LargeLocal(&msgCompressed_buf_large_local);
+        //LargeLocal::~LargeLocal(&msgCompressed_buf_large_local);
         return;
     }
     if ( !SV_ProcessClientCommands(cl, &msgCompressed, 0, &c) )
@@ -3080,17 +3155,8 @@ LABEL_17:
         SV_GetServerStaticHeader();
         cl->header.state = 1;
     }
-    if ( *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\server_mp\\sv_client_mp.cpp",
-                    4960,
-                    0,
-                    "%s\n\t(bgs) = %p",
-                    "(bgs == 0)",
-                    *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-    {
-        __debugbreak();
-    }
+    iassert(bgs == 0);
+    
     if ( c )
     {
         if ( c == 1 )
@@ -3106,18 +3172,9 @@ LABEL_17:
     {
         SV_UserMove(cl, &msgCompressed, 1);
     }
-    if ( *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\server_mp\\sv_client_mp.cpp",
-                    4972,
-                    0,
-                    "%s\n\t(bgs) = %p",
-                    "(bgs == 0)",
-                    *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-    {
-        __debugbreak();
-    }
-    LargeLocal::~LargeLocal(&msgCompressed_buf_large_local);
+    iassert(bgs == 0);
+    
+    //LargeLocal::~LargeLocal(&msgCompressed_buf_large_local);
 }
 
 int __cdecl SV_ProcessClientCommands(client_t *cl, msg_t *msg, int fromOldServer, int *lastCommand)

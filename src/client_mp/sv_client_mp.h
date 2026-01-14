@@ -1,6 +1,7 @@
 #pragma once
 #include <qcommon/net_chan_mp.h>
 #include <ddl/ddl_api.h>
+#include <server/server.h>
 
 void __cdecl SV_HandleDWChallengeResponse(netadr_t from, msg_t *msg);
 void __cdecl SV_GetChallenge(netadr_t from);
