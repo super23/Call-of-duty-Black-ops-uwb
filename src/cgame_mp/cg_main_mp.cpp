@@ -76,6 +76,7 @@
 #include "cg_snapshot_mp.h"
 #include <glass/glass_client.h>
 #include <physics/rope.h>
+#include "cg_predict_mp.h"
 
 bool g_allowMature = true;
 
@@ -3649,10 +3650,10 @@ void __cdecl CG_LoadAnimTreeInstances(int localClientNum)
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     generic_human = cgameGlob->bgs.animData->generic_human.tree.anims;
     for ( i = 0; i < com_maxclients->current.integer; ++i )
-        cgameGlob->bgs.clientinfo[i].pXAnimTree = XAnimCreateTree(generic_human, Hunk_AllocXAnimClient);
+        cgameGlob->bgs.clientinfo[i].pXAnimTree = XAnimCreateTree(generic_human, (void *(*)(int))Hunk_AllocXAnimClient);
     cgs = CG_GetLocalClientStaticGlobals(localClientNum);
     for ( ia = 0; ia < 4; ++ia )
-        *(unsigned int *)&cgs->corpseinfo[1480 * ia + 1332] = XAnimCreateTree(generic_human, Hunk_AllocXAnimClient);
+        *(unsigned int *)&cgs->corpseinfo[1480 * ia + 1332] = (unsigned int)XAnimCreateTree(generic_human, (void*(*)(int))Hunk_AllocXAnimClient);
     anims = Dog_GetAnims();
     if ( !anims
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_main_mp.cpp", 2223, 0, "%s", "anims") )
@@ -3660,10 +3661,10 @@ void __cdecl CG_LoadAnimTreeInstances(int localClientNum)
         __debugbreak();
     }
     for ( ib = 0; ib < 16; ++ib )
-        cgameGlob->bgs.actorinfo[ib].pXAnimTree = XAnimCreateTree(anims, Hunk_AllocXAnimClient);
+        cgameGlob->bgs.actorinfo[ib].pXAnimTree = XAnimCreateTree(anims, (void *(*)(int))Hunk_AllocXAnimClient);
     for ( ic = 0; ic < 8; ++ic )
     {
-        cgs->actorCorpseInfo[ic + 1].animInfo.legs.yawing = (int)XAnimCreateTree(anims, Hunk_AllocXAnimClient);
+        cgs->actorCorpseInfo[ic + 1].animInfo.legs.yawing = (int)XAnimCreateTree(anims, (void *(*)(int))Hunk_AllocXAnimClient);
         cgs->actorCorpseInfo[ic].animInfo.legs.animation = (animation_s *)-1;
     }
 }

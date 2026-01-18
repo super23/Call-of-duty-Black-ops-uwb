@@ -1,4 +1,8 @@
 #include "actor_lookat.h"
+#include <game_mp/actor_mp.h>
+#include "actor_animapi.h"
+#include <qcommon/dobj_management.h>
+#include <game_mp/g_main_mp.h>
 
 void __cdecl Actor_InitLookAt(actor_s *self)
 {
@@ -8,7 +12,7 @@ void __cdecl Actor_InitLookAt(actor_s *self)
     self->lookAtInfo.vLookAtPos[2] = 0.0f;
     self->lookAtInfo.fLookAtTurnAngle = 0.0f;
     self->lookAtInfo.fLookAtTurnSpeed = 0.0f;
-    self->lookAtInfo.fLookAtTurnAccel = FLOAT_120_0;
+    self->lookAtInfo.fLookAtTurnAccel = 120.0f;
     self->lookAtInfo.fLookAtAnimYawLimit = 90.0f;
     self->lookAtInfo.fLookAtYawLimit = 90.0f;
     self->lookAtInfo.bLookAtSetup = 0;
@@ -67,8 +71,8 @@ void __cdecl Actor_SetLookAtYawLimits(actor_s *self, float fAnimYawLimit, float 
         self->lookAtInfo.iLookAtBlendEndTime = level.time + (int)(float)(fBlendTime * 1000.0);
         if ( fBlendTime == 0.0 )
         {
-            self->lookAtInfo.fLookAtAnimBlendRate = FLOAT_9999_0;
-            self->lookAtInfo.fLookAtLimitBlendRate = FLOAT_9999_0;
+            self->lookAtInfo.fLookAtAnimBlendRate = 9999.0f;
+            self->lookAtInfo.fLookAtLimitBlendRate = 9999.0f;
         }
         else
         {
@@ -166,7 +170,7 @@ void __cdecl Actor_UpdateLookAt(actor_s *self)
         else
         {
             fLookYawTarget = AngleNormalize180(fBaseYaw - vAngles[1]);
-            if ( COERCE_FLOAT(LODWORD(fLookYawLimit) ^ _mask__NegFloat_) <= fLookYawTarget )
+            if ( (-(fLookYawLimit)) <= fLookYawTarget )
             {
                 if ( fLookYawTarget > fLookYawLimit )
                     fLookYawTarget = fLookYawLimit;

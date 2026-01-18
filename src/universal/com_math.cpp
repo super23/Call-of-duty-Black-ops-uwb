@@ -3541,9 +3541,9 @@ void __cdecl Vec4Copy(const float *from, float *to)
 
 void __cdecl Vec3Mad(const float *start, float scale, const float *dir, float *result)
 {
-    *result = (float)(scale * *dir) + *start;
-    result[1] = (float)(scale * dir[1]) + start[1];
-    result[2] = (float)(scale * dir[2]) + start[2];
+    result[0] = start[0] + (scale * dir[0]);
+    result[1] = start[1] + (scale * dir[1]);
+    result[2] = start[2] + (scale * dir[2]);
 }
 
 void __cdecl Vec3ScaleMad(float scale0, const float *dir0, float scale1, const float *dir1, float *result)

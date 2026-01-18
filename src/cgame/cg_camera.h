@@ -31,7 +31,7 @@ bool __cdecl CG_RenderPlayerFromMissilePOV(int localClientNum);
 bool __cdecl CG_ExtraCamViewActive(int localClientNum);
 bool __cdecl ShouldDoCameraTransition(cg_s *cgameGlob, CameraMode prevMode, CameraMode newMode, bool useTagCamera);
 CameraMode __cdecl CG_UpdateCameraMode(int localClientNum);
-int __cdecl CG_UpdateExtraCamMode(int localClientNum);
+CameraMode  __cdecl CG_UpdateExtraCamMode(int localClientNum);
 void __cdecl CG_ApplyViewAnimation(int localClientNum);
 double __cdecl CG_GetViewFov(int localClientNum);
 bool __cdecl CG_ShouldDefaultViewFov(int localClientNum);

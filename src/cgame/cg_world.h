@@ -80,3 +80,5 @@ bool __cdecl CG_SightTracePointInternal(int *hitNum, const float *start, const f
 bool __cdecl CG_SightTracePoint(int *hitNum, const float *start, const float *end, int mask, trace_t *trace);
 int __cdecl cmpr(float *e0, float *e1);
 int __cdecl CG_GetEntityBoneInfo(int entID, int boneIndex, float *bonePos, float (*boneAxis)[3], char **boneName);
+
+extern int cgCollWorldLocalClientNum;

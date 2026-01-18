@@ -1,5 +1,7 @@
 #pragma once
 
+#define POF_FOLLOW 2
+
 enum ClientViewViewportSize : __int32
 {                                       // XREF: ClientViewParams/r
     VIEWPORT_LARGE = 0x0,               // XREF: .data:clientViewParamsArray/s
@@ -40,7 +42,21 @@ struct ClientViewParams // sizeof=0x14
     ClientViewViewportSize viewportSize;
 };
 
+struct TestEffect // sizeof=0x54
+{                                       // XREF: .data:s_testEffect/r
+    char name[64];
+    float pos[3];
+    int time;
+    int respawnTime;
+};
+
 struct vehicle_info_t;
+struct centity_s;
+struct GfxDepthOfField;
+struct GfxDepthcg_sOfField;
+
+enum DemoType : __int32;
+enum CubemapShot : __int32;
 
 void __cdecl CG_DrawWaterTrail(int localClientNum, const float *pos, float waterHeight);
 int __cdecl CG_GetNextRippleTime(centity_s *cent);
@@ -170,3 +186,76 @@ void __cdecl CG_BlendSavedScreenShockFlashed(
 void __cdecl CG_ResetFullscreenFX(int localClientNum);
 
 float __cdecl CG_GetViewZoomScale();
+
+extern const dvar_t *cg_heliKillCamFov;
+extern const dvar_t *cg_heliKillCamNearBlur;
+extern const dvar_t *cg_heliKillCamFarBlur;
+extern const dvar_t *cg_heliKillCamFarBlurStart;
+extern const dvar_t *cg_heliKillCamFarBlurDist;
+extern const dvar_t *cg_heliKillCamNearBlurStart;
+extern const dvar_t *cg_heliKillCamNearBlurEnd;
+
+extern const dvar_t *cg_scriptedKillCamFov;
+extern const dvar_t *cg_scriptedKillCamCloseXYDist;
+extern const dvar_t *cg_scriptedKillCamCloseZDist;
+extern const dvar_t *cg_scriptedKillCamNearBlur;
+extern const dvar_t *cg_scriptedKillCamFarBlur;
+extern const dvar_t *cg_scriptedKillCamFarBlurStart;
+extern const dvar_t *cg_scriptedKillCamFarBlurDist;
+extern const dvar_t *cg_scriptedKillCamNearBlurStart;
+extern const dvar_t *cg_scriptedKillCamNearBlurEnd;
+
+extern const dvar_t *cg_destructibleKillCamFov;
+extern const dvar_t *cg_destructibleKillCamCloseXYDist;
+extern const dvar_t *cg_destructibleKillCamCloseZDist;
+extern const dvar_t *cg_destructibleKillCamNearBlur;
+extern const dvar_t *cg_destructibleKillCamFarBlur;
+extern const dvar_t *cg_destructibleKillCamFarBlurStart;
+extern const dvar_t *cg_destructibleKillCamFarBlurDist;
+extern const dvar_t *cg_destructibleKillCamNearBlurStart;
+extern const dvar_t *cg_destructibleKillCamNearBlurEnd;
+extern const dvar_t *cg_destructibleKillCamZIncrease;
+extern const dvar_t *cg_destructibleKillCamRegularHeight;
+
+extern const dvar_t *cg_explosiveKillCamUpDist;
+extern const dvar_t *cg_explosiveKillCamBackDist;
+extern const dvar_t *cg_explosiveKillCamWallOutDist;
+extern const dvar_t *cg_explosiveKillCamWallSideDist;
+extern const dvar_t *cg_explosiveKillCamGroundUpDist;
+extern const dvar_t *cg_explosiveKillCamGroundBackDist;
+extern const dvar_t *cg_explosiveKillCamStopDist;
+extern const dvar_t *cg_explosiveKillCamStopDecelDist;
+
+extern const dvar_t *cg_rocketKillCamUpDist;
+extern const dvar_t *cg_rocketKillCamBackDist;
+
+extern const dvar_t *cg_dogKillCamFov;
+extern const dvar_t *cg_dogKillCamForwardDist;
+extern const dvar_t *cg_dogKillCamUpDist;
+extern const dvar_t *cg_dogKillCamSideDist;
+extern const dvar_t *cg_dogKillCamDistFromEyes;
+extern const dvar_t *cg_dogKillMinDistFromTarget;
+
+extern const dvar_t *cg_artilleryKillCamFov;
+extern const dvar_t *cg_artilleryKillCamUpDist;
+extern const dvar_t *cg_artilleryKillCamBackDist;
+extern const dvar_t *cg_artilleryKillCamWallOutDist;
+extern const dvar_t *cg_artilleryKillCamWallSideDist;
+extern const dvar_t *cg_artilleryKillCamGroundUpDist;
+extern const dvar_t *cg_artilleryKillCamGroundBackDist;
+
+extern const dvar_t *cg_turretKillCamFov;
+extern const dvar_t *cg_turretKillCamCloseXYDist;
+extern const dvar_t *cg_turretKillCamCloseZDist;
+extern const dvar_t *cg_turretKillCamNearBlur;
+extern const dvar_t *cg_turretKillCamFarBlur;
+extern const dvar_t *cg_turretKillCamFarBlurStart;
+extern const dvar_t *cg_turretKillCamFarBlurDist;
+extern const dvar_t *cg_turretKillCamNearBlurStart;
+extern const dvar_t *cg_turretKillCamNearBlurEnd;
+extern const dvar_t *cg_turretKillCamHeightIncrease;
+extern const dvar_t *cg_turretKillCamBackOffset;
+extern const dvar_t *cg_turretKillCamSideOffset;
+extern const dvar_t *cg_turretKillCamDistanceIncrease;
+
+extern const dvar_t *cg_infraredBlurTime;

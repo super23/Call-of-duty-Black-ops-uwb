@@ -690,7 +690,7 @@ CameraMode __cdecl CG_UpdateCameraMode(int localClientNum)
     return newMode;
 }
 
-int __cdecl CG_UpdateExtraCamMode(int localClientNum)
+CameraMode __cdecl CG_UpdateExtraCamMode(int localClientNum)
 {
     CameraMode newMode; // [esp+0h] [ebp-4h]
 
@@ -698,7 +698,7 @@ int __cdecl CG_UpdateExtraCamMode(int localClientNum)
     if ( CG_ExtraCamViewActive(localClientNum) )
         newMode = CAM_EXTRACAM;
     if ( CG_RenderPlayerFromMissilePOV(localClientNum) )
-        return 6;
+        return CAM_MISSILE;
     return newMode;
 }
 

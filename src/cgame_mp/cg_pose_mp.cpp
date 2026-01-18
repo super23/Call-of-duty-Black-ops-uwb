@@ -3,6 +3,18 @@
 #include <ragdoll/ragdoll_controller.h>
 #include "cg_local_mp.h"
 #include <physics/xdoll.h>
+#include <universal/com_math_anglevectors.h>
+#include <cgame/cg_drawtools.h>
+#include <client_mp/cl_pose_mp.h>
+#include <xanim/dobj_skel.h>
+
+float recoilVec[3] = { -1.0, 0.0, 0.0 };
+float ysScale = 1.0f;
+float pcScale = 1.0f;
+float ycFwdScale = 1.0f;
+float pcFwdScale = -1.3f;
+
+
 
 void __cdecl BG_Player_DoControllers(const CEntPlayerInfo *player, const DObj *obj, int *partBits)
 {
@@ -74,7 +86,8 @@ void __cdecl CG_Actor_DoControllers(const cpose_t *pose, const DObj *obj, int *p
     {
         if ( DObjSetRotTransIndex(obj, partBits, 0) )
         {
-            v5 = pose->turret.$251974A72D8ACF7EC8C19B3B5F3F224B::angles.yaw * 0.0087266462;
+            //v5 = pose->turret.$251974A72D8ACF7EC8C19B3B5F3F224B::angles.yaw * 0.0087266462;
+            v5 = pose->actor.pitch * 0.0087266462;
             mat->quat[0] = 0.0f;
             mat->quat[2] = 0.0f;
             v3 = &mat->quat[1];
@@ -159,6 +172,7 @@ void __cdecl CG_Player_DoControllers(const cpose_t *pose, const DObj *obj, int *
     }
 }
 
+#if 0
 void    CG_Vehicle_DoControllers(const cpose_t *pose, const DObj *obj, int *partBits)
 {
     unsigned __int16 EntNum; // ax
@@ -362,7 +376,7 @@ void    CG_Vehicle_DoControllers(const cpose_t *pose, const DObj *obj, int *part
             if ( boneIndex < 0xFE && DObjSetRotTransIndex(obj, partBits, boneIndex) )
             {
                 mtx = &boneMtxList[boneIndex];
-                v35 = mtx->trans;
+                v35 = (float*)mtx->trans;
                 *(_QWORD *)trans.v = *(_QWORD *)mtx->trans;
                 trans.u[2] = LODWORD(mtx->trans[2]);
                 trans.u[3] = 0;
@@ -387,10 +401,10 @@ void    CG_Vehicle_DoControllers(const cpose_t *pose, const DObj *obj, int *part
                 partPos.v[0] = (float)(40.0 * axisZ.v[0]) + partPos.v[0];
                 partPos.v[1] = (float)(40.0 * axisZ.v[1]) + partPos.v[1];
                 partPos.v[2] = (float)(40.0 * axisZ.v[2]) + partPos.v[2];
-                v27 = v5 ^ _mask__NegFloat_;
-                partPos.v[0] = (float)(COERCE_FLOAT(v5 ^ _mask__NegFloat_) * axisZ.v[0]) + partPos.v[0];
-                partPos.v[1] = (float)(COERCE_FLOAT(v5 ^ _mask__NegFloat_) * axisZ.v[1]) + partPos.v[1];
-                partPos.v[2] = (float)(COERCE_FLOAT(v5 ^ _mask__NegFloat_) * axisZ.v[2]) + partPos.v[2];
+                v27 = -v5;
+                partPos.v[0] = (float)((-v5) * axisZ.v[0]) + partPos.v[0];
+                partPos.v[1] = (float)((-v5) * axisZ.v[1]) + partPos.v[1];
+                partPos.v[2] = (float)((-v5) * axisZ.v[2]) + partPos.v[2];
                 partPos.v[0] = partPos.v[0] - axisW.v[0];
                 partPos.v[1] = partPos.v[1] - axisW.v[1];
                 partPos.v[2] = partPos.v[2] - axisW.v[2];
@@ -432,6 +446,86 @@ void    CG_Vehicle_DoControllers(const cpose_t *pose, const DObj *obj, int *part
         }
     }
 }
+#endif
+void CG_Vehicle_DoControllers(const cpose_t *pose, const DObj *obj, int *partBits)
+{
+    iassert(obj);
+
+    float bodyAngles[3] = { 0 };
+    float turretAngles[4] = { 0 };
+    float barrelAngles[3] = { 0 };
+    float steerYaw = 0.0f;
+    float steerAnglesPitch[3] = { 0 };
+    float steerAnglesYaw[3] = { 0 };
+    float minigunAngles[3] = { 0 };
+    float barrelOffset[5] = { 0 };
+    float gunnerTurretAngles[12] = { 0 };
+    float gunnerBarrelAngles[4][3] = { 0 };
+
+    // Main vehicle angles
+    steerAnglesYaw[2] = pose->vehicle.pitch * 0.0054931641f;
+    bodyAngles[1] = pose->vehicle.roll * 0.0054931641f;
+    bodyAngles[2] = pose->vehicle.barrelPitch * 0.0054931641f;
+    turretAngles[0] = pose->vehicle.yaw * 0.0054931641f;
+    steerYaw = pose->vehicle.steerPitch * 0.0054931641f;
+
+    // Set main tags
+    DObjSetLocalTag(obj, partBits, pose->vehicle.tag_body, vec3_origin, &steerAnglesYaw[2]);
+    DObjSetLocalTag(obj, partBits, pose->vehicle.tag_turret, vec3_origin, &barrelAngles[2]);
+    DObjSetLocalTag(obj, partBits, pose->vehicle.tag_barrel, vec3_origin, &bodyAngles[2]);
+
+    // Barrel recoil
+    if (pose->vehicle.barrelRecoil > 0.0f) {
+        barrelOffset[2] = pose->vehicle.barrelRecoil;
+        minigunAngles[2] = barrelOffset[2] * recoilVec[0];
+        barrelOffset[0] = barrelOffset[2] * recoilVec[1];
+        barrelOffset[1] = barrelOffset[2] * recoilVec[2];
+        DObjSetLocalTag(obj, partBits, pose->vehicle.tag_barrel_recoil, &minigunAngles[2], vec3_origin);
+    }
+
+    // Minigun spin
+    if (pose->vehicle.tag_minigun_spin != 254) {
+        float spin = pose->vehicle.minigun_rotation * 0.0054931641f;
+        minigunAngles[1] = spin;
+        DObjSetLocalTag(obj, partBits, pose->vehicle.tag_minigun_spin, vec3_origin, &spin);
+    }
+
+    // Gunner wheels / turrets
+    for (int i = 0; i < 4; ++i) {
+        int boneIndex = pose->vehicle.tag_gunner_turret[i];
+        gunnerTurretAngles[i * 3] = pose->vehicle.gunnerYaw[i] * 0.0054931641f;
+        gunnerTurretAngles[i * 3 + 2] = pose->vehicle.gunnerPitch[i] * 0.0054931641f;
+
+        if (DObjSetRotTransIndex(obj, partBits, boneIndex)) {
+            DObjSetLocalTagInternal(obj, vec3_origin, &gunnerTurretAngles[i * 3], boneIndex);
+        }
+    }
+
+    // Wheels
+    for (int k = 0; k < 6; ++k) {
+        int wheelBone = pose->vehicle.wheelBoneIndex[k];
+        float wheelHeight = pose->vehicle.wheelHeight[k];
+        float wheelRotation = pose->vehicle.nitrousWheelRotation[k];
+
+        if (DObjSetRotTransIndex(obj, partBits, wheelBone)) {
+            float wheelPos[3] = { 0, 0, wheelHeight };
+            DObjSetLocalTagInternal(obj, wheelPos, &wheelRotation, wheelBone);
+        }
+    }
+
+    // Extra tank wheels
+    for (int m = 0; m < 4; ++m) {
+        int wheelBone = pose->vehicle.tag_extra_tank_wheels[m];
+        float angle = pose->vehicle.nitrousWheelRotation[m] * pose->vehicle.extra_wheel_rot_scale;
+        float wheelAngles[3] = { 0, 0, angle };
+
+        if (DObjSetRotTransIndex(obj, partBits, wheelBone)) {
+            DObjSetLocalTagInternal(obj, vec3_origin, &wheelAngles[2], wheelBone);
+        }
+    }
+}
+
+
 
 void __cdecl CG_mg42_DoControllers(const cpose_t *pose, const DObj *obj, int *partBits)
 {
@@ -461,8 +555,8 @@ void __cdecl CG_mg42_DoControllers(const cpose_t *pose, const DObj *obj, int *pa
     }
     else
     {
-        turretPitch = pose->turret.$251974A72D8ACF7EC8C19B3B5F3F224B::angles.pitch;
-        turretYaw = pose->turret.$251974A72D8ACF7EC8C19B3B5F3F224B::angles.yaw;
+        turretPitch = pose->turret.angles.pitch;
+        turretYaw = pose->turret.angles.yaw;
     }
     angles[2] = 0.0f;
     ofsDist = pose->player.waterHeight;
@@ -484,7 +578,7 @@ void __cdecl CG_mg42_DoControllers(const cpose_t *pose, const DObj *obj, int *pa
         ofs[2] = 0.0f;
         totOfs[0] = (float)(totOfs[0] + (float)(pc * ofsDist)) + ofs[0];
         totOfs[1] = (float)(totOfs[1] + 0.0) + ofs[1];
-        totOfs[2] = (float)(totOfs[2] + (float)(COERCE_FLOAT(LODWORD(ps) ^ _mask__NegFloat_) * ofsDist)) + 0.0;
+        totOfs[2] = (float)(totOfs[2] + (float)((-(ps)) * ofsDist)) + 0.0;
         if ( pose->turret.firingOffset != 0.0 )
         {
             AnglesToAxis(angles, axis);
@@ -492,9 +586,9 @@ void __cdecl CG_mg42_DoControllers(const cpose_t *pose, const DObj *obj, int *pa
             totOfs[0] = totOfs[0] + (float)(firingOffset * axis[0][0]);
             totOfs[1] = totOfs[1] + (float)(firingOffset * axis[0][1]);
             totOfs[2] = totOfs[2] + (float)(firingOffset * axis[0][2]);
-            LODWORD(ofsVec[0]) = COERCE_UNSIGNED_INT(firingOffset * axis[0][0]) ^ _mask__NegFloat_;
-            LODWORD(ofsVec[1]) = COERCE_UNSIGNED_INT(firingOffset * axis[0][1]) ^ _mask__NegFloat_;
-            LODWORD(ofsVec[2]) = COERCE_UNSIGNED_INT(firingOffset * axis[0][2]) ^ _mask__NegFloat_;
+            (ofsVec[0]) = -(firingOffset * axis[0][0]);
+            (ofsVec[1]) = -(firingOffset * axis[0][1]);
+            (ofsVec[2]) = -(firingOffset * axis[0][2]);
             DObjSetLocalTag(obj, partBits, pose->turret.tag_weapon, ofsVec, vec3_origin);
         }
         DObjSetLocalTag(obj, partBits, pose->turret.tag_aim, totOfs, angles);

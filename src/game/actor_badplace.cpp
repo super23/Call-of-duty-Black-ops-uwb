@@ -14,6 +14,8 @@
 #include "actor_team_move.h"
 #include "actor_animapi.h"
 
+#include <algorithm>
+
 struct _pendedBadPlace // sizeof=0x2C
 {                                       // XREF: .data:_pendedBadPlace * gPendendBadPlaces/r
     badplace_parms_t params;
@@ -557,12 +559,18 @@ int __cdecl Actor_BadPlace_FindSafeNodeOutsideBadPlace(actor_s *self, pathsort_t
             potentialNodes[potentialNodeCount++].node = node;
         }
     }
-    if ( potentialNodeCount > 1 )
-        std::_Sort<GfxCachedShaderText *,int,bool (__cdecl *)(GfxCachedShaderText const &,GfxCachedShaderText const &)>(
-            (GfxCachedShaderText *)potentialNodes,
-            (GfxCachedShaderText *)&potentialNodes[potentialNodeCount],
-            12 * potentialNodeCount / 12,
-            (bool (__cdecl *)(const GfxCachedShaderText *, const GfxCachedShaderText *))Path_CompareNodesIncreasing);
+
+    if (potentialNodeCount > 1)
+    {
+        //std::_Sort<GfxCachedShaderText *, int, bool(__cdecl *)(GfxCachedShaderText const &, GfxCachedShaderText const &)>(
+        //    (GfxCachedShaderText *)potentialNodes,
+        //    (GfxCachedShaderText *)&potentialNodes[potentialNodeCount],
+        //    12 * potentialNodeCount / 12,
+        //    (bool(__cdecl *)(const GfxCachedShaderText *, const GfxCachedShaderText *))Path_CompareNodesIncreasing);
+
+        std::sort(&potentialNodes[0], &potentialNodes[potentialNodeCount], Path_CompareNodesIncreasing);
+    }
+
     return potentialNodeCount;
 }
 

@@ -45,6 +45,7 @@
 #include <bgame/bg_dog_animations_mp.h>
 #include "cg_animtree_mp.h"
 #include <ragdoll/ragdoll_update.h>
+#include <physics/destructible.h>
 
 const unsigned short *controller_names[6] =
 {
@@ -662,7 +663,7 @@ DObj *__cdecl CG_ScriptMover_GetDObj(int localClientNum, centity_s *cent)
 
     if ( cent->destructible )
     {
-        model = Destructible_GetDDef(cent, localClientNum)->model;
+        model = Destructible_GetDDef(cent)->model;
     }
     else
     {
@@ -3491,7 +3492,7 @@ XAnim_s *__cdecl CG_GetMG42Anims(centity_s *cent)
         __debugbreak();
     }
     weapVariantDef = BG_GetWeaponVariantDef(cent->nextState.weapon);
-    pAnims = XAnimCreateAnims("MG42", 3, (void *(__cdecl *)(int))Hunk_AllocXAnimClient);
+    pAnims = XAnimCreateAnims("MG42", 3, Hunk_AllocXAnimClient);
     if ( !pAnims
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_ents_mp.cpp", 259, 0, "%s", "pAnims") )
     {
@@ -3694,7 +3695,8 @@ void __cdecl CG_ClearUnion(int localClientNum, centity_s *cent)
             break;
         case 0xCu:
         case 0xEu:
-            memset((unsigned __int8 *)&cent->pose.108, 0, sizeof(cent->pose.108));
+            //memset((unsigned __int8 *)&cent->pose.108, 0, sizeof(cent->pose.108));
+            memset(&cent->pose.vehicle, 0, sizeof(cent->pose.vehicle)); // biggest union member
             break;
         default:
             break;
@@ -3704,7 +3706,8 @@ void __cdecl CG_ClearUnion(int localClientNum, centity_s *cent)
 
 void __cdecl CG_SetUnionType(int localClientNum, centity_s *cent)
 {
-    memset((unsigned __int8 *)&cent->pose.108, 0, sizeof(cent->pose.108));
+    //memset((unsigned __int8 *)&cent->pose.108, 0, sizeof(cent->pose.108));
+    memset(&cent->pose.vehicle, 0, sizeof(cent->pose.vehicle)); // biggest union member
     switch ( cent->nextState.eType )
     {
         case 1:
@@ -3814,8 +3817,8 @@ $LN7_8:
         case ET_VEHICLE_CORPSE:
             //PIXBeginNamedEvent(-1, "CG_Vehicle");
             CG_Vehicle(localClientNum, cent);
-            if ( GetCurrentThreadId() != g_DXDeviceThread )
-                break;
+            //if ( GetCurrentThreadId() != g_DXDeviceThread )
+            //    break;
 LABEL_30:
             //D3DPERF_EndEvent();
             break;
@@ -4058,6 +4061,11 @@ void __cdecl CG_mg42(int localClientNum, centity_s *cent)
     }
 }
 
+//00000000 union LerpEntityStateActor::<unnamed_type_index> // sizeof=0x4
+//00000000 {                                       // XREF: LerpEntityStateActor/r
+//00000000     int actorNum;
+//00000000     int corpseNum;
+//00000000 };
 void __cdecl CG_Missile(int localClientNum, centity_s *cent)
 {
     unsigned int weapon; // esi
@@ -4066,15 +4074,16 @@ void __cdecl CG_Missile(int localClientNum, centity_s *cent)
     DObj *obj; // [esp+38h] [ebp-20h]
     entityState_s *s1; // [esp+3Ch] [ebp-1Ch]
     const cg_s *cgameGlob; // [esp+40h] [ebp-18h]
-    LerpEntityStateActor::<unnamed_type_index> time; // [esp+44h] [ebp-14h]
+    //  LerpEntityStateActor::<unnamed_type_index> time; // [esp+44h] [ebp-14h]
+    int time;
     float lightingOrigin[3]; // [esp+48h] [ebp-10h] BYREF
     const WeaponDef *weapDef; // [esp+54h] [ebp-4h]
 
     s1 = &cent->nextState;
     if ( (cent->nextState.lerp.eFlags & 0x20) == 0 )
     {
-        time.actorNum = CG_GetLocalClientGlobals(localClientNum)->time;
-        if ( cent->nextState.lerp.u.actor.actorNum <= time.actorNum )
+        time = CG_GetLocalClientGlobals(localClientNum)->time;
+        if ( cent->nextState.lerp.u.actor.actorNum <= time )
         {
             weapon = cent->nextState.weapon;
             if ( weapon >= BG_GetNumWeapons() )
@@ -4095,12 +4104,12 @@ void __cdecl CG_Missile(int localClientNum, centity_s *cent)
                     }
                     else
                     {
-                        cent->miscTime = time.actorNum;
+                        cent->miscTime = time;
                     }
                 }
                 else
                 {
-                    cent->miscTime = time.actorNum;
+                    cent->miscTime = time;
                 }
             }
             AliasId = SND_FindAliasId(weapDef->projectileSound);
@@ -4506,7 +4515,7 @@ float *__cdecl CG_GetEntityOrigin(int localClientNum, unsigned int entnum)
 
 GfxSkinCacheEntry *__cdecl CG_GetSkinCacheEntry(const cpose_t *pose)
 {
-    return &pose->skinCacheEntry;
+    return (GfxSkinCacheEntry*)&pose->skinCacheEntry;
 }
 
 void __cdecl CG_PredictiveSkinCEntity(GfxSceneEntity *sceneEnt)

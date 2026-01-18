@@ -3602,7 +3602,6 @@ void __cdecl CG_DrawDemoControls(int localClientNum, const rectDef_s *rect, Mate
 }
 
 void    CG_DrawPlayerImageSwing(
-                float a1@<ebp>,
                 int localClientNum,
                 const rectDef_s *rect,
                 const rectDef_s *parentRect,

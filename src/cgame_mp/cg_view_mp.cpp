@@ -1,11 +1,145 @@
 #include "cg_view_mp.h"
-
+#include "universal/q_shared.h"
 #include "cg_local_mp.h"
 #include "cg_main_mp.h"
 #include <EffectsCore/fx_system.h>
+#include <EffectsCore/fx_load_obj.h>
+#include <universal/com_math_anglevectors.h>
+#include "cg_vehicles_mp.h"
+#include <cgame/cg_camerashake.h>
+#include <bgame/bg_misc.h>
+#include <EffectsCore/fx_update.h>
+#include "cg_predict_mp.h"
+#include <gfx_d3d/r_dpvs.h>
+#include <client_mp/cl_scrn_mp.h>
+#include <bgame/bg_weapons_view.h>
+#include <demo/demo_playback.h>
+#include <gfx_d3d/r_adszscale.h>
+#include <qcommon/dobj_management.h>
+#include <clientscript/scr_const.h>
+#include "cg_ents_mp.h"
+#include <game/statindex.h>
+#include <cgame/cg_drawtools.h>
+#include <gfx_d3d/r_dvars.h>
+#include <client/splitscreen.h>
+#include <cgame/cg_draw_reticles.h>
+#include <qcommon/threads.h>
+#include <cgame/cg_world.h>
+#include <EffectsCore/fx_marks.h>
+#include <gfx_d3d/r_rope_render.h>
+#include "cg_draw_net_mp.h"
+#include <cgame/cg_main.h>
+#include "cg_snapshot_mp.h"
+#include <bgame/bg_wind.h>
+#include <cgame/cg_draw_indicators.h>
+#include <cgame/cg_bolt.h>
+#include <cgame/cg_compass.h>
+#include <aim_assist/aim_target.h>
+#include <client/cl_keys.h>
+#include <client_mp/cl_input_mp.h>
+#include "cg_scr_main_mp.h"
+#include <xanim/xanim_clientnotify.h>
+#include <cgame/cg_event.h>
+#include <cgame/cg_scr_main.h>
+#include <clientscript/cscr_vm.h>
+#include <sound/snd_public_async.h>
+#include <bgame/bg_fire.h>
+#include "cg_draw_mp.h"
+#include <ik/ik.h>
+#include <gfx_d3d/r_extracam.h>
+
+ClientViewParams clientViewParamsArray[1][1][1] = { { { { 0.0, 0.0, 1.0, 1.0, VIEWPORT_LARGE } } } };
+
+orientation_t orIdentity =
+{
+  { 0.0, 0.0, 0.0 },
+  { { 1.0, 0.0, 0.0 }, { 0.0, 1.0, 0.0 }, { 0.0, 0.0, 1.0 } }
+};
 
 static const float cg_shallowWaterLevel = 30.0f;
 
+static const float CAM_MINS[3] = { -4.0, -4.0, -4.0 };
+static const float CAM_MAXS[3] = { 4.0, 4.0, 4.0 };
+
+float devSavedAngles[3];
+float devSavedOrigin[3];
+
+
+const dvar_t *cg_heliKillCamFov;
+const dvar_t *cg_heliKillCamNearBlur;
+const dvar_t *cg_heliKillCamFarBlur;
+const dvar_t *cg_heliKillCamFarBlurStart;
+const dvar_t *cg_heliKillCamFarBlurDist;
+const dvar_t *cg_heliKillCamNearBlurStart;
+const dvar_t *cg_heliKillCamNearBlurEnd;
+
+const dvar_t *cg_scriptedKillCamFov;
+const dvar_t *cg_scriptedKillCamCloseXYDist;
+const dvar_t *cg_scriptedKillCamCloseZDist;
+const dvar_t *cg_scriptedKillCamNearBlur;
+const dvar_t *cg_scriptedKillCamFarBlur;
+const dvar_t *cg_scriptedKillCamFarBlurStart;
+const dvar_t *cg_scriptedKillCamFarBlurDist;
+const dvar_t *cg_scriptedKillCamNearBlurStart;
+const dvar_t *cg_scriptedKillCamNearBlurEnd;
+
+const dvar_t *cg_destructibleKillCamFov;
+const dvar_t *cg_destructibleKillCamCloseXYDist;
+const dvar_t *cg_destructibleKillCamCloseZDist;
+const dvar_t *cg_destructibleKillCamNearBlur;
+const dvar_t *cg_destructibleKillCamFarBlur;
+const dvar_t *cg_destructibleKillCamFarBlurStart;
+const dvar_t *cg_destructibleKillCamFarBlurDist;
+const dvar_t *cg_destructibleKillCamNearBlurStart;
+const dvar_t *cg_destructibleKillCamNearBlurEnd;
+const dvar_t *cg_destructibleKillCamZIncrease;
+const dvar_t *cg_destructibleKillCamRegularHeight;
+
+const dvar_t *cg_explosiveKillCamUpDist;
+const dvar_t *cg_explosiveKillCamBackDist;
+const dvar_t *cg_explosiveKillCamWallOutDist;
+const dvar_t *cg_explosiveKillCamWallSideDist;
+const dvar_t *cg_explosiveKillCamGroundUpDist;
+const dvar_t *cg_explosiveKillCamGroundBackDist;
+const dvar_t *cg_explosiveKillCamStopDist;
+const dvar_t *cg_explosiveKillCamStopDecelDist;
+
+const dvar_t *cg_rocketKillCamUpDist;
+const dvar_t *cg_rocketKillCamBackDist;
+
+const dvar_t *cg_dogKillCamFov;
+const dvar_t *cg_dogKillCamForwardDist;
+const dvar_t *cg_dogKillCamUpDist;
+const dvar_t *cg_dogKillCamSideDist;
+const dvar_t *cg_dogKillCamDistFromEyes;
+const dvar_t *cg_dogKillMinDistFromTarget;
+
+const dvar_t *cg_artilleryKillCamFov;
+const dvar_t *cg_artilleryKillCamUpDist;
+const dvar_t *cg_artilleryKillCamBackDist;
+const dvar_t *cg_artilleryKillCamWallOutDist;
+const dvar_t *cg_artilleryKillCamWallSideDist;
+const dvar_t *cg_artilleryKillCamGroundUpDist;
+const dvar_t *cg_artilleryKillCamGroundBackDist;
+
+const dvar_t *cg_turretKillCamFov;
+const dvar_t *cg_turretKillCamCloseXYDist;
+const dvar_t *cg_turretKillCamCloseZDist;
+const dvar_t *cg_turretKillCamNearBlur;
+const dvar_t *cg_turretKillCamFarBlur;
+const dvar_t *cg_turretKillCamFarBlurStart;
+const dvar_t *cg_turretKillCamFarBlurDist;
+const dvar_t *cg_turretKillCamNearBlurStart;
+const dvar_t *cg_turretKillCamNearBlurEnd;
+const dvar_t *cg_turretKillCamHeightIncrease;
+const dvar_t *cg_turretKillCamBackOffset;
+const dvar_t *cg_turretKillCamSideOffset;
+const dvar_t *cg_turretKillCamDistanceIncrease;
+
+const dvar_t *cg_infraredBlurTime;
+
+
+TestEffect s_testEffect[1];
 
 void __cdecl CG_DrawWaterTrail(int localClientNum, const float *pos, float waterHeight)
 {
@@ -271,12 +405,25 @@ void __cdecl CG_PlayTestFx(int localClientNum)
 
     testEffect = &s_testEffect[localClientNum];
     fxDef = FX_Register(testEffect->name);
+    //axis[0][0] = 0.0f;
+    //*(_QWORD *)&axis[0][1] = __PAIR64__(LODWORD(1.0f), 0);
+    //*(_QWORD *)&axis[1][0] = __PAIR64__(0, LODWORD(1.0f));
+    //axis[1][2] = 0.0f;
+    //*(_QWORD *)&axis[2][0] = __PAIR64__(LODWORD(1.0f), 0);
+    //axis[2][2] = 0.0f;
+
     axis[0][0] = 0.0f;
-    *(_QWORD *)&axis[0][1] = __PAIR64__(LODWORD(1.0f), 0);
-    *(_QWORD *)&axis[1][0] = __PAIR64__(0, LODWORD(1.0f));
+    axis[0][1] = 0.0f;
+    axis[0][2] = 1.0f;
+
+    axis[1][0] = 1.0f;
+    axis[1][1] = 0.0f;
     axis[1][2] = 0.0f;
-    *(_QWORD *)&axis[2][0] = __PAIR64__(LODWORD(1.0f), 0);
+
+    axis[2][0] = 0.0f;
+    axis[2][1] = 1.0f;
     axis[2][2] = 0.0f;
+
     time = CG_GetLocalClientGlobals(localClientNum)->time;
     FX_PlayOrientedEffect(localClientNum, fxDef, time, testEffect->pos, axis);
     testEffect->time = time;
@@ -902,6 +1049,8 @@ void __cdecl CG_GetTurretEntityOrgAngles(int localClientNum, float *origin, floa
     }
 }
 
+const float up[3] = { 0.0, 0.0, 1.0 };
+
 void __cdecl CG_UpdateVehicleKillCam(int localClientNum)
 {
     float v1; // [esp+8h] [ebp-98h]
@@ -1157,18 +1306,26 @@ void __cdecl CG_UpdateScriptedKillCam(int localClientNum)
         cgameGlob->refdefViewAngles[0] = scriptAngles[0];
         refdefViewAngles[1] = scriptAngles[1];
         refdefViewAngles[2] = scriptAngles[2];
-        sx = (float)cgameGlob->time / 600.0;
-        phase = crandom() * 3.1415927;
-        __libm_sse2_sin(v1);
-        cgameGlob->refdefViewAngles[0] = cgameGlob->refdefViewAngles[0]
-                                                                     + (float)((float)((float)((float)(25.132742 * sx) + phase) * 1.8) * 0.0020000001);
-        __libm_sse2_sin(v2);
-        cgameGlob->refdefViewAngles[1] = cgameGlob->refdefViewAngles[1]
-                                                                     + (float)((float)((float)((float)(47.12389 * sx) + phase) * 1.6) * 0.0020000001);
-        __libm_sse2_sin(v3);
-        cgameGlob->refdefViewAngles[2] = cgameGlob->refdefViewAngles[2]
-                                                                     + (float)((float)((float)((float)(37.699112 * sx) + phase) * 1.0) * 0.0020000001);
-        AnglesToAxis(cgameGlob->refdefViewAngles, cgameGlob->refdef.viewaxis);
+        //sx = (float)cgameGlob->time / 600.0;
+        //phase = crandom() * 3.1415927;
+        //__libm_sse2_sin(v1);
+        //cgameGlob->refdefViewAngles[0] = cgameGlob->refdefViewAngles[0]
+        //                                                             + (float)((float)((float)((float)(25.132742 * sx) + phase) * 1.8) * 0.0020000001);
+        //__libm_sse2_sin(v2);
+        //cgameGlob->refdefViewAngles[1] = cgameGlob->refdefViewAngles[1]
+        //                                                             + (float)((float)((float)((float)(47.12389 * sx) + phase) * 1.6) * 0.0020000001);
+        //__libm_sse2_sin(v3);
+        //cgameGlob->refdefViewAngles[2] = cgameGlob->refdefViewAngles[2]
+        //                                                             + (float)((float)((float)((float)(37.699112 * sx) + phase) * 1.0) * 0.0020000001);
+        //AnglesToAxis(cgameGlob->refdefViewAngles, cgameGlob->refdef.viewaxis);
+        sx = (float)cgameGlob->time * (1.0f / 600.0f);
+        phase = crandom() * 3.1415927f;
+
+        cgameGlob->refdefViewAngles[0] += sinf((25.132742f * sx) + phase) * 1.8f * 0.0020000001f;
+
+        cgameGlob->refdefViewAngles[1] += sinf((47.12389f * sx) + phase) * 1.6f * 0.0020000001f;
+
+        cgameGlob->refdefViewAngles[2] += sinf((37.699112f * sx) + phase) * 1.0f * 0.0020000001f;
     }
     distance = Vec3Normalize(delta);
     CG_CalcFov(localClientNum, cg_scriptedKillCamFov->current.value);
@@ -1192,7 +1349,7 @@ double __cdecl LookAtAxisAndDistance(const float *origin, const float *lookAt, f
     (*axis)[2] = lookAt[2] - origin[2];
     distance = Vec3Normalize((float *)axis);
     v6 = (*axis)[0];
-    LODWORD((*axis)[3]) = LODWORD((*axis)[1]) ^ _mask__NegFloat_;
+    ((*axis)[3]) = -((*axis)[1]);
     (*axis)[4] = v6;
     (*axis)[5] = 0.0f;
     if ( (*axis)[3] == 0.0 && (*axis)[4] == 0.0 )
@@ -1397,7 +1554,7 @@ void __cdecl CG_UpdateArtilleryKillCam(int localClientNum)
     left[0] = -delta[1];
     left[1] = delta[0];
     left[2] = 0.0f;
-    if ( COERCE_FLOAT(LODWORD(delta[1]) ^ _mask__NegFloat_) == 0.0 && left[1] == 0.0 )
+    if ( (-(delta[1])) == 0.0 && left[1] == 0.0 )
         left[0] = 1.0f;
     Vec3Normalize(left);
     Vec3Cross(delta, left, up);
@@ -1417,10 +1574,7 @@ void __cdecl CG_UpdateArtilleryKillCam(int localClientNum)
     if ( cgameGlob->killCamEntityRestState == KC_ENT_STUCK_WALL )
     {
         AngleVectors(bombAngles, 0, 0, wallNormal);
-        LODWORD(v18) = COERCE_UNSIGNED_INT(
-                                         (float)((float)(delta[0] * wallNormal[0]) + (float)(delta[1] * wallNormal[1]))
-                                     + (float)(delta[2] * wallNormal[2]))
-                                 ^ _mask__NegFloat_;
+        (v18) = -((float)((float)(delta[0] * wallNormal[0]) + (float)(delta[1] * wallNormal[1])) + (float)(delta[2] * wallNormal[2]));
         deltaProjectedToWall[0] = (float)(v18 * wallNormal[0]) + delta[0];
         deltaProjectedToWall[1] = (float)(v18 * wallNormal[1]) + delta[1];
         deltaProjectedToWall[2] = (float)(v18 * wallNormal[2]) + delta[2];
@@ -1439,7 +1593,7 @@ void __cdecl CG_UpdateArtilleryKillCam(int localClientNum)
         campos[0] = (float)(v15 * up[0]) + bombOrigin[0];
         campos[1] = (float)(v15 * up[1]) + bombOrigin[1];
         campos[2] = (float)(v15 * up[2]) + bombOrigin[2];
-        LODWORD(v14) = cg_artilleryKillCamGroundBackDist->current.integer ^ _mask__NegFloat_;
+        (v14) = -cg_artilleryKillCamGroundBackDist->current.value;
         campos[0] = (float)(v14 * delta[0]) + campos[0];
         campos[1] = (float)(v14 * delta[1]) + campos[1];
         campos[2] = (float)(v14 * delta[2]) + campos[2];
@@ -1450,7 +1604,7 @@ void __cdecl CG_UpdateArtilleryKillCam(int localClientNum)
         campos[0] = (float)(v13 * up[0]) + bombOrigin[0];
         campos[1] = (float)(v13 * up[1]) + bombOrigin[1];
         campos[2] = (float)(v13 * up[2]) + bombOrigin[2];
-        LODWORD(v12) = cg_artilleryKillCamBackDist->current.integer ^ _mask__NegFloat_;
+        (v12) = -cg_artilleryKillCamBackDist->current.value;
         campos[0] = (float)(v12 * delta[0]) + campos[0];
         campos[1] = (float)(v12 * delta[1]) + campos[1];
         campos[2] = (float)(v12 * delta[2]) + campos[2];
@@ -1565,11 +1719,7 @@ void __cdecl CG_UpdateArtilleryKillCam(int localClientNum)
         if ( trace.fraction < 1.0 )
         {
             Vec3Lerp(bombOrigin, campos, trace.fraction, isect);
-            LODWORD(v10) = COERCE_UNSIGNED_INT(
-                                             (float)((float)((float)(campos[0] - isect[0]) * trace.normal.vec.v[0])
-                                                         + (float)((float)(campos[1] - isect[1]) * trace.normal.vec.v[1]))
-                                         + (float)((float)(campos[2] - isect[2]) * trace.normal.vec.v[2]))
-                                     ^ _mask__NegFloat_;
+            (v10) = ((float)((float)((float)(campos[0] - isect[0]) * trace.normal.vec.v[0]) + (float)((float)(campos[1] - isect[1]) * trace.normal.vec.v[1])) + (float)((float)(campos[2] - isect[2]) * trace.normal.vec.v[2]));
             campos[0] = isect[0] + (float)((float)(v10 * trace.normal.vec.v[0]) + (float)(campos[0] - isect[0]));
             campos[1] = isect[1] + (float)((float)(v10 * trace.normal.vec.v[1]) + (float)(campos[1] - isect[1]));
             campos[2] = isect[2] + (float)((float)(v10 * trace.normal.vec.v[2]) + (float)(campos[2] - isect[2]));
@@ -1627,6 +1777,8 @@ void __cdecl CG_UpdateArtilleryKillCam(int localClientNum)
     CG_CalcFov(localClientNum, cg_artilleryKillCamFov->current.value);
 }
 
+
+float last_origin[3];
 void __cdecl CG_UpdateDogKillCam(int localClientNum)
 {
     double v1; // st7
@@ -1748,8 +1900,8 @@ void __cdecl CG_UpdateDogKillCam(int localClientNum)
     vieworg[1] = dogEyesOrigin[1];
     vieworg[2] = dogEyesOrigin[2];
     last_origin[0] = dogEyesOrigin[0];
-    dword_F5CEB8 = LODWORD(dogEyesOrigin[1]);
-    dword_F5CEBC = LODWORD(dogEyesOrigin[2]);
+    last_origin[1] = dogEyesOrigin[1];
+    last_origin[2] = dogEyesOrigin[2];
     Vec3Sub(lookAt, cgameGlob->refdef.vieworg, delta);
     distance = Vec3Normalize(delta);
     CG_UpdateScriptedKillCamDof(distance, &cgameGlob->refdef.dof);
@@ -1944,7 +2096,6 @@ void __cdecl CG_CalcViewValues(int localClientNum)
     cg_s *cgameGlob; // [esp+84h] [ebp-Ch]
     float uiBlurRadius; // [esp+88h] [ebp-8h]
     playerState_s *ps; // [esp+8Ch] [ebp-4h]
-    int savedregs; // [esp+90h] [ebp+0h] BYREF
 
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     cgameGlob->refdef.zNear = 0.0f;
@@ -1954,13 +2105,12 @@ void __cdecl CG_CalcViewValues(int localClientNum)
     cgameGlob->refdef.noLodCullOut = 0;
     uiBlurRadius = CL_GetMenuBlurRadius(localClientNum);
     cgameGlob->refdef.blurRadius = sqrtf(
-                                                                     (float)(*(float *)&dword_EC0BD4[1546 * localClientNum]
-                                                                                 * *(float *)&dword_EC0BD4[1546 * localClientNum])
-                                                                 + (float)(uiBlurRadius * uiBlurRadius));
+        (float)(cgDC[localClientNum].blurRadiusOut * cgDC[localClientNum].blurRadiusOut)
+        + (float)(uiBlurRadius * uiBlurRadius));
     camMode = CG_UpdateCameraMode(localClientNum);
     CG_CalcFov(localClientNum, -1.0);
     CG_VisionSetApplyToRefdef(localClientNum, 0);
-    if ( cgameGlob->cubemapShot )
+    if (cgameGlob->cubemapShot)
     {
         CG_CalcFov(localClientNum, -1.0);
         CG_CalcCubemapViewValues(cgameGlob);
@@ -1969,7 +2119,7 @@ void __cdecl CG_CalcViewValues(int localClientNum)
     {
         CG_CalcVrect(localClientNum);
         ps = &cgameGlob->predictedPlayerState;
-        if ( cgameGlob->predictedPlayerState.pm_type == 5 )
+        if (cgameGlob->predictedPlayerState.pm_type == 5)
         {
             vieworg = cgameGlob->refdef.vieworg;
             origin = ps->origin;
@@ -1983,7 +2133,7 @@ void __cdecl CG_CalcViewValues(int localClientNum)
             refdefViewAngles[2] = viewangles[2];
             AnglesToAxis(cgameGlob->refdefViewAngles, cgameGlob->refdef.viewaxis);
         }
-        else if ( Demo_IsPlaying() && ps->pm_type == 4 && !Demo_IsMovieCamera() && ps->stats[4] < 2 )
+        else if (Demo_IsPlaying() && ps->pm_type == 4 && !Demo_IsMovieCamera() && ps->stats[4] < 2)
         {
             v17 = cgameGlob->refdef.vieworg;
             v18 = ps->origin;
@@ -1997,7 +2147,7 @@ void __cdecl CG_CalcViewValues(int localClientNum)
             v15[2] = v16[2];
             AnglesToAxis(cgameGlob->refdefViewAngles, cgameGlob->refdef.viewaxis);
         }
-        else if ( CG_KillCamEntityEnabled(localClientNum) )
+        else if (CG_KillCamEntityEnabled(localClientNum))
         {
             CG_UpdateKillCamEntity(cgameGlob->killCamEntityType, localClientNum);
             CG_VisionSetApplyToRefdef(localClientNum, 0);
@@ -2005,9 +2155,9 @@ void __cdecl CG_CalcViewValues(int localClientNum)
         else
         {
             cgameGlob->fBobCycle = BG_GetBobCycle(ps);
-            if ( (ps->pm_flags & 8) != 0 )
+            if ((ps->pm_flags & 8) != 0)
             {
-                if ( cgameGlob->time - ps->jumpTime >= 500 )
+                if (cgameGlob->time - ps->jumpTime >= 500)
                     v14 = ps->velocity[2];
                 else
                     v14 = 0.0f;
@@ -2022,11 +2172,11 @@ void __cdecl CG_CalcViewValues(int localClientNum)
             cgameGlob->refdef.vieworg[0] = ps->origin[0];
             v12[1] = v13[1];
             v12[2] = v13[2];
-            if ( !cgameGlob->playerTeleported
+            if (!cgameGlob->playerTeleported
                 && (!cgameGlob->nextSnap->ps.pm_type
-                 || cgameGlob->nextSnap->ps.pm_type == 2
-                 || cgameGlob->nextSnap->ps.pm_type == 3)
-                && cgameGlob->renderingThirdPerson == TP_OFF )
+                    || cgameGlob->nextSnap->ps.pm_type == 2
+                    || cgameGlob->nextSnap->ps.pm_type == 3)
+                && cgameGlob->renderingThirdPerson == TP_OFF)
             {
                 CG_SmoothCameraZ(cgameGlob);
             }
@@ -2035,31 +2185,31 @@ void __cdecl CG_CalcViewValues(int localClientNum)
             cgameGlob->refdefViewAngles[0] = ps->viewangles[0];
             v10[1] = v11[1];
             v10[2] = v11[2];
-            switch ( camMode )
+            switch (camMode)
             {
-                case CAM_VEHICLE:
-                    CG_CalcVehicleViewValues(localClientNum);
-                    v8 = cgameGlob->refdefViewAngles;
-                    v9 = ps->viewangles;
-                    cgameGlob->refdefViewAngles[0] = ps->viewangles[0];
-                    v8[1] = v9[1];
-                    v8[2] = v9[2];
-                    break;
-                case CAM_VEHICLE_THIRDPERSON:
-                    CG_Calc3rdPersonVehicleViewValues(localClientNum);
-                    break;
-                case CAM_MISSILE:
-                    CG_CalcMissileViewValues(localClientNum);
-                    break;
-                case CAM_EXTRACAM:
-                    CG_CalcExtraCamViewValues(localClientNum);
-                    break;
+            case CAM_VEHICLE:
+                CG_CalcVehicleViewValues(localClientNum);
+                v8 = cgameGlob->refdefViewAngles;
+                v9 = ps->viewangles;
+                cgameGlob->refdefViewAngles[0] = ps->viewangles[0];
+                v8[1] = v9[1];
+                v8[2] = v9[2];
+                break;
+            case CAM_VEHICLE_THIRDPERSON:
+                CG_Calc3rdPersonVehicleViewValues(localClientNum);
+                break;
+            case CAM_MISSILE:
+                CG_CalcMissileViewValues(localClientNum);
+                break;
+            case CAM_EXTRACAM:
+                CG_CalcExtraCamViewValues(localClientNum);
+                break;
             }
-            if ( camMode != CAM_VEHICLE && camMode != CAM_VEHICLE_THIRDPERSON && cg_errorDecay->current.value > 0.0 )
+            if (camMode != CAM_VEHICLE && camMode != CAM_VEHICLE_THIRDPERSON && cg_errorDecay->current.value > 0.0)
             {
                 t = cgameGlob->time - cgameGlob->predictedErrorTime;
                 f = (float)(cg_errorDecay->current.value - (float)t) / cg_errorDecay->current.value;
-                if ( f <= 0.0 || f >= 1.0 )
+                if (f <= 0.0 || f >= 1.0)
                 {
                     cgameGlob->predictedErrorTime = 0;
                 }
@@ -2073,37 +2223,37 @@ void __cdecl CG_CalcViewValues(int localClientNum)
                     v5[2] = (float)(f * predictedError[2]) + v7[2];
                 }
             }
-            switch ( camMode )
+            switch (camMode)
             {
-                case CAM_TURRET:
-                    CG_CalcTurretViewValues(localClientNum);
-                    break;
-                case CAM_VEHICLE:
-                case CAM_VEHICLE_THIRDPERSON:
-                    CG_OffsetVehicleView(localClientNum, camMode);
-                    break;
-                case CAM_VEHICLE_GUNNER:
-                    cgameGlob->refdef.noLodCullOut = 1;
-                    CG_OffsetVehicleGunner(localClientNum, cgameGlob);
-                    break;
-                default:
-                    if ( camMode != CAM_EXTRACAM && camMode != CAM_MISSILE )
+            case CAM_TURRET:
+                CG_CalcTurretViewValues(localClientNum);
+                break;
+            case CAM_VEHICLE:
+            case CAM_VEHICLE_THIRDPERSON:
+                CG_OffsetVehicleView(localClientNum, camMode);
+                break;
+            case CAM_VEHICLE_GUNNER:
+                cgameGlob->refdef.noLodCullOut = 1;
+                CG_OffsetVehicleGunner(localClientNum, cgameGlob);
+                break;
+            default:
+                if (camMode != CAM_EXTRACAM && camMode != CAM_MISSILE)
+                {
+                    if (camMode == CAM_RADIANT)
                     {
-                        if ( camMode == CAM_RADIANT )
-                        {
-                            CG_RadiantCamCalcView(localClientNum);
-                        }
-                        else if ( cgameGlob->renderingThirdPerson != TP_FOR_MODEL )
-                        {
-                            CG_OffsetFirstPersonView(cgameGlob);
-                        }
+                        CG_RadiantCamCalcView(localClientNum);
                     }
-                    break;
+                    else if (cgameGlob->renderingThirdPerson != TP_FOR_MODEL)
+                    {
+                        CG_OffsetFirstPersonView(cgameGlob);
+                    }
+                }
+                break;
             }
             CG_ShakeCamera(localClientNum);
             CG_CalcFov(localClientNum, -1.0);
             CG_UpdateCameraTween(localClientNum);
-            if ( camMode == CAM_MISSILE )
+            if (camMode == CAM_MISSILE)
             {
                 CG_CalcMissileAngleValues(localClientNum);
                 lastViewAngles = cgameGlob->cameraData.lastViewAngles;
@@ -2114,21 +2264,21 @@ void __cdecl CG_CalcViewValues(int localClientNum)
             }
             AnglesToAxis(cgameGlob->refdefViewAngles, cgameGlob->refdef.viewaxis);
             CG_ApplyViewAnimation(localClientNum);
-            if ( cgameGlob->renderingThirdPerson == TP_FOR_MODEL && CG_ShouldRenderThirdPerson(camMode) )
+            if (cgameGlob->renderingThirdPerson == TP_FOR_MODEL && CG_ShouldRenderThirdPerson(camMode))
             {
-                CG_OffsetThirdPersonView((DObj *)&savedregs, localClientNum);
+                CG_OffsetThirdPersonView(localClientNum);
             }
-            else if ( camMode == CAM_VEHICLE && (ps->otherFlags & 2) != 0 && cgameGlob->renderingThirdPerson == TP_FOR_MODEL )
+            else if (camMode == CAM_VEHICLE && (ps->otherFlags & 2) != 0 && cgameGlob->renderingThirdPerson == TP_FOR_MODEL)
             {
-                CG_OffsetChaseCamView((clientActive_t *)&savedregs, localClientNum, camMode);
+                CG_OffsetChaseCamView(localClientNum, camMode);
             }
             CG_PerturbCamera(cgameGlob);
-            if ( (float)((float)(cg_adsZScaleMax->current.value - (float)(ps->fWeaponPosFrac * ps->fWeaponPosFrac)) - 1.0) < 0.0 )
+            if ((float)((float)(cg_adsZScaleMax->current.value - (float)(ps->fWeaponPosFrac * ps->fWeaponPosFrac)) - 1.0) < 0.0)
                 v1 = cg_adsZScaleMax->current.value - (float)(ps->fWeaponPosFrac * ps->fWeaponPosFrac);
             else
                 v1 = 1.0f;
             R_SetADSZScale(localClientNum, v1);
-            if ( cg_thirdPerson->current.integer && cg_thirdPersonMode->current.integer == 2 )
+            if (cg_thirdPerson->current.integer && cg_thirdPersonMode->current.integer == 2)
             {
                 AnglesToAxis(devSavedAngles, cgameGlob->refdef.viewaxis);
                 v2 = cgameGlob->refdef.vieworg;
@@ -2156,7 +2306,8 @@ void __cdecl CG_DevSaveCamera(float *angles, float *origin)
     devSavedOrigin[2] = origin[2];
 }
 
-void    CG_OffsetChaseCamView(clientActive_t *a1@<ebp>, int localClientNum, CameraMode camMode)
+#if 0
+void    CG_OffsetChaseCamView(int localClientNum, CameraMode camMode)
 {
     long double v3; // [esp+4h] [ebp-9Ch]
     long double v4; // [esp+Ch] [ebp-94h] BYREF
@@ -2263,9 +2414,94 @@ void    CG_OffsetChaseCamView(clientActive_t *a1@<ebp>, int localClientNum, Came
         AnglesToAxis(forward, LocalClientGlobals->refdef.viewaxis);
     }
 }
+#endif
 
-// local variable allocation has failed, the output may be wrong!
-void    CG_OffsetThirdPersonView(DObj *a1@<ebp>, int localClientNum)
+// aislop used after fixing stack in IDA
+void CG_OffsetChaseCamView(int localClientNum, CameraMode camMode)
+{
+    cg_s *cgameGlob;
+    clientActive_t *cl;
+    float viewAngles[3];
+    float focusAngles[3];
+    float forward[3], right[3], up[3];
+    float focusPoint[3];
+    float view[3];
+    float focusDist, horizDist;
+    float thirdPersonRange;
+
+    cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+
+    iassert(Demo_IsThirdPersonCamera() || cgameGlob->predictedPlayerState.otherFlags & POF_FOLLOW);
+
+    if (cg_thirdPersonMode->current.integer == 2)
+    {
+        AnglesToAxis(devSavedAngles, cgameGlob->refdef.viewaxis);
+        Vec3Copy(devSavedOrigin, cgameGlob->refdef.vieworg);
+        return;
+    }
+
+    if (Demo_IsClipPlaying() || Demo_IsClipPreviewRunning())
+        Demo_LerpClipCameraValues(localClientNum);
+
+    cl = CL_GetLocalClientGlobals(localClientNum);
+
+    Vec3Copy(cl->viewangles, viewAngles);
+    Vec3Copy(cl->viewangles, focusAngles);
+
+    if (cg_thirdPersonMode->current.integer == 1)
+    {
+        viewAngles[YAW] += cgameGlob->refdefViewAngles[YAW];
+        focusAngles[YAW] += cgameGlob->refdefViewAngles[YAW];
+    }
+
+    viewAngles[YAW] = AngleNormalize180(viewAngles[YAW]);
+    focusAngles[YAW] = AngleNormalize180(focusAngles[YAW]);
+
+    AngleVectors(viewAngles, forward, right, up);
+
+    // focus point 512 units forward
+    Vec3Mad(cgameGlob->refdef.vieworg, 512.0f, forward, focusPoint);
+
+    Vec3Copy(cgameGlob->refdef.vieworg, view);
+
+    // delta from view to focus
+    focusPoint[0] -= view[0];
+    focusPoint[1] -= view[1];
+    focusPoint[2] -= view[2];
+
+    horizDist = sqrtf(focusPoint[0] * focusPoint[0] + focusPoint[1] * focusPoint[1]);
+    if (horizDist < 1.0f)
+        horizDist = 1.0f;
+
+    viewAngles[PITCH] = -atan2f(focusPoint[2], horizDist) * 57.295776f;
+
+    focusAngles[PITCH] -= cg_thirdPersonAngle->current.value;
+
+    AngleVectors(viewAngles, forward, right, up);
+
+    thirdPersonRange = cg_thirdPersonRange->current.value;
+
+    if (camMode == CAM_VEHICLE && cgameGlob->renderingThirdPerson == TP_FOR_MODEL)
+        thirdPersonRange = 512.0f;
+
+    Vec3Mad(view, -thirdPersonRange, forward, view);
+
+    ThirdPersonViewTrace(
+        cgameGlob,
+        cgameGlob->refdef.vieworg,
+        view,
+        0x2818011,
+        cgameGlob->refdef.vieworg,
+        true,
+        true);
+
+    AnglesToAxis(viewAngles, cgameGlob->refdef.viewaxis);
+}
+
+
+// this function is actually in jedi academy, albeit quite different
+#if 0
+void    CG_OffsetThirdPersonView(int localClientNum)
 {
     float v2; // xmm0_4
     double v3; // xmm0_8
@@ -2409,6 +2645,153 @@ void    CG_OffsetThirdPersonView(DObj *a1@<ebp>, int localClientNum)
         AnglesToAxis(&focusAngles[1], (float (*)[3])(LODWORD(tagMtx[3][2]) + 274156));
     }
 }
+#endif
+
+void CG_OffsetThirdPersonView(int localClientNum)
+{
+    cg_s *cgameGlob;
+    float forward[3];
+    float focusPoint[3];
+    float view[3];
+    float focusAngles[3];
+    float corpseCent[3];
+    float tagMtx[3][3];
+    float focusDist;
+    float dist;
+
+    cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+
+    /* dev third person override */
+    if (cg_thirdPersonMode->current.integer == 2)
+    {
+        AnglesToAxis(devSavedAngles, cgameGlob->refdef.viewaxis);
+        Vec3Copy(devSavedOrigin, cgameGlob->refdef.vieworg);
+        return;
+    }
+
+    /* normal head tag positioning */
+    if (!(cgameGlob->predictedPlayerState.eFlags & 0x300))
+    {
+        DObj *obj = Com_GetClientDObj(cgameGlob->predictedPlayerState.clientNum, localClientNum);
+        if (!obj ||
+            !CG_DObjGetWorldTagMatrix(
+                &cgameGlob->predictedPlayerEntity.pose,
+                obj,
+                scr_const.j_head,
+                tagMtx,
+                corpseCent))
+        {
+            return;
+        }
+
+        Vec3Copy(corpseCent, cgameGlob->refdef.vieworg);
+    }
+
+    /* corpse camera override */
+    if (cgameGlob->predictedPlayerState.pm_type >= 9 &&
+        cgameGlob->predictedPlayerState.corpseIndex >= 0)
+    {
+        if (cgameGlob->predictedPlayerState.corpseIndex >= 4)
+        {
+            if (!Assert_MyHandler(
+                "cg_view_mp.cpp",
+                743,
+                0,
+                "cgameGlob->predictedPlayerState.corpseIndex doesn't index MAX_CLIENT_CORPSES\n\t%i not in [0, %i)",
+                cgameGlob->predictedPlayerState.corpseIndex,
+                4))
+            {
+                __debugbreak();
+            }
+        }
+
+        if (cgameGlob->predictedPlayerState.corpseIndex < 4)
+        {
+            centity_s *cent =
+                CG_GetEntity(localClientNum,
+                    cgameGlob->predictedPlayerState.corpseIndex + 32);
+
+            //if ((cent->flags >> 1) & 1)
+            if (cent->currentState.eFlags & 2)
+            {
+                DObj *obj = Com_GetClientDObj(cent->nextState.number, localClientNum);
+                if (obj)
+                {
+                    CG_DObjGetWorldTagPos(
+                        &cent->pose,
+                        obj,
+                        scr_const.j_mainroot,
+                        cgameGlob->refdef.vieworg);
+                }
+            }
+        }
+    }
+
+    /* chase cam */
+    if ((cgameGlob->predictedPlayerState.otherFlags & 2) ||
+        Demo_IsThirdPersonCamera())
+    {
+        CG_OffsetChaseCamView(localClientNum, CAM_NORMAL);
+        return;
+    }
+
+    /* base focus angles */
+    Vec3Copy(cgameGlob->refdefViewAngles, focusAngles);
+
+    if (cg_thirdPerson->current.integer == 2)
+    {
+        focusAngles[PITCH] = 0.0f;
+        focusAngles[YAW] = 0.0f;
+    }
+
+    if (cgameGlob->predictedPlayerState.pm_type >= 9)
+    {
+        focusAngles[YAW] = (float)cgameGlob->predictedPlayerState.stats[STAT_DEAD_YAW];
+        focusAngles[PITCH] = (float)cgameGlob->predictedPlayerState.stats[STAT_DEAD_YAW];
+    }
+
+    if (focusAngles[PITCH] > 45.0f)
+        focusAngles[PITCH] = 45.0f;
+
+    AngleVectors(focusAngles, forward, NULL, NULL);
+
+    /* desired camera target */
+    Vec3Mad(cgameGlob->refdef.vieworg, 512.0f, forward, view);
+
+    view[2] += 8.0f;
+
+    /* adjust angles */
+    focusAngles[PITCH] *= 0.5f;
+    focusAngles[YAW] -= cg_thirdPersonAngle->current.value;
+
+    AngleVectors(focusAngles, forward, NULL, NULL);
+
+    focusDist = -cg_thirdPersonRange->current.value;
+
+    Vec3Mad(cgameGlob->refdef.vieworg, focusDist, forward, view);
+
+    /* trace */
+    ThirdPersonViewTrace(
+        cgameGlob,
+        cgameGlob->refdef.vieworg,
+        view,
+        0x800811,//CONTENTS_SOLID,
+        cgameGlob->refdef.vieworg,
+        true,
+        true);
+
+    /* compute view angles from delta */
+    Vec3Sub(view, cgameGlob->refdef.vieworg, view);
+
+    dist = sqrtf(view[0] * view[0] + view[1] * view[1]);
+    if (dist < 1.0f)
+        dist = 1.0f;
+
+    focusAngles[PITCH] = -atan2f(view[2], dist) * 57.295776f;
+
+    AnglesToAxis(focusAngles, cgameGlob->refdef.viewaxis);
+}
+
 
 void __cdecl CG_CalcVrect(int localClientNum)
 {
@@ -2615,6 +2998,12 @@ void __cdecl CG_CalcCubemapViewValues(cg_s *cgameGlob)
     }
 }
 
+int swayTime[1];
+float swayViewAngles_1[1][3];
+float swayOffset_1[1][3];
+float swayAngles_1[1][3];
+float swayScale = 2.0f;
+
 void __cdecl CG_CalcTurretViewValues(int localClientNum)
 {
     float v1; // [esp+10h] [ebp-6Ch]
@@ -2655,7 +3044,7 @@ void __cdecl CG_CalcTurretViewValues(int localClientNum)
         if ( obj )
         {
             if ( !CG_DObjGetWorldTagPos(&cent->pose, obj, scr_const.tag_player, cgameGlob->refdef.vieworg) )
-                Com_Error(ERR_DROP, &byte_C93100);
+                Com_Error(ERR_DROP, "Turret has no bone: tag_player");
             weapDef = BG_GetWeaponDef(cent->nextState.weapon);
             if ( cgameGlob->renderingThirdPerson == TP_OFF )
             {
@@ -2691,11 +3080,11 @@ void __cdecl CG_CalcTurretViewValues(int localClientNum)
             cgameGlob->refdef.vieworg[0] = (float)(v3 * vAxis[0][0]) + cgameGlob->refdef.vieworg[0];
             cgameGlob->refdef.vieworg[1] = (float)(v3 * vAxis[0][1]) + cgameGlob->refdef.vieworg[1];
             cgameGlob->refdef.vieworg[2] = (float)(v3 * vAxis[0][2]) + cgameGlob->refdef.vieworg[2];
-            v2 = *(float *)&dword_F5CEC4[3 * localClientNum];
+            v2 = swayOffset_1[localClientNum][1];
             cgameGlob->refdef.vieworg[0] = (float)(v2 * vAxis[1][0]) + cgameGlob->refdef.vieworg[0];
             cgameGlob->refdef.vieworg[1] = (float)(v2 * vAxis[1][1]) + cgameGlob->refdef.vieworg[1];
             cgameGlob->refdef.vieworg[2] = (float)(v2 * vAxis[1][2]) + cgameGlob->refdef.vieworg[2];
-            LODWORD(v1) = dword_F5CEC8[3 * localClientNum] ^ _mask__NegFloat_;
+            (v1) = -(swayOffset_1[localClientNum][2]);
             cgameGlob->refdef.vieworg[0] = (float)(v1 * vAxis[2][0]) + cgameGlob->refdef.vieworg[0];
             cgameGlob->refdef.vieworg[1] = (float)(v1 * vAxis[2][1]) + cgameGlob->refdef.vieworg[1];
             cgameGlob->refdef.vieworg[2] = (float)(v1 * vAxis[2][2]) + cgameGlob->refdef.vieworg[2];
@@ -2808,9 +3197,9 @@ void __cdecl CG_UpdateHelicopterKillCam(KillCamEntityType killCamEntityType, int
                         v3) )
             __debugbreak();
     }
-    origin[0] = (float)(COERCE_FLOAT(LODWORD(backdist) ^ _mask__NegFloat_) * delta[0]) + origin[0];
-    origin[1] = (float)(COERCE_FLOAT(LODWORD(backdist) ^ _mask__NegFloat_) * delta[1]) + origin[1];
-    origin[2] = (float)(COERCE_FLOAT(LODWORD(backdist) ^ _mask__NegFloat_) * delta[2]) + origin[2];
+    origin[0] = (float)((-(backdist)) * delta[0]) + origin[0];
+    origin[1] = (float)((-(backdist)) * delta[1]) + origin[1];
+    origin[2] = (float)((-(backdist)) * delta[2]) + origin[2];
     origin[0] = (float)(updist * up[0]) + origin[0];
     origin[1] = (float)(updist * up[1]) + origin[1];
     origin[2] = (float)(updist * up[2]) + origin[2];
@@ -2995,7 +3384,7 @@ void __cdecl CG_UpdateExplosiveKillCam(int localClientNum, KillCamEntityType kil
     left[0] = -delta[1];
     left[1] = delta[0];
     left[2] = 0.0f;
-    if ( COERCE_FLOAT(LODWORD(delta[1]) ^ _mask__NegFloat_) == 0.0 && left[1] == 0.0 )
+    if ( (-(delta[1])) == 0.0 && left[1] == 0.0 )
         left[0] = 1.0f;
     Vec3Normalize(left);
     Vec3Cross(delta, left, up);
@@ -3018,7 +3407,7 @@ void __cdecl CG_UpdateExplosiveKillCam(int localClientNum, KillCamEntityType kil
         campos[0] = (float)(value * up[0]) + bombOrigin[0];
         campos[1] = (float)(value * up[1]) + bombOrigin[1];
         campos[2] = (float)(value * up[2]) + bombOrigin[2];
-        LODWORD(v17) = cg_explosiveKillCamGroundBackDist->current.integer ^ _mask__NegFloat_;
+        (v17) = -cg_explosiveKillCamGroundBackDist->current.value;
         campos[0] = (float)(v17 * delta[0]) + campos[0];
         campos[1] = (float)(v17 * delta[1]) + campos[1];
         campos[2] = (float)(v17 * delta[2]) + campos[2];
@@ -3029,7 +3418,7 @@ void __cdecl CG_UpdateExplosiveKillCam(int localClientNum, KillCamEntityType kil
         campos[0] = (float)(v16 * up[0]) + bombOrigin[0];
         campos[1] = (float)(v16 * up[1]) + bombOrigin[1];
         campos[2] = (float)(v16 * up[2]) + bombOrigin[2];
-        LODWORD(v15) = cg_explosiveKillCamBackDist->current.integer ^ _mask__NegFloat_;
+        (v15) = -cg_explosiveKillCamBackDist->current.value;
         campos[0] = (float)(v15 * delta[0]) + campos[0];
         campos[1] = (float)(v15 * delta[1]) + campos[1];
         campos[2] = (float)(v15 * delta[2]) + campos[2];
@@ -3219,7 +3608,7 @@ double __cdecl LookAtBothPoints(const float *point1, const float *point2, const 
     }
     Vec3NormalizeTo(lookDir, (float *)lookaxis);
     v7 = (*lookaxis)[0];
-    LODWORD((*lookaxis)[3]) = LODWORD((*lookaxis)[1]) ^ _mask__NegFloat_;
+    ((*lookaxis)[3]) = -((*lookaxis)[1]);
     (*lookaxis)[4] = v7;
     (*lookaxis)[5] = 0.0f;
     if ( (*lookaxis)[3] == 0.0 && (*lookaxis)[4] == 0.0 )
@@ -3241,6 +3630,8 @@ double __cdecl LookAtBothPoints(const float *point1, const float *point2, const 
     }
     return distance;
 }
+
+const float THIN_MAXS[3] = { 0.0, 0.0, 0.0 };
 
 void __cdecl CG_KillcamCameraTrace(
                 const float *originalBombOrigin,
@@ -3327,12 +3718,7 @@ void __cdecl CG_KillcamCameraTrace(
             cameraDir = *campos - isect[0];
             cameraDir_4 = campos[1] - isect[1];
             cameraDir_8 = campos[2] - isect[2];
-            v6 = COERCE_FLOAT(
-                         COERCE_UNSIGNED_INT(
-                             (float)((float)(cameraDir * trace.normal.vec.v[0]) + (float)(cameraDir_4 * trace.normal.vec.v[1]))
-                         + (float)(cameraDir_8 * trace.normal.vec.v[2]))
-                     ^ _mask__NegFloat_)
-                 + 0.1;
+            v6 = (-((float)((float)(cameraDir * trace.normal.vec.v[0]) + (float)(cameraDir_4 * trace.normal.vec.v[1])) + (float)(cameraDir_8 * trace.normal.vec.v[2]))) + 0.1;
             cameraDir_4a = (float)(v6 * trace.normal.vec.v[1]) + cameraDir_4;
             cameraDir_8a = (float)(v6 * trace.normal.vec.v[2]) + cameraDir_8;
             *campos = isect[0] + (float)((float)(v6 * trace.normal.vec.v[0]) + cameraDir);
@@ -3416,7 +3802,7 @@ void __cdecl CG_UpdateThirdPerson(int localClientNum, bool forExtraCam)
     cg_s *cgameGlob; // [esp+10h] [ebp-4h]
 
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
-    cgameGlob->renderingThirdPerson = cg_thirdPerson->current.integer || cgameGlob->nextSnap->ps.pm_type >= 9;
+    cgameGlob->renderingThirdPerson = (thirdPersonType)(cg_thirdPerson->current.integer || cgameGlob->nextSnap->ps.pm_type >= 9);
     if ( cgameGlob->nextSnap->ps.pm_type == 4 && (cgameGlob->nextSnap->ps.otherFlags & 2) == 0 )
         cgameGlob->renderingThirdPerson = TP_OFF;
     if ( (cgameGlob->nextSnap->ps.eFlags & 0x10000) != 0 )
@@ -3663,8 +4049,8 @@ void __cdecl CG_SetupElectrifiedFX(int localClientNum, int enable)
 
 bool __cdecl CG_IsInfrared(int localClientNum)
 {
-    unsigned __int8 *Name; // eax
-    int v2; // eax
+    const char *Name; // eax
+    const char *v2; // eax
     bool result; // al
     const WeaponVariantDef *weapVariantDef; // [esp+0h] [ebp-10h]
     int weapIndex; // [esp+4h] [ebp-Ch]
@@ -3683,8 +4069,8 @@ bool __cdecl CG_IsInfrared(int localClientNum)
                 weapVariantDef = BG_GetWeaponVariantDef(weapIndex);
                 if ( weapVariantDef->overlayMaterial )
                 {
-                    Name = (unsigned __int8 *)Material_GetName(weapVariantDef->overlayMaterial);
-                    strstr(Name, "_ir");
+                    Name = Material_GetName(weapVariantDef->overlayMaterial);
+                    v2 = strstr(Name, "_ir");
                     if ( v2 )
                         return 1;
                 }
@@ -3696,8 +4082,8 @@ bool __cdecl CG_IsInfrared(int localClientNum)
 
 bool __cdecl CG_IsTvguided(int localClientNum, bool onlyADS)
 {
-    unsigned __int8 *Name; // eax
-    int v4; // eax
+    const char *Name; // eax
+    const char *v4; // eax
     unsigned int weaponIndex; // [esp+0h] [ebp-18h]
     const WeaponDef *weapDef; // [esp+4h] [ebp-14h]
     const WeaponVariantDef *weapVariantDef; // [esp+8h] [ebp-10h]
@@ -3716,8 +4102,8 @@ bool __cdecl CG_IsTvguided(int localClientNum, bool onlyADS)
             weapVariantDef = BG_GetWeaponVariantDef(weapIndex);
             if ( weapVariantDef->overlayMaterial )
             {
-                Name = (unsigned __int8 *)Material_GetName(weapVariantDef->overlayMaterial);
-                strstr(Name, "tow_");
+                Name = Material_GetName(weapVariantDef->overlayMaterial);
+                v4 = strstr(Name, "tow_");
                 if ( v4 )
                     return 1;
             }
@@ -3733,8 +4119,7 @@ bool __cdecl CG_IsTvguided(int localClientNum, bool onlyADS)
             && cgameGlob->predictedPlayerState.viewlocked_entNum != 1023;
 }
 
-int    CG_DrawActiveFrame@<eax>(
-                int a1@<esi>,
+int CG_DrawActiveFrame(
                 int localClientNum,
                 int serverTime,
                 DemoType demoType,
@@ -3743,7 +4128,8 @@ int    CG_DrawActiveFrame@<eax>(
                 int renderScreen)
 {
     shellshock_parms_t *ShellshockParms; // eax
-    cg_s::<unnamed_type_testShock> tanHalfFovX; // [esp+0h] [ebp-928h]
+    int shellShockDuration;
+    int shellShockTime;
     float zfar; // [esp+4h] [ebp-924h]
     float *kickAngles; // [esp+50h] [ebp-8D8h]
     float *kickAVel; // [esp+54h] [ebp-8D4h]
@@ -3753,7 +4139,6 @@ int    CG_DrawActiveFrame@<eax>(
     centity_s *playerCEnt; // [esp+270h] [ebp-6B8h]
     DObj *ClientDObj; // [esp+274h] [ebp-6B4h]
     int playerEntNum; // [esp+278h] [ebp-6B0h]
-    XAnimClientNotifyList veryLargeNameOfNotifyListToMinimizeContact; // [esp+280h] [ebp-6A8h] BYREF
     int k; // [esp+88Ch] [ebp-9Ch]
     int j; // [esp+890h] [ebp-98h]
     int i; // [esp+894h] [ebp-94h]
@@ -3819,101 +4204,46 @@ int    CG_DrawActiveFrame@<eax>(
     CG_AddLagometerFrameInfo(cgameGlob);
     cgameGlob->bgs.frametime = cgameGlob->frametime;
     CG_UpdateUIDeviceContexts(localClientNum, cgameGlob->time);
-    if ( *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
-                    4906,
-                    0,
-                    "%s\n\t(bgs) = %p",
-                    "(bgs == 0)",
-                    *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-    {
-        __debugbreak();
-    }
+
+    iassert(bgs == 0);
+
     if ( cgameGlob->isLoading )
         return 0;
-    *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = &cgameGlob->bgs;
+
+    bgs = &cgameGlob->bgs;
+
     CG_SavePlayerState(localClientNum);
     CG_ProcessSnapshots(localClientNum);
+
     if ( !cgameGlob->renderScreen )
     {
-        if ( *(cg_s **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) != (cg_s *)&cgameGlob->bgs
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
-                        4930,
-                        0,
-                        "%s\n\t(bgs) = %p",
-                        "(bgs == &cgameGlob->bgs)",
-                        *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-        {
-            __debugbreak();
-        }
-LABEL_22:
-        *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = 0;
+        iassert(bgs == &cgameGlob->bgs);
+
+        bgs = NULL;
         return 0;
     }
     if ( !cgameGlob->nextSnap || (cgameGlob->nextSnap->snapFlags & 2) != 0 )
     {
-        if ( *(cg_s **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) != (cg_s *)&cgameGlob->bgs
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
-                        4941,
-                        0,
-                        "%s\n\t(bgs) = %p",
-                        "(bgs == &cgameGlob->bgs)",
-                        *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-        {
-            __debugbreak();
-        }
-        goto LABEL_22;
+        iassert(bgs == &cgameGlob->bgs);
+        
+        bgs = NULL;
+        return 0;
     }
+
     if ( CL_IsServerLoadingMap() )
     {
-        if ( *(cg_s **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) != (cg_s *)&cgameGlob->bgs
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
-                        4952,
-                        0,
-                        "%s\n\t(bgs) = %p",
-                        "(bgs == &cgameGlob->bgs)",
-                        *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-        {
-            __debugbreak();
-        }
-        goto LABEL_22;
+        iassert(bgs == &cgameGlob->bgs);
+        
+        bgs = NULL;
+        return 0;
     }
+
     CL_SetWaitingOnServerToLoadMap(localClientNum, 0);
-    if ( *(cg_s **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) != (cg_s *)&cgameGlob->bgs
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
-                    4959,
-                    0,
-                    "%s\n\t(bgs) = %p",
-                    "(bgs == &cgameGlob->bgs)",
-                    *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-    {
-        __debugbreak();
-    }
-    if ( !cgameGlob->snap
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
-                    4961,
-                    0,
-                    "%s",
-                    "cgameGlob->snap") )
-    {
-        __debugbreak();
-    }
-    if ( !cgameGlob->nextSnap
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
-                    4962,
-                    0,
-                    "%s",
-                    "cgameGlob->nextSnap") )
-    {
-        __debugbreak();
-    }
+
+    iassert(bgs == &cgameGlob->bgs);
+    iassert(cgameGlob->snap);
+    iassert(cgameGlob->nextSnap);
+    
     CG_UpdateTimeScale(localClientNum);
     CG_UpdateIKTiming(localClientNum);
     CG_VisionSetsUpdate(localClientNum);
@@ -3941,19 +4271,21 @@ LABEL_22:
     FX_SetNextUpdateTime(localClientNum, cgameGlob->time);
     FX_FillUpdateCmd(localClientNum, &fxUpdateCmd);
     R_UpdateNonDependentEffects(&fxUpdateCmd);
-    CG_UpdateWind((int)&savedregs, a1, cgameGlob->time);
+    CG_UpdateWind(cgameGlob->time);
     cgs = CG_GetLocalClientStaticGlobals(localClientNum);
     if ( cgameGlob->snap->ps.shellshockIndex )
     {
-        tanHalfFovX = *(cg_s::<unnamed_type_testShock> *)&cgameGlob->snap->ps.shellshockTime;
+        shellShockTime = cgameGlob->snap->ps.shellshockTime;
+        shellShockDuration = cgameGlob->snap->ps.shellshockDuration;
         ShellshockParms = BG_GetShellshockParms(cgameGlob->snap->ps.shellshockIndex);
     }
     else
     {
-        tanHalfFovX = cgameGlob->testShock;
+        shellShockTime = cgameGlob->testShock.time;
+        shellShockDuration = cgameGlob->testShock.duration;
         ShellshockParms = BG_GetShellshockParms(0);
     }
-    CG_StartShellShock(cgameGlob, ShellshockParms, tanHalfFovX.time, tanHalfFovX.duration);
+    CG_StartShellShock(cgameGlob, ShellshockParms, shellShockTime, shellShockDuration);
     CG_UpdateShellShock(
         localClientNum,
         cgameGlob->shellshock.parms,
@@ -3968,7 +4300,7 @@ LABEL_22:
     CG_ProcessDestructibleEvents();
     //BLOPS_NULLSUB();
     delayedEnt = CG_AddPacketEntities(localClientNum);
-    AimTarget_UpdateClientTargets((jpeg_decompress_struct *)localClientNum);
+    AimTarget_UpdateClientTargets(localClientNum);
     if ( !cgameGlob->predictedPlayerState.locationSelectionInfo
         || (cgameGlob->predictedPlayerState.otherFlags & 0x1A) != 0
         || Demo_IsPlaying() )
@@ -4022,7 +4354,7 @@ LABEL_22:
         CG_KickAngles(cgameGlob);
     }
     CL_SyncGpu();
-    Rope_Update((int)&savedregs, localClientNum, cgameGlob->time);
+    Rope_Update(localClientNum, cgameGlob->time);
     CG_ApplyWeaponTurnRateCap(localClientNum);
     CL_Input(localClientNum);
     //PIXBeginNamedEvent(-1, "player state");
@@ -4056,13 +4388,15 @@ LABEL_22:
             {
                 __debugbreak();
             }
-            XAnimClientNotifyList::XAnimClientNotifyList(&veryLargeNameOfNotifyListToMinimizeContact);
+            XAnimClientNotifyList veryLargeNameOfNotifyListToMinimizeContact; // [esp+280h] [ebp-6A8h] BYREF
+
+            //XAnimClientNotifyList::XAnimClientNotifyList(&veryLargeNameOfNotifyListToMinimizeContact);
             DObjSetClientNotifies(&veryLargeNameOfNotifyListToMinimizeContact);
             CG_DObjUpdateInfo(cgameGlob, obj, 2);
             if ( (cgameGlob->nextSnap->ps.otherFlags & 2) != 0 )
                 CG_ProcessFakeEntClientNoteTracks(localClientNum, cgameGlob->nextSnap->ps.clientNum);
             DObjClearClientNotifies();
-            XAnimClientNotifyList::~XAnimClientNotifyList(&veryLargeNameOfNotifyListToMinimizeContact);
+            //XAnimClientNotifyList::~XAnimClientNotifyList(&veryLargeNameOfNotifyListToMinimizeContact);
         }
         CG_CalcEntityLerpPositions(localClientNum, &cgameGlob->predictedPlayerEntity);
         for ( k = 0; k < 6; ++k )
@@ -4092,7 +4426,7 @@ LABEL_22:
     CG_UpdateViewWeaponAnim(localClientNum, 0);
     //if ( GetCurrentThreadId() == g_DXDeviceThread )
         //D3DPERF_EndEvent();
-    dword_A05AC7C = 0;
+    gScrExecuteTime[1] = 0;
     if ( CL_LocalClient_IsFirstActive(localClientNum) && cgameGlob->snap )
     {
         //PIXBeginNamedEvent(-1, "pending triggers");
@@ -4214,18 +4548,8 @@ LABEL_22:
     CG_ValidateWeaponSelect(cgameGlob);
     CG_DrawActive(localClientNum);
     CG_CheckBattleChatter();
-    if ( *(cg_s **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) != (cg_s *)&cgameGlob->bgs
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
-                    5389,
-                    0,
-                    "%s\n\t(bgs) = %p",
-                    "(bgs == &cgameGlob->bgs)",
-                    *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-    {
-        __debugbreak();
-    }
-    *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = 0;
+    iassert(bgs == &cgameGlob->bgs);
+    bgs = NULL;
     return 1;
 }
 
@@ -4467,10 +4791,8 @@ void __cdecl CG_CacheKillCamLookAtEntityOrigin(int localClientNum)
 
 void __cdecl CG_UpdateEntInfo(int localClientNum)
 {
-    XAnimClientNotifyList pNotifyList; // [esp+18h] [ebp-C38h] BYREF
     centity_s *cent; // [esp+624h] [ebp-62Ch]
     fake_centity_s *fakeEnt; // [esp+628h] [ebp-628h]
-    XAnimClientNotifyList veryLargeNameOfNotifyListToMinimizeContact; // [esp+630h] [ebp-620h] BYREF
     DObj *obj; // [esp+C40h] [ebp-10h]
     cg_s *cgameGlob; // [esp+C44h] [ebp-Ch]
     int num; // [esp+C48h] [ebp-8h]
@@ -4496,12 +4818,14 @@ void __cdecl CG_UpdateEntInfo(int localClientNum)
                 {
                     __debugbreak();
                 }
-                XAnimClientNotifyList::XAnimClientNotifyList(&veryLargeNameOfNotifyListToMinimizeContact);
+                XAnimClientNotifyList veryLargeNameOfNotifyListToMinimizeContact; // [esp+630h] [ebp-620h] BYREF
+
+                //XAnimClientNotifyList::XAnimClientNotifyList(&veryLargeNameOfNotifyListToMinimizeContact);
                 DObjSetClientNotifies(&veryLargeNameOfNotifyListToMinimizeContact);
                 CG_DObjUpdateInfo(cgameGlob, obj, 2);
                 CG_ProcessFakeEntClientNoteTracks(localClientNum, entnum);
                 DObjClearClientNotifies();
-                XAnimClientNotifyList::~XAnimClientNotifyList(&veryLargeNameOfNotifyListToMinimizeContact);
+                //XAnimClientNotifyList::~XAnimClientNotifyList(&veryLargeNameOfNotifyListToMinimizeContact);
             }
         }
     }
@@ -4525,12 +4849,14 @@ void __cdecl CG_UpdateEntInfo(int localClientNum)
                 {
                     __debugbreak();
                 }
-                XAnimClientNotifyList::XAnimClientNotifyList(&pNotifyList);
+                XAnimClientNotifyList pNotifyList; // [esp+18h] [ebp-C38h] BYREF
+
+                //XAnimClientNotifyList::XAnimClientNotifyList(&pNotifyList);
                 DObjSetClientNotifies(&pNotifyList);
                 CG_DObjUpdateInfo(cgameGlob, obj, 2);
                 CG_ProcessFakeEntClientNoteTracks(localClientNum, cent->nextState.number);
                 DObjClearClientNotifies();
-                XAnimClientNotifyList::~XAnimClientNotifyList(&pNotifyList);
+                //XAnimClientNotifyList::~XAnimClientNotifyList(&pNotifyList);
             }
         }
     }
@@ -4793,7 +5119,7 @@ void __cdecl CG_UpdateAdsDof(int localClientNum, GfxDepthOfField *dof)
             vec3_origin,
             traceEnd,
             ps->clientNum,
-            (int)&loc_806C31,
+            0x806C31,
             &context);
         Vec3Lerp(cgameGlob->refdef.vieworg, traceEnd, trace.fraction, traceEnd);
         traceDist = Vec3Distance(cgameGlob->refdef.vieworg, traceEnd);
@@ -5094,11 +5420,11 @@ int __cdecl CG_DrawExtraCamFrame(
     FxCameraUpdate fxcam; // [esp+50h] [ebp-420h] BYREF
     cg_s *cgameGlob; // [esp+8Ch] [ebp-3E4h]
     FxCmd fxUpdateCmd; // [esp+90h] [ebp-3E0h] BYREF
-    ExtraCamClientStateRestore clientRestore; // [esp+C8h] [ebp-3A8h] BYREF
+    ExtraCamClientStateRestore clientRestore(localClientNum); // [esp+C8h] [ebp-3A8h] BYREF
 
     Name = va("CG_DrawExtraCamFrame c=%d", localClientNum);
     //PIXBeginNamedEvent(-1, Name);
-    ExtraCamClientStateRestore::ExtraCamClientStateRestore(&clientRestore, localClientNum);
+    //ExtraCamClientStateRestore::ExtraCamClientStateRestore(&clientRestore, localClientNum);
     if ( !Sys_IsMainThread()
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
@@ -5126,83 +5452,39 @@ int __cdecl CG_DrawExtraCamFrame(
     cgameGlob->cubemapShot = cubemapShot;
     cgameGlob->cubemapSize = cubemapSize;
     cgameGlob->renderScreen = renderScreen;
-    if ( *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
-                    5485,
-                    0,
-                    "%s\n\t(bgs) = %p",
-                    "(bgs == 0)",
-                    *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-    {
-        __debugbreak();
-    }
+
+    iassert(bgs == 0);
+
+    
     if ( cgameGlob->isLoading )
     {
-        ExtraCamClientStateRestore::~ExtraCamClientStateRestore(&clientRestore);
+        //ExtraCamClientStateRestore::~ExtraCamClientStateRestore(&clientRestore);
         //if ( GetCurrentThreadId() == g_DXDeviceThread )
             //D3DPERF_EndEvent();
         return 0;
     }
     else
     {
-        *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = &cgameGlob->bgs;
+        bgs = &cgameGlob->bgs;
         if ( cgameGlob->renderScreen )
         {
             if ( cgameGlob->nextSnap && (cgameGlob->nextSnap->snapFlags & 2) == 0 )
             {
                 if ( CL_IsServerLoadingMap() )
                 {
-                    if ( *(cg_s **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) != (cg_s *)&cgameGlob->bgs
-                        && !Assert_MyHandler(
-                                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
-                                    5517,
-                                    0,
-                                    "%s\n\t(bgs) = %p",
-                                    "(bgs == &cgameGlob->bgs)",
-                                    *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-                    {
-                        __debugbreak();
-                    }
-                    *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = 0;
-                    ExtraCamClientStateRestore::~ExtraCamClientStateRestore(&clientRestore);
+                    iassert(bgs == &cgameGlob->bgs);
+                    bgs = NULL;
+                    //ExtraCamClientStateRestore::~ExtraCamClientStateRestore(&clientRestore);
                     //if ( GetCurrentThreadId() == g_DXDeviceThread )
                         //D3DPERF_EndEvent();
                     return 0;
                 }
                 else
                 {
-                    if ( *(cg_s **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) != (cg_s *)&cgameGlob->bgs
-                        && !Assert_MyHandler(
-                                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
-                                    5524,
-                                    0,
-                                    "%s\n\t(bgs) = %p",
-                                    "(bgs == &cgameGlob->bgs)",
-                                    *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-                    {
-                        __debugbreak();
-                    }
-                    if ( !cgameGlob->snap
-                        && !Assert_MyHandler(
-                                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
-                                    5526,
-                                    0,
-                                    "%s",
-                                    "cgameGlob->snap") )
-                    {
-                        __debugbreak();
-                    }
-                    if ( !cgameGlob->nextSnap
-                        && !Assert_MyHandler(
-                                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
-                                    5527,
-                                    0,
-                                    "%s",
-                                    "cgameGlob->nextSnap") )
-                    {
-                        __debugbreak();
-                    }
+                    iassert(bgs == &cgameGlob->bgs);
+                    iassert(cgameGlob->snap);
+                    iassert(cgameGlob->nextSnap);
+                    
                     FX_FillUpdateCmd(localClientNum, &fxUpdateCmd);
                     fxUpdateCmd.updateCameraType = 1;
                     drawPlayer3rdPerson = Flame_GetLocalClientSourceRange();
@@ -5223,19 +5505,9 @@ int __cdecl CG_DrawExtraCamFrame(
                     FX_SetNextUpdateCamera(localClientNum, &fxcam);
                     R_DrawEffects(&fxUpdateCmd);
                     CG_DrawMissileCam(localClientNum);
-                    if ( *(cg_s **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) != (cg_s *)&cgameGlob->bgs
-                        && !Assert_MyHandler(
-                                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
-                                    5876,
-                                    0,
-                                    "%s\n\t(bgs) = %p",
-                                    "(bgs == &cgameGlob->bgs)",
-                                    *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-                    {
-                        __debugbreak();
-                    }
-                    *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = 0;
-                    ExtraCamClientStateRestore::~ExtraCamClientStateRestore(&clientRestore);
+                    iassert(bgs == &cgameGlob->bgs);
+                    bgs = NULL;
+                    //ExtraCamClientStateRestore::~ExtraCamClientStateRestore(&clientRestore);
                     //if ( GetCurrentThreadId() == g_DXDeviceThread )
                         //D3DPERF_EndEvent();
                     return 1;
@@ -5243,19 +5515,9 @@ int __cdecl CG_DrawExtraCamFrame(
             }
             else
             {
-                if ( *(cg_s **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) != (cg_s *)&cgameGlob->bgs
-                    && !Assert_MyHandler(
-                                "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
-                                5509,
-                                0,
-                                "%s\n\t(bgs) = %p",
-                                "(bgs == &cgameGlob->bgs)",
-                                *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-                {
-                    __debugbreak();
-                }
-                *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = 0;
-                ExtraCamClientStateRestore::~ExtraCamClientStateRestore(&clientRestore);
+                iassert(bgs == &cgameGlob->bgs);
+                bgs = NULL;
+                //ExtraCamClientStateRestore::~ExtraCamClientStateRestore(&clientRestore);
                 //if ( GetCurrentThreadId() == g_DXDeviceThread )
                     //D3DPERF_EndEvent();
                 return 0;
@@ -5263,19 +5525,9 @@ int __cdecl CG_DrawExtraCamFrame(
         }
         else
         {
-            if ( *(cg_s **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) != (cg_s *)&cgameGlob->bgs
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
-                            5501,
-                            0,
-                            "%s\n\t(bgs) = %p",
-                            "(bgs == &cgameGlob->bgs)",
-                            *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-            {
-                __debugbreak();
-            }
-            *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = 0;
-            ExtraCamClientStateRestore::~ExtraCamClientStateRestore(&clientRestore);
+            iassert(bgs == &cgameGlob->bgs);
+            bgs = NULL;
+            //ExtraCamClientStateRestore::~ExtraCamClientStateRestore(&clientRestore);
             //if ( GetCurrentThreadId() == g_DXDeviceThread )
                 //D3DPERF_EndEvent();
             return 0;

@@ -5498,6 +5498,9 @@
     <ClInclude Include="DemonWare\bdCore\bdCrypto\bdCypher.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\game\statindex.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="src\CubeMapGenLib\resource.rc">

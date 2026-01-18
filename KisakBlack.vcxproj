@@ -1470,6 +1470,7 @@
     <ClInclude Include="src\game\pathnode_load_obj.h" />
     <ClInclude Include="src\game\sentient.h" />
     <ClInclude Include="src\game\sentient_fields.h" />
+    <ClInclude Include="src\game\statindex.h" />
     <ClInclude Include="src\game\teams.h" />
     <ClInclude Include="src\game\turret.h" />
     <ClInclude Include="src\game_mp\actor_mp.h" />

@@ -24,6 +24,17 @@
 #include <bgame/bg_mantle.h>
 #include <xanim/xmodel.h>
 #include <cgame/cg_drawtools.h>
+#include <EffectsCore/fx_sprite.h>
+
+float fCrouchHeightPanzer = 105.0f;
+float fCrouchHeightT34 = 109.0f;
+float handOfs = -5.0f;
+float handOfs_0 = -6.0f;
+float proneFeetDist = -40.0f;
+float proneFeetYawOffset = -10.0f;
+
+
+
 
 void __cdecl CG_AddAllPlayerSpriteDrawSurfs(int localClientNum)
 {
@@ -160,7 +171,7 @@ void __cdecl CG_AddPlayerSpriteDrawSurfs(int localClientNum, const centity_s *ce
     }
 }
 
-// KISAKTODO: stacker
+#if 0
 void    CG_AddPlayerSpriteDrawSurf(
                 int localClientNum,
                 const centity_s *cent,
@@ -257,6 +268,59 @@ void    CG_AddPlayerSpriteDrawSurf(
         FX_SpriteAdd((FxSprite *)v8);
     }
 }
+#endif
+
+// aislop
+void CG_AddPlayerSpriteDrawSurf(
+    int localClientNum,
+    const centity_s *cent,
+    Material *material,
+    float additionalRadiusSize,
+    int height,
+    bool fixedScreenSize
+) {
+    cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+    snapshot_s *nextSnap = cgameGlob->nextSnap;
+    bool renderFxFlags = (nextSnap->ps.otherFlags & 6) != 0 && cent->nextState.number == nextSnap->ps.clientNum;
+
+    if (!renderFxFlags || cgameGlob->renderingThirdPerson) {
+        float radius = 0.0f;
+        float scale = 1.0f;
+
+        if (fixedScreenSize) {
+            radius = 3.0f;
+            scale = (additionalRadiusSize + 5.0f) * 0.0043f;
+        }
+        else {
+            scale = additionalRadiusSize + 5.0f;
+        }
+
+        float origin[3];
+        DObj *obj = Com_GetClientDObj(cent->nextState.number, localClientNum);
+
+        Material *spriteMaterial = NULL;
+        if (obj && CG_DObjGetWorldTagPos(&cent->pose, obj, scr_const.j_head, origin)) {
+            origin[1] += height + 21.0f;
+        }
+        else {
+            origin[0] = cent->pose.origin[0];
+            origin[1] = cent->pose.origin[1] + height + 82.0f;
+            origin[2] = cent->pose.origin[2];
+        }
+
+        FxSprite sprite;
+        sprite.material = spriteMaterial;
+        sprite.pos[0] = origin[0];
+        sprite.pos[1] = origin[1];
+        sprite.pos[2] = NAN; // original code had NaN for Z
+        sprite.rgbaColor[0] = *(int *)&scale; // original LODWORD(obj) hack
+        sprite.radius = cg_headIconMinScreenRadius->current.integer;
+        sprite.minScreenRadius = radius;
+
+        FX_SpriteAdd(&sprite);
+    }
+}
+
 
 int vehAnimLerpTime = 600;
 
@@ -437,11 +501,10 @@ LABEL_11:
                         blinkFadeTime = cgameGlob->time % cg_playerHighlightBlinkTime->current.integer
                                                     - cg_playerHighlightBlinkTime->current.integer / 2;
                         blinkFade = (float)((float)((float)(1.0 - cg_playerHighlightMinFade->current.value)
-                                                                            * COERCE_FLOAT(
-                                                                                    COERCE_UNSIGNED_INT(
+                                                                            * (
+                                                                                    -fabs(
                                                                                         (float)blinkFadeTime
-                                                                                    / (float)((float)cg_playerHighlightBlinkTime->current.integer / 2.0))
-                                                                                & _mask__AbsFloat_))
+                                                                                    / (float)((float)cg_playerHighlightBlinkTime->current.integer / 2.0))))
                                                             + cg_playerHighlightMinFade->current.value)
                                             * (float)(1.0 - corpseFade);
                         if ( team_indicator->current.integer == 3 )
@@ -469,12 +532,11 @@ LABEL_11:
                     if ( !isEnemy || (client->perks[1] & 8) != 0 )
                         return;
                     v11 = (float)((float)(1.0 - cg_playerHighlightMinFade->current.value)
-                                            * COERCE_FLOAT(
-                                                    COERCE_UNSIGNED_INT(
+                                            * (
+                                                    fabs(
                                                         (float)(cgameGlob->time % cg_playerHighlightBlinkTime->current.integer
                                                                     - cg_playerHighlightBlinkTime->current.integer / 2)
-                                                    / (float)((float)cg_playerHighlightBlinkTime->current.integer / 2.0))
-                                                & _mask__AbsFloat_))
+                                                    / (float)((float)cg_playerHighlightBlinkTime->current.integer / 2.0))))
                             + cg_playerHighlightMinFade->current.value;
                     if ( team_indicator->current.integer == 3 )
                         Dvar_GetUnpackedColor(cg_TeamColor_EnemyTeamAlt, expandedColor);
@@ -533,6 +595,7 @@ LABEL_11:
     }
 }
 
+int delta = 5;
 void __cdecl CG_Player(int localClientNum, centity_s *cent)
 {
     XModel **worldModel; // esi
@@ -788,7 +851,7 @@ void __cdecl CG_Player(int localClientNum, centity_s *cent)
                             {
                                 String = SL_FindString("j_spine4", SCRIPTINSTANCE_SERVER);
                                 if ( DObjGetBoneIndex(obj, String, &boneIndex, -1) )
-                                    cent->fxHeartbeat = FX_PlayBoltedEffect(localClientNum, def, 0, cent->nextState.number, boneIndex);
+                                    cent->fxHeartbeat = FX_PlayBoltedEffect(localClientNum, cgMedia.infraredHeartbeat, 0, cent->nextState.number, boneIndex);
                             }
                         }
                         extraCamConstSetPtr = 0;
@@ -835,6 +898,9 @@ void __cdecl CG_Player(int localClientNum, centity_s *cent)
         }
     }
 }
+
+float handOfs = -5.0f;
+float handOfs_0 = -6.0f;
 
 void __cdecl CG_PlayerTurretPositionAndBlend(int localClientNum, centity_s *cent)
 {
@@ -1107,7 +1173,7 @@ void __cdecl CG_PlayerTurretPositionAndBlend(int localClientNum, centity_s *cent
                                             if ( !numVertChildren )
                                             {
                                                 AnimDebugName = XAnimGetAnimDebugName(pXAnims, baseAnim);
-                                                Com_Error(ERR_DROP, &byte_C88174, AnimDebugName);
+                                                Com_Error(ERR_DROP, "Player anim '%s' has no children", AnimDebugName);
                                             }
                                             i = 0;
                                             do
@@ -1117,7 +1183,7 @@ void __cdecl CG_PlayerTurretPositionAndBlend(int localClientNum, centity_s *cent
                                                 if ( !numHorChildren )
                                                 {
                                                     v9 = XAnimGetAnimDebugName(pXAnims, heightAnim);
-                                                    Com_Error(ERR_DROP, &byte_C88174, v9);
+                                                    Com_Error(ERR_DROP, "Player anim '%s' has no children", v9);
                                                 }
                                                 if ( (cent->currentState.eFlags & 0x4000) != 0 )
                                                     fBlend = (float)numHorChildren * 0.5;
@@ -1729,6 +1795,9 @@ void __cdecl CG_UpdateWeaponVisibilityImmediate(int localClientNum, centity_s *c
     CG_UpdateWeaponVisibilityInternal(localClientNum, cent);
 }
 
+
+int hideCheckIntervalMin = 100;
+int hideCheckIntervalMax = 200;
 void __cdecl CG_UpdateWeaponVisibilityInternal(int localClientNum, centity_s *cent)
 {
     int v2; // esi
@@ -1943,6 +2012,8 @@ void __cdecl CG_CalcWeaponVisTrace(
     end[2] = (float)(v6 * forward[2]) + start[2];
 }
 
+float expand;
+unsigned int _S2_1;
 bool __cdecl CG_PlayerInViewFrustum(int localClientNum, const centity_s *cent)
 {
     float center[3]; // [esp+8h] [ebp-Ch] BYREF
