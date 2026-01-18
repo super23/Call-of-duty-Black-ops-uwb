@@ -1,5 +1,25 @@
 #include "live_friends_pc.h"
 
+#include <steam/steam_api.h>
+#include "live_meetplayer.h"
+
+int g_sortedNumFriends;
+int g_sortedFriendsRedirect[256];
+
+bool g_sortedFriendsListDirty = true;
+
+template <int FLAGS>
+static int _GetNumFriends()
+{
+    ISteamFriends *friends = SteamFriends();
+    if (friends)
+    {
+        return friends->GetFriendCount(FLAGS);
+    }
+
+    return 0;
+}
+
 int __cdecl LiveSteam_GetNumFriends()
 {
     return _GetNumFriends<4>();
@@ -8,6 +28,81 @@ int __cdecl LiveSteam_GetNumFriends()
 int __cdecl LiveSteam_GetNumFriendsOnTheServer()
 {
     return _GetNumFriends<16>();
+}
+
+template <int FLAGS>
+static unsigned __int64 __cdecl _GetFriendXuid(int index)
+{
+    CSteamID steamID; // [esp+0h] [ebp-14h] BYREF
+    ISteamFriends *steamFriends; // [esp+8h] [ebp-Ch]
+    unsigned __int64 xuid; // [esp+Ch] [ebp-8h]
+
+    xuid = 0;
+    steamFriends = (ISteamFriends *)SteamFriends();
+    if (steamFriends)
+    {
+        if (index >= steamFriends->GetFriendCount(steamFriends, 4)
+            && !Assert_MyHandler(
+                "C:\\projects_pc\\cod\\codsrc\\src\\live\\live_friends_pc.cpp",
+                37,
+                0,
+                "%s",
+                "index < steamFriends->GetFriendCount( k_EFriendFlagImmediate )"))
+        {
+            __debugbreak();
+        }
+        steamFriends->GetFriendByIndex(steamFriends, &steamID, index, 4);
+        if (!CSteamID::IsValid(&steamID)
+            && !Assert_MyHandler(
+                "C:\\projects_pc\\cod\\codsrc\\src\\live\\live_friends_pc.cpp",
+                39,
+                0,
+                "%s",
+                "steamID.IsValid()"))
+        {
+            __debugbreak();
+        }
+        return steamID.m_steamid.m_unAll64Bits;
+    }
+    return xuid;
+}
+
+template <int FLAGS>
+static void __cdecl _GetFriendPersonaName(int index, char *buf, int size)
+{
+    CSteamID steamID; // [esp+0h] [ebp-10h] BYREF
+    const char *s; // [esp+8h] [ebp-8h]
+    ISteamFriends *steamFriends; // [esp+Ch] [ebp-4h]
+
+    steamFriends = (ISteamFriends *)SteamFriends();
+    if ((!buf || !size)
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\live\\live_friends_pc.cpp", 50, 0, "%s", "buf && size"))
+    {
+        __debugbreak();
+    }
+    if (steamFriends)
+    {
+        if (index >= steamFriends->GetFriendCount(steamFriends, 4)
+            && !Assert_MyHandler(
+                "C:\\projects_pc\\cod\\codsrc\\src\\live\\live_friends_pc.cpp",
+                53,
+                0,
+                "%s",
+                "index < steamFriends->GetFriendCount( friendType )"))
+        {
+            __debugbreak();
+        }
+        steamFriends->GetFriendByIndex(steamFriends, &steamID, index, 4);
+        s = (const char *)((int(__thiscall *)(ISteamFriends *, _DWORD, _DWORD))steamFriends->GetFriendPersonaName)(
+            steamFriends,
+            *(_DWORD *)&steamID.m_steamid.m_comp,
+            *((_DWORD *)&steamID.m_steamid.m_comp + 1));
+        Com_sprintf(buf, size, "%.16s", s);
+    }
+    else
+    {
+        *buf = 0;
+    }
 }
 
 unsigned __int64 __cdecl LiveSteam_GetFriendXuid(int index)
@@ -37,11 +132,11 @@ int __cdecl LiveSteam_GetFriendPersonaState(unsigned __int64 xuid)
     LiveSteam_PersonaState result; // [esp+Ch] [ebp-4h]
 
     result = LIVE_STEAM_PERSONA_STATE_OFFLINE;
-    if ( _SteamFriends() )
+    if ( SteamFriends() )
     {
-        v2 = _SteamFriends();
-        return (*(int (__thiscall **)(int, unsigned int, unsigned int))(*(unsigned int *)v2 + 24))(v2, xuid, HIDWORD(xuid));
+        return SteamFriends()->GetFriendPersonaState(xuid);
     }
+
     return result;
 }
 
@@ -95,6 +190,38 @@ char __cdecl Friends_GetByIndex(int controllerIndex, int filter, int index, Frie
     LiveSteam_GetFriendPersonaName(index, info->name, 32);
     info->presence[0] = 0;
     return 1;
+}
+
+template <int FLAGS>
+char __cdecl _GetFriendPersonaNameByXuid(unsigned __int64 xuid, char *buf, int size)
+{
+    const char *s; // [esp+10h] [ebp-8h]
+    ISteamFriends *steamFriends; // [esp+14h] [ebp-4h]
+
+    steamFriends = (ISteamFriends *)SteamFriends();
+    if ((!buf || !size)
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\live\\live_friends_pc.cpp", 68, 0, "%s", "buf && size"))
+    {
+        __debugbreak();
+    }
+    if (steamFriends
+        && ((int(__thiscall *)(ISteamFriends *, _DWORD, _DWORD))steamFriends->GetFriendRelationship)(
+            steamFriends,
+            xuid,
+            HIDWORD(xuid)))
+    {
+        s = (const char *)((int(__thiscall *)(ISteamFriends *, _DWORD, _DWORD))steamFriends->GetFriendPersonaName)(
+            steamFriends,
+            xuid,
+            HIDWORD(xuid));
+        Com_sprintf(buf, size, "%.16s", s);
+        return 1;
+    }
+    else
+    {
+        *buf = 0;
+        return 0;
+    }
 }
 
 char __cdecl Friends_GetByID(int controllerIndex, unsigned __int64 id, FriendInfo *info)
@@ -177,6 +304,7 @@ void __cdecl Friend_PrintNamesOnServer_f()
     Friends_GetPeopleOnServer();
 }
 
+cmd_function_s Friend_PrintNamesOnServer_f_VAR;
 void __cdecl Friends_Init()
 {
     Cmd_AddCommandInternal("getpeopleonserver", Friend_PrintNamesOnServer_f, &Friend_PrintNamesOnServer_f_VAR);
@@ -186,15 +314,6 @@ void __cdecl Friends_Init()
 void __cdecl Live_GetRecentPlayerName(unsigned __int64 uid, char *buf, int bufsize)
 {
     _GetFriendPersonaNameByXuid<4>(uid, buf, bufsize);
-}
-
-CSteamID *__thiscall CSteamID::CSteamID(CSteamID *this)
-{
-    *(unsigned int *)&this->m_steamid.m_comp = 0;
-    *((unsigned int *)&this->m_steamid.m_comp + 1) &= 0xFF0FFFFF;
-    *((unsigned int *)&this->m_steamid.m_comp + 1) &= (unsigned int)&cls.rankedServers[711].game[34];
-    *((unsigned int *)&this->m_steamid.m_comp + 1) &= 0xFFF00000;
-    return this;
 }
 
 int __cdecl _GetSortedFriendIndex(int index)
@@ -233,187 +352,3 @@ int __cdecl _GetSortedFriendIndex(int index)
     }
     return g_sortedFriendsRedirect[index];
 }
-
-int __cdecl _GetNumFriends<4>()
-{
-    int result; // [esp+0h] [ebp-8h]
-    ISteamFriends *steamFriends; // [esp+4h] [ebp-4h]
-
-    result = 0;
-    steamFriends = (ISteamFriends *)_SteamFriends();
-    if ( steamFriends )
-        return steamFriends->GetFriendCount(steamFriends, 4);
-    return result;
-}
-
-int __cdecl _GetNumFriends<16>()
-{
-    int result; // [esp+0h] [ebp-8h]
-    ISteamFriends *steamFriends; // [esp+4h] [ebp-4h]
-
-    result = 0;
-    steamFriends = (ISteamFriends *)_SteamFriends();
-    if ( steamFriends )
-        return steamFriends->GetFriendCount(steamFriends, 16);
-    return result;
-}
-
-unsigned __int64 __cdecl _GetFriendXuid<4>(int index)
-{
-    CSteamID steamID; // [esp+0h] [ebp-14h] BYREF
-    ISteamFriends *steamFriends; // [esp+8h] [ebp-Ch]
-    unsigned __int64 xuid; // [esp+Ch] [ebp-8h]
-
-    xuid = 0;
-    steamFriends = (ISteamFriends *)_SteamFriends();
-    if ( steamFriends )
-    {
-        if ( index >= steamFriends->GetFriendCount(steamFriends, 4)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\live\\live_friends_pc.cpp",
-                        37,
-                        0,
-                        "%s",
-                        "index < steamFriends->GetFriendCount( k_EFriendFlagImmediate )") )
-        {
-            __debugbreak();
-        }
-        steamFriends->GetFriendByIndex(steamFriends, &steamID, index, 4);
-        if ( !CSteamID::IsValid(&steamID)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\live\\live_friends_pc.cpp",
-                        39,
-                        0,
-                        "%s",
-                        "steamID.IsValid()") )
-        {
-            __debugbreak();
-        }
-        return steamID.m_steamid.m_unAll64Bits;
-    }
-    return xuid;
-}
-
-bool __thiscall CSteamID::IsValid(CSteamID *this)
-{
-    if ( ((*((unsigned int *)&this->m_steamid.m_comp + 1) >> 20) & 0xF) == 0
-        || ((*((unsigned int *)&this->m_steamid.m_comp + 1) >> 20) & 0xFu) >= 0xB )
-    {
-        return 0;
-    }
-    if ( SHIDWORD(this->m_steamid.m_unAll64Bits) >> 24 <= 0 || SHIDWORD(this->m_steamid.m_unAll64Bits) >> 24 >= 6 )
-        return 0;
-    if ( ((*((unsigned int *)&this->m_steamid.m_comp + 1) >> 20) & 0xF) == 1
-        && (!*(unsigned int *)&this->m_steamid.m_comp || (*((unsigned int *)&this->m_steamid.m_comp + 1) & 0xFFFFF) != 1) )
-    {
-        return 0;
-    }
-    return ((*((unsigned int *)&this->m_steamid.m_comp + 1) >> 20) & 0xF) != 7
-            || *(unsigned int *)&this->m_steamid.m_comp && (*((unsigned int *)&this->m_steamid.m_comp + 1) & 0xFFFFF) == 0;
-}
-
-void __cdecl _GetFriendPersonaName<4>(int index, char *buf, int size)
-{
-    CSteamID steamID; // [esp+0h] [ebp-10h] BYREF
-    const char *s; // [esp+8h] [ebp-8h]
-    ISteamFriends *steamFriends; // [esp+Ch] [ebp-4h]
-
-    steamFriends = (ISteamFriends *)_SteamFriends();
-    if ( (!buf || !size)
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\live\\live_friends_pc.cpp", 50, 0, "%s", "buf && size") )
-    {
-        __debugbreak();
-    }
-    if ( steamFriends )
-    {
-        if ( index >= steamFriends->GetFriendCount(steamFriends, 4)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\live\\live_friends_pc.cpp",
-                        53,
-                        0,
-                        "%s",
-                        "index < steamFriends->GetFriendCount( friendType )") )
-        {
-            __debugbreak();
-        }
-        steamFriends->GetFriendByIndex(steamFriends, &steamID, index, 4);
-        s = (const char *)((int (__thiscall *)(ISteamFriends *, unsigned int, unsigned int))steamFriends->GetFriendPersonaName)(
-                                                steamFriends,
-                                                *(unsigned int *)&steamID.m_steamid.m_comp,
-                                                *((unsigned int *)&steamID.m_steamid.m_comp + 1));
-        Com_sprintf(buf, size, "%.16s", s);
-    }
-    else
-    {
-        *buf = 0;
-    }
-}
-
-void __cdecl _GetFriendPersonaName<16>(int index, char *buf, int size)
-{
-    CSteamID steamID; // [esp+0h] [ebp-10h] BYREF
-    const char *s; // [esp+8h] [ebp-8h]
-    ISteamFriends *steamFriends; // [esp+Ch] [ebp-4h]
-
-    steamFriends = (ISteamFriends *)_SteamFriends();
-    if ( (!buf || !size)
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\live\\live_friends_pc.cpp", 50, 0, "%s", "buf && size") )
-    {
-        __debugbreak();
-    }
-    if ( steamFriends )
-    {
-        if ( index >= steamFriends->GetFriendCount(steamFriends, 16)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\live\\live_friends_pc.cpp",
-                        53,
-                        0,
-                        "%s",
-                        "index < steamFriends->GetFriendCount( friendType )") )
-        {
-            __debugbreak();
-        }
-        steamFriends->GetFriendByIndex(steamFriends, &steamID, index, 16);
-        s = (const char *)((int (__thiscall *)(ISteamFriends *, unsigned int, unsigned int))steamFriends->GetFriendPersonaName)(
-                                                steamFriends,
-                                                *(unsigned int *)&steamID.m_steamid.m_comp,
-                                                *((unsigned int *)&steamID.m_steamid.m_comp + 1));
-        Com_sprintf(buf, size, "%.16s", s);
-    }
-    else
-    {
-        *buf = 0;
-    }
-}
-
-char __cdecl _GetFriendPersonaNameByXuid<4>(unsigned __int64 xuid, char *buf, int size)
-{
-    const char *s; // [esp+10h] [ebp-8h]
-    ISteamFriends *steamFriends; // [esp+14h] [ebp-4h]
-
-    steamFriends = (ISteamFriends *)_SteamFriends();
-    if ( (!buf || !size)
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\live\\live_friends_pc.cpp", 68, 0, "%s", "buf && size") )
-    {
-        __debugbreak();
-    }
-    if ( steamFriends
-        && ((int (__thiscall *)(ISteamFriends *, unsigned int, unsigned int))steamFriends->GetFriendRelationship)(
-                 steamFriends,
-                 xuid,
-                 HIDWORD(xuid)) )
-    {
-        s = (const char *)((int (__thiscall *)(ISteamFriends *, unsigned int, unsigned int))steamFriends->GetFriendPersonaName)(
-                                                steamFriends,
-                                                xuid,
-                                                HIDWORD(xuid));
-        Com_sprintf(buf, size, "%.16s", s);
-        return 1;
-    }
-    else
-    {
-        *buf = 0;
-        return 0;
-    }
-}
-

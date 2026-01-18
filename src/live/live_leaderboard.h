@@ -1,4 +1,30 @@
 #pragma once
+#include <gfx_d3d/r_material.h>
+#include <win32/win_tasks.h>
+#include "live_storage.h"
+
+enum LbTaskEnum : __int32
+{                                       // XREF: ?LB_ReadHiddenLeaderboardComplete@@YA?AW4taskCompleteResults@@H@Z/r
+                                        // ?Lb_ReadHiddenLeaderboardEntry@@YAXHPAV?$LeaderBoardRow@$09@@HW4LbTaskEnum@@@Z/r
+    LB_TASK_READLB                 = 0x0,
+    LB_TASK_READ_WEEKLY_HIDDEN_LB  = 0x1,
+    LB_TASK_READ_PRESTIGE_WEEKLY_HIDDEN_LB = 0x2,
+    LB_TASK_READ_MONTHLY_HIDDEN_LB = 0x3,
+    LB_TASK_READ_PRESTIGE_MONTHLY_HIDDEN_LB = 0x4,
+    LB_TASK_GETFRIENDS             = 0x5,
+    LB_TASK_AM_UPLOADSTATS         = 0x6,
+    LB_TASK_UPLOADSTATS            = 0x7,
+    LB_TASK_UPLOADSTATS_WEEKLY_LB  = 0x8,
+    LB_TASK_UPLOADSTATS_PRESTIGE_WEEKLY_LB = 0x9,
+    LB_TASK_UPLOADSTATS_MONTHLY_LB = 0xA,
+    LB_TASK_UPLOADSTATS_PRESTIGE_MONTHLY_LB = 0xB,
+    LB_TASK_RESOLVEESCROW          = 0xC,
+    LB_TASK_RETRIEVEESCROWBALANCE  = 0xD,
+    LB_TASK_CLEARESCROW            = 0xE,
+    LB_TASK_INCREMENTESCROW        = 0xF,
+    LB_TASK_READLB_FOR_MATCHES_PLAYED = 0x10,
+    LB_TASK_COUNT                  = 0x11,
+};
 
 enum LbStatEnum : __int32
 {                                       // XREF: LbStructure/r
@@ -140,6 +166,20 @@ template <int SIZE>
 struct LeaderBoardRow : bdStatsInfo // sizeof=0x98
 {                                       // XREF: LeaderBoardResult<LeaderBoardRow<10>,100>/r
     int m_columns[SIZE];                  // XREF: LB_IncrementEscrow(void)+82/o
+
+    void serialize(bdByteBuffer *buffer);
+    bool deserialize(bdReference<bdByteBuffer> buffer);
+};
+
+template <typename T, int SIZE>
+struct LeaderBoardResult : bdStatsInfo //<LeaderBoardRow<10>,100> : bdStatsInfo // sizeof=0x3BD0
+{                                       // XREF: Leaderboard/r
+                                        // LbUserStats/r
+    LeaderBoardRow<10> m_leaderBoardEntries[SIZE];// 100];
+                                        // XREF: .rdata:off_D0DB08/o
+
+    LeaderBoardResult();
+    ~LeaderBoardResult();
 };
 
 struct __declspec(align(8)) Leaderboard // sizeof=0x3CA0
@@ -181,6 +221,49 @@ struct __declspec(align(8)) Leaderboard // sizeof=0x3CA0
     // padding byte
     // padding byte
     // padding byte
+
+    Leaderboard();
+    ~Leaderboard();
+};
+
+struct LBSelectedPlayerInfo // sizeof=0x48
+{                                       // XREF: .data:info_2/r
+    unsigned __int64 playerXuid;        // XREF: UI_FeederDataExtended(int,itemDef_s *,char const *,char const * *,float *)+22B/r
+                                        // UI_FeederDataExtended(int,itemDef_s *,char const *,char const * *,float *)+232/r
+    char gamerTag[64];                  // XREF: UI_FeederDataExtended(int,itemDef_s *,char const *,char const * *,float *)+268/o
+};
+
+struct LbGlob // sizeof=0x3D528
+{                                       // XREF: .data:LbGlob g_lbGlob/r
+    overlappedTask tasks[32];           // XREF: LB_ReadHiddenLeaderboardComplete(int)+54/r
+                                        // LB_ReadHiddenLeaderboardComplete(int)+8B/r ...
+    LbPlayerStat playerStats[1];        // XREF: LB_ReadHiddenLeaderboardComplete(int)+367/o
+                                        // LB_ClearPlayerStats(int)+37/o ...
+    LeaderBoardRow<10> escrowData[1];   // XREF: LB_ResolveEscrowComplete(int)+191/o
+    int escrowBalance[1];               // XREF: LB_RetrieveEscrowBalanceComplete(int)+1EB/w
+                                        // LB_RetrieveEscrowBalanceComplete(int)+235/r ...
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    Leaderboard leaderboards[16];       // XREF: LB_ForceRefresh(void)+11/w
+                                        // LB_UpdateLeaderboard(int,LbType,int)+F/o ...
+    char feederText[32];                // XREF: LB_FeederItemText(int,int,int,Material * *):loc_96B5A2/w
+                                        // LB_FeederItemText(int,int,int,Material * *)+141/o ...
+    unsigned __int64 xuids[101];        // XREF: LB_GetStatsByXuids(int,Leaderboard *)+DA/o
+                                        // LB_GetPlayerStats(int,Leaderboard *)+48/w ...
+    unsigned int numXuids;              // XREF: LB_GetStatsByXuids(int,Leaderboard *)+6/r
+                                        // LB_GetStatsByXuids(int,Leaderboard *):loc_967EA5/r ...
+    LbType currentLbType;               // XREF: LB_Init(void):loc_96BD9D/w
+    LeaderBoardRow<10> weeklyEntry[1];  // XREF: Lb_InitiateWeeklyAndMonthlyLbWrite(int,LbType)+28/o
+    LeaderBoardRow<10> prestigeWeeklyEntry[1];
+                                        // XREF: Lb_InitiateWeeklyAndMonthlyLbWrite(int,LbType)+A8/o
+    LeaderBoardRow<10> monthlyEntry[1]; // XREF: Lb_InitiateWeeklyAndMonthlyLbWrite(int,LbType)+5F/o
+    LeaderBoardRow<10> prestigeMonthlyEntry[1];
+                                        // XREF: Lb_InitiateWeeklyAndMonthlyLbWrite(int,LbType)+DE/o
+
+    LbGlob();
+    ~LbGlob();
 };
 
 bool __cdecl LB_NeedToReadLeaderBoard();
@@ -212,7 +295,7 @@ int __cdecl LB_GetXUserCol(LbLookup *g_lbLookup, LeaderBoardRow<10> *row, int ty
 void __cdecl LB_GetRankIconForXp(LeaderBoardRow<10> *row, LbType type, Material **handle);
 unsigned int __cdecl LB_CalcPlayerIndex(int localControllerIndex, Leaderboard *lb);
 void __cdecl LB_SortXUserStatsByRank(Leaderboard *lb);
-int __cdecl LB_CompareXUserStatsRowRanks(_QWORD *r1, _QWORD *r2);
+//int __cdecl LB_CompareXUserStatsRowRanks(_QWORD *r1, _QWORD *r2);
 bool __cdecl LB_MakeRow(
                 int controllerIndex,
                 const LbPlayerStat *const stats,
@@ -266,13 +349,3 @@ void __cdecl LB_InitAndRegisterStructureForSpecialLeaderboards(
 void __cdecl LB_Init();
 void __cdecl LB_CheckOngoingTasks();
 void __cdecl LB_EndOngoingTasks();
-void __thiscall LeaderBoardRow<10>::serialize(LeaderBoardRow<10> *this, bdByteBuffer *buffer);
-bool __thiscall LeaderBoardRow<10>::deserialize(LeaderBoardRow<10> *this, bdReference<bdByteBuffer> buffer);
-LbGlob *__thiscall LbGlob::LbGlob(LbGlob *this);
-Leaderboard *__thiscall Leaderboard::Leaderboard(Leaderboard *this);
-LeaderBoardResult<LeaderBoardRow<10>,100> *__thiscall LeaderBoardResult<LeaderBoardRow<10>,100>::LeaderBoardResult<LeaderBoardRow<10>,100>(
-                LeaderBoardResult<LeaderBoardRow<10>,100> *this);
-void __thiscall LeaderBoardResult<LeaderBoardRow<10>,100>::~LeaderBoardResult<LeaderBoardRow<10>,100>(
-                LeaderBoardResult<LeaderBoardRow<10>,100> *this);
-void __thiscall LbGlob::~LbGlob(LbGlob *this);
-void __thiscall Leaderboard::~Leaderboard(Leaderboard *this);

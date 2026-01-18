@@ -1,4 +1,28 @@
 #include "live_leaderboard.h"
+#include <universal/assertive.h>
+#include <win32/win_shared.h>
+#include <cstring>
+#include <DW/dwUtils_pc.h>
+#include <DW/dwStats.h>
+#include <DW/dwTasks.h>
+#include <qcommon/com_clients.h>
+#include "live_win_common.h"
+#include <client/cl_rank.h>
+#include "live_win.h"
+
+const dvar_s *lb_maxrows;
+const dvar_s *lb_escrowTimeout;
+const dvar_s *lb_typeByResetPeriod;
+const dvar_s *lb_type;
+const dvar_s *lb_prestige;
+const dvar_s *lb_filter;
+const dvar_s *lb_LastFetchTime;
+const dvar_s *lb_escrowRefresh;
+LbLookup g_LbLookup;
+const dvar_s *lb_minrefresh;
+const dvar_s *lb_forceLbWrite;
+
+LbGlob g_lbGlob;
 
 bool __cdecl LB_NeedToReadLeaderBoard()
 {
@@ -159,7 +183,7 @@ void __cdecl LB_RegisterGlobalStructure(LbLookup *const lookup, LbGlobalStructur
 
 LbType __cdecl LB_GetLbIndex(LbType type, LbResetPeriod resetPeriod, bool isPrestigeLb, bool isHiddenLb)
 {
-    LbType lbIndex; // [esp+0h] [ebp-4h]
+    int lbIndex; // [esp+0h] [ebp-4h]
 
     if ( resetPeriod )
     {
@@ -173,7 +197,7 @@ LbType __cdecl LB_GetLbIndex(LbType type, LbResetPeriod resetPeriod, bool isPres
     }
     if ( isPrestigeLb )
         lbIndex += 80;
-    return lbIndex;
+    return (LbType)lbIndex;
 }
 
 char __cdecl LB_GetNumMatchesPlayedForPlayerFromLb(Leaderboard *lb, int controllerIndex)
@@ -202,7 +226,7 @@ char __cdecl LB_GetNumMatchesPlayedForPlayerFromLb(Leaderboard *lb, int controll
     if ( !lb_typeByResetPeriod->current.integer )
         return 1;
     Bool = Dvar_GetBool("lb_prestige");
-    Int = Dvar_GetInt("lb_typeByResetPeriod");
+    Int = (LbResetPeriod)Dvar_GetInt("lb_typeByResetPeriod");
     lbIndex = LB_GetLbIndex(lb->type, Int, Bool, 1);
     if ( dwGetOnlineUserID(controllerIndex, &userID) )
     {

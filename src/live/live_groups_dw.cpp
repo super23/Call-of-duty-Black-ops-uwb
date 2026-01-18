@@ -1,5 +1,26 @@
 #include "live_groups_dw.h"
 
+unsigned int s_groupCounts[1024];
+GroupMembership s_groupMembership[1];
+int s_groupSetCount;
+unsigned int s_groupCount;
+int s_groupUpdateTime;
+struct bdTaskResult s_bdGroupCounts_0;
+
+const char *s_onlineNames[4] =
+{ "mp", "sp", "zombie", NULL };
+
+GroupSet s_groupSets[3] =
+{
+  { "playlist", true, NULL, 64, 0u },
+  { "online", true, s_onlineNames, 0, 0u },
+  { NULL, false, NULL, 0, 0u }
+};
+
+cmd_function_s LiveGroups_JoinGroup_f_VAR;
+cmd_function_s LiveGroups_LeaveGroup_f_VAR;
+cmd_function_s LiveGroups_Dump_f_VAR;
+
 void __cdecl LiveGroups_Init()
 {
     int i; // [esp+0h] [ebp-8h]
@@ -63,6 +84,7 @@ void __cdecl LiveGroups_SetGroupsComplete(TaskRecord *task)
 
 void __cdecl LiveGroups_SetGroups(int localControllerIndex)
 {
+#ifdef KISAK_DEMON
     const bdReference<bdCommonAddr> *v1; // eax
     bdReference<bdCommonAddr> v2; // [esp+1Ch] [ebp-101Ch] BYREF
     unsigned int i; // [esp+20h] [ebp-1018h]
@@ -103,19 +125,23 @@ void __cdecl LiveGroups_SetGroups(int localControllerIndex)
         bdReference<bdRemoteTask>::~bdReference<bdRemoteTask>(&v2);
         TaskManager2_StartTask(task);
     }
+#endif
 }
 
 void __cdecl LiveGroups_GetGroupCountsComplete(TaskRecord *task)
 {
+#ifdef KISAK_DEMON
     unsigned int idx; // [esp+4h] [ebp-4h]
 
     memset((unsigned __int8 *)s_groupCounts, 0, sizeof(s_groupCounts));
     for ( idx = 0; idx < bdTaskByteBuffer::getHeaderSize((bdTaskByteBuffer *)task->remoteTask.m_ptr); ++idx )
         s_groupCounts[*((unsigned int *)&unk_A4E0D04 + 3 * idx)] = dword_A4E0D08[3 * idx];
+#endif
 }
 
 void __cdecl LiveGroups_GetCounts(int localControllerIndex)
 {
+#ifdef KISAK_DEMON
     const bdReference<bdCommonAddr> *GroupCounts; // eax
     bdReference<bdCommonAddr> v2; // [esp+1Ch] [ebp-1014h] BYREF
     TaskRecord *task; // [esp+20h] [ebp-1010h]
@@ -146,21 +172,22 @@ void __cdecl LiveGroups_GetCounts(int localControllerIndex)
         bdReference<bdRemoteTask>::~bdReference<bdRemoteTask>(&v2);
         TaskManager2_StartTask(task);
     }
+#endif
 }
 
 char __cdecl LiveGroups_GetGroupID(char *path, int *offset, GroupSet **gs)
 {
-    int v3; // eax
+    char *v3; // eax
     int s; // [esp+10h] [ebp-14h]
     unsigned int setLen; // [esp+18h] [ebp-Ch]
     const char *groupName; // [esp+1Ch] [ebp-8h]
     int i; // [esp+20h] [ebp-4h]
 
     groupName = 0;
-    strchr((unsigned __int8 *)path, 0x2Fu);
+    v3 = strchr(path, 0x2Fu);
     if ( v3 )
     {
-        setLen = v3 - (unsigned int)path;
+        setLen = (unsigned int)v3 - (unsigned int)path;
         groupName = (const char *)(v3 + 1);
         if ( !*(_BYTE *)(v3 + 1) )
             groupName = 0;
@@ -343,7 +370,7 @@ void __cdecl LiveGroups_RegisterPlayer(int localControllerIndex)
         __debugbreak();
     }
     memset((unsigned __int8 *)&s_groupMembership[localControllerIndex], 0, 0x80u);
-    LiveGroups_JoinGroup(localControllerIndex, "online/mp");
+    LiveGroups_JoinGroup(localControllerIndex, (char*)"online/mp");
 }
 
 void __cdecl LiveGroups_Update(int localControllerIndex)

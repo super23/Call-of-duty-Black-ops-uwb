@@ -1,6 +1,33 @@
 #pragma once
 #include "live_storage.h"
 
+enum servertype_t : __int32
+{                                       // XREF: ?LiveGroups_GetCountByType@@YAIW4servertype_t@@@Z/r
+    SERVER_GROUP_RANKED   = 0x1EA,
+    SERVER_GROUP_UNRANKED = 0x1EB,
+    SERVER_GROUP_WAGER    = 0x1EC,
+};
+
+struct GroupSet // sizeof=0x14
+{                                       // XREF: .data:s_groupSets/r
+    const char *name;                   // XREF: LiveGroups_GetGroupID(char const *,int *,GroupSet * *)+A4/r
+    bool exclusive;
+    // padding byte
+    // padding byte
+    // padding byte
+    const char **groupNames;
+    int capacity;
+    unsigned int start;
+};
+
+struct GroupMembership // sizeof=0x88
+{                                       // XREF: .data:s_groupMembership/r
+    unsigned int bits[32];
+    int dirty;                          // XREF: LiveGroups_SetGroupsComplete(TaskRecord *)+3F/r
+                                        // LiveGroups_SetGroupsComplete(TaskRecord *)+54/w ...
+    int updateTime;
+};
+
 void __cdecl LiveGroups_Init();
 void __cdecl LiveGroups_SetGroupsComplete(TaskRecord *task);
 void __cdecl LiveGroups_SetGroups(int localControllerIndex);
