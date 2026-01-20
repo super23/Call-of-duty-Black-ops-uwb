@@ -1,4 +1,5 @@
 #include "r_dpvs.h"
+#include <universal/com_workercmds.h>
 
 DpvsGlob dpvsGlob;
 

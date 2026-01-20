@@ -3,6 +3,10 @@
 #include <qcommon/threads.h>
 #include "r_material.h"
 #include "r_screenshot.h"
+#include "r_sky.h"
+#include "r_model.h"
+#include "rb_stats.h"
+#include "r_staticmodelcache.h"
 
 cmd_function_s R_Cmd_Screenshot_VAR;
 cmd_function_s R_Cmd_ScreenshotJpeg_VAR;

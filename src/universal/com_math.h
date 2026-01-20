@@ -118,6 +118,7 @@ void __cdecl MatrixTransformVector43Equals(float *out, const float *in);
 void __cdecl VectorAngleMultiply(float *vec, float angle);
 void __cdecl UnitQuatToAxis(const float *quat, float (*axis)[3]);
 void __cdecl UnitQuatToForward(const float *quat, float *forward);
+void __cdecl QuatMultiplyInverse(const float *in1, const float *in2, float *out);
 void __cdecl QuatSlerp(const float *from, const float *to, float frac, float *result);
 double __cdecl RotationToYaw(const float *rot);
 void __cdecl MatrixRotationZ(float (*mat)[3], float degree);

@@ -1513,6 +1513,29 @@ void __cdecl UnitQuatToForward(const float *quat, float *forward)
     forward[2] = (float)((float)(*quat * quat[2]) - (float)(quat[1] * quat[3])) * 2.0;
 }
 
+void __cdecl QuatMultiplyInverse(const float *in1, const float *in2, float *out)
+{
+    out[0] = -in1[0] * in2[3]
+        + in1[3] * in2[0]
+        - in1[2] * in2[1]
+        + in1[1] * in2[2];
+
+    out[1] = -in1[1] * in2[3]
+        + in1[2] * in2[0]
+        + in1[3] * in2[1]
+        - in1[0] * in2[2];
+
+    out[2] = -in1[2] * in2[3]
+        - in1[1] * in2[0]
+        + in1[0] * in2[1]
+        + in1[3] * in2[2];
+
+    out[3] = in1[3] * in2[3]
+        + in1[0] * in2[0]
+        + in1[1] * in2[1]
+        + in1[2] * in2[2];
+}
+
 void __cdecl QuatSlerp(const float *from, const float *to, float frac, float *result)
 {
     float v4; // st6

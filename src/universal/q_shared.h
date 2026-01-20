@@ -528,6 +528,16 @@ static const int iEdgePairs[12][2] =
 extern const dvar_s *useFastFile;
 extern const dvar_s *sys_smp_allowed;
 
+inline bool IsFastFileLoad()
+{
+#ifdef KISAK_NO_FASTFILES
+    return false;
+#endif
+    return useFastFile->current.enabled;
+}
+
+#define IsObjFileLoad() IsFastFileLoad()
+
 template <typename T>
 inline void AssignToSmallerType(T *dest, int src)
 {

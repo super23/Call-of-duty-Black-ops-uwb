@@ -75,7 +75,7 @@ struct __declspec(align(4)) GfxBuffers // sizeof=0x2400A8
 struct GfxVertexBufferState // sizeof=0x10
 {                                       // XREF: GfxMeshData/r
                                         // GfxBuffers/r ...
-    volatile int used;
+    volatile unsigned int used;
     int total;                          // XREF: R_CreateDynamicBuffers(void)+91/r
     IDirect3DVertexBuffer9 *buffer;     // XREF: R_DestroyDynamicBuffers(void)+17D/r
                                         // R_DestroyDynamicBuffers(void)+1B0/r ...
