@@ -1,15 +1,118 @@
 #include "r_cinematic.h"
 #include <qcommon/common.h>
+#include <dsound.h>
+#include <win32/win_wndproc.h>
+#include "r_init.h"
+#include <qcommon/threads.h>
+#include "rb_resource.h"
+#include "r_image_load_common.h"
+#include <universal/com_memory.h>
+#include <universal/com_workercmds.h>
+#include <sound/snd_public_async.h>
+#include <win32/win_shared.h>
+#include <win32/win_net.h>
+
+struct CinematicGlob // sizeof=0x980
+{                                       // XREF: .data:cinematicGlob/r
+    char currentCinematicName[256];     // XREF: R_Cinematic_UpdateFrame_Core+112/r
+    char targetCinematicName[256];      // XREF: R_Cinematic_StartPlayback_Internal+16/o
+    char nextCinematicName[256];        // XREF: R_Cinematic_StartNextPlayback(void)+2A/o
+                                        // R_Cinematic_StartNextPlayback(void)+37/w ...
+    unsigned int nextCinematicPlaybackFlags;
+    unsigned int playbackFlags;         // XREF: R_Cinematic_StartPlayback_Internal+55/w
+
+    unsigned int timeInMsec;            // XREF: R_Cinematic_UpdateTimeInMsec:loc_AA99B2/w
+    unsigned int binkIOSize;            // XREF: R_Cinematic_Advance+5AB/r
+                                        // R_Cinematic_GetPercentageFull+7C/r ...
+    bool isPreloaded;                   // XREF: R_Cinematic_StopPlayback_Now:loc_AA9C01/w
+    bool firstFrameNotify;              // XREF: R_Cinematic_Advance+450/w
+    bool lastFrameNotify;               // XREF: R_Cinematic_Advance+4FC/w
+    bool targetCinematicChanged;        // XREF: R_Cinematic_StartPlayback_Internal+23/w
+    bool cinematicFinished;             // XREF: R_Cinematic_StartPlayback_Internal+2A/w
+                                        // R_Cinematic_StopPlayback(void)+25/w ...
+    volatile bool fullSyncNextUpdate;
+    bool playbackStarted;
+    // LWSS: fields around here are inferred (idk why they got cut out)
+    char crap[1];                       // XREF: R_Cinematic_Advance+188/w
+                                        // R_Cinematic_Advance+195/w ...
+    float framerateSpeedFactor;
+    int startTimeMS;                   
+    int frameNum;
+    char crap2[3];
+    // padding byte
+    // lwss end
+    CIN_IOSTATE fileIoState;            // XREF: R_Cinematic_BeginLostDevice(void)+10/r
+                                        // R_Cinematic_RelinquishIO+4/r ...
+    bool usingAlpha;
+    // padding byte
+    // padding byte
+    // padding byte
+    BINK *bink;                        // XREF: R_Cinematic_Advance+195/w
+                                        // R_Cinematic_Advance+3B5/w ...
+    BINKTEXTURESET binkTextureSet;      // XREF: Unlock_Bink_textures_Callback(void)+3/r
+                                        // Unlock_Bink_textures_Callback(void)+9/o ...
+    // lwss inferment
+    void *YTextures[2];                 // XREF: R_Cinematic_Advance+2D2/r
+                                        // R_Cinematic_InitBinkTextures+1A5/w
+    void *crTextures[2];                // XREF: R_Cinematic_Advance+2EE/r
+                                        // R_Cinematic_InitBinkTextures+1E6/w
+    void *cbTextures[2];                // XREF: R_Cinematic_Advance+30A/r
+                                        // R_Cinematic_InitBinkTextures+227/w
+    void *aTextures[2];                 // XREF: R_Cinematic_Advance+32F/r
+                                        // R_Cinematic_InitBinkTextures+277/w ...
+    int bufferWidth;  
+    // lwss inferment end
+
+    CinematicHunk masterHunk;           // XREF: R_Cinematic_Advance+2D2/r
+                                        // R_Cinematic_InitBinkTextures+1A5/w
+    CinematicHunk binkHunk;             // XREF: R_Cinematic_Advance+2EE/r
+                                        // R_Cinematic_Advance+30A/r ...
+    CinematicHunk residentHunk;         // XREF: R_Cinematic_AreHunksOpen+3/o
+                                        // R_Cinematic_HunksClose+3/o ...
+    int activeImageFrame;
+    int framesStopped;                  // XREF: R_Cinematic_AreHunksOpen+17/o
+                                        // R_Cinematic_AreHunksOpen:loc_AA8ED1/o ...
+    CinematicEnum currentPaused;        // XREF: R_Cinematic_Bink_Free+14/w
+    CinematicEnum targetPaused;
+    CinematicTextureSet textureSets[2]; // ...
+    int activeTextureSet;
+    int activeImageFrameTextureSet;
+    GfxImage *nextYTexture;
+    GfxImage *nextCRTexture;
+    GfxImage *nextCBTexture;
+    GfxImage *nextATexture;
+    void *memPool;
+    float playbackVolume;
+    bool underrun;
+    // padding byte
+    // padding byte
+    // padding byte
+    int lastTime;
+    int gap[8];
+    int gptr;
+} cinematicGlob;
+
+LPDIRECTSOUND8 g_cinematicDS;
+
+int activeTexture;
+bool g_cinematicInitialized;
+
+volatile unsigned int cineThreadBlock;
+int r_cinematic_disabled;
+
+volatile unsigned int _UpdateFrameLimit = 1;
+jqModule _UpdateFrameModule;
+jqWorkerCmd _UpdateFrameWorkerCmd = { &_UpdateFrameModule, 4u, 0, 0, &_UpdateFrameLimit, NULL, 0u };
 
 void __cdecl R_CinematicInitSound(const _GUID *guid)
 {
     if ( g_cinematicDS )
-        g_cinematicDS->Release(g_cinematicDS);
+        g_cinematicDS->Release();
     if ( DirectSoundCreate8(guid, &g_cinematicDS, 0) )
         DirectSoundCreate8(0, &g_cinematicDS, 0);
     if ( g_cinematicDS )
     {
-        if ( g_cinematicDS->SetCooperativeLevel(g_cinematicDS, g_wv.hWnd, 2u) )
+        if ( g_cinematicDS->SetCooperativeLevel(g_wv.hWnd, 2u) )
         {
             if ( !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 495, 0, "%s", "hr == S_OK") )
                 __debugbreak();
@@ -47,124 +150,113 @@ void __cdecl Unlock_Bink_textures2(IDirect3DDevice9 *d3d_device, BINKTEXTURESET 
     _D3DLOCKED_RECT lr; // [esp+28h] [ebp-8h] BYREF
 
     bp_src = &set_textures->bink_buffers.Frames[set_textures->bink_buffers.FrameNum];
-    set_textures->tex_draw.Ytexture->LockRect(set_textures->tex_draw.Ytexture, 0, &lr, 0, 0x2000u);
+    set_textures->tex_draw.Ytexture->LockRect(0, &lr, 0, 0x2000u);
     srcWidth = set_textures->bink_buffers.YABufferWidth;
     srcHeight = set_textures->bink_buffers.YABufferHeight;
     srcBits = (unsigned __int8 *)bp_src->YPlane.Buffer;
     dstBits = (char *)lr.pBits;
-    if ( lr.Pitch == srcWidth )
+    if (lr.Pitch == srcWidth)
     {
         memcpy((unsigned __int8 *)lr.pBits, srcBits, srcHeight * srcWidth);
     }
     else
     {
-        for ( i = 0; i < srcHeight; ++i )
+        for (i = 0; i < srcHeight; ++i)
             memcpy((unsigned __int8 *)&dstBits[lr.Pitch * i], &srcBits[srcWidth * i], srcWidth);
     }
-    set_textures->tex_draw.Ytexture->UnlockRect(set_textures->tex_draw.Ytexture, 0);
-    set_textures->tex_draw.cRtexture->LockRect(set_textures->tex_draw.cRtexture, 0, &lr, 0, 0x2000u);
+    set_textures->tex_draw.Ytexture->UnlockRect(0);
+    set_textures->tex_draw.cRtexture->LockRect(0, &lr, 0, 0x2000u);
     srcWidtha = set_textures->bink_buffers.cRcBBufferWidth;
     srcHeighta = set_textures->bink_buffers.cRcBBufferHeight;
     srcBitsa = (unsigned __int8 *)bp_src->cRPlane.Buffer;
     dstBitsa = (char *)lr.pBits;
-    if ( lr.Pitch == srcWidtha )
+    if (lr.Pitch == srcWidtha)
     {
         memcpy((unsigned __int8 *)lr.pBits, srcBitsa, srcHeighta * srcWidtha);
     }
     else
     {
-        for ( j = 0; j < srcHeighta; ++j )
+        for (j = 0; j < srcHeighta; ++j)
             memcpy((unsigned __int8 *)&dstBitsa[lr.Pitch * j], &srcBitsa[srcWidtha * j], srcWidtha);
     }
-    set_textures->tex_draw.cRtexture->UnlockRect(set_textures->tex_draw.cRtexture, 0);
-    set_textures->tex_draw.cBtexture->LockRect(set_textures->tex_draw.cBtexture, 0, &lr, 0, 0x2000u);
+    set_textures->tex_draw.cRtexture->UnlockRect(0);
+    set_textures->tex_draw.cBtexture->LockRect(0, &lr, 0, 0x2000u);
     srcWidthb = set_textures->bink_buffers.cRcBBufferWidth;
     srcHeightb = set_textures->bink_buffers.cRcBBufferHeight;
     srcBitsb = (unsigned __int8 *)bp_src->cBPlane.Buffer;
     dstBitsb = (char *)lr.pBits;
-    if ( lr.Pitch == srcWidthb )
+    if (lr.Pitch == srcWidthb)
     {
         memcpy((unsigned __int8 *)lr.pBits, srcBitsb, srcHeightb * srcWidthb);
     }
     else
     {
-        for ( k = 0; k < srcHeightb; ++k )
+        for (k = 0; k < srcHeightb; ++k)
             memcpy((unsigned __int8 *)&dstBitsb[lr.Pitch * k], &srcBitsb[srcWidthb * k], srcWidthb);
     }
-    set_textures->tex_draw.cBtexture->UnlockRect(set_textures->tex_draw.cBtexture, 0);
-    if ( set_textures->tex_draw.Atexture )
+    set_textures->tex_draw.cBtexture->UnlockRect(0);
+    if (set_textures->tex_draw.Atexture)
     {
-        set_textures->tex_draw.Atexture->LockRect(set_textures->tex_draw.Atexture, 0, &lr, 0, 0x2000u);
+        set_textures->tex_draw.Atexture->LockRect(0, &lr, 0, 0x2000u);
         srcWidthc = set_textures->bink_buffers.YABufferWidth;
         srcHeightc = set_textures->bink_buffers.YABufferHeight;
         srcBitsc = (unsigned __int8 *)bp_src->APlane.Buffer;
         dstBitsc = (char *)lr.pBits;
-        if ( lr.Pitch == srcWidthc )
+        if (lr.Pitch == srcWidthc)
         {
             memcpy((unsigned __int8 *)lr.pBits, srcBitsc, srcHeightc * srcWidthc);
         }
         else
         {
-            for ( m = 0; m < srcHeightc; ++m )
+            for (m = 0; m < srcHeightc; ++m)
                 memcpy((unsigned __int8 *)&dstBitsc[lr.Pitch * m], &srcBitsc[srcWidthc * m], srcWidthc);
         }
-        set_textures->tex_draw.Atexture->UnlockRect(set_textures->tex_draw.Atexture, 0);
+        set_textures->tex_draw.Atexture->UnlockRect(0);
     }
 }
 
 void __cdecl Unlock_Bink_textures_Callback()
 {
-    Unlock_Bink_textures2(dx.device, (BINKTEXTURESET *)&cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferHeight);
+    Unlock_Bink_textures2(dx.device, &cinematicGlob.binkTextureSet);
 }
 
 void __cdecl R_Cinematic_BeginLostDevice()
 {
     unsigned int setIter; // [esp+4h] [ebp-8h]
+    CinematicTextureSet *textureSet; // [esp+8h] [ebp-4h]
 
     Sys_EnterCriticalSection(CRITSECT_CINEMATIC);
-    if ( cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth )
+
+    if (cinematicGlob.fileIoState)
         R_Cinematic_RelinquishIO();
-    if ( R_Cinematic_IsStarted() && !*(unsigned int *)&cinematicGlob.textureSets[44] )
+
+    if (R_Cinematic_IsStarted() && cinematicGlob.currentPaused == CINEMATIC_NOT_PAUSED)
     {
-        *(unsigned int *)&cinematicGlob.textureSets[44] = 1;
-        BinkPause(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth, 1);
+        cinematicGlob.currentPaused = CINEMATIC_PAUSED;
+        BinkPause(cinematicGlob.bink, 1);
     }
-    for ( setIter = 0; setIter != 2; ++setIter )
+
+    for (setIter = 0; setIter != 2; ++setIter)
     {
-        Image_Release((GfxImage *)(656 * setIter + 182286232));
-        Image_Release((GfxImage *)(656 * setIter + 182286284));
-        Image_Release((GfxImage *)(656 * setIter + 182286336));
-        Image_Release((GfxImage *)(656 * setIter + 182286388));
+        textureSet = &cinematicGlob.textureSets[setIter];
+        Image_Release(&textureSet->drawImageY);
+        Image_Release(&textureSet->drawImageCr);
+        Image_Release(&textureSet->drawImageCb);
+        Image_Release(&textureSet->drawImageA);
     }
+
     Sys_LeaveCriticalSection(CRITSECT_CINEMATIC);
 }
 
 void R_Cinematic_RelinquishIO()
 {
-    if ( !cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    1479,
-                    0,
-                    "%s",
-                    "cinematicGlob.fileIoState != CIN_IOSTATE_RELINQUISHED") )
-    {
-        __debugbreak();
-    }
-    if ( !cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    1480,
-                    0,
-                    "%s",
-                    "cinematicGlob.bink") )
-    {
-        __debugbreak();
-    }
-    BinkControlBackgroundIO(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth, 1);
+    iassert(cinematicGlob.fileIoState != CIN_IOSTATE_RELINQUISHED);
+    iassert(cinematicGlob.bink);
+
+    BinkControlBackgroundIO(cinematicGlob.bink, 1);
     R_Cinematic_CheckBinkError();
     Sys_ResumeDiscReads(THREAD_OWNER_CINEMATICS);
-    cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth = 0;
+    cinematicGlob.fileIoState = CIN_IOSTATE_RELINQUISHED;
 }
 
 const char *R_Cinematic_CheckBinkError()
@@ -192,7 +284,7 @@ const char *R_Cinematic_CheckBinkError()
 void __cdecl R_Cinematic_EndLostDevice()
 {
     Sys_EnterCriticalSection(CRITSECT_CINEMATIC);
-    if ( cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth )
+    if ( cinematicGlob.bink )
     {
         R_Cinematic_MakeBinkDrawTextures();
         R_Cinematic_ClearBinkDrawTextures();
@@ -200,62 +292,59 @@ void __cdecl R_Cinematic_EndLostDevice()
     Sys_LeaveCriticalSection(CRITSECT_CINEMATIC);
 }
 
-CinematicTextureSet *R_Cinematic_MakeBinkDrawTextures()
+void R_Cinematic_MakeBinkDrawTextures()
 {
-    CinematicTextureSet *result; // eax
     bool useAlpha; // [esp+Bh] [ebp-9h]
     int frameIter; // [esp+Ch] [ebp-8h]
     CinematicTextureSet *textureSet; // [esp+10h] [ebp-4h]
 
     useAlpha = 0;
-    for ( frameIter = 0; frameIter != 2; ++frameIter )
+    for (frameIter = 0; frameIter != 2; ++frameIter)
     {
-        if ( cinematicGlob.binkTextureSet.bink_buffers.Frames[frameIter + 1].YPlane.Buffer )
+        if (cinematicGlob.binkTextureSet.bink_buffers.Frames[frameIter].APlane.Allocate)
             useAlpha = 1;
     }
-    textureSet = (CinematicTextureSet *)(656 * activeTexture + 182285816);
-    cinematicGlob.masterHunk.base = R_Cinematic_MakeBinkTexture_PC(
-                                                                        (GfxImage *)(656 * activeTexture + 182286232),
-                                                                        cinematicGlob.binkTextureSet.bink_buffers.FrameNum,
-                                                                        cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.Allocate,
-                                                                        0x10000);
-    cinematicGlob.masterHunk.atFront = R_Cinematic_MakeBinkTexture_PC(
-                                                                             &textureSet->drawImageCr,
-                                                                             (unsigned int)cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.Buffer,
-                                                                             cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.BufferPitch,
-                                                                             0x10000);
-    cinematicGlob.masterHunk.atBack = R_Cinematic_MakeBinkTexture_PC(
-                                                                            &textureSet->drawImageCb,
-                                                                            (unsigned int)cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.Buffer,
-                                                                            cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.BufferPitch,
-                                                                            0x10000);
-    if ( useAlpha )
-        cinematicGlob.masterHunk.end = R_Cinematic_MakeBinkTexture_PC(
-                                                                         &textureSet->drawImageA,
-                                                                         cinematicGlob.binkTextureSet.bink_buffers.FrameNum,
-                                                                         cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.Allocate,
-                                                                         0x10000);
+    textureSet = &cinematicGlob.textureSets[cinematicGlob.activeTextureSet];
+    cinematicGlob.binkTextureSet.tex_draw.Ytexture = R_Cinematic_MakeBinkTexture_PC(
+        &textureSet->drawImageY,
+        cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth,
+        cinematicGlob.binkTextureSet.bink_buffers.YABufferHeight,
+        0x10000);
+    cinematicGlob.binkTextureSet.tex_draw.cRtexture = R_Cinematic_MakeBinkTexture_PC(
+        &textureSet->drawImageCr,
+        cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth,
+        cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferHeight,
+        0x10000);
+    cinematicGlob.binkTextureSet.tex_draw.cBtexture = R_Cinematic_MakeBinkTexture_PC(
+        &textureSet->drawImageCb,
+        cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth,
+        cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferHeight,
+        0x10000);
+
+    if (useAlpha)
+        cinematicGlob.binkTextureSet.tex_draw.Atexture = R_Cinematic_MakeBinkTexture_PC(
+            &textureSet->drawImageA,
+            cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth,
+            cinematicGlob.binkTextureSet.bink_buffers.YABufferHeight,
+            0x10000);
     else
-        cinematicGlob.masterHunk.end = 0;
-    result = (CinematicTextureSet *)Sys_IsRenderThread();
-    if ( !(_BYTE)result )
+        cinematicGlob.binkTextureSet.tex_draw.Atexture = 0;
+
+    if (!Sys_IsRenderThread())
     {
         RB_Resource_Flush();
-        cinematicGlob.masterHunk.base = textureSet->drawImageY.texture.basemap;
-        cinematicGlob.masterHunk.atFront = textureSet->drawImageCr.texture.basemap;
-        result = (CinematicTextureSet *)textureSet->drawImageCb.texture.basemap;
-        cinematicGlob.masterHunk.atBack = result;
-        if ( useAlpha )
+        cinematicGlob.binkTextureSet.tex_draw.Ytexture = textureSet->drawImageY.texture.map;
+        cinematicGlob.binkTextureSet.tex_draw.cRtexture = textureSet->drawImageCr.texture.map;
+        cinematicGlob.binkTextureSet.tex_draw.cBtexture = textureSet->drawImageCb.texture.map;
+        if (useAlpha)
         {
-            result = textureSet;
-            cinematicGlob.masterHunk.end = textureSet->drawImageA.texture.basemap;
+            cinematicGlob.binkTextureSet.tex_draw.Atexture = textureSet->drawImageA.texture.map;
         }
         else
         {
-            cinematicGlob.masterHunk.end = 0;
+            cinematicGlob.binkTextureSet.tex_draw.Atexture = 0;
         }
     }
-    return result;
 }
 
 IDirect3DTexture9 *__cdecl R_Cinematic_MakeBinkTexture_PC(
@@ -282,56 +371,33 @@ IDirect3DTexture9 *__cdecl R_Cinematic_MakeBinkTexture_PC(
 
 void R_Cinematic_ClearBinkDrawTextures()
 {
-    if ( !cinematicGlob.masterHunk.base
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    2188,
-                    0,
-                    "%s",
-                    "textures->Ytexture") )
-    {
-        __debugbreak();
-    }
-    if ( !cinematicGlob.masterHunk.atFront
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    2189,
-                    0,
-                    "%s",
-                    "textures->cRtexture") )
-    {
-        __debugbreak();
-    }
-    if ( !cinematicGlob.masterHunk.atBack
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    2190,
-                    0,
-                    "%s",
-                    "textures->cBtexture") )
-    {
-        __debugbreak();
-    }
+    BINKFRAMETEXTURES *textures = &cinematicGlob.binkTextureSet.tex_draw;
+
+    iassert(textures->Ytexture);
+    iassert(textures->cRtexture);
+    iassert(textures->cBtexture);
+    
     R_Cinematic_ClearTexture(
-        (IDirect3DTexture9 *)cinematicGlob.masterHunk.base,
-        cinematicGlob.binkTextureSet.bink_buffers.FrameNum,
-        cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.Allocate,
+        cinematicGlob.binkTextureSet.tex_draw.Ytexture,
+        cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth,
+        cinematicGlob.binkTextureSet.bink_buffers.YABufferHeight,
         0);
     R_Cinematic_ClearTexture(
-        (IDirect3DTexture9 *)cinematicGlob.masterHunk.atFront,
-        (int)cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.Buffer,
-        cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.BufferPitch,
+        cinematicGlob.binkTextureSet.tex_draw.cRtexture,
+        cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth,
+        cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferHeight,
         0x80u);
     R_Cinematic_ClearTexture(
-        (IDirect3DTexture9 *)cinematicGlob.masterHunk.atBack,
-        (int)cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.Buffer,
-        cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.BufferPitch,
+        cinematicGlob.binkTextureSet.tex_draw.cBtexture,
+        cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth,
+        cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferHeight,
         0x80u);
-    if ( cinematicGlob.masterHunk.end )
+
+    if (cinematicGlob.binkTextureSet.tex_draw.Atexture)
         R_Cinematic_ClearTexture(
-            (IDirect3DTexture9 *)cinematicGlob.masterHunk.end,
-            cinematicGlob.binkTextureSet.bink_buffers.FrameNum,
-            cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.Allocate,
+            cinematicGlob.binkTextureSet.tex_draw.Atexture,
+            cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth,
+            cinematicGlob.binkTextureSet.bink_buffers.YABufferHeight,
             0);
 }
 
@@ -341,7 +407,7 @@ void __cdecl R_Cinematic_ClearTexture(IDirect3DTexture9 *texture, int width, int
     int hr; // [esp+0h] [ebp-Ch]
     _D3DLOCKED_RECT lockedRect; // [esp+4h] [ebp-8h] BYREF
 
-    hr = texture->LockRect(texture, 0, &lockedRect, 0, 0x2000u);
+    hr = texture->LockRect(0, &lockedRect, 0, 0x2000u);
     if ( hr >= 0 )
     {
         if ( lockedRect.Pitch < width
@@ -356,7 +422,7 @@ void __cdecl R_Cinematic_ClearTexture(IDirect3DTexture9 *texture, int width, int
             __debugbreak();
         }
         memset((unsigned __int8 *)lockedRect.pBits, clearValue, lockedRect.Pitch * height);
-        texture->UnlockRect(texture, 0);
+        texture->UnlockRect(0);
     }
     else
     {
@@ -367,49 +433,16 @@ void __cdecl R_Cinematic_ClearTexture(IDirect3DTexture9 *texture, int width, int
 
 void __cdecl R_Cinematic_Init()
 {
-    if ( ptr
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    2965,
-                    0,
-                    "%s",
-                    "!cinematicGlob.memPool") )
-    {
-        __debugbreak();
-    }
-    if ( g_cinematicInitialized
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    2966,
-                    0,
-                    "%s",
-                    "!g_cinematicInitialized") )
-    {
-        __debugbreak();
-    }
+    iassert(!cinematicGlob.memPool);
+    iassert(!g_cinematicInitialized);
+
     memset((unsigned __int8 *)&cinematicGlob, 0, 0x9F4u);
-    *(unsigned int *)&cinematicGlob.textureSets[36] = -1;
+    cinematicGlob.activeImageFrame = -1;
     R_Cinematic_ReserveMemory();
-    if ( *(unsigned int *)&cinematicGlob.textureSets[44]
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    2973,
-                    0,
-                    "%s",
-                    "cinematicGlob.currentPaused == CINEMATIC_NOT_PAUSED") )
-    {
-        __debugbreak();
-    }
-    if ( *(unsigned int *)&cinematicGlob.textureSets[48]
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    2974,
-                    0,
-                    "%s",
-                    "cinematicGlob.targetPaused == CINEMATIC_NOT_PAUSED") )
-    {
-        __debugbreak();
-    }
+
+    iassert(cinematicGlob.currentPaused == CINEMATIC_NOT_PAUSED);
+    iassert(cinematicGlob.targetPaused == CINEMATIC_NOT_PAUSED);
+
     g_cinematicInitialized = 1;
     if ( !g_cinematicDS )
         R_CinematicInitSound(0);
@@ -419,8 +452,8 @@ unsigned int *R_Cinematic_ReserveMemory()
 {
     unsigned int *result; // eax
 
-    result = Z_Malloc((int)&cls.unrankedServers[3021].gameType[11], "R_Cinematic_ReserveMemory", 19);
-    ptr = result;
+    result = Z_Malloc(0x1800000, "R_Cinematic_ReserveMemory", 19);
+    cinematicGlob.memPool = result;
     return result;
 }
 
@@ -431,13 +464,13 @@ void __cdecl R_Cinematic_Shutdown()
     R_Cinematic_StopPlayback();
     g_cinematicInitialized = 0;
     Sys_WaitWorkerCmdInternal(&_UpdateFrameWorkerCmd);
-    for ( setIter = 0; setIter != 2; ++setIter )
-        R_Cinematic_ReleaseImages((CinematicTextureSet *)(656 * setIter + 182285816));
-    Z_Free((char *)ptr, 19);
-    ptr = 0;
-    if ( g_cinematicDS )
+    for (setIter = 0; setIter != 2; ++setIter)
+        R_Cinematic_ReleaseImages(&cinematicGlob.textureSets[setIter]);
+    Z_Free((char*)cinematicGlob.memPool, 19);
+    cinematicGlob.memPool = 0;
+    if (g_cinematicDS)
     {
-        g_cinematicDS->Release(g_cinematicDS);
+        g_cinematicDS->Release();
         g_cinematicDS = 0;
     }
 }
@@ -469,9 +502,9 @@ void __cdecl R_Cinematic_StartPlayback_Internal(const char *name, unsigned int p
     I_strncpyz(cinematicGlob.targetCinematicName, name, 256);
     cinematicGlob.targetCinematicChanged = 1;
     cinematicGlob.cinematicFinished = 0;
-    *(unsigned int *)&cinematicGlob.textureSets[48] = (playbackFlags & 0x80u) != 0;
+    cinematicGlob.targetPaused = (CinematicEnum)((playbackFlags & 0x80u) != 0);
     cinematicGlob.playbackFlags = playbackFlags;
-    dword_ADD7B34 = volume;
+    cinematicGlob.playbackVolume = volume;
     Sys_LeaveCriticalSection(CRITSECT_CINEMATIC_TARGET_CHANGE);
 }
 
@@ -483,7 +516,7 @@ void __cdecl R_Cinematic_StartNextPlayback()
         R_Cinematic_StartPlayback_Internal(
             cinematicGlob.nextCinematicName,
             cinematicGlob.nextCinematicPlaybackFlags,
-            dword_ADD7B34);
+            cinematicGlob.playbackVolume);
         cinematicGlob.nextCinematicName[0] = 0;
     }
     Sys_LeaveCriticalSection(CRITSECT_CINEMATIC);
@@ -519,11 +552,11 @@ void __cdecl R_Cinematic_UpdateFrame_Core(bool force_wait)
     unsigned int localTargetPlaybackFlags; // [esp+10Ch] [ebp-8h]
     bool isCinematicBeingPlayed; // [esp+113h] [ebp-1h]
 
-    if ( !r_cinematic_disabled )
+    if (!r_cinematic_disabled)
     {
         Sys_EnterCriticalSection(CRITSECT_CINEMATIC_TARGET_CHANGE);
         localTargetChanged = cinematicGlob.targetCinematicChanged;
-        if ( cinematicGlob.targetCinematicChanged )
+        if (cinematicGlob.targetCinematicChanged)
         {
             I_strncpyz(localTargetCinematic, cinematicGlob.targetCinematicName, 256);
             cinematicGlob.targetCinematicChanged = 0;
@@ -535,35 +568,35 @@ void __cdecl R_Cinematic_UpdateFrame_Core(bool force_wait)
             localTargetPlaybackFlags = 0;
         }
         Sys_LeaveCriticalSection(CRITSECT_CINEMATIC_TARGET_CHANGE);
-        if ( !localTargetChanged
+        if (!localTargetChanged
             && localTargetPlaybackFlags
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                        2858,
-                        0,
-                        "%s",
-                        "localTargetChanged || !localTargetPlaybackFlags") )
+                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
+                2858,
+                0,
+                "%s",
+                "localTargetChanged || !localTargetPlaybackFlags"))
         {
             __debugbreak();
         }
-        if ( !localTargetChanged
+        if (!localTargetChanged
             && localTargetCinematic
             && localTargetCinematic[0]
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                        2859,
-                        0,
-                        "%s",
-                        "localTargetChanged || !localTargetCinematic || !localTargetCinematic[0]") )
+                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
+                2859,
+                0,
+                "%s",
+                "localTargetChanged || !localTargetCinematic || !localTargetCinematic[0]"))
         {
             __debugbreak();
         }
-        byte_ADD7B38 = 0;
-        if ( localTargetChanged )
+        cinematicGlob.underrun = 0;
+        if (localTargetChanged)
         {
-            if ( cinematicGlob.currentCinematicName[0] )
+            if (cinematicGlob.currentCinematicName[0])
                 R_Cinematic_StopPlayback_Now();
-            if ( localTargetCinematic[0] && R_Cinematic_StartPlayback_Now(localTargetCinematic, localTargetPlaybackFlags) )
+            if (localTargetCinematic[0] && R_Cinematic_StartPlayback_Now(localTargetCinematic, localTargetPlaybackFlags))
             {
                 I_strncpyz(cinematicGlob.currentCinematicName, localTargetCinematic, 256);
                 cinematicGlob.targetCinematicName[0] = 0;
@@ -574,42 +607,38 @@ void __cdecl R_Cinematic_UpdateFrame_Core(bool force_wait)
             }
         }
         isCinematicBeingPlayed = cinematicGlob.currentCinematicName[0] != 0;
-        if ( cinematicGlob.currentCinematicName[0] )
+        if (cinematicGlob.currentCinematicName[0])
         {
-            *(unsigned int *)&cinematicGlob.textureSets[40] = 0;
+            cinematicGlob.framesStopped = 0;
         }
         else
         {
-            if ( *(unsigned int *)&cinematicGlob.textureSets[36] != -1
+            if (cinematicGlob.activeImageFrame != -1
                 && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                            2910,
-                            0,
-                            "%s",
-                            "cinematicGlob.activeImageFrame == CINEMATIC_INVALID_IMAGE_FRAME") )
+                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
+                    2910,
+                    0,
+                    "%s",
+                    "cinematicGlob.activeImageFrame == CINEMATIC_INVALID_IMAGE_FRAME"))
             {
                 __debugbreak();
             }
-            if ( R_Cinematic_AreHunksOpen() )
-            {
-                ++*(unsigned int *)&cinematicGlob.textureSets[40];
-                if ( *(int *)&cinematicGlob.textureSets[40] >= 5 )
-                    R_Cinematic_HunksClose();
-            }
+            if (R_Cinematic_AreHunksOpen() && ++cinematicGlob.framesStopped >= 5)
+                R_Cinematic_HunksClose();
         }
-        if ( isCinematicBeingPlayed )
+        if (isCinematicBeingPlayed)
         {
-            if ( !cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth
+            if (!cinematicGlob.bink
                 && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                            2926,
-                            0,
-                            "%s",
-                            "cinematicGlob.bink") )
+                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
+                    2926,
+                    0,
+                    "%s",
+                    "cinematicGlob.bink"))
             {
                 __debugbreak();
             }
-            if ( !cinematicGlob.cinematicFinished && !R_Cinematic_Advance(force_wait) )
+            if (!cinematicGlob.cinematicFinished && !R_Cinematic_Advance(force_wait))
             {
                 SND_NotifyCinematicEnd();
                 cinematicGlob.cinematicFinished = 1;
@@ -620,52 +649,18 @@ void __cdecl R_Cinematic_UpdateFrame_Core(bool force_wait)
 
 char __cdecl R_Cinematic_AreHunksOpen()
 {
-    if ( CinematicHunk_IsOpen((CinematicHunk *)&cinematicGlob.residentHunk.atFront) )
+    if ( CinematicHunk_IsOpen(&cinematicGlob.masterHunk) )
     {
-        if ( !CinematicHunk_IsOpen((CinematicHunk *)&cinematicGlob.framesStopped)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                        825,
-                        0,
-                        "%s",
-                        "CinematicHunk_IsOpen( &cinematicGlob.binkHunk )") )
-        {
-            __debugbreak();
-        }
-        if ( !CinematicHunk_IsOpen((CinematicHunk *)&cinematicGlob.textureSets[12])
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                        826,
-                        0,
-                        "%s",
-                        "CinematicHunk_IsOpen( &cinematicGlob.residentHunk )") )
-        {
-            __debugbreak();
-        }
+        iassert(CinematicHunk_IsOpen(&cinematicGlob.binkHunk));
+        iassert(CinematicHunk_IsOpen(&cinematicGlob.residentHunk));
+
         return 1;
     }
     else
     {
-        if ( CinematicHunk_IsOpen((CinematicHunk *)&cinematicGlob.framesStopped)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                        834,
-                        0,
-                        "%s",
-                        "!CinematicHunk_IsOpen( &cinematicGlob.binkHunk )") )
-        {
-            __debugbreak();
-        }
-        if ( CinematicHunk_IsOpen((CinematicHunk *)&cinematicGlob.textureSets[12])
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                        835,
-                        0,
-                        "%s",
-                        "!CinematicHunk_IsOpen( &cinematicGlob.residentHunk )") )
-        {
-            __debugbreak();
-        }
+        iassert(!CinematicHunk_IsOpen(&cinematicGlob.binkHunk));
+        iassert(!CinematicHunk_IsOpen(&cinematicGlob.residentHunk));
+
         return 0;
     }
 }
@@ -674,78 +669,36 @@ char __cdecl CinematicHunk_IsOpen(CinematicHunk *hunk)
 {
     if ( hunk->base )
     {
-        if ( !hunk->atFront
-            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 544, 0, "%s", "hunk->atFront") )
-        {
-            __debugbreak();
-        }
-        if ( !hunk->atBack
-            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 545, 0, "%s", "hunk->atBack") )
-        {
-            __debugbreak();
-        }
-        if ( !hunk->end
-            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 546, 0, "%s", "hunk->end") )
-        {
-            __debugbreak();
-        }
+        iassert(hunk->atFront);
+        iassert(hunk->atBack);
+        iassert(hunk->end);
+        
         return 1;
     }
     else
     {
-        if ( hunk->atFront
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                        551,
-                        0,
-                        "%s",
-                        "!hunk->atFront") )
-        {
-            __debugbreak();
-        }
-        if ( hunk->atBack
-            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 552, 0, "%s", "!hunk->atBack") )
-        {
-            __debugbreak();
-        }
-        if ( hunk->end
-            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 553, 0, "%s", "!hunk->end") )
-        {
-            __debugbreak();
-        }
+        iassert(!hunk->atFront);
+        iassert(!hunk->atBack);
+        iassert(!hunk->end);
+        
         return 0;
     }
 }
 
 void R_Cinematic_HunksClose()
 {
-    CinematicHunk_Close((CinematicHunk *)&cinematicGlob.residentHunk.atFront);
-    CinematicHunk_Close((CinematicHunk *)&cinematicGlob.framesStopped);
-    CinematicHunk_Close((CinematicHunk *)&cinematicGlob.textureSets[12]);
+    CinematicHunk_Close(&cinematicGlob.masterHunk);
+    CinematicHunk_Close(&cinematicGlob.binkHunk);
+    CinematicHunk_Close(&cinematicGlob.residentHunk);
 }
 
 void __cdecl CinematicHunk_Close(CinematicHunk *hunk)
 {
-    if ( !hunk->base
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 526, 0, "%s", "hunk->base") )
-    {
-        __debugbreak();
-    }
-    if ( !hunk->atFront
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 527, 0, "%s", "hunk->atFront") )
-    {
-        __debugbreak();
-    }
-    if ( !hunk->atBack
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 528, 0, "%s", "hunk->atBack") )
-    {
-        __debugbreak();
-    }
-    if ( !hunk->end
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 529, 0, "%s", "hunk->end") )
-    {
-        __debugbreak();
-    }
+    iassert(hunk->base);
+    iassert(hunk->atFront);
+    iassert(hunk->atBack);
+    iassert(hunk->end);
+    
     hunk->base = 0;
     hunk->atFront = 0;
     hunk->atBack = 0;
@@ -756,10 +709,11 @@ void __cdecl CinematicHunk_Close(CinematicHunk *hunk)
 
 char __cdecl R_Cinematic_Advance(bool force_wait)
 {
-    bool v3; // [esp+20h] [ebp-C0h]
-    bool v4; // [esp+24h] [ebp-BCh]
-    IDirect3DTexture9 **bt; // [esp+8Ch] [ebp-54h]
-    void **p_Buffer; // [esp+90h] [ebp-50h]
+    //jpeg_decompress_struct *v3; // [esp+0h] [ebp-E0h]
+    bool v4; // [esp+20h] [ebp-C0h]
+    bool v5; // [esp+24h] [ebp-BCh]
+    BINKFRAMETEXTURES *bt; // [esp+8Ch] [ebp-54h]
+    BINKFRAMEPLANESET *Frames; // [esp+90h] [ebp-50h]
     int i; // [esp+94h] [ebp-4Ch]
     int maxMsecToWait; // [esp+98h] [ebp-48h]
     CinematicEnum targetPaused; // [esp+9Ch] [ebp-44h]
@@ -767,181 +721,134 @@ char __cdecl R_Cinematic_Advance(bool force_wait)
     BINKREALTIME binkRealtime; // [esp+A4h] [ebp-3Ch] BYREF
     unsigned int percentageFull; // [esp+DCh] [ebp-4h]
 
-    targetPaused = *(unsigned int *)&cinematicGlob.textureSets[48];
-    if ( *(unsigned int *)&cinematicGlob.textureSets[48] != 1
-        && *(unsigned int *)&cinematicGlob.textureSets[48] != 2
-        && *(unsigned int *)&cinematicGlob.textureSets[48]
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    1942,
-                    0,
-                    "%s\n\t(targetPaused) = %i",
-                    "(targetPaused == CINEMATIC_PAUSED || targetPaused == CINEMATIC_SCRIPT_PAUSED || targetPaused == CINEMATIC_NOT_PAUSED)",
-                    *(unsigned int *)&cinematicGlob.textureSets[48]) )
-    {
-        __debugbreak();
-    }
-    if ( *(unsigned int *)&cinematicGlob.textureSets[44] != 1
-        && *(unsigned int *)&cinematicGlob.textureSets[44] != 2
-        && *(unsigned int *)&cinematicGlob.textureSets[44]
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    1943,
-                    0,
-                    "%s\n\t(cinematicGlob.currentPaused) = %i",
-                    "(cinematicGlob.currentPaused == CINEMATIC_PAUSED || cinematicGlob.currentPaused == CINEMATIC_SCRIPT_PAUSED || "
-                    "cinematicGlob.currentPaused == CINEMATIC_NOT_PAUSED)",
-                    *(unsigned int *)&cinematicGlob.textureSets[44]) )
-    {
-        __debugbreak();
-    }
-    if ( !cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    1945,
-                    0,
-                    "%s",
-                    "cinematicGlob.bink") )
-    {
-        __debugbreak();
-    }
-    if ( byte_ADD7B38
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    1947,
-                    0,
-                    "%s",
-                    "!cinematicGlob.underrun") )
-    {
-        __debugbreak();
-    }
-    //BLOPS_NULLSUB();
+    targetPaused = cinematicGlob.targetPaused;
+
+    iassert((targetPaused == CINEMATIC_PAUSED || targetPaused == CINEMATIC_SCRIPT_PAUSED || targetPaused == CINEMATIC_NOT_PAUSED));
+    iassert((cinematicGlob.currentPaused == CINEMATIC_PAUSED || cinematicGlob.currentPaused == CINEMATIC_SCRIPT_PAUSED || cinematicGlob.currentPaused == CINEMATIC_NOT_PAUSED));
+    iassert(cinematicGlob.bink);
+    iassert(!cinematicGlob.underrun);
+
+    //BG_EvalVehicleName(v3);
     percentageFull = R_Cinematic_GetPercentageFull();
-    if ( percentageFull < 0x14 && (cinematicGlob.playbackFlags & 1) == 0 && (cinematicGlob.playbackFlags & 0x10) == 0 )
+    if (percentageFull < 0x14 && (cinematicGlob.playbackFlags & 1) == 0 && (cinematicGlob.playbackFlags & 0x10) == 0)
     {
-        byte_ADD7B38 = 1;
+        cinematicGlob.underrun = 1;
         targetPaused = CINEMATIC_PAUSED;
     }
-    if ( targetPaused != *(unsigned int *)&cinematicGlob.textureSets[44] )
+    if (targetPaused != cinematicGlob.currentPaused)
     {
-        if ( targetPaused == CINEMATIC_PAUSED || targetPaused == CINEMATIC_SCRIPT_PAUSED )
-            BinkPause(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth, 1);
+        if (targetPaused == CINEMATIC_PAUSED || targetPaused == CINEMATIC_SCRIPT_PAUSED)
+            BinkPause(cinematicGlob.bink, 1);
         else
-            BinkPause(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth, 0);
+            BinkPause(cinematicGlob.bink, 0);
         R_Cinematic_CheckBinkError();
-        *(unsigned int *)&cinematicGlob.textureSets[44] = targetPaused;
-        if ( targetPaused == CINEMATIC_NOT_PAUSED )
+        cinematicGlob.currentPaused = targetPaused;
+        if (targetPaused == CINEMATIC_NOT_PAUSED)
         {
-            *(unsigned int *)&cinematicGlob.usingAlpha = Sys_Milliseconds();
-            cinematicGlob.bink = *(BINK **)(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth + 12);
+            cinematicGlob.startTimeMS = Sys_Milliseconds();
+            cinematicGlob.frameNum = cinematicGlob.bink->FrameNum;
         }
     }
-    v4 = force_wait || (cinematicGlob.playbackFlags & 0x40) != 0 && (cinematicGlob.playbackFlags & 1) != 0;
-    v3 = (cinematicGlob.playbackFlags & 0x40) != 0 && (cinematicGlob.playbackFlags & 1) != 0;
-    useCustomSkipLogic = v3;
-    if ( (cinematicGlob.playbackFlags & 2) != 0 )
+    v5 = force_wait || (cinematicGlob.playbackFlags & 0x40) != 0 && (cinematicGlob.playbackFlags & 1) != 0;
+    v4 = (cinematicGlob.playbackFlags & 0x40) != 0 && (cinematicGlob.playbackFlags & 1) != 0;
+    useCustomSkipLogic = v4;
+    if ((cinematicGlob.playbackFlags & 2) != 0)
         useCustomSkipLogic = 1;
-    if ( targetPaused == CINEMATIC_NOT_PAUSED )
+    if (targetPaused == CINEMATIC_NOT_PAUSED)
     {
-        if ( v4 )
+        if (v5)
         {
             maxMsecToWait = 33;
-            while ( R_Cinematic_BinkShouldWait(useCustomSkipLogic) )
+            while (R_Cinematic_BinkShouldWait(useCustomSkipLogic))
             {
-                if ( !maxMsecToWait-- )
+                if (!maxMsecToWait--)
                     break;
-                NET_Sleep(1u);
+                NET_Sleep(1);
             }
         }
-        if ( force_wait || !R_Cinematic_BinkShouldWait(useCustomSkipLogic) )
+        if (force_wait || !R_Cinematic_BinkShouldWait(useCustomSkipLogic))
         {
-            bt = &cinematicGlob.binkTextureSet.textures[0].Ytexture;
-            p_Buffer = &cinematicGlob.binkTextureSet.bink_buffers.Frames[0].cRPlane.Buffer;
-            for ( i = 0; i < (int)cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferHeight; ++i )
+            bt = cinematicGlob.binkTextureSet.textures;
+            Frames = cinematicGlob.binkTextureSet.bink_buffers.Frames;
+            for (i = 0; i < cinematicGlob.binkTextureSet.bink_buffers.TotalFrames; ++i)
             {
-                p_Buffer[1] = (void *)*((unsigned int *)&cinematicGlob.masterHunk.lastAllocPtr + i);
-                p_Buffer[2] = (void *)cinematicGlob.binkTextureSet.bink_buffers.FrameNum;
-                p_Buffer[4] = (void *)*((unsigned int *)&cinematicGlob.binkHunk.base + i);
-                p_Buffer[5] = cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.Buffer;
-                p_Buffer[7] = (void *)*((unsigned int *)&cinematicGlob.binkHunk.atBack + i);
-                p_Buffer[8] = cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.Buffer;
-                if ( bt[7] )
+                Frames->YPlane.Buffer = cinematicGlob.YTextures[i];
+                Frames->YPlane.BufferPitch = cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth;
+                Frames->cRPlane.Buffer = cinematicGlob.crTextures[i];
+                Frames->cRPlane.BufferPitch = cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth;
+                Frames->cBPlane.Buffer = cinematicGlob.cbTextures[i];
+                Frames->cBPlane.BufferPitch = cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth;
+                if (bt->Atexture)
                 {
-                    p_Buffer[10] = (void *)*((unsigned int *)&cinematicGlob.binkHunk.lastAllocPtr + i);
-                    p_Buffer[11] = (void *)cinematicGlob.binkTextureSet.bink_buffers.FrameNum;
+                    Frames->APlane.Buffer = cinematicGlob.aTextures[i];
+                    Frames->APlane.BufferPitch = cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth;
                 }
-                bt += 8;
-                p_Buffer += 12;
+                ++bt;
+                ++Frames;
             }
             //PIXBeginNamedEvent(-1, "R_Cinematic_Thread2");
-            BinkDoFrame(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth);
-            while ( R_Cinematic_BinkShouldSkip(useCustomSkipLogic)
-                     && ((cinematicGlob.playbackFlags & 2) != 0
-                        || *(unsigned int *)(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth + 12) != *(unsigned int *)(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth + 8)) )
+            BinkDoFrame(cinematicGlob.bink);
+            while (R_Cinematic_BinkShouldSkip(useCustomSkipLogic)
+                && ((cinematicGlob.playbackFlags & 2) != 0 || cinematicGlob.bink->FrameNum != cinematicGlob.bink->Frames))
             {
-                if ( *(unsigned int *)(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth + 12) == 1 )
+                if (cinematicGlob.bink->FrameNum == 1)
                 {
-                    *(unsigned int *)&cinematicGlob.usingAlpha = Sys_Milliseconds();
-                    cinematicGlob.bink = *(BINK **)(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth + 12);
+                    cinematicGlob.startTimeMS = Sys_Milliseconds();
+                    cinematicGlob.frameNum = cinematicGlob.bink->FrameNum;
                 }
-                BinkNextFrame(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth);
-                BinkDoFrame(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth);
+                BinkNextFrame(cinematicGlob.bink);
+                BinkDoFrame(cinematicGlob.bink);
             }
-            //if ( GetCurrentThreadId() == g_DXDeviceThread )
-                //D3DPERF_EndEvent();
-            if ( Sys_IsRenderThread() )
+            //if (GetCurrentThreadId() == g_DXDeviceThread)
+            //    D3DPERF_EndEvent();
+            if (Sys_IsRenderThread())
             {
-                Unlock_Bink_textures2(dx.device, (BINKTEXTURESET *)&cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferHeight);
+                Unlock_Bink_textures2(dx.device, &cinematicGlob.binkTextureSet);
             }
             else
             {
                 RB_Resource_Callback(Unlock_Bink_textures_Callback);
                 RB_Resource_Flush();
             }
-            if ( *(unsigned int *)&cinematicGlob.textureSets[36] == -1 )
+            if (cinematicGlob.activeImageFrame == -1)
                 cinematicGlob.firstFrameNotify = 1;
-            if ( cinematicGlob.binkTextureSet.bink_buffers.Frames[0].cRPlane.Allocate >= 2u
+            if (cinematicGlob.binkTextureSet.bink_buffers.FrameNum >= 2
                 && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                            2076,
-                            0,
-                            "%s\n\t(cinematicGlob.binkTextureSet.bink_buffers.FrameNum) = %i",
-                            "(cinematicGlob.binkTextureSet.bink_buffers.FrameNum == 0 || cinematicGlob.binkTextureSet.bink_buffers.FrameNum == 1)",
-                            cinematicGlob.binkTextureSet.bink_buffers.Frames[0].cRPlane.Allocate) )
+                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
+                    2076,
+                    0,
+                    "%s\n\t(cinematicGlob.binkTextureSet.bink_buffers.FrameNum) = %i",
+                    "(cinematicGlob.binkTextureSet.bink_buffers.FrameNum == 0 || cinematicGlob.binkTextureSet.bink_buffers.FrameNum == 1)",
+                    cinematicGlob.binkTextureSet.bink_buffers.FrameNum))
             {
                 __debugbreak();
             }
-            *(unsigned int *)&cinematicGlob.textureSets[36] = cinematicGlob.binkTextureSet.bink_buffers.Frames[0].cRPlane.Allocate;
-            dword_ADD7B1C = activeTexture;
-            if ( (cinematicGlob.playbackFlags & 2) != 0
-                || *(unsigned int *)(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth + 12) != *(unsigned int *)(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth + 8) )
-            {
-                BinkNextFrame(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth);
-            }
+            cinematicGlob.activeImageFrame = cinematicGlob.binkTextureSet.bink_buffers.FrameNum;
+            cinematicGlob.activeImageFrameTextureSet = cinematicGlob.activeTextureSet;
+            if ((cinematicGlob.playbackFlags & 2) != 0 || cinematicGlob.bink->FrameNum != cinematicGlob.bink->Frames)
+                BinkNextFrame(cinematicGlob.bink);
         }
     }
     R_Cinematic_CheckBinkError();
-    if ( (cinematicGlob.playbackFlags & 2) != 0
-        || *(unsigned int *)(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth + 12) != *(unsigned int *)(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth
-                                                                                                                                                                                                + 8) )
+    if ((cinematicGlob.playbackFlags & 2) != 0 || cinematicGlob.bink->FrameNum != cinematicGlob.bink->Frames)
     {
-        if ( !cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth
+        if (!cinematicGlob.bink
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                        2098,
-                        0,
-                        "%s",
-                        "cinematicGlob.bink") )
+                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
+                2098,
+                0,
+                "%s",
+                "cinematicGlob.bink"))
         {
             __debugbreak();
         }
-        BinkGetRealtime(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth, &binkRealtime, 0);
+        BinkGetRealtime(cinematicGlob.bink, &binkRealtime, 0);
         R_Cinematic_UpdateTimeInMsec(&binkRealtime);
-        if ( (cinematicGlob.playbackFlags & 8) != 0 )
+        if ((cinematicGlob.playbackFlags & 8) != 0)
         {
             percentageFull = 100;
         }
-        else if ( binkRealtime.ReadBufferUsed < binkRealtime.ReadBufferSize )
+        else if (binkRealtime.ReadBufferUsed < binkRealtime.ReadBufferSize)
         {
             percentageFull = (__int64)((double)binkRealtime.ReadBufferUsed / (double)cinematicGlob.binkIOSize * 100.0);
         }
@@ -949,17 +856,17 @@ char __cdecl R_Cinematic_Advance(bool force_wait)
         {
             percentageFull = 100;
         }
-        if ( cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth && percentageFull > 0x5F )
+        if (cinematicGlob.fileIoState && percentageFull > 0x5F)
             R_Cinematic_RelinquishIO();
-        if ( cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth != 1 && percentageFull < 0x32 )
+        if (cinematicGlob.fileIoState != CIN_IOSTATE_SEIZED && percentageFull < 0x32)
         {
-            if ( (cinematicGlob.playbackFlags & 8) != 0
+            if ((cinematicGlob.playbackFlags & 8) != 0
                 && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                            2114,
-                            0,
-                            "%s",
-                            "!(cinematicGlob.playbackFlags & CINEMATIC_PLAYBACKFLAGS_MEMORY_RESIDENT)") )
+                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
+                    2114,
+                    0,
+                    "%s",
+                    "!(cinematicGlob.playbackFlags & CINEMATIC_PLAYBACKFLAGS_MEMORY_RESIDENT)"))
             {
                 __debugbreak();
             }
@@ -970,7 +877,7 @@ char __cdecl R_Cinematic_Advance(bool force_wait)
     else
     {
         cinematicGlob.lastFrameNotify = 1;
-        if ( cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth )
+        if (cinematicGlob.fileIoState)
             R_Cinematic_RelinquishIO();
         return 0;
     }
@@ -980,7 +887,7 @@ unsigned int __cdecl R_Cinematic_GetPercentageFull()
 {
     BINKREALTIME binkRealtime; // [esp+24h] [ebp-38h] BYREF
 
-    if ( !cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth
+    if ( !cinematicGlob.bink
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
                     1445,
@@ -990,7 +897,7 @@ unsigned int __cdecl R_Cinematic_GetPercentageFull()
     {
         __debugbreak();
     }
-    BinkGetRealtime(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth, &binkRealtime, 0);
+    BinkGetRealtime(cinematicGlob.bink, &binkRealtime, 0);
     if ( (cinematicGlob.playbackFlags & 8) != 0 )
         return 100;
     if ( binkRealtime.ReadBufferUsed < binkRealtime.ReadBufferSize )
@@ -1002,31 +909,15 @@ const char *R_Cinematic_SeizeIO()
 {
     const char *result; // eax
 
-    if ( cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth == 1
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    1452,
-                    0,
-                    "%s",
-                    "cinematicGlob.fileIoState != CIN_IOSTATE_SEIZED") )
-    {
-        __debugbreak();
-    }
-    if ( !cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    1453,
-                    0,
-                    "%s",
-                    "cinematicGlob.bink") )
-    {
-        __debugbreak();
-    }
-    if ( !cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth )
+    iassert(cinematicGlob.fileIoState != CIN_IOSTATE_SEIZED);
+    iassert(cinematicGlob.bink);
+
+    if ( !cinematicGlob.fileIoState )
         Sys_SuspendDiscReads(THREAD_OWNER_CINEMATICS);
-    BinkControlBackgroundIO(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth, 2);
+
+    BinkControlBackgroundIO(cinematicGlob.bink, 2);
     result = R_Cinematic_CheckBinkError();
-    cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth = 1;
+    cinematicGlob.fileIoState = CIN_IOSTATE_SEIZED;
     return result;
 }
 
@@ -1078,9 +969,9 @@ int __cdecl R_Cinematic_BinkShouldSkip(bool useCustomLogic)
     float bink; // [esp+14h] [ebp-8h]
 
     if ( !useCustomLogic )
-        return BinkShouldSkip(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth);
+        return BinkShouldSkip(cinematicGlob.bink);
     bink = (float)(int)cinematicGlob.bink;
-    return *(unsigned int *)(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth + 12) < (unsigned int)(__int64)((double)(int)(Sys_Milliseconds() - *(unsigned int *)&cinematicGlob.usingAlpha) * *(float *)&cinematicGlob.fileIoState / 1000.0 + bink);
+    return *(unsigned int *)(cinematicGlob.bink + 12) < (unsigned int)(__int64)((double)(int)(Sys_Milliseconds() - *(unsigned int *)&cinematicGlob.usingAlpha) * *(float *)&cinematicGlob.fileIoState / 1000.0 + bink);
 }
 
 int __cdecl R_Cinematic_BinkShouldWait(bool useCustomLogic)
@@ -1088,56 +979,42 @@ int __cdecl R_Cinematic_BinkShouldWait(bool useCustomLogic)
     float bink; // [esp+14h] [ebp-8h]
 
     if ( !useCustomLogic )
-        return BinkWait(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth);
+        return BinkWait(cinematicGlob.bink);
+
     bink = (float)(int)cinematicGlob.bink;
     return (unsigned int)(__int64)((double)(int)(Sys_Milliseconds() + 16 - *(unsigned int *)&cinematicGlob.usingAlpha)
                                                              * *(float *)&cinematicGlob.fileIoState
                                                              / 1000.0
-                                                             + bink) < *(unsigned int *)(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth + 12);
+                                                             + bink) < *(unsigned int *)(cinematicGlob.bink + 12);
 }
 
 void R_Cinematic_StopPlayback_Now()
 {
     SND_NotifyCinematicEnd();
-    *(unsigned int *)&cinematicGlob.textureSets[36] = -1;
-    if ( cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth )
+    cinematicGlob.activeImageFrame = -1;
+    if (cinematicGlob.fileIoState)
         R_Cinematic_RelinquishIO();
     cinematicGlob.isPreloaded = 0;
-    BinkClose(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth);
-    cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth = 0;
-    if ( cinematicGlob.framesStopped )
-        CinematicHunk_Reset((CinematicHunk *)&cinematicGlob.framesStopped);
+    BinkClose(cinematicGlob.bink);
+    cinematicGlob.bink = 0;
+    if (cinematicGlob.binkHunk.base)
+        CinematicHunk_Reset(&cinematicGlob.binkHunk);
 }
 
 void __cdecl CinematicHunk_Reset(CinematicHunk *hunk)
 {
-    if ( !hunk->base
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 560, 0, "%s", "hunk->base") )
-    {
-        __debugbreak();
-    }
-    if ( !hunk->atFront
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 561, 0, "%s", "hunk->atFront") )
-    {
-        __debugbreak();
-    }
-    if ( !hunk->atBack
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 562, 0, "%s", "hunk->atBack") )
-    {
-        __debugbreak();
-    }
-    if ( !hunk->end
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 563, 0, "%s", "hunk->end") )
-    {
-        __debugbreak();
-    }
+    iassert(hunk->base);
+    iassert(hunk->atFront);
+    iassert(hunk->atBack);
+    iassert(hunk->end);
+    
     hunk->atFront = hunk->base;
     hunk->atBack = hunk->end;
     hunk->lastAllocPtr = 0;
     hunk->fragmented = 0;
 }
 
-char __cdecl R_Cinematic_StartPlayback_Now(const char *filename, char playbackFlags)
+char __cdecl R_Cinematic_StartPlayback_Now(const char *filename, unsigned int playbackFlags)
 {
     unsigned int TrackIDsToPlay[5]; // [esp+1Ch] [ebp-9Ch] BYREF
     char errText[132]; // [esp+30h] [ebp-88h] BYREF
@@ -1147,59 +1024,59 @@ char __cdecl R_Cinematic_StartPlayback_Now(const char *filename, char playbackFl
     TrackIDsToPlay[2] = 2;
     TrackIDsToPlay[3] = 3;
     TrackIDsToPlay[4] = 4;
-    if ( cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth
+    if (cinematicGlob.bink
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    2641,
-                    0,
-                    "%s",
-                    "!cinematicGlob.bink") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
+            2641,
+            0,
+            "%s",
+            "!cinematicGlob.bink"))
     {
         __debugbreak();
     }
-    *(unsigned int *)&cinematicGlob.textureSets[36] = -1;
-    activeTexture ^= 1u;
+    cinematicGlob.activeImageFrame = -1;
+    cinematicGlob.activeTextureSet ^= 1u;
     cinematicGlob.firstFrameNotify = 0;
     cinematicGlob.lastFrameNotify = 0;
-    if ( R_Cinematic_AreHunksOpen() )
+    if (R_Cinematic_AreHunksOpen())
     {
-        R_Cinematic_HunksReset(activeTexture, playbackFlags);
+        R_Cinematic_HunksReset(cinematicGlob.activeTextureSet, playbackFlags);
     }
-    else if ( !R_Cinematic_HunksOpen(activeTexture, playbackFlags) )
+    else if (!R_Cinematic_HunksOpen(cinematicGlob.activeTextureSet, playbackFlags))
     {
-        activeTexture ^= 1u;
+        cinematicGlob.activeTextureSet ^= 1u;
         cinematicGlob.targetCinematicChanged = 1;
         return 0;
     }
-    SND_NotifyCinematicStart(*(float *)&dword_ADD7B34);
-    if ( !CinematicHunk_IsEmpty((CinematicHunk *)&cinematicGlob.framesStopped)
+    SND_NotifyCinematicStart(cinematicGlob.playbackVolume);
+    if (!CinematicHunk_IsEmpty(&cinematicGlob.binkHunk)
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    2666,
-                    0,
-                    "%s",
-                    "CinematicHunk_IsEmpty( &cinematicGlob.binkHunk )") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
+            2666,
+            0,
+            "%s",
+            "CinematicHunk_IsEmpty( &cinematicGlob.binkHunk )"))
     {
         __debugbreak();
     }
     R_Cinematic_CheckBinkError();
     BinkSetMemory(R_Cinematic_Bink_Alloc, R_Cinematic_Bink_Free);
     R_Cinematic_CheckBinkError();
-    if ( g_cinematicDS )
-        BinkSetSoundSystem(BinkOpenDirectSound, g_cinematicDS);
+    if (g_cinematicDS)
+        BinkSetSoundSystem(BinkOpenDirectSound, (unsigned int)g_cinematicDS);
     R_Cinematic_CheckBinkError();
     R_Cinematic_CheckBinkError();
     BinkSetSoundTrack(5, TrackIDsToPlay);
     R_Cinematic_CheckBinkError();
     cinematicGlob.timeInMsec = 0;
     errText[0] = 0;
-    if ( R_Cinematic_BinkOpen(filename, playbackFlags, errText, 0x80u)
+    if (R_Cinematic_BinkOpen(filename, playbackFlags, errText, 128)
         || (Com_PrintWarning(8, "R_Cinematic_BinkOpen '%s' failed: %s; trying default.\n", filename, errText),
-                CinematicHunk_Reset((CinematicHunk *)&cinematicGlob.framesStopped),
-                errText[0] = 0,
-                R_Cinematic_BinkOpen("default", playbackFlags, errText, 0x80u)) )
+            CinematicHunk_Reset(&cinematicGlob.binkHunk),
+            errText[0] = 0,
+            R_Cinematic_BinkOpen("default", playbackFlags, errText, 128)))
     {
-        if ( Sys_IsRenderThread() )
+        if (Sys_IsRenderThread())
         {
             R_Cinematic_BlackRendererImages();
         }
@@ -1209,44 +1086,40 @@ char __cdecl R_Cinematic_StartPlayback_Now(const char *filename, char playbackFl
             RB_Resource_Flush();
         }
         R_Cinematic_CheckBinkError();
-        if ( !cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth
+        if (!cinematicGlob.bink
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                        2746,
-                        0,
-                        "%s",
-                        "cinematicGlob.bink") )
+                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
+                2746,
+                0,
+                "%s",
+                "cinematicGlob.bink"))
         {
             __debugbreak();
         }
         R_Cinematic_InitBinkVolumes();
-        memset((unsigned __int8 *)&cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferHeight, 0, 0xD8u);
-        BinkGetFrameBuffersInfo(
-            cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth,
-            &cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferHeight);
+        memset((unsigned __int8 *)&cinematicGlob.binkTextureSet, 0, 0xD8u);
+        BinkGetFrameBuffersInfo(cinematicGlob.bink, &cinematicGlob.binkTextureSet.bink_buffers);
         R_Cinematic_CheckBinkError();
         R_Cinematic_InitBinkTextures();
-        BinkRegisterFrameBuffers(
-            cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth,
-            &cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferHeight);
+        BinkRegisterFrameBuffers(cinematicGlob.bink, &cinematicGlob.binkTextureSet.bink_buffers);
         R_Cinematic_CheckBinkError();
-        *(unsigned int *)&cinematicGlob.textureSets[44] = 0;
+        cinematicGlob.currentPaused = CINEMATIC_NOT_PAUSED;
         return 1;
     }
     else
     {
         Com_PrintWarning(8, "R_Cinematic_BinkOpen '%s' failed: %s; not playing movie.\n", "default", errText);
-        if ( *(unsigned int *)&cinematicGlob.textureSets[36] != -1
+        if (cinematicGlob.activeImageFrame != -1
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                        2701,
-                        0,
-                        "%s",
-                        "cinematicGlob.activeImageFrame == CINEMATIC_INVALID_IMAGE_FRAME") )
+                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
+                2701,
+                0,
+                "%s",
+                "cinematicGlob.activeImageFrame == CINEMATIC_INVALID_IMAGE_FRAME"))
         {
             __debugbreak();
         }
-        CinematicHunk_Reset((CinematicHunk *)&cinematicGlob.framesStopped);
+        CinematicHunk_Reset(&cinematicGlob.binkHunk);
         R_Cinematic_BlackRendererImages();
         return 0;
     }
@@ -1279,36 +1152,18 @@ bool __cdecl CinematicHunk_IsEmpty(CinematicHunk *hunk)
 
 char __cdecl R_Cinematic_HunksOpen(int activeTexture, char playbackFlags)
 {
-    CinematicHunk_Open(
-        (CinematicHunk *)&cinematicGlob.residentHunk.atFront,
-        (char *)ptr,
-        (int)&cls.unrankedServers[3021].gameType[11]);
+    CinematicHunk_Open(&cinematicGlob.masterHunk, (char*)cinematicGlob.memPool, 0x1800000);
     R_Cinematic_HunksAllocate(activeTexture, playbackFlags);
     return 1;
 }
 
 void __cdecl CinematicHunk_Open(CinematicHunk *hunk, char *memory, int size)
 {
-    if ( hunk->base
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 510, 0, "%s", "!hunk->base") )
-    {
-        __debugbreak();
-    }
-    if ( hunk->atFront
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 511, 0, "%s", "!hunk->atFront") )
-    {
-        __debugbreak();
-    }
-    if ( hunk->atBack
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 512, 0, "%s", "!hunk->atBack") )
-    {
-        __debugbreak();
-    }
-    if ( hunk->end
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 513, 0, "%s", "!hunk->end") )
-    {
-        __debugbreak();
-    }
+    iassert(!hunk->base);
+    iassert(!hunk->atFront);
+    iassert(!hunk->atBack);
+    iassert(!hunk->end);
+
     hunk->base = memory;
     hunk->atFront = memory;
     hunk->end = &memory[size];
@@ -1353,12 +1208,10 @@ void __cdecl R_Cinematic_HunksAllocate(int activeTexture, char playbackFlags)
         }
         newBinkBufferSize = 1572864;
     }
-    binkBufferBase = (char *)CinematicHunk_Alloc((CinematicHunk *)&cinematicGlob.residentHunk.atFront, newBinkBufferSize);
-    residentBufferBase = (char *)CinematicHunk_Alloc(
-                                                                 (CinematicHunk *)&cinematicGlob.residentHunk.atFront,
-                                                                 (int)newResidentBufferSize);
-    CinematicHunk_Open((CinematicHunk *)&cinematicGlob.framesStopped, binkBufferBase, newBinkBufferSize);
-    CinematicHunk_Open((CinematicHunk *)&cinematicGlob.textureSets[12], residentBufferBase, (int)newResidentBufferSize);
+    binkBufferBase = (char *)CinematicHunk_Alloc(&cinematicGlob.masterHunk, newBinkBufferSize);
+    residentBufferBase = (char *)CinematicHunk_Alloc(&cinematicGlob.masterHunk, (int)newResidentBufferSize);
+    CinematicHunk_Open(&cinematicGlob.binkHunk, binkBufferBase, newBinkBufferSize);
+    CinematicHunk_Open(&cinematicGlob.residentHunk, residentBufferBase, (int)newResidentBufferSize);
 }
 
 int __cdecl CinematicHunk_Alloc(CinematicHunk *hunk, int size)
@@ -1424,113 +1277,117 @@ int __cdecl CinematicHunk_Alloc(CinematicHunk *hunk, int size)
 
 void __cdecl R_Cinematic_HunksReset(int activeTexture, char playbackFlags)
 {
-    CinematicHunk_Close((CinematicHunk *)&cinematicGlob.framesStopped);
-    CinematicHunk_Close((CinematicHunk *)&cinematicGlob.textureSets[12]);
-    CinematicHunk_Reset((CinematicHunk *)&cinematicGlob.residentHunk.atFront);
+    CinematicHunk_Close(&cinematicGlob.binkHunk);
+    CinematicHunk_Close(&cinematicGlob.residentHunk);
+    CinematicHunk_Reset(&cinematicGlob.masterHunk);
     R_Cinematic_HunksAllocate(activeTexture, playbackFlags);
 }
 
-CinematicTextureSet *R_Cinematic_InitBinkTextures()
+void R_Cinematic_InitBinkTextures()
 {
     BINKFRAMETEXTURES *textures; // [esp+0h] [ebp-10h]
-    BINKFRAMETEXTURES *texturesa; // [esp+0h] [ebp-10h]
     int frameIter; // [esp+8h] [ebp-8h]
     int frameItera; // [esp+8h] [ebp-8h]
     CinematicTextureSet *textureSet; // [esp+Ch] [ebp-4h]
 
-    textureSet = (CinematicTextureSet *)(656 * activeTexture + 182285816);
+    textureSet = &cinematicGlob.textureSets[cinematicGlob.activeTextureSet];
     R_Cinematic_ReleaseImages(textureSet);
-    if ( cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferHeight != 2
+    if (cinematicGlob.binkTextureSet.bink_buffers.TotalFrames != 2
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    1214,
-                    0,
-                    "%s",
-                    "cinematicGlob.binkTextureSet.bink_buffers.TotalFrames == CINEMATIC_IMAGES_REQUIRED") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
+            1214,
+            0,
+            "%s",
+            "cinematicGlob.binkTextureSet.bink_buffers.TotalFrames == CINEMATIC_IMAGES_REQUIRED"))
     {
         __debugbreak();
     }
-    for ( frameIter = 0; frameIter != 2; ++frameIter )
+    for (frameIter = 0; frameIter != 2; ++frameIter)
     {
-        textures = (BINKFRAMETEXTURES *)(32 * frameIter + 182285596);
+        textures = &cinematicGlob.binkTextureSet.textures[frameIter];
         textures->Ytexture = R_Cinematic_MakeBinkTexture_PC(
-                                                     &textureSet->imageY[frameIter],
-                                                     cinematicGlob.binkTextureSet.bink_buffers.FrameNum,
-                                                     cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.Allocate,
-                                                     0x40000);
+            &textureSet->imageY[frameIter],
+            cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth,
+            cinematicGlob.binkTextureSet.bink_buffers.YABufferHeight,
+            0x40000);
         textures->cRtexture = R_Cinematic_MakeBinkTexture_PC(
-                                                        &textureSet->imageCr[frameIter],
-                                                        (unsigned int)cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.Buffer,
-                                                        cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.BufferPitch,
-                                                        0x40000);
+            &textureSet->imageCr[frameIter],
+            cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth,
+            cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferHeight,
+            0x40000);
         textures->cBtexture = R_Cinematic_MakeBinkTexture_PC(
-                                                        &textureSet->imageCb[frameIter],
-                                                        (unsigned int)cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.Buffer,
-                                                        cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.BufferPitch,
-                                                        0x40000);
-        if ( cinematicGlob.binkTextureSet.bink_buffers.Frames[frameIter + 1].YPlane.Buffer )
-            cinematicGlob.binkTextureSet.textures[frameIter + 1].Asize = (unsigned int)R_Cinematic_MakeBinkTexture_PC(
-                                                                                                                                                                     &textureSet->imageA[frameIter],
-                                                                                                                                                                     cinematicGlob.binkTextureSet.bink_buffers.FrameNum,
-                                                                                                                                                                     cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.Allocate,
-                                                                                                                                                                     0x40000);
+            &textureSet->imageCb[frameIter],
+            cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth,
+            cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferHeight,
+            0x40000);
+        if (cinematicGlob.binkTextureSet.bink_buffers.Frames[frameIter].APlane.Allocate)
+            textures->Atexture = R_Cinematic_MakeBinkTexture_PC(
+                &textureSet->imageA[frameIter],
+                cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth,
+                cinematicGlob.binkTextureSet.bink_buffers.YABufferHeight,
+                0x40000);
         else
-            cinematicGlob.binkTextureSet.textures[frameIter + 1].Asize = 0;
-        cinematicGlob.residentHunk.base = (void *)cinematicGlob.binkTextureSet.bink_buffers.FrameNum;
+            textures->Atexture = 0;
+
+        cinematicGlob.bufferWidth = cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth;
+
         textureSet->Ytexture[frameIter] = Z_VirtualAlloc(
-                                                                                cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.Allocate
-                                                                            * cinematicGlob.binkTextureSet.bink_buffers.FrameNum,
-                                                                                "BinkBuffers",
-                                                                                23);
-        *((unsigned int *)&cinematicGlob.masterHunk.lastAllocPtr + frameIter) = textureSet->Ytexture[frameIter];
+            cinematicGlob.binkTextureSet.bink_buffers.YABufferHeight
+            * cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth,
+            "BinkBuffers",
+            23);
+        cinematicGlob.YTextures[frameIter] = textureSet->Ytexture[frameIter];
+
         textureSet->cRtexture[frameIter] = Z_VirtualAlloc(
-                                                                                 cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.BufferPitch
-                                                                             * (unsigned int)cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.Buffer,
-                                                                                 "BinkBuffers",
-                                                                                 23);
-        *((unsigned int *)&cinematicGlob.binkHunk.base + frameIter) = textureSet->cRtexture[frameIter];
+            cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferHeight
+            * cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth,
+            "BinkBuffers",
+            23);
+        cinematicGlob.crTextures[frameIter] = textureSet->cRtexture[frameIter];
         textureSet->cBtexture[frameIter] = Z_VirtualAlloc(
-                                                                                 cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.BufferPitch
-                                                                             * (unsigned int)cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.Buffer,
-                                                                                 "BinkBuffers",
-                                                                                 23);
-        *((unsigned int *)&cinematicGlob.binkHunk.atBack + frameIter) = textureSet->cBtexture[frameIter];
-        if ( cinematicGlob.binkTextureSet.bink_buffers.Frames[frameIter + 1].YPlane.Buffer )
+            cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferHeight
+            * cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth,
+            "BinkBuffers",
+            23);
+        cinematicGlob.cbTextures[frameIter] = textureSet->cBtexture[frameIter];
+
+
+        if (cinematicGlob.binkTextureSet.bink_buffers.Frames[frameIter].APlane.Allocate)
         {
             textureSet->Atexture[frameIter] = Z_VirtualAlloc(
-                                                                                    cinematicGlob.binkTextureSet.bink_buffers.Frames[0].YPlane.Allocate
-                                                                                * cinematicGlob.binkTextureSet.bink_buffers.FrameNum,
-                                                                                    "BinkBuffers",
-                                                                                    23);
-            *((unsigned int *)&cinematicGlob.binkHunk.lastAllocPtr + frameIter) = textureSet->Atexture[frameIter];
+                cinematicGlob.binkTextureSet.bink_buffers.YABufferHeight
+                * cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth,
+                "BinkBuffers",
+                23);
+            cinematicGlob.aTextures[frameIter] = textureSet->Atexture[frameIter];
         }
         else
         {
             textureSet->Atexture[frameIter] = 0;
-            *((unsigned int *)&cinematicGlob.binkHunk.lastAllocPtr + frameIter) = 0;
+            cinematicGlob.aTextures[frameIter] = 0;
         }
     }
-    if ( !Sys_IsRenderThread() )
+    if (!Sys_IsRenderThread())
     {
         RB_Resource_Flush();
-        for ( frameItera = 0; frameItera != 2; ++frameItera )
+        for (frameItera = 0; frameItera != 2; ++frameItera)
         {
-            texturesa = (BINKFRAMETEXTURES *)(32 * frameItera + 182285596);
-            cinematicGlob.binkTextureSet.textures[frameItera + 1].Ysize = (unsigned int)textureSet->imageY[frameItera].texture.basemap;
-            texturesa->cRtexture = textureSet->imageCr[frameItera].texture.map;
-            texturesa->cBtexture = textureSet->imageCb[frameItera].texture.map;
-            if ( cinematicGlob.binkTextureSet.bink_buffers.Frames[frameItera + 1].YPlane.Buffer )
-                cinematicGlob.binkTextureSet.textures[frameItera + 1].Asize = (unsigned int)textureSet->imageA[frameItera].texture.basemap;
+            textures = &cinematicGlob.binkTextureSet.textures[frameItera];
+            textures->Ytexture = textureSet->imageY[frameItera].texture.map;
+            textures->cRtexture = textureSet->imageCr[frameItera].texture.map;
+            textures->cBtexture = textureSet->imageCb[frameItera].texture.map;
+            if (cinematicGlob.binkTextureSet.bink_buffers.Frames[frameItera].APlane.Allocate)
+                textures->Atexture = textureSet->imageA[frameItera].texture.map;
             else
-                cinematicGlob.binkTextureSet.textures[frameItera + 1].Asize = 0;
+                textures->Atexture = 0;
         }
     }
-    return R_Cinematic_MakeBinkDrawTextures();
+    R_Cinematic_MakeBinkDrawTextures();
 }
 
 void __cdecl R_Cinematic_BlackRendererImages()
 {
-    if ( Sys_IsRenderThread() )
+    if (Sys_IsRenderThread())
     {
         RB_UnbindAllImages();
     }
@@ -1543,43 +1400,43 @@ void __cdecl R_Cinematic_BlackRendererImages()
     gfxCmdBufInput.codeImages[24] = rgp.grayImage;
     gfxCmdBufInput.codeImages[25] = rgp.grayImage;
     gfxCmdBufInput.codeImages[26] = rgp.blackImage;
-    if ( !rgp.grayImage
+    if (!rgp.grayImage
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    1297,
-                    0,
-                    "%s",
-                    "gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_CR]") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
+            1297,
+            0,
+            "%s",
+            "gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_CR]"))
     {
         __debugbreak();
     }
-    if ( !gfxCmdBufInput.codeImages[25]
+    if (!gfxCmdBufInput.codeImages[25]
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    1298,
-                    0,
-                    "%s",
-                    "gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_CB]") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
+            1298,
+            0,
+            "%s",
+            "gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_CB]"))
     {
         __debugbreak();
     }
-    if ( !gfxCmdBufInput.codeImages[26]
+    if (!gfxCmdBufInput.codeImages[26]
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    1299,
-                    0,
-                    "%s",
-                    "gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_A]") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
+            1299,
+            0,
+            "%s",
+            "gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_A]"))
     {
         __debugbreak();
     }
-    if ( !gfxCmdBufInput.codeImages[23]
+    if (!gfxCmdBufInput.codeImages[23]
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    1300,
-                    0,
-                    "%s",
-                    "gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_Y]") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
+            1300,
+            0,
+            "%s",
+            "gfxCmdBufInput.codeImages[TEXTURE_SRC_CODE_CINEMATIC_Y]"))
     {
         __debugbreak();
     }
@@ -1594,18 +1451,18 @@ void __stdcall R_Cinematic_Bink_Free(void *ptr)
 {
     char v1; // [esp+3h] [ebp-1h]
 
-    if ( *(void **)&cinematicGlob.textureSets[4] == ptr )
+    if (cinematicGlob.binkHunk.lastAllocPtr == ptr)
     {
-        cinematicGlob.currentPaused = *(unsigned int *)&cinematicGlob.textureSets[4];
-        *(unsigned int *)&cinematicGlob.textureSets[4] = 0;
+        cinematicGlob.binkHunk.atFront = cinematicGlob.binkHunk.lastAllocPtr;
+        cinematicGlob.binkHunk.lastAllocPtr = 0;
         v1 = 1;
     }
     else
     {
         v1 = 0;
     }
-    if ( !v1 )
-        cinematicGlob.textureSets[8] = 1;
+    if (!v1)
+        cinematicGlob.binkHunk.fragmented = 1;
 }
 
 bool __cdecl R_Cinematic_BinkOpen(const char *filename, char playbackFlags, char *errText, unsigned int errTextSize)
@@ -1631,70 +1488,71 @@ bool __cdecl R_Cinematic_BinkOpen(const char *filename, char playbackFlags, char
     return filepath[1][0] && R_Cinematic_BinkOpenPath(filepath[1], playbackFlags, errText, errTextSize);
 }
 
-char __cdecl R_Cinematic_BinkOpenPath(char *filepath, char playbackFlags, char *errText, unsigned int errTextSize)
+char __cdecl R_Cinematic_BinkOpenPath(
+    const char *filepath,
+    char playbackFlags,
+    char *errText,
+    unsigned int errTextSize)
 {
     const char *Error; // eax
     const char *v6; // eax
     RawFile *rawfile; // [esp+54h] [ebp-Ch]
 
-    if ( (playbackFlags & 8) != 0 )
+    if ((playbackFlags & 8) != 0)
     {
-        rawfile = DB_FindXAssetHeader(ASSET_TYPE_RAWFILE, filepath, 0, 8000).rawfile;
-        if ( !rawfile )
+        rawfile = DB_FindXAssetHeader(ASSET_TYPE_RAWFILE, (char*)filepath, 0, 8000).rawfile;
+        if (!rawfile)
         {
-            if ( errText )
+            if (errText)
                 _snprintf(errText, errTextSize, "Couldn't find rawfile '%s' in db", filepath);
             return 0;
         }
-        cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth = BinkOpen(rawfile->buffer, 68174848);
-        if ( !cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth )
-            CinematicHunk_Reset((CinematicHunk *)&cinematicGlob.textureSets[12]);
+        cinematicGlob.bink = (BINK *)BinkOpen(rawfile->buffer, 68174848);
+        if (!cinematicGlob.bink)
+            CinematicHunk_Reset(&cinematicGlob.residentHunk);
     }
     else
     {
-        if ( CinematicHunk_GetFreeSpace((CinematicHunk *)&cinematicGlob.framesStopped) <= 1572864
+        if (CinematicHunk_GetFreeSpace(&cinematicGlob.binkHunk) <= 1572864
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                        2418,
-                        0,
-                        "%s",
-                        "CinematicHunk_GetFreeSpace( &cinematicGlob.binkHunk ) > BINK_MISC_BUFFER_SIZE") )
+                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
+                2418,
+                0,
+                "%s",
+                "CinematicHunk_GetFreeSpace( &cinematicGlob.binkHunk ) > BINK_MISC_BUFFER_SIZE"))
         {
             __debugbreak();
         }
-        cinematicGlob.binkIOSize = CinematicHunk_GetFreeSpace((CinematicHunk *)&cinematicGlob.framesStopped) - 1572864;
+        cinematicGlob.binkIOSize = CinematicHunk_GetFreeSpace(&cinematicGlob.binkHunk) - 1572864;
         BinkSetIOSize(cinematicGlob.binkIOSize);
-        cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth = BinkOpen(filepath, &cls.rankedServers[3546].game[59]);
-        if ( !cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth )
+        cinematicGlob.bink = (BINK *)BinkOpen(filepath, 0x1104400);
+        if (!cinematicGlob.bink)
         {
             Error = (const char *)BinkGetError();
             Com_Printf(16, "BinkOpen failed on %s because: %s\n", filepath, Error);
         }
         cinematicGlob.isPreloaded = 0;
-        if ( cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth )
+        if (cinematicGlob.bink)
         {
-            cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth = 0;
-            BinkPause(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth, 1);
+            cinematicGlob.fileIoState = CIN_IOSTATE_RELINQUISHED;
+            BinkPause(cinematicGlob.bink, 1);
             R_Cinematic_SeizeIO();
-            while ( cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth && R_Cinematic_GetPercentageFull() < 0xA )
-                NET_Sleep(1u);
+            while (cinematicGlob.fileIoState && R_Cinematic_GetPercentageFull() < 0xA)
+                NET_Sleep(1);
             cinematicGlob.isPreloaded = 1;
-            BinkPause(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth, 0);
-            while ( BinkWait(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth) )
-                NET_Sleep(1u);
+            BinkPause(cinematicGlob.bink, 0);
+            while (BinkWait(cinematicGlob.bink))
+                NET_Sleep(1);
         }
     }
-    if ( cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth )
+    if (cinematicGlob.bink)
     {
-        *(float *)&cinematicGlob.fileIoState = (double)*(unsigned int *)(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth
-                                                                                                                                     + 20)
-                                                                                 / (double)*(unsigned int *)(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth
-                                                                                                                                     + 24);
+        cinematicGlob.framerateSpeedFactor = (double)cinematicGlob.bink->FrameRate / (double)cinematicGlob.bink->FrameRateDiv;
         return 1;
     }
     else
     {
-        if ( errText )
+        if (errText)
         {
             v6 = (const char *)BinkGetError();
             _snprintf(errText, errTextSize, "BinkOpen: %s", v6);
@@ -1705,26 +1563,11 @@ char __cdecl R_Cinematic_BinkOpenPath(char *filepath, char playbackFlags, char *
 
 int __cdecl CinematicHunk_GetFreeSpace(CinematicHunk *hunk)
 {
-    if ( !hunk->base
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 583, 0, "%s", "hunk->base") )
-    {
-        __debugbreak();
-    }
-    if ( !hunk->atFront
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 584, 0, "%s", "hunk->atFront") )
-    {
-        __debugbreak();
-    }
-    if ( !hunk->atBack
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 585, 0, "%s", "hunk->atBack") )
-    {
-        __debugbreak();
-    }
-    if ( !hunk->end
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 586, 0, "%s", "hunk->end") )
-    {
-        __debugbreak();
-    }
+    iassert(hunk->base);
+    iassert(hunk->atFront);
+    iassert(hunk->atBack);
+    iassert(hunk->end);
+    
     return (char *)hunk->atBack - (char *)hunk->atFront;
 }
 
@@ -1733,19 +1576,19 @@ void __cdecl R_Cinematic_InitBinkVolumes()
     int v0; // [esp+0h] [ebp-20h]
     int v1; // [esp+14h] [ebp-Ch]
 
-    if ( (int)(__int64)(32768.0 * *(float *)&dword_ADD7B34 * 0.70700002) < 0x8000 )
-        v1 = (__int64)(32768.0 * *(float *)&dword_ADD7B34 * 0.70700002);
+    if ( (int)(__int64)(32768.0 * *(float *)&cinematicGlob.playbackVolume * 0.70700002) < 0x8000 )
+        v1 = (__int64)(32768.0 * *(float *)&cinematicGlob.playbackVolume * 0.70700002);
     else
         v1 = 0x8000;
     if ( v1 > 0 )
         v0 = v1;
     else
         v0 = 0;
-    BinkSetVolume(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth, 0, v0);
-    BinkSetVolume(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth, 1, v0);
-    BinkSetVolume(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth, 2, 0);
-    BinkSetVolume(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth, 3, 0);
-    BinkSetVolume(cinematicGlob.binkTextureSet.bink_buffers.cRcBBufferWidth, 4, 0);
+    BinkSetVolume(cinematicGlob.bink, 0, v0);
+    BinkSetVolume(cinematicGlob.bink, 1, v0);
+    BinkSetVolume(cinematicGlob.bink, 2, 0);
+    BinkSetVolume(cinematicGlob.bink, 3, 0);
+    BinkSetVolume(cinematicGlob.bink, 4, 0);
 }
 
 void __cdecl R_Cinematic_UpdateFrame(bool force_wait)
@@ -1776,28 +1619,21 @@ void __cdecl R_Cinematic_UpdateFrame(bool force_wait)
 
 void R_Cinematic_UpdateRendererImages()
 {
-    if ( *(unsigned int *)&cinematicGlob.textureSets[36] == -1 )
+    if ( cinematicGlob.activeImageFrame == -1 )
         R_Cinematic_BlackRendererImages();
     else
-        R_Cinematic_SetRendererImagesToFrame(*(int *)&cinematicGlob.textureSets[36]);
+        R_Cinematic_SetRendererImagesToFrame(cinematicGlob.activeImageFrame);
 }
 
 void __cdecl R_Cinematic_SetRendererImagesToFrame(int frameToSetTo)
 {
     CinematicTextureSet *textureSet; // [esp+0h] [ebp-4h]
 
-    textureSet = (CinematicTextureSet *)(656 * dword_ADD7B1C + 182285816);
-    if ( frameToSetTo == -1
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp",
-                    1345,
-                    0,
-                    "%s",
-                    "frameToSetTo != CINEMATIC_INVALID_IMAGE_FRAME") )
-    {
-        __debugbreak();
-    }
-    if ( Sys_IsRenderThread() )
+    textureSet = &cinematicGlob.textureSets[cinematicGlob.activeImageFrameTextureSet];
+
+    iassert(frameToSetTo != CINEMATIC_INVALID_IMAGE_FRAME);
+
+    if (Sys_IsRenderThread())
     {
         RB_UnbindAllImages();
     }
@@ -1809,7 +1645,7 @@ void __cdecl R_Cinematic_SetRendererImagesToFrame(int frameToSetTo)
     gfxCmdBufInput.codeImages[23] = &textureSet->drawImageY;
     gfxCmdBufInput.codeImages[24] = &textureSet->drawImageCr;
     gfxCmdBufInput.codeImages[25] = &textureSet->drawImageCb;
-    if ( textureSet->drawImageA.texture.basemap )
+    if (textureSet->drawImageA.texture.basemap)
         gfxCmdBufInput.codeImages[26] = &textureSet->drawImageA;
     else
         gfxCmdBufInput.codeImages[26] = rgp.whiteImage;
@@ -1851,12 +1687,12 @@ bool __cdecl R_Cinematic_IsNextReady()
 
 char __cdecl R_Cinematic_IsUnderrun()
 {
-    return byte_ADD7B38;
+    return cinematicGlob.underrun;
 }
 
 void __cdecl R_Cinematic_ForceRelinquishIO()
 {
-    if ( cinematicGlob.binkTextureSet.bink_buffers.YABufferWidth )
+    if (cinematicGlob.fileIoState)
         R_Cinematic_RelinquishIO();
 }
 

@@ -1,5 +1,7 @@
 #include "win_wndproc.h"
 
+WinVars_t g_wv;
+
 void __cdecl Sys_SetBlockSystemHotkeys(int block)
 {
     HINSTANCE__ *module; // [esp+0h] [ebp-4h]

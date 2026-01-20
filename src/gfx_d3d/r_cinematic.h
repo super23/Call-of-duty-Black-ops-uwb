@@ -3,6 +3,29 @@
 #include "r_material.h"
 #include <binklib/binktextures.h>
 
+#define CINEMATIC_INVALID_IMAGE_FRAME -1
+#define BINK_MISC_BUFFER_SIZE 1572864
+
+enum CIN_IOSTATE : __int32
+{                                       // XREF: CinematicGlob/r
+    CIN_IOSTATE_RELINQUISHED = 0x0,
+    CIN_IOSTATE_SEIZED       = 0x1,
+    CIN_IOSTATE_COUNT        = 0x2,
+};
+
+enum CinematicEnum : __int32
+{                                       // XREF: CinematicGlob/r
+                                        // CinematicGlob/r ...
+    CINEMATIC_NOT_PAUSED    = 0x0,
+    CINEMATIC_PAUSED        = 0x1,
+    CINEMATIC_SCRIPT_PAUSED = 0x2,
+};
+
+struct CINE_JQ_CMD // sizeof=0x4
+{                                       // XREF: ?R_Cinematic_UpdateFrame@@YAX_N@Z/r
+    int dummy;
+};
+
 struct __declspec(align(4)) CinematicHunk // sizeof=0x18
 {                                       // XREF: CinematicGlob/r
                                         // CinematicGlob/r ...
@@ -44,7 +67,7 @@ void __cdecl R_Cinematic_BeginLostDevice();
 void R_Cinematic_RelinquishIO();
 const char *R_Cinematic_CheckBinkError();
 void __cdecl R_Cinematic_EndLostDevice();
-CinematicTextureSet *R_Cinematic_MakeBinkDrawTextures();
+void R_Cinematic_MakeBinkDrawTextures();
 IDirect3DTexture9 *__cdecl R_Cinematic_MakeBinkTexture_PC(
                 GfxImage *image,
                 unsigned int width,
@@ -81,7 +104,7 @@ void __cdecl CinematicHunk_Open(CinematicHunk *hunk, char *memory, int size);
 void __cdecl R_Cinematic_HunksAllocate(int activeTexture, char playbackFlags);
 int __cdecl CinematicHunk_Alloc(CinematicHunk *hunk, int size);
 void __cdecl R_Cinematic_HunksReset(int activeTexture, char playbackFlags);
-CinematicTextureSet *R_Cinematic_InitBinkTextures();
+void R_Cinematic_InitBinkTextures();
 void __cdecl R_Cinematic_BlackRendererImages();
 void *__stdcall R_Cinematic_Bink_Alloc(unsigned int bytes);
 void __stdcall R_Cinematic_Bink_Free(void *ptr);
