@@ -4,6 +4,7 @@
 #include "r_dobj_skin.h"
 #include <qcommon/threads.h>
 #include <EffectsCore/fx_marks.h>
+#include <win32/win_main.h>
 
 bool TensionUsage[4];
 float TensionBuffer[4][4000];

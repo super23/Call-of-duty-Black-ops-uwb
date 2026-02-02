@@ -1,4 +1,7 @@
 #include "r_sky_load_obj.h"
+#include "r_sky.h"
+#include <universal/com_shared.h>
+#include <universal/q_shared.h>
 
 void __cdecl R_LoadSun(const char *name, sunflare_t *sun)
 {
@@ -8,19 +11,18 @@ void __cdecl R_LoadSun(const char *name, sunflare_t *sun)
     const char *firstCharToCopy; // [esp+4Ch] [ebp-8h]
     char *firstPeriod; // [esp+50h] [ebp-4h]
 
-    if ( !name && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_sky_load_obj.cpp", 18, 0, "%s", "name") )
-        __debugbreak();
-    if ( !sun && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_sky_load_obj.cpp", 19, 0, "%s", "sun") )
-        __debugbreak();
+    iassert(name);
+    iassert(sun);
+
     Com_Memset((unsigned int *)sun, 0, 96);
     firstCharToCopy = name;
     for ( nameIter = name; *nameIter; ++nameIter )
     {
-        if ( *nameIter == 47 || *nameIter == 92 )
+        if ( *nameIter == '/' || *nameIter == '\\')
             firstCharToCopy = nameIter + 1;
     }
     I_strncpyz(sunFile, firstCharToCopy, 64);
-    strchr((unsigned __int8 *)sunFile, 0x2Eu);
+    v2 = strchr(sunFile, '.');
     firstPeriod = v2;
     if ( v2 )
         *firstPeriod = 0;

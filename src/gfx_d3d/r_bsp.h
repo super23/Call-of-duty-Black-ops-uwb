@@ -1,11 +1,9 @@
 #pragma once
-#include "r_material.h"
-#include "r_dpvs.h"
-#include "r_reflection_probe.h"
-#include "rb_light.h"
-#include "r_sky.h"
 #include "r_dpvs_dynmodel.h"
+#include "r_sky.h"
 #include "r_world_lod.h"
+
+#include "rb_light.h"
 
 struct GfxShadowGeometry // sizeof=0xC
 {
@@ -247,7 +245,7 @@ struct GfxWorldDraw // sizeof=0xC0
 {                                       // XREF: GfxWorld/r
     unsigned int reflectionProbeCount;  // XREF: R_GetReflectionProbePosition(uint,float * const)+7/r
                                         // R_CreateDefaultProbes+3/w ...
-    GfxReflectionProbe *reflectionProbes;
+    struct GfxReflectionProbe *reflectionProbes;
                                         // XREF: R_GetReflectionProbePosition(uint,float * const)+38/r
                                         // R_CreateDefaultProbes+1E/w ...
     GfxTexture *reflectionProbeTextures;

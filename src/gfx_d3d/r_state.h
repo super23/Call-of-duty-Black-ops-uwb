@@ -1,5 +1,6 @@
 #pragma once
 #include "rb_tess.h"
+#include "r_state_utils.h"
 
 void __cdecl R_PixStartNamedRenderTarget(unsigned __int8 renderTargetId);
 void R_PixEndNamedRenderTarget();
@@ -31,7 +32,7 @@ const GfxImage *__cdecl R_GetTextureFromCode(
                 GfxCmdBufSourceState *source,
                 unsigned int codeTexture,
                 unsigned __int8 *samplerState);
-void __cdecl R_TextureFromCodeError(const GfxCmdBufContext *context, unsigned int codeTexture);
+void __cdecl R_TextureFromCodeError(const GfxCmdBufContext context, unsigned int codeTexture);
 const GfxImage *__cdecl R_OverrideGrayscaleImage(const dvar_s *dvar);
 void __cdecl R_SetLightmap(GfxCmdBufContext context, unsigned int lmapIndex);
 void __cdecl R_SetReflectionProbe(GfxCmdBufContext context, unsigned int reflectionProbeIndex);
@@ -151,6 +152,19 @@ void    R_DrawCall(
                 const GfxViewParms *viewParms,
                 GfxCmdBuf *cmdBufEA,
                 GfxCmdBuf *prepassCmdBufEA);
+
+inline void R_DrawCall(
+    void(__cdecl *callback)(const void *, GfxCmdBufSourceState *, GfxCmdBufState *, GfxCmdBufSourceState *, GfxCmdBufState *),
+    const void *userData,
+    GfxCmdBufSourceState *source,
+    const GfxViewInfo *viewInfo,
+    const GfxDrawSurfListInfo *info, // inline version to de-const this arg :(
+    const GfxViewParms *viewParms,
+    GfxCmdBuf *cmdBufEA,
+    GfxCmdBuf *prepassCmdBufEA)
+{
+    R_DrawCall(callback, userData, source, viewInfo, (GfxDrawSurfListInfo *)info, viewParms, cmdBufEA, prepassCmdBufEA); 
+}
 
 static const MaterialUpdateFrequency s_codeSamplerUpdateFreq[43] =
 {

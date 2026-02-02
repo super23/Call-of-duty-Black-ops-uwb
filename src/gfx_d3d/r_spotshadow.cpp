@@ -4,6 +4,13 @@
 #include "r_dobj_skin.h"
 #include "r_dvars.h"
 #include "rb_backend.h"
+#include "r_debug.h"
+#include <universal/com_workercmds.h>
+#include <cgame_mp/cg_ents_mp.h>
+#include "r_add_bsp.h"
+#include "r_add_staticmodel.h"
+#include "r_pretess.h"
+#include "r_light.h"
 
 void __cdecl R_AddSpotShadowEntCmd(const GfxSpotShadowEntCmd *data)
 {
@@ -137,10 +144,10 @@ char __cdecl R_AddSpotShadowsForLight(
         spotShadow->viewport.height = 512;
         spotShadow->image = gfxRenderTargets[15].image;
         spotShadow->renderTargetId = 15;
-        spotShadow->pixelAdjust[0] = FLOAT_0_00048828125;
-        spotShadow->pixelAdjust[1] = FLOAT_0_00024414062;
-        spotShadow->pixelAdjust[2] = FLOAT_0_0009765625;
-        spotShadow->pixelAdjust[3] = FLOAT_N0_00012207031;
+        spotShadow->pixelAdjust[0] = 0.00048828125f;
+        spotShadow->pixelAdjust[1] = 0.00024414062f;
+        spotShadow->pixelAdjust[2] = 0.0009765625f;
+        spotShadow->pixelAdjust[3] = -0.00012207031f;
         if (v7)
             spotShadow->clearScreen = spotShadowIndex == 2;
         else
@@ -158,9 +165,9 @@ char __cdecl R_AddSpotShadowsForLight(
         R_AddSpotShadowModelEntities(viewInfo->localClientNum, shadowableLightIndex, light);
     return 1;
 }
+
 // local variable allocation has failed, the output may be wrong!
 void    R_SetViewParmsForLight(
-                int a1@<ebp>,
                 const GfxLight *light,
                 GfxViewParms *viewParms,
                 float nearPlaneBias)
@@ -172,73 +179,85 @@ void    R_SetViewParmsForLight(
     long double v8; // [esp+14h] [ebp-CCh]
     float tanHalfFovX; // [esp+18h] [ebp-C8h]
     float cosHalfFovOuter; // [esp+2Ch] [ebp-B4h]
-    int COS_HALF_CLAMP_EPSILON; // [esp+3Ch] [ebp-A4h]
-    _BYTE v12[140]; // [esp+44h] [ebp-9Ch] OVERLAPPED BYREF
-    float *v13; // [esp+D0h] [ebp-10h]
-    int v14; // [esp+D4h] [ebp-Ch]
-    void *v15; // [esp+D8h] [ebp-8h]
-    void *retaddr; // [esp+E0h] [ebp+0h]
+    unsigned int COS_HALF_CLAMP_EPSILON; // [esp+3Ch] [ebp-A4h]
+    GfxMatrix rotationMatrix; // [esp+44h] [ebp-9Ch] BYREF
+    GfxMatrix spotMatrix; // [esp+84h] [ebp-5Ch] BYREF
+    float *v14; // [esp+C4h] [ebp-1Ch]
+    float *origin; // [esp+C8h] [ebp-18h]
+    float *dir; // [esp+CCh] [ebp-14h]
+    float *v17; // [esp+D0h] [ebp-10h]
+    //_UNKNOWN *v18; // [esp+D4h] [ebp-Ch]
+    const GfxLight *lighta; // [esp+D8h] [ebp-8h]
+    GfxViewParms *viewParmsa; // [esp+DCh] [ebp-4h] BYREF
+    float nearPlaneBiasa; // [esp+E0h] [ebp+0h]
 
-    v14 = a1;
-    v15 = retaddr;
-    v13 = viewParms->axis[0];
-    *(unsigned int *)&v12[136] = light->dir;
+    //v18 = a1;
+    //lighta = (const GfxLight *)LODWORD(nearPlaneBiasa);
+    //v17 = viewParms->axis[0];
+    //dir = light->dir;
+
+    //LODWORD(viewParms->axis[0][0]) = LODWORD(light->dir[0]) ^ _mask__NegFloat_;
+    //*((_DWORD *)v17 + 1) = *((_DWORD *)dir + 1) ^ _mask__NegFloat_;
+    //*((_DWORD *)v17 + 2) = *((_DWORD *)dir + 2) ^ _mask__NegFloat_;
+
     viewParms->axis[0][0] = -light->dir[0];
-    *((unsigned int *)v13 + 1) = *(unsigned int *)(*(unsigned int *)&v12[136] + 4) ^ _mask__NegFloat_;
-    *((unsigned int *)v13 + 2) = *(unsigned int *)(*(unsigned int *)&v12[136] + 8) ^ _mask__NegFloat_;
+    viewParms->axis[0][1] = -light->dir[1];
+    viewParms->axis[0][2] = -light->dir[2];
+
     PerpendicularVector(viewParms->axis[0], viewParms->axis[2]);
     Vec3Cross(viewParms->axis[2], viewParms->axis[0], viewParms->axis[1]);
-    *(unsigned int *)&v12[132] = viewParms->origin;
-    *(unsigned int *)&v12[128] = light->origin;
+
+    //origin = viewParms->origin;
+    //v14 = light->origin;
+
     viewParms->origin[0] = light->origin[0];
-    *(float *)(*(unsigned int *)&v12[132] + 4) = *(float *)(*(unsigned int *)&v12[128] + 4);
-    *(float *)(*(unsigned int *)&v12[132] + 8) = *(float *)(*(unsigned int *)&v12[128] + 8);
+    viewParms->origin[1] = light->origin[1];
+    viewParms->origin[2] = light->origin[2];
     viewParms->origin[3] = 1.0f;
-    MatrixForViewer(viewParms->origin, viewParms->axis, (float (*)[4])&v12[64]);
-    memset(v12, 0, 0x40u);
-    v4 = light->angles[2];
-    __libm_sse2_sin(v7);
-    *(float *)&v4 = v4;
-    COS_HALF_CLAMP_EPSILON = LODWORD(v4);
-    v5 = light->angles[2];
-    __libm_sse2_cos(v8);
-    *(float *)&v5 = v5;
-    *(unsigned int *)v12 = LODWORD(v5);
-    *(unsigned int *)&v12[4] = COS_HALF_CLAMP_EPSILON ^ _mask__NegFloat_;
-    *(unsigned int *)&v12[16] = COS_HALF_CLAMP_EPSILON;
-    *(unsigned int *)&v12[20] = LODWORD(v5);
-    *(float *)&v12[40] = 1.0f;
-    *(float *)&v12[60] = 1.0f;
-    MatrixMultiply44((const float (*)[4])&v12[64], (const float (*)[4])v12, viewParms->viewMatrix.m);
-    if ( sm_showSpotAxis->current.enabled )
+
+    MatrixForViewer(viewParms->origin, viewParms->axis, spotMatrix.m);
+
+    memset(&rotationMatrix, 0, sizeof(GfxMatrix));
+
+    //v4 = light->angles[2];
+    //__libm_sse2_sin(v7);
+    //*(float *)&v4 = v4;
+    //COS_HALF_CLAMP_EPSILON = LODWORD(v4);
+    //v5 = light->angles[2];
+    //__libm_sse2_cos(v8);
+    //*(float *)&v5 = v5;
+    //rotationMatrix.m[0][0] = *(float *)&v5;
+    //LODWORD(rotationMatrix.m[0][1]) = COS_HALF_CLAMP_EPSILON ^ _mask__NegFloat_;
+    //*(_QWORD *)&rotationMatrix.m[1][0] = __PAIR64__(LODWORD(v5), COS_HALF_CLAMP_EPSILON);
+    //rotationMatrix.m[2][2] = 1.0f;
+    //rotationMatrix.m[3][3] = 1.0f;
+
+    float s, c;
+
+    s = sinf(light->angles[2]);
+    c = cosf(light->angles[2]);
+
+    rotationMatrix.m[0][0] = c;
+    rotationMatrix.m[0][1] = -s;
+    rotationMatrix.m[1][0] = s;
+    rotationMatrix.m[1][1] = c;
+    rotationMatrix.m[2][2] = 1.0f;
+    rotationMatrix.m[3][3] = 1.0f;
+
+    MatrixMultiply44(spotMatrix.m, rotationMatrix.m, viewParms->viewMatrix.m);
+
+    if (sm_showSpotAxis->current.enabled)
         R_AddDebugAxis(&frontEndDataOut->debugGlobals, viewParms->origin, viewParms->axis, 100.0, 1);
-    if ( !light->canUseShadowMap
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_spotshadow.cpp",
-                    60,
-                    0,
-                    "%s",
-                    "light->canUseShadowMap") )
-    {
-        __debugbreak();
-    }
-    if ( (light->cosHalfFovOuter <= 0.0 || light->cosHalfFovOuter >= 1.0)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_spotshadow.cpp",
-                    61,
-                    0,
-                    "%s\n\t(light->cosHalfFovOuter) = %g",
-                    "(light->cosHalfFovOuter > 0.0f && light->cosHalfFovOuter < 1.0f)",
-                    light->cosHalfFovOuter) )
-    {
-        __debugbreak();
-    }
+
+    iassert(light->canUseShadowMap);
+    iassert(light->cosHalfFovOuter > 0.0f && light->cosHalfFovOuter < 1.0f);
+    
     cosHalfFovOuter = light->cosHalfFovOuter;
-    if ( (float)(cosHalfFovOuter - (float)(1.0 - 0.001)) < 0.0 )
+    if ((float)(cosHalfFovOuter - (float)(1.0 - 0.001)) < 0.0)
         v6 = light->cosHalfFovOuter;
     else
         v6 = 1.0 - 0.001;
-    if ( (float)(0.001 - cosHalfFovOuter) >= 0.0 )
+    if ((float)(0.001 - cosHalfFovOuter) >= 0.0)
         v6 = 0.001f;
     tanHalfFovX = sqrtf(1.0 - (float)(v6 * v6)) / v6;
     FinitePerspectiveMatrix(tanHalfFovX, tanHalfFovX, nearPlaneBias + 1.0, light->radius, viewParms->projectionMatrix.m);
@@ -423,7 +442,7 @@ void __cdecl R_GenerateSortedPrimarySpotShadowDrawSurfs(
 
 void __cdecl R_EmitSpotShadowMapSurfs(GfxViewInfo *viewInfo)
 {
-    float *origin; // [esp+Ch] [ebp-14h]
+    const float *origin; // [esp+Ch] [ebp-14h]
     int firstDrawSurf; // [esp+10h] [ebp-10h]
     GfxDrawSurfListInfo *info; // [esp+14h] [ebp-Ch]
     GfxSpotShadow *spotShadow; // [esp+18h] [ebp-8h]

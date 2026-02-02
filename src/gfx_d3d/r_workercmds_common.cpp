@@ -6,6 +6,7 @@
 #include "r_workercmds.h"
 #include <cgame_mp/cg_draw_mp.h>
 #include <EffectsCore/fx_marks.h>
+#include "r_scene.h"
 
 void __cdecl R_ProcessCmd_UpdateFxSpotLight(FxCmd *cmd)
 {

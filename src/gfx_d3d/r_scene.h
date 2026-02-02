@@ -1,8 +1,11 @@
 #pragma once
 #include "r_dpvs.h"
-#include <cgame_mp/cg_local_mp.h>
 #include "r_init.h"
+#include "r_gfx.h"
+
+#include <cgame_mp/cg_local_mp.h>
 #include <DynEntity/DynEntity_gamestate.h>
+#include <cgame/cg_visionsets.h>
 
 struct GfxCmdBufInput;
 struct GfxViewParms;
@@ -47,13 +50,6 @@ struct GfxVisibleLight // sizeof=0x2008
     GfxDrawSurf drawSurfs[1024];        // XREF: R_GetBspSpotLightSurfs+DA/o
 };
 
-union GfxEntCellRefInfo // sizeof=0x4
-{                                       // XREF: R_FilterDObjIntoCells(int,uint,float * const,float)+10A/w
-                                        // R_FilterBModelIntoCells(int,uint,GfxBrushModel *)+8D/w ...
-    float radius;
-    GfxBrushModel *bmodel;
-};
-
 struct GfxSceneDpvs // sizeof=0x38
 {                                       // XREF: GfxScene/r
     int localClientNum;                 // XREF: R_DrawAllSceneEnt(GfxViewInfo const *)+7/r
@@ -64,7 +60,7 @@ struct GfxSceneDpvs // sizeof=0x38
                                         // R_ShutdownSceneBuffers(void):loc_A46243/r ...
     unsigned __int16 *sceneDObjIndex;   // XREF: R_InitSceneBuffers(void)+B9/w
                                         // R_ShutdownSceneBuffers(void)+41/r ...
-    GfxEntCellRefInfo *entInfo[4];      // XREF: R_FilterEntIntoCells_r+246/r
+    union GfxEntCellRefInfo *entInfo[4];      // XREF: R_FilterEntIntoCells_r+246/r
                                         // R_ShowCull(float const * const)+310/r ...
 };
 
@@ -397,6 +393,11 @@ struct GfxSceneDynBrush // sizeof=0x4
     unsigned __int16 dynEntId;
 };
 
+struct SceneEntCmd // sizeof=0x4
+{                                       // XREF: R_GenerateSortedDrawSurfs/r
+    const GfxViewInfo *viewInfo;        // XREF: R_GenerateSortedDrawSurfs+14BE/w
+};
+
 GfxScene *__cdecl R_GetScene();
 unsigned int __cdecl R_AllocSceneModel();
 int __cdecl R_AllocTextureOverride(
@@ -518,7 +519,7 @@ void __cdecl R_UpdateFrameFog(unsigned int localClientNum);
 double __cdecl lerp(float from, float to, float t);
 void __cdecl R_SetViewParmsForScene(const refdef_s *refdef, GfxViewParms *viewParms);
 void __cdecl R_SetupProjection(float tanHalfFovX, float tanHalfFovY, GfxViewParms *viewParms);
-GfxBackEndData *R_UpdateFrameSun();
+void R_UpdateFrameSun();
 void __cdecl R_LerpDir(
                 const float *dirBegin,
                 const float *dirEnd,
@@ -579,15 +580,15 @@ void    R_SetDLightsConstants(
                 int visibleLightCount);
 void R_DrawCineWarning();
 void __cdecl R_SplitDrawSurfacesPrimarySortKey(
-                GfxDrawSurfListInfo *srcList,
-                GfxDrawSurfListInfo *destList,
+                struct GfxDrawSurfListInfo *srcList,
+                struct GfxDrawSurfListInfo *destList,
                 int sortkeyID);
 void __cdecl DrawLightDebug(const GfxViewInfo *viewInfo, const GfxLight *L, const float *debugColor);
 void DrawOutdoorBoundsVolumeDebug();
 void __cdecl DrawSunDirectionDebug(const float *viewOrg, const float *viewForward);
-unsigned intR_SortAllCodeMeshSurfacesSunShadow();
+void R_SortAllCodeMeshSurfacesSunShadow();
 void R_DrawFogParams();
-unsigned intR_WaitForFXUpdateWorkerCmds();
+void R_WaitForFXUpdateWorkerCmds();
 void __cdecl R_FinishDecalAndEmissiveDrawSurfs(
                 GfxViewInfo *viewInfo,
                 const GfxViewParms *viewParmsDraw,

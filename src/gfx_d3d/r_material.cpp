@@ -457,7 +457,7 @@ void __cdecl Load_CreateMaterialPixelShader(GfxPixelShaderLoadDef *loadDef, Mate
         }
         else
         {
-            RB_Resource_CreatePixelShader(loadDef->program, &mtlShader->prog.ps);
+            RB_Resource_CreatePixelShader((unsigned int*)loadDef->program, &mtlShader->prog.ps);
             RB_Resource_Flush();
         }
         DB_LoadedExternalData(0x2710u);

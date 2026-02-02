@@ -1,13 +1,11 @@
 #pragma once
 
-#include "r_gfx.h"
 #include "r_buffers.h"
 #include "r_bsp.h"
-#include <cgame/cg_visionsets.h>
-#include <client_mp/cl_main_mp.h>
+
 #include "r_scene.h"
 #include "r_meshdata.h"
-#include <tl/jobqueue/jobqueue_all.h>
+
 
 enum GfxProjectionTypes : __int32
 {                                       // XREF: GfxCmdProjectionSet/r

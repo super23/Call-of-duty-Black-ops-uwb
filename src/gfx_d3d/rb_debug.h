@@ -2,27 +2,6 @@
 #include "rb_backend.h"
 #include "r_material.h"
 
-struct __declspec(align(4)) materialCommands_t // sizeof=0x22A95C
-{                                       // XREF: .data:materialCommands_t tess/r
-    GfxVertex verts[5450];              // XREF: RB_SetPolyVert(float const * const,GfxColor,int)+44/w
-                                        // RB_SetPolyVert(float const * const,GfxColor,int)+52/w ...
-    unsigned __int16 indices[1048576];  // XREF: RB_SetTessQuad+75/w
-                                        // RB_SetTessQuad+87/w ...
-    MaterialVertexDeclType vertDeclType;
-    unsigned int vertexSize;
-    int indexCount;                     // XREF: RB_CheckTessOverflow(int,int)+78/r
-                                        // RB_SetFrameBufferAlpha+20/r ...
-    int vertexCount;                    // XREF: RB_CheckTessOverflow(int,int):loc_857149/r
-                                        // RB_SetTessQuad+6/r ...
-    int firstVertex;                    // XREF: RB_BeginSurface(Material const *,uchar):loc_AC70D1/w
-    int lastVertex;                     // XREF: RB_BeginSurface(Material const *,uchar)+10B/w
-    bool finishedFilling;               // XREF: RB_EndSurfacePrologue:loc_AC71E2/w
-                                        // RB_EndSurfaceEpilogue+6B/w
-    // padding byte
-    // padding byte
-    // padding byte
-};
-
 int __cdecl RB_AddDebugLine(
                 const float *start,
                 const float *end,

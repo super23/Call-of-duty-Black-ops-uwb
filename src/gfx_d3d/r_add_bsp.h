@@ -1,5 +1,6 @@
 #pragma once
 #include "r_material.h"
+#include "r_gfx.h"
 
 void __cdecl R_InitBspDrawSurf(GfxSModelDrawSurfLightingData *surfData);
 void __cdecl R_AddBspDrawSurfs(

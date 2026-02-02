@@ -1,14 +1,17 @@
 #include "r_skybox.h"
 #include <xanim/xmodel.h>
+#include "r_init.h"
+#include "r_model.h"
 
 XModel *g_skyboxModel;
+unsigned __int16 myhandle;
 
 void R_RegisterSkyboxModel()
 {
     if ( rgp.world->skyBoxModel )
     {
         if ( *rgp.world->skyBoxModel )
-            R_RegisterSkyboxModel(rgp.world->skyBoxModel);
+            R_RegisterSkyboxModel((char*)rgp.world->skyBoxModel);
     }
 }
 

@@ -1,5 +1,7 @@
 #include "r_dpvs_dynmodel.h"
 #include "r_dvars.h"
+#include "r_init.h"
+
 #include <DynEntity/DynEntity_load_obj.h>
 
 void __cdecl R_AddCellDynModelSurfacesInFrustumCmd(const DpvsPlane **data)

@@ -1,4 +1,5 @@
 #include "r_state.h"
+#include "r_bsp.h"
 #include "r_dvars.h"
 #include "r_singlethreaded_device_pc.h"
 #include "rb_logfile.h"
@@ -700,51 +701,36 @@ void __cdecl R_DeriveShadowLookupMatrix(GfxCmdBufSourceState *source)
 // local variable allocation has failed, the output may be wrong!
 void    R_GenerateWorldOutdoorLookupMatrix(GfxCmdBufSourceState *source, float (*outMatrix)[4])
 {
-    _BYTE v3[76]; // [esp-Ch] [ebp-8Ch] OVERLAPPED BYREF
+    GfxMatrix worldMatrix; // [esp-Ch] [ebp-8Ch] BYREF
     float zInTimesInvViewTimesOutdoorLookup[4]; // [esp+40h] [ebp-40h] BYREF
     float zInTimesInvView[4]; // [esp+50h] [ebp-30h] BYREF
+    float worldOffset[4]; // [esp+34h] [ebp-4Ch] BYREF
     float zIn[4]; // [esp+60h] [ebp-20h]
     const float *invViewProjMatrix; // [esp+70h] [ebp-10h]
-    GfxCodeMatrices *activeMatrices; // [esp+74h] [ebp-Ch]
-    float downBias; // [esp+78h] [ebp-8h]
-    float retaddr; // [esp+80h] [ebp+0h]
 
-    activeMatrices = a1;
-    downBias = retaddr;
-    invViewProjMatrix = (const float *)r_outdoorAwayBias->current.integer;
-    zIn[3] = r_outdoorDownBias->current.value;
-    LODWORD(zIn[2]) = source;
-    LODWORD(zIn[1]) = R_GetCodeMatrix(source, 0xCAu, 0);
-    zInTimesInvView[1] = 0.0f;
-    zInTimesInvView[2] = 0.0f;
-    LODWORD(zInTimesInvView[3]) = (unsigned int)invViewProjMatrix ^ _mask__NegFloat_;
-    zIn[0] = 0.0f;
-    MatrixTransformVector44(
-        &zInTimesInvView[1],
-        (const float (*)[4])LODWORD(zIn[1]),
-        &zInTimesInvViewTimesOutdoorLookup[1]);
-    zInTimesInvViewTimesOutdoorLookup[3] = zInTimesInvViewTimesOutdoorLookup[3] + zIn[3];
-    MatrixTransformVector44(&zInTimesInvViewTimesOutdoorLookup[1], g_drawConsts.outdoorLookupMatrix, (float *)&v3[64]);
-    if ( source->constVersions[221] != HIWORD(source->viewParms3D)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                    1217,
-                    0,
-                    "%s",
-                    "R_IsMatrixConstantUpToDate( source, CONST_SRC_CODE_WORLD_MATRIX )") )
-    {
-        __debugbreak();
-    }
-    memcpy(v3, (const void *)LODWORD(zIn[2]), 0x40u);
-    *(float *)&v3[48] = *(float *)&v3[48] + source->skinnedPlacement.base.origin[0];
-    *(float *)&v3[52] = *(float *)&v3[52] + source->skinnedPlacement.base.origin[1];
-    *(float *)&v3[56] = *(float *)&v3[56] + source->skinnedPlacement.base.origin[2];
-    MatrixMultiply44((const float (*)[4])v3, g_drawConsts.outdoorLookupMatrix, outMatrix);
-    (*outMatrix)[12] = (*outMatrix)[12] + *(float *)&v3[64];
-    (*outMatrix)[13] = (*outMatrix)[13] + *(float *)&v3[68];
-    (*outMatrix)[14] = (*outMatrix)[14] + *(float *)&v3[72];
-    (*outMatrix)[15] = (*outMatrix)[15] + zInTimesInvViewTimesOutdoorLookup[0];
-    HIWORD(source->shadowableLightForShadowLookupMatrix) = LOWORD(source->skinnedPlacement.base.quat[2]);
+    const float awayBias = r_outdoorAwayBias->current.value;
+    const float downBias = r_outdoorDownBias->current.value;
+
+    zInTimesInvView[0] = 0.0;
+    zInTimesInvView[1] = 0.0;
+    zInTimesInvView[2] = -awayBias;
+    zInTimesInvView[3] = 0.0;
+
+    MatrixTransformVector44(zInTimesInvView, (const float (*)[4])R_GetCodeMatrix(source, 202, 0), zInTimesInvViewTimesOutdoorLookup);
+    zInTimesInvViewTimesOutdoorLookup[2] += downBias;
+    MatrixTransformVector44(zInTimesInvViewTimesOutdoorLookup, g_drawConsts.outdoorLookupMatrix, worldOffset);
+
+    //iassert(R_IsMatrixConstantUpToDate(source, CONST_SRC_CODE_WORLD_MATRIX));
+
+    memcpy(&worldMatrix, source, sizeof(worldMatrix));
+
+    Vec3Add(worldMatrix.m[3], source->eyeOffset, worldMatrix.m[3]);
+
+    MatrixMultiply44(worldMatrix.m, g_drawConsts.outdoorLookupMatrix, outMatrix);
+
+    Vec4Add(&(*outMatrix)[12], worldOffset, &(*outMatrix)[12]);
+
+    source->constVersions[225] = source->matrixVersions[10];
 }
 
 const GfxImage *__cdecl R_GetTextureFromCode(
@@ -783,7 +769,7 @@ const GfxImage *__cdecl R_GetTextureFromCode(
     return source->input.codeImages[codeTexture];
 }
 
-void __cdecl R_TextureFromCodeError(const GfxCmdBufContext *context, unsigned int codeTexture)
+void __cdecl R_TextureFromCodeError(const GfxCmdBufContext context, unsigned int codeTexture)
 {
     if ( rg.codeImageNames[codeTexture] )
         Com_Error(
@@ -791,18 +777,18 @@ void __cdecl R_TextureFromCodeError(const GfxCmdBufContext *context, unsigned in
             "Code texture %u '%s' isn't valid. Material='%s', tech='%s', techType=%d\n",
             codeTexture,
             rg.codeImageNames[codeTexture],
-            context->state->material->info.name,
-            context->state->technique->name,
-            context->state->techType);
+            context.state->material->info.name,
+            context.state->technique->name,
+            context.state->techType);
     else
         Com_Error(
             ERR_DROP,
             "Code texture %u '%s' isn't valid. Material='%s', tech='%s', techType=%d\n",
             codeTexture,
             "noname",
-            context->state->material->info.name,
-            context->state->technique->name,
-            context->state->techType);
+            context.state->material->info.name,
+            context.state->technique->name,
+            context.state->techType);
 }
 
 const GfxImage *__cdecl R_OverrideGrayscaleImage(const dvar_s *dvar)
@@ -3001,67 +2987,41 @@ void __cdecl R_SetViewportValues(GfxCmdBufSourceState *source, int x, int y, int
     R_SetViewportStruct(source, &viewport);
 }
 
-void __cdecl R_UpdateViewport(GfxCmdBufSourceState *source, GfxViewport *viewport)
+void R_UpdateViewport(GfxCmdBufSourceState *source, GfxViewport *viewport)
 {
-    float v2; // [esp+1Ch] [ebp-40h]
+    float renderTargetHeight; // [esp+1Ch] [ebp-40h]
     unsigned int lookupScale; // [esp+34h] [ebp-28h]
     float lookupScale_4; // [esp+38h] [ebp-24h]
     __int64 invWidth; // [esp+3Ch] [ebp-20h]
     __int64 lookupOffset; // [esp+54h] [ebp-8h]
 
-    if ( !source && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp", 2709, 0, "%s", "source") )
-        __debugbreak();
-    if ( !source->scissorViewport.width
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                    2710,
-                    0,
-                    "%s",
-                    "source->viewMode != VIEW_MODE_NONE") )
-    {
-        __debugbreak();
-    }
-    LOBYTE(source[1].matrices.matrix[0].m[2][2]) = 0;
-    if ( SLODWORD(source[1].matrices.matrix[0].m[2][0]) <= 0
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                    2713,
-                    0,
-                    "%s\n\t(source->renderTargetWidth) = %i",
-                    "(source->renderTargetWidth > 0)",
-                    source[1].matrices.matrix[0].m[2][0]) )
-    {
-        __debugbreak();
-    }
-    if ( SLODWORD(source[1].matrices.matrix[0].m[2][1]) <= 0
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                    2714,
-                    0,
-                    "%s\n\t(source->renderTargetHeight) = %i",
-                    "(source->renderTargetHeight > 0)",
-                    source[1].matrices.matrix[0].m[2][1]) )
-    {
-        __debugbreak();
-    }
-    *(float *)&invWidth = 1.0 / (float)SLODWORD(source[1].matrices.matrix[0].m[2][0]);
-    *((float *)&invWidth + 1) = 1.0 / (float)SLODWORD(source[1].matrices.matrix[0].m[2][1]);
+    iassert(source);
+    iassert(source->viewMode != VIEW_MODE_NONE);
+    iassert(source->renderTargetWidth > 0);
+    iassert(source->renderTargetHeight > 0);
+
+    source->viewportIsDirty = 0;
+
+    *(float *)&invWidth = 1.0 / (float)source->renderTargetWidth;
+    *((float *)&invWidth + 1) = 1.0 / (float)source->renderTargetHeight;
     *(float *)&lookupScale = 0.5 * (float)((float)viewport->width * *(float *)&invWidth);
     lookupScale_4 = 0.5 * (float)((float)viewport->height * *((float *)&invWidth + 1));
     *(float *)&lookupOffset = (float)(0.5 * *(float *)&invWidth)
-                                                    + (float)(*(float *)&lookupScale + (float)((float)viewport->x * *(float *)&invWidth));
+        + (float)(*(float *)&lookupScale + (float)((float)viewport->x * *(float *)&invWidth));
     *((float *)&lookupOffset + 1) = (float)(0.5 * *((float *)&invWidth + 1))
-                                                                + (float)(lookupScale_4 + (float)((float)viewport->y * *((float *)&invWidth + 1)));
-    v2 = (float)SLODWORD(source[1].matrices.matrix[0].m[2][1]);
-    source->input.consts[21][0] = (float)SLODWORD(source[1].matrices.matrix[0].m[2][0]);
-    source->input.consts[21][1] = v2;
-    *(_QWORD *)&source->gap0[344] = invWidth;
+        + (float)(lookupScale_4 + (float)((float)viewport->y * *((float *)&invWidth + 1)));
+    renderTargetHeight = (float)source->renderTargetHeight;
+    source->input.consts[21][0] = (float)source->renderTargetWidth;
+    source->input.consts[21][1] = renderTargetHeight;
+    *(_QWORD *)&source->input.consts[21][2] = invWidth;
     R_DirtyCodeConstant(source, 0x15u);
-    *(_QWORD *)&source->gap0[1152] = __PAIR64__(LODWORD(lookupScale_4) ^ (unsigned int)_mask__NegFloat_, lookupScale);
+    //*(_QWORD *)&source->input.consts[72][0] = __PAIR64__(LODWORD(lookupScale_4) ^ (unsigned int)_mask__NegFloat_,lookupScale);
+    source->input.consts[72][0] = lookupScale;
+    source->input.consts[72][1] = -lookupScale_4;
     source->input.consts[72][2] = 0.0f;
     source->input.consts[72][3] = 1.0f;
     R_DirtyCodeConstant(source, 0x48u);
-    *(_QWORD *)&source->gap0[1168] = lookupOffset;
+    *(_QWORD *)&source->input.consts[73][0] = lookupOffset;
     source->input.consts[73][2] = 0.0f;
     source->input.consts[73][3] = 0.0f;
     R_DirtyCodeConstant(source, 0x49u);
@@ -3708,7 +3668,7 @@ void R_DrawCall(
     GfxCmdBufState prepassCmdBuf; // [esp-27D0h] [ebp-27DCh] BYREF
     GfxCmdBufState cmdBuf; // [esp-1400h] [ebp-140Ch] BYREF
     const GfxSceneDef *p_sceneDef; // [esp-24h] [ebp-30h]
-    GfxCmdBufInput *p_input; // [esp-20h] [ebp-2Ch]
+    const GfxCmdBufInput *p_input; // [esp-20h] [ebp-2Ch]
     GfxCmdBuf *v14; // [esp-1Ch] [ebp-28h]
     GfxCmdBuf *v15; // [esp-18h] [ebp-24h]
     GfxCmdBufContext prepassContext; // [esp-14h] [ebp-20h]
@@ -3718,9 +3678,9 @@ void R_DrawCall(
     void *v20; // [esp+4h] [ebp-8h]
     void *retaddr; // [esp+Ch] [ebp+0h]
 
-    v19 = a1;
-    v20 = retaddr;
-    v9 = alloca(10192);
+    //v19 = a1;
+    //v20 = retaddr;
+    //v9 = alloca(10192);
     v17 = 0;
     v18 = 0;
     prepassContext.source = 0;

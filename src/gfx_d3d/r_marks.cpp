@@ -1,5 +1,6 @@
 #include "r_marks.h"
 #include "r_dpvs.h"
+#include "r_init.h"
 #include <xanim/dobj_utils.h>
 #include <cgame_mp/cg_pose_mp.h>
 #include <client/splitscreen.h>

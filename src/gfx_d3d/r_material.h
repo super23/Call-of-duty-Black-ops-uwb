@@ -1,7 +1,6 @@
 #pragma once
 
 #include <d3d9.h>
-#include "r_gfx.h"
 #include <database/db_registry.h>
 #include <universal/fft.h>
 

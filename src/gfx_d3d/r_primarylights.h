@@ -1,6 +1,8 @@
 #pragma once
 #include "r_rendercmds.h"
 #include <DynEntity/DynEntity_gamestate.h>
+#include "r_rendercmds.h"
+#include "r_light.h"
 
 struct ComPrimaryLight // sizeof=0xDC
 {

@@ -1,4 +1,9 @@
 #include "r_shader_constant_set.h"
+#include "r_material_load_obj.h"
+#include "r_foliage.h"
+#include "r_warn.h"
+#include "r_dvars.h"
+#include "r_debug.h"
 
 void __cdecl R_InitShaderConstantSet(ShaderConstantSet *scs)
 {
@@ -120,7 +125,7 @@ int __cdecl RB_ApplyShaderConstantSet(GfxCmdBufSourceState *gfxSourceState, cons
             {
                 __debugbreak();
             }
-            updatedConstants |= R_UpdateCodeConstantFromVec4(gfxSourceState, constantSource, scs->value[i]);
+            updatedConstants |= R_UpdateCodeConstantFromVec4(gfxSourceState, constantSource, (float*)scs->value[i]);
         }
     }
     return updatedConstants;
@@ -338,23 +343,25 @@ void __cdecl RB_SaveCurrentShaderConstantSetValues(
     }
 }
 
-ScopedShaderConstantSetUndo *__thiscall ScopedShaderConstantSetUndo::ScopedShaderConstantSetUndo(
-                ScopedShaderConstantSetUndo *this,
-                GfxCmdBufSourceState *sourceState,
-                const ShaderConstantSet *cscEA)
+ScopedShaderConstantSetUndo::ScopedShaderConstantSetUndo(GfxCmdBufSourceState *sourceState, const ShaderConstantSet *cscEA)
 {
     this->m_sourceState = sourceState;
     if ( cscEA )
         RB_SaveCurrentShaderConstantSetValues(&this->m_scs, sourceState, cscEA);
     else
         R_InitShaderConstantSet(&this->m_scs);
-    return this;
+    //return this;
 }
 
-void __thiscall ScopedShaderConstantSetUndo::~ScopedShaderConstantSetUndo(ScopedShaderConstantSetUndo *this)
+ScopedShaderConstantSetUndo::~ScopedShaderConstantSetUndo()
 {
     RB_ApplyShaderConstantSet(this->m_sourceState, &this->m_scs);
 }
+
+
+float my_scale = 0.22f;
+float my_vert_spacing = 4.0f;
+float my_height_offset = 5.0f;
 
 void __cdecl R_ShaderConstantShowDebug(
                 const float *eyePos,
@@ -416,9 +423,9 @@ void __cdecl R_ShaderConstantShowDebug(
                                 scs->value[i][2],
                                 scs->value[i][3]);
                             R_AddDebugString(&frontEndDataOut->debugGlobals, textOrigin, color, my_scale, text);
-                            textOrigin[0] = (float)(COERCE_FLOAT(LODWORD(my_vert_spacing) ^ _mask__NegFloat_) * up[0]) + textOrigin[0];
-                            textOrigin[1] = (float)(COERCE_FLOAT(LODWORD(my_vert_spacing) ^ _mask__NegFloat_) * up[1]) + textOrigin[1];
-                            textOrigin[2] = (float)(COERCE_FLOAT(LODWORD(my_vert_spacing) ^ _mask__NegFloat_) * up[2]) + textOrigin[2];
+                            textOrigin[0] = (float)((-(my_vert_spacing)) * up[0]) + textOrigin[0];
+                            textOrigin[1] = (float)((-(my_vert_spacing)) * up[1]) + textOrigin[1];
+                            textOrigin[2] = (float)((-(my_vert_spacing)) * up[2]) + textOrigin[2];
                         }
                     }
                 }

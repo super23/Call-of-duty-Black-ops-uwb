@@ -5,6 +5,11 @@
 #include <cgame_mp/cg_pose_mp.h>
 #include <EffectsCore/fx_marks.h>
 
+float4 g_worldMins = { { -131072.0, -131072.0, -131072.0, 0.0 } }; // KISAKTODO: better spot
+float4 g_worldMaxs = { { 131072.0, 131072.0, 131072.0, 0.0 } }; // KISAKTODO: better spot
+
+
+// KISAKTODO: cleanup/refactor this gross func
 // local variable allocation has failed, the output may be wrong!
 DObjAnimMat * R_UpdateSceneEntBounds(
                 GfxSceneEntity *sceneEnt,
@@ -71,12 +76,12 @@ DObjAnimMat * R_UpdateSceneEntBounds(
     DObj *v62; // [esp+61Ch] [ebp-1Ch]
     DpvsView *dpvsView; // [esp+620h] [ebp-18h]
     volatile unsigned int v64; // [esp+624h] [ebp-14h] OVERLAPPED
-    GfxSceneEntity *localSceneEnt; // [esp+62Ch] [ebp-Ch]
-    unsigned int state; // [esp+630h] [ebp-8h]
-    unsigned int retaddr; // [esp+638h] [ebp+0h]
+    //GfxSceneEntity *localSceneEnt; // [esp+62Ch] [ebp-Ch]
+    //unsigned int state; // [esp+630h] [ebp-8h]
+    //unsigned int retaddr; // [esp+638h] [ebp+0h]
 
-    localSceneEnt = a1;
-    state = retaddr;
+    //localSceneEnt = a1;
+    //state = retaddr;
     if ( _InterlockedCompareExchange(&sceneEnt->cull.state, 1, 0) )
     {
         *pLocalSceneEnt = 0;
@@ -183,13 +188,13 @@ LABEL_28:
                 goto LABEL_37;
             if ( DObjIsRecorded(v62) && DObjGetRotTransArray(v62) )
             {
-                *(unsigned int *)&v56[24] = I_dmaGetDObjSkel(v62);
+                *(unsigned int *)&v56[24] = (unsigned int)I_dmaGetDObjSkel(v62);
                 DObjGetSetBones(v62, (int *)&v56[32]);
                 DObjSkelSetSkel(v62, (int *)&v56[32]);
             }
             else
             {
-                *(unsigned int *)&v56[24] = R_DObjCalcPose((const GfxSceneEntity *)dpvsView, v62, (int *)&v56[32]);
+                *(unsigned int *)&v56[24] = (unsigned int)R_DObjCalcPose((const GfxSceneEntity *)dpvsView, v62, (int *)&v56[32]);
             }
             if ( *(unsigned int *)&v56[24] )
             {
@@ -205,7 +210,7 @@ LABEL_28:
                 }
                 *(_QWORD *)&boneInfoArray_632[4] = *(_QWORD *)g_worldMaxs.v;
                 *(_QWORD *)v56 = *(_QWORD *)&g_worldMaxs.unitVec[2].packed;
-                *(unsigned int *)boneInfoArray_632 = &v56[8];
+                *(unsigned int *)boneInfoArray_632 = (unsigned int)&v56[8];
                 *(float4 *)&v56[8] = g_worldMins;
                 DObjGetBoneInfo(v62, (XBoneInfo **)&boneIndex);
                 bone = (DObjAnimMat *)DObjNumBones(v62);

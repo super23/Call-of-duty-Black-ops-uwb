@@ -149,6 +149,7 @@ struct MarkModelCoreContext // sizeof=0x1C
 };
 
 struct GfxSurface;
+struct GfxWorldVertex;
 
 void    R_BoxSurfaces(
                 const float *mins,

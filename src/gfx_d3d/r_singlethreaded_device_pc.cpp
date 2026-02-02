@@ -1,5 +1,14 @@
 #include "r_singlethreaded_device_pc.h"
 
+#include <Windows.h>
+#include <qcommon/threads.h>
+#include <win32/win_common.h>
+#include <win32/win_net.h>
+#include <universal/assertive.h>
+
+int g_AcquisitionCount;
+unsigned __int64 g_DXDeviceThread;
+
 int __cdecl R_AcquireDXDeviceOwnership(void (__cdecl *pumpfunc)())
 {
     unsigned __int64 current_thread; // [esp+0h] [ebp-8h]
@@ -30,7 +39,7 @@ int __cdecl R_AcquireDXDeviceOwnership(void (__cdecl *pumpfunc)())
 int __cdecl R_ReleaseDXDeviceOwnership()
 {
     Sys_EnterCriticalSection(CRITSECT_DXDEVICE_GLOB);
-    //if ( g_DXDeviceThread == GetCurrentThreadId() )
+    if ( g_DXDeviceThread == GetCurrentThreadId() )
     {
         if ( g_DXDeviceThread != GetCurrentThreadId()
             && !Assert_MyHandler(

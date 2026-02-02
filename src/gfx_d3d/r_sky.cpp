@@ -1,4 +1,61 @@
 #include "r_sky.h"
+#include <universal/assertive.h>
+#include <universal/com_files.h>
+#include <universal/q_shared.h>
+#include <universal/com_math_anglevectors.h>
+#include <qcommon/common.h>
+#include <qcommon/cmd.h>
+#include "r_dvars.h"
+#include "r_init.h"
+#include "rb_sky.h"
+
+const dvar_t *r_sunsprite_shader;
+const dvar_t *r_sunsprite_size;
+const dvar_t *r_sunflare_shader;
+const dvar_t *r_sunflare_min_size;
+const dvar_t *r_sunflare_min_angle;
+const dvar_t *r_sunflare_max_size;
+const dvar_t *r_sunflare_max_angle;
+const dvar_t *r_sunflare_max_alpha;
+const dvar_t *r_sunflare_fadein;
+const dvar_t *r_sunflare_fadeout;
+const dvar_t *r_sunblind_min_angle;
+const dvar_t *r_sunblind_max_angle;
+const dvar_t *r_sunblind_max_darken;
+const dvar_t *r_sunblind_fadein;
+const dvar_t *r_sunblind_fadeout;
+const dvar_t *r_sunglare_min_angle;
+const dvar_t *r_sunglare_max_angle;
+const dvar_t *r_sunglare_max_lighten;
+const dvar_t *r_sunglare_fadein;
+const dvar_t *r_sunglare_fadeout;
+const dvar_t *r_sun_fx_position;
+
+const char *sunDvarNames[21] =
+{
+  "r_sunsprite_shader",
+  "r_sunsprite_size",
+  "r_sunflare_shader",
+  "r_sunflare_min_size",
+  "r_sunflare_min_angle",
+  "r_sunflare_max_size",
+  "r_sunflare_max_angle",
+  "r_sunflare_max_alpha",
+  "r_sunflare_fadein",
+  "r_sunflare_fadeout",
+  "r_sunblind_min_angle",
+  "r_sunblind_max_angle",
+  "r_sunblind_max_darken",
+  "r_sunblind_fadein",
+  "r_sunblind_fadeout",
+  "r_sunglare_min_angle",
+  "r_sunglare_max_angle",
+  "r_sunglare_max_lighten",
+  "r_sunglare_fadein",
+  "r_sunglare_fadeout",
+  "r_sun_fx_position"
+};
+
 
 void __cdecl R_RegisterSunDvars()
 {
@@ -140,15 +197,16 @@ void __cdecl R_RegisterSunDvars()
                                                  "time in seconds to fade glare from 100% to 0%");
     r_sun_fx_position = _Dvar_RegisterVec3(
                                                 "r_sun_fx_position",
-                                                COERCE_UNSIGNED_INT(0.0),
-                                                COERCE_UNSIGNED_INT(0.0),
-                                                COERCE_UNSIGNED_INT(0.0),
+                                                (0.0),
+                                                (0.0),
+                                                (0.0),
                                                 -360.0,
                                                 360.0,
                                                 0,
                                                 "Position in degrees of the sun effect");
 }
 
+#if 0
 void __cdecl R_SetSunFromDvars(sunflare_t *sun)
 {
     double v1; // xmm0_8
@@ -207,6 +265,37 @@ void __cdecl R_SetSunFromDvars(sunflare_t *sun)
     AngleVectors(&r_sun_fx_position->current.value, sun->sunFxPosition, 0, 0);
     sun->hasValidData = 1;
 }
+#endif
+
+// aislop
+void __cdecl R_SetSunFromDvars(sunflare_t *sun)
+{
+    iassert(sun);
+
+    sun->spriteMaterial = Material_RegisterHandle((char *)r_sunsprite_shader->current.integer, 6);
+    sun->spriteSize = r_sunsprite_size->current.value;
+    sun->flareMaterial = Material_RegisterHandle((char *)r_sunflare_shader->current.integer, 6);
+    sun->flareMinSize = r_sunflare_min_size->current.value * 0.5f;
+    sun->flareMinDot = cosf(r_sunflare_min_angle->current.value * 0.017453292f);
+    sun->flareMaxSize = r_sunflare_max_size->current.value * 0.5f;
+    sun->flareMaxDot = cosf(r_sunflare_max_angle->current.value * 0.017453292f);
+    sun->flareMaxAlpha = r_sunflare_max_alpha->current.value;
+    sun->flareFadeInTime = (int)(r_sunflare_fadein->current.value * 1000.0f + 9.3132257e-10f);
+    sun->flareFadeOutTime = (int)(r_sunflare_fadeout->current.value * 1000.0f + 9.3132257e-10f);
+    sun->blindMinDot = cosf(r_sunblind_min_angle->current.value * 0.017453292f);
+    sun->blindMaxDot = cosf(r_sunblind_max_angle->current.value * 0.017453292f);
+    sun->blindMaxDarken = r_sunblind_max_darken->current.value;
+    sun->blindFadeInTime = (int)(r_sunblind_fadein->current.value * 1000.0f + 9.3132257e-10f);
+    sun->blindFadeOutTime = (int)(r_sunblind_fadeout->current.value * 1000.0f + 9.3132257e-10f);
+    sun->glareMinDot = cosf(r_sunglare_min_angle->current.value * 0.017453292f);
+    sun->glareMaxDot = cosf(r_sunglare_max_angle->current.value * 0.017453292f);
+    sun->glareMaxLighten = r_sunglare_max_lighten->current.value;
+    sun->glareFadeInTime = (int)(r_sunglare_fadein->current.value * 1000.0f + 9.3132257e-10f);
+    sun->glareFadeOutTime = (int)(r_sunglare_fadeout->current.value * 1000.0f + 9.3132257e-10f);
+    AngleVectors(&r_sun_fx_position->current.value, sun->sunFxPosition, NULL, NULL);
+    sun->hasValidData = 1;
+}
+
 
 void __cdecl R_LoadSunThroughDvars(const char *sunName, sunflare_t *sun)
 {

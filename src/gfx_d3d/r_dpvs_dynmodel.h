@@ -1,6 +1,4 @@
 #pragma once
-#include "r_dpvs.h"
-#include <DynEntity/DynEntity_client.h>
 
 struct GfxWorldDpvsDynamic // sizeof=0x30
 {                                       // XREF: GfxWorld/r
@@ -14,11 +12,11 @@ struct GfxWorldDpvsDynamic // sizeof=0x30
                                         // XREF: R_LoadWorldRuntime+102/w
 };
 
-void __cdecl R_AddCellDynModelSurfacesInFrustumCmd(const DpvsPlane **data);
+void __cdecl R_AddCellDynModelSurfacesInFrustumCmd(const struct DpvsPlane **data);
 void __cdecl R_CullDynModelInCell(
                 const unsigned int *dynEntCellBits,
                 unsigned int dynEntClientWordCount,
-                DynEntityPose *dynModelList,
-                const DpvsPlane *planes,
+                struct DynEntityPose *dynModelList,
+                const struct DpvsPlane *planes,
                 int planeCount,
                 unsigned __int8 *dynEntVisData);

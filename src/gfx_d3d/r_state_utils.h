@@ -2,14 +2,7 @@
 
 #include <d3d9.h>
 
-enum MaterialUpdateFrequency : __int32
-{                                       // XREF: Material_CompareShaderArgumentsForRuntime/r
-                                        // Material_GetArgUpdateFrequency/r ...
-    MTL_UPDATE_PER_PRIM   = 0x0,
-    MTL_UPDATE_PER_OBJECT = 0x1,
-    MTL_UPDATE_RARELY     = 0x2,
-    MTL_UPDATE_CUSTOM     = 0x3,
-};
+enum MaterialUpdateFrequency : __int32;
 
 
 struct GfxCmdBufSourceState;

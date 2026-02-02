@@ -79,13 +79,13 @@ void __cdecl R_BuildQuadStampCodeMeshVerts(
         leftDown[1] = left[1] - up[1];
         leftDown[2] = left[2] - up[2];
         Byte4CopyRgbaToVertexColor(rgbaColor, (unsigned __int8 *)&nativeColor);
-        v30.array[0] = (int)(float)((float)(COERCE_FLOAT(LODWORD((*viewAxis)[0]) ^ _mask__NegFloat_) * 127.0) + 127.5);
-        v30.array[1] = (int)(float)((float)(COERCE_FLOAT(LODWORD((*viewAxis)[1]) ^ _mask__NegFloat_) * 127.0) + 127.5);
-        v30.array[2] = (int)(float)((float)(COERCE_FLOAT(LODWORD((*viewAxis)[2]) ^ _mask__NegFloat_) * 127.0) + 127.5);
+        v30.array[0] = (int)(float)((float)((-((*viewAxis)[0])) * 127.0) + 127.5);
+        v30.array[1] = (int)(float)((float)((-((*viewAxis)[1])) * 127.0) + 127.5);
+        v30.array[2] = (int)(float)((float)((-((*viewAxis)[2])) * 127.0) + 127.5);
         v30.array[3] = 63;
-        v29.array[0] = (int)(float)((float)(COERCE_FLOAT(*(unsigned int *)left ^ _mask__NegFloat_) * 127.0) + 127.5);
-        v29.array[1] = (int)(float)((float)(COERCE_FLOAT(*((unsigned int *)left + 1) ^ _mask__NegFloat_) * 127.0) + 127.5);
-        v29.array[2] = (int)(float)((float)(COERCE_FLOAT(*((unsigned int *)left + 2) ^ _mask__NegFloat_) * 127.0) + 127.5);
+        v29.array[0] = (int)(float)((float)((-*(unsigned int *)left) * 127.0) + 127.5);
+        v29.array[1] = (int)(float)((float)((-*((unsigned int *)left + 1)) * 127.0) + 127.5);
+        v29.array[2] = (int)(float)((float)((-*((unsigned int *)left + 2)) * 127.0) + 127.5);
         v29.array[3] = 63;
         verts = R_GetCodeMeshVerts(baseVertex);
         verts->xyz[0] = *origin + leftUp[0];
@@ -235,8 +235,8 @@ void __cdecl R_GenerateQuadStampCodeMeshVerts(
         rgbaColor,
         s0,
         t0,
-        COERCE_INT(*(float *)&s0 + v12),
-        COERCE_INT(*(float *)&t0 + dt));
+        (*(float *)&s0 + v12),
+        (*(float *)&t0 + dt));
 }
 
 void __cdecl R_GenerateQuadStampCodeMeshVertsArray(
@@ -338,14 +338,14 @@ void __cdecl R_GenerateQuadStampCodeMeshVertsArray(
         }
         while ( count );
         Byte4CopyRgbaToVertexColor(rgbaColor, (unsigned __int8 *)&prototypeVert.color);
-        v24.array[0] = (int)(float)((float)(COERCE_FLOAT(LODWORD((*viewAxis)[0]) ^ _mask__NegFloat_) * 127.0) + 127.5);
-        v24.array[1] = (int)(float)((float)(COERCE_FLOAT(LODWORD((*viewAxis)[1]) ^ _mask__NegFloat_) * 127.0) + 127.5);
-        v24.array[2] = (int)(float)((float)(COERCE_FLOAT(LODWORD((*viewAxis)[2]) ^ _mask__NegFloat_) * 127.0) + 127.5);
+        v24.array[0] = (int)(float)((float)((-((*viewAxis)[0])) * 127.0) + 127.5);
+        v24.array[1] = (int)(float)((float)((-((*viewAxis)[1])) * 127.0) + 127.5);
+        v24.array[2] = (int)(float)((float)((-((*viewAxis)[2])) * 127.0) + 127.5);
         v24.array[3] = 63;
         prototypeVert.normal = v24;
-        v23.array[0] = (int)(float)((float)(COERCE_FLOAT(LODWORD((*viewAxis)[3]) ^ _mask__NegFloat_) * 127.0) + 127.5);
-        v23.array[1] = (int)(float)((float)(COERCE_FLOAT(LODWORD((*viewAxis)[4]) ^ _mask__NegFloat_) * 127.0) + 127.5);
-        v23.array[2] = (int)(float)((float)(COERCE_FLOAT(LODWORD((*viewAxis)[5]) ^ _mask__NegFloat_) * 127.0) + 127.5);
+        v23.array[0] = (int)(float)((float)((-((*viewAxis)[3])) * 127.0) + 127.5);
+        v23.array[1] = (int)(float)((float)((-((*viewAxis)[4])) * 127.0) + 127.5);
+        v23.array[2] = (int)(float)((float)((-((*viewAxis)[5])) * 127.0) + 127.5);
         v23.array[3] = 63;
         prototypeVert.tangent = v23;
         *(_QWORD *)prototype.v = *(_QWORD *)&prototypeVert.color.packed;
@@ -514,6 +514,7 @@ void __cdecl R_GenerateQuadStampCodeMeshVertsArray(
     }
 }
 
+// KISAKTODO: investigate this claim
 void __cdecl really_fast_sincos(float in, float *s, float *c)
 {
     double v3; // st7
@@ -525,11 +526,11 @@ void __cdecl really_fast_sincos(float in, float *s, float *c)
 
     x = in * 0.1591549386630057 + 100000.0;
     v3 = fast_round(x);
-    v4 = (COERCE_DOUBLE(COERCE_UNSIGNED_INT64(x - v3 - 0.5) & _mask__AbsDouble_) * 16.0 - 8.0) * (x - v3 - 0.5);
+    v4 = ((abs(x - v3 - 0.5)) * 16.0 - 8.0) * (x - v3 - 0.5);
     *s = v4;
     xa = x + 0.25;
     v5 = fast_round(xa);
-    v6 = (COERCE_DOUBLE(COERCE_UNSIGNED_INT64(xa - v5 - 0.5) & _mask__AbsDouble_) * 16.0 - 8.0) * (xa - v5 - 0.5);
+    v6 = ((abs(xa - v5 - 0.5)) * 16.0 - 8.0) * (xa - v5 - 0.5);
     *c = v6;
 }
 

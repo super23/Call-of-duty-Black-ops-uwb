@@ -3,6 +3,8 @@
 #include <xanim/xmodel.h>
 #include <xanim/xmodel_load_obj.h>
 #include <xanim/xmodel_utils.h>
+#include "r_init.h"
+#include "r_bsp.h"
 
 int __cdecl R_CellForPoint(const float *origin)
 {
@@ -58,120 +60,6 @@ unsigned int __cdecl R_CalcReflectionProbeIndex(const float *origin)
         __debugbreak();
     }
     return R_FindNearestReflectionProbeInCell(g_worldDraw, &rgp.world->cells[cellIndex], origin);
-}
-
-unsigned int __cdecl R_FindNearestReflectionProbeInCell(
-                const GfxWorldDraw *worldDraw,
-                const GfxCell *cell,
-                const float *origin)
-{
-    float bestProbeDist; // [esp+10h] [ebp-10h]
-    unsigned __int8 bestProbe; // [esp+16h] [ebp-Ah]
-    unsigned __int8 probeIndex; // [esp+17h] [ebp-9h]
-    float testProbeDist; // [esp+18h] [ebp-8h]
-    unsigned int cellProbeIndex; // [esp+1Ch] [ebp-4h]
-
-    if ( !worldDraw
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_dpvs.cpp", 1076, 0, "%s", "worldDraw") )
-    {
-        __debugbreak();
-    }
-    if ( worldDraw->reflectionProbeCount >= 0xFF
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_dpvs.cpp",
-                    1077,
-                    0,
-                    "%s",
-                    "worldDraw->reflectionProbeCount < 0xff") )
-    {
-        __debugbreak();
-    }
-    bestProbe = 0;
-    bestProbeDist = FLT_MAX;
-    if ( !cell->reflectionProbeCount
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_dpvs.cpp",
-                    1085,
-                    0,
-                    "%s",
-                    "cell->reflectionProbeCount > 0") )
-    {
-        __debugbreak();
-    }
-    for ( cellProbeIndex = 0; cellProbeIndex < cell->reflectionProbeCount; ++cellProbeIndex )
-    {
-        probeIndex = cell->reflectionProbes[cellProbeIndex];
-        if ( probeIndex == 255
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_dpvs.cpp",
-                        1089,
-                        0,
-                        "%s",
-                        "probeIndex != REFLECTION_PROBE_INVALID") )
-        {
-            __debugbreak();
-        }
-        if ( !worldDraw->reflectionProbes[probeIndex].probeVolumeCount )
-        {
-            if ( probeIndex >= worldDraw->reflectionProbeCount
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_dpvs.cpp",
-                            1095,
-                            0,
-                            "probeIndex doesn't index worldDraw->reflectionProbeCount\n\t%i not in [0, %i)",
-                            probeIndex,
-                            worldDraw->reflectionProbeCount) )
-            {
-                __debugbreak();
-            }
-            testProbeDist = Vec3DistanceSq(worldDraw->reflectionProbes[probeIndex].origin, origin);
-            if ( bestProbeDist > testProbeDist )
-            {
-                bestProbeDist = testProbeDist;
-                bestProbe = probeIndex;
-            }
-        }
-    }
-    return bestProbe;
-}
-
-unsigned int __cdecl R_FindNearestReflectionProbe(const GfxWorldDraw *worldDraw, const float *origin)
-{
-    float bestProbeDist; // [esp+10h] [ebp-Ch]
-    unsigned __int8 bestProbe; // [esp+16h] [ebp-6h]
-    unsigned __int8 probeIndex; // [esp+17h] [ebp-5h]
-    float testProbeDist; // [esp+18h] [ebp-4h]
-
-    if ( !worldDraw
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_dpvs.cpp", 1119, 0, "%s", "worldDraw") )
-    {
-        __debugbreak();
-    }
-    if ( worldDraw->reflectionProbeCount >= 0xFF
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_dpvs.cpp",
-                    1120,
-                    0,
-                    "%s",
-                    "worldDraw->reflectionProbeCount < 0xff") )
-    {
-        __debugbreak();
-    }
-    bestProbe = 0;
-    bestProbeDist = FLT_MAX;
-    for ( probeIndex = 1; probeIndex < worldDraw->reflectionProbeCount; ++probeIndex )
-    {
-        if ( !worldDraw->reflectionProbes[probeIndex].probeVolumeCount )
-        {
-            testProbeDist = Vec3DistanceSq(worldDraw->reflectionProbes[probeIndex].origin, origin);
-            if ( bestProbeDist > testProbeDist )
-            {
-                bestProbeDist = testProbeDist;
-                bestProbe = probeIndex;
-            }
-        }
-    }
-    return bestProbe;
 }
 
 void __cdecl R_AllocStaticModels(GfxAabbTree *tree)

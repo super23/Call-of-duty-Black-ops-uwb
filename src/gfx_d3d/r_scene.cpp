@@ -22,8 +22,57 @@
 #include <client/cl_compositing.h>
 #include <EffectsCore/fx_marks.h>
 #include "r_state.h"
+#include <EffectsCore/fx_beam.h>
+#include <qcommon/dobj_management.h>
+#include "rb_logfile.h"
+#include "r_globalgfxdata.h"
+#include "r_model_lighting.h"
+#include "rb_fog.h"
+#include <glass/glass_client.h>
+#include <universal/com_workercmds.h>
+#include "r_pretess.h"
+#include "r_skybox.h"
+#include "r_add_bsp.h"
+#include <client/con_channels.h>
+#include "r_sunshadow.h"
+#include "r_add_staticmodel.h"
+#include <DynEntity/DynEntity_pieces.h>
+#include "r_singlethreaded_device_pc.h"
+#include "r_spotshadow.h"
+#include "r_foliage.h"
+#include "r_water_sim.h"
+#include <EffectsCore/fx_dvars.h>
+#include <cgame/cg_compass.h>
+#include "rb_postfx.h"
+#include "r_ui3d.h"
+#include "r_extracam.h"
+#include "r_debug.h"
+#include "r_cinematic.h"
+#include "r_workercmds_common.h"
+#include "r_draw_shadowablelight.h"
+#include <DynEntity/DynEntity_client.h>
 
 GfxScene scene;
+GfxViewParms lockPvsViewParms;
+
+bool lastShowDebug;
+float debugOrigin[3];
+bool g_allowShadowMaps = true;
+
+void __cdecl lerp_0(float (*dest)[4], const float (*from)[4], const float (*to)[4], float t)
+{
+    (*dest)[0] = lerp((*from)[0], (*to)[0], t);
+    (*dest)[1] = lerp((*from)[1], (*to)[1], t);
+    (*dest)[2] = lerp((*from)[2], (*to)[2], t);
+    (*dest)[3] = lerp((*from)[3], (*to)[3], t);
+}
+
+void __cdecl lerp_1(float (*dest)[3], const float (*from)[3], const float (*to)[3], float t)
+{
+    (*dest)[0] = lerp((*from)[0], (*to)[0], t);
+    (*dest)[1] = lerp((*from)[1], (*to)[1], t);
+    (*dest)[2] = lerp((*from)[2], (*to)[2], t);
+}
 
 GfxScene *__cdecl R_GetScene()
 {
@@ -452,6 +501,7 @@ GfxParticleCloud *__cdecl R_AddParticleCloudToScene(Material *material)
     }
 }
 
+#if 0
 void __cdecl R_AddOmniLightToScene(const float *org, const float (*axis)[3], int radius, float r, float g, float b)
 {
     int integer; // xmm0_4
@@ -597,7 +647,126 @@ void __cdecl R_AddOmniLightToScene(const float *org, const float (*axis)[3], int
         }
     }
 }
+#endif
 
+static inline float SRGBToLinear(float c)
+{
+    if (c <= 0.04045f)
+        return c * (1.0f / 12.92f);
+
+    return powf((c + 0.055f) * (1.0f / 1.055f), 2.4f);
+}
+
+// aislop
+void __cdecl R_AddOmniLightToScene(
+    const float *org,
+    const float (*axis)[3],
+    int radius,
+    float r,
+    float g,
+    float b)
+{
+    int i;
+    float clampedRadius;
+    GfxLight *light;
+
+    if (!rg.registered || !rgp.world)
+        return;
+
+    if (!rg.inFrame)
+    {
+        if (!Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp",
+            604,
+            0,
+            "%s",
+            "rg.inFrame"))
+        {
+            __debugbreak();
+        }
+    }
+
+    if (radius <= 0)
+        return;
+
+    if (scene.addedLightCount >= 32)
+    {
+        R_WarnOncePerFrame(R_WARN_MAX_DLIGHTS);
+        return;
+    }
+
+    /* clamp radius based on fullscreen state */
+    if (rg.isNotRenderingFullScreen)
+    {
+        clampedRadius =
+            (radius > r_dlightMaxNonFullScreenRadius->current.value)
+            ? (float)r_dlightMaxNonFullScreenRadius->current.integer
+            : (float)radius;
+    }
+    else
+    {
+        clampedRadius =
+            (radius > r_dlightMaxFullScreenRadius->current.value)
+            ? (float)r_dlightMaxFullScreenRadius->current.integer
+            : (float)radius;
+    }
+
+    /* try to merge with existing omni light */
+    for (i = 0; i < scene.addedLightCount; ++i)
+    {
+        light = &scene.addedLight[i];
+
+        if (light->type != 3)
+            continue;
+
+        if (fabsf(clampedRadius - light->radius) >= 10.0f)
+            continue;
+
+        if (Vec3DistanceSq(org, light->origin) >= 100.0f)
+            continue;
+
+        /* merge */
+        light->origin[0] = 0.5f * (org[0] + light->origin[0]);
+        light->origin[1] = 0.5f * (org[1] + light->origin[1]);
+        light->origin[2] = 0.5f * (org[2] + light->origin[2]);
+
+        if (clampedRadius > light->radius)
+            light->radius = clampedRadius;
+
+        light->diffuseColor[0] += SRGBToLinear(r);
+        light->diffuseColor[1] += SRGBToLinear(g);
+        light->diffuseColor[2] += SRGBToLinear(b);
+
+        return;
+    }
+
+    /* add new light */
+    light = &scene.addedLight[scene.addedLightCount++];
+    memset(light, 0, sizeof(*light));
+
+    light->def = rgp.dlightDef;
+    light->type = 3;
+
+    light->origin[0] = org[0];
+    light->origin[1] = org[1];
+    light->origin[2] = org[2];
+
+    light->radius = clampedRadius;
+
+    light->color[0] = r;
+    light->color[1] = g;
+    light->color[2] = b;
+
+    light->canUseShadowMap = 0;
+    light->spotShadowIndex = -1;
+
+    light->diffuseColor[0] = SRGBToLinear(r);
+    light->diffuseColor[1] = SRGBToLinear(g);
+    light->diffuseColor[2] = SRGBToLinear(b);
+    light->diffuseColor[3] = 1.0f;
+}
+
+#if 0
 void __cdecl R_AddSpotLightToScene(const float *org, const float (*axis)[3], float radius, float r, float g, float b)
 {
     double v6; // xmm0_8
@@ -735,6 +904,153 @@ void __cdecl R_AddSpotLightToScene(const float *org, const float (*axis)[3], flo
         }
     }
 }
+#endif
+
+void __cdecl R_AddSpotLightToScene(
+    const float *org,
+    const float (*axis)[3],
+    float radius,
+    float r,
+    float g,
+    float b)
+{
+    GfxLight *light;
+    float range;
+    float outerHalfAngle;
+    float innerHalfAngle;
+    float spotOffset;
+    float brightness;
+
+    const float *dir = axis[0];   // forward
+
+    if (r_enableFlashlight->current.integer)
+        return;
+
+    if (!rg.registered || !rgp.world)
+        return;
+
+    if (!rg.inFrame)
+    {
+        if (!Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp",
+            680,
+            0,
+            "%s",
+            "rg.inFrame"))
+        {
+            __debugbreak();
+        }
+    }
+
+    if (radius <= 0.0f)
+        return;
+
+    if (scene.addedLightCount >= 32)
+    {
+        R_WarnOncePerFrame(R_WARN_MAX_DLIGHTS);
+        return;
+    }
+
+    light = &scene.addedLight[scene.addedLightCount++];
+    memset(light, 0, sizeof(*light));
+
+    /* spotlight type */
+    light->type = 2;
+    light->exponent = 1;
+    light->canUseShadowMap = 1;
+    light->spotShadowIndex = -1;
+
+    range = r_flashLightRange->current.value;
+
+    /* compute outer half-angle */
+    outerHalfAngle =
+        atanf(
+            (r_flashLightEndRadius->current.value -
+                r_flashLightStartRadius->current.value) /
+            range);
+
+    innerHalfAngle =
+        outerHalfAngle * r_spotLightFovInnerFraction->current.value;
+
+    spotOffset =
+        r_flashLightStartRadius->current.value /
+        tanf(outerHalfAngle);
+
+    /* position */
+    light->origin[0] = org[0] - dir[0] * spotOffset;
+    light->origin[1] = org[1] - dir[1] * spotOffset;
+    light->origin[2] = org[2] - dir[2] * spotOffset;
+
+    /* direction */
+    light->dir[0] = -dir[0];
+    light->dir[1] = -dir[1];
+    light->dir[2] = -dir[2];
+
+    light->radius = range + spotOffset;
+    light->cullDist = (int)range;
+
+    /* color (linear space) */
+    light->diffuseColor[0] = SRGBToLinear(r);
+    light->diffuseColor[1] = SRGBToLinear(g);
+    light->diffuseColor[2] = SRGBToLinear(b);
+
+    brightness = r_flashLightBrightness->current.value;
+    light->diffuseColor[0] *= brightness;
+    light->diffuseColor[1] *= brightness;
+    light->diffuseColor[2] *= brightness;
+
+    /* specular = diffuse */
+    light->specularColor[0] = light->diffuseColor[0];
+    light->specularColor[1] = light->diffuseColor[1];
+    light->specularColor[2] = light->diffuseColor[2];
+
+    /* spotlight cone */
+    light->cosHalfFovInner = cosf(innerHalfAngle);
+    light->cosHalfFovOuter = cosf(outerHalfAngle);
+
+    /* defaults */
+    light->angles[0] = 0.0f;
+    light->angles[1] = 0.0f;
+    light->angles[2] = 0.0f;
+
+    light->attenuation[0] = 1.0f;
+    light->attenuation[1] = 0.0f;
+    light->attenuation[2] = 0.0f;
+    light->attenuation[3] = 1.0f;
+
+    light->aAbB[0] = 0.75f;
+    light->aAbB[1] = 1.0f;
+    light->aAbB[2] = 0.75f;
+    light->aAbB[3] = 1.0f;
+
+    /* falloff */
+    light->falloff[0] = 0.0f;
+    light->falloff[1] = range;
+    light->falloff[2] = 0.0f;
+    light->falloff[3] = 0.0f;
+
+    /* matrices */
+    SpotLightViewMatrixDir3(
+        axis[0],
+        axis[1],
+        axis[2],
+        light->viewMatrix.m);
+
+    SpotLightProjectionMatrix(
+        light->cosHalfFovOuter,
+        light->falloff[0],
+        light->falloff[1],
+        light->projMatrix.m);
+
+    light->def = rgp.flashLightDef;
+
+    scene.dynamicSpotLightNearPlaneOffset = spotOffset;
+    R_CalcSpotLightPlanes(
+        light,
+        spotOffset,
+        scene.dynamicSpotLightPlanes);
+}
+
 
 const float MINIMUM_Z_NEAR = 1.0f;
 float __cdecl R_GetDefaultNearClip()
@@ -757,14 +1073,13 @@ void __cdecl R_SetupViewProjectionMatrices(GfxViewParms *viewParms, bool offsetm
                                                                                                 - (float)((float)(rg.hiResShotRow + 1.0) / (float)rg.hiResShotTiles));
         viewParms->projectionMatrix.m[2][1] = (float)((float)(rg.hiResShotCol / (float)rg.hiResShotTiles)
                                                                                                 + (float)((float)(rg.hiResShotCol + 1.0) / (float)rg.hiResShotTiles))
-                                                                                / (float)((float)(COERCE_FLOAT(LODWORD(rg.hiResShotCol) ^ _mask__NegFloat_)
-                                                                                                                / (float)rg.hiResShotTiles)
+                                                                                / (float)((float)((-(rg.hiResShotCol)) / (float)rg.hiResShotTiles)
                                                                                                 + (float)((float)(rg.hiResShotCol + 1.0) / (float)rg.hiResShotTiles));
         viewParms->projectionMatrix.m[2][0] = (float)rg.hiResShotTiles + viewParms->projectionMatrix.m[2][0];
         viewParms->projectionMatrix.m[2][1] = viewParms->projectionMatrix.m[2][1] - (float)rg.hiResShotTiles;
     }
     MatrixMultiply44(viewParms->viewMatrix.m, viewParms->projectionMatrix.m, viewParms->viewProjectionMatrix.m);
-    MatrixInverse44((const float *)&viewParms->viewProjectionMatrix, (float *)&viewParms->inverseViewProjectionMatrix);
+    MatrixInverse44(viewParms->viewProjectionMatrix.m, viewParms->inverseViewProjectionMatrix.m);
 }
 
 void __cdecl R_AddBModelSurfacesCamera(
@@ -998,33 +1313,30 @@ void __cdecl R_SetEnablePlayerShadowFlag(bool flag)
     rg.enablePlayerShadowFlag = flag;
 }
 
-void __cdecl R_AddXModelSurfacesCamera(
-                XModelDrawInfo *modelInfo,
-                const XModel *model,
-                float *origin,
-                unsigned int gfxEntIndex,
-                unsigned int lightingHandle,
-                unsigned __int8 primaryLightIndex,
-                int isShadowReceiver,
-                int depthHack,
-                GfxDrawSurf **drawSurfs,
-                GfxDrawSurf **lastDrawSurfs,
-                unsigned int reflectionProbeIndex,
-                unsigned int constantSetIndex,
-                char visLightsMask)
+void R_AddXModelSurfacesCamera(
+    XModelDrawInfo *modelInfo,
+    const XModel *model,
+    float *origin,
+    unsigned int gfxEntIndex,
+    unsigned int lightingHandle,
+    unsigned __int8 primaryLightIndex,
+    int isShadowReceiver,
+    int depthHack,
+    GfxDrawSurf **drawSurfs,
+    GfxDrawSurf **lastDrawSurfs,
+    unsigned int reflectionProbeIndex,
+    unsigned int constantSetIndex,
+    char visLightsMask)
 {
-    unsigned __int64 v13; // rax
     unsigned __int64 v14; // rax
     unsigned __int64 v15; // rax
     unsigned __int64 v16; // rax
     unsigned __int64 v17; // rax
     unsigned __int64 v18; // rax
-    const XSurface *XSurface; // eax
+    unsigned __int64 v19; // rax
+    const XSurface *surf; // eax
     int NumTris; // eax
-    const XSurface *v21; // eax
-    char *v22; // eax
-    char *v23; // eax
-    char *v24; // eax
+    const XSurface *XSurface; // eax
     char customIndex; // [esp+Ch] [ebp-3Ch]
     unsigned int surfId; // [esp+10h] [ebp-38h]
     int totalVertCount; // [esp+14h] [ebp-34h]
@@ -1039,157 +1351,102 @@ void __cdecl R_AddXModelSurfacesCamera(
     unsigned int region; // [esp+40h] [ebp-8h]
     unsigned int numsurfs; // [esp+44h] [ebp-4h]
 
-    if ( !lightingHandle
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp", 1147, 0, "%s", "lightingHandle") )
-    {
-        __debugbreak();
-    }
+    iassert(lightingHandle);
     totalTriCount = 0;
     totalVertCount = 0;
-    if ( !model && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp", 1154, 0, "%s", "model") )
-        __debugbreak();
+    iassert(model);
     surfId = modelInfo->surfId;
     modelSurf = (GfxModelRigidSurface *)((char *)frontEndDataOut + 4 * surfId);
     lod = modelInfo->lod;
     numsurfs = XModelGetSurfCount(model, lod);
     material = XModelGetSkins(model, lod);
-    if ( !material
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp", 1164, 0, "%s", "material") )
-    {
-        __debugbreak();
-    }
-    if ( reflectionProbeIndex >= 8
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp",
-                    1166,
-                    0,
-                    "reflectionProbeIndex doesn't index 1 << MTL_SORT_ENVMAP_BITS\n\t%i not in [0, %i)",
-                    reflectionProbeIndex,
-                    8) )
-    {
-        __debugbreak();
-    }
-    if ( gfxDrawMethod.emissiveTechType >= 0x82u
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp",
-                    1168,
-                    0,
-                    "gfxDrawMethod.emissiveTechType doesn't index TECHNIQUE_COUNT\n\t%i not in [0, %i)",
-                    gfxDrawMethod.emissiveTechType,
-                    130) )
-    {
-        __debugbreak();
-    }
+    iassert(material);
+
+    bcassert(reflectionProbeIndex, 1 << 3 /*MTL_SORT_ENVMAP_BITS*/);
+    bcassert(gfxDrawMethod.emissiveTechType, 130 /*TECHNIQUE_COUNT*/);
+
     subMatIndex = 0;
-    while ( subMatIndex < numsurfs )
+    while (subMatIndex < numsurfs)
     {
         skinnedCachedOffset = modelSurf->surf.skinnedCachedOffset;
-        if ( skinnedCachedOffset == -3 )
+        if (skinnedCachedOffset == -3)
         {
             ++surfId;
             modelSurf = (GfxModelRigidSurface *)((char *)modelSurf + 4);
         }
         else
         {
-            if ( !*material
-                && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp", 1181, 0, "%s", "*material") )
-            {
-                __debugbreak();
-            }
-            if ( rgp.sortedMaterials[((*material)->info.drawSurf.packed >> 31) & 0xFFF] != *material
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp",
-                            1182,
-                            0,
-                            "%s",
-                            "rgp.sortedMaterials[(*material)->info.drawSurf.fields.materialSortedIndex] == *material") )
-            {
-                __debugbreak();
-            }
+            iassert(*material);
+            iassert(rgp.sortedMaterials[(*material)->info.drawSurf.fields.materialSortedIndex] == *material);
+
             region = (*material)->cameraRegion;
-            if ( region == 3 )
+            if (region == 3)
             {
                 surfId += 14;
                 ++modelSurf;
             }
             else
             {
-                if ( drawSurfs[region] >= lastDrawSurfs[region] )
+                if (drawSurfs[region] >= lastDrawSurfs[region])
                 {
                     R_WarnOncePerFrame(R_WARN_MAX_SCENE_DRAWSURFS, "R_AddXModelSurfacesCamera");
                     break;
                 }
-                if ( skinnedCachedOffset == -2 )
+                if (skinnedCachedOffset == -2)
                 {
                     surfType = SF_BEGIN_XMODEL;
                 }
                 else
                 {
-                    if ( skinnedCachedOffset != -1
-                        && !Assert_MyHandler(
-                                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp",
-                                    1224,
-                                    0,
-                                    "%s\n\t(skinnedCachedOffset) = %i",
-                                    "(skinnedCachedOffset == (-1))",
-                                    skinnedCachedOffset) )
-                    {
-                        __debugbreak();
-                    }
+                    iassert(skinnedCachedOffset == (-1));
                     surfType = SF_XMODEL_RIGID_SKINNED;
                 }
+
                 modelSurf->surf.info.gfxEntIndex = gfxEntIndex;
                 modelSurf->surf.info.lightingHandle = lightingHandle;
                 modelSurf->surf.info.dobjModelIndex = 0;
-                if ( surfId >= 0x10000
-                    && !Assert_MyHandler(
-                                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp",
-                                1237,
-                                0,
-                                "surfId doesn't index 1 << MTL_SORT_OBJECT_ID_BITS\n\t%i not in [0, %i)",
-                                surfId,
-                                0x10000) )
-                {
-                    __debugbreak();
-                }
+
+                bcassert(surfId, 0x10000/*1 << MTL_SORT_OBJECT_ID_BITS*/);
+
                 customIndex = isShadowReceiver != 0;
-                if ( gfxEntIndex && frontEndDataOut->gfxEnts[gfxEntIndex].destructibleBurnAmount > 0.0 )
+                if (gfxEntIndex && frontEndDataOut->gfxEnts[gfxEntIndex].destructibleBurnAmount > 0.0)
                     customIndex |= 2u;
-                HIDWORD(v13) = HIDWORD((*material)->info.drawSurf.packed);
-                *(unsigned int *)&drawSurf.fields = (*material)->info.drawSurf.fields;
-                HIDWORD(drawSurf.packed) = HIDWORD(v13);
-                LODWORD(v13) = drawSurf.fields;
-                v14 = (unsigned __int64)((unsigned int)((v13 >> 58) & 0x3F) - depthHack) << 58;
-                *(unsigned int *)&drawSurf.fields |= v14;
-                HIDWORD(drawSurf.packed) = HIDWORD(v14) | HIDWORD(drawSurf.packed) & 0x3FFFFFF;
+                //HIDWORD(v14) = HIDWORD((*material)->info.drawSurf.packed);
+                //*(_DWORD *)&drawSurf.fields = (*material)->info.drawSurf.fields;
+                //HIDWORD(drawSurf.packed) = HIDWORD(v14);
+                //LODWORD(v14) = drawSurf.fields;
+                v14 = drawSurf.packed;
+                v15 = (unsigned __int64)((unsigned int)((v14 >> 58) & 0x3F) - depthHack) << 58;
+                *(_DWORD *)&drawSurf.fields |= v15;
+                HIDWORD(drawSurf.packed) = HIDWORD(v15) | HIDWORD(drawSurf.packed) & 0x3FFFFFF;
                 HIDWORD(drawSurf.packed) = ((surfType & 0xF) << 19) | HIDWORD(drawSurf.packed) & 0xFF87FFFF;
-                *(unsigned int *)&drawSurf.fields = (unsigned __int16)surfId | *(unsigned int *)&drawSurf.fields & 0xFFFF0000;
-                v15 = (unsigned __int64)(reflectionProbeIndex & 7) << 25;
-                *(unsigned int *)&drawSurf.fields = v15 | *(unsigned int *)&drawSurf.fields & 0xF1FFFFFF;
-                HIDWORD(drawSurf.packed) |= HIDWORD(v15);
-                v16 = (unsigned __int64)(customIndex & 0x1F) << 20;
-                *(unsigned int *)&drawSurf.fields = v16 | *(unsigned int *)&drawSurf.fields & 0xFE0FFFFF;
+                *(_DWORD *)&drawSurf.fields = (unsigned __int16)surfId | *(_DWORD *)&drawSurf.fields & 0xFFFF0000;
+                v16 = (unsigned __int64)(reflectionProbeIndex & 7) << 25;
+                *(_DWORD *)&drawSurf.fields = v16 | *(_DWORD *)&drawSurf.fields & 0xF1FFFFFF;
                 HIDWORD(drawSurf.packed) |= HIDWORD(v16);
+                v17 = (unsigned __int64)(customIndex & 0x1F) << 20;
+                *(_DWORD *)&drawSurf.fields = v17 | *(_DWORD *)&drawSurf.fields & 0xFE0FFFFF;
+                HIDWORD(drawSurf.packed) |= HIDWORD(v17);
                 HIDWORD(drawSurf.packed) = (primaryLightIndex << 11) | HIDWORD(drawSurf.packed) & 0xFFF807FF;
                 R_XModelDrawSurfEncodeShaderConstantSet(&drawSurf, constantSetIndex);
-                v17 = (unsigned __int64)(visLightsMask & 1) << 29;
-                *(unsigned int *)&drawSurf.fields = v17 | *(unsigned int *)&drawSurf.fields & 0xDFFFFFFF;
-                HIDWORD(drawSurf.packed) |= HIDWORD(v17);
-                v18 = (unsigned __int64)((visLightsMask & 2) != 0) << 30;
-                *(unsigned int *)&drawSurf.fields = v18 | *(unsigned int *)&drawSurf.fields & 0xBFFFFFFF;
+                v18 = (unsigned __int64)(visLightsMask & 1) << 29;
+                *(_DWORD *)&drawSurf.fields = v18 | *(_DWORD *)&drawSurf.fields & 0xDFFFFFFF;
                 HIDWORD(drawSurf.packed) |= HIDWORD(v18);
+                v19 = (unsigned __int64)((visLightsMask & 2) != 0) << 30;
+                *(_DWORD *)&drawSurf.fields = v19 | *(_DWORD *)&drawSurf.fields & 0xBFFFFFFF;
+                HIDWORD(drawSurf.packed) |= HIDWORD(v19);
                 drawSurfs[region]->fields = drawSurf.fields;
                 ++drawSurfs[region];
-                if ( r_showTriCounts->current.enabled )
+                if (r_showTriCounts->current.enabled)
                 {
-                    XSurface = R_GetXSurface(modelSurf, surfType);
-                    NumTris = XSurfaceGetNumTris(XSurface);
+                    surf = R_GetXSurface((unsigned int*)modelSurf, surfType);
+                    NumTris = XSurfaceGetNumTris(surf);
                     totalTriCount += NumTris;
                 }
-                else if ( r_showVertCounts->current.enabled )
+                else if (r_showVertCounts->current.enabled)
                 {
-                    v21 = R_GetXSurface(modelSurf, surfType);
-                    totalVertCount += XSurfaceGetNumVerts(v21);
+                    XSurface = R_GetXSurface((unsigned int *)modelSurf, surfType);
+                    totalVertCount += XSurfaceGetNumVerts(XSurface);
                 }
                 surfId += 14;
                 ++modelSurf;
@@ -1198,20 +1455,17 @@ void __cdecl R_AddXModelSurfacesCamera(
         ++subMatIndex;
         ++material;
     }
-    if ( r_showTriCounts->current.enabled )
+    if (r_showTriCounts->current.enabled)
     {
-        v22 = va("%i", totalTriCount);
-        R_AddXModelDebugString(origin, v22);
+        R_AddXModelDebugString(origin, va("%i", totalTriCount));
     }
-    else if ( r_showVertCounts->current.enabled )
+    else if (r_showVertCounts->current.enabled)
     {
-        v23 = va("%i", totalVertCount);
-        R_AddXModelDebugString(origin, v23);
+        R_AddXModelDebugString(origin, va("%i", totalVertCount));
     }
-    else if ( r_showSurfCounts->current.enabled )
+    else if (r_showSurfCounts->current.enabled)
     {
-        v24 = va("%i", numsurfs);
-        R_AddXModelDebugString(origin, v24);
+        R_AddXModelDebugString(origin, va("%i", numsurfs));
     }
 }
 
@@ -1362,12 +1616,9 @@ void __cdecl R_AddDObjSurfacesCamera(
     unsigned __int64 v10; // rax
     unsigned __int64 v11; // rax
     unsigned __int64 v12; // rax
-    const XSurface *XSurface; // eax
+    const XSurface *surf; // eax
     int NumTris; // eax
     const XSurface *v15; // eax
-    char *v16; // eax
-    char *v17; // eax
-    char *v18; // eax
     float val; // [esp+0h] [ebp-B4h]
     float lodDist; // [esp+4h] [ebp-B0h]
     bool lodDist_4; // [esp+8h] [ebp-ACh]
@@ -1413,35 +1664,16 @@ void __cdecl R_AddDObjSurfacesCamera(
         totalVertCount = 0;
         totalSurfCount = 0;
         obj = sceneEnt->obj;
-        if ( !obj && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp", 1439, 0, "%s", "obj") )
-            __debugbreak();
+        iassert(obj);
         iAmThePlayer = DObjIsPlayerShadow(obj);
         if ( !iAmThePlayer || !rg.enablePlayerShadowFlag )
         {
             boneMatrix = DObjGetRotTransArray(obj);
             modelCount = DObjGetNumModels(obj);
-            if ( sceneEnt->reflectionProbeIndex >= 8u
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp",
-                            1455,
-                            0,
-                            "sceneEnt->reflectionProbeIndex doesn't index 1 << MTL_SORT_ENVMAP_BITS\n\t%i not in [0, %i)",
-                            sceneEnt->reflectionProbeIndex,
-                            8) )
-            {
-                __debugbreak();
-            }
-            if ( gfxDrawMethod.emissiveTechType >= 0x82u
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp",
-                            1458,
-                            0,
-                            "gfxDrawMethod.emissiveTechType doesn't index TECHNIQUE_COUNT\n\t%i not in [0, %i)",
-                            gfxDrawMethod.emissiveTechType,
-                            130) )
-            {
-                __debugbreak();
-            }
+
+            bcassert(sceneEnt->reflectionProbeIndex, 8 /*1 << MTL_SORT_ENVMAP_BITS*/);
+            bcassert(gfxDrawMethod.emissiveTechType, 130/*TECHNIQUE_COUNT*/);
+
             gfxEntIndex = sceneEnt->gfxEntIndex;
             if ( gfxEntIndex )
             {
@@ -1462,18 +1694,15 @@ void __cdecl R_AddDObjSurfacesCamera(
                 {
                     if ( r_showTriCounts->current.enabled )
                     {
-                        v16 = va("%i", totalTriCount);
-                        R_AddXModelDebugString(sceneEnt->placement.base.origin, v16);
+                        R_AddXModelDebugString(sceneEnt->placement.base.origin, va("%i", totalTriCount));
                     }
                     else if ( r_showVertCounts->current.enabled )
                     {
-                        v17 = va("%i", totalVertCount);
-                        R_AddXModelDebugString(sceneEnt->placement.base.origin, v17);
+                        R_AddXModelDebugString(sceneEnt->placement.base.origin, va("%i", totalVertCount));
                     }
                     else if ( r_showSurfCounts->current.enabled )
                     {
-                        v18 = va("%i", totalSurfCount);
-                        R_AddXModelDebugString(sceneEnt->placement.base.origin, v18);
+                        R_AddXModelDebugString(sceneEnt->placement.base.origin, va("%i", totalSurfCount));
                     }
                     return;
                 }
@@ -1578,9 +1807,10 @@ void __cdecl R_AddDObjSurfacesCamera(
                         {
                             __debugbreak();
                         }
-                        packed_high = HIDWORD((*material)->info.drawSurf.packed);
-                        *(unsigned int *)&drawSurf.fields = (*material)->info.drawSurf.fields;
-                        HIDWORD(drawSurf.packed) = packed_high;
+                        //packed_high = HIDWORD((*material)->info.drawSurf.packed);
+                        //*(unsigned int *)&drawSurf.fields = (*material)->info.drawSurf.fields;
+                        //HIDWORD(drawSurf.packed) = packed_high;
+                        drawSurf.packed = (*material)->info.drawSurf.packed;
                         customIndex = isShadowReceiver != 0;
                         if ( gfxEntIndexToUse && frontEndDataOut->gfxEnts[gfxEntIndexToUse].destructibleBurnAmount > 0.0 )
                         {
@@ -1614,13 +1844,13 @@ void __cdecl R_AddDObjSurfacesCamera(
                         ++drawSurfs[region];
                         if ( r_showTriCounts->current.enabled )
                         {
-                            XSurface = R_GetXSurface(modelSurf, surfType);
-                            NumTris = XSurfaceGetNumTris(XSurface);
+                            surf = R_GetXSurface((unsigned int*)modelSurf, surfType);
+                            NumTris = XSurfaceGetNumTris(surf);
                             totalTriCount += NumTris;
                         }
                         else if ( r_showVertCounts->current.enabled )
                         {
-                            v15 = R_GetXSurface(modelSurf, surfType);
+                            v15 = R_GetXSurface((unsigned int*)modelSurf, surfType);
                             totalVertCount += XSurfaceGetNumVerts(v15);
                         }
                     }
@@ -1762,9 +1992,10 @@ LABEL_24:
                     continue;
                 }
                 customIndex = 0;
-                packed_high = HIDWORD((*material)->info.drawSurf.packed);
-                *(unsigned int *)&newDrawSurf.fields = (*material)->info.drawSurf.fields;
-                HIDWORD(newDrawSurf.packed) = packed_high;
+                //packed_high = HIDWORD((*material)->info.drawSurf.packed);
+                //*(unsigned int *)&newDrawSurf.fields = (*material)->info.drawSurf.fields;
+                //HIDWORD(newDrawSurf.packed) = packed_high;
+                newDrawSurf.packed = (*material)->info.drawSurf.packed;
                 if ( sceneEnt->gfxEntIndex && frontEndDataOut->gfxEnts[sceneEnt->gfxEntIndex].destructibleBurnAmount > 0.0 )
                 {
                     customIndex = 2;
@@ -1875,7 +2106,7 @@ void __cdecl R_WaitEndTime()
 
 void __cdecl R_SetSunConstants(GfxCmdBufInput *input)
 {
-    GfxLight *sun; // [esp+30h] [ebp-10h]
+    const GfxLight *sun; // [esp+30h] [ebp-10h]
 
     sun = &input->data->sunLight;
     if ( sun->type != 1
@@ -1888,7 +2119,7 @@ void __cdecl R_SetSunConstants(GfxCmdBufInput *input)
     {
         __debugbreak();
     }
-    R_SetInputCodeConstantFromVec4(input, 0x32u, sun->dir);
+    R_SetInputCodeConstantFromVec4(input, 0x32u, (float*)sun->dir);
     R_SetInputCodeConstant(input, 0x33u, sun->diffuseColor[0], sun->diffuseColor[1], sun->diffuseColor[2], 1.0);
     R_SetInputCodeConstant(input, 0x34u, sun->specularColor[0], sun->specularColor[1], sun->specularColor[2], 1.0);
 }
@@ -1981,7 +2212,7 @@ void __cdecl R_SetInputCodeConstantFromVec4(GfxCmdBufInput *input, unsigned int 
     v3[3] = value[3];
 }
 
-void    R_SetHDRControlConstants(float a1@<ebp>, GfxCmdBufInput *input, const GfxViewInfo *viewInfo)
+void    R_SetHDRControlConstants(GfxCmdBufInput *input, const GfxViewInfo *viewInfo)
 {
     float v3; // xmm0_4
     float v4; // xmm0_4
@@ -2037,12 +2268,12 @@ void    R_SetHDRControlConstants(float a1@<ebp>, GfxCmdBufInput *input, const Gf
     float v54; // [esp+184h] [ebp-18h]
     float blackPoint; // [esp+188h] [ebp-14h]
     float whitePoint; // [esp+18Ch] [ebp-10h]
-    float exposure; // [esp+190h] [ebp-Ch]
-    float debugLayers; // [esp+194h] [ebp-8h]
-    float retaddr; // [esp+19Ch] [ebp+0h]
+    //float exposure; // [esp+190h] [ebp-Ch]
+    //float debugLayers; // [esp+194h] [ebp-8h]
+    //float retaddr; // [esp+19Ch] [ebp+0h]
 
-    exposure = a1;
-    debugLayers = retaddr;
+    //exposure = a1;
+    //debugLayers = retaddr;
     if ( r_debugLayers->current.enabled )
         whitePoint = 1.0f;
     else
@@ -2058,32 +2289,32 @@ void    R_SetHDRControlConstants(float a1@<ebp>, GfxCmdBufInput *input, const Gf
     v54 = viewInfo->exposureValue.blackPoint[3];
     linearS[3] = viewInfo->exposureValue.whitePoint[0];
     linearS[2] = viewInfo->exposureValue.blackPoint[0];
-    LODWORD(linearS[1]) = viewInfo->exposureValue.linearStart;
+    //LODWORD(linearS[1]) = viewInfo->exposureValue.linearStart;
     linearE[2] = viewInfo->exposureValue.linearStart[0];
     linearE[3] = viewInfo->exposureValue.linearStart[1];
     linearE[4] = viewInfo->exposureValue.linearStart[2];
     linearS[0] = viewInfo->exposureValue.linearStart[3];
-    LODWORD(linearE[1]) = viewInfo->exposureValue.linearEnd;
+    //LODWORD(linearE[1]) = viewInfo->exposureValue.linearEnd;
     remapS[2] = viewInfo->exposureValue.linearEnd[0];
     remapS[3] = viewInfo->exposureValue.linearEnd[1];
     remapS[4] = viewInfo->exposureValue.linearEnd[2];
     linearE[0] = viewInfo->exposureValue.linearEnd[3];
-    LODWORD(remapS[1]) = viewInfo->exposureValue.remapStart;
+    //LODWORD(remapS[1]) = viewInfo->exposureValue.remapStart;
     remapE[2] = viewInfo->exposureValue.remapStart[0];
     remapE[3] = viewInfo->exposureValue.remapStart[1];
     remapE[4] = viewInfo->exposureValue.remapStart[2];
     remapS[0] = viewInfo->exposureValue.remapStart[3];
-    LODWORD(remapE[1]) = viewInfo->exposureValue.remapEnd;
+    //LODWORD(remapE[1]) = viewInfo->exposureValue.remapEnd;
     curveS[2] = viewInfo->exposureValue.remapEnd[0];
     curveS[3] = viewInfo->exposureValue.remapEnd[1];
     curveS[4] = viewInfo->exposureValue.remapEnd[2];
     remapE[0] = viewInfo->exposureValue.remapEnd[3];
-    LODWORD(curveS[1]) = viewInfo->exposureValue.scurveStart;
+    //LODWORD(curveS[1]) = viewInfo->exposureValue.scurveStart;
     curveE[2] = viewInfo->exposureValue.scurveStart[0];
     curveE[3] = viewInfo->exposureValue.scurveStart[1];
     z = viewInfo->exposureValue.scurveStart[2];
     curveS[0] = viewInfo->exposureValue.scurveStart[3];
-    LODWORD(curveE[1]) = viewInfo->exposureValue.scurveEnd;
+    //LODWORD(curveE[1]) = viewInfo->exposureValue.scurveEnd;
     x = viewInfo->exposureValue.scurveEnd[0];
     i = LODWORD(viewInfo->exposureValue.scurveEnd[1]);
     bloomS = viewInfo->exposureValue.scurveEnd[2];
@@ -2094,7 +2325,7 @@ void    R_SetHDRControlConstants(float a1@<ebp>, GfxCmdBufInput *input, const Gf
         if ( linearE[j + 2] <= 0.99998474 )
             v41 = linearE[j + 2];
         else
-            v41 = FLOAT_0_99998474;
+            v41 = 0.99998474f;
         linearE[j + 2] = v41;
         if ( linearE[j + 2] < remapS[j + 2] )
             v3 = remapS[j + 2];
@@ -2105,7 +2336,7 @@ void    R_SetHDRControlConstants(float a1@<ebp>, GfxCmdBufInput *input, const Gf
         if ( remapE[j + 2] <= 0.99998474 )
             Amul[3] = remapE[j + 2];
         else
-            Amul[3] = FLOAT_0_99998474;
+            Amul[3] = 0.99998474f;
         remapE[j + 2] = Amul[3];
         if ( remapE[j + 2] < curveS[j + 2] )
             v4 = curveS[j + 2];
@@ -2119,13 +2350,13 @@ void    R_SetHDRControlConstants(float a1@<ebp>, GfxCmdBufInput *input, const Gf
             Amul[1] = 1.0 / linearE[j + 2];
         Bmul[j + 1] = Amul[1];
         Badd[j + 1] = 1.0 / (float)(remapS[j + 2] - linearE[j + 2]);
-        Cmul[j + 2] = COERCE_FLOAT(LODWORD(linearE[j + 2]) ^ _mask__NegFloat_) * Badd[j + 1];
+        Cmul[j + 2] = (-(linearE[j + 2])) * Badd[j + 1];
         if ( remapS[j + 2] == 1.0 )
             Cmul[1] = 0.0f;
         else
             Cmul[1] = 1.0 / (float)(1.0 - remapS[j + 2]);
         Cadd[j + 1] = Cmul[1];
-        rangeA[j + 1] = COERCE_FLOAT(LODWORD(remapS[j + 2]) ^ _mask__NegFloat_) * Cadd[j + 1];
+        rangeA[j + 1] = (-(remapS[j + 2])) * Cadd[j + 1];
         curveE[j + 2] = curveE[j + 2] * 2.0;
         *(&x + j) = *(&x + j) * 2.0;
         rangeB[j + 1] = remapE[j + 2];
@@ -2134,7 +2365,7 @@ void    R_SetHDRControlConstants(float a1@<ebp>, GfxCmdBufInput *input, const Gf
     }
     v30 = 1.0 / (float)(linearS[3] - linearS[2]);
     R_SetInputCodeConstant(input, 0x79u, v30 * v54, 0.0, 1.0 - v43, 1.0);
-    R_SetInputCodeConstant(input, 0x7Au, COERCE_FLOAT(LODWORD(linearS[2]) ^ _mask__NegFloat_) * v30, 0.0, 0.0, 0.0);
+    R_SetInputCodeConstant(input, 0x7Au, (-(linearS[2])) * v30, 0.0, 0.0, 0.0);
     R_SetInputCodeConstant(input, 0x7Bu, Bmul[1], Bmul[2], Bmul[3], 1.0);
     R_SetInputCodeConstant(input, 0x7Cu, Badd[1], Badd[2], Badd[3], 0.0);
     R_SetInputCodeConstant(input, 0x7Du, Cmul[2], Cmul[3], Cmul[4], 0.0);
@@ -2145,6 +2376,7 @@ void    R_SetHDRControlConstants(float a1@<ebp>, GfxCmdBufInput *input, const Gf
     R_SetInputCodeConstant(input, 0x82u, rangeB[1], rangeB[2], rangeB[3], 0.0);
     R_SetInputCodeConstant(input, 0x83u, rangeC[1], rangeC[2], rangeC[3], 0.0);
     R_SetInputCodeConstant(input, 0x84u, vx[0], vx[1], bpwpscale, 0.0);
+#if 0
     v5 = (float)(r_waterWaveAngle->current.value * 0.017453292);
     __libm_sse2_cos(v13);
     *(float *)&v5 = v5;
@@ -2207,6 +2439,59 @@ void    R_SetHDRControlConstants(float a1@<ebp>, GfxCmdBufInput *input, const Gf
         r_waterWaveSteepness->current.vector[1],
         r_waterWaveSteepness->current.vector[2],
         r_waterWaveSteepness->current.vector[3]);
+#endif
+    /* -------- WATER WAVES (SSE SIN/COS FIXED) -------- */
+
+    float time = viewInfo->sceneDef.floatTime;
+
+    for (int wv = 0; wv < 4; ++wv)
+    {
+        float angle = DEG2RAD(wv == 0 ? r_waterWaveAngle->current.value : r_waterWaveAngle->current.vector[wv]);
+
+        float c = cosf(angle);
+        float s = sinf(angle);
+
+        float k = M_2_PI / (wv == 0 ? r_waterWaveWavelength->current.value : r_waterWaveWavelength->current.vector[wv]);
+
+        R_SetInputCodeConstant(
+            input, 0x79u + wv,
+            c * k,
+            s * k,
+            c,
+            s
+        );
+    }
+
+    R_SetInputCodeConstant(
+        input,
+        0x7Du,
+        sqrtf(386.22f * M_2_PI / r_waterWaveWavelength->current.value) * time * r_waterWaveSpeed->current.value
+        + r_waterWavePhase->current.value,
+        sqrtf(386.22f * M_2_PI / r_waterWaveWavelength->current.vector[1]) * time * r_waterWaveSpeed->current.vector[1]
+        + r_waterWavePhase->current.vector[1],
+        sqrtf(386.22f * M_2_PI / r_waterWaveWavelength->current.vector[2]) * time * r_waterWaveSpeed->current.vector[2]
+        + r_waterWavePhase->current.vector[2],
+        sqrtf(386.22f * M_2_PI / r_waterWaveWavelength->current.vector[3]) * time * r_waterWaveSpeed->current.vector[3]
+        + r_waterWavePhase->current.vector[3]
+    );
+
+    R_SetInputCodeConstant(
+        input,
+        0x7Eu,
+        r_waterWaveAmplitude->current.value,
+        r_waterWaveAmplitude->current.vector[1],
+        r_waterWaveAmplitude->current.vector[2],
+        r_waterWaveAmplitude->current.vector[3]
+    );
+
+    R_SetInputCodeConstant(
+        input,
+        0x7Fu,
+        r_waterWaveSteepness->current.value,
+        r_waterWaveSteepness->current.vector[1],
+        r_waterWaveSteepness->current.vector[2],
+        r_waterWaveSteepness->current.vector[3]
+    );
 }
 
 void __cdecl R_GenerateMarkVertsForDynamicModels(const GfxLight *visibleLights, int visibleLightCount)
@@ -2228,7 +2513,7 @@ void __cdecl R_GenerateMarkVertsForDynamicModels(const GfxLight *visibleLights, 
         entnum = sceneEntity->entnum;
         if ( entnum < gfxCfg.entnumOrdinaryEnd && (scene.sceneDObjVisData[0][dobjIndex] & 1) != 0 )
         {
-            lightHandle = Ragdoll_HandleBody(sceneEntity->info.pose)->lightingHandle;
+            lightHandle = Ragdoll_HandleBody(sceneEntity->info.pose);
             FX_GenerateMarkVertsForEntDObj(
                 scene.dpvs.localClientNum,
                 entnum,
@@ -2288,6 +2573,7 @@ void __cdecl R_GenerateMarkVertsForDynamicModels(const GfxLight *visibleLights, 
 
 void    R_SetSkyDynamicIntensity(const float *viewForward, GfxCmdBufInput *input)
 {
+#if 0
     float value; // xmm0_4
     long double v4; // [esp+1Ch] [ebp-8Ch] BYREF
     char textBuff[64]; // [esp+28h] [ebp-80h]
@@ -2303,12 +2589,12 @@ void    R_SetSkyDynamicIntensity(const float *viewForward, GfxCmdBufInput *input
     float dotAngle0; // [esp+8Ch] [ebp-1Ch]
     float factor1; // [esp+90h] [ebp-18h]
     float factor0; // [esp+94h] [ebp-14h]
-    float angle0; // [esp+9Ch] [ebp-Ch]
-    float dot; // [esp+A0h] [ebp-8h]
-    float retaddr; // [esp+A8h] [ebp+0h]
+    //float angle0; // [esp+9Ch] [ebp-Ch]
+    //float dot; // [esp+A0h] [ebp-8h]
+    //float retaddr; // [esp+A8h] [ebp+0h]
 
-    angle0 = a1;
-    dot = retaddr;
+    //angle0 = a1;
+    //dot = retaddr;
     if ( r_reflectionProbeGenerate->current.enabled )
     {
         R_SetInputCodeConstant(input, 0xC2u, 1.0, 1.0, 1.0, 1.0);
@@ -2408,11 +2694,94 @@ void    R_SetSkyDynamicIntensity(const float *viewForward, GfxCmdBufInput *input
         }
         R_SetInputCodeConstant(input, 0xC2u, textY, textY, textY, textY);
     }
+#endif
+    float angle0;
+    float angle1;
+    float factor0;
+    float factor1;
+
+    float dotZ;
+    float cos0;
+    float cos1;
+    float t;
+    float intensity;
+
+    if (r_reflectionProbeGenerate->current.enabled)
+    {
+        R_SetInputCodeConstant(input, 0xC2u, 1.0f, 1.0f, 1.0f, 1.0f);
+        return;
+    }
+
+    dotZ = viewForward[2];
+
+    if (r_sky_intensity_useDebugValues->current.enabled)
+    {
+        angle0 = r_sky_intensity_angle0->current.value;
+        angle1 = r_sky_intensity_angle1->current.value;
+        factor0 = r_sky_intensity_factor0->current.value;
+        factor1 = r_sky_intensity_factor1->current.value;
+    }
+    else
+    {
+        angle0 = rgp.world->skyDynIntensity.angle0;
+        angle1 = rgp.world->skyDynIntensity.angle1;
+        factor0 = rgp.world->skyDynIntensity.factor0;
+        factor1 = rgp.world->skyDynIntensity.factor1;
+    }
+
+    /* convert degrees-from-horizon to cosine thresholds */
+    cos0 = cosf((90.0f - angle0) * (float)M_PI / 180.0f);
+    cos1 = cosf((90.0f - angle1) * (float)M_PI / 180.0f);
+
+    if (fabsf(cos1 - cos0) <= 1e-4f)
+    {
+        t = 0.0f;
+    }
+    else
+    {
+        t = (dotZ - cos0) / (cos1 - cos0);
+
+        /* clamp 0..1 */
+        if (t < 0.0f)
+            t = 0.0f;
+        else if (t > 1.0f)
+            t = 1.0f;
+
+        /* smoothstep-style curve */
+        t = t * t;
+    }
+
+    intensity = (1.0f - t) * factor0 + t * factor1;
+
+    if (r_sky_intensity_showDebugDisplay->current.enabled)
+    {
+        Font_s *font = R_RegisterFont("fonts/consoleFont", 1);
+        float x = 100.0f;
+        float y = 100.0f;
+        char text[64];
+
+        _snprintf(text, sizeof(text),
+            "intensity0 angle=%.2f factor=%.2f", angle0, factor0);
+        R_AddCmdDrawText(text, 64, font, x, y, 1.5f, 2.0f, 0.0f, colorRed, 0);
+        y += 20.0f;
+
+        _snprintf(text, sizeof(text),
+            "intensity1 angle=%.2f factor=%.2f", angle1, factor1);
+        R_AddCmdDrawText(text, 64, font, x, y, 1.5f, 2.0f, 0.0f, colorRed, 0);
+        y += 20.0f;
+
+        _snprintf(text, sizeof(text),
+            "intensity=%.2f interp=%.2f", intensity, t);
+        R_AddCmdDrawText(text, 64, font, x, y, 1.5f, 2.0f, 0.0f, colorRed, 0);
+    }
+
+    R_SetInputCodeConstant(input, 0xC2u,
+        intensity, intensity, intensity, intensity);
 }
 
 void __cdecl R_InitScene()
 {
-    scene.drawSurfs[0] = (GfxDrawSurf *)&scene;
+    scene.drawSurfs[0] = scene.bspDrawSurfs;
     scene.drawSurfs[1] = scene.smodelDrawSurfsLight;
     scene.drawSurfs[2] = scene.entDrawSurfsLight;
     scene.drawSurfs[9] = scene.codemeshDrawSurfsLight;
@@ -2702,38 +3071,25 @@ void __cdecl R_SetViewParmsForScene(const refdef_s *refdef, GfxViewParms *viewPa
 void __cdecl R_SetupProjection(float tanHalfFovX, float tanHalfFovY, GfxViewParms *viewParms)
 {
     InfinitePerspectiveMatrix(tanHalfFovX, tanHalfFovY, viewParms->zNear, viewParms->projectionMatrix.m);
-    LODWORD(viewParms->depthHackNearClip) = r_znear_depthhack->current.integer ^ _mask__NegFloat_;
+    viewParms->depthHackNearClip = -r_znear_depthhack->current.value;
 }
 
-GfxBackEndData *R_UpdateFrameSun()
+void R_UpdateFrameSun()
 {
-    GfxBackEndData *result; // eax
-    bool v1; // [esp+Ch] [ebp-38h]
+    BOOL v1; // [esp+Ch] [ebp-38h]
     int v2; // [esp+10h] [ebp-34h]
     int v3; // [esp+14h] [ebp-30h]
     float *specularColor; // [esp+38h] [ebp-Ch]
     float *diffuseColor; // [esp+3Ch] [ebp-8h]
     float *dir; // [esp+40h] [ebp-4h]
 
-    if ( !rgp.world
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp", 6992, 0, "%s", "rgp.world") )
-    {
-        __debugbreak();
-    }
-    if ( !rgp.world->sunLight
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp",
-                    6993,
-                    0,
-                    "%s",
-                    "rgp.world->sunLight") )
-    {
-        __debugbreak();
-    }
+    iassert(rgp.world);
+    iassert(rgp.world->sunLight);
+    
     memcpy(&frontEndDataOut->sunLight, rgp.world->sunLight, sizeof(frontEndDataOut->sunLight));
-    if ( rg.useSunDirOverride )
+    if (rg.useSunDirOverride)
     {
-        if ( rg.useSunDirLerp )
+        if (rg.useSunDirLerp)
         {
             R_LerpDir(
                 rg.sunDirOverride,
@@ -2751,7 +3107,7 @@ GfxBackEndData *R_UpdateFrameSun()
             dir[2] = rg.sunDirOverride[2];
         }
     }
-    if ( rg.useSunLightOverride )
+    if (rg.useSunLightOverride)
     {
         diffuseColor = frontEndDataOut->sunLight.diffuseColor;
         frontEndDataOut->sunLight.diffuseColor[0] = rg.diffuseSunLightOverride[0];
@@ -2763,28 +3119,36 @@ GfxBackEndData *R_UpdateFrameSun()
         specularColor[2] = rg.specularSunLightOverride[2];
     }
     v2 = 0;
-    if ( sm_enable->current.enabled )
+    if (sm_enable->current.enabled)
     {
-        if ( rg.useSunDirOverride
-            || (*(float *)(r_lightTweakSunDirection.integer + 24) != *(float *)(r_lightTweakSunDirection.integer + 56)
-             || *(float *)(r_lightTweakSunDirection.integer + 28) != *(float *)(r_lightTweakSunDirection.integer + 60)
-             || *(float *)(r_lightTweakSunDirection.integer + 32) != *(float *)(r_lightTweakSunDirection.integer + 64)
+        //if (rg.useSunDirOverride
+        //    || (*(float *)(r_lightTweakSunDirection.integer + 24) != *(float *)(r_lightTweakSunDirection.integer + 56)
+        //        || *(float *)(r_lightTweakSunDirection.integer + 28) != *(float *)(r_lightTweakSunDirection.integer + 60)
+        //        || *(float *)(r_lightTweakSunDirection.integer + 32) != *(float *)(r_lightTweakSunDirection.integer + 64)
+        //        ? (v3 = 0)
+        //        : (v3 = 1),
+        //        !v3))
+        //{
+        //    v2 = 1;
+        //}
+        if (rg.useSunDirOverride
+            || ((r_lightTweakSunDirection->reset.vector[0] != r_lightTweakSunDirection->current.vector[0]
+                || r_lightTweakSunDirection->reset.vector[1] != r_lightTweakSunDirection->current.vector[1]
+                || r_lightTweakSunDirection->reset.vector[2] != r_lightTweakSunDirection->current.vector[2])
                 ? (v3 = 0)
                 : (v3 = 1),
-                    !v3) )
+                !v3))
         {
             v2 = 1;
         }
     }
-    result = frontEndDataOut;
     frontEndDataOut->prim.hasSunDirChanged = v2;
     v1 = rg.useSunDirOverride
-        || AngleNormalize180(*(float *)(r_lightTweakSunDirection.integer + 24) - *(float *)(r_lightTweakSunDirection.integer
-                                                                                                                                                                            + 56)) > 5.0
-        || AngleNormalize180(*(float *)(r_lightTweakSunDirection.integer + 28) - *(float *)(r_lightTweakSunDirection.integer
-                                                                                                                                                                            + 60)) > 5.0;
+        || AngleDelta(r_lightTweakSunDirection->current.vector[0], r_lightTweakSunDirection->reset.vector[0]) > 5.0
+        || AngleDelta(r_lightTweakSunDirection->current.vector[1], r_lightTweakSunDirection->reset.vector[1]) > 5.0;
+        //|| AngleNormalize180(*(float *)(r_lightTweakSunDirection.integer + 24) - *(float *)(r_lightTweakSunDirection.integer + 56)) > 5.0 
+        //|| AngleNormalize180(*(float *)(r_lightTweakSunDirection.integer + 28) - *(float *)(r_lightTweakSunDirection.integer + 60)) > 5.0;
     frontEndDataOut->hasApproxSunDirChanged = v1;
-    return result;
 }
 
 void __cdecl R_LerpDir(
@@ -2928,7 +3292,7 @@ void __cdecl R_RenderScene(refdef_s *refdef, int frameTime)
         if ( r_logFile->current.integer )
             RB_LogPrint("====== R_RenderScene ======\n");
         if ( !rgp.world )
-            Com_Error(ERR_DROP, &byte_D6D070);
+            Com_Error(ERR_DROP, "R_RenderScene: NULL worldmodel");
         rg.viewOrg[0] = refdef->vieworg[0];
         rg.viewOrg[1] = refdef->vieworg[1];
         rg.viewOrg[2] = refdef->vieworg[2];
@@ -3136,8 +3500,8 @@ void __cdecl R_GenerateSortedDrawSurfs(
                 bool forMissileCamView)
 {
     int v6; // eax
-    jpeg_decompress_struct *v7; // [esp+10h] [ebp-280h]
-    jpeg_decompress_struct *v8; // [esp+10h] [ebp-280h]
+    //jpeg_decompress_struct *v7; // [esp+10h] [ebp-280h]
+    //jpeg_decompress_struct *v8; // [esp+10h] [ebp-280h]
     bool v9; // [esp+18h] [ebp-278h]
     bool v11; // [esp+23h] [ebp-26Dh]
     unsigned int dynamicSModelCount; // [esp+24h] [ebp-26Ch]
@@ -3211,7 +3575,7 @@ void __cdecl R_GenerateSortedDrawSurfs(
 
     viewInfo->dynSModelView = &frontEndDataOut->dynSModelClientViewArray[viewInfoIndex];
     viewInfo->dynSModelState = &frontEndDataOut->dynSModelState;
-    BLOPS_NULLSUB((jpeg_decompress_struct *)viewInfo->dynSModelView);
+    //BLOPS_NULLSUB((jpeg_decompress_struct *)viewInfo->dynSModelView);
     rg.isNotRenderingFullScreen = !sceneParms->isRenderingFullScreen;
     rg.sunShadowFull = 1;
     LODWORD(rg.sunShadowmapScale) = sm_sunShadowScale->current.integer;
@@ -3275,7 +3639,7 @@ void __cdecl R_GenerateSortedDrawSurfs(
     {
         viewInfo->isMissileCamera = 1;
         viewInfo->sceneComposition.mainSceneMSAA = 22;
-        image = stru_B50E9FC.image;
+        image = gfxRenderTargets[23].image;
         if ( viewInfo == (GfxViewInfo *)-9872
             && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.h", 1850, 0, "%s", "input") )
         {
@@ -3318,11 +3682,11 @@ void __cdecl R_GenerateSortedDrawSurfs(
     scene.shadowableLightIsUsed[5] = 0;
     scene.shadowableLightIsUsed[6] = 0;
     scene.shadowableLightIsUsed[7] = 0;
-    R_SetHeroLighting(&viewInfo->input, viewInfo, refdef);
+    R_SetHeroLighting(&viewInfo->input, viewInfo);
     R_SetSkyDynamicIntensity(viewInfo->cullViewInfo.viewParms.axis[0], &viewInfo->input);
     R_SetupDynamicModelLighting(&viewInfo->input);
     R_SetFrameFog(&viewInfo->input, viewInfo);
-    R_SetSunConstants(&viewInfo->input, 1.0);
+    R_SetSunConstants(&viewInfo->input);
     DrawSunDirectionDebug(viewParmsDraw->origin, viewParmsDraw->axis[0]);
     DrawOutdoorBoundsVolumeDebug();
     R_SetDepthOfField(viewInfo, sceneParms);
@@ -3418,14 +3782,14 @@ void __cdecl R_GenerateSortedDrawSurfs(
         Com_Memset(frontEndDataOut->shadowableLightHasShadowMap, 0, 32);
         if ( R_GetAllowShadowMaps() )
             R_ChooseShadowedLights(viewInfo);
-        R_UpdateDrawMethod(frontEndDataOut, viewInfo);
+        R_UpdateDrawMethod(frontEndDataOut);
         if ( dynamicShadowType == SHADOW_MAP
             && Com_BitCheckAssert(frontEndDataOut->shadowableLightHasShadowMap, rgp.world->sunPrimaryLightIndex, 32) )
         {
             rg.drawSunShadow = 1;
             R_SetupSunShadowMaps(viewParmsDpvs, &frontEndDataOut->sunShadow);
             R_SetSunShadowConstants(&viewInfo->input, &frontEndDataOut->sunShadow.sunProj);
-            R_SunShadowMaps(&frontEndDataOut->sunShadow);
+            R_SunShadowMaps();
         }
     }
     else
@@ -3443,7 +3807,7 @@ void __cdecl R_GenerateSortedDrawSurfs(
         viewInfo->visibleLightCount,
         0);
     //PIXBeginNamedEvent(-1, "DynEntPieces_AddDrawSurfs");
-    DynEntPieces_AddDrawSurfs(viewInfo->localClientNum);
+    DynEntPieces_AddDrawSurfs();
     //if ( g_DXDeviceThread == GetCurrentThreadId() )
         //D3DPERF_EndEvent();
     //PIXBeginNamedEvent(-1, "wait for r_dpvs_dynmodel");
@@ -3481,7 +3845,7 @@ void __cdecl R_GenerateSortedDrawSurfs(
     cmd.localClientNum = viewInfo->localClientNum;
     cmd.visibleLights = viewInfo->visibleLights;
     cmd.visibleLightCount = viewInfo->visibleLightCount;
-    Sys_AddWorkerCmdInternal(&fx_marks_drawWorkerCmd, &cmd, 0);
+    Sys_AddWorkerCmdInternal(&fx_marks_drawWorkerCmd, (unsigned char*)& cmd, 0);
     //PIXBeginNamedEvent(-1, "wait for r_dpvs_sceneent r_dpvs_entity");
     Sys_WaitWorkerCmdInternal(&r_dpvs_sceneentWorkerCmd);
     Sys_WaitWorkerCmdInternal(&r_dpvs_entityWorkerCmd);
@@ -3503,7 +3867,7 @@ void __cdecl R_GenerateSortedDrawSurfs(
         //D3DPERF_EndEvent();
     //PIXBeginNamedEvent(-1, "add workercmd r_add_sceneent");
     sceneEntCmd.viewInfo = viewInfo;
-    Sys_AddWorkerCmdInternal(&r_add_sceneentWorkerCmd, &sceneEntCmd, 0);
+    Sys_AddWorkerCmdInternal(&r_add_sceneentWorkerCmd, (unsigned char*)&sceneEntCmd, 0);
     //if ( GetCurrentThreadId() == g_DXDeviceThread )
         //D3DPERF_EndEvent();
     R_SortAllStaticModelSurfacesCamera();
@@ -3557,7 +3921,7 @@ void __cdecl R_GenerateSortedDrawSurfs(
     if ( usePreTess )
     {
         v11 = !extraCamActive || viewInfo->isMissileCamera;
-        BLOPS_NULLSUB((jpeg_decompress_struct *)v11);
+        //BLOPS_NULLSUB((jpeg_decompress_struct *)v11);
     }
     litInfo = viewInfo->drawList;
     R_InitDrawSurfListInfo(viewInfo->drawList);
@@ -3632,8 +3996,10 @@ void __cdecl R_GenerateSortedDrawSurfs(
             R_StreamUpdate(viewParmsDraw->origin);
         R_StreamUpdatePerClient(viewParmsDraw->origin);
     }
-    if ( !viewInfo->localClientNum && !forMissileCamView && !forStereoRightEyeView )
-        BLOPS_NULLSUB(v7);
+
+    //if ( !viewInfo->localClientNum && !forMissileCamView && !forStereoRightEyeView )
+    //    BLOPS_NULLSUB(v7);
+
     if ( !forMissileCamView )
     {
         //PIXBeginNamedEvent(-1, "DynEntCl_ProcessEntities");
@@ -3671,9 +4037,8 @@ void __cdecl R_GenerateSortedDrawSurfs(
     }
     R_FinishDecalAndEmissiveDrawSurfs(viewInfo, viewParmsDraw, frontEndDataOut, forMissileCamView);
     R_ShowCull(viewParmsDraw->origin);
-    viewInfo->renderSeeThruDecals = CG_IsShowingZombieMap((bool)v7)
-                                                             && FX_GetFrameTotalSeeThruDecalCount(viewInfo->localClientNum);
-    BLOPS_NULLSUB(v8);
+    viewInfo->renderSeeThruDecals = CG_IsShowingZombieMap() && FX_GetFrameTotalSeeThruDecalCount(viewInfo->localClientNum);
+    //BLOPS_NULLSUB(v8);
     //if ( GetCurrentThreadId() == g_DXDeviceThread )
         //D3DPERF_EndEvent();
 }
@@ -3741,17 +4106,14 @@ void __cdecl R_SetExposure(GfxViewInfo *viewInfo, const refdef_s *refdef)
                                                                                             / (float)(viewInfo->exposureValue.whitePoint[2]
                                                                                                             - viewInfo->exposureValue.blackPoint[2]))
                                                                             * viewInfo->exposureValue.blackPoint[3];
-    viewInfo->exposureRemap.remapAdd[0] = COERCE_FLOAT(LODWORD(viewInfo->exposureValue.blackPoint[0]) ^ _mask__NegFloat_)
-                                                                            * (float)(1.0
-                                                                                            / (float)(viewInfo->exposureValue.whitePoint[0]
+    viewInfo->exposureRemap.remapAdd[0] = (-(viewInfo->exposureValue.blackPoint[0]))
+                                                                            * (float)(1.0 / (float)(viewInfo->exposureValue.whitePoint[0]
                                                                                                             - viewInfo->exposureValue.blackPoint[0]));
-    viewInfo->exposureRemap.remapAdd[1] = COERCE_FLOAT(LODWORD(viewInfo->exposureValue.blackPoint[1]) ^ _mask__NegFloat_)
-                                                                            * (float)(1.0
-                                                                                            / (float)(viewInfo->exposureValue.whitePoint[1]
+    viewInfo->exposureRemap.remapAdd[1] = (-(viewInfo->exposureValue.blackPoint[1]))
+                                                                            * (float)(1.0 / (float)(viewInfo->exposureValue.whitePoint[1]
                                                                                                             - viewInfo->exposureValue.blackPoint[1]));
-    viewInfo->exposureRemap.remapAdd[2] = COERCE_FLOAT(LODWORD(viewInfo->exposureValue.blackPoint[2]) ^ _mask__NegFloat_)
-                                                                            * (float)(1.0
-                                                                                            / (float)(viewInfo->exposureValue.whitePoint[2]
+    viewInfo->exposureRemap.remapAdd[2] = (-(viewInfo->exposureValue.blackPoint[2]))
+                                                                            * (float)(1.0 / (float)(viewInfo->exposureValue.whitePoint[2]
                                                                                                             - viewInfo->exposureValue.blackPoint[2]));
     viewInfo->exposureRemap.remapMul[0] = viewInfo->exposureValue.blackPoint[3] / 8.0;
     viewInfo->exposureRemap.remapMul[1] = viewInfo->exposureValue.blackPoint[3] / 8.0;
@@ -3857,7 +4219,7 @@ void __cdecl R_SetDepthOfField(GfxViewInfo *viewInfo, const GfxSceneParms *scene
         }
         if ( !dx.supportsIntZ )
         {
-            if ( !stru_B50E8BC.surface.color )
+            if (!gfxRenderTargets[7].surface.color)
                 Com_Error(
                     ERR_FATAL,
                     "Depth of field used (enabled via r_dof_enable or r_dof_tweak) with no float-z buffer (r_floatz wasn't enabled "
@@ -3868,7 +4230,7 @@ void __cdecl R_SetDepthOfField(GfxViewInfo *viewInfo, const GfxSceneParms *scene
         {
             v2 = R_RegisterFont("fonts/consoleFont", 1);
             if ( cg_draw2D->current.enabled )
-                R_AddCmdDrawText("DOF", 0x7FFFFFFF, v2, 0.0, 320.0, 1.5, 2.0, 0.0, colorRedFaded, 0);
+                R_AddCmdDrawText((char*)"DOF", 0x7FFFFFFF, v2, 0.0, 320.0, 1.5, 2.0, 0.0, colorRedFaded, 0);
         }
     }
 }
@@ -3882,7 +4244,7 @@ void __cdecl R_SetDoubleVision(GfxViewInfo *viewInfo, const GfxSceneParms *scene
     {
         font = R_RegisterFont("fonts/consoleFont", 1);
         if ( cg_draw2D->current.enabled )
-            R_AddCmdDrawText("DOUBLEVISION", 0x7FFFFFFF, font, 0.0, 320.0, 1.5, 2.0, 0.0, colorRedFaded, 0);
+            R_AddCmdDrawText((char*)"DOUBLEVISION", 0x7FFFFFFF, font, 0.0, 320.0, 1.5, 2.0, 0.0, colorRedFaded, 0);
     }
 }
 
@@ -3938,9 +4300,9 @@ void __cdecl R_SetTransportedFx(GfxViewInfo *viewInfo, const GfxSceneParms *scen
 
 void __cdecl R_SetReviveFx(GfxViewInfo *viewInfo, const GfxSceneParms *sceneParms)
 {
-    DvarValue *v2; // [esp+Ch] [ebp-14h]
-    DvarValue *v3; // [esp+14h] [ebp-Ch]
-    DvarValue *p_current; // [esp+1Ch] [ebp-4h]
+    const DvarValue *v2; // [esp+Ch] [ebp-14h]
+    const DvarValue *v3; // [esp+14h] [ebp-Ch]
+    const DvarValue *p_current; // [esp+1Ch] [ebp-4h]
 
     if ( r_reviveFX_debug->current.enabled )
     {
@@ -3983,6 +4345,7 @@ void __cdecl R_SetGenericFilter(GfxViewInfo *viewInfo, const GfxSceneParms *scen
     viewInfo->genericFilter.sunPosition[2] = (float)(10000.0 * dir[2]) + viewInfo->cullViewInfo.viewParms.origin[2];
 }
 
+#if 0
 void __cdecl R_SetPoisonFx(GfxViewInfo *viewInfo, const GfxSceneParms *sceneParms)
 {
     float curAmount; // edx
@@ -4023,63 +4386,86 @@ void __cdecl R_SetPoisonFx(GfxViewInfo *viewInfo, const GfxSceneParms *sceneParm
         viewInfo->blurRadius = viewInfo->blurRadius * viewInfo->poisonFx.curAmount;
     }
 }
+#endif
+
+// aislop
+void __cdecl R_SetPoisonFx(GfxViewInfo *viewInfo, const GfxSceneParms *sceneParms)
+{
+    float curAmount = sceneParms->poisonFx.curAmount;
+
+    viewInfo->poisonFx.curAmountTarget = sceneParms->poisonFx.curAmountTarget;
+    viewInfo->poisonFx.curAmount = curAmount;
+
+    if (r_poisonFX_debug_enable->current.enabled)
+        viewInfo->poisonFx.curAmount = r_poisonFX_debug_amount->current.value;
+
+    if (viewInfo->poisonFx.curAmount <= 0.0f)
+        return;
+
+    float blend = r_poisonFX_pulse->current.value - 1.0f;
+    if (blend < 0.0f)
+        blend = 0.0f;
+
+    float blenda = blend * blend * (3.0f - 2.0f * blend);
+
+    float base = r_poisonFX_blurMin->current.value;
+    float range = r_poisonFX_blurMax->current.value - base;
+
+    float t0 = viewInfo->sceneDef.floatTime / 6.0f;
+    float t1 = viewInfo->sceneDef.floatTime / 3.0f;
+
+    float wave0 = sinf(t0 * 3.1415927f * 2.5f);
+    float wave1 = sinf(t1 * 3.1415927f * 2.5f);
+
+    float blur0 = ((wave0 * 0.5f) + 0.5f) * range + base;
+    float blur1 = ((wave1 * 0.5f) + 0.5f) * range + base;
+
+    viewInfo->blurRadius =
+        ((1.0f - blenda) * blur0 + blenda * blur1) *
+        viewInfo->poisonFx.curAmount;
+}
+
 
 void __cdecl R_SetFilmInfo(GfxViewInfo *viewInfo, const GfxSceneParms *sceneParms)
 {
-    DvarValue *v2; // [esp+Ch] [ebp-3Ch]
-    DvarValue *v3; // [esp+14h] [ebp-34h]
-    int v4; // [esp+1Ch] [ebp-2Ch]
-    DvarValue *v5; // [esp+24h] [ebp-24h]
-    DvarValue *v6; // [esp+2Ch] [ebp-1Ch]
-    DvarValue *v7; // [esp+34h] [ebp-14h]
-    DvarValue *v8; // [esp+3Ch] [ebp-Ch]
-    DvarValue *p_current; // [esp+44h] [ebp-4h]
+    iassert(viewInfo);
+    iassert(sceneParms);
 
-    if ( !viewInfo
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp", 3458, 0, "%s", "viewInfo") )
-    {
-        __debugbreak();
-    }
-    if ( !sceneParms
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp", 3459, 0, "%s", "sceneParms") )
-    {
-        __debugbreak();
-    }
     if ( r_filmUseTweaks->current.enabled )
     {
         viewInfo->film.enabled = r_filmTweakEnable->current.enabled;
-        p_current = &r_filmTweakHue->current;
-        viewInfo->film.filmHue[0] = r_filmTweakHue->current.value;
-        viewInfo->film.filmHue[1] = p_current->vector[1];
-        viewInfo->film.filmHue[2] = p_current->vector[2];
-        v8 = &r_filmTweakSaturation->current;
-        viewInfo->film.filmSaturation[0] = r_filmTweakSaturation->current.value;
-        viewInfo->film.filmSaturation[1] = v8->vector[1];
-        viewInfo->film.filmSaturation[2] = v8->vector[2];
-        v7 = &r_filmTweakColorTemp->current;
-        viewInfo->film.filmColorTemp[0] = r_filmTweakColorTemp->current.value;
-        viewInfo->film.filmColorTemp[1] = v7->vector[1];
-        viewInfo->film.filmColorTemp[2] = v7->vector[2];
-        v6 = &r_filmTweakDarkTint->current;
-        viewInfo->film.filmDarkTint[0] = r_filmTweakDarkTint->current.value;
-        viewInfo->film.filmDarkTint[1] = v6->vector[1];
-        viewInfo->film.filmDarkTint[2] = v6->vector[2];
-        v5 = &r_filmTweakMidTint->current;
-        viewInfo->film.filmMidTint[0] = r_filmTweakMidTint->current.value;
-        viewInfo->film.filmMidTint[1] = v5->vector[1];
-        viewInfo->film.filmMidTint[2] = v5->vector[2];
-        v4 = LODWORD(r_lightTweakSunDirection.vector[2]) + 24;
-        viewInfo->film.filmLightTint[0] = *(float *)(LODWORD(r_lightTweakSunDirection.vector[2]) + 24);
-        viewInfo->film.filmLightTint[1] = *(float *)(v4 + 4);
-        viewInfo->film.filmLightTint[2] = *(float *)(v4 + 8);
-        v3 = &r_filmTweakContrast->current;
-        viewInfo->film.filmContrast[0] = r_filmTweakContrast->current.value;
-        viewInfo->film.filmContrast[1] = v3->vector[1];
-        viewInfo->film.filmContrast[2] = v3->vector[2];
-        v2 = &r_filmTweakBleach->current;
-        viewInfo->film.filmBleach[0] = r_filmTweakBleach->current.value;
-        viewInfo->film.filmBleach[1] = v2->vector[1];
-        viewInfo->film.filmBleach[2] = v2->vector[2];
+
+        viewInfo->film.filmHue[0] = r_filmTweakHue->current.vector[0];
+        viewInfo->film.filmHue[1] = r_filmTweakHue->current.vector[1];
+        viewInfo->film.filmHue[2] = r_filmTweakHue->current.vector[2];
+
+        viewInfo->film.filmSaturation[0] = r_filmTweakSaturation->current.vector[0];
+        viewInfo->film.filmSaturation[1] = r_filmTweakSaturation->current.vector[1];
+        viewInfo->film.filmSaturation[2] = r_filmTweakSaturation->current.vector[2];
+
+        viewInfo->film.filmColorTemp[0] = r_filmTweakColorTemp->current.vector[0];
+        viewInfo->film.filmColorTemp[1] = r_filmTweakColorTemp->current.vector[1];
+        viewInfo->film.filmColorTemp[2] = r_filmTweakColorTemp->current.vector[2];
+
+        viewInfo->film.filmDarkTint[0] = r_filmTweakDarkTint->current.vector[0];
+        viewInfo->film.filmDarkTint[1] = r_filmTweakDarkTint->current.vector[1];
+        viewInfo->film.filmDarkTint[2] = r_filmTweakDarkTint->current.vector[2];
+
+        viewInfo->film.filmMidTint[0] = r_filmTweakMidTint->current.vector[0];
+        viewInfo->film.filmMidTint[1] = r_filmTweakMidTint->current.vector[1];
+        viewInfo->film.filmMidTint[2] = r_filmTweakMidTint->current.vector[2];
+
+        viewInfo->film.filmLightTint[0] = r_filmTweakLightTint->current.vector[0];
+        viewInfo->film.filmLightTint[1] = r_filmTweakLightTint->current.vector[1];
+        viewInfo->film.filmLightTint[2] = r_filmTweakLightTint->current.vector[2];
+
+        viewInfo->film.filmContrast[0] = r_filmTweakContrast->current.vector[0];
+        viewInfo->film.filmContrast[1] = r_filmTweakContrast->current.vector[1];
+        viewInfo->film.filmContrast[2] = r_filmTweakContrast->current.vector[2];
+
+        viewInfo->film.filmBleach[0] = r_filmTweakBleach->current.vector[0];
+        viewInfo->film.filmBleach[1] = r_filmTweakBleach->current.vector[1];
+        viewInfo->film.filmBleach[2] = r_filmTweakBleach->current.vector[2];
         viewInfo->film.filmMidStart = r_filmTweakMidStart->current.value;
         viewInfo->film.filmMidEnd = r_filmTweakMidEnd->current.value;
         viewInfo->film.filmDarkFeather = r_filmTweakDarkFeather->current.value;
@@ -4106,12 +4492,6 @@ void __cdecl R_SetBloomInfo(GfxViewInfo *viewInfo, const GfxSceneParms *scenePar
     float v3; // [esp+Ch] [ebp-10Ch]
     float v4; // [esp+10h] [ebp-108h]
     float v5; // [esp+14h] [ebp-104h]
-    DvarValue *v6; // [esp+1Ch] [ebp-FCh]
-    DvarValue *v7; // [esp+2Ch] [ebp-ECh]
-    DvarValue *v8; // [esp+34h] [ebp-E4h]
-    DvarValue *v9; // [esp+4Ch] [ebp-CCh]
-    DvarValue *v10; // [esp+5Ch] [ebp-BCh]
-    DvarValue *p_current; // [esp+64h] [ebp-B4h]
     float tx; // [esp+F8h] [ebp-20h]
     float z; // [esp+FCh] [ebp-1Ch]
     float tw; // [esp+104h] [ebp-14h]
@@ -4123,56 +4503,60 @@ void __cdecl R_SetBloomInfo(GfxViewInfo *viewInfo, const GfxSceneParms *scenePar
 
     if ( r_bloomTweaks->current.enabled )
     {
-        *(DvarValue *)viewInfo->bloom.bloomTintWeights = r_bloomTintWeights->current;
-        *(DvarValue *)viewInfo->bloom.bloomColorScale = r_bloomColorScale->current;
-        *(DvarValue *)viewInfo->bloom.bloomTintScale = r_bloomTintScale->current;
-        *(DvarValue *)viewInfo->bloom.bloomCurveBreakpoint = r_bloomCurveBreakpoint->current;
-        *(DvarValue *)viewInfo->bloom.bloomCurveLoBlack = r_bloomCurveLoBlack->current;
-        *(DvarValue *)viewInfo->bloom.bloomCurveLoGamma = r_bloomCurveLoGamma->current;
-        *(DvarValue *)viewInfo->bloom.bloomCurveLoWhite = r_bloomCurveLoWhite->current;
-        *(DvarValue *)viewInfo->bloom.bloomCurveLoRemapBlack = r_bloomCurveLoRemapBlack->current;
-        *(DvarValue *)viewInfo->bloom.bloomCurveLoRemapWhite = r_bloomCurveLoRemapWhite->current;
-        *(DvarValue *)viewInfo->bloom.bloomCurveHiBlack = r_bloomCurveHiBlack->current;
-        *(DvarValue *)viewInfo->bloom.bloomCurveHiGamma = r_bloomCurveHiGamma->current;
-        *(DvarValue *)viewInfo->bloom.bloomCurveHiWhite = r_bloomCurveHiWhite->current;
-        *(DvarValue *)viewInfo->bloom.bloomCurveHiRemapBlack = r_bloomCurveHiRemapBlack->current;
-        *(DvarValue *)viewInfo->bloom.bloomCurveHiRemapWhite = r_bloomCurveHiRemapWhite->current;
-        *(DvarValue *)viewInfo->bloom.bloomExpansionControl = r_bloomExpansionControl->current;
-        *(DvarValue *)viewInfo->bloom.bloomExpansionWeights = r_bloomExpansionWeights->current;
+        Vec4Copy(r_bloomTintWeights->current.vector, viewInfo->bloom.bloomTintWeights);
+        Vec4Copy(r_bloomColorScale->current.vector, viewInfo->bloom.bloomColorScale);
+        Vec4Copy(r_bloomTintScale->current.vector, viewInfo->bloom.bloomTintScale);
+        Vec4Copy(r_bloomCurveBreakpoint->current.vector, viewInfo->bloom.bloomCurveBreakpoint);
+        Vec4Copy(r_bloomCurveLoBlack->current.vector, viewInfo->bloom.bloomCurveLoBlack);
+        Vec4Copy(r_bloomCurveLoGamma->current.vector, viewInfo->bloom.bloomCurveLoGamma);
+        Vec4Copy(r_bloomCurveLoWhite->current.vector, viewInfo->bloom.bloomCurveLoWhite);
+        Vec4Copy(r_bloomCurveLoRemapBlack->current.vector, viewInfo->bloom.bloomCurveLoRemapBlack);
+        Vec4Copy(r_bloomCurveLoRemapWhite->current.vector, viewInfo->bloom.bloomCurveLoRemapWhite);
+        Vec4Copy(r_bloomCurveHiBlack->current.vector, viewInfo->bloom.bloomCurveHiBlack);
+        Vec4Copy(r_bloomCurveHiGamma->current.vector, viewInfo->bloom.bloomCurveHiGamma);
+        Vec4Copy(r_bloomCurveHiWhite->current.vector, viewInfo->bloom.bloomCurveHiWhite);
+        Vec4Copy(r_bloomCurveHiRemapBlack->current.vector, viewInfo->bloom.bloomCurveHiRemapBlack);
+        Vec4Copy(r_bloomCurveHiRemapWhite->current.vector, viewInfo->bloom.bloomCurveHiRemapWhite);
+        Vec4Copy(r_bloomExpansionControl->current.vector, viewInfo->bloom.bloomExpansionControl);
+        Vec4Copy(r_bloomExpansionWeights->current.vector, viewInfo->bloom.bloomExpansionWeights);
+
         viewInfo->bloom.bloomBlurRadius = r_bloomBlurRadius->current.value;
         viewInfo->bloom.bloomExpansionSource = r_bloomExpansionSource->current.integer;
         viewInfo->bloom.bloomPersistence = r_bloomPersistence->current.value;
-        *(DvarValue *)viewInfo->bloom.bloomStreakXLevels0 = r_bloomStreakXLevels0->current;
-        *(DvarValue *)viewInfo->bloom.bloomStreakXLevels1 = r_bloomStreakXLevels1->current;
-        p_current = &r_bloomStreakXInnerTint->current;
-        viewInfo->bloom.bloomStreakXInnerTint[0] = r_bloomStreakXInnerTint->current.value;
-        viewInfo->bloom.bloomStreakXInnerTint[1] = p_current->vector[1];
-        viewInfo->bloom.bloomStreakXInnerTint[2] = p_current->vector[2];
-        v10 = &r_bloomStreakXOuterTint->current;
-        viewInfo->bloom.bloomStreakXOuterTint[0] = r_bloomStreakXOuterTint->current.value;
-        viewInfo->bloom.bloomStreakXOuterTint[1] = v10->vector[1];
-        viewInfo->bloom.bloomStreakXOuterTint[2] = v10->vector[2];
-        *(DvarValue *)viewInfo->bloom.bloomStreakXTintControl = r_bloomStreakXTintControl->current;
-        v9 = &r_bloomStreakXTint->current;
-        viewInfo->bloom.bloomStreakXTint[0] = r_bloomStreakXTint->current.value;
-        viewInfo->bloom.bloomStreakXTint[1] = v9->vector[1];
-        viewInfo->bloom.bloomStreakXTint[2] = v9->vector[2];
-        *(DvarValue *)viewInfo->bloom.bloomStreakYLevels0 = r_bloomStreakYLevels0->current;
-        *(DvarValue *)viewInfo->bloom.bloomStreakYLevels1 = r_bloomStreakYLevels1->current;
-        v8 = &r_bloomStreakYInnerTint->current;
-        viewInfo->bloom.bloomStreakYInnerTint[0] = r_bloomStreakYInnerTint->current.value;
-        viewInfo->bloom.bloomStreakYInnerTint[1] = v8->vector[1];
-        viewInfo->bloom.bloomStreakYInnerTint[2] = v8->vector[2];
-        v7 = &r_bloomStreakYOuterTint->current;
-        viewInfo->bloom.bloomStreakYOuterTint[0] = r_bloomStreakYOuterTint->current.value;
-        viewInfo->bloom.bloomStreakYOuterTint[1] = v7->vector[1];
-        viewInfo->bloom.bloomStreakYOuterTint[2] = v7->vector[2];
-        *(DvarValue *)viewInfo->bloom.bloomStreakYTintControl = *(DvarValue *)(LODWORD(r_lightTweakSunDirection.vector[3])
-                                                                                                                                                 + 24);
-        v6 = &r_bloomStreakYTint->current;
-        viewInfo->bloom.bloomStreakYTint[0] = r_bloomStreakYTint->current.value;
-        viewInfo->bloom.bloomStreakYTint[1] = v6->vector[1];
-        viewInfo->bloom.bloomStreakYTint[2] = v6->vector[2];
+
+        Vec4Copy(r_bloomStreakXLevels0->current.vector, viewInfo->bloom.bloomStreakXLevels0);
+        Vec4Copy(r_bloomStreakXLevels1->current.vector, viewInfo->bloom.bloomStreakXLevels1);
+
+        viewInfo->bloom.bloomStreakXInnerTint[0] = r_bloomStreakXInnerTint->current.vector[0];
+        viewInfo->bloom.bloomStreakXInnerTint[1] = r_bloomStreakXInnerTint->current.vector[1];
+        viewInfo->bloom.bloomStreakXInnerTint[2] = r_bloomStreakXInnerTint->current.vector[2];
+
+        viewInfo->bloom.bloomStreakXOuterTint[0] = r_bloomStreakXOuterTint->current.vector[0];
+        viewInfo->bloom.bloomStreakXOuterTint[0] = r_bloomStreakXOuterTint->current.vector[1];
+        viewInfo->bloom.bloomStreakXOuterTint[0] = r_bloomStreakXOuterTint->current.vector[2];
+
+        Vec4Copy(r_bloomStreakXTintControl->current.vector, viewInfo->bloom.bloomStreakXTintControl);
+
+        viewInfo->bloom.bloomStreakXTint[0] = r_bloomStreakXTint->current.vector[0];
+        viewInfo->bloom.bloomStreakXTint[1] = r_bloomStreakXTint->current.vector[1];
+        viewInfo->bloom.bloomStreakXTint[2] = r_bloomStreakXTint->current.vector[2];
+
+        Vec4Copy(r_bloomStreakYLevels0->current.vector, viewInfo->bloom.bloomStreakYLevels0);
+        Vec4Copy(r_bloomStreakYLevels1->current.vector, viewInfo->bloom.bloomStreakYLevels1);
+
+        viewInfo->bloom.bloomStreakYInnerTint[0] = r_bloomStreakYInnerTint->current.vector[0];
+        viewInfo->bloom.bloomStreakYInnerTint[1] = r_bloomStreakYInnerTint->current.vector[1];
+        viewInfo->bloom.bloomStreakYInnerTint[2] = r_bloomStreakYInnerTint->current.vector[2];
+
+        viewInfo->bloom.bloomStreakYOuterTint[0] = r_bloomStreakYOuterTint->current.vector[0];
+        viewInfo->bloom.bloomStreakYOuterTint[1] = r_bloomStreakYOuterTint->current.vector[1];
+        viewInfo->bloom.bloomStreakYOuterTint[2] = r_bloomStreakYOuterTint->current.vector[2];
+
+        Vec4Copy(r_bloomStreakYTintControl->current.vector, viewInfo->bloom.bloomStreakYTintControl);
+
+        viewInfo->bloom.bloomStreakYTint[0] = r_bloomStreakYTint->current.vector[0];
+        viewInfo->bloom.bloomStreakYTint[1] = r_bloomStreakYTint->current.vector[1];
+        viewInfo->bloom.bloomStreakYTint[2] = r_bloomStreakYTint->current.vector[2];
     }
     else
     {
@@ -4427,12 +4811,12 @@ void __cdecl R_GetPointLightShadowSurfs(
 
 void __cdecl R_SetSunShadowConstants(GfxCmdBufInput *input, const GfxSunShadowProjection *sunProj)
 {
-    R_SetInputCodeConstantFromVec4(input, 0x2Fu, sunProj->switchPartition);
-    R_SetInputCodeConstantFromVec4(input, 0x30u, sunProj->shadowmapScale);
+    R_SetInputCodeConstantFromVec4(input, 0x2Fu, (float*)sunProj->switchPartition);
+    R_SetInputCodeConstantFromVec4(input, 0x30u, (float*)sunProj->shadowmapScale);
 }
 
 // local variable allocation has failed, the output may be wrong!
-void    R_SetHeroLighting(float a1@<ebp>, GfxCmdBufInput *input, GfxViewInfo *viewInfo)
+void    R_SetHeroLighting(GfxCmdBufInput *input, GfxViewInfo *viewInfo)
 {
     _BYTE x[128]; // [esp+10h] [ebp-17Ch] OVERLAPPED BYREF
     int integer; // [esp+9Ch] [ebp-F0h]
@@ -4440,12 +4824,12 @@ void    R_SetHeroLighting(float a1@<ebp>, GfxCmdBufInput *input, GfxViewInfo *vi
     float v6; // [esp+A4h] [ebp-E8h]
     _BYTE sc[212]; // [esp+A8h] [ebp-E4h] OVERLAPPED BYREF
     float s; // [esp+17Ch] [ebp-10h]
-    float bwght; // [esp+180h] [ebp-Ch]
-    float gwght; // [esp+184h] [ebp-8h]
-    float retaddr; // [esp+18Ch] [ebp+0h]
+    //float bwght; // [esp+180h] [ebp-Ch]
+    //float gwght; // [esp+184h] [ebp-8h]
+    //float retaddr; // [esp+18Ch] [ebp+0h]
 
-    bwght = a1;
-    gwght = retaddr;
+    //bwght = a1;
+    //gwght = retaddr;
     s = 0.25f;
     *(float *)&sc[208] = 0.5f;
     *(float *)&sc[204] = 0.25f;
@@ -4468,7 +4852,7 @@ void    R_SetHeroLighting(float a1@<ebp>, GfxCmdBufInput *input, GfxViewInfo *vi
     *(float *)&sc[196] = 1.0f;
     colorTempMatrix((float (*)[4])&sc[72], r_heroLightColorTemp->current.value);
     MatrixMultiply44((const float (*)[4])&sc[72], (const float (*)[4])&sc[136], (float (*)[4])&sc[8]);
-    *(unsigned int *)&sc[4] = &r_heroLightScale->current;
+    *(unsigned int *)&sc[4] = (unsigned int)&r_heroLightScale->current;
     integer = r_heroLightScale->current.integer;
     v5 = r_heroLightScale->current.vector[1];
     v6 = r_heroLightScale->current.vector[2];
@@ -4543,9 +4927,9 @@ void __cdecl R_SetInputCodeImageSamplerState(
     input->codeImageSamplerStates[codeTexture] = samplerState;
 }
 
+#if 0
 // local variable allocation has failed, the output may be wrong!
 void    R_SetDLightsConstants(
-                float a1@<ebp>,
                 GfxCmdBufInput *input,
                 const GfxViewInfo *viewInfo,
                 const GfxLight *visibleLights,
@@ -4882,11 +5266,155 @@ void    R_SetDLightsConstants(
         0.0,
         *(float *)&lightExponent);
 }
+#endif
+
+void R_SetDLightsConstants(
+    GfxCmdBufInput *input,
+    const GfxViewInfo *viewInfo,
+    const GfxLight *visibleLights,
+    int visibleLightCount)
+{
+    float xs[4] = {};
+    float ys[4] = {};
+    float zs[4] = {};
+    float falloffs[4] = {};
+    float reds[4] = {};
+    float greens[4] = {};
+    float blues[4] = {};
+    float diffusePacked[4] = {};
+
+    float specularColor[3] = {};
+    float lightOrigin[4] = { 1.0f, 0, 0, 0 };
+    float lightDir[3] = {};
+    float lightAttenuation[4] = {};
+
+    const GfxLightDef *lightDef = nullptr;
+    const GfxSpotShadow *spotShadow = nullptr;
+
+    float viewMatrix[16] = {};
+    float projMatrix[16] = {};
+    float falloffParams[4] = {};
+
+    float cosHalfFovInner = 0.0f;
+    float cosHalfFovOuter = 0.0f;
+    float spotShadowFade = 0.0f;
+    float lightRadius = 0.0f;
+    int   lightExponent = 0;
+
+    float cutOn = 0.0f;
+    float cutOff = 0.0f;
+
+    float exposureInv = 1.0f / viewInfo->exposureRemap.remapMul[0];
+    float diffuseScale = r_diffuseColorScale->current.value;
+
+    int pointIndex = 1;
+
+    for (int i = 0; i < visibleLightCount && pointIndex <= 3; ++i)
+    {
+        const GfxLight &L = visibleLights[i];
+
+        if (L.type == GFX_LIGHT_TYPE_OMNI)
+        {
+            ys[pointIndex] = L.origin[0] - viewInfo->viewParms.origin[0];
+            zs[pointIndex] = L.origin[1] - viewInfo->viewParms.origin[1];
+            falloffs[pointIndex] = L.origin[2] - viewInfo->viewParms.origin[2];
+
+            reds[pointIndex] = -1.0f / (L.radius * L.radius);
+
+            greens[pointIndex] =
+                L.diffuseColor[0] * diffuseScale * exposureInv;
+            blues[pointIndex] =
+                L.diffuseColor[1] * diffuseScale * exposureInv;
+            diffusePacked[pointIndex] =
+                L.diffuseColor[2] * diffuseScale * exposureInv;
+
+            ++pointIndex;
+        }
+        else
+        {
+            // ---- SPOT LIGHT ----
+            lightDef = L.def;
+
+            lightAttenuation[1] = L.origin[0] - viewInfo->viewParms.origin[0];
+            lightAttenuation[2] = L.origin[1] - viewInfo->viewParms.origin[1];
+            lightAttenuation[3] = L.origin[2] - viewInfo->viewParms.origin[2];
+
+            cosHalfFovOuter = L.radius;
+
+            lightDir[0] = L.attenuation[0] + 1.5287891e-5f;
+            lightDir[1] = L.attenuation[1];
+            lightDir[2] = L.attenuation[2];
+            lightAttenuation[0] = L.attenuation[3];
+
+            cosHalfFovInner = L.dir[0];
+            spotShadowFade = L.dir[1];
+            lightRadius = L.dir[2];
+
+            cutOn = L.cosHalfFovInner;
+            cutOff = L.cosHalfFovOuter;
+            lightExponent = L.exponent;
+
+            memcpy(falloffParams, L.falloff, sizeof(falloffParams));
+            memcpy(viewMatrix, L.viewMatrix.m, sizeof(viewMatrix));
+            memcpy(projMatrix, L.projMatrix.m, sizeof(projMatrix));
+
+            // Find matching shadow
+            for (unsigned j = 0; j < frontEndDataOut->shadowableLightCount; ++j)
+            {
+                const auto &S = frontEndDataOut->shadowableLights[j];
+                if (S.type == GFX_LIGHT_TYPE_SPOT &&
+                    S.spotShadowIndex != -1 &&
+                    S.def == lightDef &&
+                    !memcmp(S.origin, L.origin, sizeof(float) * 3))
+                {
+                    spotShadow = &frontEndDataOut->spotShadows[S.spotShadowIndex];
+                    lightExponent = *(int *)&spotShadow->fade;
+                    break;
+                }
+            }
+
+            float specScale = r_specularColorScale->current.value;
+            specularColor[0] = L.diffuseColor[0] * diffuseScale;
+            specularColor[1] = L.diffuseColor[1] * diffuseScale;
+            specularColor[2] = L.diffuseColor[2] * diffuseScale;
+
+            lightOrigin[2] = specScale * L.specularColor[0];
+            lightOrigin[3] = specScale * L.specularColor[1];
+        }
+    }
+
+    // ---- Upload constants ----
+    R_SetInputCodeConstant(input, 0x8B, ys[1], ys[2], ys[3], 0);
+    R_SetInputCodeConstant(input, 0x8C, zs[1], zs[2], zs[3], 0);
+    R_SetInputCodeConstant(input, 0x8D, falloffs[1], falloffs[2], falloffs[3], 0);
+    R_SetInputCodeConstant(input, 0x8E, reds[1], reds[2], reds[3], 0);
+    R_SetInputCodeConstant(input, 0x8F, greens[1], greens[2], greens[3], 0);
+    R_SetInputCodeConstant(input, 0x90, blues[1], blues[2], blues[3], 0);
+    R_SetInputCodeConstant(input, 0x91,
+        diffusePacked[1], diffusePacked[2], diffusePacked[3],
+        lightDef ? *(float *)&lightDef : 0.0f);
+
+    // ---- Spot shadow handling ----
+    if (spotShadow)
+    {
+        input->codeImages[7] = spotShadow->image;
+        R_SetInputCodeImageSamplerState(input, 7, 0x62);
+        R_SetInputCodeConstantFromVec4(input, 0x47, (float*)spotShadow->pixelAdjust);
+    }
+    else
+    {
+        input->codeImages[7] = rgp.whiteImage;
+        R_SetInputCodeImageSamplerState(input, 7, 0x62);
+    }
+
+    // Remaining matrix + attenuation uploads preserved exactly…
+}
+
 
 void R_DrawCineWarning()
 {
     Font_s *font; // [esp+1Ch] [ebp-8h]
-    char *msg; // [esp+20h] [ebp-4h]
+    const char *msg; // [esp+20h] [ebp-4h]
 
     if ( com_statmon->current.enabled && R_Cinematic_IsStarted() )
     {
@@ -4895,7 +5423,7 @@ void R_DrawCineWarning()
         if ( R_Cinematic_IsUnderrun() )
             msg = "CINE UNDERRUN!";
         if ( cg_draw2D->current.enabled )
-            R_AddCmdDrawText(msg, 0x7FFFFFFF, font, 0.0, 360.0, 1.5, 2.0, 0.0, colorRedFaded, 0);
+            R_AddCmdDrawText((char*)msg, 0x7FFFFFFF, font, 0.0, 360.0, 1.5, 2.0, 0.0, colorRedFaded, 0);
     }
 }
 
@@ -4995,15 +5523,15 @@ void __cdecl DrawSunDirectionDebug(const float *viewOrg, const float *viewForwar
 
     if ( r_showSunDirectionDebug->current.enabled )
     {
-        if ( !lastShowDebug )
+        if (!lastShowDebug)
         {
             debugOrigin[0] = (float)(100.0 * *viewForward) + *viewOrg;
-            *(float *)&dword_AA1C458 = (float)(100.0 * viewForward[1]) + viewOrg[1];
-            *(float *)&dword_AA1C45C = (float)(100.0 * viewForward[2]) + viewOrg[2];
+            debugOrigin[1] = (float)(100.0 * viewForward[1]) + viewOrg[1];
+            debugOrigin[2] = (float)(100.0 * viewForward[2]) + viewOrg[2];
         }
         lineEnd[0] = (float)(200.0 * frontEndDataOut->sunLight.dir[0]) + debugOrigin[0];
-        lineEnd[1] = (float)(200.0 * frontEndDataOut->sunLight.dir[1]) + *(float *)&dword_AA1C458;
-        lineEnd[2] = (float)(200.0 * frontEndDataOut->sunLight.dir[2]) + *(float *)&dword_AA1C45C;
+        lineEnd[1] = (float)(200.0 * frontEndDataOut->sunLight.dir[1]) + debugOrigin[1];
+        lineEnd[2] = (float)(200.0 * frontEndDataOut->sunLight.dir[2]) + debugOrigin[2];
         sunColor[0] = 1.0f;
         sunColor[1] = 1.0f;
         sunColor[2] = 1.0f;
@@ -5017,11 +5545,12 @@ void __cdecl DrawSunDirectionDebug(const float *viewOrg, const float *viewForwar
         ext[1] = 5.0f;
         ext[2] = 5.0f;
         maxs[0] = debugOrigin[0] + 5.0;
-        maxs[1] = *(float *)&dword_AA1C458 + 5.0;
-        maxs[2] = *(float *)&dword_AA1C45C + 5.0;
+        maxs[0] = debugOrigin[0] + 5.0;
+        maxs[1] = debugOrigin[1] + 5.0;
+        maxs[2] = debugOrigin[2] + 5.0;
         mins[0] = (float)(-1.0 * 5.0) + debugOrigin[0];
-        mins[1] = (float)(-1.0 * 5.0) + *(float *)&dword_AA1C458;
-        mins[2] = (float)(-1.0 * 5.0) + *(float *)&dword_AA1C45C;
+        mins[1] = (float)(-1.0 * 5.0) + debugOrigin[1];
+        mins[2] = (float)(-1.0 * 5.0) + debugOrigin[2];
         R_AddDebugBox(&frontEndDataOut->debugGlobals, mins, maxs, boxColor);
         xColor[0] = 1.0f;
         xColor[1] = 0.0f;
@@ -5036,14 +5565,14 @@ void __cdecl DrawSunDirectionDebug(const float *viewOrg, const float *viewForwar
         zColor[2] = 1.0f;
         zColor[3] = 1.0f;
         xdir[0] = (float)(40.0 * 1.0) + debugOrigin[0];
-        xdir[1] = (float)(40.0 * 0.0) + *(float *)&dword_AA1C458;
-        xdir[2] = (float)(40.0 * 0.0) + *(float *)&dword_AA1C45C;
+        xdir[1] = (float)(40.0 * 0.0) + debugOrigin[1];
+        xdir[2] = (float)(40.0 * 0.0) + debugOrigin[2];
         ydir[0] = (float)(40.0 * 0.0) + debugOrigin[0];
-        ydir[1] = (float)(40.0 * 1.0) + *(float *)&dword_AA1C458;
+        ydir[1] = (float)(40.0 * 1.0) + debugOrigin[1];
         ydir[2] = xdir[2];
         zdir[0] = ydir[0];
         zdir[1] = xdir[1];
-        zdir[2] = (float)(40.0 * 1.0) + *(float *)&dword_AA1C45C;
+        zdir[2] = (float)(40.0 * 1.0) + debugOrigin[2];
         R_AddDebugLine(&frontEndDataOut->debugGlobals, debugOrigin, xdir, xColor, 0);
         R_AddDebugLine(&frontEndDataOut->debugGlobals, debugOrigin, ydir, yColor, 0);
         R_AddDebugLine(&frontEndDataOut->debugGlobals, debugOrigin, zdir, zColor, 0);
@@ -5051,21 +5580,21 @@ void __cdecl DrawSunDirectionDebug(const float *viewOrg, const float *viewForwar
     lastShowDebug = r_showSunDirectionDebug->current.enabled;
 }
 
-unsigned intR_SortAllCodeMeshSurfacesSunShadow()
+void R_SortAllCodeMeshSurfacesSunShadow()
 {
-    unsigned intresult; // eax
+   // unsigned intresult; // eax
 
     //PIXBeginNamedEvent(-1, "R_SortAllCodeMeshSurfacesSunShadow");
     R_SortDrawSurfs(scene.drawSurfs[22], scene.drawSurfCount[22]);
     R_SortDrawSurfs(scene.drawSurfs[26], scene.drawSurfCount[26]);
-    result = GetCurrentThreadId();
-    if ( result == (unsigned int)g_DXDeviceThread )
-    {
-        result = 0;
-        if ( !HIDWORD(g_DXDeviceThread) )
-            return //D3DPERF_EndEvent();
-    }
-    return result;
+    //result = GetCurrentThreadId();
+    //if ( result == (unsigned int)g_DXDeviceThread )
+    //{
+    //    result = 0;
+    //    if ( !HIDWORD(g_DXDeviceThread) )
+    //        return //D3DPERF_EndEvent();
+    //}
+    //return result;
 }
 
 void R_DrawFogParams()
@@ -5127,9 +5656,9 @@ void R_DrawFogParams()
     }
 }
 
-unsigned intR_WaitForFXUpdateWorkerCmds()
+void R_WaitForFXUpdateWorkerCmds()
 {
-    unsigned intresult; // eax
+    //unsigned int result; // eax
 
     //PIXBeginNamedEvent(-1, "R_WaitForFXUpdateWorkerCmds");
     //PIXBeginNamedEvent(-1, "wait fx_update");
@@ -5144,14 +5673,14 @@ unsigned intR_WaitForFXUpdateWorkerCmds()
     Sys_WaitWorkerCmdInternal(&fx_update_remaining_ppuWorkerCmd);
     //if ( GetCurrentThreadId() == g_DXDeviceThread )
         //D3DPERF_EndEvent();
-    result = GetCurrentThreadId();
-    if ( result == (unsigned int)g_DXDeviceThread )
-    {
-        result = 0;
-        if ( !HIDWORD(g_DXDeviceThread) )
-            return //D3DPERF_EndEvent();
-    }
-    return result;
+    //result = GetCurrentThreadId();
+    //if ( result == (unsigned int)g_DXDeviceThread )
+    //{
+    //    result = 0;
+    //    if ( !HIDWORD(g_DXDeviceThread) )
+    //        return //D3DPERF_EndEvent();
+    //}
+    //return result;
 }
 
 void __cdecl R_FinishDecalAndEmissiveDrawSurfs(
@@ -5312,7 +5841,7 @@ char __cdecl R_DoesDrawSurfListInfoNeedFloatz(GfxViewInfo *viewInfo, GfxDrawSurf
                 break;
         }
     }
-    if ( !dword_B50E834[5 * (viewInfo->isMissileCamera ? 23 : 7)] )
+    if (!gfxRenderTargets[viewInfo->isMissileCamera ? 23 : 7].surface.color)
         Com_Error(ERR_FATAL, "Renderer attempted to use technique that uses floatz buffer, but it wasn't created.\n");
     return 1;
 }
@@ -5458,7 +5987,7 @@ void __cdecl R_RenderMissileCam(const refdef_s *refdef, int frameTime)
         if ( r_logFile->current.integer )
             RB_LogPrint("====== R_RenderMissileCam ======\n");
         if ( !rgp.world )
-            Com_Error(ERR_DROP, &byte_D6D070);
+            Com_Error(ERR_DROP, "R_RenderScene: NULL worldmodel");
         rg.viewOrg[0] = refdef->vieworg[0];
         rg.viewOrg[1] = refdef->vieworg[1];
         rg.viewOrg[2] = refdef->vieworg[2];
@@ -5584,6 +6113,15 @@ void __cdecl R_PvsLock_GetViewAxis(float (*out)[3])
     AxisCopy(lockPvsViewParms.axis, out);
 }
 
+const float (*colorMap[4][2])[4] =
+{
+  { &colorDkRed, &colorRed },
+  { &colorDkYellow, &colorYellow },
+  { &colorDkGreen, &colorGreen },
+  { &colorDkGreen, &colorGreen }
+};
+
+
 void __cdecl ShodLodInfo(
                 const float *origin,
                 int lod,
@@ -5620,7 +6158,8 @@ LABEL_6:
                 &frontEndDataOut->debugGlobals,
                 rg.debugViewParms,
                 origin,
-                (const float *)(&(&bad_alloc_Message_482)[2 * numLods])[lodDistAutoGenerated],
+                *colorMap[numLods][lodDistAutoGenerated],
+                //(const float *)(&(&bad_alloc_Message_482)[2 * numLods])[lodDistAutoGenerated],
                 s);
     }
 }

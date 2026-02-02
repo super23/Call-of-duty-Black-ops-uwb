@@ -1,5 +1,6 @@
 #pragma once
-#include "r_rendercmds.h"
+
+#include <xanim/xmodel.h>
 
 static const float cull_thresh = -100.0f;
 static const float dist_thresh2 = 6.4e7f;
@@ -153,6 +154,7 @@ struct DpvsGlob // sizeof=0xC320
     // padding byte
 };
 
+struct GfxViewInfo;
 struct GfxWorldDraw;
 struct GfxLightingInfo // sizeof=0x8
 {                                       // XREF: .data:lightingInfo/r
@@ -164,6 +166,14 @@ struct GfxLightingInfo // sizeof=0x8
     unsigned int lightingHandle;
 };
 struct BModelDrawInfo;
+
+union GfxEntCellRefInfo // sizeof=0x4
+{                                       // XREF: R_FilterDObjIntoCells(int,uint,float * const,float)+10A/w
+                                        // R_FilterBModelIntoCells(int,uint,GfxBrushModel *)+8D/w ...
+    float radius;
+    GfxBrushModel *bmodel;
+};
+
 struct FilterEntInfo // sizeof=0x10
 {                                       // XREF: ?R_FilterDObjIntoCells@@YAXHIQAMM@Z/r
     int localClientNum;                 // XREF: R_FilterDObjIntoCells(int,uint,float * const,float)+FC/w
@@ -211,6 +221,19 @@ struct DpvsStaticCellCmd // sizeof=0xC
     unsigned __int8 frustumPlaneCount;  // XREF: R_AddCellSurfacesAndCullGroupsInFrustumDelayed+1B/w
     unsigned __int16 viewIndex;         // XREF: R_AddCellSurfacesAndCullGroupsInFrustumDelayed+35/w
 };
+
+struct GfxBrushModel;
+struct GfxScaledPlacement;
+union GfxDrawSurf;
+struct GfxPlacement;
+struct ShaderConstantSet;
+struct GfxViewParms;
+struct GfxCell;
+struct GfxPortal;
+struct GfxMatrix;
+struct GfxLight;
+
+enum DynEntityDrawType : __int32;
 
 void __cdecl R_FrustumClipPlanes(
                 const GfxMatrix *viewProjMtx,
@@ -320,12 +343,12 @@ unsigned int __cdecl R_PortalClipPlanesNoFrustum(
                 unsigned int vertexCount,
                 const float (*winding)[3]);
 void __cdecl R_GetSidePlaneNormals(const float (*winding)[3], unsigned int vertexCount, float (*normals)[3]);
-GfxPortal *__cdecl R_NextQueuedPortal();
+GfxPortal *R_NextQueuedPortal();
 void R_AssertValidQueue();
 void __cdecl R_FreeHullPoints(GfxHullPointsPool *hullPoints);
 void __cdecl R_VisitPortalsForCellNoFrustum(
                 const GfxCell *cell,
-                GfxPortal *parentPortal,
+                struct GfxPortal *parentPortal,
                 const DpvsPlane *parentPlane,
                 const DpvsPlane *planes,
                 int planeCount,
@@ -447,8 +470,6 @@ int __cdecl R_CullLine(int localClient, const float *p0, const float *p1, float 
 unsigned int __cdecl R_ExtraCam_SaveDpvsData(int localClientNum, unsigned __int8 *buffer, unsigned int bufferByteSize);
 void __cdecl R_ExtraCam_RestoreDpvsData(int localClientNum, unsigned __int8 *buffer);
 void __cdecl R_PerMap_DpvsGlobInit();
-unsigned int __cdecl R_CalcReflectionProbeIndex(const GfxWorld *world, const float *origin);
-int __cdecl R_CellForPoint(const GfxWorld *world, const float *origin);
 
 
 extern DpvsGlob dpvsGlob;

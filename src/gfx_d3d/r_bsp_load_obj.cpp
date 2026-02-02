@@ -28,6 +28,7 @@
 #include <xanim/xmodel_load_obj.h>
 #include "r_model.h"
 #include <client_mp/cl_scrn_mp.h>
+#include "r_reflection_probe.h"
 
 struct r_globals_load_t // sizeof=0x2C4
 {                                       // XREF: .data:rgl/r

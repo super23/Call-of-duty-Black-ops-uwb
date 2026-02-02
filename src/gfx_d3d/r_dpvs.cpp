@@ -1,27 +1,34 @@
 #include "r_dpvs.h"
-#include <universal/com_workercmds.h>
+
+#include "r_reflection_probe.h"
+#include "r_init.h"
 #include "r_model_lighting.h"
-#include <physics/rope.h>
 #include "r_dvars.h"
 #include "r_shader_constant_set.h"
-#include <DynEntity/DynEntity_load_obj.h>
 #include "r_drawsurf.h"
-#include <ragdoll/ragdoll_controller.h>
-#include "r_skybox.h"
 #include "r_model_lod.h"
-#include <EffectsCore/fx_beam.h>
-#include <xanim/xmodel_utils.h>
+#include "r_skybox.h"
 #include "r_warn.h"
 #include "r_debug.h"
 #include "r_model.h"
-#include <qcommon/threads.h>
 #include "r_dpvs_entity.h"
+#include "r_dpvs_static.h"
+#include "r_bsp.h"
+
+#include <qcommon/threads.h>
+#include <EffectsCore/fx_beam.h>
+#include <xanim/xmodel_utils.h>
+#include <ragdoll/ragdoll_controller.h>
+#include <DynEntity/DynEntity_load_obj.h>
+#include <physics/rope.h>
+
+#include <client/splitscreen.h>
+#include <cgame_mp/cg_ents_mp.h>
+#include <universal/com_workercmds.h>
 #include <universal/mem_largelocal.h>
 #include <universal/com_convexhull.h>
-#include <cgame_mp/cg_ents_mp.h>
-#include "r_dpvs_static.h"
-#include <client/splitscreen.h>
-#include "r_staticmodel_load_obj.h"
+
+
 
 const float standardFrustumSidePlanes[4][4] =
 {
@@ -1607,11 +1614,12 @@ LABEL_65:
     for ( glassIndex = 0; glassIndex < glassBrushCount; ++glassIndex )
     {
         if ( (scene.glassBrushVisData[glassIndex] & 1) != 0
-            && !R_DrawBModel(
-                        (BModelDrawInfo *)&scene.glassBrushVisData[40 * glassIndex - 40924],
-                        *(const GfxBrushModel **)&scene.glassBrushVisData[40 * glassIndex - 40932],
-                        &scene.glassBrush[glassIndex].placement,
-                        0) )
+            //&& !R_DrawBModel(
+            //            (BModelDrawInfo *)&scene.glassBrushVisData[40 * glassIndex - 40924],
+            //            *(const GfxBrushModel **)&scene.glassBrushVisData[40 * glassIndex - 40932],
+            //            (const GfxPlacement *)&scene.glassBrush[glassIndex].placement,
+            //            NULL) )
+            && !R_DrawBModel(&scene.glassBrush[glassIndex].info, scene.glassBrush[glassIndex].bmodel, &scene.glassBrush[glassIndex].placement, NULL))
         {
             scene.glassBrushVisData[glassIndex] = 0;
         }
@@ -1790,7 +1798,7 @@ void __cdecl R_DrawAllDynEnt(const GfxViewInfo *viewInfo)
             if ( bmodel->surfaceCount )
             {
                 sceneDynBrush = &rgp.world->sceneDynBrush[scene.sceneDynBrushCount];
-                if ( R_DrawBModel((BModelDrawInfo *)sceneDynBrush, bmodel, &dynEntPosea->pose, 0) )
+                if ( R_DrawBModel(&sceneDynBrush->info, bmodel, &dynEntPosea->pose, 0) )
                 {
                     sceneDynBrush->dynEntId = dynEntIndexa;
                     ++scene.sceneDynBrushCount;
@@ -3036,7 +3044,7 @@ void __cdecl R_GetSidePlaneNormals(const float (*winding)[3], unsigned int verte
     }
 }
 
-GfxPortal *__cdecl R_NextQueuedPortal()
+GfxPortal *R_NextQueuedPortal()
 {
     float dist; // eax
     PortalHeapNode *portalQueue; // esi
@@ -5942,61 +5950,3 @@ void __cdecl R_PerMap_DpvsGlobInit()
     memset((unsigned __int8 *)dpvsGlob.cellForceInvisibleBits, 0, sizeof(dpvsGlob.cellForceInvisibleBits));
     dpvsGlob.cullDist = 0.0f;
 }
-
-unsigned int __cdecl R_CalcReflectionProbeIndex(const GfxWorld *world, const float *origin)
-{
-    unsigned int cellIndex; // [esp+0h] [ebp-4h]
-
-    cellIndex = R_CellForPoint(world, origin);
-    if ( cellIndex == -1 )
-        return R_FindNearestReflectionProbe_0(world, origin);
-    if ( cellIndex >= world->dpvsPlanes.cellCount
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_staticmodel_load_obj.cpp",
-                    658,
-                    0,
-                    "cellIndex doesn't index world->dpvsPlanes.cellCount\n\t%i not in [0, %i)",
-                    cellIndex,
-                    world->dpvsPlanes.cellCount) )
-    {
-        __debugbreak();
-    }
-    return R_FindNearestReflectionProbeInCell_0(world, &world->cells[cellIndex], origin);
-}
-
-int __cdecl R_CellForPoint(const GfxWorld *world, const float *origin)
-{
-    cplane_s *v2; // edx
-    mnode_t *node; // [esp+4h] [ebp-1Ch]
-    int cellIndex; // [esp+14h] [ebp-Ch]
-    int cellCount; // [esp+18h] [ebp-8h]
-
-    if ( !world
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_staticmodel_load_obj.cpp",
-                    626,
-                    0,
-                    "%s",
-                    "world") )
-    {
-        __debugbreak();
-    }
-    node = (mnode_t *)world->dpvsPlanes.nodes;
-    cellCount = world->dpvsPlanes.cellCount + 1;
-    while ( 1 )
-    {
-        cellIndex = node->cellIndex;
-        if ( cellIndex - cellCount < 0 )
-            break;
-        v2 = &world->dpvsPlanes.planes[cellIndex - cellCount];
-        node = (mnode_t *)((char *)node
-                                         + 2
-                                         * ((float)((float)((float)((float)(*origin * v2->normal[0]) + (float)(origin[1] * v2->normal[1]))
-                                                                            + (float)(origin[2] * v2->normal[2]))
-                                                            - v2->dist) <= 0.0)
-                                         * (node->rightChildOffset - 2)
-                                         + 4);
-    }
-    return cellIndex - 1;
-}
-

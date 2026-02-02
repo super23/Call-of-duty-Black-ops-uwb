@@ -1,4 +1,13 @@
 #include "r_shade.h"
+#include "r_state.h"
+#include "r_singlethreaded_device_pc.h"
+#include "r_dvars.h"
+#include "rb_logfile.h"
+#include "rb_shade.h"
+#include "r_water.h"
+
+bool Use_R_SetVertexShaderConstantFromCode_New = true;
+
 
 void __cdecl R_SetupPassPerPrimArgs(GfxCmdBufContext context)
 {
@@ -6,20 +15,17 @@ void __cdecl R_SetupPassPerPrimArgs(GfxCmdBufContext context)
 
     pass = context.state->pass;
     if ( pass->perPrimArgCount )
-        R_SetPassShaderPrimArguments(&context, pass->perPrimArgCount, pass->localArgs);
+        R_SetPassShaderPrimArguments(context, pass->perPrimArgCount, pass->localArgs);
 }
 
-void __cdecl R_SetPassShaderPrimArguments(
-                const GfxCmdBufContext *context,
-                unsigned int argCount,
-                const MaterialShaderArgument *arg)
+void __cdecl R_SetPassShaderPrimArguments(const GfxCmdBufContext context, unsigned int argCount, const MaterialShaderArgument *arg)
 {
     while ( arg->type == 3 )
     {
         if ( Use_R_SetVertexShaderConstantFromCode_New )
             R_SetVertexShaderConstantFromCode_New(context, arg);
         else
-            R_SetVertexShaderConstantFromCode_Old(*context, arg);
+            R_SetVertexShaderConstantFromCode_Old(context, arg);
         ++arg;
         if ( !--argCount )
             return;
@@ -45,12 +51,9 @@ void __cdecl R_SetVertexShaderConstantFromCode_Old(GfxCmdBufContext context, con
     {
         source = context;
         if ( routingData->u.codeConst.index < 0xC5u )
-            data = (const float *)R_GetCodeConstant(&source, routingData->u.codeConst.index);
+            data = (const float *)R_GetCodeConstant(source, routingData->u.codeConst.index);
         else
-            data = (const float *)R_GetCodeMatrix(
-                                                            source.source,
-                                                            routingData->u.codeConst.index,
-                                                            routingData->u.codeConst.firstRow);
+            data = (const float *)R_GetCodeMatrix(source.source, routingData->u.codeConst.index, routingData->u.codeConst.firstRow);
         rowCount = routingData->u.codeConst.rowCount;
         v5 = data;
         dest = routingData->dest;
@@ -59,7 +62,7 @@ void __cdecl R_SetVertexShaderConstantFromCode_Old(GfxCmdBufContext context, con
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint("device->SetVertexShaderConstantF( dest, data, rowCount )\n");
         v8 = R_AcquireDXDeviceOwnership(0);
-        hr = device->SetVertexShaderConstantF(device, dest, v5, rowCount);
+        hr = device->SetVertexShaderConstantF(dest, v5, rowCount);
         if ( v8 )
             R_ReleaseDXDeviceOwnership();
         if ( hr < 0 )
@@ -87,30 +90,15 @@ void __cdecl R_SetVertexShaderConstantFromCode_Old(GfxCmdBufContext context, con
     }
 }
 
-$26AC422158757CD6FC73CEC8E4188A45 *__cdecl R_GetCodeConstant(const GfxCmdBufContext *context, unsigned int constant)
+float *__cdecl R_GetCodeConstant(const GfxCmdBufContext context, unsigned int constant)
 {
-    if ( !context->state
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp", 35, 0, "%s", "context.local.state") )
-    {
-        __debugbreak();
-    }
-    if ( !context->source
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp", 36, 0, "%s", "context.local.source") )
-    {
-        __debugbreak();
-    }
-    if ( constant >= 0xC5
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp",
-                    37,
-                    0,
-                    "constant doesn't index CONST_SRC_CODE_COUNT_FLOAT4\n\t%i not in [0, %i)",
-                    constant,
-                    197) )
-    {
-        __debugbreak();
-    }
-    return ($26AC422158757CD6FC73CEC8E4188A45 *)((char *)&context->source->2048 + 16 * constant);
+    iassert(context.state);
+    iassert(context.source);
+    bcassert(constant, 0xC5/*CONST_SRC_CODE_COUNT_FLOAT4*/);
+
+    //return ($26AC422158757CD6FC73CEC8E4188A45 *)((char *)&context->source->2048 + 16 * constant);
+    return (float *)((char *)&context.source->input + 16 * constant);
+
 }
 
 char __cdecl R_IsVertexShaderConstantUpToDate(GfxCmdBufContext context, const MaterialShaderArgument *routingData)
@@ -147,7 +135,7 @@ char __cdecl R_IsShaderMatrixUpToDate(
     unsigned int rowCount; // [esp+Ch] [ebp-8h]
     unsigned int rowCounta; // [esp+Ch] [ebp-8h]
 
-    newState.fields.codeConst = (MaterialArgumentCodeConst)routingData->u.codeSampler;
+    newState.fields.codeConst = routingData->u.codeConst;
     newState.fields.version = *((unsigned __int16 *)&source->viewParms3D
                                                         + ((routingData->u.codeConst.index - 197) >> 2)
                                                         + 1);
@@ -163,8 +151,7 @@ char __cdecl R_IsShaderMatrixUpToDate(
     for ( rowCounta = rowCount - 1; rowCounta; --rowCounta )
     {
         ++constant;
-        constant->fields.codeConst = (MaterialArgumentCodeConst)-1;
-        constant->fields.version = -1;
+        constant->packed = -1LL;
     }
     return 0;
 }
@@ -178,7 +165,7 @@ char __cdecl R_IsShaderConstantUpToDate(
 
     if ( !source && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp", 83, 0, "%s", "source") )
         __debugbreak();
-    newState.fields.codeConst = (MaterialArgumentCodeConst)routingData->u.codeSampler;
+    newState.fields.codeConst = routingData->u.codeConst;
     newState.fields.version = source->constVersions[routingData->u.codeConst.index + 24];
     if ( constant->packed == newState.packed )
         return 1;
@@ -197,24 +184,24 @@ char __cdecl R_IsShaderConstantUpToDate(
 }
 
 void __cdecl R_SetVertexShaderConstantFromCode_New(
-                const GfxCmdBufContext *context,
-                const MaterialShaderArgument *routingData)
+    const GfxCmdBufContext context,
+    const MaterialShaderArgument *routingData)
 {
-    const char *v2; // eax
     const char *v3; // eax
-    const char *v4; // eax
+    char *v4; // eax
     const char *v5; // eax
-    int v6; // [esp+3Ch] [ebp-70h]
-    $26AC422158757CD6FC73CEC8E4188A45 *CodeConstant; // [esp+40h] [ebp-6Ch]
-    unsigned int dest; // [esp+44h] [ebp-68h]
-    IDirect3DDevice9 *device; // [esp+48h] [ebp-64h]
-    int v10; // [esp+4Ch] [ebp-60h]
-    int v11; // [esp+50h] [ebp-5Ch]
-    unsigned int v12; // [esp+54h] [ebp-58h]
+    char *v6; // eax
+    int v7; // [esp+3Ch] [ebp-70h]
+    float *CodeConstant; // [esp+40h] [ebp-6Ch]
+    int v9; // [esp+44h] [ebp-68h]
+    int v10; // [esp+48h] [ebp-64h]
+    int v11; // [esp+4Ch] [ebp-60h]
+    int v12; // [esp+50h] [ebp-5Ch]
+    unsigned int v13; // [esp+54h] [ebp-58h]
     GfxCmdBufSourceState *CodeMatrix; // [esp+58h] [ebp-54h]
-    unsigned int v14; // [esp+5Ch] [ebp-50h]
-    IDirect3DDevice9 *v15; // [esp+60h] [ebp-4Ch]
-    int v16; // [esp+64h] [ebp-48h]
+    int v15; // [esp+5Ch] [ebp-50h]
+    int v16; // [esp+60h] [ebp-4Ch]
+    int v17; // [esp+64h] [ebp-48h]
     int hr; // [esp+68h] [ebp-44h]
     unsigned int rowLoop; // [esp+70h] [ebp-3Ch]
     unsigned __int64 packed; // [esp+74h] [ebp-38h]
@@ -225,134 +212,146 @@ void __cdecl R_SetVertexShaderConstantFromCode_New(
     unsigned __int64 codeConstBits; // [esp+94h] [ebp-18h]
     unsigned __int16 index; // [esp+A0h] [ebp-Ch]
 
-    if ( routingData->dest >= 0x100u
+    if (*(unsigned __int16 *)&context.state->refSamplerState[2] >= 0x100u
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp",
-                    136,
-                    0,
-                    "routingData->dest doesn't index ARRAY_COUNT( context.local.state->vertexShaderConstState )\n"
-                    "\t%i not in [0, %i)",
-                    routingData->dest,
-                    256) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp",
+            136,
+            0,
+            "routingData->dest doesn't index ARRAY_COUNT( context.local.state->vertexShaderConstState )\n"
+            "\t%i not in [0, %i)",
+            *(unsigned __int16 *)&context.state->refSamplerState[2],
+            256))
     {
         __debugbreak();
     }
-    constant = &context->state->vertexShaderConstState[routingData->dest];
-    index = routingData->u.codeConst.index;
-    codeConstBits = (unsigned __int64)routingData->u.codeSampler << 32;
-    if ( index < 0xC5u )
+    constant = (unsigned __int64 *)(LODWORD(context.source->matrices.matrix[0].m[0][1])
+        + 8 * *(unsigned __int16 *)&context.state->refSamplerState[2]
+        + 880);
+    index = *(_WORD *)&context.state->refSamplerState[4];
+    codeConstBits = (unsigned __int64)*(unsigned int *)&context.state->refSamplerState[4] << 32;
+    if (index < 0xC5u)
     {
-        if ( routingData->u.codeConst.rowCount != 1
+        if (context.state->refSamplerState[7] != 1
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp",
-                        169,
-                        0,
-                        "%s",
-                        "routingData->u.codeConst.rowCount == 1") )
+                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp",
+                169,
+                0,
+                "%s",
+                "routingData->u.codeConst.rowCount == 1"))
         {
             __debugbreak();
         }
-        packeda = context->source->constVersions[index + 24] | codeConstBits;
-        if ( *constant != packeda )
+        packeda = *(unsigned __int16 *)(LODWORD(context.source->matrices.matrix[0].m[0][0]) + 2 * index + 6160)
+            | codeConstBits;
+        if (*constant != packeda)
         {
             *constant = packeda;
-            v6 = 1;
+            v7 = 1;
             CodeConstant = R_GetCodeConstant(context, index);
-            dest = routingData->dest;
-            device = context->state->prim.device;
+            v9 = *(unsigned __int16 *)&context.state->refSamplerState[2];
+            v10 = *(_DWORD *)(LODWORD(context.source->matrices.matrix[0].m[0][1]) + 144);
             R_AssertDXDeviceOwnership();
-            if ( r_logFile && r_logFile->current.integer )
+            if (r_logFile && r_logFile->current.integer)
                 RB_LogPrint("device->SetVertexShaderConstantF( dest, data, rowCount )\n");
-            v10 = R_AcquireDXDeviceOwnership(0);
-            v11 = device->SetVertexShaderConstantF(device, dest, (const float *)CodeConstant, 1u);
-            if ( v10 )
+            v11 = R_AcquireDXDeviceOwnership(0);
+            v12 = (*(int(__stdcall **)(int, int, float *, int))(*(_DWORD *)v10 + 376))(v10, v9, CodeConstant, 1);
+            if (v11)
                 R_ReleaseDXDeviceOwnership();
-            if ( v11 < 0 )
+            if (v12 < 0)
             {
                 ++g_disableRendering;
-                v4 = R_ErrorDescription(v11);
+                v5 = R_ErrorDescription(v12);
                 Com_Error(
                     ERR_FATAL,
                     "c:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_setstate_d3d.h (%i) device->SetVertexShaderConstantF( dest, data"
                     ", rowCount ) failed: %s\n",
                     123,
-                    v4);
+                    v5);
             }
-            if ( r_logFile->current.integer )
+            if (r_logFile->current.integer)
             {
-                while ( v6 )
+                while (v7)
                 {
-                    v5 = va(
-                                 "vertex const %i: %g %g %g %g\n",
-                                 dest,
-                                 CodeConstant->input.consts[0][0],
-                                 CodeConstant->input.consts[0][1],
-                                 CodeConstant->input.consts[0][2],
-                                 CodeConstant->input.consts[0][3]);
-                    RB_LogPrint(v5);
-                    ++dest;
-                    CodeConstant = ($26AC422158757CD6FC73CEC8E4188A45 *)((char *)CodeConstant + 16);
-                    --v6;
+                    v6 = va(
+                        "vertex const %i: %g %g %g %g\n",
+                        v9,
+                        *CodeConstant,
+                        CodeConstant[1],
+                        CodeConstant[2],
+                        CodeConstant[3]);
+                    RB_LogPrint(v6);
+                    ++v9;
+                    CodeConstant += 4;
+                    --v7;
                 }
             }
         }
     }
     else
     {
-        version = *((unsigned __int16 *)&context->source->viewParms3D + ((index - 197) >> 2) + 1);
+        version = *(unsigned __int16 *)(LODWORD(context.source->matrices.matrix[0].m[0][0]) + 2 * ((index - 197) >> 2) + 6618);
         packed = version | codeConstBits;
-        if ( *(unsigned int *)constant != (unsigned int)version
-            || HIDWORD(context->state->vertexShaderConstState[routingData->dest]) != HIDWORD(packed) )
+        if (*(_DWORD *)constant != (_DWORD)version
+            || *(_DWORD *)(LODWORD(context.source->matrices.matrix[0].m[0][1])
+                + 8 * *(unsigned __int16 *)&context.state->refSamplerState[2]
+                + 884) != HIDWORD(packed))
         {
             *constant = packed;
-            rowCount = routingData->u.codeConst.rowCount;
-            if ( !routingData->u.codeConst.rowCount
-                && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp", 154, 0, "%s", "rowCount") )
+            rowCount = context.state->refSamplerState[7];
+            if (!context.state->refSamplerState[7]
+                && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp", 154, 0, "%s", "rowCount"))
             {
                 __debugbreak();
             }
-            for ( rowLoop = rowCount - 1; rowLoop; --rowLoop )
+            for (rowLoop = rowCount - 1; rowLoop; --rowLoop)
             {
-                *(unsigned int *)++constant = -1;
-                *((unsigned int *)constant + 1) = -1;
+                *(_DWORD *)++constant = -1;
+                *((_DWORD *)constant + 1) = -1;
             }
-            v12 = rowCount;
-            CodeMatrix = R_GetCodeMatrix(context->source, index, routingData->u.codeConst.firstRow);
-            v14 = routingData->dest;
-            v15 = context->state->prim.device;
+            v13 = rowCount;
+            CodeMatrix = R_GetCodeMatrix(
+                (GfxCmdBufSourceState *)LODWORD(context.source->matrices.matrix[0].m[0][0]),
+                index,
+                context.state->refSamplerState[6]);
+            v15 = *(unsigned __int16 *)&context.state->refSamplerState[2];
+            v16 = *(_DWORD *)(LODWORD(context.source->matrices.matrix[0].m[0][1]) + 144);
             R_AssertDXDeviceOwnership();
-            if ( r_logFile && r_logFile->current.integer )
+            if (r_logFile && r_logFile->current.integer)
                 RB_LogPrint("device->SetVertexShaderConstantF( dest, data, rowCount )\n");
-            v16 = R_AcquireDXDeviceOwnership(0);
-            hr = v15->SetVertexShaderConstantF(v15, v14, (const float *)CodeMatrix, rowCount);
-            if ( v16 )
+            v17 = R_AcquireDXDeviceOwnership(0);
+            hr = (*(int(__stdcall **)(int, int, GfxCmdBufSourceState *, unsigned int))(*(_DWORD *)v16 + 376))(
+                v16,
+                v15,
+                CodeMatrix,
+                rowCount);
+            if (v17)
                 R_ReleaseDXDeviceOwnership();
-            if ( hr < 0 )
+            if (hr < 0)
             {
                 ++g_disableRendering;
-                v2 = R_ErrorDescription(hr);
+                v3 = R_ErrorDescription(hr);
                 Com_Error(
                     ERR_FATAL,
                     "c:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_setstate_d3d.h (%i) device->SetVertexShaderConstantF( dest, data"
                     ", rowCount ) failed: %s\n",
                     123,
-                    v2);
+                    v3);
             }
-            if ( r_logFile->current.integer )
+            if (r_logFile->current.integer)
             {
-                while ( v12 )
+                while (v13)
                 {
-                    v3 = va(
-                                 "vertex const %i: %g %g %g %g\n",
-                                 v14,
-                                 CodeMatrix->matrices.matrix[0].m[0][0],
-                                 CodeMatrix->matrices.matrix[0].m[0][1],
-                                 CodeMatrix->matrices.matrix[0].m[0][2],
-                                 CodeMatrix->matrices.matrix[0].m[0][3]);
-                    RB_LogPrint(v3);
-                    ++v14;
+                    v4 = va(
+                        "vertex const %i: %g %g %g %g\n",
+                        v15,
+                        CodeMatrix->matrices.matrix[0].m[0][0],
+                        CodeMatrix->matrices.matrix[0].m[0][1],
+                        CodeMatrix->matrices.matrix[0].m[0][2],
+                        CodeMatrix->matrices.matrix[0].m[0][3]);
+                    RB_LogPrint(v4);
+                    ++v15;
                     CodeMatrix = (GfxCmdBufSourceState *)((char *)CodeMatrix + 16);
-                    --v12;
+                    --v13;
                 }
             }
         }
@@ -365,13 +364,10 @@ void __cdecl R_SetupPassPerObjectArgs(GfxCmdBufContext context)
 
     pass = context.state->pass;
     if ( pass->perObjArgCount )
-        R_SetPassShaderObjectArguments(&context, pass->perObjArgCount, &pass->localArgs[pass->perPrimArgCount]);
+        R_SetPassShaderObjectArguments(context, pass->perObjArgCount, &pass->localArgs[pass->perPrimArgCount]);
 }
 
-void __cdecl R_SetPassShaderObjectArguments(
-                const GfxCmdBufContext *context,
-                unsigned int argCount,
-                const MaterialShaderArgument *arg)
+void __cdecl R_SetPassShaderObjectArguments(const GfxCmdBufContext context, unsigned int argCount, const MaterialShaderArgument *arg)
 {
     const GfxImage *image; // [esp+94h] [ebp-8h]
     unsigned __int8 samplerState; // [esp+9Bh] [ebp-1h] BYREF
@@ -381,48 +377,47 @@ void __cdecl R_SetPassShaderObjectArguments(
         if ( Use_R_SetVertexShaderConstantFromCode_New )
             R_SetVertexShaderConstantFromCode_New(context, arg);
         else
-            R_SetVertexShaderConstantFromCode_Old(*context, arg);
+            R_SetVertexShaderConstantFromCode_Old(context, arg);
         ++arg;
         if ( !--argCount )
             return;
     }
+
     while ( arg->type == 4 )
     {
-        if ( ((*(_QWORD *)&context->source->input.codeImageRenderTargetControl[arg->u.codeSampler].fields >> 8) & 1) != 0 )
+        if ( ((*(_QWORD *)&context.source->input.codeImageRenderTargetControl[arg->u.codeSampler].fields >> 8) & 1) != 0 )
         {
             R_SetTextureSamplerCodeImageRenderTarget(
-                *context,
+                context,
                 arg->dest,
-                context->source->input.codeImageRenderTargetControl[arg->u.codeSampler]);
+                context.source->input.codeImageRenderTargetControl[arg->u.codeSampler]);
             ++arg;
             if ( !--argCount )
                 return;
         }
         else
         {
-            image = R_GetTextureFromCode(context->source, arg->u.codeSampler, &samplerState);
+            image = R_GetTextureFromCode(context.source, arg->u.codeSampler, &samplerState);
             if ( !image )
                 R_TextureFromCodeError(context, arg->u.codeSampler);
-            R_SetSampler(*context, arg->dest, samplerState, image);
+            R_SetSampler(context, arg->dest, samplerState, image);
             ++arg;
             if ( !--argCount )
                 return;
         }
     }
+
     if ( !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp", 333, 0, "unreachable") )
         __debugbreak();
 }
 
-void __cdecl R_SetPassPixelShaderStableArguments(
-                const GfxCmdBufContext *context,
-                unsigned int argCount,
-                const MaterialShaderArgument *arg)
+void __cdecl R_SetPassPixelShaderStableArguments(const GfxCmdBufContext context, unsigned int argCount, const MaterialShaderArgument *arg)
 {
     const char *v3; // eax
     const Material *material; // [esp+14h] [ebp-8h]
     const MaterialConstantDef *constDef; // [esp+18h] [ebp-4h]
 
-    material = context->state->material;
+    material = context.state->material;
     while ( arg->type < 5u )
     {
         ++arg;
@@ -455,14 +450,14 @@ void __cdecl R_SetPassPixelShaderStableArguments(
                     __debugbreak();
             }
         }
-        R_SetPixelShaderConstantFromLiteral(context->state, arg->dest, constDef->literal);
+        R_SetPixelShaderConstantFromLiteral(context.state, arg->dest, constDef->literal);
         ++arg;
         if ( !--argCount )
             return;
     }
     while ( arg->type == 7 )
     {
-        R_SetPixelShaderConstantFromLiteral(context->state, arg->dest, arg->u.literalConst);
+        R_SetPixelShaderConstantFromLiteral(context.state, arg->dest, arg->u.literalConst);
         ++arg;
         if ( !--argCount )
             return;
@@ -503,12 +498,14 @@ void __cdecl R_HW_SetPixelShaderConstant(
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetPixelShaderConstantF( dest, data, rowCount )\n");
     semaphore = R_AcquireDXDeviceOwnership(0);
-    hr = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, unsigned int, const float *, unsigned int))device->SetPixelShaderConstantF)(
-                 device,
-                 device,
-                 dest,
-                 data,
-                 rowCount);
+
+    hr = device->SetPixelShaderConstantF(dest, data, rowCount);
+    //hr = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, unsigned int, const float *, unsigned int))device->SetPixelShaderConstantF)(
+    //             device,
+    //             device,
+    //             dest,
+    //             data,
+    //             rowCount);
     if ( semaphore )
         R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
@@ -524,108 +521,35 @@ void __cdecl R_HW_SetPixelShaderConstant(
     }
 }
 
-int __cdecl R_IsPixelShaderConstantUpToDate(const GfxCmdBufContext *context, const MaterialShaderArgument *routingData)
+int __cdecl R_IsPixelShaderConstantUpToDate(const GfxCmdBufContext context, const MaterialShaderArgument *routingData)
 {
-    const char *v2; // eax
-    MaterialArgumentDef newState; // [esp+4h] [ebp-10h]
-    int newState_4; // [esp+8h] [ebp-Ch]
-    unsigned __int64 *constant; // [esp+10h] [ebp-4h]
+    GfxShaderConstantState newState; // [esp+4h] [ebp-10h]
 
-    if ( routingData->dest >= 0x100u
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp",
-                    208,
-                    0,
-                    "routingData->dest doesn't index ARRAY_COUNT( context.state->pixelShaderConstState )\n\t%i not in [0, %i)",
-                    routingData->dest,
-                    256) )
-    {
-        __debugbreak();
-    }
-    if ( routingData->u.codeConst.rowCount != 1
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp",
-                    209,
-                    0,
-                    "%s\n\t(routingData->u.codeConst.rowCount) = %i",
-                    "(routingData->u.codeConst.rowCount == 1)",
-                    routingData->u.codeConst.rowCount) )
-    {
-        __debugbreak();
-    }
-    if ( !context->source
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp", 210, 0, "%s", "context.source") )
-    {
-        __debugbreak();
-    }
-    LODWORD(newState.literalConst) = routingData->u;
-    newState_4 = context->source->constVersions[routingData->u.codeConst.index + 24];
-    if ( !context->source->constVersions[routingData->u.codeConst.index + 24] )
-    {
-        v2 = va(
-                     "constant: %d, material: %s, technique: %s",
-                     routingData->u.codeConst.index,
-                     context->state->material->info.name,
-                     context->state->technique->name);
-        if ( !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp",
-                        215,
-                        0,
-                        "%s\n\t%s",
-                        "newState.fields.version",
-                        v2) )
-            __debugbreak();
-    }
-    constant = &context->state->pixelShaderConstState[routingData->dest];
-    if ( *(unsigned int *)constant == newState.codeSampler
-        && HIDWORD(context->state->pixelShaderConstState[routingData->dest]) == newState_4 )
-    {
+    iassert(routingData->u.codeConst.rowCount == 1);
+    iassert(context.source);
+
+    newState.fields.codeConst = routingData->u.codeConst;
+    newState.fields.version = context.source->constVersions[routingData->u.codeConst.index];
+
+    iassert(newState.fields.version);
+
+    if (context.state->pixelShaderConstState[routingData->dest] == newState.packed)
         return 1;
-    }
-    *(MaterialArgumentDef *)constant = newState;
-    *((unsigned int *)constant + 1) = newState_4;
+
+    context.state->pixelShaderConstState[routingData->dest] = newState.packed;
+
     return 0;
 }
 
-void __cdecl R_SetPixelShaderConstantFromCode(
-                const GfxCmdBufContext *context,
-                const MaterialShaderArgument *routingData)
+void __cdecl R_SetPixelShaderConstantFromCode(const GfxCmdBufContext context, const MaterialShaderArgument *routingData)
 {
-    const char *v2; // eax
-    $26AC422158757CD6FC73CEC8E4188A45 *data; // [esp+8h] [ebp-4h]
+    iassert(context.source->constVersions[routingData->u.codeConst.index]);
+    //bcassert(routingData->u.codeConst.index, CONST_SRC_FIRST_CODE_MATRIX);
 
-    if ( !context->source->constVersions[routingData->u.codeConst.index + 24] )
-    {
-        v2 = va(
-                     "constant: %d, material: %s, technique: %s",
-                     routingData->u.codeConst.index,
-                     context->state->material->info.name,
-                     context->state->technique->name);
-        if ( !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp",
-                        231,
-                        0,
-                        "%s\n\t%s",
-                        "context.source->constVersions[routingData->u.codeConst.index]",
-                        v2) )
-            __debugbreak();
-    }
-    if ( routingData->u.codeConst.index >= 0xC5u
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp",
-                    234,
-                    0,
-                    "routingData->u.codeConst.index doesn't index CONST_SRC_FIRST_CODE_MATRIX\n\t%i not in [0, %i)",
-                    routingData->u.codeConst.index,
-                    197) )
-    {
-        __debugbreak();
-    }
-    data = R_GetCodeConstant(context, routingData->u.codeConst.index);
     R_HW_SetPixelShaderConstant(
-        context->state->prim.device,
+        context.state->prim.device,
         routingData->dest,
-        (const float *)data,
+        R_GetCodeConstant(context, routingData->u.codeConst.index),
         routingData->u.codeConst.rowCount);
 }
 
@@ -636,7 +560,7 @@ void __cdecl R_SetupPassCriticalPixelShaderArgs(GfxCmdBufContext context)
     pass = context.state->pass;
     if ( pass->stableArgCount )
         R_SetPassPixelShaderStableArguments(
-            &context,
+            context,
             pass->stableArgCount,
             &pass->localArgs[pass->perPrimArgCount + pass->perObjArgCount]);
 }
@@ -648,15 +572,12 @@ void __cdecl R_SetupPassVertexShaderArgs(GfxCmdBufContext context)
     pass = context.state->pass;
     if ( pass->stableArgCount )
         R_SetPassVertexShaderStableArguments(
-            &context,
+            context,
             pass->stableArgCount,
             &pass->localArgs[pass->perPrimArgCount + pass->perObjArgCount]);
 }
 
-void __cdecl R_SetPassVertexShaderStableArguments(
-                const GfxCmdBufContext *context,
-                unsigned int argCount,
-                const MaterialShaderArgument *arg)
+void __cdecl R_SetPassVertexShaderStableArguments(const GfxCmdBufContext context, unsigned int argCount, const MaterialShaderArgument *arg)
 {
     while ( arg->type < 3u )
     {
@@ -671,7 +592,7 @@ void __cdecl R_SetPassVertexShaderStableArguments(
         if ( Use_R_SetVertexShaderConstantFromCode_New )
             R_SetVertexShaderConstantFromCode_New(context, arg);
         else
-            R_SetVertexShaderConstantFromCode_Old(*context, arg);
+            R_SetVertexShaderConstantFromCode_Old(context, arg);
         ++arg;
         --argCount;
     }
@@ -679,16 +600,16 @@ void __cdecl R_SetPassVertexShaderStableArguments(
 }
 
 const MaterialTextureDef *__cdecl R_SetPixelSamplerFromMaterial(
-                const GfxCmdBufContext *context,
+                const GfxCmdBufContext context,
                 const MaterialShaderArgument *arg,
                 const MaterialTextureDef *texDef)
 {
     const char *v3; // eax
     const GfxImage *image; // [esp+8h] [ebp-Ch] BYREF
     const Material *material; // [esp+Ch] [ebp-8h]
-    unsigned __int8 samplerState; // [esp+13h] [ebp-1h]
 
-    material = context->state->material;
+    material = context.state->material;
+
     while ( texDef->nameHash != arg->u.codeSampler )
     {
         if ( ++texDef == &material->textureTable[material->textureCount] )
@@ -706,23 +627,25 @@ const MaterialTextureDef *__cdecl R_SetPixelSamplerFromMaterial(
     }
     if ( texDef->semantic == 11 )
     {
-        image = (const GfxImage *)texDef->u.image[1].cardMemory.platform[0];
-        R_UploadWaterTexture(texDef->u.water, context->source->materialTime);
+        //image = (const GfxImage *)texDef->u.image[1].cardMemory.platform[0];
+        image = texDef->u.water->image;
+        R_UploadWaterTexture(texDef->u.water, context.source->sceneDef.floatTime);
     }
     else
     {
         image = texDef->u.image;
     }
-    samplerState = texDef->samplerState;
+
     if ( rg.hasAnyImageOverrides )
         R_OverrideImage((GfxImage **)&image, texDef);
-    if ( texDef->isMatureContent
-        && context->source->input.data->hideMatureContent
-        && (unsigned __int8)((unsigned __int8)HIBYTE(material->info.layeredSurfaceTypes) >> 5) > 1u )
-    {
-        image = rgp.blankImage;
-    }
-    R_SetSampler(*context, arg->dest, samplerState, image);
+
+    /// lwss: removed mature content hack
+    //if ( texDef->isMatureContent && context.source->input.data->hideMatureContent && (unsigned __int8)((unsigned __int8)HIBYTE(material->info.layeredSurfaceTypes) >> 5) > 1u )
+    //{
+    //    image = rgp.blankImage;
+    //}
+
+    R_SetSampler(context, arg->dest, texDef->samplerState, image);
     return texDef;
 }
 
@@ -815,7 +738,7 @@ void __cdecl R_OverrideImage(GfxImage **image, const MaterialTextureDef *texdef)
 }
 
 void __cdecl R_SetPassShaderStableArguments(
-                const GfxCmdBufContext *context,
+                const GfxCmdBufContext context,
                 unsigned int argCount,
                 const MaterialShaderArgument *arg)
 {
@@ -826,7 +749,7 @@ void __cdecl R_SetPassShaderStableArguments(
     unsigned __int8 samplerState; // [esp+D3h] [ebp-5h] BYREF
     const MaterialConstantDef *constDef; // [esp+D4h] [ebp-4h]
 
-    material = context->state->material;
+    material = context.state->material;
     constDef = material->localConstantTable;
     while ( !arg->type )
     {
@@ -845,53 +768,56 @@ void __cdecl R_SetPassShaderStableArguments(
                     __debugbreak();
             }
         }
-        R_SetVertexShaderConstantFromLiteral(context->state, arg->dest, constDef->literal);
+        R_SetVertexShaderConstantFromLiteral(context.state, arg->dest, constDef->literal);
         ++arg;
         if ( !--argCount )
             return;
     }
     while ( arg->type == 1 )
     {
-        R_SetVertexShaderConstantFromLiteral(context->state, arg->dest, arg->u.literalConst);
+        R_SetVertexShaderConstantFromLiteral(context.state, arg->dest, arg->u.literalConst);
         ++arg;
         if ( !--argCount )
             return;
     }
     texDef = material->textureTable;
+
     while ( arg->type == 2 )
     {
         texDef = R_SetPixelSamplerFromMaterial(context, arg++, texDef);
         if ( !--argCount )
             return;
     }
+
     while ( arg->type == 3 )
     {
         if ( Use_R_SetVertexShaderConstantFromCode_New )
             R_SetVertexShaderConstantFromCode_New(context, arg);
         else
-            R_SetVertexShaderConstantFromCode_Old(*context, arg);
+            R_SetVertexShaderConstantFromCode_Old(context, arg);
         ++arg;
         if ( !--argCount )
             return;
     }
+
     while ( arg->type == 4 )
     {
-        if ( ((*(_QWORD *)&context->source->input.codeImageRenderTargetControl[arg->u.codeSampler].fields >> 8) & 1) != 0 )
+        if ( ((*(_QWORD *)&context.source->input.codeImageRenderTargetControl[arg->u.codeSampler].fields >> 8) & 1) != 0 )
         {
             R_SetTextureSamplerCodeImageRenderTarget(
-                *context,
+                context,
                 arg->dest,
-                context->source->input.codeImageRenderTargetControl[arg->u.codeSampler]);
+                context.source->input.codeImageRenderTargetControl[arg->u.codeSampler]);
             ++arg;
             if ( !--argCount )
                 return;
         }
         else
         {
-            image = R_GetTextureFromCode(context->source, arg->u.codeSampler, &samplerState);
+            image = R_GetTextureFromCode(context.source, arg->u.codeSampler, &samplerState);
             if ( !image )
                 R_TextureFromCodeError(context, arg->u.codeSampler);
-            R_SetSampler(*context, arg->dest, samplerState, image);
+            R_SetSampler(context, arg->dest, samplerState, image);
             ++arg;
             if ( !--argCount )
                 return;
@@ -931,7 +857,7 @@ void __cdecl R_SetVertexShaderConstantFromLiteral(GfxCmdBufState *state, unsigne
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetVertexShaderConstantF( dest, data, rowCount )\n");
     v9 = R_AcquireDXDeviceOwnership(0);
-    hr = device->SetVertexShaderConstantF(device, dest, literal, 1u);
+    hr = device->SetVertexShaderConstantF(dest, literal, 1u);
     if ( v9 )
         R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
@@ -1137,10 +1063,7 @@ void __cdecl R_SetupPass(GfxCmdBufContext context, unsigned int passIndex)
     R_SetState(context.state, stateBits);
     R_SetPixelShader(context.state, pass->pixelShader);
     if ( pass->stableArgCount )
-        R_SetPassShaderStableArguments(
-            &context,
-            pass->stableArgCount,
-            &pass->localArgs[pass->perPrimArgCount + pass->perObjArgCount]);
+        R_SetPassShaderStableArguments(context, pass->stableArgCount, &pass->localArgs[pass->perPrimArgCount + pass->perObjArgCount]);
 }
 
 void __cdecl R_SetState(GfxCmdBufState *state, unsigned int *stateBits)
@@ -1164,46 +1087,24 @@ int __cdecl R_SetVertexData(GfxCmdBufState *state, const void *data, int vertexC
     void *bufferData; // [esp+Ch] [ebp-8h]
     int totalSize; // [esp+10h] [ebp-4h]
 
-    if ( vertexCount <= 0
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp", 1456, 0, "%s", "vertexCount > 0") )
-    {
-        __debugbreak();
-    }
+    iassert(vertexCount > 0);
     totalSize = stride * vertexCount;
-    if ( stride * vertexCount > gfxBuf.dynamicVertexBuffer->total
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp",
-                    1462,
-                    0,
-                    "%s\n\t(totalSize) = %i",
-                    "(totalSize <= gfxBuf.dynamicVertexBuffer->total)",
-                    totalSize) )
-    {
-        __debugbreak();
-    }
-    if ( totalSize + gfxBuf.dynamicVertexBuffer->used > gfxBuf.dynamicVertexBuffer->total
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp",
-                    1467,
-                    0,
-                    "%s",
-                    "gfxBuf.dynamicVertexBuffer->used + totalSize <= gfxBuf.dynamicVertexBuffer->total") )
-    {
-        __debugbreak();
-    }
+
+    iassert(totalSize <= gfxBuf.dynamicVertexBuffer->total);
+
+    iassert(gfxBuf.dynamicVertexBuffer->used + totalSize <= gfxBuf.dynamicVertexBuffer->total);
+    
     vb = gfxBuf.dynamicVertexBuffer->buffer;
-    if ( !vb && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp", 1480, 0, "%s", "vb") )
-        __debugbreak();
+    iassert(vb);
+
     bufferData = R_LockVertexBuffer(
                                  vb,
                                  gfxBuf.dynamicVertexBuffer->used,
                                  totalSize,
                                  gfxBuf.dynamicVertexBuffer->used != 0 ? 4096 : 0x2000);
-    if ( !bufferData
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_shade.cpp", 1495, 0, "%s", "bufferData") )
-    {
-        __debugbreak();
-    }
+
+    iassert(bufferData);
+    
     if ( bufferData )
         Com_Memcpy(bufferData, data, totalSize);
     R_UnlockVertexBuffer(vb);

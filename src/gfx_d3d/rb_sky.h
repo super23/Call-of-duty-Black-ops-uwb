@@ -34,3 +34,5 @@ void __cdecl RB_DrawBlindAndGlare(SunFlareDynamic *sunFlare, int frameTime);
 void __cdecl RB_CalcSunBlind(SunFlareDynamic *sunFlare, int frameTime, float *blind, float *glare);
 void __cdecl RB_AllocSunSpriteQueries();
 void __cdecl RB_FreeSunSpriteQueries();
+
+extern SunFlareDynamic sunFlareArray[4];

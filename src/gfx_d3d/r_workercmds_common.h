@@ -24,6 +24,8 @@ struct FxCmd // sizeof=0x34
     int updateEffectEnd;
 };
 
+struct GfxSceneEntity;
+
 void __cdecl R_ProcessCmd_UpdateFxSpotLight(FxCmd *cmd);
 void __cdecl R_ProcessCmd_UpdateFxNonDependent(FxCmd *cmd);
 void __cdecl R_DrawEffects(FxCmd *cmd);

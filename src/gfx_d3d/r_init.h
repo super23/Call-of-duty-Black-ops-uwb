@@ -275,7 +275,6 @@ struct trStatistics_t // sizeof=0x10
 {                                       // XREF: .data:rendererStats/r
     trViewStatistics_t *views;          // XREF: CG_DrawFPS(int,ScreenPlacement const *,float,meminfo_t *)+699/w
     Image_MemUsage c_imageUsage;        // XREF: CG_DrawFPS(int,ScreenPlacement const *,float,meminfo_t *)+8B6/r
-                                        // CG_DrawFPS(int,ScreenPlacement const *,float,meminfo_t *)+90D/r ...
 };
 
 struct SavedScreenParams // sizeof=0x14

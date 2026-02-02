@@ -1,6 +1,7 @@
 #pragma once
 
 #include "r_image.h"
+#include <universal/dvar.h>
 
 struct sunflare_t // sizeof=0x60
 {                                       // XREF: GfxWorld/r
@@ -39,3 +40,25 @@ void __cdecl R_Cmd_LoadSun();
 void __cdecl R_Cmd_SaveSun();
 void __cdecl R_SaveSunFromDvars(const char *sunName);
 void __cdecl R_FlushSun();
+
+extern const dvar_t *r_sunsprite_shader;
+extern const dvar_t *r_sunsprite_size;
+extern const dvar_t *r_sunflare_shader;
+extern const dvar_t *r_sunflare_min_size;
+extern const dvar_t *r_sunflare_min_angle;
+extern const dvar_t *r_sunflare_max_size;
+extern const dvar_t *r_sunflare_max_angle;
+extern const dvar_t *r_sunflare_max_alpha;
+extern const dvar_t *r_sunflare_fadein;
+extern const dvar_t *r_sunflare_fadeout;
+extern const dvar_t *r_sunblind_min_angle;
+extern const dvar_t *r_sunblind_max_angle;
+extern const dvar_t *r_sunblind_max_darken;
+extern const dvar_t *r_sunblind_fadein;
+extern const dvar_t *r_sunblind_fadeout;
+extern const dvar_t *r_sunglare_min_angle;
+extern const dvar_t *r_sunglare_max_angle;
+extern const dvar_t *r_sunglare_max_lighten;
+extern const dvar_t *r_sunglare_fadein;
+extern const dvar_t *r_sunglare_fadeout;
+extern const dvar_t *r_sun_fx_position;

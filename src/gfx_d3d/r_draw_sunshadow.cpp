@@ -37,7 +37,7 @@ void    R_DrawSunShadowMap(
         &data->sunShadow.partition[partitionIndex],
         &state, 
         viewInfo, 
-        &viewInfo->drawList[partitionIndex + 8],
+        (GfxDrawSurfListInfo*)&viewInfo->drawList[partitionIndex + 8], // de-const cast
         &data->sunShadow.partition[partitionIndex].shadowViewParms,
         cmdBuf, 
         0);

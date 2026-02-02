@@ -17,6 +17,9 @@ struct DpvsStaticCellCmd // sizeof=0xC
     unsigned __int16 viewIndex;         // XREF: R_AddCellSurfacesAndCullGroupsInFrustumDelayed+35/w
 };
 
+struct GfxSurface;
+union GfxDrawSurf;
+
 char __cdecl TestOccluders(const float (*bounds)[3], int numOccluders, float (*plane)[4]);
 float (*__cdecl TestOccludersPartial(const float (*bounds)[3], int *numOccludersPtr, float (*plane)[4]))[4];
 bool __cdecl R_CalcSurfaceNoDynamicShadow(unsigned int bits, GfxSurface *localSurfaces, GfxDrawSurf *localDrawSurfaces);

@@ -1,4 +1,24 @@
 #pragma once
+#include "rb_state.h"
+#include "r_gfx.h"
+#include "r_rendercmds.h"
+
+struct ShaderConstantSet // sizeof=0x78
+{                                       // XREF: cpose_t/r
+    float value[7][4];
+    unsigned __int8 constantSource[7];
+    unsigned __int8 used;
+};
+
+struct ScopedShaderConstantSetUndo // sizeof=0x7C
+{                                       // XREF: R_RenderDrawSurfListMaterial/r
+    GfxCmdBufSourceState *m_sourceState;
+    ShaderConstantSet m_scs;
+
+
+    ScopedShaderConstantSetUndo(GfxCmdBufSourceState *sourceState, const ShaderConstantSet *cscEA);
+    ~ScopedShaderConstantSetUndo();
+};
 
 void __cdecl R_InitShaderConstantSet(ShaderConstantSet *scs);
 bool __cdecl R_ShaderConstantSetIsUsed(const ShaderConstantSet *scs);
@@ -31,11 +51,7 @@ void __cdecl RB_SaveCurrentShaderConstantSetValues(
                 ShaderConstantSet *destSet,
                 GfxCmdBufSourceState *gfxSourceState,
                 const ShaderConstantSet *srcSet);
-ScopedShaderConstantSetUndo *__thiscall ScopedShaderConstantSetUndo::ScopedShaderConstantSetUndo(
-                ScopedShaderConstantSetUndo *this,
-                GfxCmdBufSourceState *sourceState,
-                const ShaderConstantSet *cscEA);
-void __thiscall ScopedShaderConstantSetUndo::~ScopedShaderConstantSetUndo(ScopedShaderConstantSetUndo *this);
+
 void __cdecl R_ShaderConstantShowDebug(
                 const float *eyePos,
                 const float *objOrigin,

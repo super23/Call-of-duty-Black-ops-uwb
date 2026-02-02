@@ -11,13 +11,7 @@ struct ImageList // sizeof=0x4004
                                         // R_ImageList_Output(void)+A8/w ...
 };
 
-struct Image_MemUsage // sizeof=0xC
-{                                       // XREF: trStatistics_t/r
-    int total;                          // XREF: CG_DrawFPS(int,ScreenPlacement const *,float,meminfo_t *)+8B6/r
-    int lightmap;
-    int minspec;                        // XREF: CG_DrawFPS(int,ScreenPlacement const *,float,meminfo_t *)+90D/r
-                                        // CG_DrawFPS(int,ScreenPlacement const *,float,meminfo_t *)+920/r ...
-};
+struct Image_MemUsage;
 
 void __cdecl Image_TrackTotalMemory(GfxImage *image, int platform, int memory);
 bool __cdecl Image_IsCodeImage(int track);

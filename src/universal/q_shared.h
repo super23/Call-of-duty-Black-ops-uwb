@@ -153,11 +153,22 @@ typedef ull                         uint64;
 #define M_PI		3.14159265358979323846	// matches value in gcc v2 math.h
 #endif
 
+#ifndef M_2_PI
+#define M_2_PI (M_PI * 2.0)
+#endif
+
 #ifndef M_PI_2
 #define M_PI_2 1.57079632679489661923
 #endif
 
 #define M_PI_HALF (M_PI / 2.0) // LWSS ADD
+
+#define PI_DIV_180		0.017453292519943295769236907684886
+#define INV_PI_DIV_180	57.295779513082320876798154814105
+
+// Punish Aurelio if you don't like these performance enhancements. :-)
+#define DEG2RAD( a ) ( ( (a) * PI_DIV_180 ) )
+#define RAD2DEG( a ) ( ( (a) * INV_PI_DIV_180 ) )
 
 // Some convenience macros to make partial accesses nicer
 #define LAST_IND(x,part_type)        (sizeof(x)/sizeof(part_type) - 1)
@@ -413,6 +424,10 @@ static const float colorWhiteFaded[4] = { 1.0, 1.0, 1.0, 0.75 }; // idb
 static const float colorGreenFaded[4] = { 0.0, 1.0, 0.0, 0.75 }; // idb
 static const float colorRedFaded[4] = { 0.75, 0.25, 0.0, 0.75 }; // idb
 static const float colorDkRed[4] = { 0.25, 0.0, 0.0, 1.0 };
+static const float colorDkYellow[4] = { 0.25, 0.25, 0.0, 1.0 };
+static const float colorDkGreen[4] = { 0.0, 0.25, 0.0, 1.0 };
+
+
 
 
 #define	MAX_GENTITIES		(1024) // 0x400

@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cgame/cg_drawtools.h>
 #include "r_material_consts.h"
+#include "r_state.h"
 
 MaterialTypeInfo g_materialTypeInfo[5] =
 {

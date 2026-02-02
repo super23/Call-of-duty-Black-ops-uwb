@@ -715,14 +715,14 @@ void R_ResolveIntZ_PC()
         if (!dx.nvDepthBufferHandle || !dx.nvFloatZBufferHandle)
             R_GetIntZHandles((NVDX_ObjectHandle__ *)v0);
 
-        if (NvAPI_D3D9_StretchRect(dx.device, dx.nvDepthBufferHandle, 0, dx.nvFloatZBufferHandle, 0, D3DTEXF_POINT))
+        if (NvAPI_D3D9_StretchRect(dx.device, (NVDX_ObjectHandle)dx.nvDepthBufferHandle, 0, (NVDX_ObjectHandle)dx.nvFloatZBufferHandle, 0, D3DTEXF_POINT))
         {
             R_GetIntZHandles(v2);
             status = NvAPI_D3D9_StretchRect(
                 dx.device,
-                dx.nvDepthBufferHandle,
+                (NVDX_ObjectHandle)dx.nvDepthBufferHandle,
                 0,
-                dx.nvFloatZBufferHandle,
+                (NVDX_ObjectHandle)dx.nvFloatZBufferHandle,
                 0,
                 D3DTEXF_POINT);
         }
@@ -5669,7 +5669,7 @@ void __cdecl RB_RenderCommandFrame(const GfxBackEndData *data)
     }
     Name = va("exec cmds c=%d v=%d", clientNum, viewInfoIdx);
     //PIXBeginNamedEvent(-1, Name);
-    RB_BeginFrame((GfxViewInfo *)data);
+    RB_BeginFrame((GfxBackEndData*)data);
     RB_DrawComposites();
     RB_Draw3D();
     drawType = backEndData->drawType;

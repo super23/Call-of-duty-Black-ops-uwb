@@ -8,6 +8,7 @@
 #include "r_init.h"
 #include "r_draw_material.h"
 #include "r_foliage.h"
+#include "r_material_load_obj.h"
 
 unsigned int s_decodeSamplerFilterState[24];
 
