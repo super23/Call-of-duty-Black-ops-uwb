@@ -3683,7 +3683,7 @@ bool __cdecl BG_ClipMoveToDobj(const entityState_s *es)
         __debugbreak();
     if ( es->eType == 14 || es->eType == 16 )
         return 1;
-    return (char *)es->solid != &cls.rankedServers[711].game[34] && es->eType != 17 && es->eType != 1;
+    return es->solid != 0xFFFFFF && es->eType != 17 && es->eType != 1;
 }
 
 int __cdecl BG_GetFriendlyFireStatus()

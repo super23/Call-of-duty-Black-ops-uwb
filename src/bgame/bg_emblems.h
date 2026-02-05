@@ -4,6 +4,8 @@
 #include <qcommon/msg_mp.h>
 #include <bgame/bg_emblems.h>
 
+struct CompositeEmblemLayer;
+
 struct BackgroundPurchasedCount // sizeof=0x8
 {                                       // XREF: .data:s_backgroundPurchasedCount/r
     unsigned int flush;

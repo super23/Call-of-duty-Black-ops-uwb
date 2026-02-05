@@ -179,3 +179,12 @@ public:
 //                phys_gjk_info *gjk_info);
 
 void create_entity_bpi(gjk_physics_collision_visitor *collision_visitor, int mask);
+
+generic_avl_map_node_t *__cdecl generic_avl_map_add(
+    phys_inplace_avl_tree<unsigned int, generic_avl_map_node_t, generic_avl_map_node_t> *gam,
+    void *data,
+    unsigned int avl_key);
+
+void *__cdecl generic_avl_map_destroy(
+    phys_inplace_avl_tree<unsigned int, generic_avl_map_node_t, generic_avl_map_node_t> *gam,
+    unsigned int avl_key);

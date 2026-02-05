@@ -75,7 +75,7 @@ const phys_mat44 *__thiscall gjk_base_t::get_xform()
     return this->m_xform_;
 }
 
-bool gjk_base_t::is_foot(const phys_vec3 *hit_point)
+bool gjk_base_t::is_foot(const phys_vec3 *hit_point) const
 {
     return 0;
 }
@@ -1396,7 +1396,7 @@ void    phys_aabb_add_sphere(
     aabb_max->z = v7->z;
 }
 
-float gjk_double_sphere_t::get_geom_radius()
+float gjk_double_sphere_t::get_geom_radius() const
 {
     return this->m_geom_radius;
 }

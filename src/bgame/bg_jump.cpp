@@ -3,6 +3,8 @@
 #include "bg_pmove.h"
 #include "bg_misc.h"
 
+#include <cgame_mp/cg_predict_mp.h>
+
 const dvar_t *jump_height;
 const dvar_t *jump_stepSize;
 const dvar_t *jump_slowdownEnable;

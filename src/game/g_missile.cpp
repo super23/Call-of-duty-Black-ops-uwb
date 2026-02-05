@@ -860,7 +860,7 @@ void __cdecl Scr_MissileCreateAttractorEnt()
     if ( attrGlob.attractors[attractorIndex].maxDist <= 0.0 )
         Scr_ParamError(2u, "maxDist must be greater than zero", SCRIPTINSTANCE_SERVER);
     attrGlob.attractors[attractorIndex].entnum = ent->s.number;
-    ent->flags |= (unsigned int)&loc_800000;
+    ent->flags |= 0x800000;
     attrGlob.attractors[attractorIndex].inUse = 1;
     Scr_AddInt(attractorIndex, SCRIPTINSTANCE_SERVER);
 }

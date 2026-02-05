@@ -7,6 +7,7 @@
 #include "bg_public.h"
 #include "bg_weapons_load_obj.h"
 #include "bg_misc.h"
+#include <cgame_mp/cg_predict_mp.h>
 
 #include <cmath>
 #include "bg_pmove.h"

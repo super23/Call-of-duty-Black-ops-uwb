@@ -647,6 +647,14 @@ struct phys_transient_allocator // sizeof=0x18
     unsigned int m_total_memory_allocated;
     minspec_read_write_mutex m_mutex;   // XREF: physics_system::time_step(float,bool)+158/w
     void *m_slot_pool;                  // XREF: physics_system::time_step(float,bool)+15F/w
+
+    void *__thiscall allocate(
+        int size,
+        int alignment,
+        int no_error,
+        const char *error_msg);
+
+    void resize();
 };
 
 struct phys_memory_heap // sizeof=0x10
@@ -940,16 +948,246 @@ struct phys_inplace_avl_tree_node//<auto_rigid_body> // sizeof=0xC
     int m_balance;
 };
 
-template<typename T1, typename T2, typename T3>
-struct phys_inplace_avl_tree //<centity_s const *,auto_rigid_body,auto_rigid_body> // sizeof=0x4
-{                                       // XREF: .data:phys_inplace_avl_tree<centity_s const *,auto_rigid_body,auto_rigid_body> g_auto_rigid_body_map/r
-    //auto_rigid_body *m_tree_root;       // XREF: auto_rigid_body::add(centity_s const *,gjk_physics_collision_visitor *,int)+11A/r
-    T2 *m_tree_root;
 
-    void add(const T1 *key, T2 *data);
-    T2 *find(const T1 *key);
-    void remove(T1 *key);
+// aislop
+template<typename T1, typename T2, typename Accessor>
+struct phys_inplace_avl_tree
+{
+    struct stack_item
+    {
+        T2 **m_node;   // pointer to pointer to node
+        int  m_child;  // -1 = left, +1 = right
+    };
+
+    T2 *m_tree_root = nullptr;
+
+    /* ------------------------------------------------------------ */
+    /* rotations                                                    */
+    /* ------------------------------------------------------------ */
+
+    inline void rotate_left(T2 **root)
+    {
+        T2 *save_right = (*root)->m_avl_node_info.m_right;
+
+        (*root)->m_avl_node_info.m_right =
+            save_right->m_avl_node_info.m_left;
+        save_right->m_avl_node_info.m_left = *root;
+
+        int delta = (save_right->m_avl_node_info.m_balance <= 0)
+            ? 0
+            : save_right->m_avl_node_info.m_balance;
+
+        (*root)->m_avl_node_info.m_balance -= delta + 1;
+
+        int adj = ((*root)->m_avl_node_info.m_balance >= 0)
+            ? 0
+            : -(*root)->m_avl_node_info.m_balance;
+
+        save_right->m_avl_node_info.m_balance -= adj + 1;
+
+        *root = save_right;
+    }
+
+    inline void rotate_right(T2 **root)
+    {
+        T2 *save_left = (*root)->m_avl_node_info.m_left;
+
+        (*root)->m_avl_node_info.m_left =
+            save_left->m_avl_node_info.m_right;
+        save_left->m_avl_node_info.m_right = *root;
+
+        int delta = (save_left->m_avl_node_info.m_balance >= 0)
+            ? 0
+            : -save_left->m_avl_node_info.m_balance;
+
+        (*root)->m_avl_node_info.m_balance += delta + 1;
+
+        int adj = ((*root)->m_avl_node_info.m_balance <= 0)
+            ? 0
+            : (*root)->m_avl_node_info.m_balance;
+
+        save_left->m_avl_node_info.m_balance += adj + 1;
+
+        *root = save_left;
+    }
+
+    /* ------------------------------------------------------------ */
+    /* find                                                         */
+    /* ------------------------------------------------------------ */
+
+    inline T2 *find(const T1 *key)
+    {
+        T2 *node = m_tree_root;
+
+        while (node)
+        {
+            if (Accessor::equals(node, key))
+                return node;
+
+            node = Accessor::less(key, node)
+                ? node->m_avl_node_info.m_left
+                : node->m_avl_node_info.m_right;
+        }
+        return nullptr;
+    }
+
+    /* ------------------------------------------------------------ */
+    /* add                                                          */
+    /* ------------------------------------------------------------ */
+
+    inline void add(const T1 *key, T2 *data)
+    {
+        stack_item stack[32];
+        stack_item *cur = stack;
+
+        cur->m_node = &m_tree_root;
+
+        while (*cur->m_node)
+        {
+            T2 *root = *cur->m_node;
+            stack_item *next = cur + 1;
+
+            if (!Accessor::less(key, root))
+            {
+                cur->m_child = +1;
+                next->m_node = &root->m_avl_node_info.m_right;
+            }
+            else
+            {
+                cur->m_child = -1;
+                next->m_node = &root->m_avl_node_info.m_left;
+            }
+            cur = next;
+        }
+
+        *cur->m_node = data;
+        data->m_avl_node_info.m_left = nullptr;
+        data->m_avl_node_info.m_right = nullptr;
+        data->m_avl_node_info.m_balance = 0;
+
+        do
+        {
+            if (cur <= stack)
+                break;
+
+            --cur;
+            T2 **node = cur->m_node;
+            (*node)->m_avl_node_info.m_balance += cur->m_child;
+
+            if ((*node)->m_avl_node_info.m_balance == -2)
+            {
+                if ((*node)->m_avl_node_info.m_left
+                    ->m_avl_node_info.m_balance == 1)
+                {
+                    rotate_left(&(*node)->m_avl_node_info.m_left);
+                }
+                rotate_right(node);
+            }
+            else if ((*node)->m_avl_node_info.m_balance == 2)
+            {
+                if ((*node)->m_avl_node_info.m_right
+                    ->m_avl_node_info.m_balance == -1)
+                {
+                    rotate_right(&(*node)->m_avl_node_info.m_right);
+                }
+                rotate_left(node);
+            }
+        } while ((*cur->m_node)->m_avl_node_info.m_balance);
+    }
+
+    /* ------------------------------------------------------------ */
+    /* remove                                                       */
+    /* ------------------------------------------------------------ */
+
+    inline void remove(const T1 *key)
+    {
+        stack_item stack[32];
+        stack_item *cur = stack;
+
+        cur->m_node = &m_tree_root;
+
+        while (true)
+        {
+            T2 *root = *cur->m_node;
+            stack_item *next = cur + 1;
+
+            if (Accessor::less(key, root))
+            {
+                cur->m_child = -1;
+                next->m_node = &root->m_avl_node_info.m_left;
+            }
+            else if (Accessor::less(root, key))
+            {
+                cur->m_child = +1;
+                next->m_node = &root->m_avl_node_info.m_right;
+            }
+            else
+            {
+                break;
+            }
+            cur = next;
+        }
+
+        T2 **victim = cur->m_node;
+
+        if ((*victim)->m_avl_node_info.m_right)
+        {
+            cur->m_child = +1;
+            ++cur;
+            cur->m_node = &(*victim)->m_avl_node_info.m_right;
+
+            while ((*cur->m_node)->m_avl_node_info.m_left)
+            {
+                cur->m_child = -1;
+                (cur + 1)->m_node =
+                    &(*cur->m_node)->m_avl_node_info.m_left;
+                ++cur;
+            }
+
+            T2 *replace = *cur->m_node;
+            *cur->m_node = replace->m_avl_node_info.m_right;
+
+            replace->m_avl_node_info =
+                (*victim)->m_avl_node_info;
+
+            *victim = replace;
+        }
+        else
+        {
+            *victim = (*victim)->m_avl_node_info.m_left;
+        }
+
+        do
+        {
+            if (cur <= stack)
+                break;
+
+            --cur;
+            T2 **node = cur->m_node;
+            (*node)->m_avl_node_info.m_balance -= cur->m_child;
+
+            if ((*node)->m_avl_node_info.m_balance == -2)
+            {
+                if ((*node)->m_avl_node_info.m_left
+                    ->m_avl_node_info.m_balance == 1)
+                {
+                    rotate_left(&(*node)->m_avl_node_info.m_left);
+                }
+                rotate_right(node);
+            }
+            else if ((*node)->m_avl_node_info.m_balance == 2)
+            {
+                if ((*node)->m_avl_node_info.m_right
+                    ->m_avl_node_info.m_balance == -1)
+                {
+                    rotate_right(&(*node)->m_avl_node_info.m_right);
+                }
+                rotate_left(node);
+            }
+        } while ((*cur->m_node)->m_avl_node_info.m_balance == 0);
+    }
 };
+
 
 struct __declspec(align(16)) cached_query_info_t // sizeof=0x30
 {                                       // XREF: gjk_query_output/r
@@ -965,6 +1203,25 @@ struct __declspec(align(16)) cached_query_info_t // sizeof=0x30
     // padding byte
     // padding byte
     // padding byte
+
+    inline bool is_empty()
+    {
+        if (this->m_query_contents)
+            return false;
+
+        if (this->m_query_flags)
+        {
+            if (!Assert_MyHandler(
+                "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
+                212,
+                0,
+                "%s",
+                "m_query_flags == 0"))
+                __debugbreak();
+        }
+
+        return true;
+    }
 
     bool aabb_is_valid();
     void init_query(

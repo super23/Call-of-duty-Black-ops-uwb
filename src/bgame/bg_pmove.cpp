@@ -1,6 +1,173 @@
 #include "bg_pmove.h"
 #include "bg_public.h"
 
+#include <cgame_mp/cg_predict_mp.h>
+#include <game/actor_physics.h>
+#include "bg_misc.h"
+#include "bg_slidemove.h"
+#include <glass/glass_server.h>
+#include "bg_weapons_ammo.h"
+#include <universal/com_math_anglevectors.h>
+#include "bg_dtp.h"
+#include <win32/win_shared.h>
+#include "bg_jump.h"
+#include <client/splitscreen.h>
+#include <game_mp/g_main_mp.h>
+
+const scriptAnimMoveTypes_t notMovingAnims[3] =
+{ ANIM_MT_IDLE, ANIM_MT_TURNRIGHT, ANIM_MT_TURNLEFT };
+
+float GUNNER_CROUCH_TIME = 400.0f;
+float PRONE_FEET_DIST_TURNED = 55.0f;
+
+const float pm_ladderScale = 0.5;
+const float pm_waterWadeScale = 0.60000002;
+const float pm_prone_accelerate = 19.0;
+const float pm_ducked_accelerate = 12.0;
+const float pm_accelerate = 9.0;
+const float pm_airaccelerate = 1.0;
+const float pm_slideaccelerate = 2.0;
+const float pm_wateraccelerate = 2.0;
+const float pm_flyaccelerate = 8.0;
+const float pm_waterfriction = 1.0;
+const float pm_ladderfriction = 16.0;
+const float pm_spectatorfriction = 5.0;
+
+const scriptAnimMoveTypes_t moveAnimTable[6][3][2] =
+{
+  {
+    { ANIM_MT_RUN, ANIM_MT_STUMBLE },
+    { ANIM_MT_WALK, ANIM_MT_STUMBLE_WALK },
+    { ANIM_MT_SHUFFLE, ANIM_MT_SHUFFLE }
+  },
+  {
+    { ANIM_MT_WALK, ANIM_MT_WALK },
+    { ANIM_MT_WALK, ANIM_MT_WALK },
+    { ANIM_MT_SHUFFLE, ANIM_MT_SHUFFLE }
+  },
+  {
+    { ANIM_MT_RUN, ANIM_MT_STUMBLE },
+    { ANIM_MT_WALK, ANIM_MT_STUMBLE },
+    { ANIM_MT_SHUFFLE, ANIM_MT_SHUFFLE }
+  },
+  {
+    { ANIM_MT_RUN, ANIM_MT_STUMBLE },
+    { ANIM_MT_WALK, ANIM_MT_STUMBLE_WALK },
+    { ANIM_MT_SHUFFLE, ANIM_MT_SHUFFLE }
+  },
+  {
+    { ANIM_MT_WALK, ANIM_MT_WALK },
+    { ANIM_MT_WALK, ANIM_MT_WALK },
+    { ANIM_MT_SHUFFLE, ANIM_MT_SHUFFLE }
+  },
+  {
+    { ANIM_MT_RUN, ANIM_MT_STUMBLE },
+    { ANIM_MT_WALK, ANIM_MT_STUMBLE },
+    { ANIM_MT_SHUFFLE, ANIM_MT_SHUFFLE }
+  }
+};
+
+
+const float bobFactorTable[6][2] =
+{
+  { 0.33500001, 0.28 },
+  { 0.25, 0.23999999 },
+  { 0.34, 0.28999999 },
+  { 0.36000001, 0.30000001 },
+  { 0.25, 0.23999999 },
+  { 0.34, 0.28999999 }
+};
+
+viewLerpWaypoint_s viewLerp_StandCrouch[9] =
+{
+  { 0, 60.0, 0 },
+  { 1, 59.5, 0 },
+  { 4, 58.5, 0 },
+  { 30, 56.0, 0 },
+  { 80, 44.0, 0 },
+  { 90, 41.5, 0 },
+  { 95, 40.5, 0 },
+  { 100, 40.0, 0 },
+  { -1, 0.0, 0 }
+};
+
+viewLerpWaypoint_s viewLerp_CrouchStand[9] =
+{
+  { 0, 40.0, 0 },
+  { 5, 40.5, 0 },
+  { 10, 41.5, 0 },
+  { 20, 44.0, 0 },
+  { 70, 56.0, 0 },
+  { 96, 58.5, 0 },
+  { 99, 59.5, 0 },
+  { 100, 60.0, 0 },
+  { -1, 0.0, 0 }
+};
+
+viewLerpWaypoint_s viewLerp_CrouchProne[11] =
+{
+  { 0, 40.0, 0 },
+  { 11, 38.0, 0 },
+  { 22, 33.0, 0 },
+  { 34, 25.0, 0 },
+  { 45, 16.0, 0 },
+  { 50, 15.0, 0 },
+  { 55, 16.0, 0 },
+  { 70, 18.0, 0 },
+  { 90, 17.0, 0 },
+  { 100, 11.0, 0 },
+  { -1, 0.0, 0 }
+};
+
+viewLerpWaypoint_s viewLerp_ProneCrouch[8] =
+{
+  { 0, 11.0, 0 },
+  { 5, 10.0, 0 },
+  { 30, 21.0, 0 },
+  { 50, 25.0, 0 },
+  { 67, 31.0, 0 },
+  { 83, 34.0, 0 },
+  { 100, 40.0, 0 },
+  { -1, 0.0, 0 }
+};
+
+
+// *WARNING* One or more selections were skipped as they could not be interpreted as c data
+
+
+const float CorrectSolidDeltas[26][3] =
+{
+  { 0.0, 0.0, 1.0 },
+  { -1.0, 0.0, 1.0 },
+  { 0.0, -1.0, 1.0 },
+  { 1.0, 0.0, 1.0 },
+  { 0.0, 1.0, 1.0 },
+  { -1.0, 0.0, 0.0 },
+  { 0.0, -1.0, 0.0 },
+  { 1.0, 0.0, 0.0 },
+  { 0.0, 1.0, 0.0 },
+  { 0.0, 0.0, -1.0 },
+  { -1.0, 0.0, -1.0 },
+  { 0.0, -1.0, -1.0 },
+  { 1.0, 0.0, -1.0 },
+  { 0.0, 1.0, -1.0 },
+  { -1.0, -1.0, 1.0 },
+  { 1.0, -1.0, 1.0 },
+  { 1.0, 1.0, 1.0 },
+  { -1.0, 1.0, 1.0 },
+  { -1.0, -1.0, 0.0 },
+  { 1.0, -1.0, 0.0 },
+  { 1.0, 1.0, 0.0 },
+  { -1.0, 1.0, 0.0 },
+  { -1.0, -1.0, -1.0 },
+  { 1.0, -1.0, -1.0 },
+  { 1.0, 1.0, -1.0 },
+  { -1.0, 1.0, -1.0 }
+};
+
+
+
+
 void __cdecl setup_gjkcc_input(pmove_t *pm, gjkcc_input_t *gjkcc_in)
 {
     gjkcc_in->gjkcc_id = (unsigned int)pm;
@@ -15,6 +182,9 @@ void __cdecl setup_gjkcc_input(pmove_t *pm, gjkcc_input_t *gjkcc_in)
     gjkcc_in->m_gjk_cg = 0;
     gjkcc_in->m_mat = 0;
 }
+
+int g_num_client_trace_calls;
+int g_num_server_trace_calls;
 
 void __cdecl PM_trace(
                 pmove_t *pm,
@@ -36,24 +206,19 @@ void __cdecl PM_trace(
         ++g_num_server_trace_calls;
     else
         ++g_num_client_trace_calls;
+
     //col_context_t::col_context_t(&context);
-    colgeom_visitor_inlined_t<200>::update(
-        &pm->proximity_data,
+
+//    colgeom_visitor_inlined_t<200>::update(
+        pm->proximity_data.update(
         start,
         end,
         mins,
         maxs,
-        (int)&ents_params[74].targetname[43]);
-    if ( ((unsigned int)&ents_params[74].targetname[43] & contentMask) != contentMask
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp",
-                    338,
-                    0,
-                    "%s",
-                    "( MASK_PLAYER_FULL & contentMask ) == contentMask") )
-    {
-        __debugbreak();
-    }
+        MASK_PLAYER_FULL);
+
+    iassert((MASK_PLAYER_FULL & contentMask) == contentMask);
+
     context.prims = pm->proximity_data.prims;
     context.nprims = pm->proximity_data.nprims;
     pmoveHandlers[pm->handler].trace(results, start, mins, maxs, end, passEntityNum, contentMask, &context);
@@ -78,27 +243,20 @@ void __cdecl PM_playerTrace(
     if ( phys_player_collision_mode->current.integer == 1 )
     {
         gjkcc_in = pm->m_gjkcc_input;
-        gjk_player_trace((int)&savedregs, gjkcc_in, results, start, mins, maxs, end, passEntityNum, contentMask);
+        gjk_player_trace(gjkcc_in, results, start, mins, maxs, end, passEntityNum, contentMask);
         goto LABEL_9;
     }
     //col_context_t::col_context_t(&context);
-    colgeom_visitor_inlined_t<200>::update(
-        &pm->proximity_data,
-        start,
-        end,
-        mins,
-        maxs,
-        (int)&ents_params[74].targetname[43]);
-    if ( ((unsigned int)&ents_params[74].targetname[43] & contentMask) != contentMask
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp",
-                    366,
-                    0,
-                    "%s",
-                    "( MASK_PLAYER_FULL & contentMask ) == contentMask") )
-    {
-        __debugbreak();
-    }
+    //colgeom_visitor_inlined_t<200>::update(
+    pm->proximity_data.update(
+    start,
+    end,
+    mins,
+    maxs,
+    MASK_PLAYER_FULL);
+
+    iassert((MASK_PLAYER_FULL & contentMask) == contentMask);
+
     context.prims = pm->proximity_data.prims;
     context.nprims = pm->proximity_data.nprims;
     pmoveHandlers[pm->handler].trace(results, start, mins, maxs, end, passEntityNum, contentMask, &context);
@@ -189,8 +347,7 @@ void __cdecl PM_ClipVelocity(const float *in, const float *normal, float *out)
     float v4; // [esp+0h] [ebp-8h]
 
     v3 = (float)((float)(*in * *normal) + (float)(in[1] * normal[1])) + (float)(in[2] * normal[2]);
-    LODWORD(v4) = COERCE_UNSIGNED_INT(v3 - (float)(fabs(v3) * 0.001))
-                            ^ _mask__NegFloat_;
+    v4 = -(v3 - (float)(fabs(v3) * 0.001));
     *out = (float)(v4 * *normal) + *in;
     out[1] = (float)(v4 * normal[1]) + in[1];
     out[2] = (float)(v4 * normal[2]) + in[2];
@@ -212,8 +369,7 @@ void __cdecl PM_ProjectVelocity(const float *velIn, const float *normal, float *
     }
     else
     {
-        newZ = COERCE_FLOAT(COERCE_UNSIGNED_INT((float)(*velIn * *normal) + (float)(velIn[1] * normal[1])) ^ _mask__NegFloat_)
-                 / normal[2];
+        newZ = (-((float)(*velIn * *normal) + (float)(velIn[1] * normal[1]))) / normal[2];
         adjusted_4 = velIn[1];
         lengthScale = sqrtf((float)((float)(velIn[2] * velIn[2]) + lengthSq2D) / (float)((float)(newZ * newZ) + lengthSq2D));
         if ( lengthScale < 1.0 || newZ < 0.0 || velIn[2] > 0.0 )
@@ -365,9 +521,7 @@ double __cdecl PM_DamageScale_Walk(int damage_timer)
     if ( timer_max == 0.0 )
         return 1.0;
     else
-        return (float)((float)((float)damage_timer
-                                                 * (float)(COERCE_FLOAT(player_dmgtimer_minScale->current.integer ^ _mask__NegFloat_) / timer_max))
-                                 + 1.0);
+        return (float)((float)((float)damage_timer * (float)((-player_dmgtimer_minScale->current.value) / timer_max)) + 1.0);
 }
 
 unsigned int __cdecl PM_GroundSurfaceType(playerState_s *ps, pml_t *pml)
@@ -440,7 +594,6 @@ bool __cdecl PlayerProneAllowed(pmove_t *pm)
     if ( pm->ps->waterlevel >= 1 )
         return 0;
     return BG_CheckProne(
-                     (cStaticModel_s *)&savedregs,
                      ps,
                      ps->clientNum,
                      ps->origin,
@@ -623,14 +776,14 @@ void __cdecl PM_UpdateLean(
     memset(&trace, 0, 16);
     //col_context_t::col_context_t(&context);
     if ( ps->weaponstate != 35
-        && (bitarray<51>::testBit(&cmd->button_bits, 6u) || bitarray<51>::testBit(&cmd->button_bits, 7u))
+        && (cmd->button_bits.testBit(6u) || cmd->button_bits.testBit(7u))
         && (ps->pm_flags & 0x800) == 0
         && ps->pm_type < 9
         && (ps->groundEntityNum != 1023 || ps->pm_type == 1) )
     {
-        if ( bitarray<51>::testBit(&cmd->button_bits, 6u) )
+        if ( cmd->button_bits.testBit(6u) )
             --leaning;
-        if ( bitarray<51>::testBit(&cmd->button_bits, 7u) )
+        if ( cmd->button_bits.testBit(7u) )
             ++leaning;
     }
     if ( (ps->eFlags & 0x4300) != 0
@@ -639,7 +792,7 @@ void __cdecl PM_UpdateLean(
         && ps->vehiclePos <= 4
         && ps->vehicleType != 6 )
     {
-        if ( bitarray<51>::testBit(&cmd->button_bits, 9u) )
+        if ( cmd->button_bits.testBit(9u) )
             ps->leanf = (float)(msec / GUNNER_CROUCH_TIME) + ps->leanf;
         else
             ps->leanf = ps->leanf - (float)(msec / GUNNER_CROUCH_TIME);
@@ -666,9 +819,9 @@ void __cdecl PM_UpdateLean(
         {
             if ( leaning <= 0 )
             {
-                if ( leanofs > COERCE_FLOAT(LODWORD(fLeanMax) ^ _mask__NegFloat_) )
+                if ( leanofs > (-(fLeanMax)) )
                     leanofs = leanofs - (float)((float)(msec / 350.0) * fLeanMax);
-                if ( COERCE_FLOAT(LODWORD(fLeanMax) ^ _mask__NegFloat_) > leanofs )
+                if ( (-(fLeanMax)) > leanofs )
                     leanofs = -fLeanMax;
             }
             else
@@ -712,14 +865,15 @@ void __cdecl PM_UpdateLean(
             tmaxs[0] = 8.0f;
             tmaxs[1] = 8.0f;
             tmaxs[2] = 8.0f;
-            ((void (__cdecl *)(trace_t *, float *, float *, float *, float *, unsigned int, char *))capsuleTrace)(
+            capsuleTrace(
                 &trace,
                 start,
                 tmins,
                 tmaxs,
                 end,
                 ps->clientNum,
-                &ents_params[74].targetname[43]);
+                0x3818813, 
+                NULL);
             fLean = UnGetLeanFraction(trace.fraction);
             if ( fabs(ps->leanf) > fLean )
             {
@@ -744,8 +898,7 @@ void __cdecl PM_UpdateViewAngles_RangeLimited(playerState_s *ps)
         if ( ps->viewAngleClampRange[i] < 180.0 )
         {
             delta = AngleDelta(ps->viewAngleClampBase[i], ps->viewangles[i]);
-            if ( delta > ps->viewAngleClampRange[i]
-                || COERCE_FLOAT(LODWORD(ps->viewAngleClampRange[i]) ^ _mask__NegFloat_) > delta )
+            if ( delta > ps->viewAngleClampRange[i] || (-(ps->viewAngleClampRange[i])) > delta )
             {
                 if ( delta <= ps->viewAngleClampRange[i] )
                     deltaa = delta + ps->viewAngleClampRange[i];
@@ -803,10 +956,7 @@ LABEL_31:
             }
             if ( (ps->pm_flags & 8) != 0 && ps->groundEntityNum == 1023 && bg_ladder_yawcap->current.value != 0.0 )
                 PM_UpdateViewAngles_LadderClamp(ps);
-            if ( (ps->pm_flags & 1) != 0
-                && !*(unsigned int *)(*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)
-                                            + 1480 * ps->clientNum
-                                            + 256) )
+            if ( (ps->pm_flags & 1) != 0 && !bgs->clientinfo[ps->clientNum].needsRevive)
             {
                 if ( (ps->eFlags & 0x300) != 0
                     && !Assert_MyHandler(
@@ -840,7 +990,7 @@ void __cdecl PM_UpdateViewLockedEnt(playerState_s *ps, usercmd_s *cmd, unsigned 
         __debugbreak();
     if ( player_viewLockEnt->current.integer )
     {
-        (*(&off_DFF518 + 8 * handler))(ps->clientNum, player_viewLockEnt->current.integer, origin, angles);
+        pmoveHandlers[handler].getEntityOriginAngles(ps->clientNum, player_viewLockEnt->current.integer, origin, angles);
         viewPos[0] = ps->origin[0];
         viewPos[1] = ps->origin[1];
         viewPos[2] = ps->origin[2];
@@ -864,9 +1014,9 @@ void __cdecl PM_UpdateViewAngles_Clamp(playerState_s *ps, usercmd_s *cmd, unsign
     float temp; // [esp+Ch] [ebp-10h]
     int i; // [esp+10h] [ebp-Ch]
     float maxPitch; // [esp+14h] [ebp-8h]
-    int minPitch; // [esp+18h] [ebp-4h]
+    float minPitch; // [esp+18h] [ebp-4h]
 
-    minPitch = player_view_pitch_up->current.integer;
+    minPitch = player_view_pitch_up->current.value;
     maxPitch = player_view_pitch_down->current.value;
     for ( i = 0; i < 3; ++i )
     {
@@ -880,10 +1030,10 @@ void __cdecl PM_UpdateViewAngles_Clamp(playerState_s *ps, usercmd_s *cmd, unsign
             goto LABEL_15;
         if ( temp <= maxPitch )
         {
-            if ( COERCE_FLOAT(minPitch ^ _mask__NegFloat_) > temp )
+            if ( -minPitch > temp )
             {
-                ps->delta_angles[0] = COERCE_FLOAT(minPitch ^ _mask__NegFloat_) - (float)((float)cmd->angles[0] * 0.0054931641);
-                LODWORD(temp) = minPitch ^ _mask__NegFloat_;
+                ps->delta_angles[0] = -minPitch - (float)((float)cmd->angles[0] * 0.0054931641);
+                temp = -minPitch;
             }
 LABEL_15:
             v3 = AngleNormalize180(temp);
@@ -905,8 +1055,7 @@ void __cdecl PM_UpdateViewAngles_LadderClamp(playerState_s *ps)
 
     ladderFacing = vectoyaw(ps->vLadderVec) + 180.0;
     delta = AngleDelta(ladderFacing, ps->viewangles[1]);
-    if ( delta > bg_ladder_yawcap->current.value
-        || COERCE_FLOAT(bg_ladder_yawcap->current.integer ^ _mask__NegFloat_) > delta )
+    if ( delta > bg_ladder_yawcap->current.value || -bg_ladder_yawcap->current.value > delta )
     {
         if ( delta <= bg_ladder_yawcap->current.value )
             deltaa = delta + bg_ladder_yawcap->current.value;
@@ -952,8 +1101,7 @@ void __cdecl PM_UpdateViewAngles_Prone(
     newViewYaw = ps->viewangles[1];
     proneBlocked = 0;
     delta = AngleDelta(ps->proneDirection, newViewYaw);
-    v11 = delta > (float)(bg_prone_yawcap->current.value - 5.0)
-         || COERCE_FLOAT(COERCE_UNSIGNED_INT(bg_prone_yawcap->current.value - 5.0) ^ _mask__NegFloat_) > delta;
+    v11 = delta > (float)(bg_prone_yawcap->current.value - 5.0) || (-(bg_prone_yawcap->current.value - 5.0)) > delta;
     v10 = (cmd->forwardmove || cmd->rightmove) && delta != 0.0;
     if ( v11 || v10 )
     {
@@ -992,7 +1140,6 @@ void __cdecl PM_UpdateViewAngles_Prone(
             newProneYaw = AngleNormalize360(newProneYaw + deltaa);
         }
         v7 = BG_CheckProne(
-                     (cStaticModel_s *)&savedregs,
                      ps,
                      ps->clientNum,
                      ps->origin,
@@ -1011,7 +1158,6 @@ void __cdecl PM_UpdateViewAngles_Prone(
         if ( v7 )
         {
             v8 = BG_CheckProne(
-                         (cStaticModel_s *)&savedregs,
                          ps,
                          ps->clientNum,
                          ps->origin,
@@ -1042,7 +1188,6 @@ LABEL_33:
         while ( 1 )
         {
             v9 = BG_CheckProne(
-                         (cStaticModel_s *)&savedregs,
                          ps,
                          ps->clientNum,
                          ps->origin,
@@ -1098,7 +1243,6 @@ int __cdecl BG_CheckProneTurned(playerState_s *ps, float newProneYaw, unsigned _
     fraction = fabs(delta) / 240.0;
     testYaw = AngleNormalize360(newProneYaw - (float)((float)(1.0 - fraction) * delta));
     return (unsigned __int8)BG_CheckProne(
-                                                        (cStaticModel_s *)&savedregs,
                                                         ps,
                                                         ps->clientNum,
                                                         ps->origin,
@@ -1128,8 +1272,7 @@ void __cdecl PM_UpdateViewAngles_ProneYawClamp(
     float deltaYaw1a; // [esp+Ch] [ebp-4h]
     float deltaa; // [esp+1Ch] [ebp+Ch]
 
-    if ( delta > bg_prone_yawcap->current.value
-        || COERCE_FLOAT(bg_prone_yawcap->current.integer ^ _mask__NegFloat_) > delta )
+    if ( delta > bg_prone_yawcap->current.value || -bg_prone_yawcap->current.value > delta )
     {
         if ( delta <= bg_prone_yawcap->current.value )
             deltaa = delta + bg_prone_yawcap->current.value;
@@ -1152,7 +1295,7 @@ void __cdecl PM_UpdateViewAngles_ProneYawClamp(
             deltaYaw2 = AngleDelta(newViewYaw, ps->viewangles[1]);
             if ( (float)(deltaYaw1 * deltaYaw2) > 0.0 )
             {
-                deltaYaw1a = deltaYaw1 * 0.98000002;
+                deltaYaw1a = deltaYaw1 * 0.98;
                 ps->viewangles[1] = AngleNormalize360(ps->viewangles[1] + deltaYaw1a);
                 ps->delta_angles[1] = ps->delta_angles[1] + deltaYaw1a;
             }
@@ -1208,7 +1351,6 @@ void __cdecl PM_UpdatePronePitch(pmove_t *pm, pml_t *pml)
             {
                 if ( pml->groundPlane )
                     v2 = BG_CheckProne(
-                                 (cStaticModel_s *)&savedregs,
                                  ps,
                                  ps->clientNum,
                                  ps->origin,
@@ -1225,7 +1367,6 @@ void __cdecl PM_UpdatePronePitch(pmove_t *pm, pml_t *pml)
                                  50.0);
                 else
                     v2 = BG_CheckProne(
-                                 (cStaticModel_s *)&savedregs,
                                  ps,
                                  ps->clientNum,
                                  ps->origin,
@@ -1461,8 +1602,8 @@ void __cdecl Pmove_1(pmove_t *pm)
     finalTime = pm->cmd.serverTime;
     if ( finalTime < ps->commandTime )
     {
-        if ( g_DXDeviceThread != GetCurrentThreadId() )
-            return;
+        //if ( g_DXDeviceThread != GetCurrentThreadId() )
+        //    return;
         goto LABEL_15;
     }
     if ( finalTime > ps->commandTime + 1000 )
@@ -1480,6 +1621,7 @@ void __cdecl Pmove_1(pmove_t *pm)
     }
     //if ( g_DXDeviceThread == GetCurrentThreadId() )
 LABEL_15:
+    ;
         //D3DPERF_EndEvent();
 }
 
@@ -1506,11 +1648,6 @@ void __cdecl PmoveSingle(pmove_t *pm)
     float move_4; // [esp+C0h] [ebp-D8h]
     float move_8; // [esp+C4h] [ebp-D4h]
     const WeaponDef *weapDefDW; // [esp+CCh] [ebp-CCh]
-    bitarray<51> v22; // [esp+D0h] [ebp-C8h] BYREF
-    bitarray<51> v23; // [esp+D8h] [ebp-C0h] BYREF
-    bitarray<51> v24; // [esp+E0h] [ebp-B8h] BYREF
-    bitarray<51> v25; // [esp+E8h] [ebp-B0h] BYREF
-    bitarray<51> mask_bits; // [esp+F0h] [ebp-A8h] BYREF
     pml_t pml; // [esp+F8h] [ebp-A0h] BYREF
     int stance; // [esp+18Ch] [ebp-Ch]
     playerState_s *ps; // [esp+190h] [ebp-8h]
@@ -1537,7 +1674,8 @@ void __cdecl PmoveSingle(pmove_t *pm)
     }
     if ( (ps->pm_flags & 0x800) != 0 || ps->weaponstate == 35 )
     {
-        bitarray<51>::bitarray<51>(&mask_bits, 12, 8, 9, -1);
+        bitarray<51> mask_bits(12, 8, 9, -1); // [esp+F0h] [ebp-A8h] BYREF
+        //bitarray<51>::bitarray<51>(&mask_bits, 12, 8, 9, -1);
         for ( i = 0; i < 2; ++i )
             pm->cmd.button_bits.array[i] &= mask_bits.array[i];
         pm->cmd.forwardmove = 0;
@@ -1549,7 +1687,8 @@ void __cdecl PmoveSingle(pmove_t *pm)
     }
     else if ( (ps->pm_flags & 0x400) != 0 )
     {
-        bitarray<51>::bitarray<51>(&v25, 12, 8, 9, 0, -1);
+        bitarray<51> v25(12, 8, 9, 0, -1); // [esp+E8h] [ebp-B0h] BYREF
+        //bitarray<51>::bitarray<51>(&v25, 12, 8, 9, 0, -1);
         for ( j = 0; j < 2; ++j )
             pm->cmd.button_bits.array[j] &= v25.array[j];
         pm->cmd.forwardmove = 0;
@@ -1563,7 +1702,9 @@ void __cdecl PmoveSingle(pmove_t *pm)
     {
         pm->cmd.forwardmove = 0;
         pm->cmd.rightmove = 0;
-        bitarray<51>::bitarray<51>(&v24, 10, 6, 7, -1);
+
+        bitarray<51> v24(10, 6, 7, -1); // [esp+E0h] [ebp-B8h] BYREF
+        //bitarray<51>::bitarray<51>(&v24, 10, 6, 7, -1);
         for ( k = 0; k < 2; ++k )
             v24.array[k] = ~v24.array[k];
         for ( m = 0; m < 2; ++m )
@@ -1577,7 +1718,9 @@ void __cdecl PmoveSingle(pmove_t *pm)
     {
         pm->cmd.forwardmove = 0;
         pm->cmd.rightmove = 0;
-        bitarray<51>::bitarray<51>(&v23, 10, 6, 7, -1);
+
+        bitarray<51> v23(10, 6, 7, -1); // [esp+D8h] [ebp-C0h] BYREF
+        //bitarray<51>::bitarray<51>(&v23, 10, 6, 7, -1);
         for ( n = 0; n < 2; ++n )
             v23.array[n] = ~v23.array[n];
         for ( ii = 0; ii < 2; ++ii )
@@ -1587,9 +1730,11 @@ void __cdecl PmoveSingle(pmove_t *pm)
         v7[1] = 0.0f;
         v7[2] = 0.0f;
     }
-    if ( bitarray<51>::testBit(&pm->cmd.button_bits, 0x1Du) )
+    if ( pm->cmd.button_bits.testBit(0x1Du) )
     {
-        bitarray<51>::bitarray<51>(&v22, 29, 1, 11, 12, 8, 9, -1);
+        //bitarray<51>::bitarray<51>(&v22, 29, 1, 11, 12, 8, 9, -1);
+        bitarray<51> v22(29, 1, 11, 12, 8, 9, -1); // [esp+D0h] [ebp-C8h] BYREF
+
         for ( jj = 0; jj < 2; ++jj )
             pm->cmd.button_bits.array[jj] &= v22.array[jj];
         pm->cmd.forwardmove = 0;
@@ -1637,7 +1782,7 @@ void __cdecl PmoveSingle(pmove_t *pm)
         pm->cmd.forwardmove = 0;
         pm->cmd.rightmove = 0;
     }
-    if ( !bitarray<51>::testBit(&pm->cmd.button_bits, 0x1Du) || ps->locationSelectionType )
+    if ( !pm->cmd.button_bits.testBit(0x1Du) || ps->locationSelectionType )
         ps->eFlags &= ~0x200000u;
     else
         ps->eFlags |= 0x200000u;
@@ -1646,9 +1791,9 @@ void __cdecl PmoveSingle(pmove_t *pm)
     {
         if ( (ps->eFlags & 0x4000) != 0 )
         {
-            if ( bitarray<51>::testBit(&pm->cmd.button_bits, 0x22u)
-                || bitarray<51>::testBit(&pm->cmd.button_bits, 0x23u)
-                || bitarray<51>::testBit(&pm->cmd.button_bits, 0) )
+            if ( pm->cmd.button_bits.testBit(0x22u)
+                || pm->cmd.button_bits.testBit(0x23u)
+                || pm->cmd.button_bits.testBit(0) )
             {
                 ps->eFlags |= 0x40u;
             }
@@ -1660,7 +1805,7 @@ void __cdecl PmoveSingle(pmove_t *pm)
                 && !BG_PlayerWeaponOverheating(ps, ps->weapon)
                 && (ps->weapFlags & 8) == 0 )
             {
-                if ( bitarray<51>::testBit(&pm->cmd.button_bits, 0) && ps->waterlevel < 3 )
+                if ( pm->cmd.button_bits.testBit(0) && ps->waterlevel < 3 )
                 {
                     ps->eFlags |= 0x40u;
                 }
@@ -1676,7 +1821,7 @@ void __cdecl PmoveSingle(pmove_t *pm)
                     && !BG_PlayerWeaponOverheating(ps, weapDef->dualWieldWeaponIndex)
                     && (ps->weapFlags & 8) == 0 )
                 {
-                    if ( bitarray<51>::testBit(&pm->cmd.button_bits, 0x18u) && ps->waterlevel < 3 )
+                    if ( pm->cmd.button_bits.testBit(0x18u) && ps->waterlevel < 3 )
                     {
                         ps->eFlags |= 0x40u;
                     }
@@ -1689,8 +1834,8 @@ void __cdecl PmoveSingle(pmove_t *pm)
         }
     }
     if ( ps->pm_type < 9
-        && !bitarray<51>::testBit(&pm->cmd.button_bits, 0)
-        && !bitarray<51>::testBit(&pm->cmd.button_bits, 8u) )
+        && !pm->cmd.button_bits.testBit(0)
+        && !pm->cmd.button_bits.testBit(8u) )
     {
         ps->pm_flags &= ~0x400u;
     }
@@ -1973,7 +2118,7 @@ LABEL_151:
     }
 }
 
-void __cdecl PM_UpdateVisionAnims(pmove_t *pm)
+void __cdecl PM_UpdateVisionAnims(pmove_t *pm, pml_t *pml)
 {
     __int16 animNum; // [esp+0h] [ebp-8h]
     const animScriptCommand_t *animCmd; // [esp+4h] [ebp-4h]
@@ -2001,7 +2146,7 @@ void __cdecl PM_UpdateVisionAnims(pmove_t *pm)
     }
 }
 
-void __cdecl PM_UpdateScriptedAnim(pmove_t *pm)
+void __cdecl PM_UpdateScriptedAnim(pmove_t *pm, pml_t *pml)
 {
     playerState_s *ps; // [esp+0h] [ebp-4h]
 
@@ -2039,7 +2184,7 @@ void __cdecl PM_UpdateSprint(pmove_t *pm, const pml_t *pml)
     if ( !pm->ps && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp", 934, 0, "%s", "ps") )
         __debugbreak();
     p_sprintState = &ps->sprintState;
-    if ( ps->sprintState.sprintButtonUpRequired && !bitarray<51>::testBit(&pm->cmd.button_bits, 1u) )
+    if ( ps->sprintState.sprintButtonUpRequired && !pm->cmd.button_bits.testBit(1u) )
         p_sprintState->sprintButtonUpRequired = 0;
     if ( ps->pm_type < 2u && (ps->weaponstate < 47 || ps->weaponstate > 49) && BG_GetMaxSprintTime(ps) > 0 )
     {
@@ -2054,7 +2199,7 @@ void __cdecl PM_UpdateSprint(pmove_t *pm, const pml_t *pml)
                 if ( PM_SprintEndingButtons(pm) )
                 {
                     PM_EndSprint(ps, pm);
-                    if ( bitarray<51>::testBit(&pm->cmd.button_bits, 0xAu) )
+                    if ( pm->cmd.button_bits.testBit(0xAu) )
                         ps->sprintState.lastSprintEnd += 800;
                 }
             }
@@ -2067,7 +2212,7 @@ void __cdecl PM_UpdateSprint(pmove_t *pm, const pml_t *pml)
         else if ( !ps->sprintState.sprintDelay
                      || pm->cmd.serverTime - ps->sprintState.lastSprintEnd >= ps->sprintState.sprintCooldown )
         {
-            if ( bitarray<51>::testBit(&pm->cmd.button_bits, 1u) )
+            if ( pm->cmd.button_bits.testBit(1u) )
             {
                 if ( (ps->pm_flags & 0x40000) == 0
                     && !p_sprintState->sprintButtonUpRequired
@@ -2113,7 +2258,7 @@ void __cdecl PM_EndSprint(playerState_s *ps, pmove_t *pm)
         ps->sprintState.sprintDelay = 0;
         ps->sprintState.lastSprintEnd = pm->cmd.serverTime;
         ps->pm_flags &= ~0x8000u;
-        if ( bitarray<51>::testBit(&pm->cmd.button_bits, 1u) )
+        if ( pm->cmd.button_bits.testBit(1u) )
             ps->sprintState.sprintButtonUpRequired = 1;
     }
 }
@@ -2126,21 +2271,21 @@ bool __cdecl PM_SprintStartInterferingButtons(const playerState_s *ps, int forwa
         return 1;
     if ( forwardSpeed <= player_sprintForwardMinimum->current.integer )
         return 1;
-    if ( bitarray<51>::testBit(button_bits, 0xAu) )
+    if ( button_bits->testBit(0xAu) )
         return 1;
-    if ( bitarray<51>::testBit(button_bits, 4u) )
+    if ( button_bits->testBit(4u) )
         return 1;
-    if ( bitarray<51>::testBit(button_bits, 2u) )
+    if ( button_bits->testBit(2u) )
         return 1;
-    if ( bitarray<51>::testBit(button_bits, 0) )
+    if ( button_bits->testBit(0) )
         return 1;
-    if ( bitarray<51>::testBit(button_bits, 5u) )
+    if ( button_bits->testBit(5u) )
         return 1;
-    if ( bitarray<51>::testBit(button_bits, 0xEu) )
+    if ( button_bits->testBit(0xEu) )
         return 1;
-    if ( bitarray<51>::testBit(button_bits, 0xFu) )
+    if ( button_bits->testBit(0xFu) )
         return 1;
-    if ( bitarray<51>::testBit(button_bits, 0x18u) && BG_GetWeaponDef(ps->weapon)->offhandSlot != OFFHAND_SLOT_EQUIPMENT )
+    if ( button_bits->testBit(0x18u) && BG_GetWeaponDef(ps->weapon)->offhandSlot != OFFHAND_SLOT_EQUIPMENT )
         return 1;
     if ( ps->leanf != 0.0 )
         return 1;
@@ -2165,7 +2310,7 @@ bool __cdecl PM_SprintStartInterferingButtons(const playerState_s *ps, int forwa
     {
         return 1;
     }
-    if ( ((unsigned int)&loc_800000 & ps->pm_flags) != 0 )
+    if ( (0x800000 & ps->pm_flags) != 0 )
         return 1;
     return (ps->pm_flags & 0x400000) != 0;
 }
@@ -2178,27 +2323,27 @@ bool __cdecl PM_SprintEndingButtons(const pmove_t *pm)
         return 1;
     if ( pm->cmd.forwardmove <= player_sprintForwardMinimum->current.integer )
         return 1;
-    if ( bitarray<51>::testBit(&pm->cmd.button_bits, 0xAu) )
+    if ( pm->cmd.button_bits.testBit(0xAu) )
         return 1;
-    if ( bitarray<51>::testBit(&pm->cmd.button_bits, 4u) )
+    if ( pm->cmd.button_bits.testBit(4u) )
         return 1;
-    if ( bitarray<51>::testBit(&pm->cmd.button_bits, 2u) )
+    if ( pm->cmd.button_bits.testBit(2u) )
         return 1;
-    if ( bitarray<51>::testBit(&pm->cmd.button_bits, 0) )
+    if ( pm->cmd.button_bits.testBit(0) )
         return 1;
-    if ( bitarray<51>::testBit(&pm->cmd.button_bits, 5u) )
+    if ( pm->cmd.button_bits.testBit(5u) )
         return 1;
-    if ( bitarray<51>::testBit(&pm->cmd.button_bits, 0xEu) )
+    if ( pm->cmd.button_bits.testBit(0xEu) )
         return 1;
-    if ( bitarray<51>::testBit(&pm->cmd.button_bits, 0xFu) )
+    if ( pm->cmd.button_bits.testBit(0xFu) )
         return 1;
-    if ( bitarray<51>::testBit(&pm->cmd.button_bits, 8u) )
+    if ( pm->cmd.button_bits.testBit(8u) )
         return 1;
-    if ( bitarray<51>::testBit(&pm->cmd.button_bits, 9u) )
+    if ( pm->cmd.button_bits.testBit(9u) )
         return 1;
     if ( pm->ps->leanf != 0.0 )
         return 1;
-    if ( bitarray<51>::testBit(&pm->cmd.button_bits, 0x18u)
+    if ( pm->cmd.button_bits.testBit(0x18u)
         && BG_GetWeaponDef(pm->ps->weapon)->offhandSlot != OFFHAND_SLOT_EQUIPMENT )
     {
         return 1;
@@ -2212,7 +2357,7 @@ bool __cdecl PM_SprintEndingButtons(const pmove_t *pm)
     {
         return 1;
     }
-    if ( ((unsigned int)&loc_800000 & pm->ps->pm_flags) != 0 )
+    if ( (0x800000 & pm->ps->pm_flags) != 0 )
         return 1;
     return (pm->ps->pm_flags & 0x40000) != 0;
 }
@@ -2267,9 +2412,9 @@ void __cdecl PM_FlyMove(pmove_t *pm, pml_t *pml)
     if ( ps->speed )
     {
         scale = PM_MoveScale(ps, 0.0, 0.0, 127.0);
-        if ( bitarray<51>::testBit(&pm->cmd.button_bits, 6u) )
+        if ( pm->cmd.button_bits.testBit(6u) )
             wishvel[2] = wishvel[2] - (float)(127.0 * scale);
-        if ( bitarray<51>::testBit(&pm->cmd.button_bits, 7u) )
+        if ( pm->cmd.button_bits.testBit(7u) )
             wishvel[2] = (float)(127.0 * scale) + wishvel[2];
     }
     wishdir[0] = wishvel[0];
@@ -2528,6 +2673,7 @@ void __cdecl PM_AirMove(pmove_t *pm, pml_t *pml)
     PM_SetMovementDir(pm, pml);
 }
 
+float accel = 2.0f;
 void __cdecl PM_DoSlideAdjustments(playerState_s *ps, const pml_t *pml)
 {
     float nvel[3]; // [esp+2Ch] [ebp-24h] BYREF
@@ -2736,7 +2882,7 @@ void __cdecl PM_WalkMove(pmove_t *pm, pml_t *pml)
         pm->cmd.rightmove = (int)(float)((float)pm->cmd.rightmove * player_sprintStrafeSpeedScale->current.value);
     canJump = 1;
     if ( ps->groundEntityNum != 1023 )
-        canJump = (*(&off_DFF52C + 8 * pm->handler))(pm->localClientNum, ps->groundEntityNum) != 0;
+        canJump = pmoveHandlers[pm->handler].isEntWalkable(pm->localClientNum, ps->groundEntityNum) != 0;
     if ( canJump && Jump_Check(pm, pml) || Dtp_Update(pm, pml) )
     {
         PM_AirMove(pm, pml);
@@ -2974,9 +3120,9 @@ void __cdecl PM_NoclipMove(pmove_t *pm, pml_t *pml)
     fmove = (float)pm->cmd.forwardmove;
     smove = (float)pm->cmd.rightmove;
     umove = 0.0f;
-    if ( bitarray<51>::testBit(&pm->cmd.button_bits, 7u) )
+    if ( pm->cmd.button_bits.testBit(7u) )
         umove = umove + 127.0;
-    if ( bitarray<51>::testBit(&pm->cmd.button_bits, 6u) )
+    if ( pm->cmd.button_bits.testBit(6u) )
         umove = umove - 127.0;
     scale = PM_MoveScale(ps, fmove, smove, umove);
     for ( i = 0; i < 3; ++i )
@@ -3033,9 +3179,9 @@ void __cdecl PM_UFOMove(pmove_t *pm, pml_t *pml)
     fmove = (float)pm->cmd.forwardmove;
     smove = (float)pm->cmd.rightmove;
     umove = 0.0f;
-    if ( bitarray<51>::testBit(&pm->cmd.button_bits, 7u) )
+    if ( pm->cmd.button_bits.testBit(7u) )
         umove = umove + 127.0;
-    if ( bitarray<51>::testBit(&pm->cmd.button_bits, 6u) )
+    if ( pm->cmd.button_bits.testBit(6u) )
         umove = umove - 127.0;
     if ( fmove == 0.0 && smove == 0.0 && umove == 0.0 )
         speed = 0.0f;
@@ -3130,7 +3276,6 @@ void __cdecl PM_GroundTrace(pmove_t *pm, pml_t *pml)
     gjkcc_in = pm->m_gjkcc_input;
     if ( phys_player_collision_mode->current.integer == 1 )
         PM_gjk_ground_trace(
-            (int)&savedregs,
             gjkcc_in,
             &trace,
             start,
@@ -3146,7 +3291,7 @@ void __cdecl PM_GroundTrace(pmove_t *pm, pml_t *pml)
     ps->groundType = (unsigned __int8)((int)((unsigned int)&bg_vehicleInfos[11].rotorTailStartFx[20] & trace.sflags) >> 20);
     if ( (pml->groundTrace.sflags & 2) != 0 )
     {
-        ps->pm_flags |= (unsigned int)&loc_800000;
+        ps->pm_flags |= 0x800000;
         if ( !ps->slideTime )
         {
             ps->slideTime = pm->cmd.serverTime;
@@ -3179,7 +3324,6 @@ void __cdecl PM_GroundTrace(pmove_t *pm, pml_t *pml)
             start[2] = ps->origin[2] - 0.001;
             if ( phys_player_collision_mode->current.integer == 1 )
                 PM_gjk_ground_trace(
-                    (int)&savedregs,
                     gjkcc_in,
                     &trace,
                     start,
@@ -3254,7 +3398,6 @@ void __cdecl PM_GroundTrace(pmove_t *pm, pml_t *pml)
                 memset(&airTrace, 0, 16);
                 if ( phys_player_collision_mode->current.integer == 1 )
                     PM_gjk_ground_trace(
-                        (int)&savedregs,
                         gjkcc_in,
                         &airTrace,
                         start,
@@ -3320,14 +3463,16 @@ void __cdecl PM_CrashLand(pmove_t *pm, pml_t *pml)
     {
         dist = pml->previous_origin[2] - ps->origin[2];
         vel = pml->previous_velocity[2];
-        LODWORD(acc) = COERCE_UNSIGNED_INT((float)ps->gravity) ^ _mask__NegFloat_;
+        //LODWORD(acc) = COERCE_UNSIGNED_INT((float)ps->gravity) ^ _mask__NegFloat_;
+        acc = -ps->gravity;
         a = acc * 0.5;
         b = vel;
         c = dist;
         den = (float)(vel * vel) - (float)((float)(4.0 * (float)(acc * 0.5)) * dist);
         if ( den >= 0.0 )
         {
-            t = (float)(COERCE_FLOAT(LODWORD(b) ^ _mask__NegFloat_) - sqrtf(den)) / (float)(2.0 * a);
+            //t = (float)(COERCE_FLOAT(LODWORD(b) ^ _mask__NegFloat_) - sqrtf(den)) / (float)(2.0 * a);
+            t = (float)((-(b)) - sqrtf(den)) / (float)(2.0 * a);
             landVel = (float)((float)(t * acc) + vel) * -1.0;
             fallHeight = (float)(landVel * landVel) / (float)((float)ps->gravity * 2.0);
             if ( bg_fallDamageMinHeight->current.value <= 0.0
@@ -3676,9 +3821,10 @@ void __cdecl PM_CheckDuck(pmove_t *pm, pml_t *pml)
         pm->maxs[1] = 8.0f;
         pm->maxs[2] = 16.0f;
         ps->pm_flags &= 0xFFFFFFFC;
-        if ( bitarray<51>::testBit(&pm->cmd.button_bits, 8u) )
+        if ( pm->cmd.button_bits.testBit(8u) )
         {
-            bitarray<51>::resetBit(&pm->cmd.button_bits, 8u);
+            //pm->cmd.button_bits.resetBit(8u);
+            pm->cmd.button_bits.resetBit(8u);
             BG_AddPredictableEventToPlayerstate(8u, 0, ps);
         }
         ps->viewHeightTarget = 0;
@@ -3777,15 +3923,15 @@ LABEL_25:
             else if ( (ps->pm_flags & 0x400000) == 0 && Dtp_CanMove(pm) )
             {
                 if ( (ps->pm_flags & 8) != 0
-                    && (bitarray<51>::testBit(&pm->cmd.button_bits, 8u) || bitarray<51>::testBit(&pm->cmd.button_bits, 9u)) )
+                    && (pm->cmd.button_bits.testBit(8u) || pm->cmd.button_bits.testBit(9u)) )
                 {
-                    bitarray<51>::resetBit(&pm->cmd.button_bits, 8u);
-                    bitarray<51>::resetBit(&pm->cmd.button_bits, 9u);
+                    pm->cmd.button_bits.resetBit(8u);
+                    pm->cmd.button_bits.resetBit(9u);
                     BG_AddPredictableEventToPlayerstate(8u, 0, ps);
                 }
-                if ( !bitarray<51>::testBit(&pm->cmd.button_bits, 8u) || (ps->pm_flags & 0x400) != 0 )
+                if ( !pm->cmd.button_bits.testBit(8u) || (ps->pm_flags & 0x400) != 0 )
                 {
-                    if ( bitarray<51>::testBit(&pm->cmd.button_bits, 9u) )
+                    if ( pm->cmd.button_bits.testBit(9u) )
                     {
                         if ( pm->ps->waterlevel >= 2 )
                         {
@@ -3804,7 +3950,7 @@ LABEL_25:
                                 ps->pm_flags &= ~1u;
                                 ps->pm_flags |= 2u;
                             }
-                            else if ( !bitarray<51>::testBit(&pm->cmd.button_bits, 0xCu) )
+                            else if ( !pm->cmd.button_bits.testBit(0xCu) )
                             {
                                 BG_AddPredictableEventToPlayerstate(0xAu, 2u, ps);
                             }
@@ -3836,7 +3982,7 @@ LABEL_25:
                                 ps->pm_flags &= ~1u;
                                 ps->pm_flags |= 2u;
                             }
-                            else if ( !bitarray<51>::testBit(&pm->cmd.button_bits, 0xCu) )
+                            else if ( !pm->cmd.button_bits.testBit(0xCu) )
                             {
                                 BG_AddPredictableEventToPlayerstate(0xAu, 1u, ps);
                             }
@@ -3850,7 +3996,7 @@ LABEL_25:
                                 BG_AnimScriptEvent(pm, ANIM_ET_CROUCH_TO_STAND, 0, 0);
                             ps->pm_flags &= ~2u;
                         }
-                        else if ( !bitarray<51>::testBit(&pm->cmd.button_bits, 0xCu) )
+                        else if ( !pm->cmd.button_bits.testBit(0xCu) )
                         {
                             BG_AddPredictableEventToPlayerstate(9u, 1u, ps);
                         }
@@ -3865,7 +4011,7 @@ LABEL_25:
                 {
                     ps->pm_flags |= 0x1000u;
                     BG_AddPredictableEventToPlayerstate(0xCDu, 3u, ps);
-                    if ( !bitarray<51>::testBit(&pm->cmd.button_bits, 0xCu) )
+                    if ( !pm->cmd.button_bits.testBit(0xCu) )
                     {
                         if ( (ps->pm_flags & 1) != 0 || (ps->pm_flags & 2) != 0 )
                             BG_AddPredictableEventToPlayerstate(9u, 0, ps);
@@ -3876,9 +4022,9 @@ LABEL_25:
             }
             else
             {
-                bitarray<51>::setBit(&pm->cmd.button_bits, 8u);
-                bitarray<51>::resetBit(&pm->cmd.button_bits, 9u);
-                bitarray<51>::resetBit(&pm->cmd.button_bits, 1u);
+                pm->cmd.button_bits.setBit(8u);
+                pm->cmd.button_bits.resetBit(9u);
+                pm->cmd.button_bits.resetBit(1u);
                 ps->eFlags &= ~4u;
                 ps->pm_flags &= ~2u;
                 ps->viewHeightTarget = 11;
@@ -3984,13 +4130,13 @@ LABEL_25:
                 vEnd[1] = ps->origin[1];
                 vEnd[2] = ps->origin[2];
                 vEnd[2] = vEnd[2] + 10.0;
-                colgeom_visitor_inlined_t<200>::update(
-                    &pm->proximity_data,
+                //colgeom_visitor_inlined_t<200>::update(
+                    pm->proximity_data.update(
                     ps->origin,
                     vEnd,
                     pm->mins,
                     pm->maxs,
-                    (int)&ents_params[74].targetname[43]);
+                    0x3818813);
                 v3.prims = pm->proximity_data.prims;
                 v3.nprims = pm->proximity_data.nprims;
                 pmoveHandlers[pm->handler].trace(
@@ -4003,13 +4149,13 @@ LABEL_25:
                     pm->tracemask & 0xFDFF7FFF,
                     &v3);
                 Vec3Lerp(ps->origin, vEnd, trace.fraction, vEnd);
-                colgeom_visitor_inlined_t<200>::update(
-                    &pm->proximity_data,
+                //colgeom_visitor_inlined_t<200>::update(
+                    pm->proximity_data.update(
                     vEnd,
                     ps->origin,
                     pm->mins,
                     pm->maxs,
-                    (int)&ents_params[74].targetname[43]);
+                    0x3818813);
                 v3.prims = pm->proximity_data.prims;
                 v3.nprims = pm->proximity_data.nprims;
                 pmoveHandlers[pm->handler].trace(
@@ -4027,13 +4173,13 @@ LABEL_25:
                 vPoint[1] = ps->origin[1];
                 vPoint[2] = ps->origin[2];
                 vPoint[2] = vPoint[2] - 0.25;
-                colgeom_visitor_inlined_t<200>::update(
-                    &pm->proximity_data,
+                //colgeom_visitor_inlined_t<200>::update(
+                    pm->proximity_data.update(
                     ps->origin,
                     vPoint,
                     pm->mins,
                     pm->maxs,
-                    (int)&ents_params[74].targetname[43]);
+                    0x3818813);
                 v3.prims = pm->proximity_data.prims;
                 v3.nprims = pm->proximity_data.nprims;
                 pmoveHandlers[pm->handler].trace(
@@ -4361,9 +4507,7 @@ void __cdecl PM_Footsteps_NotMoving(pmove_t *pm, int stance, bool allow_flinch)
     if ( ps->clientNum >= com_maxclients->current.integer )
         ci = 0;
     else
-        ci = (clientInfo_t *)(*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)
-                                                + 1480 * ps->clientNum
-                                                + 192);
+        ci = &bgs->clientinfo[ps->clientNum];
     if ( ci && player_turnAnims->current.enabled && (ps->pm_flags & 4) == 0 )
         turnAdjust = PM_Footsteps_TurnAnim(ci);
     anim = PM_GetNotMovingAnim(turnAdjust);
@@ -4387,17 +4531,13 @@ void __cdecl PM_Footsteps_NotMoving(pmove_t *pm, int stance, bool allow_flinch)
             {
                 __debugbreak();
             }
-            ci->turnAnimEndTime = ps->legsAnimDuration
-                                                    + *(unsigned int *)(*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index)
-                                                                                                    + 8)
-                                                                            + 4);
-            if ( xanim_debug->current.enabled )
+            ci->turnAnimEndTime = ps->legsAnimDuration + bgs->time;
+            if (xanim_debug->current.enabled)
                 Com_Printf(
                     17,
                     "[%i] turn anim should end at %i\n",
-                    *(unsigned int *)(*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) + 4),
-                    ps->legsAnimDuration
-                + *(unsigned int *)(*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) + 4));
+                    bgs->time,
+                    ps->legsAnimDuration + bgs->time);
         }
     }
     else
@@ -4423,18 +4563,18 @@ int __cdecl PM_Footsteps_TurnAnim(clientInfo_t *ci)
     int turnAdjust; // [esp+14h] [ebp-4h]
 
     turnAdjust = 0;
-    if ( ci->turnAnimType && ci->turnAnimEndTime && xanim_debug->current.enabled )
+    if (ci->turnAnimType && ci->turnAnimEndTime && xanim_debug->current.enabled)
         Com_DPrintf(
             17,
             "turn anim end time is %i, time is %i\n",
             ci->turnAnimEndTime,
-            *(unsigned int *)(*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) + 4));
-    if ( ci->legs.yawing )
+            bgs->time);
+    if (ci->legs.yawing)
     {
         diff = AngleNormalize180(ci->legs.yawAngle - ci->torso.yawAngle);
-        if ( diff <= 0.0 )
+        if (diff <= 0.0)
         {
-            if ( diff >= 0.0 )
+            if (diff >= 0.0)
                 turnAdjust = ci->turnAnimType;
             else
                 turnAdjust = 2;
@@ -4444,18 +4584,16 @@ int __cdecl PM_Footsteps_TurnAnim(clientInfo_t *ci)
             turnAdjust = 1;
         }
         ci->turnAnimType = turnAdjust;
-        ci->turnAnimEndTime = *(unsigned int *)(*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)
-                                                                        + 4)
-                                                + 100;
+        ci->turnAnimEndTime = bgs->time + 100;
     }
-    else if ( ci->turnAnimEndTime )
+    else if (ci->turnAnimEndTime)
     {
         ci->turnAnimEndTime = 0;
-        if ( xanim_debug->current.enabled )
+        if (xanim_debug->current.enabled)
             Com_Printf(
                 17,
                 "[%i] playing idle anim after turn anim\n",
-                *(unsigned int *)(*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) + 4));
+                bgs->time);
     }
     return turnAdjust;
 }
@@ -4481,91 +4619,90 @@ void __cdecl PM_VehicleDrive(pmove_t *pm)
 {
     playerState_s *ps; // [esp+0h] [ebp-4h]
 
-    if ( !pm && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp", 4331, 0, "%s", "pm") )
+    if (!pm && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp", 4331, 0, "%s", "pm"))
         __debugbreak();
     ps = pm->ps;
-    if ( (pm->ps->eFlags & 0x4000) != 0 && ps->viewlocked_entNum != 1023 && !ps->vehiclePos )
+    if ((pm->ps->eFlags & 0x4000) != 0 && ps->viewlocked_entNum != 1023 && !ps->vehiclePos)
     {
-        if ( !*(&off_DFF528 + 8 * pm->handler)
+        if (!pmoveHandlers[pm->handler].setVehDriverInputs
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp",
-                        4336,
-                        0,
-                        "%s",
-                        "pmoveHandlers[pm->handler].setVehDriverInputs") )
+                "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp",
+                4336,
+                0,
+                "%s",
+                "pmoveHandlers[pm->handler].setVehDriverInputs"))
         {
             __debugbreak();
         }
-        (*(&off_DFF528 + 8 * pm->handler))(pm->localClientNum, ps->viewlocked_entNum, &pm->cmd);
+        pmoveHandlers[pm->handler].setVehDriverInputs(pm->localClientNum, ps->viewlocked_entNum, &pm->cmd);
     }
 }
 
+float dtpBobMove = 0.24;
 void __cdecl PM_Footsteps(pmove_t *pm, pml_t *pml)
 {
     scriptAnimMoveTypes_t ActiveCount; // eax
     int v3; // edx
-    bool Footsteps; // eax
-    bool v5; // [esp+18h] [ebp-30h]
+    BOOL Footsteps; // eax
+    BOOL v5; // [esp+18h] [ebp-30h]
     float fMaxSpeed; // [esp+24h] [ebp-24h]
     int iStance; // [esp+28h] [ebp-20h]
     int walking; // [esp+2Ch] [ebp-1Ch]
     int sprinting; // [esp+30h] [ebp-18h]
-    bool animWalking; // [esp+34h] [ebp-14h]
+    BOOL animWalking; // [esp+34h] [ebp-14h]
     playerState_s *ps; // [esp+38h] [ebp-10h]
     float bobmove; // [esp+3Ch] [ebp-Ch]
     int old; // [esp+40h] [ebp-8h]
     PmStanceFrontBack stanceFrontBack; // [esp+44h] [ebp-4h]
 
-    if ( !pm && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp", 4498, 0, "%s", "pm") )
+    if (!pm && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp", 4498, 0, "%s", "pm"))
         __debugbreak();
     ps = pm->ps;
-    if ( !pm->ps && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp", 4501, 0, "%s", "ps") )
+    if (!pm->ps && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp", 4501, 0, "%s", "ps"))
         __debugbreak();
     BG_CheckThread();
-    if ( !*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp", 4506, 0, "%s", "bgs") )
+    if (!bgs
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp", 4506, 0, "%s", "bgs"))
     {
         __debugbreak();
     }
-    if ( ps->pm_type < 9 )
+    if (ps->pm_type < 9)
     {
-        if ( ps->clientNum < com_maxclients->current.integer )
-            *(unsigned int *)(*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)
-                                + 1480 * ps->clientNum
-                                + 1556) = 0;
+        if (ps->clientNum < com_maxclients->current.integer)
+            bgs->clientinfo[ps->clientNum].turnAnimEndTime = 0;
         pm->xyspeed = Vec2Length(ps->velocity);
         pm->currentPitch = PM_CalcPlayerPitch(ps, pml);
         pm->averagePitch = (float)((float)bg_slopeFrames->current.integer * pm->averagePitch)
-                                         - pm->pitchHistory[pm->nextPitch];
+            - pm->pitchHistory[pm->nextPitch];
         pm->pitchHistory[pm->nextPitch] = pm->currentPitch;
         pm->averagePitch = (float)(pm->averagePitch + pm->currentPitch) / (float)bg_slopeFrames->current.integer;
-        if ( ++pm->nextPitch >= bg_slopeFrames->current.integer )
+        if (++pm->nextPitch >= bg_slopeFrames->current.integer)
             pm->nextPitch = 0;
-        if ( (pm->ps->pm_flags & 0x400000) != 0 )
+        if ((pm->ps->pm_flags & 0x400000) != 0)
             ps->bobCycle = BG_CalcBob(pm, pml, ps->bobCycle, dtpBobMove);
-        if ( (ps->eFlags & 0x300) != 0 )
+        if ((ps->eFlags & 0x300) != 0)
         {
-            ActiveCount = CL_LocalClient_GetActiveCount();
+            ActiveCount = (scriptAnimMoveTypes_t)CL_LocalClient_GetActiveCount();
             BG_AnimScriptAnimation(pm, AISTATE_COMBAT, ActiveCount, 0);
             return;
         }
         iStance = PM_GetEffectiveStance(ps);
-        stanceFrontBack = PM_GetStanceEx(iStance, ps->pm_flags & 0x20);
-        if ( PM_IsInAir(pm)
+        stanceFrontBack = (PmStanceFrontBack)PM_GetStanceEx(iStance, ps->pm_flags & 0x20);
+        if (PM_IsInAir(pm)
             && !ps->waterlevel
             && (ps->pm_flags & 0x400000) == 0
-            && ((unsigned int)&loc_800000 & ps->pm_flags) == 0
-            && (ps->pm_flags & 4) == 0 )
+            && (0x800000 & ps->pm_flags) == 0
+            && (ps->pm_flags & 4) == 0)
         {
-            if ( !PM_Footstep_LadderMove(pm, pml) )
+            if (!PM_Footstep_LadderMove(pm, pml))
                 PM_ApplyLegAnimations(pm, pml, iStance, stanceFrontBack);
-            if ( iStance != (ps->pm_flags & 3)
+            if (iStance != (ps->pm_flags & 3)
                 && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp",
-                            4559,
-                            0,
-                            "%s",
-                            "iStance == (ps->pm_flags & ( PMF_DUCKED | PMF_PRONE) )") )
+                    "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp",
+                    4559,
+                    0,
+                    "%s",
+                    "iStance == (ps->pm_flags & ( PMF_DUCKED | PMF_PRONE) )"))
             {
                 __debugbreak();
             }
@@ -4576,51 +4713,51 @@ void __cdecl PM_Footsteps(pmove_t *pm, pml_t *pml)
         v3 = ps->pm_flags & 0x8000;
         sprinting = v3 != 0;
         animWalking = walking;
-        if ( v3
+        if (v3
             && v5
             && ps->leanf == 0.0
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp",
-                        4567,
-                        0,
-                        "%s",
-                        "!sprinting || !walking || ps->leanf") )
+                "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp",
+                4567,
+                0,
+                "%s",
+                "!sprinting || !walking || ps->leanf"))
         {
             __debugbreak();
         }
-        if ( (player_moveThreshhold->current.value > pm->xyspeed || ps->pm_type == 1)
-            && ((unsigned int)&loc_800000 & ps->pm_flags) == 0
-            && (ps->pm_flags & 4) == 0 )
+        if ((player_moveThreshhold->current.value > pm->xyspeed || ps->pm_type == 1)
+            && (0x800000 & ps->pm_flags) == 0
+            && (ps->pm_flags & 4) == 0)
         {
             PM_Footsteps_NotMoving(pm, iStance, 1);
-            if ( ps->waterlevel >= 3 )
+            if (ps->waterlevel >= 3)
                 ps->bobCycle = BG_CalcBob(pm, pml, ps->bobCycle, bg_weaponBobFrequencySwimming->current.value);
             return;
         }
-        if ( !pm->cmd.forwardmove && !pm->cmd.rightmove && ((unsigned int)&loc_800000 & ps->pm_flags) == 0 )
+        if (!pm->cmd.forwardmove && !pm->cmd.rightmove && (0x800000 & ps->pm_flags) == 0)
         {
             PM_Footstep_NotTryingToMove(pm);
-            if ( ps->waterlevel >= 3 )
+            if (ps->waterlevel >= 3)
                 ps->bobCycle = BG_CalcBob(pm, pml, ps->bobCycle, bg_weaponBobFrequencySwimming->current.value);
             return;
         }
-        if ( !iStance && (pm->ps->pm_flags & 0x400000) == 0 )
+        if (!iStance && (pm->ps->pm_flags & 0x400000) == 0)
         {
             walking |= player_runbkThreshhold->current.value >= pm->xyspeed;
             sprinting = (pm->xyspeed >= player_sprintThreshhold->current.value) & (unsigned __int8)sprinting;
-            if ( player_animWalkThreshhold->current.value > pm->xyspeed )
+            if (player_animWalkThreshhold->current.value > pm->xyspeed)
             {
-                if ( player_enableShuffleAnims->current.enabled )
+                if (player_enableShuffleAnims->current.enabled)
                     PM_ApplyMovementAnimations(pm, pml, stanceFrontBack, 2, sprinting);
                 else
                     PM_ApplyMovementAnimations(pm, pml, stanceFrontBack, 1, sprinting);
-LABEL_60:
+            LABEL_60:
                 fMaxSpeed = PM_GetMaxSpeed(pm, walking, sprinting);
                 bobmove = PM_GetBobMove(pm, stanceFrontBack, pm->xyspeed, fMaxSpeed, walking, sprinting);
-                if ( (pm->ps->pm_flags & 0x400000) == 0 && ((unsigned int)&loc_800000 & pm->ps->pm_flags) == 0 )
+                if ((pm->ps->pm_flags & 0x400000) == 0 && (0x800000 & pm->ps->pm_flags) == 0)
                 {
                     old = ps->bobCycle;
-                    if ( ps->waterlevel >= 3 )
+                    if (ps->waterlevel >= 3)
                         bobmove = bg_weaponBobFrequencySwimming->current.value;
                     ps->bobCycle = BG_CalcBob(pm, pml, old, bobmove);
                     Footsteps = PM_ShouldMakeFootsteps(pm);
@@ -4825,7 +4962,7 @@ void __cdecl PM_ApplyMovementAnimations(
     ps = pm->ps;
     if ( !pm->ps && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp", 4359, 0, "%s", "ps") )
         __debugbreak();
-    moveAnim = PM_GetMoveAnim(ps, pml, stanceFrontBack, walking, sprinting);
+    moveAnim = (scriptAnimMoveTypes_t)PM_GetMoveAnim(ps, pml, stanceFrontBack, walking, sprinting);
     if ( sprinting )
         animResult = BG_AnimScriptAnimation(pm, AISTATE_COMBAT, moveAnim, 1);
     else
@@ -4900,7 +5037,7 @@ double __cdecl PM_CalcPlayerPitch(playerState_s *ps, pml_t *pml)
     }
     else
     {
-        LODWORD(pitchTrans) = COERCE_UNSIGNED_INT(groundNormAngles[0] + 90.0) ^ _mask__NegFloat_;
+        pitchTrans = -(groundNormAngles[0] + 90.0);
     }
     return AngleNormalize180(pitchTrans);
 }
@@ -5019,7 +5156,7 @@ void __cdecl PM_UpdatePlayerWalkingFlag(pmove_t *pm)
     ps->pm_flags &= ~0x40u;
     if ( ps->pm_type < 9 )
     {
-        if ( bitarray<51>::testBit(&pm->cmd.button_bits, 0xBu) )
+        if ( pm->cmd.button_bits.testBit(0xBu) )
         {
             if ( (ps->pm_flags & 1) == 0
                 && (ps->pm_flags & 0x10) != 0
@@ -5295,7 +5432,7 @@ void __cdecl PM_LadderMove(pmove_t *pm, pml_t *pml)
                 velocity = ps->velocity;
                 v13 = -fSideSpeed;
                 v14 = ps->velocity;
-                ps->velocity[0] = (float)(COERCE_FLOAT(LODWORD(fSideSpeed) ^ _mask__NegFloat_) * vSideDir[0]) + ps->velocity[0];
+                ps->velocity[0] = (float)((-(fSideSpeed)) * vSideDir[0]) + ps->velocity[0];
                 velocity[1] = (float)(v13 * vSideDir[1]) + v14[1];
                 fSpeedDrop = (float)(fSideSpeed * pml->frametime) * 16.0;
                 if ( fabs(fSideSpeed) > fabs(fSpeedDrop) )
@@ -5323,8 +5460,7 @@ void __cdecl PM_LadderMove(pmove_t *pm, pml_t *pml)
             vLadderVec = ps->vLadderVec;
             v8 = -fSideSpeed;
             v9 = ps->velocity;
-            ps->velocity[0] = (float)(COERCE_FLOAT(LODWORD(fSideSpeed) ^ _mask__NegFloat_) * ps->vLadderVec[0])
-                                            + ps->velocity[0];
+            ps->velocity[0] = (float)((-(fSideSpeed)) * ps->vLadderVec[0]) + ps->velocity[0];
             v6[1] = (float)(v8 * vLadderVec[1]) + v9[1];
             if ( (ps->velocity[0] != 0.0 || ps->velocity[1] != 0.0 || ps->velocity[2] != 0.0)
                 && (float)(ps->velocity[2] * ps->velocity[2]) >= (float)((float)(ps->velocity[0] * ps->velocity[0])
@@ -5352,7 +5488,7 @@ void __cdecl PM_LadderMove(pmove_t *pm, pml_t *pml)
     }
 }
 
-void __cdecl PM_CheckMeleeCharge(pmove_t *pm)
+void __cdecl PM_CheckMeleeCharge(pmove_t *pm, pml_t *pml)
 {
     playerState_s *ps; // [esp+0h] [ebp-4h]
 
@@ -5430,7 +5566,7 @@ void __cdecl TurretNVGTrigger(pmove_t *pm)
     ps = pm->ps;
     if ( !pm->ps && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp", 6060, 0, "%s", "ps") )
         __debugbreak();
-    if ( !bitarray<51>::testBit(&pm->oldcmd.button_bits, 0x12u) && bitarray<51>::testBit(&pm->cmd.button_bits, 0x12u) )
+    if ( !pm->oldcmd.button_bits.testBit(0x12u) && pm->cmd.button_bits.testBit(0x12u) )
     {
         if ( (ps->weapFlags & 0x40) != 0 )
         {
@@ -5458,7 +5594,6 @@ void __cdecl PM_UpdatePush(pmove_t *pm, pml_t *pml)
     {
         setup_gjkcc_input(pm, &gjkcc_in);
         gjk_sentient_push(
-            (int)&savedregs,
             pm,
             pml,
             ps->origin,
@@ -5502,7 +5637,7 @@ void __cdecl Pmove(pmove_t *pm)
 
     setup_gjkcc_input(pm, &gjkcc_in);
     pm->m_gjkcc_input = &gjkcc_in;
-    gjkcc_prolog((int)&savedregs, &gjkcc_in, pm->ps->origin);
+    gjkcc_prolog(&gjkcc_in, pm->ps->origin);
     Pmove_1(pm);
     gjkcc_epilog(&gjkcc_in, pm->ps->origin);
     pm->m_gjkcc_input = 0;

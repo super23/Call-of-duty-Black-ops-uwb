@@ -26,6 +26,7 @@
 #include <universal/com_memory.h>
 #include <universal/com_loadutils.h>
 #include <qcommon/ent.h>
+#include <cgame_mp/cg_predict_mp.h>
 
 animStringItem_t defineStr[23][16];
 char defineStrings[10000];

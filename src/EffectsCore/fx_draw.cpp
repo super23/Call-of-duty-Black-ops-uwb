@@ -1384,7 +1384,7 @@ void __cdecl FX_DrawElement(FxSystem *system, const FxElemDef *elemDef, FxElem *
         draw->elem = elem;
         if ( elemDef != draw->elemDef )
         {
-            if ( ((unsigned int)&loc_800000 & elemDef->flags) != 0 )
+            if ( (0x800000 & elemDef->flags) != 0 )
             {
                 rotationAxis = elemDef->rotationAxis;
                 v = (float)(COERCE_FLOAT((rotationAxis & 0x1FF) + 1077936128 - 2 * (rotationAxis & 0x100)) - 3.0) * 16448.252;

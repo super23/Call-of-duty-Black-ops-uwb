@@ -2592,7 +2592,7 @@ void __cdecl ClientEndFrame(gentity_s *ent)
             {
                 client->iLastCompassPlayerInfoEnt = client->ps.iCompassPlayerInfo & 0x3F;
                 if ( (g_entities[client->iLastCompassPlayerInfoEnt].s.lerp.eFlags & 0x400000) != 0 )
-                    v3 = (unsigned int)&loc_800000 | client->ps.eFlags;
+                    v3 = 0x800000 | client->ps.eFlags;
                 else
                     v3 = client->ps.eFlags & 0xFF7FFFFF;
                 client->ps.eFlags = v3;

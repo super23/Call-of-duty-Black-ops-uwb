@@ -8,6 +8,188 @@ struct phys_gjk_geom_id_pair_key // sizeof=0x8
     unsigned int m_id2;                 // XREF: phys_heap_gjk_cache_system_avl_tree::get_gjk_cache_info(uint,uint,bool)+91/w
 };
 
+struct __declspec(align(16)) gjkcc_info // sizeof=0x200
+{
+    phys_mat44 m_cg_to_world_xform;
+    phys_vec3 m_cg_aabb_min;
+    phys_vec3 m_cg_aabb_max;
+    float m_mins[3];
+    float m_maxs[3];
+    phys_heap_gjk_cache_system_avl_tree m_gjk_cache;
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    gjk_query_output m_gjk_query_output;
+    volatile unsigned int m_active;
+    bool m_is_server_thread;
+    // padding byte
+    // padding byte
+    // padding byte
+    gjk_base_t *m_cg_;
+    float m_last_origin[3];
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+
+    void update_cg(float *mins, float *maxs, bool force);
+    void Lock();
+    void Unlock();
+};
+
+struct __declspec(align(16)) gjk_trace_input_t // sizeof=0xB0
+{                                       // XREF: gjk_player_trace(gjkcc_input_t const &,trace_t *,float const * const,float const * const,float const * const,float const * const,int,int)+10/w
+                                        // ?gjk_player_trace@@YAXABUgjkcc_input_t@@PAUtrace_t@@QBM222HH@Z/r ...
+    const gjk_base_t *m_cg;
+    float m_gjk_ac_eps;
+    bool m_keep_all_collisions;
+    bool m_exit_on_penetration;
+    // padding byte
+    // padding byte
+    float m_extra_time;
+    phys_heap_gjk_cache_system_avl_tree *m_gjk_cache;
+    gjk_query_output *m_query_output;
+    gjkcc_info *m_gcci;
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    gjk_query_input m_query_input;
+    phys_transient_allocator *m_allocator;
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+    // padding byte
+
+    void set_cg_position(const phys_vec3 *position);
+};
+
+struct generic_avl_map_node_t // sizeof=0x14
+{
+    void *m_data;
+    unsigned int m_avl_key;
+    phys_inplace_avl_tree_node<generic_avl_map_node_t> m_avl_node_info;
+};
+
+struct __declspec(align(4)) gjkcc_info_database_t // sizeof=0x10
+{                                       // XREF: .data:gjkcc_info_database_t g_gjkcc_info_client_database/r
+                                        // .data:gjkcc_info_database_t g_gjkcc_info_server_database/r
+    phys_inplace_avl_tree<unsigned int,generic_avl_map_node_t,generic_avl_map_node_t> m_map;
+                                        // XREF: _dynamic_initializer_for__g_gjkcc_info_client_database__+3/w
+                                        // _dynamic_initializer_for__g_gjkcc_info_server_database__+3/w
+    volatile unsigned int m_token;                        // XREF: _dynamic_initializer_for__g_gjkcc_info_client_database__+D/w
+                                        // _dynamic_initializer_for__g_gjkcc_info_server_database__+D/w
+    int m_gcci_count;                   // XREF: _dynamic_initializer_for__g_gjkcc_info_client_database__+17/w
+                                        // _dynamic_initializer_for__g_gjkcc_info_server_database__+17/w
+    bool m_is_server_thread;            // XREF: _dynamic_initializer_for__g_gjkcc_info_client_database__+21/w
+                                        // _dynamic_initializer_for__g_gjkcc_info_server_database__+21/w
+    // padding byte
+    // padding byte
+    // padding byte
+
+    gjkcc_info *__thiscall gjkcc_info_find_or_create(
+        unsigned int gjkcc_id,
+        bool is_server_thread,
+        const float *origin);
+    void __thiscall Lock();
+    void __thiscall Unlock();
+    void __thiscall verify_internal(bool is_server_thread);
+    gjkcc_info *__thiscall gjkcc_info_find(
+        unsigned int gjkcc_id,
+        bool is_server_thread);
+    void __thiscall gjkcc_info_destroy(
+        unsigned int gjkcc_id,
+        bool is_server_thread);
+};
+
+struct gjkcc_input_t // sizeof=0x20
+{                                       // XREF: ?Actor_Physics_z@@YAHPAUactor_physics_t@@@Z/r
+                                        // Actor_CallThink/r ...
+    unsigned int gjkcc_id;              // XREF: ai_physics_trace(trace_t *,float const * const,float const * const,float const * const,float const * const,int,int,actor_physics_t *):loc_912994/w
+    bool is_server_thread;              // XREF: ai_physics_trace(trace_t *,float const * const,float const * const,float const * const,float const * const,int,int,actor_physics_t *)+5B/w
+    // padding byte
+    // padding byte
+    // padding byte
+    colgeom_visitor_inlined_t<200> *proximity_data;
+    // XREF: ai_physics_trace(trace_t *,float const * const,float const * const,float const * const,float const * const,int,int,actor_physics_t *)+5F/w
+    int proximity_mask;                 // XREF: ai_physics_trace(trace_t *,float const * const,float const * const,float const * const,float const * const,int,int,actor_physics_t *)+66/w
+    int m_ent_num;                      // XREF: ai_physics_trace(trace_t *,float const * const,float const * const,float const * const,float const * const,int,int,actor_physics_t *)+6D/w
+    unsigned int m_gjk_query_flags;     // XREF: ai_physics_trace(trace_t *,float const * const,float const * const,float const * const,float const * const,int,int,actor_physics_t *)+74/w
+    const gjk_base_t *m_gjk_cg;         // XREF: ai_physics_trace(trace_t *,float const * const,float const * const,float const * const,float const * const,int,int,actor_physics_t *)+7B/w
+    const phys_mat44 *m_mat;            // XREF: ai_physics_trace(trace_t *,float const * const,float const * const,float const * const,float const * const,int,int,actor_physics_t *)+82/w
+};
+
+struct __declspec(align(4)) gjk_slide_move_input_t // sizeof=0x2C
+{                                       // XREF: ai_gjk_slide_move_input_t/r
+                                        // player_gjk_slide_move_input_t/r ...
+    //gjk_slide_move_input_t_vtbl *__vftable; // XREF: PM_SlideMove+22/w
+                                        // PM_SlideMove+2C/w ...
+    const float (*position)[3];
+    const float (*velocity)[3];
+    int gravity;
+    int has_gravity;
+    const float (*mins)[3];
+    const float (*maxs)[3];
+    int tracemask;
+    int clientnum;
+    float frametime;
+    bool do_step_down;
+    // padding byte
+    // padding byte
+    // padding byte
+
+    virtual void custom_process(gjk_trace_output_t *gto);
+};
+
+struct __declspec(align(4)) gjk_slide_move_output_t // sizeof=0x1C
+{                                       // XREF: AIPhys_SlideMove/r
+                                        // PM_SlideMove/r
+    float new_position[3];              // XREF: PM_SlideMove+97/r
+                                        // PM_SlideMove+A9/r ...
+    float new_velocity[3];              // XREF: PM_SlideMove+DD/r
+                                        // PM_SlideMove+EF/r ...
+    bool expensive_push_out;
+    bool expensive_push_out_failed;
+    // padding byte
+    // padding byte
+};
+
+struct player_gjk_slide_move_input_t : gjk_slide_move_input_t // sizeof=0x30
+{                                       // XREF: PM_SlideMove/r
+    pmove_t *pm;
+
+    void custom_process(gjk_trace_output_t *gto);
+};
+
+struct player_push_slide_move_input_t : gjk_slide_move_input_t // sizeof=0x38
+{
+    float velocity_[3];
+};
+
+struct list_gjk_trace_output // sizeof=0x10
+{                                       // XREF: ?gjk_player_trace@@YAXABUgjkcc_input_t@@PAUtrace_t@@QBM222HH@Z/r
+                                        // ?PM_gjk_ground_trace@@YAXABUgjkcc_input_t@@PAUtrace_t@@QBM222HHPAM@Z/r
+    phys_link_list<gjk_trace_output_t> m_list;
+    gjk_trace_output_t *m_first_hit;
+};
+
 struct phys_gjk_cache_info // sizeof=0x80
 {                                       // XREF: phys_heap_gjk_cache_system_avl_tree::phys_gjk_cache_info_internal/r
     phys_vec3 m_support_dir;
@@ -42,6 +224,8 @@ struct __declspec(align(8)) gjk_entity_info_t // sizeof=0x50
 
     const Glass *get_glass();
     const void *get_ent();
+    const gentity_s *__thiscall get_gent();
+    const centity_s *__thiscall get_cent();
 
     const DynEntityDef *get_dent();
 };
@@ -66,6 +250,7 @@ struct __declspec(align(16)) gjk_geom_info_t // sizeof=0x40
     // padding byte
 
     void calc_aabb();
+    gjk_entity_info_t *get_xform();
 };
 
 struct phys_gjk_geom // sizeof=0x4
@@ -130,6 +315,8 @@ struct phys_gjk_info // sizeof=0x3A0
         float m_lamda[4];
         int m_candidate;
     };
+
+    phys_gjk_info();
 
     gjk_retval_e gjk(const phys_gjk_input *d, const phys_vec3 *initial_support_dir, bool in_separation_loop);
 

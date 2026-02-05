@@ -8941,7 +8941,7 @@ void __cdecl Item_Text_Paint(int localClientNum, UiContext *dc, itemDef_s *item)
             textPtr = textWithBinding;
         Item_TextColor(dc, item, (float (*)[4])color);
         Item_SetTextExtents(dc->contextIndex, item, textPtr);
-        if ( ((unsigned int)&loc_800000 & item->window.staticFlags) != 0 )
+        if ( (0x800000 & item->window.staticFlags) != 0 )
         {
             Item_Text_AutoWrapped_Paint(dc->contextIndex, item, textPtr, color, subtitle, MY_SUBTITLE_GLOWCOLOR, cinematic);
         }

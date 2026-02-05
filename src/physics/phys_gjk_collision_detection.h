@@ -89,6 +89,8 @@ struct bpei_database_t // sizeof=0x10
     ~bpei_database_t();
 
     void update_database();
+    void purge_database();
+
     broad_phase_environment_info *get_bpei(bpei_database_id database_id);
 };
 
@@ -131,6 +133,9 @@ struct phys_heap_gjk_cache_system_avl_tree // sizeof=0x10
         unsigned int id2,
         struct tlAtomicReadWriteMutex *query_mutex,
         bool __formal);
+
+    void shutdown();
+    void update_cache();
 };
 
 const struct __declspec(align(16)) gjk_query_input // sizeof=0x80
@@ -160,6 +165,8 @@ const struct __declspec(align(16)) gjk_query_input // sizeof=0x80
     // padding byte
     // padding byte
     // padding byte
+
+    gjk_query_input();
 
     void visit_skip_list(int query_visitor_count);
     char is_in_skip_list(gjk_geom_info_t *gi_);
@@ -223,6 +230,104 @@ struct gjk_query_output : gjk_collision_visitor // sizeof=0x150
     // padding byte
     // padding byte
     // padding byte
+
+    gjk_query_output();
+    ~gjk_query_output();
+
+    inline void __thiscall verify_empty()
+    {
+        if (this->m_ent_count
+            && !Assert_MyHandler(
+                "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
+                333,
+                0,
+                "%s",
+                "m_ent_count == 0"))
+        {
+            __debugbreak();
+        }
+        if (this->m_geom_count
+            && !Assert_MyHandler(
+                "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
+                334,
+                0,
+                "%s",
+                "m_geom_count == 0"))
+        {
+            __debugbreak();
+        }
+        if (this->m_query_visitor_count
+            && !Assert_MyHandler(
+                "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
+                335,
+                0,
+                "%s",
+                "m_query_visitor_count == 0"))
+        {
+            __debugbreak();
+        }
+        if (this->m_gent_query_visitor_count
+            && !Assert_MyHandler(
+                "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
+                336,
+                0,
+                "%s",
+                "m_gent_query_visitor_count == 0"))
+        {
+            __debugbreak();
+        }
+        if (this->m_cent_query_visitor_count
+            && !Assert_MyHandler(
+                "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
+                337,
+                0,
+                "%s",
+                "m_cent_query_visitor_count == 0"))
+        {
+            __debugbreak();
+        }
+        if (this->m_dent_query_visitor_count
+            && !Assert_MyHandler(
+                "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
+                338,
+                0,
+                "%s",
+                "m_dent_query_visitor_count == 0"))
+        {
+            __debugbreak();
+        }
+        if (this->m_list_geom_info.m_first
+            && !Assert_MyHandler(
+                "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
+                339,
+                0,
+                "%s",
+                "m_list_geom_info.get_first() == NULL"))
+        {
+            __debugbreak();
+        }
+        if (this->m_allocator.m_cur
+            && !Assert_MyHandler(
+                "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
+                340,
+                0,
+                "%s",
+                "m_allocator.is_empty()"))
+        {
+            __debugbreak();
+        }
+        if (this->m_total_list_geom_info
+            && !Assert_MyHandler(
+                "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
+                341,
+                0,
+                "%s",
+                "m_total_list_geom_info == NULL"))
+        {
+            __debugbreak();
+        }
+        iassert(m_cached_query_info.is_empty());
+    }
 
     void __thiscall reset_cache();
     void __thiscall query_prolog(const gjk_query_input *input);

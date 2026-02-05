@@ -1,5 +1,6 @@
 #include "phys_collision.h"
 
+
 void __thiscall contact_point_info::get_closest_psc(
                 const phys_vec3 *normal,
                 const phys_vec3 *b1_r_loc,
@@ -1504,4 +1505,64 @@ void broad_phase_info::set_bpi_env(phys_auto_activate_callback *auto_activate_ca
         this->m_flags |= 0x80u;
     else
         this->m_flags &= ~0x80u;
+}
+
+generic_avl_map_node_t *__cdecl generic_avl_map_add(
+    phys_inplace_avl_tree<unsigned int, generic_avl_map_node_t, generic_avl_map_node_t> *gam,
+    void *data,
+    unsigned int avl_key)
+{
+    generic_avl_map_node_t *m_tree_root; // [esp+15Ch] [ebp-8h]
+    generic_avl_map_node_t *gamn; // [esp+160h] [ebp-4h]
+
+    m_tree_root = gam->m_tree_root;
+    while (m_tree_root && avl_key != m_tree_root->m_avl_key)
+    {
+        if (avl_key >= m_tree_root->m_avl_key)
+            m_tree_root = m_tree_root->m_avl_node_info.m_right;
+        else
+            m_tree_root = m_tree_root->m_avl_node_info.m_left;
+    }
+    if (m_tree_root
+        && !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_collision.cpp",
+            1243,
+            0,
+            "%s",
+            "gam->find(avl_key) == NULL"))
+    {
+        __debugbreak();
+    }
+    gamn = phys_simple_allocator<generic_avl_map_node_t>::allocate(&g_generic_avl_map_node_allocator);
+    if (!gamn
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_collision.cpp", 1245, 0, "%s", "gamn"))
+    {
+        __debugbreak();
+    }
+    gamn->m_data = data;
+    phys_inplace_avl_tree<unsigned int, generic_avl_map_node_t, generic_avl_map_node_t>::add(gam, &avl_key, gamn);
+    return gamn;
+}
+
+void *__cdecl generic_avl_map_destroy(
+    phys_inplace_avl_tree<unsigned int, generic_avl_map_node_t, generic_avl_map_node_t> *gam,
+    unsigned int avl_key)
+{
+    generic_avl_map_node_t *m_tree_root; // [esp+144h] [ebp-Ch]
+    void *data; // [esp+148h] [ebp-8h]
+
+    m_tree_root = gam->m_tree_root;
+    while (m_tree_root && avl_key != m_tree_root->m_avl_key)
+    {
+        if (avl_key >= m_tree_root->m_avl_key)
+            m_tree_root = m_tree_root->m_avl_node_info.m_right;
+        else
+            m_tree_root = m_tree_root->m_avl_node_info.m_left;
+    }
+    if (!m_tree_root)
+        return 0;
+    data = m_tree_root->m_data;
+    phys_inplace_avl_tree<unsigned int, generic_avl_map_node_t, generic_avl_map_node_t>::remove(gam, &avl_key);
+    phys_simple_allocator<generic_avl_map_node_t>::free(&g_generic_avl_map_node_allocator, m_tree_root);
+    return data;
 }

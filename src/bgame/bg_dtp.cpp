@@ -8,6 +8,7 @@
 #include "bg_misc.h"
 #include "bg_weapons.h"
 #include "bg_jump.h"
+#include <cgame_mp/cg_predict_mp.h>
 
 const dvar_s *dtp;
 const dvar_s *dtp_debug;

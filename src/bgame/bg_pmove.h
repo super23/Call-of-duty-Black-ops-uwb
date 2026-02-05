@@ -1,5 +1,41 @@
 #pragma once
 
+#include <qcommon/bitarray.h>
+
+struct pmove_t;
+struct gjkcc_input_t;
+struct trace_t;
+struct pml_t;
+struct playerState_s;
+struct usercmd_s;
+struct clientInfo_t;
+struct col_context_t;
+
+enum scriptAnimMoveTypes_t : __int32;
+
+#define MASK_PLAYER_FULL 0x3818813
+
+enum PmStanceFrontBack : __int32
+{                                       // XREF: PM_Footsteps/r
+                                        // PM_GetBobMove/r ...
+    PM_STANCE_STAND           = 0x0,
+    PM_STANCE_PRONE           = 0x1,
+    PM_STANCE_CROUCH          = 0x2,
+    PM_STANCE_BACKWARD_FIRST  = 0x3,
+    PM_STANCE_BACKWARD_RUN    = 0x3,
+    PM_STANCE_BACKWARD_PRONE  = 0x4,
+    PM_STANCE_BACKWARD_CROUCH = 0x5,
+    NUM_PM_STANCE_FRONTBACK   = 0x6,
+};
+
+struct viewLerpWaypoint_s // sizeof=0xC
+{                                       // XREF: .data:viewLerp_StandCrouch/r
+    int iFrac;
+    float fViewHeight;
+    int iOffset;
+};
+
+
 void __cdecl setup_gjkcc_input(pmove_t *pm, gjkcc_input_t *gjkcc_in);
 void __cdecl PM_trace(
                 pmove_t *pm,
@@ -19,7 +55,6 @@ void __cdecl PM_playerTrace(
                 float *end,
                 int passEntityNum,
                 int contentMask);
-TraceExtents *__thiscall //TraceExtents::TraceExtents(TraceExtents *this);
 void __cdecl PM_AddEvent(playerState_s *ps, unsigned int newEvent);
 void __cdecl PM_AddTouchEnt(pmove_t *pm, int entityNum);
 void __cdecl PM_AddTouchGlass(pmove_t *pm, unsigned int glassId);
@@ -77,8 +112,8 @@ bool __cdecl PM_IsInAir(pmove_t *pm);
 void __cdecl PM_CalcMeleeChargeTime(playerState_s *ps, int *outTime, float *outChargeVel);
 void __cdecl Pmove_1(pmove_t *pm);
 void __cdecl PmoveSingle(pmove_t *pm);
-void __cdecl PM_UpdateVisionAnims(pmove_t *pm);
-void __cdecl PM_UpdateScriptedAnim(pmove_t *pm);
+void __cdecl PM_UpdateVisionAnims(pmove_t *pm, pml_t *pml);
+void __cdecl PM_UpdateScriptedAnim(pmove_t *pm, pml_t *pml);
 void __cdecl PM_UpdateSprint(pmove_t *pm, const pml_t *pml);
 void __cdecl PM_StartSprint(playerState_s *ps, pmove_t *pm, const pml_t *pml, int sprintLeft);
 void __cdecl PM_EndSprint(playerState_s *ps, pmove_t *pm);
@@ -118,7 +153,7 @@ void __cdecl PM_Footsteps_NotMoving(pmove_t *pm, int stance, bool allow_flinch);
 int __cdecl PM_Footsteps_TurnAnim(clientInfo_t *ci);
 scriptAnimMoveTypes_t __cdecl PM_GetNotMovingAnim(int turnAdjust);
 bool __cdecl PM_ShouldFlinch(playerState_s *ps);
-void __cdecl PM_VehicleDrive(pmove_t *pm);
+void __cdecl PM_VehicleDrive(pmove_t *pm, pml_t *pml);
 void __cdecl PM_Footsteps(pmove_t *pm, pml_t *pml);
 int __cdecl PM_GetStanceEx(int stance, int backward);
 char __cdecl PM_Footstep_LadderMove(pmove_t *pm, pml_t *pml);
@@ -148,7 +183,7 @@ void __cdecl PM_ClearLadderFlag(playerState_s *ps);
 void __cdecl PM_CheckLadderMove(pmove_t *pm, pml_t *pml);
 void __cdecl PM_SetLadderFlag(playerState_s *ps);
 void __cdecl PM_LadderMove(pmove_t *pm, pml_t *pml);
-void __cdecl PM_CheckMeleeCharge(pmove_t *pm);
+void __cdecl PM_CheckMeleeCharge(pmove_t *pm, pml_t *pml);
 void __cdecl PM_MeleeChargeMove(pmove_t *pm, pml_t *pml);
 void __cdecl TurretNVGTrigger(pmove_t *pm);
 void __cdecl PM_UpdatePush(pmove_t *pm, pml_t *pml);

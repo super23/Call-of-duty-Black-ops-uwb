@@ -34,7 +34,6 @@ void __cdecl BG_Flame_RegisterDvars();
 void __cdecl BG_InitFire();
 void __cdecl BG_ShutdownFire();
 void __cdecl BG_ResetFire();
-bool __cdecl TerrainScorch_AllowSurfacesCallback(int surfIndex);
 void __cdecl TerrainScorch(float *loresCellPos, bool instant);
 unsigned __int16 __cdecl HalfFromFloat(float floatIn);
 double __cdecl FloatFromHalf(unsigned __int16 halfIn);

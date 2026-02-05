@@ -158,7 +158,7 @@ void __cdecl Touch_Item(gentity_s *ent, gentity_s *other, int touched)
                     }
                     if ( pickedUp )
                     {
-                        if ( ((unsigned int)&loc_800000 & ent->s.lerp.eFlags2) != 0 )
+                        if ( (0x800000 & ent->s.lerp.eFlags2) != 0 )
                         {
                             Scr_AddEntity(other, SCRIPTINSTANCE_SERVER);
                             Scr_Notify(ent, scr_const.scavenger, 1u);
@@ -606,7 +606,7 @@ bool __cdecl WeaponPickup_Touch(gentity_s *weaponEnt, gentity_s *player, unsigne
     {
         __debugbreak();
     }
-    if ( ((unsigned int)&loc_800000 & weaponEnt->s.lerp.eFlags2) != 0 && (player->client->ps.perks[1] & 0x200) != 0 )
+    if ( (0x800000 & weaponEnt->s.lerp.eFlags2) != 0 && (player->client->ps.perks[1] & 0x200) != 0 )
         return 1;
     weapDef = BG_GetWeaponDef(weapIdx);
     haveExactWeapon = BG_PlayerHasWeapon(&player->client->ps, weapIdx);

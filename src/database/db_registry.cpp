@@ -2541,7 +2541,7 @@ void __cdecl DB_LoadXAssets(XZoneInfo *zoneInfo, unsigned int zoneCount, int syn
             DB_UnloadXAssetsMemoryForZone(zoneInfo[j].freeFlags, 0x400000);
             DB_UnloadXAssetsMemoryForZone(zoneInfo[j].freeFlags, 0x200000);
             DB_UnloadXAssetsMemoryForZone(zoneInfo[j].freeFlags, (int)&cls.rankedServers[711].game[35]);
-            DB_UnloadXAssetsMemoryForZone(zoneInfo[j].freeFlags, (int)&loc_800000);
+            DB_UnloadXAssetsMemoryForZone(zoneInfo[j].freeFlags, 0x800000);
             DB_UnloadXAssetsMemoryForZone(zoneInfo[j].freeFlags, 0x4000000);
             DB_UnloadXAssetsMemoryForZone(zoneInfo[j].freeFlags, (int)&cls.wagerServers[5331].basictraining);
             DB_UnloadXAssetsMemoryForZone(zoneInfo[j].freeFlags, 0x10000000);
@@ -2572,7 +2572,7 @@ void __cdecl DB_LoadXAssets(XZoneInfo *zoneInfo, unsigned int zoneCount, int syn
             {
                 if ( (char *)allocFlags == &cls.rankedServers[711].game[35] )
                 {
-                    locZoneInfo[count].allocFlags = (int)&loc_800000;
+                    locZoneInfo[count].allocFlags = 0x800000;
                     goto LABEL_85;
                 }
                 if ( allocFlags == 0x4000000 )

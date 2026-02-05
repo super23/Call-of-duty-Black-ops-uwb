@@ -1,4 +1,16 @@
 #include "bg_slidemove.h"
+#include <cgame_mp/cg_predict_mp.h>
+#include <tl/tl_system.h>
+#include <physics/phys_mem_new.h>
+#include <server/sv_world.h>
+
+const float PT_AC_EPS = 0.125f;
+phys_vec3 PT_AC_EPS_VEC = { PT_AC_EPS , PT_AC_EPS , PT_AC_EPS };
+
+
+phys_simple_allocator<gjkcc_info> g_gjkcc_info_allocator;
+gjkcc_info_database_t g_gjkcc_info_client_database;
+gjkcc_info_database_t g_gjkcc_info_server_database;
 
 gjk_polygon_cylinder_t *__cdecl create_gjkcc_gjk_geom(
                 float (*mins)[3],
@@ -10,7 +22,7 @@ gjk_polygon_cylinder_t *__cdecl create_gjkcc_gjk_geom(
     int savedregs; // [esp+10h] [ebp+0h] BYREF
 
     gjk_geom = gjk_polygon_cylinder_t::create(mins, maxs, 0.5, stype, allocator);
-    setup_gjk_polygon_cylinder(COERCE_FLOAT(&savedregs), (float *)mins, (float *)maxs, 0.5, gjk_geom);
+    setup_gjk_polygon_cylinder((float *)mins, (float *)maxs, 0.5, gjk_geom);
     return gjk_geom;
 }
 
@@ -18,7 +30,8 @@ gjkcc_info *__cdecl create_gjkcc_info(unsigned int gjkcc_id, bool is_server_thre
 {
     gjkcc_info *gcci; // [esp+58h] [ebp-8h]
 
-    gcci = phys_simple_allocator<gjkcc_info>::allocate(&g_gjkcc_info_allocator);
+    //gcci = phys_simple_allocator<gjkcc_info>::allocate(&g_gjkcc_info_allocator);
+    gcci = g_gjkcc_info_allocator.allocate();
     if ( gjkcc_id )
         gcci->m_gjk_cache.m_max_num_gjk_ci = 256;
     else
@@ -26,7 +39,8 @@ gjkcc_info *__cdecl create_gjkcc_info(unsigned int gjkcc_id, bool is_server_thre
     gcci->m_gjk_cache.m_list_head = 0;
     gcci->m_active = 0;
     gcci->m_is_server_thread = is_server_thread;
-    phys_mat44::operator=(&gcci->m_cg_to_world_xform, &PHYS_IDENTITY_MATRIX_1);
+    //phys_mat44::operator=(&gcci->m_cg_to_world_xform, &PHYS_IDENTITY_MATRIX);
+    gcci->m_cg_to_world_xform = PHYS_IDENTITY_MATRIX;
     gcci->m_mins[0] = -15.0f;
     gcci->m_mins[1] = -15.0f;
     gcci->m_mins[2] = 0.0f;
@@ -39,31 +53,15 @@ gjkcc_info *__cdecl create_gjkcc_info(unsigned int gjkcc_id, bool is_server_thre
                                     0.5,
                                     0,
                                     &g_empty_collision_visitor);
-    gjkcc_info::update_cg(gcci, gcci->m_mins, gcci->m_maxs, 1);
+    //gjkcc_info::update_cg(gcci, gcci->m_mins, gcci->m_maxs, 1);
+    gcci->update_cg(gcci->m_mins, gcci->m_maxs, 1);
     gcci->m_last_origin[0] = *origin;
     gcci->m_last_origin[1] = origin[1];
     gcci->m_last_origin[2] = origin[2];
     return gcci;
 }
 
-phys_mat44 *__thiscall phys_mat44::operator=(phys_mat44 *this, const phys_mat44 *__that)
-{
-    this->x.x = __that->x.x;
-    this->x.y = __that->x.y;
-    this->x.z = __that->x.z;
-    this->y.x = __that->y.x;
-    this->y.y = __that->y.y;
-    this->y.z = __that->y.z;
-    this->z.x = __that->z.x;
-    this->z.y = __that->z.y;
-    this->z.z = __that->z.z;
-    this->w.x = __that->w.x;
-    this->w.y = __that->w.y;
-    this->w.z = __that->w.z;
-    return this;
-}
-
-void __thiscall gjkcc_info::update_cg(gjkcc_info *this, float *mins, float *maxs, bool force)
+void __thiscall gjkcc_info::update_cg(float *mins, float *maxs, bool force)
 {
     int savedregs; // [esp+1Ch] [ebp+0h] BYREF
 
@@ -81,19 +79,19 @@ void __thiscall gjkcc_info::update_cg(gjkcc_info *this, float *mins, float *maxs
         this->m_maxs[0] = *maxs;
         this->m_maxs[1] = maxs[1];
         this->m_maxs[2] = maxs[2];
-        if ( this->m_cg_->get_type(this->m_cg_) == 4 )
+        if ( this->m_cg_->get_type() == 4 )
         {
-            setup_gjk_capsule(COERCE_FLOAT(&savedregs), mins, maxs, 0.5, (gjk_double_sphere_t *)this->m_cg_);
+            setup_gjk_capsule(mins, maxs, 0.5, (gjk_double_sphere_t *)this->m_cg_);
         }
-        else if ( this->m_cg_->get_type(this->m_cg_) == 7 )
+        else if ( this->m_cg_->get_type() == 7 )
         {
-            setup_gjk_polygon_cylinder(COERCE_FLOAT(&savedregs), mins, maxs, 0.5, (gjk_polygon_cylinder_t *)this->m_cg_);
+            setup_gjk_polygon_cylinder(mins, maxs, 0.5, (gjk_polygon_cylinder_t *)this->m_cg_);
         }
-        else if ( this->m_cg_->get_type(this->m_cg_) == 5 )
+        else if ( this->m_cg_->get_type() == 5 )
         {
-            setup_gjk_cylinder(COERCE_FLOAT(&savedregs), mins, maxs, 0.5, (gjk_cylinder_t *)this->m_cg_);
+            setup_gjk_cylinder(mins, maxs, 0.5, (gjk_cylinder_t *)this->m_cg_);
         }
-        this->m_cg_->calc_aabb(this->m_cg_, &PHYS_IDENTITY_MATRIX_1, &this->m_cg_aabb_min, &this->m_cg_aabb_max);
+        this->m_cg_->calc_aabb(&PHYS_IDENTITY_MATRIX, &this->m_cg_aabb_min, &this->m_cg_aabb_max);
         this->m_cg_aabb_min.x = this->m_cg_aabb_min.x + PT_AC_EPS_VEC.x;
         this->m_cg_aabb_min.y = this->m_cg_aabb_min.y + PT_AC_EPS_VEC.y;
         this->m_cg_aabb_min.z = this->m_cg_aabb_min.z + PT_AC_EPS_VEC.z;
@@ -103,39 +101,45 @@ void __thiscall gjkcc_info::update_cg(gjkcc_info *this, float *mins, float *maxs
     }
 }
 
-void __cdecl destroy_gjkcc_info(char *gcci_)
+void __cdecl destroy_gjkcc_info(gjkcc_info *gcci_)
 {
-    if ( !gcci_ && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_slidemove.cpp", 108, 0, "%s", "gcci_") )
+    if (!gcci_ && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_slidemove.cpp", 108, 0, "%s", "gcci_"))
         __debugbreak();
-    if ( _InterlockedCompareExchange((volatile signed __int32 *)gcci_ + 120, 1, 1) == 1
+    if (_InterlockedCompareExchange(&gcci_->m_active, 1, 1) == 1
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_slidemove.cpp",
-                    110,
-                    0,
-                    "%s",
-                    "gcci->IsLocked() == false") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_slidemove.cpp",
+            110,
+            0,
+            "%s",
+            "gcci->IsLocked() == false"))
     {
         __debugbreak();
     }
-    gjk_polygon_cylinder_t::destroy(*((gjk_polygon_cylinder_t **)gcci_ + 122));
-    gjk_query_output::verify_empty((gjk_query_output *)(gcci_ + 144));
-    phys_heap_gjk_cache_system_avl_tree::shutdown((phys_heap_gjk_cache_system_avl_tree *)(gcci_ + 120));
-    phys_simple_allocator<gjkcc_info>::free(&g_gjkcc_info_allocator, (gjkcc_info *)gcci_);
+    gjk_polygon_cylinder_t::destroy((gjk_polygon_cylinder_t *)gcci_->m_cg_);
+    //gjk_query_output::verify_empty(&gcci_->m_gjk_query_output);
+    gcci_->m_gjk_query_output.verify_empty();
+    //phys_heap_gjk_cache_system_avl_tree::shutdown(&gcci_->m_gjk_cache);
+    gcci_->m_gjk_cache.shutdown();
+    //phys_simple_allocator<gjkcc_info>::free(&g_gjkcc_info_allocator, gcci_);
+    g_gjkcc_info_allocator.free(gcci_);
 }
 
-void __thiscall phys_heap_gjk_cache_system_avl_tree::shutdown(phys_heap_gjk_cache_system_avl_tree *this)
+void __thiscall phys_heap_gjk_cache_system_avl_tree::shutdown()
 {
     phys_heap_gjk_cache_system_avl_tree::phys_gjk_cache_info_internal *next; // [esp+154h] [ebp-4h]
 
     while ( this->m_list_head )
     {
         next = this->m_list_head->m_next_gjk_ci;
-        phys_inplace_avl_tree<phys_gjk_geom_id_pair_key,phys_heap_gjk_cache_system_avl_tree::phys_gjk_cache_info_internal,phys_heap_gjk_cache_system_avl_tree::phys_gjk_cache_info_internal::avl_tree_accessor>::remove(
-            &this->m_search_tree,
-            &this->m_list_head->m_key);
-        phys_simple_allocator<phys_heap_gjk_cache_system_avl_tree::phys_gjk_cache_info_internal>::free(
-            &this->m_list_phys_gjk_cache_info_internal,
-            this->m_list_head);
+
+        this->m_search_tree.remove(&this->m_list_head->m_key);
+        //phys_inplace_avl_tree<phys_gjk_geom_id_pair_key,phys_heap_gjk_cache_system_avl_tree::phys_gjk_cache_info_internal,phys_heap_gjk_cache_system_avl_tree::phys_gjk_cache_info_internal::avl_tree_accessor>::remove(
+        //    &this->m_search_tree,
+        //    &this->m_list_head->m_key);
+        this->m_list_phys_gjk_cache_info_internal.free(this->m_list_head);
+        //phys_simple_allocator<phys_heap_gjk_cache_system_avl_tree::phys_gjk_cache_info_internal>::free(
+        //    &this->m_list_phys_gjk_cache_info_internal,
+        //    this->m_list_head);
         this->m_list_head = next;
     }
     if ( this->m_list_phys_gjk_cache_info_internal.m_count )
@@ -151,129 +155,7 @@ void __thiscall phys_heap_gjk_cache_system_avl_tree::shutdown(phys_heap_gjk_cach
     }
 }
 
-void __thiscall gjk_query_output::verify_empty(gjk_query_output *this)
-{
-    if ( this->m_ent_count
-        && !Assert_MyHandler(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
-                    333,
-                    0,
-                    "%s",
-                    "m_ent_count == 0") )
-    {
-        __debugbreak();
-    }
-    if ( this->m_geom_count
-        && !Assert_MyHandler(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
-                    334,
-                    0,
-                    "%s",
-                    "m_geom_count == 0") )
-    {
-        __debugbreak();
-    }
-    if ( this->m_query_visitor_count
-        && !Assert_MyHandler(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
-                    335,
-                    0,
-                    "%s",
-                    "m_query_visitor_count == 0") )
-    {
-        __debugbreak();
-    }
-    if ( this->m_gent_query_visitor_count
-        && !Assert_MyHandler(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
-                    336,
-                    0,
-                    "%s",
-                    "m_gent_query_visitor_count == 0") )
-    {
-        __debugbreak();
-    }
-    if ( this->m_cent_query_visitor_count
-        && !Assert_MyHandler(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
-                    337,
-                    0,
-                    "%s",
-                    "m_cent_query_visitor_count == 0") )
-    {
-        __debugbreak();
-    }
-    if ( this->m_dent_query_visitor_count
-        && !Assert_MyHandler(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
-                    338,
-                    0,
-                    "%s",
-                    "m_dent_query_visitor_count == 0") )
-    {
-        __debugbreak();
-    }
-    if ( this->m_list_geom_info.m_first
-        && !Assert_MyHandler(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
-                    339,
-                    0,
-                    "%s",
-                    "m_list_geom_info.get_first() == NULL") )
-    {
-        __debugbreak();
-    }
-    if ( this->m_allocator.m_cur
-        && !Assert_MyHandler(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
-                    340,
-                    0,
-                    "%s",
-                    "m_allocator.is_empty()") )
-    {
-        __debugbreak();
-    }
-    if ( this->m_total_list_geom_info
-        && !Assert_MyHandler(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
-                    341,
-                    0,
-                    "%s",
-                    "m_total_list_geom_info == NULL") )
-    {
-        __debugbreak();
-    }
-    if ( !cached_query_info_t::is_empty(&this->m_cached_query_info)
-        && !Assert_MyHandler(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
-                    343,
-                    0,
-                    "%s",
-                    "m_cached_query_info.is_empty()") )
-    {
-        __debugbreak();
-    }
-}
-
-char __thiscall cached_query_info_t::is_empty(cached_query_info_t *this)
-{
-    if ( this->m_query_contents )
-        return 0;
-    if ( this->m_query_flags )
-    {
-        if ( !Assert_MyHandler(
-                        "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../physics/phys_gjk_collision_detection.h",
-                        212,
-                        0,
-                        "%s",
-                        "m_query_flags == 0") )
-            __debugbreak();
-    }
-    return 1;
-}
-
 gjkcc_info *__thiscall gjkcc_info_database_t::gjkcc_info_find_or_create(
-                gjkcc_info_database_t *this,
                 unsigned int gjkcc_id,
                 bool is_server_thread,
                 const float *origin)
@@ -283,8 +165,8 @@ gjkcc_info *__thiscall gjkcc_info_database_t::gjkcc_info_find_or_create(
     generic_avl_map_node_t *gamn; // [esp+14h] [ebp-8h]
     gjkcc_info *gcci; // [esp+18h] [ebp-4h]
 
-    gjkcc_info_database_t::verify_internal(this, is_server_thread);
-    gjkcc_info_database_t::Lock(this);
+    gjkcc_info_database_t::verify_internal(is_server_thread);
+    gjkcc_info_database_t::Lock();
     m_tree_root = this->m_map.m_tree_root;
     while ( m_tree_root && gjkcc_id != m_tree_root->m_avl_key )
     {
@@ -328,11 +210,11 @@ gjkcc_info *__thiscall gjkcc_info_database_t::gjkcc_info_find_or_create(
     {
         __debugbreak();
     }
-    gjkcc_info_database_t::Unlock(this);
+    gjkcc_info_database_t::Unlock();
     return gcci;
 }
 
-void __thiscall gjkcc_info_database_t::Lock(gjkcc_info_database_t *this)
+void __thiscall gjkcc_info_database_t::Lock()
 {
     if ( _InterlockedCompareExchange(&this->m_token, 1, 0) )
     {
@@ -341,7 +223,7 @@ void __thiscall gjkcc_info_database_t::Lock(gjkcc_info_database_t *this)
     }
 }
 
-void __thiscall gjkcc_info_database_t::Unlock(gjkcc_info_database_t *this)
+void __thiscall gjkcc_info_database_t::Unlock()
 {
     if ( _InterlockedCompareExchange(&this->m_token, 0, 1) != 1
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_slidemove.cpp", 136, 0, "%s", "retv") )
@@ -350,7 +232,7 @@ void __thiscall gjkcc_info_database_t::Unlock(gjkcc_info_database_t *this)
     }
 }
 
-void __thiscall gjkcc_info_database_t::verify_internal(gjkcc_info_database_t *this, bool is_server_thread)
+void __thiscall gjkcc_info_database_t::verify_internal(bool is_server_thread)
 {
     if ( this->m_is_server_thread != is_server_thread
         && !Assert_MyHandler(
@@ -365,15 +247,14 @@ void __thiscall gjkcc_info_database_t::verify_internal(gjkcc_info_database_t *th
 }
 
 gjkcc_info *__thiscall gjkcc_info_database_t::gjkcc_info_find(
-                gjkcc_info_database_t *this,
                 unsigned int gjkcc_id,
                 bool is_server_thread)
 {
     generic_avl_map_node_t *m_tree_root; // [esp+8h] [ebp-10h]
     gjkcc_info *gcci; // [esp+14h] [ebp-4h]
 
-    gjkcc_info_database_t::verify_internal(this, is_server_thread);
-    gjkcc_info_database_t::Lock(this);
+    gjkcc_info_database_t::verify_internal(is_server_thread);
+    gjkcc_info_database_t::Lock();
     m_tree_root = this->m_map.m_tree_root;
     while ( m_tree_root && gjkcc_id != m_tree_root->m_avl_key )
     {
@@ -413,26 +294,25 @@ gjkcc_info *__thiscall gjkcc_info_database_t::gjkcc_info_find(
     {
         __debugbreak();
     }
-    gjkcc_info_database_t::Unlock(this);
+    gjkcc_info_database_t::Unlock();
     return gcci;
 }
 
 void __thiscall gjkcc_info_database_t::gjkcc_info_destroy(
-                gjkcc_info_database_t *this,
                 unsigned int gjkcc_id,
                 bool is_server_thread)
 {
     char *gcci_; // [esp+8h] [ebp-4h]
 
-    gjkcc_info_database_t::verify_internal(this, is_server_thread);
-    gjkcc_info_database_t::Lock(this);
+    gjkcc_info_database_t::verify_internal(is_server_thread);
+    gjkcc_info_database_t::Lock();
     gcci_ = (char *)generic_avl_map_destroy(&this->m_map, gjkcc_id);
     if ( gcci_ )
     {
-        destroy_gjkcc_info(gcci_);
+        destroy_gjkcc_info((gjkcc_info *)gcci_);
         --this->m_gcci_count;
     }
-    gjkcc_info_database_t::Unlock(this);
+    gjkcc_info_database_t::Unlock();
 }
 
 void __cdecl destroy_client_gjkcc_info(int localClientNum)
@@ -447,35 +327,44 @@ void __cdecl destroy_client_gjkcc_info(int localClientNum)
     {
         __debugbreak();
     }
-    gjkcc_info_database_t::gjkcc_info_destroy(&g_gjkcc_info_client_database, (unsigned int)&cg_pmove[localClientNum], 0);
+    //gjkcc_info_database_t::gjkcc_info_destroy(&g_gjkcc_info_client_database, (unsigned int)&cg_pmove[localClientNum], 0);
+    g_gjkcc_info_client_database.gjkcc_info_destroy((unsigned int)&cg_pmove[localClientNum], 0);
+
 }
 
-void    gjkcc_prolog(int a1@<ebp>, const gjkcc_input_t *gjkcc_in, float *origin)
+void    gjkcc_prolog(const gjkcc_input_t *gjkcc_in, float *origin)
 {
     const phys_vec3 *v3; // eax
     phys_vec3 v4; // [esp-20h] [ebp-2Ch] BYREF
     gjkcc_info *v5; // [esp-4h] [ebp-10h]
-    unsigned int v6[2]; // [esp+0h] [ebp-Ch] BYREF
-    _UNKNOWN *retaddr; // [esp+Ch] [ebp+0h]
-
-    v6[0] = a1;
-    v6[1] = retaddr;
-    if ( gjkcc_in->is_server_thread )
-        v5 = gjkcc_info_database_t::gjkcc_info_find_or_create(&g_gjkcc_info_server_database, gjkcc_in->gjkcc_id, 1, origin);
+    //unsigned int v6[2]; // [esp+0h] [ebp-Ch] BYREF
+    //_UNKNOWN *retaddr; // [esp+Ch] [ebp+0h]
+    //
+    //v6[0] = a1;
+    //v6[1] = retaddr;
+    if (gjkcc_in->is_server_thread)
+    {
+        //v5 = gjkcc_info_database_t::gjkcc_info_find_or_create(&g_gjkcc_info_server_database, gjkcc_in->gjkcc_id, 1, origin);
+        v5 = g_gjkcc_info_server_database.gjkcc_info_find_or_create(gjkcc_in->gjkcc_id, 1, origin);
+    }
     else
-        v5 = gjkcc_info_database_t::gjkcc_info_find_or_create(&g_gjkcc_info_client_database, gjkcc_in->gjkcc_id, 0, origin);
-    gjkcc_info::Lock(v5);
+    {
+        //v5 = gjkcc_info_database_t::gjkcc_info_find_or_create(&g_gjkcc_info_client_database, gjkcc_in->gjkcc_id, 0, origin);
+        v5 = g_gjkcc_info_client_database.gjkcc_info_find_or_create(gjkcc_in->gjkcc_id, 0, origin);
+    }
+    //gjkcc_info::Lock(v5);
+    v5->Lock();
     v3 = Phys_Vec3ToNitrousVec(&v4, origin);
-    gjk_query_output::cached_query_prolog(
-        &v5->m_gjk_query_output,
-        (int)v6,
+    //gjk_query_output::cached_query_prolog(
+        //&v5->m_gjk_query_output,
+    v5->m_gjk_query_output.cached_query_prolog(
         gjkcc_in->is_server_thread,
         gjkcc_in->proximity_data,
         gjkcc_in->proximity_mask,
         v3);
 }
 
-void __thiscall gjkcc_info::Lock(gjkcc_info *this)
+void __thiscall gjkcc_info::Lock()
 {
     if ( _InterlockedCompareExchange(&this->m_active, 1, 0) )
     {
@@ -489,15 +378,18 @@ void __cdecl gjkcc_epilog(const gjkcc_input_t *gjkcc_in, const float *origin)
     gjkcc_info *gcci; // [esp+20h] [ebp-4h]
 
     gcci = find_gjkcc_info(gjkcc_in->gjkcc_id, gjkcc_in->is_server_thread);
-    phys_heap_gjk_cache_system_avl_tree::update_cache(&gcci->m_gjk_cache);
-    gjk_query_output::cached_query_epilog(&gcci->m_gjk_query_output);
+    //phys_heap_gjk_cache_system_avl_tree::update_cache(&gcci->m_gjk_cache);
+    gcci->m_gjk_cache.update_cache();
+    //gjk_query_output::cached_query_epilog(&gcci->m_gjk_query_output);
+    gcci->m_gjk_query_output.cached_query_epilog();
     gcci->m_last_origin[0] = *origin;
     gcci->m_last_origin[1] = origin[1];
     gcci->m_last_origin[2] = origin[2];
-    gjkcc_info::Unlock(gcci);
+    //gjkcc_info::Unlock(gcci);
+    gcci->Unlock();
 }
 
-void __thiscall phys_heap_gjk_cache_system_avl_tree::update_cache(phys_heap_gjk_cache_system_avl_tree *this)
+void __thiscall phys_heap_gjk_cache_system_avl_tree::update_cache()
 {
     phys_heap_gjk_cache_system_avl_tree::phys_gjk_cache_info_internal **gjk_ci_i; // [esp+158h] [ebp-8h]
     phys_heap_gjk_cache_system_avl_tree::phys_gjk_cache_info_internal *gjk_ci; // [esp+15Ch] [ebp-4h]
@@ -513,17 +405,19 @@ void __thiscall phys_heap_gjk_cache_system_avl_tree::update_cache(phys_heap_gjk_
         else
         {
             *gjk_ci_i = gjk_ci->m_next_gjk_ci;
-            phys_inplace_avl_tree<phys_gjk_geom_id_pair_key,phys_heap_gjk_cache_system_avl_tree::phys_gjk_cache_info_internal,phys_heap_gjk_cache_system_avl_tree::phys_gjk_cache_info_internal::avl_tree_accessor>::remove(
-                &this->m_search_tree,
-                &gjk_ci->m_key);
-            phys_simple_allocator<phys_heap_gjk_cache_system_avl_tree::phys_gjk_cache_info_internal>::free(
-                &this->m_list_phys_gjk_cache_info_internal,
-                gjk_ci);
+            //phys_inplace_avl_tree<phys_gjk_geom_id_pair_key,phys_heap_gjk_cache_system_avl_tree::phys_gjk_cache_info_internal,phys_heap_gjk_cache_system_avl_tree::phys_gjk_cache_info_internal::avl_tree_accessor>::remove(
+            //    &this->m_search_tree,
+            //    &gjk_ci->m_key);
+            this->m_search_tree.remove(&gjk_ci->m_key);
+            //phys_simple_allocator<phys_heap_gjk_cache_system_avl_tree::phys_gjk_cache_info_internal>::free(
+            //    &this->m_list_phys_gjk_cache_info_internal,
+            //    gjk_ci);
+            this->m_list_phys_gjk_cache_info_internal.free(gjk_ci);
         }
     }
 }
 
-void __thiscall gjkcc_info::Unlock(gjkcc_info *this)
+void __thiscall gjkcc_info::Unlock()
 {
     if ( _InterlockedCompareExchange(&this->m_active, 0, 1) != 1
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_slidemove.cpp", 79, 0, "%s", "retv") )
@@ -534,29 +428,35 @@ void __thiscall gjkcc_info::Unlock(gjkcc_info *this)
 
 gjkcc_info *__cdecl find_gjkcc_info(unsigned int gjkcc_id, bool is_server_thread)
 {
-    if ( is_server_thread )
-        return gjkcc_info_database_t::gjkcc_info_find(&g_gjkcc_info_server_database, gjkcc_id, 1);
+    if (is_server_thread)
+    {
+        //return gjkcc_info_database_t::gjkcc_info_find(&g_gjkcc_info_server_database, gjkcc_id, 1);
+        return g_gjkcc_info_server_database.gjkcc_info_find(gjkcc_id, 1);
+    }
     else
-        return gjkcc_info_database_t::gjkcc_info_find(&g_gjkcc_info_client_database, gjkcc_id, 0);
+    {
+        //return gjkcc_info_database_t::gjkcc_info_find(&g_gjkcc_info_client_database, gjkcc_id, 0);
+        g_gjkcc_info_client_database.gjkcc_info_find(gjkcc_id, 0);
+    }
 }
 
-bool __thiscall gjk_double_sphere_t::is_foot(gjk_double_sphere_t *this, const phys_vec3 *hit_point)
+bool __thiscall gjk_double_sphere_t::is_foot(const phys_vec3 *hit_point)
 {
     return (float)(this->m_list_center[1].z - 1.0) >= hit_point->z;
 }
 
-bool __userpurge gjk_cylinder_t::is_foot@<al>(gjk_cylinder_t *this@<ecx>, int a2@<ebp>, const phys_vec3 *hit_point)
+bool gjk_cylinder_t::is_foot(const phys_vec3 *hit_point)
 {
     unsigned int direction; // [esp-10h] [ebp-30h]
     unsigned int v5[3]; // [esp-Ch] [ebp-2Ch] BYREF
     gjk_cylinder_t *v6; // [esp+10h] [ebp-10h]
-    unsigned int v7[2]; // [esp+14h] [ebp-Ch] BYREF
-    _UNKNOWN *retaddr; // [esp+20h] [ebp+0h]
-
-    v7[0] = a2;
-    v7[1] = retaddr;
+    //unsigned int v7[2]; // [esp+14h] [ebp-Ch] BYREF
+    //_UNKNOWN *retaddr; // [esp+20h] [ebp+0h]
+    //
+    //v7[0] = a2;
+    //v7[1] = retaddr;
     v6 = this;
-    phys_full_inv_multiply((int)v7, (phys_vec3 *)v5, &this->xform, hit_point);
+    phys_full_inv_multiply((phys_vec3 *)v5, &this->xform, hit_point);
     direction = v6->direction;
     if ( direction > 2
         && _tlAssert(
@@ -567,11 +467,10 @@ bool __userpurge gjk_cylinder_t::is_foot@<al>(gjk_cylinder_t *this@<ecx>, int a2
     {
         __debugbreak();
     }
-    return COERCE_FLOAT(LODWORD(v6->halfHeight) ^ _mask__NegFloat_) >= *(float *)&v5[direction];
+    return (-(v6->halfHeight)) >= *(float *)&v5[direction];
 }
 
-phys_vec3 * phys_full_inv_multiply@<eax>(
-                int a1@<ebp>,
+phys_vec3 * phys_full_inv_multiply(
                 phys_vec3 *result,
                 const phys_mat44 *mat,
                 const phys_vec3 *v)
@@ -580,13 +479,13 @@ phys_vec3 * phys_full_inv_multiply@<eax>(
     float v6; // [esp-10h] [ebp-1Ch]
     float v7; // [esp-Ch] [ebp-18h]
     float v8; // [esp-8h] [ebp-14h]
-    phys_vec3 *p_w; // [esp-4h] [ebp-10h]
-    int v10; // [esp+0h] [ebp-Ch]
-    void *v11; // [esp+4h] [ebp-8h]
-    void *retaddr; // [esp+Ch] [ebp+0h]
-
-    v10 = a1;
-    v11 = retaddr;
+    const phys_vec3 *p_w; // [esp-4h] [ebp-10h]
+    //int v10; // [esp+0h] [ebp-Ch]
+    //void *v11; // [esp+4h] [ebp-8h]
+    //void *retaddr; // [esp+Ch] [ebp+0h]
+    //
+    //v10 = a1;
+    //v11 = retaddr;
     p_w = &mat->w;
     v8 = v->x - mat->w.x;
     v7 = v->y - mat->w.y;
@@ -598,36 +497,45 @@ phys_vec3 * phys_full_inv_multiply@<eax>(
     return result;
 }
 
-bool __thiscall gjk_polygon_cylinder_t::is_foot(gjk_polygon_cylinder_t *this, const phys_vec3 *hit_point)
+float offset_0;
+bool gjk_polygon_cylinder_t::is_foot(const phys_vec3 *hit_point)
 {
-    long double thisa; // [esp+0h] [ebp-1Ch]
+    //if (this->m_mode)
+    //    return (float)((float)((float)(this->m_center.z - this->m_half_height) + this->m_capsule_radius) - 1.0) >= hit_point->z;
+    //
+    //static int _S2 = 0;
+    //if ((_S2 & 1) == 0)
+    //{
+    //    _S2 |= 1u;
+    //    //__libm_sse2_sin(*(long double *)&thisa);
+    //    offset_0 = this->m_geom_radius * (float)((float)(30.0 * 3.1415927) / 180.0);
+    //}
+    //return (float)((float)((float)(this->m_center.z - this->m_half_height) + this->m_foot_offset) - offset_0) >= hit_point->z;
 
-    LODWORD(thisa) = this;
-    if ( this->m_mode )
-        return (float)((float)((float)(this->m_center.z - this->m_half_height) + this->m_capsule_radius) - 1.0) >= hit_point->z;
-    if ( (_S2 & 1) == 0 )
+    // aislop rewrote
+    const float bottom_z = m_center.z - m_half_height;
+
+    if (m_mode)
     {
-        _S2 |= 1u;
-        __libm_sse2_sin(thisa);
-        offset_0 = *(float *)(LODWORD(thisa) + 108) * (float)((float)(30.0 * 3.1415927) / 180.0);
+        // Capsule-style foot
+        return hit_point->z <= (bottom_z + m_capsule_radius - 1.0f);
     }
-    return (float)((float)((float)(*(float *)(LODWORD(thisa) + 88) - *(float *)(LODWORD(thisa) + 104))
-                                             + *(float *)(LODWORD(thisa) + 116))
-                             - offset_0) >= hit_point->z;
+
+    // Cylinder-style foot with beveled edge (30 degrees)
+    constexpr float sin_30 = 0.5f;
+    const float bevel_offset = m_geom_radius * sin_30;
+
+    return hit_point->z <= (bottom_z + m_foot_offset - bevel_offset);
 }
 
-bool __thiscall gjk_brush_t::is_walkable(gjk_brush_t *this, const phys_vec3 *hit_point, const phys_vec3 *up)
+bool gjk_brush_t::is_walkable(const phys_vec3 *hit_point, const phys_vec3 *up)
 {
-    int savedregs; // [esp+4h] [ebp+0h] BYREF
-
-    return is_walkable((unsigned int)&savedregs, this->brush, hit_point, up);
+    return ::is_walkable(this->brush, hit_point, up);
 }
 
-bool __thiscall gjk_partition_t::is_walkable(gjk_partition_t *this, const phys_vec3 *hit_point, const phys_vec3 *up)
+bool gjk_partition_t::is_walkable(const phys_vec3 *hit_point, const phys_vec3 *up)
 {
-    int savedregs; // [esp+4h] [ebp+0h] BYREF
-
-    return is_walkable((int)&savedregs, this->partition, hit_point, up);
+    return ::is_walkable(this->partition, hit_point, up);
 }
 
 void __cdecl calc_time(phys_gjk_info *gjk_info, bool keep_all_collisions, float *time, float *dist)
@@ -658,21 +566,25 @@ void __cdecl calc_time(phys_gjk_info *gjk_info, bool keep_all_collisions, float 
     }
 }
 
-void __cdecl POLYGON_CYLINDER_HACK(phys_gjk_input *pgi, const gjk_base_t *cg1, const gjk_base_t *cg2)
+void __cdecl POLYGON_CYLINDER_HACK(phys_gjk_input *pgi, gjk_base_t *cg1, const gjk_base_t *cg2)
 {
-    if ( cg1->get_type(cg1) == 7 )
+    if ( cg1->get_type() == 7 )
     {
-        if ( cg2->get_brush(cg2) )
+        if (cg2->get_brush())
+        {
             cg1[1].m_aabb_mx_loc.z = 0.0;
+        }
         else
-            LODWORD(cg1[1].m_aabb_mx_loc.z) = 1;
-        pgi->cg1_radius = cg1->get_geom_radius(cg1);
+        {
+            //LODWORD(cg1[1].m_aabb_mx_loc.z) = 1;
+            cg1[1].m_aabb_mx_loc.z = 1.0;
+        }
+        pgi->cg1_radius = cg1->get_geom_radius();
     }
 }
 
 // local variable allocation has failed, the output may be wrong!
-char    gjk_collide@<al>(
-                float a1@<ebp>,
+char    gjk_collide(
                 phys_gjk_info *gjk_info,
                 phys_gjk_input *pgi,
                 gjk_trace_output_t *gto,
@@ -692,14 +604,15 @@ char    gjk_collide@<al>(
     phys_gjk_collision_info *p_cg1_cinfo_loc; // [esp+14Ch] [ebp-20h]
     float v18; // [esp+150h] [ebp-1Ch] BYREF
     float v19; // [esp+154h] [ebp-18h] BYREF
-    float hit_dist; // [esp+160h] [ebp-Ch] BYREF
-    void *v22; // [esp+164h] [ebp-8h] OVERLAPPED
-    void *retaddr; // [esp+16Ch] [ebp+0h]
-
-    hit_dist = a1;
-    v22 = retaddr;
-    POLYGON_CYLINDER_HACK(pgi, gti->m_cg, gi->m_cg);
-    if ( !phys_gjk_info::phys_collide_do_gjk_collide(gjk_info, (int)&hit_dist, pgi) )
+    //float hit_dist; // [esp+160h] [ebp-Ch] BYREF
+    //void *v22; // [esp+164h] [ebp-8h] OVERLAPPED
+    //void *retaddr; // [esp+16Ch] [ebp+0h]
+    //
+    //hit_dist = a1;
+    //v22 = retaddr;
+    POLYGON_CYLINDER_HACK(pgi, (gjk_base_t*)gti->m_cg, gi->m_cg);
+    //if ( !phys_gjk_info::phys_collide_do_gjk_collide(gjk_info, (int)&hit_dist, pgi) )
+    if ( !gjk_info->phys_collide_do_gjk_collide(pgi) )
         return 0;
     calc_time(gjk_info, gti->m_keep_all_collisions, &v18, &v19);
     if ( pgi->m_end_time <= v18 && v19 >= 0.0 )
@@ -719,11 +632,11 @@ char    gjk_collide@<al>(
     *(float *)&buf[252] = v13;
     v9 = v12;
     v10 = v11;
-    *(unsigned int *)&buf[248] = &gto->m_hit_point;
+    *(unsigned int *)&buf[248] = (unsigned int)&gto->m_hit_point;
     gto->m_hit_point.x = v13;
     *(float *)(*(unsigned int *)&buf[248] + 4) = v9;
     *(float *)(*(unsigned int *)&buf[248] + 8) = v10;
-    *(unsigned int *)&buf[244] = &gjk_info->cg1_cinfo_loc.m_n;
+    *(unsigned int *)&buf[244] = (unsigned int)&gjk_info->cg1_cinfo_loc.m_n;
     gto->m_hit_normal.x = gjk_info->cg1_cinfo_loc.m_n.x;
     gto->m_hit_normal.y = *(float *)(*(unsigned int *)&buf[244] + 4);
     gto->m_hit_normal.z = *(float *)(*(unsigned int *)&buf[244] + 8);
@@ -735,7 +648,7 @@ char    gjk_collide@<al>(
         tlWarning(v7);
         Com_PrintError(1, v7);
     }
-    gto->m_is_foot = gti->m_cg->is_foot(gti->m_cg, &gto->m_arm);
+    gto->m_is_foot = gti->m_cg->is_foot(&gto->m_arm);
     gto->m_gi = gi;
     return 1;
 }
@@ -780,7 +693,7 @@ void __cdecl sort_gi_list(gjk_geom_info_t **list, int list_count)
     }
 }
 
-void    gjk_trace(int a1@<ebp>, const gjk_trace_input_t *gti, list_gjk_trace_output *list)
+void    gjk_trace(const gjk_trace_input_t *gti, list_gjk_trace_output *list)
 {
     float v3; // xmm0_4
     gjk_trace_output_t *v4; // [esp-30h] [ebp-4C4h]
@@ -946,7 +859,6 @@ void    gjk_trace(int a1@<ebp>, const gjk_trace_input_t *gti, list_gjk_trace_out
 }
 
 void *__thiscall phys_transient_allocator::allocate(
-                phys_transient_allocator *this,
                 int size,
                 int alignment,
                 int no_error,
@@ -956,7 +868,7 @@ void *__thiscall phys_transient_allocator::allocate(
     int v8; // [esp+Ch] [ebp-Ch]
     void *ptr; // [esp+14h] [ebp-4h]
 
-    transient_allocator_update_largest_size(size);
+    transient_allocator_update_largest_size();
     v8 = ~(alignment - 1) & (int)&this->m_cur[alignment - 1];
     if ( (char *)(size + v8) <= this->m_end )
     {
@@ -969,7 +881,8 @@ void *__thiscall phys_transient_allocator::allocate(
     }
     if ( !ptr )
     {
-        phys_transient_allocator::resize(this);
+        //phys_transient_allocator::resize();
+        this->resize();
         v7 = ~(alignment - 1) & (int)&this->m_cur[alignment - 1];
         if ( (char *)(size + v7) <= this->m_end )
         {
@@ -1012,14 +925,14 @@ void __cdecl init_pgi(phys_gjk_input *pgi, const gjk_trace_input_t *gti)
     pgi->m_cg1_translation.x = gti->m_query_input.m_cg_translation.x;
     pgi->m_cg1_translation.y = gti->m_query_input.m_cg_translation.y;
     pgi->m_cg1_translation.z = gti->m_query_input.m_cg_translation.z;
-    pgi->m_cg2_translation.x = PHYS_ZERO_VEC_1.x;
-    pgi->m_cg2_translation.y = PHYS_ZERO_VEC_1.y;
-    pgi->m_cg2_translation.z = PHYS_ZERO_VEC_1.z;
+    pgi->m_cg2_translation.x = PHYS_ZERO_VEC.x;
+    pgi->m_cg2_translation.y = PHYS_ZERO_VEC.y;
+    pgi->m_cg2_translation.z = PHYS_ZERO_VEC.z;
     pgi->m_start_time = 0.0f;
     pgi->m_end_time = 1.0f;
     m_gcci = gti->m_gcci;
     m_cg = gti->m_cg;
-    v3 = gti->m_cg->get_geom_radius(gti->m_cg);
+    v3 = gti->m_cg->get_geom_radius();
     pgi->gjk_cg1 = m_cg;
     pgi->gjk_cg2 = 0;
     pgi->cg1_to_world_xform = &m_gcci->m_cg_to_world_xform;
@@ -1035,12 +948,14 @@ void __cdecl init_pgi(phys_gjk_input *pgi, const gjk_trace_input_t *gti)
 void __cdecl set_pgi_cg2(phys_gjk_input *pgi, const gjk_trace_input_t *gti, gjk_geom_info_t *gi)
 {
     pgi->gjk_cg2 = gi->m_cg;
-    pgi->cg2_to_world_xform = (const phys_mat44 *)gjk_geom_info_t::get_xform(gi);
-    pgi->cg2_radius = gi->m_cg->get_geom_radius(gi->m_cg);
-    pgi->gjk_ci = get_gjk_cache_info(gti->m_gjk_cache, gti->m_cg, gi->m_cg);
+    //pgi->cg2_to_world_xform = (const phys_mat44 *)gjk_geom_info_t::get_xform(gi);
+    pgi->cg2_to_world_xform = &gi->get_xform()->m_mat;
+    pgi->cg2_radius = gi->m_cg->get_geom_radius();
+    //pgi->gjk_ci = get_gjk_cache_info(gti->m_gjk_cache, gti->m_cg, gi->m_cg);
+    gti->m_gjk_cache->get_gjk_cache_info(gi->m_cg);
 }
 
-gjk_entity_info_t *__thiscall gjk_geom_info_t::get_xform(gjk_geom_info_t *this)
+gjk_entity_info_t *__thiscall gjk_geom_info_t::get_xform()
 {
     if ( (this->m_cg->m_flags & 8) != 0 )
         return (gjk_entity_info_t *)gjk_base_t::get_xform(this->m_cg);
@@ -1050,7 +965,7 @@ gjk_entity_info_t *__thiscall gjk_geom_info_t::get_xform(gjk_geom_info_t *this)
         return (gjk_entity_info_t *)&PHYS_IDENTITY_MATRIX_1;
 }
 
-phys_gjk_info *__thiscall phys_gjk_info::phys_gjk_info(phys_gjk_info *this)
+phys_gjk_info::phys_gjk_info()
 {
     int v2; // [esp+4h] [ebp-28h]
     phys_vec3 *n; // [esp+8h] [ebp-24h]
@@ -1078,7 +993,7 @@ phys_gjk_info *__thiscall phys_gjk_info::phys_gjk_info(phys_gjk_info *this)
     v2 = 4;
     for ( n = this->m_b_inds; --v2 >= 0; ++n )
         ;
-    return this;
+    //return this;
 }
 
 void __cdecl setup_query_input(
@@ -1130,7 +1045,6 @@ void __cdecl setup_query_input(
 }
 
 void    setup_trace_info(
-                int a1@<ebp>,
                 const gjkcc_input_t *gjkcc_in,
                 float *start,
                 float *mins,
@@ -1150,15 +1064,16 @@ void    setup_trace_info(
     float v16; // [esp+24h] [ebp-34h]
     phys_vec3 pv_end; // [esp+28h] [ebp-30h] BYREF
     gjkcc_info *gjkcc_info; // [esp+48h] [ebp-10h]
-    int v19; // [esp+4Ch] [ebp-Ch]
-    void *v20; // [esp+50h] [ebp-8h]
-    void *retaddr; // [esp+58h] [ebp+0h]
-
-    v19 = a1;
-    v20 = retaddr;
+    //int v19; // [esp+4Ch] [ebp-Ch]
+    //void *v20; // [esp+50h] [ebp-8h]
+    //void *retaddr; // [esp+58h] [ebp+0h]
+    //
+    //v19 = a1;
+    //v20 = retaddr;
     gjkcc_info = find_gjkcc_info(gjkcc_in->gjkcc_id, gjkcc_in->is_server_thread);
     gti->m_gcci = gjkcc_info;
-    gjkcc_info::update_cg(gti->m_gcci, mins, maxs, 0);
+    //gjkcc_info::update_cg(gti->m_gcci, mins, maxs, 0);
+    gti->m_gcci->update_cg(mins, maxs, false);
     gti->m_cg = gjkcc_info->m_cg_;
     gti->m_gjk_cache = &gjkcc_info->m_gjk_cache;
     gti->m_query_output = &gjkcc_info->m_gjk_query_output;
@@ -1170,7 +1085,8 @@ void    setup_trace_info(
     v9 = v14 - pv_end.y;
     *(float *)&query_input = v15 - pv_end.z;
     v11 = v16 - pv_end.w;
-    gjk_trace_input_t::set_cg_position(gti, (phys_vec3 *)&pv_end.y);
+    //gjk_trace_input_t::set_cg_position(gti, (phys_vec3 *)&pv_end.y);
+    gti->set_cg_position((phys_vec3*)&pv_end.y);
     gti->m_query_input.m_cg_translation.x = v9;
     gti->m_query_input.m_cg_translation.y = *(float *)&query_input;
     gti->m_query_input.m_cg_translation.z = v11;
@@ -1209,7 +1125,7 @@ void    setup_trace_info(
     }
 }
 
-void __thiscall gjk_trace_input_t::set_cg_position(gjk_trace_input_t *this, const phys_vec3 *position)
+void __thiscall gjk_trace_input_t::set_cg_position(const phys_vec3 *position)
 {
     phys_vec3 *p_w; // [esp+Ch] [ebp-4h]
 
@@ -1223,7 +1139,6 @@ void __thiscall gjk_trace_input_t::set_cg_position(gjk_trace_input_t *this, cons
 }
 
 void    gjk_player_trace(
-                int a1@<ebp>,
                 const gjkcc_input_t *gjkcc_in,
                 trace_t *results,
                 float *start,
@@ -2554,7 +2469,6 @@ void    setup_player_push_slide_move_input(
 }
 
 void    gjk_sentient_push(
-                int a1@<ebp>,
                 pmove_t *pm,
                 pml_t *pml,
                 float *origin,
@@ -4616,8 +4530,8 @@ gjk_query_output *__thiscall gjk_query_output::gjk_query_output(gjk_query_output
     this->m_list_geom_info.m_alloc_count = 0;
     this->m_total_query_count = 0;
     this->m_total_cached_query_count = 0;
-    gjk_query_output::reset_cache(this);
-    gjk_query_output::accum_query_reset(this, &PHYS_ZERO_VEC_1);
+    gjk_query_output::reset_cache();
+    gjk_query_output::accum_query_reset(&PHYS_ZERO_VEC_1);
     return this;
 }
 
@@ -4853,7 +4767,7 @@ LABEL_26:
                 phys_inplace_avl_tree<centity_s const *,auto_rigid_body,auto_rigid_body>::rotate_left(
                     this,
                     &(*m_node)->m_avl_tree_node.m_left);
-            phys_inplace_avl_tree<centity_s const *,auto_rigid_body,auto_rigid_body>::rotate_right(this, m_node);
+            phys_inplace_avl_tree<centity_s const *,auto_rigid_body,auto_rigid_body>::rotate_right(m_node);
             if ( (*m_node)->m_avl_tree_node.m_balance >= 2u
                 && _tlAssert(
                          "C:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_avl_tree.h",
@@ -4870,7 +4784,7 @@ LABEL_26:
                 phys_inplace_avl_tree<centity_s const *,auto_rigid_body,auto_rigid_body>::rotate_right(
                     this,
                     &(*m_node)->m_avl_tree_node.m_right);
-            phys_inplace_avl_tree<centity_s const *,auto_rigid_body,auto_rigid_body>::rotate_left(this, m_node);
+            phys_inplace_avl_tree<centity_s const *,auto_rigid_body,auto_rigid_body>::rotate_left(m_node);
             if ( (*m_node)->m_avl_tree_node.m_balance
                 && (*m_node)->m_avl_tree_node.m_balance != -1
                 && _tlAssert(
@@ -4951,3 +4865,243 @@ bool __thiscall gjk_collision_visitor::is_query(gjk_collision_visitor *this)
     return 0;
 }
 
+
+bool is_walkable(
+    const cbrush_t *brush,
+    const phys_vec3 *hit_point_loc,
+    const phys_vec3 *up_loc)
+{
+    char v5; // [esp-1Eh] [ebp-7Eh]
+    bool v6; // [esp-1Dh] [ebp-7Dh]
+    float dist; // [esp-18h] [ebp-78h]
+    float v8; // [esp-14h] [ebp-74h]
+    float v9; // [esp-10h] [ebp-70h]
+    float v10; // [esp-Ch] [ebp-6Ch] BYREF
+    float v11; // [esp-8h] [ebp-68h]
+    float v12; // [esp-4h] [ebp-64h]
+    cbrushside_t *v13; // [esp+10h] [ebp-50h]
+    unsigned int k; // [esp+14h] [ebp-4Ch]
+    float v15; // [esp+18h] [ebp-48h]
+    cbrushside_t *side; // [esp+1Ch] [ebp-44h]
+    float v17; // [esp+20h] [ebp-40h]
+    float v18; // [esp+24h] [ebp-3Ch]
+    float v19; // [esp+28h] [ebp-38h]
+    float v20; // [esp+2Ch] [ebp-34h]
+    float v21; // [esp+30h] [ebp-30h]
+    char v22; // [esp+36h] [ebp-2Ah]
+    bool v23; // [esp+37h] [ebp-29h]
+    float v24; // [esp+38h] [ebp-28h]
+    float v25; // [esp+3Ch] [ebp-24h]
+    float v26; // [esp+40h] [ebp-20h]
+    float v27; // [esp+44h] [ebp-1Ch]
+    unsigned int j; // [esp+48h] [ebp-18h]
+    float v29; // [esp+4Ch] [ebp-14h]
+    float v30; // [esp+50h] [ebp-10h]
+    unsigned int i; // [esp+54h] [ebp-Ch]
+    float furthest_walk_normal; // [esp+58h] [ebp-8h]
+    float retaddr; // [esp+60h] [ebp+0h]
+
+    i = a1;
+    furthest_walk_normal = retaddr;
+    v30 = FLOAT_N100000_0;
+    v29 = *(float *)&FLOAT_0_0;
+    for (j = 0; j < 3; ++j)
+    {
+        LODWORD(v27) = *((_DWORD *)&hit_point_loc->x + j) ^ _mask__NegFloat_;
+        LODWORD(v26) = LODWORD(brush->mins[j]) ^ _mask__NegFloat_;
+        LODWORD(v25) = *((_DWORD *)&up_loc->x + j) ^ _mask__NegFloat_;
+        v24 = FLOAT_0_99900001;
+        v23 = v27 >= (float)(0.99900001 * v26) || (float)(v24 * v27) >= v26;
+        if (v23 && v25 >= 0.69999999)
+        {
+            v22 = 1;
+        }
+        else
+        {
+            v21 = v27 - v26;
+            if ((float)(v27 - v26) > v30)
+            {
+                v30 = v21;
+                v29 = v25;
+            }
+            v22 = 0;
+        }
+        if (v22)
+            return 1;
+        v20 = *(&hit_point_loc->x + j);
+        v19 = brush->maxs[j];
+        v18 = *(&up_loc->x + j);
+        v17 = FLOAT_0_99900001;
+        HIBYTE(side) = v20 >= (float)(0.99900001 * v19) || (float)(v17 * v20) >= v19;
+        if (HIBYTE(side) && v18 >= 0.69999999)
+        {
+            BYTE2(side) = 1;
+        }
+        else
+        {
+            v15 = v20 - v19;
+            if ((float)(v20 - v19) > v30)
+            {
+                v30 = v15;
+                v29 = v18;
+            }
+            BYTE2(side) = 0;
+        }
+        if (BYTE2(side))
+            return 1;
+    }
+    for (k = 0; k < brush->numsides; ++k)
+    {
+        v13 = &brush->sides[k];
+        Phys_Vec3ToNitrousVec(v13->plane->normal, (phys_vec3 *)&v10);
+        v9 = (float)((float)(v10 * up_loc->x) + (float)(v11 * up_loc->y)) + (float)(v12 * up_loc->z);
+        v8 = (float)((float)(hit_point_loc->x * v10) + (float)(hit_point_loc->y * v11)) + (float)(hit_point_loc->z * v12);
+        dist = v13->plane->dist;
+        v6 = v8 >= (float)(0.99900001 * dist) || (float)(0.99900001 * v8) >= dist;
+        if (v6 && v9 >= 0.69999999)
+        {
+            v5 = 1;
+        }
+        else
+        {
+            if ((float)(v8 - dist) > v30)
+            {
+                v30 = v8 - dist;
+                v29 = v9;
+            }
+            v5 = 0;
+        }
+        if (v5)
+            return 1;
+    }
+    return v29 >= 0.69999999;
+}
+
+bool is_walkable(
+    const CollisionPartition *partition,
+    const phys_vec3 *hit_point_loc,
+    const phys_vec3 *up_loc)
+{
+    char v5; // [esp-12h] [ebp-82h]
+    bool v6; // [esp-11h] [ebp-81h]
+    float v7; // [esp-Ch] [ebp-7Ch]
+    float v8; // [esp-8h] [ebp-78h]
+    float v9; // [esp-4h] [ebp-74h]
+    float walk_normal; // [esp+0h] [ebp-70h]
+    float plane_dist; // [esp+4h] [ebp-6Ch] BYREF
+    float hit_point_dist; // [esp+8h] [ebp-68h]
+    float nnormal; // [esp+Ch] [ebp-64h]
+    float v14[3]; // [esp+20h] [ebp-50h] BYREF
+    float triNormalScaledByAreaX2[3]; // [esp+2Ch] [ebp-44h] BYREF
+    float v0_v2[3]; // [esp+38h] [ebp-38h] BYREF
+    float v0_v1[3]; // [esp+44h] [ebp-2Ch]
+    const float *v2; // [esp+50h] [ebp-20h]
+    const float *v1; // [esp+54h] [ebp-1Ch]
+    const float *v0; // [esp+58h] [ebp-18h]
+    unsigned __int16 *indices; // [esp+5Ch] [ebp-14h]
+    int triIndex; // [esp+60h] [ebp-10h]
+    int i; // [esp+64h] [ebp-Ch]
+    float furthest_walk_normal; // [esp+68h] [ebp-8h]
+    float retaddr; // [esp+70h] [ebp+0h]
+
+    i = a1;
+    furthest_walk_normal = retaddr;
+    *(float *)&triIndex = FLOAT_N100000_0;
+    indices = *(unsigned __int16 **)&FLOAT_0_0;
+    for (v0 = 0; (int)v0 < partition->triCount; v0 = (const float *)((char *)v0 + 1))
+    {
+        v1 = (const float *)((char *)v0 + partition->firstTri);
+        v2 = (const float *)&cm.triIndices[3 * (_DWORD)v1];
+        LODWORD(v0_v1[2]) = cm.verts[*(unsigned __int16 *)v2];
+        LODWORD(v0_v1[1]) = cm.verts[*((unsigned __int16 *)v2 + 1)];
+        LODWORD(v0_v1[0]) = cm.verts[*((unsigned __int16 *)v2 + 2)];
+        v0_v2[0] = *(float *)LODWORD(v0_v1[2]) - *(float *)LODWORD(v0_v1[1]);
+        v0_v2[1] = *(float *)(LODWORD(v0_v1[2]) + 4) - *(float *)(LODWORD(v0_v1[1]) + 4);
+        v0_v2[2] = *(float *)(LODWORD(v0_v1[2]) + 8) - *(float *)(LODWORD(v0_v1[1]) + 8);
+        triNormalScaledByAreaX2[0] = *(float *)LODWORD(v0_v1[2]) - *(float *)LODWORD(v0_v1[0]);
+        triNormalScaledByAreaX2[1] = *(float *)(LODWORD(v0_v1[2]) + 4) - *(float *)(LODWORD(v0_v1[0]) + 4);
+        triNormalScaledByAreaX2[2] = *(float *)(LODWORD(v0_v1[2]) + 8) - *(float *)(LODWORD(v0_v1[0]) + 8);
+        Vec3Cross(triNormalScaledByAreaX2, v0_v2, v14);
+        Phys_Vec3ToNitrousVec(v14, (phys_vec3 *)&plane_dist);
+        walk_normal = Abs(&plane_dist);
+        if (walk_normal > 0.000099999997)
+        {
+            v9 = (float)((float)((float)(hit_point_loc->x * plane_dist) + (float)(hit_point_loc->y * hit_point_dist))
+                + (float)(hit_point_loc->z * nnormal))
+                / walk_normal;
+            v8 = (float)((float)((float)(*(float *)LODWORD(v0_v1[2]) * v14[0])
+                + (float)(*(float *)(LODWORD(v0_v1[2]) + 4) * v14[1]))
+                + (float)(*(float *)(LODWORD(v0_v1[2]) + 8) * v14[2]))
+                / walk_normal;
+            v7 = (float)((float)((float)(plane_dist * up_loc->x) + (float)(hit_point_dist * up_loc->y))
+                + (float)(nnormal * up_loc->z))
+                / walk_normal;
+            v6 = v9 >= (float)(0.99900001 * v8) || (float)(0.99900001 * v9) >= v8;
+            if (v6 && v7 >= 0.69999999)
+            {
+                v5 = 1;
+            }
+            else
+            {
+                if ((float)(v9 - v8) > *(float *)&triIndex)
+                {
+                    *(float *)&triIndex = v9 - v8;
+                    *(float *)&indices = v7;
+                }
+                v5 = 0;
+            }
+            if (v5)
+                return 1;
+        }
+    }
+    return *(float *)&indices >= 0.69999999;
+}
+
+bool is_walkable(const gjk_trace_output_t *gto)
+{
+    float v3; // [esp-Ch] [ebp-7Ch] BYREF
+    float v4; // [esp-8h] [ebp-78h]
+    float v5; // [esp-4h] [ebp-74h]
+    const phys_vec3 *v6; // [esp+10h] [ebp-60h]
+    phys_vec3 v7; // [esp+14h] [ebp-5Ch] BYREF
+    float x; // [esp+24h] [ebp-4Ch] BYREF
+    float y; // [esp+28h] [ebp-48h]
+    float v10; // [esp+2Ch] [ebp-44h]
+    phys_vec3 *v11; // [esp+40h] [ebp-30h]
+    phys_vec3 v12; // [esp+44h] [ebp-2Ch] BYREF
+    gjk_entity_info_t *m_ent_info; // [esp+5Ch] [ebp-14h]
+    float z; // [esp+60h] [ebp-10h]
+    int v15; // [esp+64h] [ebp-Ch] BYREF
+    const phys_mat44 *mat; // [esp+68h] [ebp-8h]
+    const phys_mat44 *retaddr; // [esp+70h] [ebp+0h]
+
+    v15 = a1;
+    mat = retaddr;
+    if (!gto->m_is_foot)
+        return 0;
+    z = gto->m_hit_normal.z;
+    if (z >= 0.69999999)
+        return 1;
+    if (gto->m_gi->m_ent_info)
+    {
+        m_ent_info = gto->m_gi->m_ent_info;
+        v11 = phys_full_inv_multiply((int)&v15, &v12, &m_ent_info->m_mat, &gto->m_hit_point);
+        x = v11->x;
+        y = v11->y;
+        v10 = v11->z;
+        v6 = phys_inv_multiply(&v7, &m_ent_info->m_mat, &PHYS_Z_VEC_62);
+        v3 = v6->x;
+        v4 = v6->y;
+        v5 = v6->z;
+    }
+    else
+    {
+        x = gto->m_hit_point.x;
+        y = gto->m_hit_point.y;
+        v10 = gto->m_hit_point.z;
+        v3 = PHYS_Z_VEC_62.x;
+        v4 = PHYS_Z_VEC_62.y;
+        v5 = PHYS_Z_VEC_62.z;
+    }
+    return gto->m_gi->m_cg->is_walkable(gto->m_gi->m_cg, (const phys_vec3 *)&x, (const phys_vec3 *)&v3);
+}

@@ -1779,7 +1779,7 @@ int __cdecl ItemParse_usePaging(itemDef_s *item, int handle)
 
 int __cdecl ItemParse_autowrapped(itemDef_s *item)
 {
-    Window_SetStaticFlags(&item->window, (unsigned int)&loc_800000 | item->window.staticFlags);
+    Window_SetStaticFlags(&item->window, 0x800000 | item->window.staticFlags);
     return 1;
 }
 

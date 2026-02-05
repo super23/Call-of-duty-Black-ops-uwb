@@ -3220,7 +3220,7 @@ void __cdecl PlayerCmd_dropScavengerItem(scr_entref_t entref)
     if ( pItem )
     {
         pDroppedItem = Drop_Item(pSelf, pItem, 0.0, 0);
-        pDroppedItem->s.lerp.eFlags2 |= (unsigned int)&loc_800000;
+        pDroppedItem->s.lerp.eFlags2 |= 0x800000;
     }
     GScr_AddEntity(pDroppedItem);
 }

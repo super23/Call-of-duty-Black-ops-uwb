@@ -1745,7 +1745,7 @@ void __cdecl G_FreeEntityRefs(gentity_s *ed)
             }
         }
     }
-    if ( ((unsigned int)&loc_800000 & ed->flags) != 0 )
+    if ( (0x800000 & ed->flags) != 0 )
         Missile_FreeAttractorRefs(ed);
     if ( ((unsigned int)&cls.rankedServers[711].game[35] & ed->flags) != 0 )
         Targ_Remove(ed);

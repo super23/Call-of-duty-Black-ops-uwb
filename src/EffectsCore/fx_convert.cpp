@@ -858,7 +858,7 @@ void __cdecl FX_ConvertElemDef(
     }
     else
     {
-        if ( ((unsigned int)&loc_800000 & edElemDef->flags) != 0 )
+        if ( (0x800000 & edElemDef->flags) != 0 )
         {
             v8 = Vec4PackQuat(edElemDef->rotationAxis);
         }

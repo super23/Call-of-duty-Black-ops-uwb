@@ -432,7 +432,7 @@ void __cdecl Player_UpdateCursorHints(gentity_s *ent)
                                     scale = self->s.un1.scale;
                                 goto LABEL_85;
                             case 3:
-                                if ( ((unsigned int)&loc_800000 & self->s.lerp.eFlags2) != 0 )
+                                if ( (0x800000 & self->s.lerp.eFlags2) != 0 )
                                     goto LABEL_39;
                                 ItemCursorHint = Player_GetItemCursorHint(ent->client, self);
                                 if ( !ItemCursorHint )

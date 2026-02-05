@@ -20,6 +20,7 @@
 #include <universal/com_math_anglevectors.h>
 #include <cgame/cg_drawtools.h>
 #include <universal/com_files.h>
+#include <cgame_mp/cg_predict_mp.h>
 
 static const float vehicleGunnerADSLerpTimeMS = 300.0f;
 static const float vehicleADSLerpTimeMS = 500.0f;
@@ -4987,7 +4988,7 @@ int __cdecl BG_CheckForUniversalActionDW(playerState_s *ps)
     return result;
 }
 
-void __cdecl PM_Weapon_Turret(pmove_t *pm)
+void __cdecl PM_Weapon_Turret(pmove_t *pm, pml_t *pml)
 {
     playerState_s *ps; // [esp+0h] [ebp-4h]
 

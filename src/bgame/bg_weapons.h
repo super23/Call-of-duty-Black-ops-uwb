@@ -1102,7 +1102,7 @@ void __cdecl Deploy_State_Deploy(playerState_s *ps);
 void __cdecl Deploy_State_Breakdown(playerState_s *ps);
 void __cdecl PM_Weapon_CheckForMantle(pmove_t *pm);
 int __cdecl BG_CheckForUniversalActionDW(playerState_s *ps);
-void __cdecl PM_Weapon_Turret(pmove_t *pm);
+void __cdecl PM_Weapon_Turret(pmove_t *pm, pml_t *pml);
 void __cdecl PM_ResetWeaponState(playerState_s *ps);
 void __cdecl BG_WeaponFireRecoil(const playerState_s *ps, float *recoilSpeed, float *kickAVel);
 int __cdecl BG_PlayerWeaponCountPrimaryTypes(const playerState_s *ps);

@@ -2339,7 +2339,7 @@ void __cdecl ShowEntityInfo()
             }
             else if ( integer == 2 )
             {
-                G_TraceCapsule(&trace, vStart, vec3_origin, vec3_origin, vEnd, 0, (int)&loc_800000, &context);
+                G_TraceCapsule(&trace, vStart, vec3_origin, vec3_origin, vEnd, 0, 0x800000, &context);
             }
             else
             {

@@ -2822,7 +2822,7 @@ bool __cdecl FX_SpawnModelPhysics(
 
     FX_GetOrientation(elemDef, &effect->frameAtSpawn, &effect->frameNow, randomSeed, &orient);
     FX_OrientationPosToWorldPos(&orient, elem->origin, worldOrigin);
-    if ( ((unsigned int)&loc_800000 & elemDef->flags) != 0 )
+    if ( (0x800000 & elemDef->flags) != 0 )
     {
         rotationAxis = elemDef->rotationAxis;
         v[0] = (float)(COERCE_FLOAT((rotationAxis & 0x1FF) + 1077936128 - 2 * (rotationAxis & 0x100)) - 3.0) * 16448.252;

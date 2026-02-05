@@ -154,6 +154,57 @@ struct colgeom_visitor_inlined_t : colgeom_visitor_t // sizeof=0x6B8
             }
         }
     }
+
+    void update(
+        const float *start,
+        const float *end,
+        const float *mins,
+        const float *maxs,
+        int mask)
+    {
+        float _mn[3]; // [esp+14h] [ebp-60h] BYREF
+        float extents_start[3]; // [esp+20h] [ebp-54h] BYREF
+        float extents_end[3]; // [esp+2Ch] [ebp-48h] BYREF
+        float _mx[3]; // [esp+38h] [ebp-3Ch] BYREF
+        float offset[3]; // [esp+44h] [ebp-30h]
+        float size[3]; // [esp+50h] [ebp-24h]
+        float expand_vec[3]; // [esp+5Ch] [ebp-18h] BYREF
+        float fudge[3]; // [esp+68h] [ebp-Ch]
+
+        fudge[0] = 1.0f;//`colgeom_visitor_inlined_t<200 > ::update'::`2'::fFudge;
+        fudge[1] = 1.0f;//`colgeom_visitor_inlined_t<200 > ::update'::`2'::fFudge;
+        fudge[2] = 1.0f;//`colgeom_visitor_inlined_t<200 > ::update'::`2'::fFudge;
+        offset[0] = (float)(0.5 * *mins) + (float)(0.5 * *maxs);
+        offset[1] = (float)(0.5 * mins[1]) + (float)(0.5 * maxs[1]);
+        offset[2] = (float)(0.5 * mins[2]) + (float)(0.5 * maxs[2]);
+        size[0] = *maxs - offset[0];
+        size[1] = maxs[1] - offset[1];
+        size[2] = maxs[2] - offset[2];
+        extents_start[0] = *start + offset[0];
+        extents_start[1] = start[1] + offset[1];
+        extents_start[2] = start[2] + offset[2];
+        extents_end[0] = *end + offset[0];
+        extents_end[1] = end[1] + offset[1];
+        extents_end[2] = end[2] + offset[2];
+        Vec3Min(extents_start, extents_end, _mn);
+        Vec3Max(extents_start, extents_end, _mx);
+        _mn[0] = _mn[0] - size[0];
+        _mn[1] = _mn[1] - size[1];
+        _mn[2] = _mn[2] - size[2];
+        _mx[0] = _mx[0] + size[0];
+        _mx[1] = _mx[1] + size[1];
+        _mx[2] = _mx[2] + size[2];
+        _mn[0] = _mn[0] - fudge[0];
+        _mn[1] = _mn[1] - fudge[1];
+        _mn[2] = _mn[2] - fudge[2];
+        _mx[0] = _mx[0] + fudge[0];
+        _mx[1] = _mx[1] + fudge[1];
+        _mx[2] = _mx[2] + fudge[2];
+        expand_vec[0] = 70.0f;
+        expand_vec[1] = 70.0f;
+        expand_vec[2] = 20.0f;
+        this->update(_mn, _mx, mask, expand_vec);
+    }
 };
 
 struct query_brush_model_gjk_geom_visitor : colgeom_visitor_t // sizeof=0x74
@@ -270,6 +321,9 @@ public:
             this->m_flags = 0;
         }
 
+        ~gjk_base_t();
+
+
         unsigned int get_geom_id();
         const phys_mat44 *get_xform();
 
@@ -280,10 +334,10 @@ public:
         void set_xform(const phys_mat44 *xform);
 
         virtual void comp_aabb_loc();
-        virtual unsigned int get_type() = 0;
-        virtual bool is_foot(const phys_vec3 *hit_point);
+        virtual unsigned int get_type() const = 0;
+        virtual bool is_foot(const phys_vec3 *hit_point) const;
         virtual bool is_walkable(const phys_vec3 *hit_point, const phys_vec3 *up);
-        virtual const cbrush_t *get_brush();
+        virtual const cbrush_t *get_brush() const;
 };
 
 struct gjk_geom_list_t // sizeof=0x8
@@ -425,6 +479,8 @@ struct __declspec(align(8)) gjk_brush_t : gjk_base_t // sizeof=0x60
         // padding byte
         // padding byte
 
+        bool is_walkable(const phys_vec3 *hit_point, const phys_vec3 *up);
+
         gjk_brush_t *create(
                 const cbrush_t *brush,
                 int stype,
@@ -505,6 +561,9 @@ struct __declspec(align(16)) gjk_partition_t : gjk_base_t // sizeof=0x70
         // padding byte
         // padding byte
 
+        bool is_walkable(const phys_vec3 *hit_point, const phys_vec3 *up);
+
+
         gjk_partition_t *__cdecl create(const CollisionAabbTree *tree, gjk_collision_visitor *allocator);
         void support(
                 const phys_vec3 *v,
@@ -534,6 +593,8 @@ struct gjk_double_sphere_t : gjk_base_t // sizeof=0x90
 
         gjk_double_sphere_t();
 
+        bool is_foot(const phys_vec3 *hit_point);
+
         void support(
                 const phys_vec3 *v,
                 phys_vec3 *support_vert,
@@ -554,7 +615,7 @@ struct gjk_double_sphere_t : gjk_base_t // sizeof=0x90
                 const phys_mat44 *xform,
                 phys_vec3 *aabb_min,
                 phys_vec3 *aabb_max);
-        float get_geom_radius();
+        float get_geom_radius() const;
         bool is_polyhedron();
         gjk_double_sphere_t *__cdecl create(
                 const phys_vec3 *c0,
@@ -572,6 +633,8 @@ struct gjk_cylinder_t : gjk_base_t // sizeof=0xA0
         float radius;
         float m_geom_radius;
         phys_mat44 xform;
+
+        bool is_foot(const phys_vec3 *hit_point);
 
         gjk_cylinder_t *__cdecl create(
                 int _direction,
@@ -597,7 +660,7 @@ struct gjk_cylinder_t : gjk_base_t // sizeof=0xA0
                 phys_vec3 *aabb_min,
                 phys_vec3 *aabb_max);
         unsigned int get_type();
-        float get_geom_radius();
+        float get_geom_radius() const;
         static void __cdecl destroy(gjk_cylinder_t *geom);
 };
 
@@ -625,21 +688,48 @@ struct __declspec(align(8)) gjk_polygon_cylinder_t : gjk_base_t // sizeof=0x80
         // padding byte
 
         struct poly_verts // sizeof=0x20
-        {                                                                             // XREF: .data:gjk_polygon_cylinder_t::poly_verts gjk_polygon_cylinder_t::s_poly_verts/r
+        {                                                                             // XREF: .data:poly_verts s_poly_verts/r
                 float m_co[4];
                 float m_si[4];
 
                 poly_verts();
-                //void gjk_polygon_cylinder_t::poly_verts::poly_verts(gjk_polygon_cylinder_t::poly_verts *this);
+                //void poly_verts::poly_verts(poly_verts *this);
+
+                void get_co_si(int i, float *co_, float *si_);
+                int __thiscall support(const phys_vec3 *v);
         };
 
-        gjk_polygon_cylinder_t *__cdecl create(
+        static gjk_polygon_cylinder_t *__cdecl create(
                 float (*mins)[3],
                 float (*maxs)[3],
                 float radius_adjust,
                 int stype,
                 gjk_collision_visitor *allocator);
         static void __cdecl destroy(gjk_polygon_cylinder_t *geom);
+
+        
+        static void support(
+            const phys_vec3 *v,
+            phys_vec3 *support_vert,
+            phys_vec3 *support_ind);
+        static void get_simplex(
+            const cached_simplex_info *cache_info,
+            int index_count,
+            phys_vec3 *simplex_verts,
+            phys_vec3 *simplex_inds);
+        static void calc_aabb(
+            const phys_mat44 *xform,
+            phys_vec3 *aabb_min,
+            phys_vec3 *aabb_max);
+        static void __cdecl calc_disc_aabb(
+            const phys_vec3 *axis,
+            float radius,
+            phys_vec3 *aabb_min,
+            phys_vec3 *aabb_max);
+
+        bool __thiscall is_foot(const phys_vec3 *hit_point);
+        unsigned int __thiscall get_type();
+        float __thiscall get_geom_radius() const;
 };
 
 PhysGeomList *__cdecl xmodel_get_geomlist(const XModel *model, int bone_index);

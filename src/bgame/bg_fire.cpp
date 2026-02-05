@@ -7,6 +7,13 @@
 #include <game_mp/g_main_mp.h>
 #include <gfx_d3d/r_marks.h>
 #include <gfx_d3d/r_init.h>
+#include <win32/win_shared.h>
+#include <EffectsCore/fx_system.h>
+#include <gfx_d3d/r_foliage.h>
+#include <client/splitscreen.h>
+#include <cgame/cg_sound.h>
+#include <cgame/cg_drawtools.h>
+#include <game/g_debug.h>
 
 const dvar_t *fire_audio_repeat_duration;
 const dvar_t *fire_audio_random_max_duration;
@@ -17,6 +24,7 @@ const dvar_t *fire_world_damage_rate;
 const dvar_t *fire_debug;
 
 int gLastBurnParticleSpawnTime;
+int g_FM_BurnDataLastScanIndex;
 bool gFireInited;
 const FxEffectDef *g_FM_fx_flamethrower_effect[3];
 const FxEffectDef *g_FM_fx_wall_effect[1];
@@ -115,7 +123,7 @@ void __cdecl BG_ResetFire()
     Sync_VisualBurn_To_FM_State();
 }
 
-bool __cdecl TerrainScorch_AllowSurfacesCallback(int surfIndex)
+int __cdecl TerrainScorch_AllowSurfacesCallback(int surfIndex, void *formal)
 {
     Material *materialHandle; // [esp+4h] [ebp-4h]
 
@@ -123,6 +131,7 @@ bool __cdecl TerrainScorch_AllowSurfacesCallback(int surfIndex)
     return (materialHandle->info.gameFlags & 4) == 0 && (materialHandle->stateFlags & 4) == 0;
 }
 
+#if 0
 void __cdecl TerrainScorch(float *loresCellPos, bool instant)
 {
     unsigned __int16 v2; // ax
@@ -144,40 +153,43 @@ void __cdecl TerrainScorch(float *loresCellPos, bool instant)
     float maxs[4]; // [esp+64h] [ebp-1054h] BYREF
     unsigned int surfCounts[2]; // [esp+74h] [ebp-1044h] BYREF
     unsigned __int16 *v20; // [esp+7Ch] [ebp-103Ch]
-    unsigned int v21[1025]; // [esp+80h] [ebp-1038h] BYREF
+    GfxSurface surfs[50]; // [esp+80h] [ebp-1038h] BYREF
     unsigned int stream2LockedSize; // [esp+1084h] [ebp-34h] BYREF
     float mins[3]; // [esp+1088h] [ebp-30h] BYREF
     float floatIn; // [esp+1094h] [ebp-24h]
-    int (__cdecl *allowSurf[4])(int, void *); // [esp+1098h] [ebp-20h] BYREF
+    int (__cdecl *allowSurf)(int, void *); // [esp+1098h] [ebp-20h] BYREF
     GfxWorldVertex *v26; // [esp+10A8h] [ebp-10h]
     float v27; // [esp+10ACh] [ebp-Ch]
     unsigned int v28; // [esp+10B0h] [ebp-8h]
     unsigned __int8 *v29; // [esp+10B4h] [ebp-4h]
     int savedregs; // [esp+10B8h] [ebp+0h] BYREF
 
-    allowSurf[0] = (int (__cdecl *)(int, void *))TerrainScorch_AllowSurfacesCallback;
+    allowSurf = (int (__cdecl *)(int, void *))TerrainScorch_AllowSurfacesCallback;
     stream2LockedSize = 0;
     v17 = R_VertexStream2_Lock(&stream2LockedSize);
     if ( v17 )
     {
         maxs[3] = 240.0f;
         *(float *)&surfCounts[1] = 96.0f;
-        allowSurf[1] = (int (__cdecl *)(int, void *))(LODWORD(240.0f) ^ _mask__NegFloat_);
-        allowSurf[2] = (int (__cdecl *)(int, void *))(LODWORD(240.0f) ^ _mask__NegFloat_);
-        allowSurf[3] = (int (__cdecl *)(int, void *))(LODWORD(96.0f) ^ _mask__NegFloat_);
+        //allowSurf[1] = (int (__cdecl *)(int, void *))(LODWORD(240.0f) ^ _mask__NegFloat_);
+        //allowSurf[2] = (int (__cdecl *)(int, void *))(LODWORD(240.0f) ^ _mask__NegFloat_);
+        //allowSurf[3] = (int (__cdecl *)(int, void *))(LODWORD(96.0f) ^ _mask__NegFloat_);
         v27 = 240.0 * 240.0;
+
         maxs[0] = *loresCellPos + 240.0;
         maxs[1] = loresCellPos[1] + 240.0;
         maxs[2] = loresCellPos[2] + 96.0;
-        mins[0] = *loresCellPos + COERCE_FLOAT(LODWORD(240.0f) ^ _mask__NegFloat_);
-        mins[1] = loresCellPos[1] + COERCE_FLOAT(LODWORD(240.0f) ^ _mask__NegFloat_);
-        mins[2] = loresCellPos[2] + COERCE_FLOAT(LODWORD(96.0f) ^ _mask__NegFloat_);
+
+        mins[0] = loresCellPos[0] - 240.0f;
+        mins[1] = loresCellPos[1] + -240.0f;
+        mins[2] = loresCellPos[2] + -96.0f;
+
         floatIn = (float)G_GetTime() * 0.001;
-        surfLists = (GfxSurface **)v21;
-        R_BoxSurfaces(mins, maxs, allowSurf, 0, &surfLists, 0x400u, surfCounts, 1u);
+        surfLists = surfs;
+        R_BoxSurfaces(mins, maxs, &allowSurf, 0, &surfLists, 0x400u, surfCounts, 1u);
         for ( i = 0; i < surfCounts[0]; ++i )
         {
-            v28 = v21[i];
+            v28 = surfs[i];
             if ( *(int *)(v28 + 44) >= 0 )
             {
                 if ( *(unsigned int *)(v28 + 44) >= stream2LockedSize
@@ -255,6 +267,157 @@ void __cdecl TerrainScorch(float *loresCellPos, bool instant)
         R_VertexStream2_Unlock();
     }
 }
+#endif
+
+// aislop
+void __cdecl TerrainScorch(float *loresCellPos, bool instant)
+{
+    const float radiusXY = 240.0f;
+    const float radiusZ = 96.0f;
+    const float radiusSq = radiusXY * radiusXY;
+
+    unsigned int stream2Size = 0;
+    uint8_t *stream2 = R_VertexStream2_Lock(&stream2Size);
+    if (!stream2)
+        return;
+
+    float mins[3];
+    float maxs[3];
+
+    mins[0] = loresCellPos[0] - radiusXY;
+    mins[1] = loresCellPos[1] - radiusXY;
+    mins[2] = loresCellPos[2] - radiusZ;
+
+    maxs[0] = loresCellPos[0] + radiusXY;
+    maxs[1] = loresCellPos[1] + radiusXY;
+    maxs[2] = loresCellPos[2] + radiusZ;
+
+    int(__cdecl * allowSurf)(int, void *) = TerrainScorch_AllowSurfacesCallback;
+
+    GfxSurface surfs[50];
+    GfxSurface *surfList = surfs;
+    unsigned int surfCount = 0;
+
+    R_BoxSurfaces(
+        mins,
+        maxs,
+        &allowSurf,
+        0,
+        (GfxSurface***)&surfList, // KISAKTODO: shitty cast
+        0x400,
+        &surfCount,
+        1);
+
+    float timeNow = (float)G_GetTime() * 0.001f;
+
+    for (unsigned int i = 0; i < surfCount; ++i)
+    {
+        GfxSurface *surf = &surfs[i];
+        srfTriangles_t *tris = &surf->tris;
+
+        if (tris->stream2ByteOffset < 0)
+            continue;
+
+        if ((unsigned int)tris->stream2ByteOffset >= stream2Size)
+        {
+            if (!Assert_MyHandler(
+                "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_fire.cpp",
+                465,
+                0,
+                "%s",
+                "(uint)(triSurf->stream2ByteOffset) < stream2ByteSize"))
+            {
+                __debugbreak();
+            }
+            continue;
+        }
+
+        uint8_t *stream2Base = stream2 + tris->stream2ByteOffset;
+
+        GfxWorldVertex *verts =
+            &g_worldDraw->vd.vertices[tris->firstVertex];
+
+        uint16_t *indices =
+            &g_worldDraw->indices[tris->baseIndex];
+
+        for (int tri = 0; tri < tris->triCount; ++tri)
+        {
+            for (int k = 0; k < 3; ++k)
+            {
+                uint16_t vertIndex = indices[k];
+
+                if (vertIndex >= tris->vertexCount)
+                {
+                    if (!Assert_MyHandler(
+                        "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_fire.cpp",
+                        481,
+                        0,
+                        "%s",
+                        "vertIndex < triSurf->vertexCount"))
+                    {
+                        __debugbreak();
+                    }
+                    continue;
+                }
+
+                float distSq = Vec3DistanceSq(
+                    verts[vertIndex].xyz,
+                    loresCellPos);
+
+                if (distSq > radiusSq)
+                    continue;
+
+                float scorchAmount = 1.0f - (distSq / radiusSq);
+
+                // stream2 layout: [half time][half amount]
+                uint16_t *halfData =
+                    (uint16_t *)&stream2Base[vertIndex * 4];
+
+                if (instant)
+                {
+                    halfData[0] = HalfFromFloat(1.0f);
+                    halfData[1] = HalfFromFloat(1.0f);
+                }
+                else
+                {
+                    float curAmount = FloatFromHalf(halfData[1]);
+
+                    if (scorchAmount > curAmount)
+                    {
+                        uint16_t newTime;
+
+                        if (curAmount >= 0.00001f)
+                        {
+                            float prevTime = FloatFromHalf(halfData[0]);
+                            float t = (timeNow - prevTime) / 3.0f;
+
+                            if (t < 0.0f)
+                                t = 0.0f;
+                            else if (t > 1.0f)
+                                t = 1.0f;
+
+                            newTime = HalfFromFloat(
+                                timeNow - ((t * curAmount) / scorchAmount) * 3.0f);
+                        }
+                        else
+                        {
+                            newTime = HalfFromFloat(timeNow);
+                        }
+
+                        halfData[0] = newTime;
+                        halfData[1] = HalfFromFloat(scorchAmount);
+                    }
+                }
+            }
+
+            indices += 3;
+        }
+    }
+
+    R_VertexStream2_Unlock();
+}
+
+
 
 unsigned __int16 __cdecl HalfFromFloat(float floatIn)
 {
@@ -297,7 +460,7 @@ unsigned __int16 __cdecl HalfFromFloat(float floatIn)
     }
     else if ( e >= -10 )
     {
-        return s | ((int)((unsigned int)&loc_800000 | m) >> (1 - e) >> 13);
+        return s | ((int)((unsigned int)0x800000 | m) >> (1 - e) >> 13);
     }
     else
     {
@@ -307,9 +470,15 @@ unsigned __int16 __cdecl HalfFromFloat(float floatIn)
 
 double __cdecl FloatFromHalf(unsigned __int16 halfIn)
 {
+    union EpicFloat // not a real name
+    {
+        float f;
+        unsigned int i;
+    };
+
     int m; // [esp+0h] [ebp-10h]
     int e; // [esp+4h] [ebp-Ch]
-    FloatFromHalf::__l2::<unnamed_type_v> v; // [esp+Ch] [ebp-4h]
+    EpicFloat v; // [esp+Ch] [ebp-4h]
 
     e = ((int)halfIn >> 10) & 0x1F;
     m = halfIn & 0x3FF;
@@ -348,47 +517,48 @@ void __cdecl CG_UpdateFire(int localClientNum)
     int ia; // [esp+70h] [ebp-4h]
 
     cur_time = Sys_Milliseconds();
-    if ( !localClientNum )
+    if (!localClientNum)
     {
-        for ( i = 0; i < 256; ++i )
+        for (i = 0; i < 256; ++i)
         {
-            if ( g_FM_ActiveCells[i].is_active && cur_time > g_FM_ActiveCells[i].endtime )
+            if (g_FM_ActiveCells[i].is_active && cur_time > g_FM_ActiveCells[i].endtime)
                 g_FM_ActiveCells[i].is_active = 0;
         }
-        if ( g_FM_BurnDataLastScanIndex >= g_FM_BurnDataActiveCount )
+        if (g_FM_BurnDataLastScanIndex >= g_FM_BurnDataActiveCount)
             g_FM_BurnDataLastScanIndex = 0;
-        for ( ia = 0; ia < g_FM_BurnDataActiveCount; ++ia )
+        for (ia = 0; ia < g_FM_BurnDataActiveCount; ++ia)
         {
-            if ( ia != g_FM_BurnDataLastScanIndex )
+            if (ia != g_FM_BurnDataLastScanIndex)
             {
-                v6 = dword_E2FEF4[7 * ia] < dword_E2FEF4[7 * g_FM_BurnDataLastScanIndex]
-                     ? dword_E2FEF4[7 * g_FM_BurnDataLastScanIndex]
-                     : dword_E2FEF4[7 * ia];
-                v5 = dword_E2FEF8[7 * ia] < dword_E2FEF8[7 * g_FM_BurnDataLastScanIndex]
-                     ? dword_E2FEF8[7 * g_FM_BurnDataLastScanIndex]
-                     : dword_E2FEF8[7 * ia];
-                v4 = dword_E2FEFC[7 * ia] < dword_E2FEFC[7 * g_FM_BurnDataLastScanIndex]
-                     ? dword_E2FEFC[7 * g_FM_BurnDataLastScanIndex]
-                     : dword_E2FEFC[7 * ia];
+                v6 = g_FM_BurnData[ia].max[0] < g_FM_BurnData[g_FM_BurnDataLastScanIndex].max[0]
+                    ? g_FM_BurnData[g_FM_BurnDataLastScanIndex].max[0]
+                    : g_FM_BurnData[ia].max[0];
+                v5 = g_FM_BurnData[ia].max[1] < g_FM_BurnData[g_FM_BurnDataLastScanIndex].max[1]
+                    ? g_FM_BurnData[g_FM_BurnDataLastScanIndex].max[1]
+                    : g_FM_BurnData[ia].max[1];
+                v4 = g_FM_BurnData[ia].max[2] < g_FM_BurnData[g_FM_BurnDataLastScanIndex].max[2]
+                    ? g_FM_BurnData[g_FM_BurnDataLastScanIndex].max[2]
+                    : g_FM_BurnData[ia].max[2];
                 v3 = g_FM_BurnData[g_FM_BurnDataLastScanIndex].min[0] < g_FM_BurnData[ia].min[0]
-                     ? g_FM_BurnData[g_FM_BurnDataLastScanIndex].min[0]
-                     : g_FM_BurnData[ia].min[0];
-                v2 = dword_E2FEEC[7 * g_FM_BurnDataLastScanIndex] < dword_E2FEEC[7 * ia]
-                     ? dword_E2FEEC[7 * g_FM_BurnDataLastScanIndex]
-                     : dword_E2FEEC[7 * ia];
-                v1 = dword_E2FEF0[7 * g_FM_BurnDataLastScanIndex] < dword_E2FEF0[7 * ia]
-                     ? dword_E2FEF0[7 * g_FM_BurnDataLastScanIndex]
-                     : dword_E2FEF0[7 * ia];
-                if ( (v4 - v1) * (v5 - v2) * (v6 - v3) == dword_E2FF00[7 * g_FM_BurnDataLastScanIndex] + dword_E2FF00[7 * ia] )
+                    ? g_FM_BurnData[g_FM_BurnDataLastScanIndex].min[0]
+                    : g_FM_BurnData[ia].min[0];
+                v2 = g_FM_BurnData[g_FM_BurnDataLastScanIndex].min[1] < g_FM_BurnData[ia].min[1]
+                    ? g_FM_BurnData[g_FM_BurnDataLastScanIndex].min[1]
+                    : g_FM_BurnData[ia].min[1];
+                v1 = g_FM_BurnData[g_FM_BurnDataLastScanIndex].min[2] < g_FM_BurnData[ia].min[2]
+                    ? g_FM_BurnData[g_FM_BurnDataLastScanIndex].min[2]
+                    : g_FM_BurnData[ia].min[2];
+                if ((v4 - v1) * (v5 - v2) * (v6 - v3) == g_FM_BurnData[g_FM_BurnDataLastScanIndex].volume
+                    + g_FM_BurnData[ia].volume)
                 {
-                    dword_E2FF00[7 * ia] += dword_E2FF00[7 * g_FM_BurnDataLastScanIndex];
-                    dword_E2FEF4[7 * ia] = v6;
-                    dword_E2FEF8[7 * ia] = v5;
-                    dword_E2FEFC[7 * ia] = v4;
+                    g_FM_BurnData[ia].volume += g_FM_BurnData[g_FM_BurnDataLastScanIndex].volume;
+                    g_FM_BurnData[ia].max[0] = v6;
+                    g_FM_BurnData[ia].max[1] = v5;
+                    g_FM_BurnData[ia].max[2] = v4;
                     g_FM_BurnData[ia].min[0] = v3;
-                    dword_E2FEEC[7 * ia] = v2;
-                    dword_E2FEF0[7 * ia] = v1;
-                    if ( g_FM_BurnDataLastScanIndex != g_FM_BurnDataActiveCount - 1 )
+                    g_FM_BurnData[ia].min[1] = v2;
+                    g_FM_BurnData[ia].min[2] = v1;
+                    if (g_FM_BurnDataLastScanIndex != g_FM_BurnDataActiveCount - 1)
                         memcpy(
                             &g_FM_BurnData[g_FM_BurnDataLastScanIndex],
                             &g_FM_BurnData[g_FM_BurnDataActiveCount - 1],
@@ -398,7 +568,7 @@ void __cdecl CG_UpdateFire(int localClientNum)
                 }
             }
         }
-        if ( ia >= g_FM_BurnDataActiveCount )
+        if (ia >= g_FM_BurnDataActiveCount)
             ++g_FM_BurnDataLastScanIndex;
     }
 }
@@ -411,26 +581,26 @@ void __cdecl CG_RenderFire()
     float color[4]; // [esp+34h] [ebp-14h] BYREF
     int i; // [esp+44h] [ebp-4h]
 
-    if ( fire_debug && fire_debug->current.enabled )
+    if (fire_debug && fire_debug->current.enabled)
     {
         color[0] = 1.0f;
         color[1] = 1.0f;
         color[2] = 1.0f;
         color[3] = 1.0f;
         memset(mins, 0, sizeof(mins));
-        for ( i = 0; i < g_FM_BurnDataActiveCount; ++i )
+        for (i = 0; i < g_FM_BurnDataActiveCount; ++i)
         {
-            maxs[0] = (float)(dword_E2FEF4[7 * i] - g_FM_BurnData[i].min[0]);
-            maxs[1] = (float)(dword_E2FEF8[7 * i] - dword_E2FEEC[7 * i]);
-            maxs[2] = (float)(dword_E2FEFC[7 * i] - dword_E2FEF0[7 * i]);
+            maxs[0] = (float)(g_FM_BurnData[i].max[0] - g_FM_BurnData[i].min[0]);
+            maxs[1] = (float)(g_FM_BurnData[i].max[1] - g_FM_BurnData[i].min[1]);
+            maxs[2] = (float)(g_FM_BurnData[i].max[2] - g_FM_BurnData[i].min[2]);
             origin[0] = (float)g_FM_BurnData[i].min[0];
-            origin[1] = (float)dword_E2FEEC[7 * i];
-            origin[2] = (float)dword_E2FEF0[7 * i];
+            origin[1] = (float)g_FM_BurnData[i].min[1];
+            origin[2] = (float)g_FM_BurnData[i].min[2];
             CG_DebugBox(origin, mins, maxs, 0.0, color, 1, 0);
         }
-        for ( i = 0; i < 256; ++i )
+        for (i = 0; i < 256; ++i)
         {
-            if ( g_FM_ActiveCells[i].is_active )
+            if (g_FM_ActiveCells[i].is_active)
                 G_DebugStar(g_FM_ActiveCells[i].pos, colorRed, 0);
         }
     }
@@ -454,10 +624,16 @@ void __cdecl CG_SetFireToWall(int localClientNum, float *pos, int *models, int m
     float axis[3][3]; // [esp+18h] [ebp-24h] BYREF
 
     axis[0][0] = 0.0f;
-    *(_QWORD *)&axis[0][1] = __PAIR64__(LODWORD(1.0f), 0);
-    *(_QWORD *)&axis[1][0] = __PAIR64__(LODWORD(-1.0f), 0);
+    //*(_QWORD *)&axis[0][1] = __PAIR64__(LODWORD(1.0f), 0);
+    axis[0][1] = 0.0f;
+    axis[0][2] = 1.0f;
+    axis[1][0] = 0.0f;
+    axis[1][1] = -1.0f;
+    //*(_QWORD *)&axis[1][0] = __PAIR64__(LODWORD(-1.0f), 0);
     axis[1][2] = 0.0f;
-    *(_QWORD *)&axis[2][0] = __PAIR64__(0, LODWORD(1.0f));
+    //*(_QWORD *)&axis[2][0] = __PAIR64__(0, LODWORD(1.0f));
+    axis[2][0] = 1.0f;
+    axis[2][1] = 0.0f;
     axis[2][2] = 0.0f;
     v5 = rand() & 0x80000000;
     if ( v5 < 0 )
@@ -564,10 +740,16 @@ void __cdecl CG_SetFireToTerrain(
     rad = GetFoliageBurnRadius(fireSrc);
     R_FoliageNotifyBurn(pos, rad, models, models_count, 0);
     axis[0][0] = 0.0f;
-    *(_QWORD *)&axis[0][1] = __PAIR64__(LODWORD(1.0f), 0);
-    *(_QWORD *)&axis[1][0] = __PAIR64__(LODWORD(-1.0f), 0);
+    //*(_QWORD *)&axis[0][1] = __PAIR64__(LODWORD(1.0f), 0);
+    axis[0][1] = 0.0f;
+    axis[0][2] = 1.0f;
+    //*(_QWORD *)&axis[1][0] = __PAIR64__(LODWORD(-1.0f), 0);
+    axis[1][0] = 0.0f;
+    axis[1][1] = -1.0f;
     axis[1][2] = 0.0f;
-    *(_QWORD *)&axis[2][0] = __PAIR64__(0, LODWORD(1.0f));
+    //*(_QWORD *)&axis[2][0] = __PAIR64__(0, LODWORD(1.0f));
+    axis[2][0] = 1.0f;
+    axis[2][1] = 0.0f;
     axis[2][2] = 0.0f;
     fxIndex = rand() % 3;
     if ( !g_FM_fx_flamethrower_effect[fxIndex]
@@ -608,65 +790,65 @@ void __cdecl AddBurnCell(float *pos)
     ipos = (int)*pos;
     ipos_4 = (int)pos[1];
     ipos_8 = (int)pos[2];
-    if ( g_FM_BurnDataActiveCount != 4096 )
+    if (g_FM_BurnDataActiveCount != 4096)
     {
-        for ( i = 0; i < g_FM_BurnDataActiveCount; ++i )
+        for (i = 0; i < g_FM_BurnDataActiveCount; ++i)
         {
-            if ( ipos >= g_FM_BurnData[i].min[0]
-                && ipos < dword_E2FEF4[7 * i]
-                && ipos_4 >= dword_E2FEEC[7 * i]
-                && ipos_4 < dword_E2FEF8[7 * i]
-                && ipos_8 >= dword_E2FEF0[7 * i]
-                && ipos_8 < dword_E2FEFC[7 * i] )
+            if (ipos >= g_FM_BurnData[i].min[0]
+                && ipos < g_FM_BurnData[i].max[0]
+                && ipos_4 >= g_FM_BurnData[i].min[1]
+                && ipos_4 < g_FM_BurnData[i].max[1]
+                && ipos_8 >= g_FM_BurnData[i].min[2]
+                && ipos_8 < g_FM_BurnData[i].max[2])
             {
                 return;
             }
         }
-        for ( ia = 0; ia < g_FM_BurnDataActiveCount; ++ia )
+        for (ia = 0; ia < g_FM_BurnDataActiveCount; ++ia)
         {
-            if ( dword_E2FEF4[7 * ia] < ipos + 32 )
+            if (g_FM_BurnData[ia].max[0] < ipos + 32)
                 v6 = ipos + 32;
             else
-                v6 = dword_E2FEF4[7 * ia];
-            if ( dword_E2FEF8[7 * ia] < ipos_4 + 32 )
+                v6 = g_FM_BurnData[ia].max[0];
+            if (g_FM_BurnData[ia].max[1] < ipos_4 + 32)
                 v5 = ipos_4 + 32;
             else
-                v5 = dword_E2FEF8[7 * ia];
-            if ( dword_E2FEFC[7 * ia] < ipos_8 + 32 )
+                v5 = g_FM_BurnData[ia].max[1];
+            if (g_FM_BurnData[ia].max[2] < ipos_8 + 32)
                 v4 = ipos_8 + 32;
             else
-                v4 = dword_E2FEFC[7 * ia];
-            if ( ipos < g_FM_BurnData[ia].min[0] )
+                v4 = g_FM_BurnData[ia].max[2];
+            if (ipos < g_FM_BurnData[ia].min[0])
                 v3 = (int)*pos;
             else
                 v3 = g_FM_BurnData[ia].min[0];
-            if ( ipos_4 < dword_E2FEEC[7 * ia] )
+            if (ipos_4 < g_FM_BurnData[ia].min[1])
                 v2 = (int)pos[1];
             else
-                v2 = dword_E2FEEC[7 * ia];
-            if ( ipos_8 < dword_E2FEF0[7 * ia] )
+                v2 = g_FM_BurnData[ia].min[1];
+            if (ipos_8 < g_FM_BurnData[ia].min[2])
                 v1 = (int)pos[2];
             else
-                v1 = dword_E2FEF0[7 * ia];
-            if ( (v4 - v1) * (v5 - v2) * (v6 - v3) == dword_E2FF00[7 * ia] + 0x8000 )
+                v1 = g_FM_BurnData[ia].min[2];
+            if ((v4 - v1) * (v5 - v2) * (v6 - v3) == g_FM_BurnData[ia].volume + 0x8000)
             {
-                dword_E2FF00[7 * ia] += 0x8000;
-                dword_E2FEF4[7 * ia] = v6;
-                dword_E2FEF8[7 * ia] = v5;
-                dword_E2FEFC[7 * ia] = v4;
+                g_FM_BurnData[ia].volume += 0x8000;
+                g_FM_BurnData[ia].max[0] = v6;
+                g_FM_BurnData[ia].max[1] = v5;
+                g_FM_BurnData[ia].max[2] = v4;
                 g_FM_BurnData[ia].min[0] = v3;
-                dword_E2FEEC[7 * ia] = v2;
-                dword_E2FEF0[7 * ia] = v1;
+                g_FM_BurnData[ia].min[1] = v2;
+                g_FM_BurnData[ia].min[2] = v1;
                 return;
             }
         }
         g_FM_BurnData[g_FM_BurnDataActiveCount].min[0] = ipos;
-        dword_E2FEEC[7 * g_FM_BurnDataActiveCount] = ipos_4;
-        dword_E2FEF0[7 * g_FM_BurnDataActiveCount] = ipos_8;
-        dword_E2FEF4[7 * g_FM_BurnDataActiveCount] = ipos + 32;
-        dword_E2FEF8[7 * g_FM_BurnDataActiveCount] = ipos_4 + 32;
-        dword_E2FEFC[7 * g_FM_BurnDataActiveCount] = ipos_8 + 32;
-        dword_E2FF00[7 * g_FM_BurnDataActiveCount++] = 0x8000;
+        g_FM_BurnData[g_FM_BurnDataActiveCount].min[1] = ipos_4;
+        g_FM_BurnData[g_FM_BurnDataActiveCount].min[2] = ipos_8;
+        g_FM_BurnData[g_FM_BurnDataActiveCount].max[0] = ipos + 32;
+        g_FM_BurnData[g_FM_BurnDataActiveCount].max[1] = ipos_4 + 32;
+        g_FM_BurnData[g_FM_BurnDataActiveCount].max[2] = ipos_8 + 32;
+        g_FM_BurnData[g_FM_BurnDataActiveCount++].volume = 0x8000;
     }
 }
 
@@ -689,6 +871,7 @@ void __cdecl Sync_VisualBurn_To_FM_State()
 //    memFile->cacheBufferUsed += 4;
 //}
 
+float SOUND_DIRECTIONS[8][3];
 void __cdecl CG_GenerateFireSounds(int localClientNum)
 {
     float *p_snapFlags; // ecx
@@ -709,6 +892,8 @@ void __cdecl CG_GenerateFireSounds(int localClientNum)
     float playerPosition[3]; // [esp+80h] [ebp-18h]
     float soundPosition[3]; // [esp+8Ch] [ebp-Ch] BYREF
 
+    static int _S1 = 0;
+    static float SQRT2;
     if ( (_S1 & 1) == 0 )
     {
         _S1 |= 1u;
@@ -718,29 +903,29 @@ void __cdecl CG_GenerateFireSounds(int localClientNum)
     {
         _S1 |= 2u;
         SOUND_DIRECTIONS[0][0] = SQRT2;
-        dword_E4DB34 = LODWORD(SQRT2);
-        dword_E4DB38 = 0;
-        dword_E4DB3C = LODWORD(1.0f);
-        dword_E4DB40 = 0;
-        dword_E4DB44 = 0;
-        dword_E4DB48 = LODWORD(SQRT2);
-        dword_E4DB4C = LODWORD(SQRT2) ^ _mask__NegFloat_;
-        dword_E4DB50 = 0;
-        dword_E4DB54 = 0;
-        dword_E4DB58 = LODWORD(-1.0f);
-        dword_E4DB5C = 0;
-        dword_E4DB60 = LODWORD(SQRT2) ^ _mask__NegFloat_;
-        dword_E4DB64 = LODWORD(SQRT2) ^ _mask__NegFloat_;
-        dword_E4DB68 = 0;
-        dword_E4DB6C = LODWORD(-1.0f);
-        dword_E4DB70 = 0;
-        dword_E4DB74 = 0;
-        dword_E4DB78 = LODWORD(SQRT2) ^ _mask__NegFloat_;
-        dword_E4DB7C = LODWORD(SQRT2);
-        dword_E4DB80 = 0;
-        dword_E4DB84 = 0;
-        dword_E4DB88 = LODWORD(1.0f);
-        dword_E4DB8C = 0;
+        SOUND_DIRECTIONS[0][1] = SQRT2;
+        SOUND_DIRECTIONS[0][2] = 0.0f;
+        SOUND_DIRECTIONS[1][0] = 1.0f;
+        SOUND_DIRECTIONS[1][1] = 0.0f;
+        SOUND_DIRECTIONS[1][2] = 0.0f;
+        SOUND_DIRECTIONS[2][0] = SQRT2;
+        SOUND_DIRECTIONS[2][1] = -SQRT2;
+        SOUND_DIRECTIONS[2][2] = 0.0f;
+        SOUND_DIRECTIONS[3][0] = 0.0f;
+        SOUND_DIRECTIONS[3][1] = -1.0f;
+        SOUND_DIRECTIONS[3][2] = 0.0f;
+        SOUND_DIRECTIONS[4][0] = -SQRT2;
+        SOUND_DIRECTIONS[4][1] = -SQRT2;
+        SOUND_DIRECTIONS[4][2] = 0.0f;
+        SOUND_DIRECTIONS[5][0] = -1.0f;
+        SOUND_DIRECTIONS[5][1] = 0.0f;
+        SOUND_DIRECTIONS[5][2] = 0.0f;
+        SOUND_DIRECTIONS[6][0] = -SQRT2;
+        SOUND_DIRECTIONS[6][1] = SQRT2;
+        SOUND_DIRECTIONS[6][2] = 0.0f;
+        SOUND_DIRECTIONS[7][0] = 0.0f;
+        SOUND_DIRECTIONS[7][1] = 1.0f;
+        SOUND_DIRECTIONS[7][2] = 0.0f;
     }
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     if ( cgameGlob->nextSnap )
