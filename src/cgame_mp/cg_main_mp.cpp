@@ -77,6 +77,7 @@
 #include <glass/glass_client.h>
 #include <physics/rope.h>
 #include "cg_predict_mp.h"
+#include <cgame/cg_local.h>
 
 bool g_allowMature = true;
 

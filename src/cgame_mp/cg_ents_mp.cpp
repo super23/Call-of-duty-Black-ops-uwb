@@ -46,6 +46,7 @@
 #include "cg_animtree_mp.h"
 #include <ragdoll/ragdoll_update.h>
 #include <physics/destructible.h>
+#include "cg_draw_mp.h"
 
 const unsigned short *controller_names[6] =
 {

@@ -3612,101 +3612,95 @@ void    CG_DrawPlayerImageSwing(
     long double v7; // [esp+1Ch] [ebp-48Ch]
     long double v8; // [esp+1Ch] [ebp-48Ch]
     long double v9; // [esp+1Ch] [ebp-48Ch]
-    float v10[3]; // [esp+24h] [ebp-484h] BYREF
-    float rankUpColor[4]; // [esp+30h] [ebp-478h] BYREF
-    char rankUpMaterialDvarName[1024]; // [esp+48h] [ebp-460h]
-    float v13; // [esp+448h] [ebp-60h]
-    float v14; // [esp+44Ch] [ebp-5Ch]
-    float v15; // [esp+450h] [ebp-58h]
-    float v16; // [esp+454h] [ebp-54h]
-    float v17; // [esp+458h] [ebp-50h]
-    float v18; // [esp+45Ch] [ebp-4Ch]
-    float y; // [esp+460h] [ebp-48h]
-    float x; // [esp+464h] [ebp-44h]
-    float v21; // [esp+468h] [ebp-40h]
-    float rotatedY; // [esp+46Ch] [ebp-3Ch]
-    float rotatedX; // [esp+470h] [ebp-38h]
-    int swingPoint; // [esp+474h] [ebp-34h]
-    const ScreenPlacement *previousPopUpAngle; // [esp+478h] [ebp-30h]
-    cg_s *ratio; // [esp+47Ch] [ebp-2Ch]
-    int time; // [esp+480h] [ebp-28h]
-    const ScreenPlacement *scrPlace; // [esp+484h] [ebp-24h]
-    cg_s *cgameGlob; // [esp+488h] [ebp-20h]
-    float maxSwayAngle; // [esp+48Ch] [ebp-1Ch]
-    float rotation; // [esp+490h] [ebp-18h]
-    int swingLength; // [esp+494h] [ebp-14h]
-    float maxAngleChange; // [esp+49Ch] [ebp-Ch]
-    int swayStartTime; // [esp+4A0h] [ebp-8h]
-    int retaddr; // [esp+4A8h] [ebp+0h]
-
-    maxAngleChange = a1;
-    swayStartTime = retaddr;
-    swingLength = 0;
-    rotation = 0.5f;
-    maxSwayAngle = 2500.0f;
-    *(float *)&cgameGlob = 100.0f;
-    scrPlace = *(const ScreenPlacement **)&FLOAT_0_0;
-    *(float *)&time = 7.0f;
-    ratio = CG_GetLocalClientGlobals(localClientNum);
-    previousPopUpAngle = &scrPlaceView[localClientNum];
-    swingLength = ratio->popUpSwayStartTime;
-    swingPoint = ratio->time;
-    if ( swingLength )
+    float rankUpColor[4]; // [esp+24h] [ebp-484h] BYREF
+    Material *rankUpMaterial; // [esp+34h] [ebp-474h]
+    const char *rankUpMaterialName; // [esp+38h] [ebp-470h]
+    char rankUpMaterialDvarName[1024]; // [esp+3Ch] [ebp-46Ch] BYREF
+    float v14; // [esp+440h] [ebp-68h]
+    float v16; // [esp+448h] [ebp-60h]
+    float v18; // [esp+450h] [ebp-58h]
+    float v20; // [esp+458h] [ebp-50h]
+    float rotatedY; // [esp+460h] [ebp-48h]
+    float rotatedX; // [esp+464h] [ebp-44h]
+    float swingPoint; // [esp+468h] [ebp-40h]
+    float previousPopUpAngle; // [esp+46Ch] [ebp-3Ch]
+    float ratio; // [esp+470h] [ebp-38h]
+    int time; // [esp+474h] [ebp-34h]
+    const ScreenPlacement *scrPlace; // [esp+478h] [ebp-30h]
+    cg_s *cgameGlob; // [esp+47Ch] [ebp-2Ch]
+    float maxSwayAngle; // [esp+480h] [ebp-28h]
+    float rotation; // [esp+484h] [ebp-24h]
+    float swingLength; // [esp+488h] [ebp-20h]
+    float swayMaxTime; // [esp+48Ch] [ebp-1Ch]
+    float maxAngleChange; // [esp+490h] [ebp-18h]
+    int swayStartTime; // [esp+494h] [ebp-14h]
+    //_UNKNOWN *v36; // [esp+49Ch] [ebp-Ch]
+    //int localClientNuma; // [esp+4A0h] [ebp-8h]
+    //const rectDef_s *parentRecta; // [esp+4A8h] [ebp+0h]
+    //
+    //v36 = a1;
+    //localClientNuma = (int)parentRecta;
+    swayStartTime = 0;
+    maxAngleChange = 0.5f;
+    swayMaxTime = 2500.0f;
+    swingLength = 100.0f;
+    rotation = 0.0f;
+    maxSwayAngle = 7.0f;
+    cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+    scrPlace = &scrPlaceView[localClientNum];
+    swayStartTime = cgameGlob->popUpSwayStartTime;
+    time = cgameGlob->time;
+    if (swayStartTime)
     {
-        if ( (float)swingPoint > (float)((float)swingLength + maxSwayAngle) )
+        if ((float)time > (float)((float)swayStartTime + swayMaxTime))
         {
-            ratio->popupRotationAngle = 0.0f;
-            ratio->popUpAngleDelta = 0.0f;
+            cgameGlob->popupRotationAngle = 0.0f;
+            cgameGlob->popUpAngleDelta = 0.0f;
         }
-        rotatedX = (float)((float)((float)swingLength + maxSwayAngle) - (float)swingPoint) / maxSwayAngle;
-        rotatedY = ratio->popupRotationAngle;
-        if ( ratio->popupRotationAngle > (float)((float)(rotatedX * rotatedX) * *(float *)&time) )
-            ratio->popUpAngleDelta = COERCE_FLOAT(LODWORD(rotation) ^ _mask__NegFloat_) * (float)(rotatedX * rotatedX);
-        if ( (float)(COERCE_FLOAT(time ^ _mask__NegFloat_) * (float)(rotatedX * rotatedX)) > ratio->popupRotationAngle )
-            ratio->popUpAngleDelta = (float)(rotatedX * rotatedX) * rotation;
-        ratio->popupRotationAngle = ratio->popupRotationAngle + ratio->popUpAngleDelta;
-        if ( Demo_IsPaused() || Demo_IsCompleted() || Demo_GetClipPausedState() )
-            ratio->popupRotationAngle = rotatedY;
-        v21 = *(float *)&cgameGlob + rect->y;
-        x = rect->x;
-        y = rect->y;
-        if ( swingLength && (float)((float)swingLength + maxSwayAngle) > (float)swingPoint )
+        ratio = (float)((float)((float)swayStartTime + swayMaxTime) - (float)time) / swayMaxTime;
+        previousPopUpAngle = cgameGlob->popupRotationAngle;
+        if (cgameGlob->popupRotationAngle > (float)((float)(ratio * ratio) * maxSwayAngle))
+            cgameGlob->popUpAngleDelta = (-(maxAngleChange)) * (float)(ratio * ratio);
+        if ((float)((-(maxSwayAngle)) * (float)(ratio * ratio)) > cgameGlob->popupRotationAngle)
+            cgameGlob->popUpAngleDelta = (float)(ratio * ratio) * maxAngleChange;
+        cgameGlob->popupRotationAngle = cgameGlob->popupRotationAngle + cgameGlob->popUpAngleDelta;
+        if (Demo_IsPaused() || Demo_IsCompleted() || Demo_GetClipPausedState())
+            cgameGlob->popupRotationAngle = previousPopUpAngle;
+        swingPoint = swingLength + rect->y;
+        rotatedX = rect->x;
+        rotatedY = rect->y;
+        if (swayStartTime && (float)((float)swayStartTime + swayMaxTime) > (float)time)
         {
-            v18 = ratio->popupRotationAngle * 0.017453292;
-            __libm_sse2_cos(v6);
-            v17 = v18;
-            v16 = COERCE_FLOAT(LODWORD(ratio->popupRotationAngle) ^ _mask__NegFloat_) * 0.017453292;
-            __libm_sse2_sin(v7);
-            v15 = v16;
-            x = (float)((float)((float)(rect->w / 2.0) + rect->x) + (float)(1.0 - v18)) + (float)(v16 * v21);
-            v14 = ratio->popupRotationAngle * 0.017453292;
-            __libm_sse2_sin(v8);
-            v13 = v14;
-            *(float *)&rankUpMaterialDvarName[1020] = COERCE_FLOAT(LODWORD(ratio->popupRotationAngle) ^ _mask__NegFloat_)
-                                                                                            * 0.017453292;
-            __libm_sse2_cos(v9);
-            *(unsigned int *)&rankUpMaterialDvarName[1016] = *(unsigned int *)&rankUpMaterialDvarName[1020];
-            y = (float)(rect->y - v14) + (float)((float)(*(float *)&rankUpMaterialDvarName[1020] * v21) - v21);
-            scrPlace = (const ScreenPlacement *)LODWORD(ratio->popupRotationAngle);
+            //v21 = cgameGlob->popupRotationAngle * 0.017453292;
+            //__libm_sse2_cos(v6);
+            v20 = cos(cgameGlob->popupRotationAngle * 0.017453292);// v21;
+
+            //v19 = (-(cgameGlob->popupRotationAngle)) * 0.017453292;
+            //__libm_sse2_sin(v7);
+            v18 = sin((-(cgameGlob->popupRotationAngle)) * 0.017453292);
+
+            rotatedX = (float)((float)((float)(rect->w / 2.0) + rect->x) + (float)(1.0 - v20)) + (float)(v18 * swingPoint);
+
+            //v17 = cgameGlob->popupRotationAngle * 0.017453292;
+            //__libm_sse2_sin(v8);
+            v16 = sin(cgameGlob->popupRotationAngle * 0.017453292);// v17;
+
+            //v15 = (-(cgameGlob->popupRotationAngle)) * 0.017453292;
+            //__libm_sse2_cos(v9);
+            v14 = cos((-(cgameGlob->popupRotationAngle)) * 0.017453292);// v15;
+            rotatedY = (float)(rect->y - v16) + (float)((float)(v14 * swingPoint) - swingPoint);
+            rotation = cgameGlob->popupRotationAngle;
         }
-        if ( !localClientNum )
+        if (!localClientNum)
         {
-            Com_sprintf((char *)&rankUpColor[3], 0x400u, "rankUpPopUpIcon%d", 0);
-            LODWORD(rankUpColor[2]) = Dvar_GetString((const char *)&rankUpColor[3]);
-            LODWORD(rankUpColor[1]) = Material_RegisterHandle((char *)LODWORD(rankUpColor[2]), 7);
-            v10[0] = 1.0f;
-            v10[1] = 1.0f;
-            v10[2] = 1.0f;
-            rankUpColor[0] = color[3];
-            CL_DrawStretchPicRotatedXY(
-                previousPopUpAngle,
-                x,
-                y,
-                rect->w,
-                rect->h,
-                *(float *)&scrPlace,
-                v10,
-                (Material *)LODWORD(rankUpColor[1]));
+            Com_sprintf(rankUpMaterialDvarName, 0x400u, "rankUpPopUpIcon%d", 0);
+            rankUpMaterialName = Dvar_GetString(rankUpMaterialDvarName);
+            rankUpMaterial = Material_RegisterHandle((char *)rankUpMaterialName, 7);
+            rankUpColor[0] = 1.0f;
+            rankUpColor[1] = 1.0f;
+            rankUpColor[2] = 1.0f;
+            rankUpColor[3] = color[3];
+            CL_DrawStretchPicRotatedXY(scrPlace, rotatedX, rotatedY, rect->w, rect->h, rotation, rankUpColor, rankUpMaterial);
         }
     }
 }
@@ -4572,7 +4566,6 @@ void __cdecl CG_DrawPlayerWeaponNameBack(
 }
 
 void    CG_DrawPlayerStance(
-                int a1@<ebp>,
                 int localClientNum,
                 const rectDef_s *rect,
                 const float *color,
@@ -4594,15 +4587,16 @@ void    CG_DrawPlayerStance(
     double fadeAlpha; // [esp+5Ch] [ebp-1Ch]
     float v19; // [esp+64h] [ebp-14h]
     cg_s *cgameGlob; // [esp+68h] [ebp-10h]
-    int v21; // [esp+6Ch] [ebp-Ch]
-    void *v22; // [esp+70h] [ebp-8h]
-    void *retaddr; // [esp+78h] [ebp+0h]
-
-    v21 = a1;
-    v22 = retaddr;
+    //int v21; // [esp+6Ch] [ebp-Ch]
+    //void *v22; // [esp+70h] [ebp-8h]
+    //void *retaddr; // [esp+78h] [ebp+0h]
+    //
+    //v21 = a1;
+    //v22 = retaddr;
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     v19 = hud_fade_stance->current.value * 1000.0;
-    fadeAlpha = DOUBLE_9_313225746154785eN10;
+    //fadeAlpha = DOUBLE_9_313225746154785eN10;
+    fadeAlpha = 9.313225746154785e-10;
     cgs = (const cgs_t *)(int)(v19 + 9.313225746154785e-10);
     x = cgs;
     y = CG_FadeHudMenu(localClientNum, hud_fade_stance, cgameGlob->stanceFadeTime, (int)cgs);
@@ -4618,12 +4612,12 @@ void    CG_DrawPlayerStance(
             cgameGlob->lastStanceChangeTime = 0;
         }
         cgameGlob->lastStance = cgameGlob->predictedPlayerState.pm_flags & 3;
-        LODWORD(drawColor[3]) = CG_GetLocalClientStaticGlobals(localClientNum);
-        drawColor[2] = (float)((float)((float)(compassSize->current.value - 1.0) * *(float *)(LODWORD(drawColor[3]) + 6096))
+        //LODWORD(drawColor[3]) = CG_GetLocalClientStaticGlobals(localClientNum);
+        drawColor[2] = (float)((float)((float)(compassSize->current.value - 1.0) * CG_GetLocalClientStaticGlobals(localClientNum)->compassWidth)
                                                  * 0.69999999)
                                  + rect->x;
         drawColor[1] = rect->y;
-        BLOPS_NULLSUB((jpeg_decompress_struct *)&drawColor[2]);
+        //BLOPS_NULLSUB((jpeg_decompress_struct *)&drawColor[2]);
         deltaTime = *color;
         halfWidth = color[1];
         proneStr = (const char *)*((unsigned int *)color + 2);
@@ -4636,17 +4630,16 @@ void    CG_DrawPlayerStance(
             else
                 v10 = UI_SafeTranslateString("CGAME_PRONE_BLOCKED");
             v9 = (float)UI_TextWidth(v10, 0, font, scale) * 0.5;
-            v7 = (float)((float)((float)((float)(cgameGlob->proneBlockedEndTime - cgameGlob->time) / 1500.0) * 540.0)
-                                 * 0.017453292);
-            __libm_sse2_sin(v8);
-            *(float *)&v7 = v7;
-            drawColor[0] = fabs(v7);
+            v7 = (float)((float)((float)((float)(cgameGlob->proneBlockedEndTime - cgameGlob->time) / 1500.0) * 540.0) * 0.017453292);
+            //__libm_sse2_sin(v8);
+            //*(float *)&v7 = v7;
+            drawColor[0] = fabs(sin(v7));
             UI_DrawText(
                 &scrPlaceView[localClientNum],
-                v10,
+                (char*)v10,
                 0x7FFFFFFF,
                 font,
-                COERCE_FLOAT(LODWORD(v9) ^ _mask__NegFloat_),
+                (-(v9)),
                 cg_hudProneY->current.value,
                 7,
                 3,
@@ -4855,10 +4848,10 @@ void __cdecl CG_DrawStanceHintPrints(
         {
             UI_GetKeyBindingLocalizedString(localClientNum, hintLineCmds[i], keyBinding, 0);
             string = UI_SafeTranslateString(hintTypeStrings[i]);
-            string = UI_ReplaceConversionString(string, keyBinding);
+            string = UI_ReplaceConversionString((char*)string, keyBinding);
             UI_DrawText(
                 &scrPlaceView[localClientNum],
-                string,
+                (char *)string,
                 0x7FFFFFFF,
                 font,
                 x + rect->w,
@@ -4874,7 +4867,6 @@ void __cdecl CG_DrawStanceHintPrints(
 }
 
 void    CG_DrawCursorhint(
-                cg_s *a1@<ebp>,
                 int localClientNum,
                 const rectDef_s *rect,
                 Font_s *font,
@@ -4882,104 +4874,107 @@ void    CG_DrawCursorhint(
                 float *color,
                 int textStyle)
 {
-    const char *v7; // eax
+    char *v7; // eax
     float v8; // [esp+4h] [ebp-198h]
-    float v9; // [esp+8h] [ebp-194h]
+    float w; // [esp+8h] [ebp-194h]
     int h; // [esp+Ch] [ebp-190h]
     int vertAlign; // [esp+10h] [ebp-18Ch]
     long double v12; // [esp+20h] [ebp-17Ch]
-    float w; // [esp+2Ch] [ebp-170h]
-    float v14; // [esp+30h] [ebp-16Ch]
-    const ScreenPlacement *v15; // [esp+34h] [ebp-168h]
-    float iconWidth; // [esp+38h] [ebp-164h] BYREF
-    char binding[256]; // [esp+44h] [ebp-158h]
-    weaponInfo_s *weapInfo; // [esp+144h] [ebp-58h]
-    playerState_s *p_ps; // [esp+148h] [ebp-54h]
-    int weaponIndex; // [esp+14Ch] [ebp-50h]
-    Material *hintIcon; // [esp+150h] [ebp-4Ch]
-    const playerState_s *ps; // [esp+154h] [ebp-48h]
-    float y; // [esp+158h] [ebp-44h]
-    float x; // [esp+15Ch] [ebp-40h]
-    float height; // [esp+160h] [ebp-3Ch]
-    float length; // [esp+164h] [ebp-38h]
-    float v27; // [esp+168h] [ebp-34h]
-    float scale; // [esp+16Ch] [ebp-30h]
-    const char *halfscale; // [esp+170h] [ebp-2Ch] BYREF
-    const char *UseString; // [esp+174h] [ebp-28h]
-    float v31; // [esp+178h] [ebp-24h]
-    const char *secondaryString; // [esp+17Ch] [ebp-20h]
-    const char *displayString; // [esp+180h] [ebp-1Ch]
+    float iconWidth; // [esp+2Ch] [ebp-170h]
+    float secondaryLength; // [esp+30h] [ebp-16Ch]
+    ScreenPlacement *scrPlace; // [esp+34h] [ebp-168h]
+    char binding[256]; // [esp+38h] [ebp-164h] BYREF
+    weaponInfo_s *weapInfo; // [esp+138h] [ebp-64h]
+    weaponIconRatioType_t hudIconRatio; // [esp+13Ch] [ebp-60h]
+    int weaponIndex; // [esp+140h] [ebp-5Ch]
+    Material *hintIcon; // [esp+144h] [ebp-58h]
+    const playerState_s *ps; // [esp+148h] [ebp-54h]
+    float y; // [esp+14Ch] [ebp-50h]
+    float x; // [esp+150h] [ebp-4Ch]
+    float height; // [esp+154h] [ebp-48h]
+    float length; // [esp+158h] [ebp-44h]
+    //float v26; // [esp+15Ch] [ebp-40h]
+    float scale; // [esp+160h] [ebp-3Ch]
+    float halfscale; // [esp+164h] [ebp-38h]
+    float v29; // [esp+168h] [ebp-34h]
+    const char *secondaryString; // [esp+170h] [ebp-2Ch] BYREF
+    const char *displayString; // [esp+174h] [ebp-28h]
+    float heightScale; // [esp+178h] [ebp-24h]
+    float widthOfs; // [esp+17Ch] [ebp-20h]
+    float widthScale; // [esp+180h] [ebp-1Ch]
     cg_s *cgameGlob; // [esp+184h] [ebp-18h]
-    const WeaponDef *widthOfs; // [esp+188h] [ebp-14h]
-    cg_s *ass; // [esp+190h] [ebp-Ch]
-    const WeaponDef *weapDef; // [esp+194h] [ebp-8h]
-    const WeaponDef *retaddr; // [esp+19Ch] [ebp+0h]
-
-    ass = a1;
-    weapDef = retaddr;
-    widthOfs = 0;
-    if ( cg_cursorHints->current.integer )
+    const WeaponDef *weapDef; // [esp+188h] [ebp-14h]
+    //_UNKNOWN *v38; // [esp+190h] [ebp-Ch]
+    //int localClientNuma; // [esp+194h] [ebp-8h]
+    //const rectDef_s *recta; // [esp+198h] [ebp-4h] BYREF
+    //Font_s *fonta; // [esp+19Ch] [ebp+0h]
+    //
+    //v38 = a1;
+    //localClientNuma = (int)fonta;
+    weapDef = 0;
+    if (cg_cursorHints->current.integer)
     {
         cgameGlob = CG_GetLocalClientGlobals(localClientNum);
         CG_UpdateCursorHints(cgameGlob);
-        if ( !IsHardcoreMode(localClientNum) || cgameGlob->cursorHintIcon == 3 )
+        if (!IsHardcoreMode(localClientNum) || cgameGlob->cursorHintIcon == 3)
         {
-            color[3] = CG_FadeAlpha(cgameGlob->time, cgameGlob->cursorHintTime, cgameGlob->cursorHintFade, 100) * color[3];
-            if ( color[3] == 0.0 )
+            *((float *)color + 3) = CG_FadeAlpha(cgameGlob->time, cgameGlob->cursorHintTime, cgameGlob->cursorHintFade, 100)
+                * color[3];
+            if (color[3] == 0.0)
             {
                 cgameGlob->cursorHintIcon = 0;
                 return;
             }
-            *(float *)&displayString = 1.0f;
-            secondaryString = *(const char **)&FLOAT_0_0;
-            v31 = 1.0f;
-            UseString = 0;
-            halfscale = 0;
-            if ( cg_cursorHints->current.integer == 3 )
+            widthScale = 1.0f;
+            widthOfs = 0.0f;
+            heightScale = 1.0f;
+            displayString = 0;
+            secondaryString = 0;
+            if (cg_cursorHints->current.integer == 3)
             {
-                scale = (float)cgameGlob->time / 150.0;
-                __libm_sse2_sin(v12);
-                v27 = scale;
-                color[3] = (float)((float)(0.5 * scale) + 0.5) * color[3];
+                //v30 = (float)cgameGlob->time / 150.0;
+                //__libm_sse2_sin(v12);
+                v29 = sin((float)cgameGlob->time / 150.0);// v30;
+                *((float *)color + 3) = (float)((float)(0.5 * v29) + 0.5) * color[3];
             }
-            if ( cg_cursorHints->current.integer < 3 )
+            if (cg_cursorHints->current.integer < 3)
             {
-                if ( cg_cursorHints->current.integer == 2 )
+                if (cg_cursorHints->current.integer == 2)
                 {
-                    height = (float)(cgameGlob->cursorHintTime % 1000) / 100.0;
+                    scale = (float)(cgameGlob->cursorHintTime % 1000) / 100.0;
                 }
                 else
                 {
-                    x = (float)cgameGlob->time / 150.0;
-                    __libm_sse2_sin(v12);
-                    height = (float)((float)(x * 0.5) + 0.5) * 10.0;
+                    //v26 = (float)cgameGlob->time / 150.0;
+                    //__libm_sse2_sin(v12);
+                    scale = (float)((float)(sin((float)cgameGlob->time / 150.0) * 0.5) + 0.5) * 10.0;
                 }
-                length = height * 0.5;
+                halfscale = scale * 0.5;
             }
             else
             {
-                length = 0.0f;
-                height = 0.0f;
+                halfscale = 0.0f;
+                scale = 0.0f;
             }
-            if ( cgameGlob->cursorHintIcon == 1 || cgameGlob->cursorHintIcon == 2 )
+            if (cgameGlob->cursorHintIcon == 1 || cgameGlob->cursorHintIcon == 2)
             {
-                if ( cgameGlob->cursorHintString < 0 )
+                if (cgameGlob->cursorHintString < 0)
                     return;
-                UseString = CG_GetUseString(localClientNum);
-                if ( !UseString || !*UseString )
+                displayString = CG_GetUseString(localClientNum);
+                if (!displayString || !*displayString)
                     return;
-LABEL_20:
-                y = (float)UI_TextWidth(UseString, 0, font, fontscale);
-                *(float *)&ps = (float)UI_TextHeight(font, fontscale);
-                *(float *)&hintIcon = (float)(height + y) * -0.5;
-                *(float *)&weaponIndex = rect->y - (float)(rect->h * 0.5);
+            LABEL_20:
+                length = (float)UI_TextWidth(displayString, 0, font, fontscale);
+                height = (float)UI_TextHeight(font, fontscale);
+                x = (float)(scale + length) * -0.5;
+                y = rect->y - (float)(rect->h * 0.5);
                 UI_DrawText(
                     &scrPlaceView[localClientNum],
-                    UseString,
+                    (char *)displayString,
                     0x7FFFFFFF,
                     font,
-                    *(float *)&hintIcon,
-                    (float)(*(float *)&ps * 0.5) + rect->y,
+                    x,
+                    (float)(height * 0.5) + rect->y,
                     rect->horzAlign,
                     rect->vertAlign,
                     fontscale,
@@ -4987,117 +4982,117 @@ LABEL_20:
                     textStyle);
                 return;
             }
-            if ( cgameGlob->cursorHintIcon == 6 )
+            if (cgameGlob->cursorHintIcon == 6)
             {
-                UseString = UI_SafeTranslateString("CGAME_SPECTATOR");
-                if ( UseString && *UseString )
+                displayString = UI_SafeTranslateString("CGAME_SPECTATOR");
+                if (displayString && *displayString)
                     goto LABEL_20;
             }
             else
             {
-                p_ps = &cgameGlob->nextSnap->ps;
-                if ( (p_ps->otherFlags & 0x18) == 0 )
+                ps = &cgameGlob->nextSnap->ps;
+                if ((ps->otherFlags & 0x18) == 0)
                 {
-                    weapInfo = (weaponInfo_s *)cgMedia.hintMaterials[cgameGlob->cursorHintIcon];
-                    if ( weapInfo || cgameGlob->cursorHintIcon == 3 )
+                    hintIcon = cgMedia.hintMaterials[cgameGlob->cursorHintIcon];
+                    if (hintIcon || cgameGlob->cursorHintIcon == 3)
                     {
-                        if ( cgameGlob->cursorHintIcon < 8 || cgameGlob->cursorHintIcon > 2055 )
+                        if (cgameGlob->cursorHintIcon < 8 || cgameGlob->cursorHintIcon > 2055)
                         {
-                            if ( cgameGlob->cursorHintString < 0 )
+                            if (cgameGlob->cursorHintString < 0)
                             {
-                                if ( cgameGlob->cursorHintIcon == 4 )
+                                if (cgameGlob->cursorHintIcon == 4)
                                 {
-                                    UI_GetKeyBindingLocalizedString(localClientNum, "+activate", (char *)&iconWidth, 0);
-                                    UseString = UI_SafeTranslateString("PLATFORM_PICKUPHEALTH");
-                                    UseString = UI_ReplaceConversionString(UseString, (const char *)&iconWidth);
+                                    UI_GetKeyBindingLocalizedString(localClientNum, "+activate", binding, 0);
+                                    displayString = UI_SafeTranslateString("PLATFORM_PICKUPHEALTH");
+                                    displayString = UI_ReplaceConversionString((char *)displayString, binding);
                                 }
                             }
                             else
                             {
-                                UseString = CG_GetUseString(localClientNum);
+                                displayString = CG_GetUseString(localClientNum);
                             }
                         }
                         else
                         {
-                            *(unsigned int *)&binding[252] = cgameGlob->cursorHintIcon - 7;
-                            widthOfs = BG_GetWeaponDef(*(unsigned int *)&binding[252]);
-                            if ( widthOfs->hudIcon )
+                            weaponIndex = cgameGlob->cursorHintIcon - 7;
+                            weapDef = BG_GetWeaponDef(weaponIndex);
+                            if (weapDef->hudIcon)
                             {
-                                *(unsigned int *)&binding[248] = widthOfs->hudIconRatio;
-                                if ( *(unsigned int *)&binding[248] )
+                                hudIconRatio = weapDef->hudIconRatio;
+                                if (hudIconRatio)
                                 {
-                                    if ( *(unsigned int *)&binding[248] == 1 )
+                                    if (hudIconRatio == WEAPON_ICON_RATIO_2TO1)
                                     {
-                                        *(float *)&displayString = 2.0f;
-                                        *(float *)&secondaryString = rect->w * -0.5;
-                                        v31 = 1.0f;
+                                        widthScale = 2.0f;
+                                        widthOfs = rect->w * -0.5;
+                                        heightScale = 1.0f;
                                     }
                                     else
                                     {
-                                        if ( widthOfs->hudIconRatio != WEAPON_ICON_RATIO_4TO1
+                                        if (weapDef->hudIconRatio != WEAPON_ICON_RATIO_4TO1
                                             && !Assert_MyHandler(
-                                                        "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_newDraw_mp.cpp",
-                                                        1806,
-                                                        0,
-                                                        "%s",
-                                                        "weapDef->hudIconRatio == WEAPON_ICON_RATIO_4TO1") )
+                                                "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_newDraw_mp.cpp",
+                                                1806,
+                                                0,
+                                                "%s",
+                                                "weapDef->hudIconRatio == WEAPON_ICON_RATIO_4TO1"))
                                         {
                                             __debugbreak();
                                         }
-                                        *(float *)&displayString = 2.0f;
-                                        *(float *)&secondaryString = rect->w * -0.5;
-                                        v31 = 0.5f;
+                                        widthScale = 2.0f;
+                                        widthOfs = rect->w * -0.5;
+                                        heightScale = 0.5f;
                                     }
                                 }
                             }
-                            if ( widthOfs->weapClass == WEAPCLASS_TURRET )
+                            if (weapDef->weapClass == WEAPCLASS_TURRET)
                             {
-                                if ( cgameGlob->cursorHintString >= 0 )
-                                    UseString = CG_GetUseString(localClientNum);
-                                *(unsigned int *)&binding[244] = CG_GetLocalClientWeaponInfo(localClientNum, *(int *)&binding[252]);
-                                halfscale = *(const char **)(*(unsigned int *)&binding[244] + 24);
+                                if (cgameGlob->cursorHintString >= 0)
+                                    displayString = CG_GetUseString(localClientNum);
+                                weapInfo = CG_GetLocalClientWeaponInfo(localClientNum, weaponIndex);
+                                secondaryString = weapInfo->translatedDisplayName;
                             }
                             else
                             {
-                                UseString = CG_GetWeaponUseString(localClientNum, &halfscale);
+                                displayString = CG_GetWeaponUseString(localClientNum, &secondaryString);
                             }
                         }
-                        v15 = &scrPlaceView[localClientNum];
-                        if ( cgameGlob->cursorHintIcon == 3 )
+                        scrPlace = &scrPlaceView[localClientNum];
+                        if (cgameGlob->cursorHintIcon == 3)
                         {
-                            y = (float)UI_TextWidth(UseString, 0, font, fontscale);
-                            *(float *)&ps = (float)UI_TextHeight(font, fontscale);
-                            *(float *)&hintIcon = (float)((float)((float)(rect->w + height) + y) * -0.5) - rect->x;
-                            *(float *)&weaponIndex = rect->y - (float)((float)(rect->h * 0.5) * v31);
+                            length = (float)UI_TextWidth(displayString, 0, font, fontscale);
+                            height = (float)UI_TextHeight(font, fontscale);
+                            x = (float)((float)((float)(rect->w + scale) + length) * -0.5) - rect->x;
+                            y = rect->y - (float)((float)(rect->h * 0.5) * heightScale);
                             UI_DrawText(
-                                v15,
-                                UseString,
+                                scrPlace,
+                                (char *)displayString,
                                 0x7FFFFFFF,
                                 font,
-                                *(float *)&hintIcon,
-                                (float)(*(float *)&ps * 0.5) + rect->y,
+                                x,
+                                (float)(height * 0.5) + rect->y,
                                 rect->horzAlign,
                                 rect->vertAlign,
                                 fontscale,
                                 color,
                                 textStyle);
                         }
-                        else if ( UseString && *UseString )
+                        else if (displayString && *displayString)
                         {
-                            y = (float)UI_TextWidth(UseString, 0, font, fontscale);
-                            *(float *)&ps = (float)UI_TextHeight(font, fontscale);
-                            if ( halfscale && cg_weaponHintsCoD1Style->current.enabled )
+                            length = (float)UI_TextWidth(displayString, 0, font, fontscale);
+                            height = (float)UI_TextHeight(font, fontscale);
+                            if (secondaryString && cg_weaponHintsCoD1Style->current.enabled)
                             {
-                                v14 = (float)UI_TextWidth(halfscale, 0, font, fontscale);
-                                *(float *)&hintIcon = (float)(y + v14) * -0.5;
-                                *(float *)&weaponIndex = rect->y - (float)((float)(rect->h * 0.5) * v31);
+                                secondaryLength = (float)UI_TextWidth(secondaryString, 0, font, fontscale);
+                                x = (float)(length + secondaryLength) * -0.5;
+                                y = rect->y - (float)((float)(rect->h * 0.5) * heightScale);
                                 UI_DrawText(
-                                    v15,
-                                    UseString,
+                                    scrPlace,
+                                    (char *)displayString,
                                     0x7FFFFFFF,
                                     font,
-                                    *(float *)&hintIcon,
-                                    (float)(*(float *)&ps * 0.5) + rect->y,
+                                    x,
+                                    (float)(height * 0.5) + rect->y,
                                     rect->horzAlign,
                                     rect->vertAlign,
                                     fontscale,
@@ -5105,92 +5100,91 @@ LABEL_20:
                                     textStyle);
                                 vertAlign = rect->vertAlign;
                                 h = rect->horzAlign;
-                                v9 = (float)(*(float *)&ps * 0.5) + rect->y;
-                                v8 = *(float *)&hintIcon + y;
-                                v7 = va(" %s", halfscale);
-                                UI_DrawText(v15, v7, 0x7FFFFFFF, font, v8, v9, h, vertAlign, fontscale, color, textStyle);
-                                *(float *)&hintIcon = (float)((float)(rect->w * *(float *)&displayString) + height) * -0.5;
-                                if ( widthOfs && widthOfs->bDualWield )
+                                w = (float)(height * 0.5) + rect->y;
+                                v8 = x + length;
+                                v7 = va(" %s", secondaryString);
+                                UI_DrawText(scrPlace, v7, 0x7FFFFFFF, font, v8, w, h, vertAlign, fontscale, color, textStyle);
+                                x = (float)((float)(rect->w * widthScale) + scale) * -0.5;
+                                if (weapDef && weapDef->bDualWield)
                                 {
-                                    w = (float)(rect->w * *(float *)&displayString) + height;
+                                    iconWidth = (float)(rect->w * widthScale) + scale;
                                     UI_DrawHandlePic(
-                                        v15,
-                                        *(float *)&hintIcon - (float)(w / 2.0),
-                                        (float)(*(float *)&ps * 2.0) + *(float *)&weaponIndex,
-                                        w,
-                                        (float)(rect->h * v31) + height,
+                                        scrPlace,
+                                        x - (float)(iconWidth / 2.0),
+                                        (float)(height * 2.0) + y,
+                                        iconWidth,
+                                        (float)(rect->h * heightScale) + scale,
                                         rect->horzAlign,
                                         rect->vertAlign,
                                         color,
-                                        (Material *)weapInfo);
+                                        hintIcon);
                                     UI_DrawHandlePic(
-                                        v15,
-                                        (float)(w / 2.0) + *(float *)&hintIcon,
-                                        (float)(*(float *)&ps * 2.0) + *(float *)&weaponIndex,
-                                        COERCE_FLOAT(LODWORD(w) ^ _mask__NegFloat_),
-                                        (float)(rect->h * v31) + height,
+                                        scrPlace,
+                                        (float)(iconWidth / 2.0) + x,
+                                        (float)(height * 2.0) + y,
+                                        (-(iconWidth)),
+                                        (float)(rect->h * heightScale) + scale,
                                         rect->horzAlign,
                                         rect->vertAlign,
                                         color,
-                                        (Material *)weapInfo);
+                                        hintIcon);
                                 }
                                 else
                                 {
                                     UI_DrawHandlePic(
-                                        v15,
-                                        *(float *)&hintIcon,
-                                        (float)(*(float *)&ps * 2.0) + *(float *)&weaponIndex,
-                                        (float)(rect->w * *(float *)&displayString) + height,
-                                        (float)(rect->h * v31) + height,
+                                        scrPlace,
+                                        x,
+                                        (float)(height * 2.0) + y,
+                                        (float)(rect->w * widthScale) + scale,
+                                        (float)(rect->h * heightScale) + scale,
                                         rect->horzAlign,
                                         rect->vertAlign,
                                         color,
-                                        (Material *)weapInfo);
+                                        hintIcon);
                                 }
                             }
                             else
                             {
-                                *(float *)&hintIcon = (float)((float)((float)(rect->w * *(float *)&displayString) + height) + y) * -0.5;
-                                *(float *)&weaponIndex = rect->y - (float)((float)(rect->h * 0.5) * v31);
+                                x = (float)((float)((float)(rect->w * widthScale) + scale) + length) * -0.5;
+                                y = rect->y - (float)((float)(rect->h * 0.5) * heightScale);
                                 UI_DrawText(
-                                    v15,
-                                    UseString,
+                                    scrPlace,
+                                    (char *)displayString,
                                     0x7FFFFFFF,
                                     font,
-                                    *(float *)&hintIcon,
-                                    (float)(*(float *)&ps * 0.5) + rect->y,
+                                    x,
+                                    (float)(height * 0.5) + rect->y,
                                     rect->horzAlign,
                                     rect->vertAlign,
                                     fontscale,
                                     color,
                                     textStyle);
                                 UI_DrawHandlePic(
-                                    v15,
-                                    *(float *)&hintIcon + y,
-                                    *(float *)&weaponIndex,
-                                    (float)(rect->w * *(float *)&displayString) + height,
-                                    (float)(rect->h * v31) + height,
+                                    scrPlace,
+                                    x + length,
+                                    y,
+                                    (float)(rect->w * widthScale) + scale,
+                                    (float)(rect->h * heightScale) + scale,
                                     rect->horzAlign,
                                     rect->vertAlign,
                                     color,
-                                    (Material *)weapInfo);
+                                    hintIcon);
                             }
                         }
                         else
                         {
-                            *(float *)&hintIcon = rect->x
-                                                                    - (float)((float)((float)(rect->w + length) + *(float *)&secondaryString) * 0.5);
-                            *(float *)&weaponIndex = rect->y - (float)(length * v31);
+                            x = rect->x - (float)((float)((float)(rect->w + halfscale) + widthOfs) * 0.5);
+                            y = rect->y - (float)(halfscale * heightScale);
                             UI_DrawHandlePic(
-                                v15,
-                                *(float *)&hintIcon,
-                                *(float *)&weaponIndex,
-                                (float)(rect->w * *(float *)&displayString) + height,
-                                (float)(rect->h * v31) + height,
+                                scrPlace,
+                                x,
+                                y,
+                                (float)(rect->w * widthScale) + scale,
+                                (float)(rect->h * heightScale) + scale,
                                 rect->horzAlign,
                                 rect->vertAlign,
                                 color,
-                                (Material *)weapInfo);
+                                hintIcon);
                         }
                     }
                 }
@@ -5263,7 +5257,7 @@ const char *__cdecl CG_GetWeaponUseString(int localClientNum, const char **secon
             displayString = UI_SafeTranslateString("PLATFORM_PICKUPNEWWEAPON");
         *secondaryString = weapInfo->translatedDisplayName;
     }
-    return UI_ReplaceConversionString(displayString, binding);
+    return UI_ReplaceConversionString((char*)displayString, binding);
 }
 
 const char *__cdecl CG_GetUseString(int localClientNum)
@@ -5334,12 +5328,12 @@ void __cdecl CG_DrawHoldBreathHint(
                         UI_GetKeyBindingLocalizedString(localClientNum, "+breath_sprint", binding, 0);
                     }
                     v7 = UI_SafeTranslateString("PLATFORM_HOLD_BREATH");
-                    string = UI_ReplaceConversionString(v7, binding);
+                    string = UI_ReplaceConversionString((char*)v7, binding);
                     x = rect->x
                         - (float)(int)((float)((float)UI_TextWidth(string, 0, font, fontscale) * 0.5) + 9.313225746154785e-10);
                     UI_DrawText(
                         &scrPlaceView[localClientNum],
-                        string,
+                        (char *)string,
                         0x7FFFFFFF,
                         font,
                         x,

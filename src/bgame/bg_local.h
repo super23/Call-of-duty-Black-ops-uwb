@@ -138,14 +138,6 @@ struct CEntGeneral // sizeof=0x20
         float maxs[3];
 };
 
-struct ShaderConstantSet // sizeof=0x78
-{                                                                             // XREF: cpose_t/r
-                                                                                // GfxBackEndData/r ...
-        float value[7][4];
-        unsigned __int8 constantSource[7];
-        unsigned __int8 used;
-};
-
 struct cpose_t // sizeof=0x174
 {                                                                             // XREF: centity_s/r cg_s/r ...
         unsigned __int16 lightingHandle;

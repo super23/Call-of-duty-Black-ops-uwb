@@ -14,6 +14,7 @@
 #include <ragdoll/ragdoll.h>
 #include <cgame/cg_world.h>
 #include "cg_players_mp.h"
+#include <gfx_d3d/r_scene.h>
 
 void __cdecl CG_ActorProcessSnapshot(int localClientNum, centity_s *cent)
 {

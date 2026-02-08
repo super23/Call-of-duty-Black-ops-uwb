@@ -29,6 +29,7 @@
 #include "cg_players_mp.h"
 #include <bgame/bg_fire.h>
 #include <flame/flame_class_stream.h>
+#include <cgame/cg_local.h>
 
 const char *WeaponStateNames[50] =
 {

@@ -47,6 +47,8 @@
 #include "cg_draw_mp.h"
 #include <ik/ik.h>
 #include <gfx_d3d/r_extracam.h>
+#include <client/client.h>
+#include <gfx_d3d/r_scene.h>
 
 ClientViewParams clientViewParamsArray[1][1][1] = { { { { 0.0, 0.0, 1.0, 1.0, VIEWPORT_LARGE } } } };
 
