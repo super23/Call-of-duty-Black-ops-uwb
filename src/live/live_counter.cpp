@@ -1,4 +1,38 @@
 #include "live_counter.h"
+#include <DW/dwUtils.h>
+#include <universal/com_tasks.h>
+#include <universal/com_stringtable.h>
+#include <DW/dwLogOn_pc.h>
+#include <win32/win_shared.h>
+
+const TaskDefinition task_downloadAllCounters[1] =
+{
+  {
+    2uLL,
+    "downloadAllCounters",
+    0,
+    (void(*)(TaskRecord*))LiveCounter_DownloadAllCountersComplete,
+    (void(*)(TaskRecord*))LiveCounter_DownloadAllCountersFailure,
+    NULL
+  }
+};
+
+bool s_countersInit;
+bool s_countersReadyForUpload;
+int s_nextCounterUploadTime;
+int s_nextCounterDownloadTime;
+
+bdCounterValue s_serverCounters[100];
+bdCounterValue s_localCounters[100];
+bdCounterValue s_uploadCounters[100];
+
+bool s_countersRequested = true;
+unsigned int s_serverCountersTotal = 100;
+
+
+
+// *WARNING* One or more selections were skipped as they could not be interpreted as c data
+
 
 TaskRecord *__cdecl LiveCounter_IncrementCounters(
                 const TaskDefinition *definition,
@@ -18,11 +52,7 @@ TaskRecord *__cdecl LiveCounter_IncrementCounters(
     if ( !task )
     {
         task = TaskManager2_CreateTask(definition, controllerIndex, 0, 0);
-        v5 = (const bdReference<bdCommonAddr> *)bdCounter::incrementCounters(
-                                                                                            counter,
-                                                                                            (int)&v6,
-                                                                                            (int)counterIncrements,
-                                                                                            numEntries);
+        v5 = (const bdReference<bdCommonAddr> *)bdCounter::incrementCounters(counter, (int)&v6, (int)counterIncrements, numEntries);
         bdReference<bdCommonAddr>::operator=((bdReference<bdCommonAddr> *)&task->remoteTask, v5);
         bdReference<bdRemoteTask>::~bdReference<bdRemoteTask>(&v6);
         s_numEntriesUploaded = numEntries;
@@ -50,11 +80,7 @@ TaskRecord *__cdecl LiveCounter_GetCounterTotals(
     if ( !task )
     {
         task = TaskManager2_CreateTask(definition, controllerIndex, 0, 0);
-        CounterTotals = (const bdReference<bdCommonAddr> *)bdCounter::getCounterTotals(
-                                                                                                                 counter,
-                                                                                                                 (int)&v6,
-                                                                                                                 results,
-                                                                                                                 numCounterIDs);
+        CounterTotals = (const bdReference<bdCommonAddr> *)bdCounter::getCounterTotals(counter, (int)&v6, results, numCounterIDs);
         bdReference<bdCommonAddr>::operator=((bdReference<bdCommonAddr> *)&task->remoteTask, CounterTotals);
         bdReference<bdRemoteTask>::~bdReference<bdRemoteTask>(&v6);
         TaskManager2_StartTask(task);
@@ -321,6 +347,12 @@ void __cdecl LiveCounter_Update(int controllerIndex)
     }
 }
 
+cmd_function_s LiveCounter_IncrementCounter_f_VAR;
+cmd_function_s LiveCounter_Dump_f_VAR;
+
+const dvar_t *counterUploadInterval;
+const dvar_t *counterDownloadInterval;
+
 void __cdecl LiveCounter_Init()
 {
     Cmd_AddCommandInternal("incrementcounter", LiveCounter_IncrementCounter_f, &LiveCounter_IncrementCounter_f_VAR);
@@ -367,14 +399,11 @@ void __cdecl LiveCounter_IncrementCounter_f()
 
 void __cdecl LiveCounter_Dump_f()
 {
-    __int64 v0; // [esp-8h] [ebp-Ch]
     int i; // [esp+0h] [ebp-4h]
 
     for ( i = 0; i < 100; ++i )
     {
-        HIDWORD(v0) = HIDWORD(s_serverCounters[i].m_counterValue);
-        LODWORD(v0) = s_serverCounters[i].m_counterValue;
-        Com_Printf(0, "%d: %llu\n", s_serverCounters[i].m_counterID, v0);
+        Com_Printf(0, "%d: %llu\n", s_serverCounters[i].m_counterID, s_serverCounters[i].m_counterValue);
     }
 }
 

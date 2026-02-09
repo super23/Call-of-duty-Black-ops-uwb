@@ -10,6 +10,172 @@
 #include <client/cl_rank.h>
 #include "live_win.h"
 
+const int lbViewIds[160] =
+{
+  1000,
+  1001,
+  1002,
+  1003,
+  1004,
+  1005,
+  1006,
+  1007,
+  1100,
+  1101,
+  1102,
+  1103,
+  1104,
+  1105,
+  1106,
+  1107,
+  1200,
+  1201,
+  1202,
+  1203,
+  1204,
+  1205,
+  1206,
+  1207,
+  1300,
+  1301,
+  1302,
+  1303,
+  1304,
+  1305,
+  1306,
+  1307,
+  1400,
+  1401,
+  1402,
+  1403,
+  1404,
+  1405,
+  1406,
+  1407,
+  1500,
+  1501,
+  1502,
+  1503,
+  1504,
+  1505,
+  1506,
+  1507,
+  1600,
+  1601,
+  1602,
+  1603,
+  1604,
+  1605,
+  1606,
+  1607,
+  1700,
+  1701,
+  1702,
+  1703,
+  1704,
+  1705,
+  1706,
+  1707,
+  1800,
+  1801,
+  1802,
+  1803,
+  1804,
+  1805,
+  1806,
+  1807,
+  1900,
+  1901,
+  1902,
+  1903,
+  1904,
+  1905,
+  1906,
+  1907,
+  2000,
+  2001,
+  2002,
+  2003,
+  2004,
+  2005,
+  2006,
+  2007,
+  2100,
+  2101,
+  2102,
+  2103,
+  2104,
+  2105,
+  2106,
+  2107,
+  2200,
+  2201,
+  2202,
+  2203,
+  2204,
+  2205,
+  2206,
+  2207,
+  2300,
+  2301,
+  2302,
+  2303,
+  2304,
+  2305,
+  2306,
+  2307,
+  2400,
+  2401,
+  2402,
+  2403,
+  2404,
+  2405,
+  2406,
+  2407,
+  2500,
+  2501,
+  2502,
+  2503,
+  2504,
+  2505,
+  2506,
+  2507,
+  2600,
+  2601,
+  2602,
+  2603,
+  2604,
+  2605,
+  2606,
+  2607,
+  2700,
+  2701,
+  2702,
+  2703,
+  2704,
+  2705,
+  2706,
+  2707,
+  2800,
+  2801,
+  2802,
+  2803,
+  2804,
+  2805,
+  2806,
+  2807,
+  2900,
+  2901,
+  2902,
+  2903,
+  2904,
+  2905,
+  2906,
+  2907
+};
+
+
+
 const dvar_s *lb_maxrows;
 const dvar_s *lb_escrowTimeout;
 const dvar_s *lb_typeByResetPeriod;
@@ -248,7 +414,8 @@ char __cdecl LB_GetNumMatchesPlayedForPlayerFromLb(Leaderboard *lb, int controll
             }
             else
             {
-                bdRemoteTask::setTimeout(ov->overlappedIO.m_ptr, 20.0);
+                //bdRemoteTask::setTimeout(ov->overlappedIO.m_ptr, 20.0);
+                ov->overlappedIO.m_ptr.setTimeout(20.0);
                 return 1;
             }
         }
@@ -1024,11 +1191,11 @@ void __cdecl LB_IncrementEscrow()
     {
         v1 = Cmd_Argv(1);
         playerXuid = I_atoi64(v1);
-        bdStatsInfo::bdStatsInfo(&balanceRow);
-        balanceRow.__vftable = (LeaderBoardRow<10>_vtbl *)&LeaderBoardRow<10>::`vftable';
+        //bdStatsInfo::bdStatsInfo(&balanceRow);
+        //balanceRow.__vftable = (LeaderBoardRow<10>_vtbl *)&LeaderBoardRow<10>::`vftable';
         memset(balanceRow.m_columns, 0, sizeof(balanceRow.m_columns));
-        bdStatsInfo::bdStatsInfo(&updateTimeRow);
-        updateTimeRow.__vftable = (LeaderBoardRow<10>_vtbl *)&LeaderBoardRow<10>::`vftable';
+        //bdStatsInfo::bdStatsInfo(&updateTimeRow);
+        //updateTimeRow.__vftable = (LeaderBoardRow<10>_vtbl *)&LeaderBoardRow<10>::`vftable';
         memset(updateTimeRow.m_columns, 0, sizeof(updateTimeRow.m_columns));
         balanceRow.m_entityID = playerXuid;
         balanceRow.m_leaderboardID = 5013;
@@ -1045,8 +1212,8 @@ void __cdecl LB_IncrementEscrow()
         statsInfo[1] = &updateTimeRow;
         Primary = Com_ControllerIndexes_GetPrimary();
         LB_WriteRows(Primary, statsInfo, 2u, 15);
-        bdStatsInfo::~bdStatsInfo(&updateTimeRow);
-        bdStatsInfo::~bdStatsInfo(&balanceRow);
+        //bdStatsInfo::~bdStatsInfo(&updateTimeRow);
+        //bdStatsInfo::~bdStatsInfo(&balanceRow);
     }
     else
     {

@@ -11,6 +11,7 @@
 #include <xanim/xanim.h>
 #include <universal/com_memory.h>
 #include <bgame/bg_local.h>
+#include <server_mp/sv_main_mp.h>
 
 #undef GetObject
 

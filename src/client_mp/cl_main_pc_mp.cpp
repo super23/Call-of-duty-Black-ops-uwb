@@ -22,6 +22,8 @@
 #include "cl_scrn_mp.h"
 #include <win32/win_shared.h>
 #include <DW/dwUtils_pc.h>
+#include <DW/MatchMakingInfo_win32.h>
+#include <live/live_win.h>
 
 struct  //$A3082F8D06891D11850E9B8F334529D3 // sizeof=0x28
 {                                       // XREF: .data:rconGlob/r

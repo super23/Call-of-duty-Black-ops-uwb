@@ -689,6 +689,25 @@ struct fileShareWriteFileInfo // sizeof=0x34
                                         // Demo_StartRecord_f(void)+195/w ...
 };
 
+struct playerNetworkData // sizeof=0x3AD90
+{                                       // XREF: .data:controllerNetworkData/r
+    _BYTE playerStats[40172];
+    _BYTE playerStatsBackup[40172];     // XREF: LiveStorage_GetPersStatsBuffer+81/o
+    _BYTE stableStatsBuffer[40172];     // XREF: LiveStorage_GetPersStatsBuffer+94/o
+    _BYTE basicTrainingStats[40172];    // XREF: LiveStorage_GetPersStatsBuffer+B1/o
+                                        // LiveStorage_GetPersStatsBuffer+117/o
+    _BYTE globalplayerStats[40172];     // XREF: LiveStorage_GetPersStatsBuffer+C5/o
+    _BYTE globalStablePlayerStats[40172];
+                                        // XREF: LiveStorage_GetPersStatsBuffer+D8/o
+    bool firstTimeRunning;              // XREF: LiveStorage_PlayerStatsFileNotFound+49/w
+                                        // LiveStorage_ReadPlayerStatsSuccessful+79/w ...
+    bool fileShareFetched;
+    // padding byte
+    // padding byte
+    playerFileOperations *fileOps;      // XREF: LiveStorage_StatsBackupFetchCompleted(int)+C/r
+                                        // LiveStorage_StatsBackupFetchCompleted(int)+44/r ...
+};
+
 persistentStats *__cdecl LiveStorage_GetStatsBuffer(
                 int controllerIndex,
                 statsLocation playerStatsLocation,
@@ -746,8 +765,8 @@ TaskRecord *__cdecl LiveStorage_ReadStatsBackup(int controllerIndex);
 void __cdecl LiveStorage_StatsBackupReadSuccessful(int controllerIndex);
 int __cdecl LiveStorage_StatsBackupFileNotFound(int controllerIndex, const char **data);
 TaskRecord *__cdecl LiveStorage_SyncTime(int controllerIndex);
-void __cdecl LiveStorage_GetServerTimeComplete();
-void __cdecl LiveStorage_GetServerTimeFailed();
+void __cdecl LiveStorage_GetServerTimeComplete(TaskRecord *rec);
+void __cdecl LiveStorage_GetServerTimeFailed(TaskRecord *rec);
 __int64 __cdecl LiveStorage_GetUTC();
 int __cdecl LiveStorage_GetUTCOffset();
 bool __cdecl LiveStorage_IsTimeSynced();
@@ -873,7 +892,7 @@ TaskRecord *__cdecl LiveStorage_FileShare_WriteSummary(
                 bdTag *tags,
                 unsigned int numTags,
                 bool showSuccess);
-void __cdecl LiveStorage_FileShare_WriteSummaryFailure();
+void __cdecl LiveStorage_FileShare_WriteSummaryFailure(TaskRecord *rec);
 void __cdecl LiveStorage_FileShare_WriteSummarySuccess(TaskRecord *task);
 TaskRecord *__cdecl LiveStorage_FileShare_ReadSummary(
                 int controllerIndex,
@@ -891,7 +910,7 @@ TaskRecord *__cdecl LiveStorage_FileShare_ReadMetaDataByID(
 void __cdecl LiveStorage_FileShare_ReadMetaDataByIDFailure(TaskRecord *task);
 void __cdecl LiveStorage_FileShare_ReadMetaDataByIDSuccess(TaskRecord *task);
 TaskRecord *__cdecl LiveStorage_FileShare_RemoveFile(int controllerIndex, unsigned int fileSlot);
-void __cdecl LiveStorage_FileShare_RemoveFileFailure();
+void __cdecl LiveStorage_FileShare_RemoveFileFailure(TaskRecord *rec);
 void __cdecl LiveStorage_FileShare_RemoveFileSuccess(TaskRecord *task);
 TaskRecord *__cdecl LiveStorage_FileShare_TransferLastUploaded(int controllerIndex, unsigned int userSlot);
 TaskRecord *__cdecl LiveStorage_FileShare_TransferFromPooled(
@@ -915,8 +934,8 @@ TaskRecord *__cdecl LiveStorage_FileShare_WriteRating(
                 int controllerIndex,
                 unsigned __int64 fileID,
                 unsigned __int8 rating);
-void __cdecl LiveStorage_FileShare_WriteRatingFailure();
-void __cdecl LiveStorage_FileShare_WriteRatingSuccess();
+void __cdecl LiveStorage_FileShare_WriteRatingFailure(TaskRecord *rec);
+void __cdecl LiveStorage_FileShare_WriteRatingSuccess(TaskRecord *rec);
 bool __cdecl LiveStorage_FileShare_IsReadingTopRated(int controllerIndex);
 TaskRecord *__cdecl LiveStorage_FileShare_ReadTopRated(
                 int controllerIndex,

@@ -1,4 +1,6 @@
 #include "live_meetplayer.h"
+#include "live_storage.h"
+#include <win32/win_shared.h>
 
 void __cdecl LiveMeetPlayer_DownloadMetPlayersList(int localControllerIndex)
 {

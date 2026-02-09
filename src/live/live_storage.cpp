@@ -1,4 +1,370 @@
 #include "live_storage.h"
+#include <qcommon/com_gamemodes.h>
+#include "live_stats.h"
+#include "live_storage_pub.h"
+#include <universal/com_tasks.h>
+#include <win32/win_shared.h>
+#include <qcommon/com_clients.h>
+#include <universal/mem_largelocal.h>
+#include <server_mp/sv_main_pc_mp.h>
+#include <time.h>
+#include "live_meetplayer.h"
+#include "live_win.h"
+#include "live_combatrecord.h"
+#include <client_mp/cl_main_pc_mp.h>
+#include "live_storage_win.h"
+#include "live_contracts.h"
+#include "live_fileshare.h"
+#include "live_fileshare_cache.h"
+#include "live_fileshare_search.h"
+
+cmd_function_s LiveStorage_FakeComErrorCmd_VAR;
+cmd_function_s LiveStorage_ReadStatsBackupCmd_VAR;
+cmd_function_s LiveStorage_GetFriendStatsCmd_VAR;
+cmd_function_s LiveStorage_WriteBackupStatsCmd_VAR;
+cmd_function_s LiveStorage_RestoreStatsFromBackupCmd_VAR;
+cmd_function_s LiveStorage_AssertDWConnectionCmd_VAR;
+cmd_function_s LiveStorage_FileShare_DownloadFile_f_VAR;
+cmd_function_s LiveStorage_ListCustomGameTypesForUser_f_VAR;
+cmd_function_s LiveStorage_RefetchOnlineWAD_VAR;
+cmd_function_s LiveStorage_GeneratePopulationDataCmd_VAR;
+
+extern dvar_t *stat_version;
+extern dvar_t *stats_version_check;
+extern dvar_t *maxStatsBackupInterval;
+extern dvar_t *dwFileFetchTryIntervalBase;
+extern dvar_t *dwFileFetchTryIntervalMax;
+extern dvar_t *dwFileFetchTryMaxAttempts;
+extern dvar_t *clanMessageLastFetchTime;
+extern dvar_t *eventMessageLastFetchTime;
+extern dvar_t *codMessageLastFetchTime;
+extern dvar_t *waitOnStatsTimeout;
+extern dvar_t *heatMapLoadDelay;
+extern dvar_t *minDelayForOtherPlayerStatsFetch;
+extern dvar_t *fshSearchTaskDelay;
+extern dvar_t *basicTrainingFatal;
+
+persistentStats s_otherPlayerStats;
+playerNetworkData controllerNetworkData[1];
+fileSharePrivateData s_fileSharePrimary;
+fileSharePrivateData s_fileShareSecondary;
+
+unsigned __int64 s_tempXuid;
+
+const TaskDefinition task_LiveDeleteUserFile[1] =
+{
+  {
+    8uLL,
+    "LiveDeleteUserFile",
+    0,
+    &LiveStorage_DeleteUserFileSuccess,
+    &LiveStorage_DeleteUserFileFailure,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveGetUserFile[1] =
+{
+  {
+    8uLL,
+    "LiveGetUserFile",
+    0,
+    &LiveStorage_GetUserFileSuccess,
+    &LiveStorage_GetUserFileFailure,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveWriteUserFile[1] =
+{
+  {
+    8uLL,
+    "LiveWriteUserFile",
+    0,
+    &LiveStorage_WriteUserFileSuccess,
+    &LiveStorage_WriteUserFileFailure,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveFetchMetPlayerList[1] =
+{ { 8uLL, "LiveFetchMetPlayerList", 0, NULL, NULL, NULL } };
+
+const TaskDefinition task_LiveSaveMetPLayerList[1] =
+{ { 8uLL, "LiveSaveMetPlayerList", 0, NULL, NULL, NULL } };
+
+const TaskDefinition task_LiveGetOtherPlayerStatsData[1] =
+{ { 8uLL, "LiveGetOtherPlayerStatsData", 0, NULL, NULL, NULL } };
+
+const TaskDefinition task_LiveGetPlayerStatsData[1] =
+{ { 8uLL, "LiveGetPlayerStatsData", 0, NULL, NULL, NULL } };
+
+const TaskDefinition task_LiveSavePlayerStats[1] =
+{
+  {
+    8uLL,
+    "LiveSavePlayerStats",
+    0,
+    NULL,
+    &LiveStorage_WritePlayerStatsFailure,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveGetBasicTrainingStatsData[1] =
+{ { 8uLL, "LiveGetBasicTrainingStatsData", 0, NULL, NULL, NULL } };
+
+const TaskDefinition task_LiveSaveBasicTrainingStats[1] =
+{
+  {
+    8uLL,
+    "LiveSaveBasicTrainingStats",
+    0,
+    NULL,
+    &LiveStorage_WriteBasicTrainingStatsFailure,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveReadStatsBackup[1] =
+{ { 8uLL, "LiveReadStatsBackup", 0, NULL, NULL, NULL } };
+
+const TaskDefinition task_LiveBackupStats[1] =
+{ { 8uLL, "LiveBackupStats", 0, NULL, NULL, NULL } };
+
+const TaskDefinition task_LiveBackupCorruptedStats[1] =
+{ { 8uLL, "LiveBackupCorruptedStats", 0, NULL, NULL, NULL } };
+
+const TaskDefinition task_LiveGetServerTime[1] =
+{
+  {
+    2uLL,
+    "LiveGetServerTime",
+    4,
+    LiveStorage_GetServerTimeComplete,
+    LiveStorage_GetServerTimeFailed,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveFileShareGetListing[1] =
+{
+  {
+    8uLL,
+    "LiveFileShareGetListing",
+    0,
+    &LiveStorage_FileShare_ReadListingSuccess,
+    &LiveStorage_FileShare_ReadListingFailure,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveFileShareSearch[1] =
+{
+  {
+    8uLL,
+    "LiveFileShareSearch",
+    0,
+    &LiveStorage_FileShare_SearchSuccess,
+    &LiveStorage_FileShare_SearchFailure,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveFileShareLoadBlock[1] =
+{
+  {
+    8uLL,
+    "LiveFileShareLoadBlock",
+    0,
+    &LiveStorage_FileShare_LoadBlockSuccess,
+    &LiveStorage_FileShare_LoadBlockFailure,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveFileShareGetMetaByID[1] =
+{
+  {
+    8uLL,
+    "LiveFileShareGetMetaByID",
+    0,
+    &LiveStorage_FileShare_ReadMetaDataByIDSuccess,
+    &LiveStorage_FileShare_ReadMetaDataByIDFailure,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveFileShareReadFile[1] =
+{
+  {
+    8uLL,
+    "LiveFileShareReadFile",
+    0,
+    &LiveStorage_FileShare_ReadFileSuccess,
+    &LiveStorage_FileShare_ReadFileFailure,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveFileShareWriteFile[1] =
+{
+  {
+    8uLL,
+    "LiveFileShareWriteFile",
+    0,
+    &LiveStorage_FileShare_WriteFileSuccess,
+    &LiveStorage_FileShare_WriteFileFailure,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveFileShareRemoveFile[1] =
+{
+  {
+    8uLL,
+    "LiveFileShareRemoveFile",
+    0,
+    &LiveStorage_FileShare_RemoveFileSuccess,
+    LiveStorage_FileShare_RemoveFileFailure,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveFileShareSetTag[1] =
+{
+  {
+    8uLL,
+    "LiveFileShareSetTag",
+    0,
+    &LiveStorage_FileShare_WriteTagsSuccess,
+    &LiveStorage_FileShare_WriteTagsFailure,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveFileShareTransfer[1] =
+{
+  {
+    8uLL,
+    "LiveFileShareTransfer",
+    0,
+    &LiveStorage_FileShare_TransferFileSuccess,
+    &LiveStorage_FileShare_TransferFileFailure,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveFileShareSetSummary[1] =
+{
+  {
+    8uLL,
+    "LiveFileSetShareSummary",
+    0,
+    &LiveStorage_FileShare_WriteSummarySuccess,
+    LiveStorage_FileShare_WriteSummaryFailure,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveFileShareGetSummary[1] =
+{
+  {
+    8uLL,
+    "LiveFileGetShareSummary",
+    0,
+    &LiveStorage_FileShare_ReadSummarySuccess,
+    &LiveStorage_FileShare_ReadSummaryFailure,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveFileShareSubmitRating[1] =
+{
+  {
+    8uLL,
+    "LiveFileSubmitRating",
+    0,
+    LiveStorage_FileShare_WriteRatingSuccess,
+    LiveStorage_FileShare_WriteRatingFailure,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveFileShareGetRating[1] =
+{
+  {
+    8uLL,
+    "LiveFileGetRating",
+    0,
+    &LiveStorage_FileShare_ReadRatingSuccess,
+    &LiveStorage_FileShare_ReadRatingFailure,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveFileShareGetTopRating[1] =
+{
+  {
+    8uLL,
+    "LiveFileGetTopRated",
+    0,
+    &LiveStorage_FileShare_ReadTopRatedSuccess,
+    &LiveStorage_FileShare_ReadTopRatedFailure,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveFileShareGetFilmRating[1] =
+{
+  {
+    8uLL,
+    "LiveFileShareGetFilmRating",
+    0,
+    &LiveStorage_FileShare_ReadFileRatingSuccess,
+    NULL,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveFileShareGetClipRating[1] =
+{
+  {
+    8uLL,
+    "LiveFileShareGetClipRating",
+    0,
+    &LiveStorage_FileShare_ReadFileRatingSuccess,
+    NULL,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveFileShareGetScreenshotRating[1] =
+{
+  {
+    8uLL,
+    "LiveFileShareGetScreenshotRating",
+    0,
+    &LiveStorage_FileShare_ReadFileRatingSuccess,
+    NULL,
+    NULL
+  }
+};
+
+const TaskDefinition task_LiveFileShareGetCustomGameRating[1] =
+{
+  {
+    8uLL,
+    "LiveFileShareGetCustomGameRating",
+    0,
+    &LiveStorage_FileShare_ReadFileRatingSuccess,
+    NULL,
+    NULL
+  }
+};
+
+int s_UTCOffset;
+bool s_UTCSynced;
 
 persistentStats *__cdecl LiveStorage_GetStatsBuffer(
                 int controllerIndex,
@@ -86,12 +452,12 @@ void __cdecl LiveStorage_VerifyCorrectStats(persistentStats *stats, statsLocatio
         if ( location == STATS_LOCATION_FORCE_NORMAL )
         {
             if ( basicTraining )
-                LiveStorage_CorrectStatsError("Basic Training Stats found, expecting Online Ranked stats.\n");
+                LiveStorage_CorrectStatsError((char*)"Basic Training Stats found, expecting Online Ranked stats.\n");
         }
         else if ( location == STATS_LOCATION_BASICTRAINING )
         {
             if ( onlineRanked )
-                LiveStorage_CorrectStatsError("Online Ranked Stats found, expecting Basic Training stats.\n");
+                LiveStorage_CorrectStatsError((char *)"Online Ranked Stats found, expecting Basic Training stats.\n");
         }
         else
         {
@@ -304,7 +670,7 @@ void __cdecl LiveStorage_ResetFileInfo(dwFileOperationInfo *fileInfo)
 
 void __cdecl LiveStorage_DeleteUserFileFailure(TaskRecord *task)
 {
-    unsigned intv1; // eax
+    unsigned int v1; // eax
     dwFileOperationInfo *fileInfo; // [esp+0h] [ebp-4h]
 
     if ( (!task || !task->payload)
@@ -329,7 +695,7 @@ void __cdecl LiveStorage_DeleteUserFileFailure(TaskRecord *task)
 
 void __cdecl LiveStorage_DeleteUserFileSuccess(TaskRecord *task)
 {
-    unsigned intv1; // eax
+    unsigned int v1; // eax
     dwFileOperationInfo *fileInfo; // [esp+0h] [ebp-4h]
 
     if ( (!task || !task->payload)
@@ -401,7 +767,7 @@ TaskRecord *__cdecl LiveStorage_DeleteDWUserFile(int controllerIndex, dwFileOper
 
 void __cdecl LiveStorage_WriteUserFileFailure(TaskRecord *task)
 {
-    unsigned intv1; // eax
+    unsigned int v1; // eax
     int LocalClientNum; // eax
     dwFileOperationInfo *fileInfo; // [esp+0h] [ebp-4h]
 
@@ -429,7 +795,7 @@ void __cdecl LiveStorage_WriteUserFileFailure(TaskRecord *task)
 
 void __cdecl LiveStorage_WriteUserFileSuccess(TaskRecord *task)
 {
-    unsigned intv1; // eax
+    unsigned int v1; // eax
     dwFileOperationInfo *fileInfo; // [esp+0h] [ebp-4h]
 
     if ( (!task || !task->payload)
@@ -462,7 +828,6 @@ TaskRecord *__cdecl LiveStorage_WriteDWUserFile(
     int LocalClientNum; // eax
     const char *menuDef; // [esp-4h] [ebp-28h]
     unsigned __int8 *tempCompressedFileBuffer; // [esp+4h] [ebp-20h]
-    LargeLocal tempCompressedFileBuffer_large_local; // [esp+8h] [ebp-1Ch] BYREF
     dwFileTask *fileTask; // [esp+10h] [ebp-14h]
     TaskRecord *nestedTask; // [esp+14h] [ebp-10h]
     TaskRecord *task; // [esp+18h] [ebp-Ch]
@@ -508,8 +873,10 @@ TaskRecord *__cdecl LiveStorage_WriteDWUserFile(
     fileBuffer = fileInfo->fileBuffer;
     if ( fileInfo->isCompressedFile )
     {
-        LargeLocal::LargeLocal(&tempCompressedFileBuffer_large_local, 66560);
-        tempCompressedFileBuffer = LargeLocal::GetBuf(&tempCompressedFileBuffer_large_local);
+        LargeLocal tempCompressedFileBuffer_large_local(66560); // [esp+8h] [ebp-1Ch] BYREF
+
+        //LargeLocal::LargeLocal(&tempCompressedFileBuffer_large_local, 66560);
+        tempCompressedFileBuffer = tempCompressedFileBuffer_large_local.GetBuf();// LargeLocal::GetBuf(&tempCompressedFileBuffer_large_local);
         if ( fileInfo->bufferSize > 0x10400u
             && !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\live\\live_storage.cpp",
@@ -529,10 +896,10 @@ TaskRecord *__cdecl LiveStorage_WriteDWUserFile(
         }
         if ( fileSize <= 0 || fileSize > fileInfo->bufferSize )
         {
-            LargeLocal::~LargeLocal(&tempCompressedFileBuffer_large_local);
+            //LargeLocal::~LargeLocal(&tempCompressedFileBuffer_large_local);
             return 0;
         }
-        LargeLocal::~LargeLocal(&tempCompressedFileBuffer_large_local);
+        //LargeLocal::~LargeLocal(&tempCompressedFileBuffer_large_local);
     }
     fileTask = &fileInfo->fileTask;
     task = 0;
@@ -553,8 +920,8 @@ TaskRecord *__cdecl LiveStorage_WriteDWUserFile(
 void __cdecl LiveStorage_GetUserFileFailure(TaskRecord *task)
 {
     int LocalClientNum; // eax
-    unsigned intv2; // eax
-    unsigned intv3; // eax
+    unsigned int v2; // eax
+    unsigned int v3; // eax
     const char *menuDef; // [esp-4h] [ebp-10h]
     dwFileOperationInfo *fileInfo; // [esp+8h] [ebp-4h]
 
@@ -601,10 +968,9 @@ void __cdecl LiveStorage_GetUserFileFailure(TaskRecord *task)
 void __cdecl LiveStorage_GetUserFileSuccess(TaskRecord *task)
 {
     int LocalClientNum; // eax
-    unsigned intv2; // eax
+    unsigned int v2; // eax
     const char *menuDef; // [esp-4h] [ebp-18h]
     unsigned __int8 *tempCompressedFileBuffer; // [esp+0h] [ebp-14h]
-    LargeLocal tempCompressedFileBuffer_large_local; // [esp+4h] [ebp-10h] BYREF
     dwFileTask *fileTask; // [esp+Ch] [ebp-8h]
     dwFileOperationInfo *fileInfo; // [esp+10h] [ebp-4h]
 
@@ -630,13 +996,15 @@ void __cdecl LiveStorage_GetUserFileSuccess(TaskRecord *task)
         Com_Printf(16, "Read %i bytes of file %s. (%dms)\n", fileTask->m_fileSize, fileTask->m_filename, v2 - task->startMS);
         if ( fileInfo->isCompressedFile )
         {
-            LargeLocal::LargeLocal(&tempCompressedFileBuffer_large_local, 66560);
-            tempCompressedFileBuffer = LargeLocal::GetBuf(&tempCompressedFileBuffer_large_local);
+            LargeLocal tempCompressedFileBuffer_large_local(66560); // [esp+4h] [ebp-10h] BYREF
+
+            //LargeLocal::LargeLocal(&tempCompressedFileBuffer_large_local, 66560);
+            tempCompressedFileBuffer = tempCompressedFileBuffer_large_local.GetBuf(); // LargeLocal::GetBuf(&tempCompressedFileBuffer_large_local);
             if ( fileTask->m_bufferSize > 0x10400 )
             {
                 Com_PrintError(16, "Insufficient space to decompress file %s\n", fileTask->m_filename);
                 LiveStorage_GetUserFileFailure(task);
-                LargeLocal::~LargeLocal(&tempCompressedFileBuffer_large_local);
+                //LargeLocal::~LargeLocal(&tempCompressedFileBuffer_large_local);
                 return;
             }
             memcpy(tempCompressedFileBuffer, (unsigned __int8 *)fileTask->m_buffer, fileTask->m_fileSize);
@@ -645,7 +1013,7 @@ void __cdecl LiveStorage_GetUserFileSuccess(TaskRecord *task)
                 fileTask->m_fileSize,
                 (unsigned __int8 *)fileTask->m_buffer,
                 fileTask->m_bufferSize);
-            LargeLocal::~LargeLocal(&tempCompressedFileBuffer_large_local);
+            //LargeLocal::~LargeLocal(&tempCompressedFileBuffer_large_local);
         }
         if ( fileInfo->fileOperationSucessFunction )
             fileInfo->fileOperationSucessFunction(task->controllerIndex, fileInfo);
@@ -813,7 +1181,7 @@ void __cdecl LiveStorage_RestoreStatsFromBackup(int localControllerIndex)
     persistentStats *StatsBuffer; // [esp-8h] [ebp-8h]
     unsigned int StatsBufferSize; // [esp-4h] [ebp-4h]
 
-    LiveStorage_BackupCorruptedStats(localControllerIndex, "badmpdata");
+    LiveStorage_BackupCorruptedStats(localControllerIndex, (char*)"badmpdata");
     StatsBufferSize = LiveStorage_GetStatsBufferSize();
     StatsBuffer = LiveStorage_GetStatsBuffer(localControllerIndex, STATS_LOCATION_BACKUP, 1);
     v1 = LiveStorage_GetStatsBuffer(localControllerIndex, STATS_LOCATION_FORCE_NORMAL, 0);
@@ -840,7 +1208,7 @@ TaskRecord *__cdecl LiveStorage_ReadStatsBackup(int controllerIndex)
     fileInfo = controllerNetworkData[controllerIndex].fileOps;
     fileInfo->statsBackupFileInfo.isUserFile = 1;
     fileInfo->statsBackupFileInfo.isCompressedFile = 1;
-    fileInfo->statsBackupFileInfo.fileTask.m_filename = "mpdatabk0000";
+    fileInfo->statsBackupFileInfo.fileTask.m_filename = (char*)"mpdatabk0000";
     fileInfo->statsBackupFileInfo.fileBuffer = (unsigned __int8 *)LiveStorage_GetStatsBuffer(
                                                                                                                                     controllerIndex,
                                                                                                                                     STATS_LOCATION_BACKUP,
@@ -935,14 +1303,14 @@ TaskRecord *__cdecl LiveStorage_SyncTime(int controllerIndex)
     return task;
 }
 
-void __cdecl LiveStorage_GetServerTimeComplete()
+void __cdecl LiveStorage_GetServerTimeComplete(TaskRecord *rec)
 {
     SV_SetTime(bdServerTime.m_timeStamp);
     s_UTCOffset = bdServerTime.m_timeStamp - _time64(0);
     s_UTCSynced = 1;
 }
 
-void __cdecl LiveStorage_GetServerTimeFailed()
+void __cdecl LiveStorage_GetServerTimeFailed(TaskRecord *rec)
 {
     Com_PrintWarning(16, "DW GetServerTime() failed!\n");
 }
@@ -1074,7 +1442,7 @@ TaskRecord *__cdecl LiveStorage_ReadOtherPlayerStats(int controllerIndex, unsign
 {
     int v3; // esi
     TaskRecord *nestedTask; // [esp+4h] [ebp-10h]
-    unsigned intcurrTime; // [esp+Ch] [ebp-8h]
+    unsigned int currTime; // [esp+Ch] [ebp-8h]
     dwFileOperationInfo *fileInfo; // [esp+10h] [ebp-4h]
 
     currTime = Sys_Milliseconds();
@@ -1164,7 +1532,7 @@ TaskRecord *__cdecl LiveStorage_ReadPlayerStats(int controllerIndex, bool valida
     if ( TaskManager2_TaskIsInProgressForController(task_LiveGetPlayerStatsData, controllerIndex) )
         return 0;
     fileInfo = &controllerNetworkData[controllerIndex].fileOps->getPlayerStatsFileInfo;
-    fileInfo->fileTask.m_filename = "mpstatsCompressed";
+    fileInfo->fileTask.m_filename = (char*)"mpstatsCompressed";
     fileInfo->fileOperationSucessFunction = (void (__cdecl *)(const int, void *))LiveStorage_ReadPlayerStatsSuccessful;
     fileInfo->fileNotFoundFunction = (taskCompleteResults (__cdecl *)(const int, void *))LiveStorage_PlayerStatsFileNotFound;
     return LiveStorage_ReadCommonStats(
@@ -1256,7 +1624,7 @@ void __cdecl LiveStorage_ReadPlayerStatsSuccessful(int controllerIndex)
         || !LiveStorage_ValidateWithDDL(controllerIndex, STATS_LOCATION_FORCE_NORMAL) )
     {
         Com_PrintError(16, "Stats could not be validated vs the DDL\n");
-        LiveStorage_BackupCorruptedStats(controllerIndex, "badmpdataddl");
+        LiveStorage_BackupCorruptedStats(controllerIndex, (char*)"badmpdataddl");
         LiveStats_ResetStats(controllerIndex, 1);
     }
     v4 = LiveStorage_GetStatsBuffer(0, STATS_LOCATION_NORMAL, 1);
@@ -1715,7 +2083,7 @@ fileShareLocation __cdecl LiveStorage_FileShare_GetCurrentHTTPLocation(int contr
     }
     else
     {
-        return 0;
+        return FILESHARE_LOCATION_INVALID;
     }
 }
 
@@ -2531,7 +2899,6 @@ TaskRecord *__cdecl LiveStorage_FileShare_WriteFile(int controllerIndex, fileSha
 }
 
 unsigned int __thiscall fileShareUploadInterceptor::handleUpload(
-                fileShareUploadInterceptor *this,
                 void *data,
                 unsigned int dataSize,
                 unsigned int bytesUploaded)
@@ -2669,7 +3036,7 @@ TaskRecord *__cdecl LiveStorage_FileShare_WriteSummary(
     return task;
 }
 
-void __cdecl LiveStorage_FileShare_WriteSummaryFailure()
+void __cdecl LiveStorage_FileShare_WriteSummaryFailure(TaskRecord *rec)
 {
     Com_PrintError(16, "Failed to write summary data.\n");
 }
@@ -2837,7 +3204,7 @@ TaskRecord *__cdecl LiveStorage_FileShare_RemoveFile(int controllerIndex, unsign
     return task;
 }
 
-void __cdecl LiveStorage_FileShare_RemoveFileFailure()
+void __cdecl LiveStorage_FileShare_RemoveFileFailure(TaskRecord *rec)
 {
     Com_PrintError(16, "Failed to removes file from the content server.\n");
 }
@@ -3163,12 +3530,12 @@ TaskRecord *__cdecl LiveStorage_FileShare_WriteRating(
     return LiveStorage_SetupNestedTask(task_LiveFileShareSubmitRating, controllerIndex, nestedTask, ratingTask);
 }
 
-void __cdecl LiveStorage_FileShare_WriteRatingFailure()
+void __cdecl LiveStorage_FileShare_WriteRatingFailure(TaskRecord *rec)
 {
     Com_PrintError(16, "Could not submit rating.\n");
 }
 
-void __cdecl LiveStorage_FileShare_WriteRatingSuccess()
+void __cdecl LiveStorage_FileShare_WriteRatingSuccess(TaskRecord *rec)
 {
     Com_Printf(16, "Rating successfully submitted.\n");
 }
@@ -3483,18 +3850,21 @@ int LiveStorage_ResetAllFileOps()
 
 char __cdecl LiveStorage_Init()
 {
-#ifdef KISAK_LIVE_SERVICE
     int i; // [esp+0h] [ebp-8h]
     int controllerIndex; // [esp+4h] [ebp-4h]
 
     if ( !live_service->current.enabled )
         return 0;
+
     LiveStats_Init();
     LiveCombatRecord_Init();
+
     for ( controllerIndex = 0; controllerIndex < 1; ++controllerIndex )
         LiveMeetPlayer_Init();
+
     for ( i = 0; i < 1; ++i )
         LiveStorage_ClearPlayerStats(i);
+
     Cmd_AddCommandInternal("fakeComError", LiveStorage_FakeComErrorCmd, &LiveStorage_FakeComErrorCmd_VAR);
     Cmd_AddCommandInternal("readStatsBackup", LiveStorage_ReadStatsBackupCmd, &LiveStorage_ReadStatsBackupCmd_VAR);
     Cmd_AddCommandInternal("getServiceRecord", LiveStorage_GetFriendStatsCmd, &LiveStorage_GetFriendStatsCmd_VAR);
@@ -3514,6 +3884,7 @@ char __cdecl LiveStorage_Init()
         &LiveStorage_ListCustomGameTypesForUser_f_VAR);
     Cmd_AddCommandInternal("refetchWAD", LiveStorage_RefetchOnlineWAD, &LiveStorage_RefetchOnlineWAD_VAR);
     Cmd_AddCommandInternal("generatePlaylistPopulation", BLOPS_NULLSUB, &LiveStorage_GeneratePopulationDataCmd_VAR);
+
     stat_version = _Dvar_RegisterInt("stat_version", 10, 0, 0x7FFFFFFF, 0, "Stats version number");
     stats_version_check = _Dvar_RegisterBool("stats_version_check", 1, 0, "Reset stats if version numbers do not match");
     maxStatsBackupInterval = _Dvar_RegisterInt(
@@ -3603,9 +3974,6 @@ char __cdecl LiveStorage_Init()
     LiveStorage_Init_Platform();
     Live_FileShare_Init();
     return 1;
-#else
-    return 0;
-#endif
 }
 
 void __cdecl LiveStorage_WriteBackupStatsCmd()
