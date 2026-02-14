@@ -5,6 +5,43 @@
 
 #define MAX_TOTAL_ENT_COUNT 0x2000
 
+struct __declspec(align(4)) vidConfig_t // sizeof=0x38
+{                                                                             // XREF: .data:vidConfig_t vidConfig/r
+        unsigned int sceneWidth;                        // XREF: R_StoreWindowSettings+3B/w
+                                                                                // R_StoreWindowSettings+23E/r ...
+        unsigned int sceneHeight;                     // XREF: R_StoreWindowSettings+46/w
+                                                                                // R_StoreWindowSettings+225/r ...
+        unsigned int displayWidth;                    // XREF: CL_GetScreenDimensions(int *,int *,float *)+81/r
+                                                                                // CL_SetupViewport(void)+6/r ...
+        unsigned int displayHeight;                 // XREF: CL_GetScreenDimensions(int *,int *,float *)+8C/r
+                                                                                // CL_SetupViewport(void)+E/r ...
+        unsigned __int16 outputDisplayWidth;
+        unsigned __int16 outputDisplayHeight;
+        unsigned int displayFrequency;            // XREF: R_StoreWindowSettings+69/w
+                                                                                // R_ReduceWindowSettings+39/r ...
+        bool isToolMode;                                        // XREF: CG_Init(int,int,int,int)+A21/r
+                                                                                // CL_InitRenderer(void):loc_5643F4/w ...
+        // padding byte
+        // padding byte
+        // padding byte
+        int isFullscreen;                                     // XREF: Sys_UpdateHotkeyBlock(void):loc_7E0A25/r
+                                                                                // R_StoreWindowSettings+76/w ...
+        float aspectRatioWindow;                        // XREF: CL_GetScreenDimensions(int *,int *,float *)+96/r
+                                                                                // CL_SetupViewport(void)+26/r ...
+        float aspectRatioScenePixel;                // XREF: ScrPlace_SetupFloatViewport(ScreenPlacement *,float,float,float,float,float)+7A/r
+                                                                                // R_StoreWindowSettings+252/w ...
+        float aspectRatioDisplayPixel;            // XREF: CL_GetScreenAspectRatioDisplayPixel(void)+3/r
+                                                                                // CL_DrawSpinnerPhysical(float,float,float,float,float const * const)+D7/r ...
+        unsigned int maxTextureSize;                // XREF: R_StoreDirect3DCaps+59/w
+        unsigned int maxTextureMaps;                // XREF: R_StoreDirect3DCaps+5E/w
+                                                                                // R_StoreDirect3DCaps+80/r ...
+        bool deviceSupportsGamma;                     // XREF: R_SetColorMappings(void)+13/r
+                                                                                // R_StoreDirect3DCaps+7A/w ...
+        // padding byte
+        // padding byte
+        // padding byte
+};
+
 struct GfxWindowTarget // sizeof=0x10
 {                                       // XREF: DxGlobals/r
     HWND__ *hwnd;                       // XREF: R_ReleaseForShutdownOrReset(void)+28/r

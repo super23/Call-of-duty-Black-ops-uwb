@@ -1,11 +1,11 @@
 #pragma once
-#include <demo/demo_common.h>
 #include <DemonWare/bdCore/bdContainers/bdByteBuffer.h>
 #include <DemonWare/bdPlatform/bdPlatformLog/bdPlatformLog.h>
 #include <DemonWare/bdCore/bdContainers/bdArray.h>
 #include <DW/dwStorage.h>
 #include <DemonWare/bdCore/bdSocket/bdAddr.h>
 #include <DemonWare/bdCore/bdTiming/bdStopwatch.h>
+#include <DemonWare/bdCore/bdContainers/bdBitBuffer.h>
 
 enum statsLocation : __int32
 {                                       // XREF: ?LiveStorage_GetStatsBuffer@@YAPAEHW4statsLocation@@_N@Z/r
@@ -93,14 +93,31 @@ struct bdRemoteTask : bdReferencable // sizeof=0x40
     bdRemoteTask();
     ~bdRemoteTask();
 
-    bdRemoteTask::bdStatus getStatus() const
+    bdRemoteTask::bdStatus getStatus()
     {
-        float elapsedTime;
+        float ElapsedTimeInSeconds; // [esp+1Ch] [ebp-4h]
+
         if (this->m_status == 1 && this->m_timeout > 0.0)
         {
-            elapsedTime = this->m_timer
+            //ElapsedTimeInSeconds = bdStopwatch::getElapsedTimeInSeconds(&this->m_timer);
+            ElapsedTimeInSeconds = this->m_timer.getElapsedTimeInSeconds();
+            if (this->m_timeout <= (double)ElapsedTimeInSeconds)
+            {
+                this->m_status = (bdRemoteTask::bdStatus)4;
+                //bdReference<bdBitBuffer>::operator=(&this->m_byteResults.m_ptr, 0);
+                this->m_byteResults.m_ptr = NULL;
+                bdLogMessage(
+                    BD_LOG_INFO,
+                    "info/",
+                    "remote task",
+                    "C:\\projects_pc\\cod\\codsrc\\DemonWare\\bdLobby\\bdRemoteTaskManager\\bdRemoteTask.cpp",
+                    "bdRemoteTask::getStatus",
+                    0x30u,
+                    "Remote task timed out after %.3fs.",
+                    this->m_timeout);
+            }
         }
-        return m_status;
+        return this->m_status;
     }
 
 };

@@ -32,6 +32,25 @@
 #include <client/splitscreen.h>
 #include <gfx_d3d/r_ui3d.h>
 #include <DW/dwLogOn_pc.h>
+#include <client/cl_cin.h>
+#include <cgame_mp/cg_newDraw_mp.h>
+#include <win32/win_shared.h>
+#include <ui/ui_utils.h>
+#include "cl_input_mp.h"
+#include <universal/com_files.h>
+#include "cl_cgame_mp.h"
+
+const char *demo_tags_enum_string_27[8] =
+{
+  "MENU_SEGMENT_TAG_KILL",
+  "MENU_SEGMENT_TAG_DEATH",
+  "MENU_SEGMENT_TAG_KILLSTREAK",
+  "MENU_SEGMENT_TAG_PERK",
+  "MENU_SEGMENT_TAG_WEAPON",
+  "MENU_SEGMENT_TAG_EQUIPMENT",
+  "MENU_SEGMENT_TAG_GRENADE",
+  "MENU_SEGMENT_TAG_MELEE"
+};
 
 int scr_initialized;
 bool updateScreenCalled;
@@ -505,13 +524,13 @@ void    SCR_UpdateFrame()
 
 int    CL_CGameRendering(int localClientNum)
 {
-    DemoType DemoType; // eax
-    DemoType v4; // eax
-    bool v5; // [esp-4h] [ebp-68h]
-    bool v6; // [esp-4h] [ebp-68h]
+    DemoType type; // eax
+    DemoType v5; // eax
+    BOOL v6; // [esp-4h] [ebp-68h]
+    BOOL v7; // [esp-4h] [ebp-68h]
     int closeSlideSpeed; // [esp+0h] [ebp-64h]
     int closeFadingTime; // [esp+4h] [ebp-60h]
-    char *Name; // [esp+30h] [ebp-34h]
+    const char *Name; // [esp+30h] [ebp-34h]
     int hiRes; // [esp+3Ch] [ebp-28h]
     menuDef_t *toastPopupMenu; // [esp+40h] [ebp-24h]
     uiInfo_s *uiInfo; // [esp+44h] [ebp-20h]
@@ -523,13 +542,13 @@ int    CL_CGameRendering(int localClientNum)
 
     extraCamActive = CG_ExtraCamIsActive(localClientNum);
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
-    if ( CL_GetLocalClientConnectionState(localClientNum) != 10 )
+    if (CL_GetLocalClientConnectionState(localClientNum) != CA_ACTIVE)
         return 0;
     Name = va("CL_CGameRendering(cl=%d)", localClientNum);
     //PIXBeginNamedEvent(-1, Name);
     R_UI3D_PerframeInit();
     R_BeginClientCmdList2D();
-    if ( extraCamActive )
+    if (extraCamActive)
     {
         CG_ExtraCam_GetViewOrigin(localClientNum, cgameGlob->refdef.extraCamPos);
         cgameGlob->refdef.extraCamPosValid = 1;
@@ -539,12 +558,18 @@ int    CL_CGameRendering(int localClientNum)
         cgameGlob->refdef.extraCamPosValid = 0;
     }
     LocalClientGlobals = CL_GetLocalClientGlobals(localClientNum);
-    v5 = UI_IsFullscreen(localClientNum) == 0;
-    DemoType = CL_GetDemoType();
-    if ( CG_DrawActiveFrame(a1, localClientNum, LocalClientGlobals->serverTime, DemoType, CUBEMAPSHOT_NONE, 0, v5) )
+    v6 = UI_IsFullscreen(localClientNum) == 0;
+    type = CL_GetDemoType();
+    if (CG_DrawActiveFrame(
+        localClientNum,
+        LocalClientGlobals->serverTime,
+        type,
+        CUBEMAPSHOT_NONE,
+        0,
+        v6))
     {
-        //BLOPS_NULLSUB();
-        if ( (CL_GetLocalClientUIGlobals(localClientNum)->keyCatchers & 0x10) != 0 )
+        //BG_EvalVehicleName();
+        if ((CL_GetLocalClientUIGlobals(localClientNum)->keyCatchers & 0x10) != 0)
         {
             UI_UpdateTime(localClientNum, cls.realtime);
             UI_Refresh(localClientNum);
@@ -553,23 +578,22 @@ int    CL_CGameRendering(int localClientNum)
         {
             uiInfo = UI_GetInfo(localClientNum);
             contextIndex = uiInfo->uiDC.contextIndex;
-            if ( uiInfo->toastPopupOpened )
+            if (uiInfo->toastPopupOpened)
             {
                 toastPopupMenu = Menus_FindByName(&uiInfo->uiDC, "menu_toast_popup");
-                if ( (signed int)(Sys_Milliseconds() - uiInfo->toastPopupTimeCounter) >= uiInfo->toastPopupDuration )
+                if ((signed int)(Sys_Milliseconds() - uiInfo->toastPopupTimeCounter) >= uiInfo->toastPopupDuration)
                 {
-                    if ( (Window_GetDynamicFlags(contextIndex, &toastPopupMenu->window) & 0x42000) != 0 )
+                    if ((Window_GetDynamicFlags(contextIndex, &toastPopupMenu->window) & 0x42000) != 0)
                     {
-                        if ( (Window_GetDynamicFlags(contextIndex, &toastPopupMenu->window) & 0x42000) != 0 )
+                        if ((Window_GetDynamicFlags(contextIndex, &toastPopupMenu->window) & 0x42000) != 0)
                         {
                             Menu_Paint(
-                                (GenericEventHandler *)&savedregs,
                                 localClientNum,
                                 &uiInfo->uiDC,
                                 0,
                                 toastPopupMenu,
                                 (const ScreenPlacement *)0xFFFFFFFF);
-                            if ( (Window_GetDynamicFlags(contextIndex, &toastPopupMenu->window) & 0x42000) == 0 )
+                            if ((Window_GetDynamicFlags(contextIndex, &toastPopupMenu->window) & 0x42000) == 0)
                             {
                                 Window_RemoveDynamicFlags(contextIndex, &toastPopupMenu->window, 4);
                                 uiInfo->toastPopupTimeCounter = -1;
@@ -580,15 +604,14 @@ int    CL_CGameRendering(int localClientNum)
                     else
                     {
                         Menu_Paint(
-                            (GenericEventHandler *)&savedregs,
                             localClientNum,
                             &uiInfo->uiDC,
                             0,
                             toastPopupMenu,
                             (const ScreenPlacement *)0xFFFFFFFF);
-                        if ( toastPopupMenu->closeSlideSpeed <= 0 || toastPopupMenu->closeSlideDirection >= 4u )
+                        if (toastPopupMenu->closeSlideSpeed <= 0 || toastPopupMenu->closeSlideDirection >= 4u)
                         {
-                            if ( toastPopupMenu->closeFadingTime > 0 )
+                            if (toastPopupMenu->closeFadingTime > 0)
                             {
                                 Window_AddDynamicFlags(contextIndex, &toastPopupMenu->window, 0x2000);
                                 toastPopupMenu->fadeTimeCounter = Sys_Milliseconds();
@@ -598,15 +621,15 @@ int    CL_CGameRendering(int localClientNum)
                         {
                             Window_AddDynamicFlags(contextIndex, &toastPopupMenu->window, 0x40000);
                             toastPopupMenu->slideTimeCounter = Sys_Milliseconds();
-                            if ( toastPopupMenu->closeFadingTime > 0 )
+                            if (toastPopupMenu->closeFadingTime > 0)
                             {
                                 Window_AddDynamicFlags(contextIndex, &toastPopupMenu->window, 0x2000);
-                                if ( toastPopupMenu->closeSlideSpeed < toastPopupMenu->closeFadingTime )
+                                if (toastPopupMenu->closeSlideSpeed < toastPopupMenu->closeFadingTime)
                                     closeFadingTime = toastPopupMenu->closeFadingTime;
                                 else
                                     closeFadingTime = toastPopupMenu->closeSlideSpeed;
                                 toastPopupMenu->closeSlideSpeed = closeFadingTime;
-                                if ( toastPopupMenu->closeSlideSpeed < toastPopupMenu->closeFadingTime )
+                                if (toastPopupMenu->closeSlideSpeed < toastPopupMenu->closeFadingTime)
                                     closeSlideSpeed = toastPopupMenu->closeFadingTime;
                                 else
                                     closeSlideSpeed = toastPopupMenu->closeSlideSpeed;
@@ -620,7 +643,6 @@ int    CL_CGameRendering(int localClientNum)
                 {
                     Window_AddDynamicFlags(contextIndex, &toastPopupMenu->window, 4);
                     Menu_Paint(
-                        (GenericEventHandler *)&savedregs,
                         localClientNum,
                         &uiInfo->uiDC,
                         0,
@@ -630,28 +652,28 @@ int    CL_CGameRendering(int localClientNum)
             }
         }
         R_UI3D_SetupBackendData(&frontEndDataOut->viewInfo[frontEndDataOut->viewInfoIndex].rbUI3D);
-        if ( extraCamActive )
+        if (extraCamActive)
         {
             hiRes = rg.renderHiResShot;
             rg.renderHiResShot = 0;
-            v6 = UI_IsFullscreen(localClientNum) == 0;
-            v4 = CL_GetDemoType();
-            CG_DrawExtraCamFrame(localClientNum, LocalClientGlobals->serverTime, v4, CUBEMAPSHOT_NONE, 0, v6);
+            v7 = UI_IsFullscreen(localClientNum) == 0;
+            v5 = CL_GetDemoType();
+            CG_DrawExtraCamFrame(localClientNum, LocalClientGlobals->serverTime, v5, CUBEMAPSHOT_NONE, 0, v7);
             rg.renderHiResShot = hiRes;
         }
         //PIXBeginNamedEvent(-1, "wait Draw2D");
-        //if ( GetCurrentThreadId() == g_DXDeviceThread )
-            //D3DPERF_EndEvent();
+        //if (GetCurrentThreadId() == g_DXDeviceThread)
+        //    D3DPERF_EndEvent();
         R_AddCmdEndOfList();
-        //if ( GetCurrentThreadId() == g_DXDeviceThread )
-            //D3DPERF_EndEvent();
+        //if (GetCurrentThreadId() == g_DXDeviceThread)
+        //    D3DPERF_EndEvent();
         return 1;
     }
     else
     {
         CL_SendCmd(localClientNum);
-        //if ( GetCurrentThreadId() == g_DXDeviceThread )
-            //D3DPERF_EndEvent();
+        //if (GetCurrentThreadId() == g_DXDeviceThread)
+        //    D3DPERF_EndEvent();
         return 0;
     }
 }
@@ -672,13 +694,13 @@ int __cdecl Window_GetDynamicFlags(int contextIndex, const windowDef_t *w)
     return w->dynamicFlags[contextIndex];
 }
 
-int __cdecl CL_GetDemoType()
+DemoType __cdecl CL_GetDemoType()
 {
     if ( CL_GetLocalClientConnection(0)->demoplaying )
-        return 1;
+        return DEMO_TYPE_CLIENT;
     if ( Demo_IsPlaying() )
-        return 3;
-    return 0;
+        return DEMO_TYPE_SERVER_SNAPSHOT;
+    return DEMO_TYPE_NONE;
 }
 
 void __cdecl SCR_DrawScreenField(int localClientNum, int refreshedUI)
@@ -718,7 +740,7 @@ $LN5_44:
                         break;
                     default:
 LABEL_31:
-                        Com_Error(ERR_FATAL, &byte_CA0440);
+                        Com_Error(ERR_FATAL, "SCR_DrawScreenField: bad clcState");
                         break;
                 }
             }
@@ -833,10 +855,11 @@ void SCR_DrawLoadingAndLogo()
     SCR_ClearScreen();
 }
 
+static int s_lastUpdateScreenTime;
 char __cdecl SCR_ShouldSkipUpdateScreen()
 {
     int clcState; // [esp+0h] [ebp-Ch]
-    unsigned inttimeNow; // [esp+4h] [ebp-8h]
+    unsigned int timeNow; // [esp+4h] [ebp-8h]
 
     clcState = CL_GetLocalClientConnectionState(0);
     if ( clcState >= 10 )
@@ -953,7 +976,7 @@ LABEL_24:
         R_BeginSharedCmdList();
         R_ClearClientCmdList2D();
         DemoType = CL_GetDemoType();
-        CG_DrawActiveFrame(a1, localClientNum, LocalClientGlobals->serverTime, DemoType, (CubemapShot)shot, size, 1);
+        CG_DrawActiveFrame(localClientNum, LocalClientGlobals->serverTime, DemoType, (CubemapShot)shot, size, 1);
         R_EndFrame();
         R_IssueRenderCommands(3u);
         R_EndCubemapShot((CubemapShot)shot);
@@ -964,7 +987,7 @@ LABEL_24:
     {
         v13 = n1;
         v12 = n0;
-        v11 = shot;
+        v11 = (CubemapShot)shot;
         v10 = va("env/%s%s.tga", szBaseName, demo_tags_enum_string_27[shot + 5]);
         R_SaveCubemapShot(v10, v11, v12, v13);
     }
@@ -996,11 +1019,12 @@ void    CL_TakeHiResShot()
         v1 = Cmd_Argv(1);
         tiles = atoi(v1);
     }
-    HiResScreenshot(a1, tiles);
+    HiResScreenshot(tiles);
 }
 
 void    HiResScreenshot(int tiles)
 {
+#if 0 // KISAKTODO: screenshot jpeg bits
     int k; // [esp+18h] [ebp-8224h]
     float tileY; // [esp+1Ch] [ebp-8220h]
     int j; // [esp+20h] [ebp-821Ch]
@@ -1100,25 +1124,26 @@ void    HiResScreenshot(int tiles)
             Dvar_SetBool((dvar_s *)r_bloomTweaks, v16);
         }
     }
+#endif
 }
 
 void    CL_TakeHiResShot2()
 {
-    HiResScreenshot(a1, 2);
+    HiResScreenshot(2);
 }
 
 void    CL_TakeHiResShot3()
 {
-    HiResScreenshot(a1, 3);
+    HiResScreenshot(3);
 }
 
 void    CL_TakeHiResShot4()
 {
-    HiResScreenshot(a1, 4);
+    HiResScreenshot(4);
 }
 
 void    CL_TakeHiResShot8()
 {
-    HiResScreenshot(a1, 8);
+    HiResScreenshot(8);
 }
 

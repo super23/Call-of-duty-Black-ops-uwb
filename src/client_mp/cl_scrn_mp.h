@@ -1,5 +1,7 @@
 #pragma once
 
+enum DemoType : __int32;
+
 void __cdecl SCR_DrawSmallStringExt(int x, int y, char *string, const float *setColor);
 void __cdecl SCR_Init();
 void __cdecl CL_DrawScreen(int localClientNum);
@@ -9,7 +11,7 @@ void    SCR_UpdateScreen();
 void    SCR_UpdateFrame();
 int    CL_CGameRendering(int localClientNum);
 int __cdecl Window_GetDynamicFlags(int contextIndex, const windowDef_t *w);
-int __cdecl CL_GetDemoType();
+DemoType __cdecl CL_GetDemoType();
 void __cdecl SCR_DrawScreenField(int localClientNum, int refreshedUI);
 void SCR_DrawDemoRecording();
 void SCR_ClearScreen();

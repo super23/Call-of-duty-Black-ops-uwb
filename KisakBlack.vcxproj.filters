@@ -6020,6 +6020,9 @@
     <ClInclude Include="src\game\g_bsp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="DemonWare\bdCore\bdCrypto\bdHashTiger192.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="src\CubeMapGenLib\resource.rc">

@@ -1307,6 +1307,7 @@
     <ClInclude Include="DemonWare\bdCore\bdContainers\bdQueue.h" />
     <ClInclude Include="DemonWare\bdCore\bdCrypto\bdCypher.h" />
     <ClInclude Include="DemonWare\bdCore\bdCrypto\bdCypher3Des.h" />
+    <ClInclude Include="DemonWare\bdCore\bdCrypto\bdHashTiger192.h" />
     <ClInclude Include="DemonWare\bdCore\bdMemory\bdMemory.h" />
     <ClInclude Include="DemonWare\bdCore\bdReference\bdReferencable.h" />
     <ClInclude Include="DemonWare\bdCore\bdSingleton.h" />

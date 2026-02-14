@@ -2,6 +2,7 @@
 #include "client_mp.h"
 #include <gfx_d3d/r_scene.h>
 #include <xanim/dobj_utils.h>
+#include <client/client.h>
 
 int g_maxSkelMemUsed;
 bool showUsage;
@@ -79,7 +80,7 @@ int __cdecl CL_DObjCreateSkelForBones(const DObj *obj, int *partBits, DObjAnimMa
         if ( buf )
         {
             *pMatOut = (DObjAnimMat *)buf;
-            DObjCreateSkel(obj, buf, timeStamp);
+            DObjCreateSkel((DObj*)obj, buf, timeStamp);
             return 0;
         }
         else

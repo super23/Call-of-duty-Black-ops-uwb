@@ -196,6 +196,7 @@ void __cdecl Sys_QuitAndStartProcess(const char *exeName)
 
 void __cdecl Sys_OpenURL(const char *url, int doexit)
 {
+#if 0 // KISAKTODO: re-enable this later when it's rewritten
     const char *v2; // eax
     HWND__ *wnd; // [esp+0h] [ebp-4h]
 
@@ -209,6 +210,7 @@ void __cdecl Sys_OpenURL(const char *url, int doexit)
         ShowWindow(wnd, 3);
     if ( doexit )
         Cbuf_AddText(0, "quit\n");
+#endif
 }
 
 void    Sys_Error(char *error, ...)

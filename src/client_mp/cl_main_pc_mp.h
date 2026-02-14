@@ -1,6 +1,15 @@
 #pragma once
 #include "cl_main_mp.h"
 
+enum quickmatchstate_t : __int32
+{
+    QM_DORMANT = 0x0,
+    QM_FINDING = 0x1,
+    QM_PINGING = 0x2,
+    QM_CHOOSE  = 0x3,
+    QM_FAILED  = 0x4,
+};
+
 struct serverStatusInfoResponse_s // sizeof=0x402C
 {                                       // XREF: .data:serverStatusInfoResponse_s * cl_serverStatusScoreBoardList/r
                                         // .data:serverStatusInfoResponse_s * cl_serverStatusList/r ...
@@ -17,6 +26,9 @@ struct serverStatusInfoResponse_s // sizeof=0x402C
     bdSecurityID secId;                 // XREF: CL_GetServerStatus(bdSecurityID *)+27/o
                                         // CL_GetServerStatusScoreBoard(bdSecurityID *)+27/o ...
 };
+
+struct TaskRecord;
+struct MatchMakingInfo;
 
 netadr_t *__cdecl CL_GetLastRconAddress();
 void __cdecl CL_SetServerInfo(serverInfo_t *server, char *info, __int16 ping);

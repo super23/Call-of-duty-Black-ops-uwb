@@ -6,6 +6,9 @@
 #include "r_scene.h"
 #include "r_meshdata.h"
 
+#include "r_shader_constant_set.h"
+
+struct GfxImage; 
 
 enum GfxProjectionTypes : __int32
 {                                       // XREF: GfxCmdProjectionSet/r

@@ -179,3 +179,10 @@ void __cdecl LiveStorage_DeleteGlobalStats(int controllerIndex);
 void __cdecl LiveStorage_DeleteGlobalStatsSuccess();
 void __cdecl LiveStorage_DeleteGlobalStatsNotFound();
 void __cdecl ResetCreateAClassNames(int controllerIndex);
+
+
+extern sv_cacvalidate_state_t g_cacvalidateState;
+
+extern const dvar_t *stats_backup;
+extern const dvar_t *presell;
+extern const dvar_t *sv_playlistFetchInterval;

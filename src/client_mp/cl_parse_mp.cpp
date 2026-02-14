@@ -9,6 +9,280 @@
 #include <ui_mp/ui_gametype_custom_mp.h>
 #include <qcommon/files.h>
 #include <client/cl_console.h>
+#include <live/live_storage_win.h>
+#include <universal/com_constantconfigstrings.h>
+#include <universal/com_files.h>
+#include <win32/win_net.h>
+#include <physics/rope_gamestate.h>
+#include <glass/glass_client.h>
+#include <win32/win_main.h>
+#include <qcommon/dl_main.h>
+#include <qcommon/legacyhacks.h>
+#include <client/cl_parse.h>
+#include <bgame/bg_misc.h>
+#include "cl_input_mp.h"
+
+const char *svc_strings[256] =
+{
+  "svc_nop",
+  "svc_gamestate",
+  "svc_configstring",
+  "svc_baseline",
+  "svc_serverCommand",
+  "svc_download",
+  "svc_snapshot",
+  "svc_EOF",
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL
+};
+
+char parseDownloadData[2048];
 
 int cl_connectedToPureServer;
 
@@ -406,7 +680,7 @@ void __cdecl CL_ParseGamestate(int localClientNum, msg_t *msg)
                     else
                         configStringIndex = MSG_ReadBits(msg, 0xCu);
                     if ( configStringIndex >= 0xCBC )
-                        Com_Error(ERR_DROP, &byte_C9678C);
+                        Com_Error(ERR_DROP, "configstring > MAX_CONFIGSTRINGS");
                     while ( nextConstConfigStringNumber && nextConstConfigStringNumber < (int)configStringIndex )
                     {
                         s = CCS_GetConfigStringValue(nextConstConfigStringIndex);
@@ -421,7 +695,7 @@ void __cdecl CL_ParseGamestate(int localClientNum, msg_t *msg)
                     s = MSG_ReadBigString(msg);
                     v5 = strlen(s);
                     if ( (int)(v5 + cls.gameState.dataCount + 1) > 0x10000 )
-                        Com_Error(ERR_DROP, &byte_C9676C);
+                        Com_Error(ERR_DROP, "MAX_GAMESTATE_CHARS exceeded");
                     cls.gameState.stringOffsets[configStringIndex] = cls.gameState.dataCount;
                     memcpy((unsigned __int8 *)&cls.gameState.stringData[cls.gameState.dataCount], (unsigned __int8 *)s, v5 + 1);
                     cls.gameState.dataCount += v5 + 1;
@@ -442,7 +716,7 @@ void __cdecl CL_ParseGamestate(int localClientNum, msg_t *msg)
             case 4:
                 newnum = MSG_ReadEntityIndex(msg, 0xAu);
                 if ( newnum >= 0x400 )
-                    Com_Error(ERR_DROP, &byte_C9FB2C, newnum);
+                    Com_Error(ERR_DROP, "Baseline number out of range: %i", newnum);
                 memset((unsigned __int8 *)&nullstate, 0, sizeof(nullstate));
                 to = &LocalClientGlobals->entityBaselines[newnum];
                 MSG_ReadDeltaEntity(msg, 0, &nullstate, to, newnum);
@@ -451,7 +725,7 @@ void __cdecl CL_ParseGamestate(int localClientNum, msg_t *msg)
                 cls.gameState.matchUIVisibilityFlags = MSG_ReadLong(msg);
                 break;
             default:
-                file = FS_FOpenFileWrite("badpacket.dat");
+                file = FS_FOpenFileWrite((char*)"badpacket.dat");
                 if ( file )
                 {
                     FS_Write((char *)msg->data, msg->cursize, file);
@@ -585,6 +859,7 @@ void __cdecl CL_ParseWWWDownload(int localClientNum, msg_t *msg)
     }
 }
 
+static unsigned __int8 msgCompressed_buf[65536];
 void __cdecl CL_ParseServerMessage(int localClientNum, msg_t *msg)
 {
     msg_t msgCompressed; // [esp+4h] [ebp-38h] BYREF
@@ -614,7 +889,7 @@ void __cdecl CL_ParseServerMessage(int localClientNum, msg_t *msg)
         cmd = MSG_ReadByte(&msgCompressed);
         if ( cmd == 14 || msgCompressed.overflowed )
         {
-            SHOWNET(&msgCompressed, "END OF MESSAGE");
+            SHOWNET(&msgCompressed, (char*)"END OF MESSAGE");
 LABEL_24:
             if ( msgCompressed.overflowed )
                 MSG_Discard(msg);
@@ -623,7 +898,7 @@ LABEL_24:
         if ( cl_shownet->current.integer >= 2 )
         {
             if ( svc_strings[cmd] )
-                SHOWNET(&msgCompressed, svc_strings[cmd]);
+                SHOWNET(&msgCompressed, (char*)svc_strings[cmd]);
             else
                 Com_Printf(14, "%3i:BAD CMD %i\n", msgCompressed.readcount - 1, cmd);
         }
@@ -644,7 +919,7 @@ LABEL_24:
                 CL_ParseSnapshot(localClientNum, &msgCompressed);
                 continue;
             default:
-                file = FS_FOpenFileWrite("badpacket.dat");
+                file = FS_FOpenFileWrite((char *)"badpacket.dat");
                 if ( file )
                 {
                     FS_Write((char *)msg->data, msg->cursize, file);
@@ -658,6 +933,7 @@ LABEL_24:
     }
 }
 
+static clSnapshot_t newSnap;
 void __cdecl CL_ParseSnapshot(int localClientNum, msg_t *msg)
 {
     const char *v2; // eax
@@ -725,7 +1001,7 @@ void __cdecl CL_ParseSnapshot(int localClientNum, msg_t *msg)
     CL_ParsePacketMatchState(LocalClientGlobals, msg, newSnap.serverTime, old, &newSnap);
     CL_ProcessMapCenterFromMatchState(localClientNum, &newSnap);
     MSG_ClearLastReferencedEntity(msg);
-    SHOWNET(msg, "playerstate");
+    SHOWNET(msg, (char*)"playerstate");
     if ( old )
         MSG_ReadDeltaPlayerstate(localClientNum, msg, (playerState_s *)newSnap.serverTime, (_BYTE)old + 32);
     else
@@ -746,10 +1022,10 @@ void __cdecl CL_ParseSnapshot(int localClientNum, msg_t *msg)
             __debugbreak();
     }
     MSG_ClearLastReferencedEntity(msg);
-    SHOWNET(msg, "packet entities");
+    SHOWNET(msg, (char *)"packet entities");
     CL_ParsePacketEntities(LocalClientGlobals, msg, newSnap.serverTime, old, &newSnap);
     MSG_ClearLastReferencedEntity(msg);
-    SHOWNET(msg, "packet clients");
+    SHOWNET(msg, (char *)"packet clients");
     CL_ParsePacketClients(LocalClientGlobals, msg, newSnap.serverTime, old, &newSnap);
     if ( msg->overflowed )
     {
@@ -856,7 +1132,7 @@ int __cdecl CL_ParsePacketEntities(
         if ( newnum == 1023 )
             break;
         if ( msg->readcount > msg->cursize )
-            Com_Error(ERR_DROP, &byte_C9FE68);
+            Com_Error(ERR_DROP, "CL_ParsePacketEntities: end of message");
         while ( oldnum < newnum && !msg->overflowed )
         {
             if ( cl_shownet->current.integer == 3 )
@@ -1000,7 +1276,7 @@ void __cdecl CL_ParsePacketClients(
     {
         newnum = MSG_ReadEntityIndex(msg, 5u);
         if ( msg->readcount > msg->cursize )
-            Com_Error(ERR_DROP, &byte_C9FEE0);
+            Com_Error(ERR_DROP, "CL_ParsePacketClients: end of message");
         while ( oldnum < newnum )
         {
             if ( cl_shownet->current.integer == 3 )

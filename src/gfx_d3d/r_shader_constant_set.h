@@ -1,7 +1,6 @@
 #pragma once
 #include "rb_state.h"
 #include "r_gfx.h"
-#include "r_rendercmds.h"
 
 struct ShaderConstantSet // sizeof=0x78
 {                                       // XREF: cpose_t/r

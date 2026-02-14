@@ -1,6 +1,8 @@
 #pragma once
 #include <qcommon/msg_mp.h>
 
+struct clSnapshot_t;
+
 void __cdecl SHOWNET(msg_t *msg, char *s);
 void __cdecl CL_SavePredictedOriginForServerTime(
                 clientActive_t *cl,

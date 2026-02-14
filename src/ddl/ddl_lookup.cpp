@@ -12,7 +12,7 @@ int __cdecl DDL_Lookup_IsMemberAtOffset(
     int currArr; // [esp+0h] [ebp-4h]
 
     for ( currArr = 0; ; ++currArr )
-    {
+    { 
         if ( currArr >= member->arraySize )
             return 0;
         if ( searchOffset == member->offset + parentOffset )
