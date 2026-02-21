@@ -1,4 +1,5 @@
 #pragma once
+#include "ik.h"
 
 void __cdecl ikMatrixIdentity44(float (*out)[4]);
 void __cdecl ikMatrixSet44(float (*out)[4], const float *origin, const float (*axis)[3], float scale);

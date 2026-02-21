@@ -5,7 +5,7 @@
 #include "ik_math.h"
 #include "ik_process.h"
 
-IKBoneNames IKBoneParents[] =
+IKBoneNames IKBoneParents[23] =
 {
   IKBONE_NONE,
   IKBONE_FIRST,

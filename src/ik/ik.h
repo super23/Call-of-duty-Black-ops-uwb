@@ -341,3 +341,5 @@ extern float ikLayerLerpTimes[22];
 extern int ikLayerRealLayers[22];
 extern int ikLegSolverLayers[21];
 extern int ikArmSolverLayers[21];
+
+extern IKBoneNames IKBoneParents[23];

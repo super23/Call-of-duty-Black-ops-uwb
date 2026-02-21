@@ -16,197 +16,199 @@ void __cdecl IK_GeneratePreIKMatrices(IKState *ikState, bool isLocalBones)
 // local variable allocation has failed, the output may be wrong!
 void    IK_GenerateIKXformMatrices(IKState *ikState, bool isLocalBones)
 {
-    _BYTE v3[76]; // [esp+18h] [ebp-1ECh] OVERLAPPED BYREF
-    int v4; // [esp+64h] [ebp-1A0h]
-    int v5; // [esp+68h] [ebp-19Ch]
-    int v6; // [esp+6Ch] [ebp-198h]
-    int v7; // [esp+70h] [ebp-194h]
-    __int64 v8; // [esp+74h] [ebp-190h]
-    __int64 v9; // [esp+7Ch] [ebp-188h]
-    __int64 v10; // [esp+84h] [ebp-180h]
-    __int64 v11; // [esp+8Ch] [ebp-178h]
-    __int64 v12; // [esp+94h] [ebp-170h]
-    __int64 v13; // [esp+9Ch] [ebp-168h]
-    int v14; // [esp+A4h] [ebp-160h]
-    int v15; // [esp+A8h] [ebp-15Ch]
+    float xformMatPreScaled[4][4]; // [esp+18h] [ebp-1ECh] BYREF
+    float *v4; // [esp+5Ch] [ebp-1A8h]
+    float *v5; // [esp+60h] [ebp-1A4h]
+    float *v6; // [esp+64h] [ebp-1A0h]
+    __int64 v7; // [esp+68h] [ebp-19Ch]
+    __int64 v8; // [esp+70h] [ebp-194h]
+    __int64 v9; // [esp+78h] [ebp-18Ch]
+    __int64 v10; // [esp+80h] [ebp-184h]
+    __int64 v11; // [esp+88h] [ebp-17Ch]
+    __int64 v12; // [esp+90h] [ebp-174h]
+    __int64 v13; // [esp+98h] [ebp-16Ch]
+    __int64 v14; // [esp+A0h] [ebp-164h]
+    float *v15; // [esp+A8h] [ebp-15Ch]
     float *v16; // [esp+ACh] [ebp-158h]
     float *v17; // [esp+B0h] [ebp-154h]
-    int v18; // [esp+B4h] [ebp-150h]
-    float v19; // [esp+B8h] [ebp-14Ch] BYREF
-    float v20; // [esp+BCh] [ebp-148h]
-    float v21; // [esp+C0h] [ebp-144h]
-    float preModelInverseMat[4][4]; // [esp+C4h] [ebp-140h]
-    float v23[5]; // [esp+104h] [ebp-100h] BYREF
-    float v24[4]; // [esp+118h] [ebp-ECh] BYREF
-    float v25; // [esp+128h] [ebp-DCh]
-    float v26; // [esp+12Ch] [ebp-D8h]
-    float v27; // [esp+130h] [ebp-D4h]
-    int v28; // [esp+134h] [ebp-D0h]
-    float v29; // [esp+138h] [ebp-CCh]
-    float v30; // [esp+13Ch] [ebp-C8h]
-    float v31; // [esp+140h] [ebp-C4h]
-    int v32; // [esp+144h] [ebp-C0h]
-    _BYTE v33[140]; // [esp+158h] [ebp-ACh] OVERLAPPED BYREF
-    float *v34; // [esp+1E4h] [ebp-20h]
-    float *v35; // [esp+1E8h] [ebp-1Ch]
-    int i; // [esp+1ECh] [ebp-18h]
-    float (*pPostModelMat)[4][4]; // [esp+1F0h] [ebp-14h]
-    float (*xformMat)[4][4]; // [esp+1F8h] [ebp-Ch]
-    float maxLayerLerp; // [esp+1FCh] [ebp-8h]
-    float retaddr; // [esp+204h] [ebp+0h]
-
-    xformMat = (float (*)[4][4])a1;
-    maxLayerLerp = retaddr;
-    *(float *)&pPostModelMat = IKImport_GetMaxLayerLerp(ikState);
-    i = (int)ikState->matArrayXforms;
-    v35 = (*ikState->matArrayPreIK)[0];
-    v34 = (*ikState->matArrayPostIK)[0];
-    *(unsigned int *)&v33[136] = 0;
-    while ( *(int *)&v33[136] < 23 )
+    float *v18; // [esp+B4h] [ebp-150h]
+    float preModelInverseMat[19]; // [esp+B8h] [ebp-14Ch] BYREF
+    float v20[5]; // [esp+104h] [ebp-100h] BYREF
+    float v21[4]; // [esp+118h] [ebp-ECh] BYREF
+    float v22; // [esp+128h] [ebp-DCh]
+    float v23; // [esp+12Ch] [ebp-D8h]
+    float v24; // [esp+130h] [ebp-D4h]
+    int v25; // [esp+134h] [ebp-D0h]
+    float v26; // [esp+138h] [ebp-CCh]
+    float v27; // [esp+13Ch] [ebp-C8h]
+    float v28; // [esp+140h] [ebp-C4h]
+    int v29; // [esp+144h] [ebp-C0h]
+    float postModelMat[4][4]; // [esp+158h] [ebp-ACh] BYREF
+    float preModelMat[4][4]; // [esp+198h] [ebp-6Ch] BYREF
+    int v32; // [esp+1DCh] [ebp-28h]
+    int i; // [esp+1E0h] [ebp-24h]
+    float (*pPostModelMat)[4][4]; // [esp+1E4h] [ebp-20h]
+    float (*pPreModelMat)[4][4]; // [esp+1E8h] [ebp-1Ch]
+    float (*xformMat)[4][4]; // [esp+1ECh] [ebp-18h]
+    float maxLayerLerp; // [esp+1F0h] [ebp-14h]
+    //_UNKNOWN *v38; // [esp+1F8h] [ebp-Ch]
+    //IKState *ikStatea; // [esp+1FCh] [ebp-8h]
+    //int vars0; // [esp+204h] [ebp+0h]
+    //
+    //v38 = a1;
+    //ikStatea = (IKState *)vars0;
+    maxLayerLerp = IKImport_GetMaxLayerLerp(ikState);
+    xformMat = ikState->matArrayXforms;
+    pPreModelMat = ikState->matArrayPreIK;
+    pPostModelMat = ikState->matArrayPostIK;
+    i = 0;
+    while (i < 23)
     {
-        v33[135] = ikState->ikBoneToObjBone[*(unsigned int *)&v33[136]] != 161;
-        if ( v33[135] )
+        HIBYTE(v32) = ikState->ikBoneToObjBone[i] != 161;
+        if (HIBYTE(v32))
         {
-            if ( isLocalBones )
+            if (isLocalBones)
             {
-                if ( v35 == &v19
-                    && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\ik\\ik_math.h", 165, 0, "%s", "in != out") )
+                if (pPreModelMat == (float (*)[4][4])preModelInverseMat
+                    && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\ik\\ik_math.h", 165, 0, "%s", "in != out"))
                 {
                     __debugbreak();
                 }
-                v19 = *v35;
-                v20 = v35[4];
-                v21 = v35[8];
-                preModelInverseMat[0][0] = 0.0f;
-                preModelInverseMat[0][1] = v35[1];
-                preModelInverseMat[0][2] = v35[5];
-                preModelInverseMat[0][3] = v35[9];
-                preModelInverseMat[1][0] = 0.0f;
-                preModelInverseMat[1][1] = v35[2];
-                preModelInverseMat[1][2] = v35[6];
-                preModelInverseMat[1][3] = v35[10];
-                preModelInverseMat[2][0] = 0.0f;
-                *(float *)i = (float)((float)(*v34 * v19) + (float)(v34[1] * preModelInverseMat[0][1]))
-                                        + (float)(v34[2] * preModelInverseMat[1][1]);
-                *(float *)(i + 4) = (float)((float)(*v34 * v20) + (float)(v34[1] * preModelInverseMat[0][2]))
-                                                    + (float)(v34[2] * preModelInverseMat[1][2]);
-                *(float *)(i + 8) = (float)((float)(*v34 * v21) + (float)(v34[1] * preModelInverseMat[0][3]))
-                                                    + (float)(v34[2] * preModelInverseMat[1][3]);
-                *(unsigned int *)(i + 12) = 0;
-                *(float *)(i + 16) = (float)((float)(v34[4] * v19) + (float)(v34[5] * preModelInverseMat[0][1]))
-                                                     + (float)(v34[6] * preModelInverseMat[1][1]);
-                *(float *)(i + 20) = (float)((float)(v34[4] * v20) + (float)(v34[5] * preModelInverseMat[0][2]))
-                                                     + (float)(v34[6] * preModelInverseMat[1][2]);
-                *(float *)(i + 24) = (float)((float)(v34[4] * v21) + (float)(v34[5] * preModelInverseMat[0][3]))
-                                                     + (float)(v34[6] * preModelInverseMat[1][3]);
-                *(unsigned int *)(i + 28) = 0;
-                *(float *)(i + 32) = (float)((float)(v34[8] * v19) + (float)(v34[9] * preModelInverseMat[0][1]))
-                                                     + (float)(v34[10] * preModelInverseMat[1][1]);
-                *(float *)(i + 36) = (float)((float)(v34[8] * v20) + (float)(v34[9] * preModelInverseMat[0][2]))
-                                                     + (float)(v34[10] * preModelInverseMat[1][2]);
-                *(float *)(i + 40) = (float)((float)(v34[8] * v21) + (float)(v34[9] * preModelInverseMat[0][3]))
-                                                     + (float)(v34[10] * preModelInverseMat[1][3]);
-                *(unsigned int *)(i + 44) = 0;
-                v18 = i + 48;
-                v17 = v35 + 12;
-                v16 = v34 + 12;
-                *(float *)(i + 48) = v34[12] - v35[12];
-                *(float *)(v18 + 4) = v16[1] - v17[1];
-                *(float *)(v18 + 8) = v16[2] - v17[2];
-                *(float *)(i + 60) = 1.0f;
+                preModelInverseMat[0] = (*pPreModelMat)[0][0];
+                preModelInverseMat[1] = (*pPreModelMat)[1][0];
+                preModelInverseMat[2] = (*pPreModelMat)[2][0];
+                preModelInverseMat[3] = 0.0f;
+                preModelInverseMat[4] = (*pPreModelMat)[0][1];
+                preModelInverseMat[5] = (*pPreModelMat)[1][1];
+                preModelInverseMat[6] = (*pPreModelMat)[2][1];
+                preModelInverseMat[7] = 0.0f;
+                preModelInverseMat[8] = (*pPreModelMat)[0][2];
+                preModelInverseMat[9] = (*pPreModelMat)[1][2];
+                preModelInverseMat[10] = (*pPreModelMat)[2][2];
+                preModelInverseMat[11] = 0.0f;
+                (*xformMat)[0][0] = (float)((float)((*pPostModelMat)[0][0] * preModelInverseMat[0])
+                    + (float)((*pPostModelMat)[0][1] * preModelInverseMat[4]))
+                    + (float)((*pPostModelMat)[0][2] * preModelInverseMat[8]);
+                (*xformMat)[0][1] = (float)((float)((*pPostModelMat)[0][0] * preModelInverseMat[1])
+                    + (float)((*pPostModelMat)[0][1] * preModelInverseMat[5]))
+                    + (float)((*pPostModelMat)[0][2] * preModelInverseMat[9]);
+                (*xformMat)[0][2] = (float)((float)((*pPostModelMat)[0][0] * preModelInverseMat[2])
+                    + (float)((*pPostModelMat)[0][1] * preModelInverseMat[6]))
+                    + (float)((*pPostModelMat)[0][2] * preModelInverseMat[10]);
+                (*xformMat)[0][3] = 0.0f;
+                (*xformMat)[1][0] = (float)((float)((*pPostModelMat)[1][0] * preModelInverseMat[0])
+                    + (float)((*pPostModelMat)[1][1] * preModelInverseMat[4]))
+                    + (float)((*pPostModelMat)[1][2] * preModelInverseMat[8]);
+                (*xformMat)[1][1] = (float)((float)((*pPostModelMat)[1][0] * preModelInverseMat[1])
+                    + (float)((*pPostModelMat)[1][1] * preModelInverseMat[5]))
+                    + (float)((*pPostModelMat)[1][2] * preModelInverseMat[9]);
+                (*xformMat)[1][2] = (float)((float)((*pPostModelMat)[1][0] * preModelInverseMat[2])
+                    + (float)((*pPostModelMat)[1][1] * preModelInverseMat[6]))
+                    + (float)((*pPostModelMat)[1][2] * preModelInverseMat[10]);
+                (*xformMat)[1][3] = 0.0f;
+                (*xformMat)[2][0] = (float)((float)((*pPostModelMat)[2][0] * preModelInverseMat[0])
+                    + (float)((*pPostModelMat)[2][1] * preModelInverseMat[4]))
+                    + (float)((*pPostModelMat)[2][2] * preModelInverseMat[8]);
+                (*xformMat)[2][1] = (float)((float)((*pPostModelMat)[2][0] * preModelInverseMat[1])
+                    + (float)((*pPostModelMat)[2][1] * preModelInverseMat[5]))
+                    + (float)((*pPostModelMat)[2][2] * preModelInverseMat[9]);
+                (*xformMat)[2][2] = (float)((float)((*pPostModelMat)[2][0] * preModelInverseMat[2])
+                    + (float)((*pPostModelMat)[2][1] * preModelInverseMat[6]))
+                    + (float)((*pPostModelMat)[2][2] * preModelInverseMat[10]);
+                (*xformMat)[2][3] = 0.0f;
+                v18 = (*xformMat)[3];
+                v17 = (*pPreModelMat)[3];
+                v16 = (*pPostModelMat)[3];
+                (*xformMat)[3][0] = (*pPostModelMat)[3][0] - (*pPreModelMat)[3][0];
+                v18[1] = v16[1] - v17[1];
+                v18[2] = v16[2] - v17[2];
+                (*xformMat)[3][3] = 1.0f;
             }
             else
             {
-                ikCalcBoneModelMatrix(ikState, *(int *)&v33[136], (*ikState->matArrayPreIK)[0], (float (*)[4])&v33[64]);
-                ikCalcBoneModelMatrix(ikState, *(int *)&v33[136], (*ikState->matArrayPostIK)[0], (float (*)[4])v33);
-                if ( &v33[64] == (_BYTE *)v24
-                    && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\ik\\ik_math.h", 165, 0, "%s", "in != out") )
+                ikCalcBoneModelMatrix(ikState, i, (*ikState->matArrayPreIK)[0], preModelMat);
+                ikCalcBoneModelMatrix(ikState, i, (*ikState->matArrayPostIK)[0], postModelMat);
+                if (preModelMat == (float (*)[4])v21
+                    && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\ik\\ik_math.h", 165, 0, "%s", "in != out"))
                 {
                     __debugbreak();
                 }
-                v24[0] = *(float *)&v33[64];
-                v24[1] = *(float *)&v33[80];
-                v24[2] = *(float *)&v33[96];
-                v24[3] = 0.0f;
-                v25 = *(float *)&v33[68];
-                v26 = *(float *)&v33[84];
-                v27 = *(float *)&v33[100];
-                v28 = 0;
-                v29 = *(float *)&v33[72];
-                v30 = *(float *)&v33[88];
-                v31 = *(float *)&v33[104];
-                v32 = 0;
-                *(float *)i = (float)((float)(*(float *)v33 * *(float *)&v33[64])
-                                                        + (float)(*(float *)&v33[4] * *(float *)&v33[68]))
-                                        + (float)(*(float *)&v33[8] * *(float *)&v33[72]);
-                *(float *)(i + 4) = (float)((float)(*(float *)v33 * v24[1]) + (float)(*(float *)&v33[4] * v26))
-                                                    + (float)(*(float *)&v33[8] * v30);
-                *(float *)(i + 8) = (float)((float)(*(float *)v33 * v24[2]) + (float)(*(float *)&v33[4] * v27))
-                                                    + (float)(*(float *)&v33[8] * v31);
-                *(unsigned int *)(i + 12) = 0;
-                *(float *)(i + 16) = (float)((float)(*(float *)&v33[16] * v24[0]) + (float)(*(float *)&v33[20] * v25))
-                                                     + (float)(*(float *)&v33[24] * v29);
-                *(float *)(i + 20) = (float)((float)(*(float *)&v33[16] * v24[1]) + (float)(*(float *)&v33[20] * v26))
-                                                     + (float)(*(float *)&v33[24] * v30);
-                *(float *)(i + 24) = (float)((float)(*(float *)&v33[16] * v24[2]) + (float)(*(float *)&v33[20] * v27))
-                                                     + (float)(*(float *)&v33[24] * v31);
-                *(unsigned int *)(i + 28) = 0;
-                *(float *)(i + 32) = (float)((float)(*(float *)&v33[32] * v24[0]) + (float)(*(float *)&v33[36] * v25))
-                                                     + (float)(*(float *)&v33[40] * v29);
-                *(float *)(i + 36) = (float)((float)(*(float *)&v33[32] * v24[1]) + (float)(*(float *)&v33[36] * v26))
-                                                     + (float)(*(float *)&v33[40] * v30);
-                *(float *)(i + 40) = (float)((float)(*(float *)&v33[32] * v24[2]) + (float)(*(float *)&v33[36] * v27))
-                                                     + (float)(*(float *)&v33[40] * v31);
-                *(unsigned int *)(i + 44) = 0;
-                LODWORD(v23[4]) = &v33[112];
-                LODWORD(v23[3]) = &v33[48];
-                v23[0] = *(float *)&v33[48] - *(float *)&v33[112];
-                v23[1] = *(float *)&v33[52] - *(float *)&v33[116];
-                v23[2] = *(float *)&v33[56] - *(float *)&v33[120];
-                ikMatrixTransformVector34(v23, (const float (*)[4])v24, (float *)(i + 48));
-                *(float *)(i + 60) = 1.0f;
+                v21[0] = preModelMat[0][0];
+                v21[1] = preModelMat[1][0];
+                v21[2] = preModelMat[2][0];
+                v21[3] = 0.0f;
+                v22 = preModelMat[0][1];
+                v23 = preModelMat[1][1];
+                v24 = preModelMat[2][1];
+                v25 = 0.0f;
+                v26 = preModelMat[0][2];
+                v27 = preModelMat[1][2];
+                v28 = preModelMat[2][2];
+                v29 = 0.0f;
+                (*xformMat)[0][0] = (float)((float)(postModelMat[0][0] * preModelMat[0][0])
+                    + (float)(postModelMat[0][1] * preModelMat[0][1]))
+                    + (float)(postModelMat[0][2] * preModelMat[0][2]);
+                (*xformMat)[0][1] = (float)((float)(postModelMat[0][0] * v21[1]) + (float)(postModelMat[0][1] * v23))
+                    + (float)(postModelMat[0][2] * v27);
+                (*xformMat)[0][2] = (float)((float)(postModelMat[0][0] * v21[2]) + (float)(postModelMat[0][1] * v24))
+                    + (float)(postModelMat[0][2] * v28);
+                (*xformMat)[0][3] = 0.0f;
+                (*xformMat)[1][0] = (float)((float)(postModelMat[1][0] * v21[0]) + (float)(postModelMat[1][1] * v22))
+                    + (float)(postModelMat[1][2] * v26);
+                (*xformMat)[1][1] = (float)((float)(postModelMat[1][0] * v21[1]) + (float)(postModelMat[1][1] * v23))
+                    + (float)(postModelMat[1][2] * v27);
+                (*xformMat)[1][2] = (float)((float)(postModelMat[1][0] * v21[2]) + (float)(postModelMat[1][1] * v24))
+                    + (float)(postModelMat[1][2] * v28);
+                (*xformMat)[1][3] = 0.0f;
+                (*xformMat)[2][0] = (float)((float)(postModelMat[2][0] * v21[0]) + (float)(postModelMat[2][1] * v22))
+                    + (float)(postModelMat[2][2] * v26);
+                (*xformMat)[2][1] = (float)((float)(postModelMat[2][0] * v21[1]) + (float)(postModelMat[2][1] * v23))
+                    + (float)(postModelMat[2][2] * v27);
+                (*xformMat)[2][2] = (float)((float)(postModelMat[2][0] * v21[2]) + (float)(postModelMat[2][1] * v24))
+                    + (float)(postModelMat[2][2] * v28);
+                (*xformMat)[2][3] = 0.0f;
+                //LODWORD(v20[4]) = preModelMat[3];
+                //LODWORD(v20[3]) = postModelMat[3];
+                v20[0] = postModelMat[3][0] - preModelMat[3][0];
+                v20[1] = postModelMat[3][1] - preModelMat[3][1];
+                v20[2] = postModelMat[3][2] - preModelMat[3][2];
+                ikMatrixTransformVector34(v20, (const float (*)[4])v21, (*xformMat)[3]);
+                (*xformMat)[3][3] = 1.0f;
             }
-            if ( *(float *)&pPostModelMat < 1.0 )
+            if (maxLayerLerp < 1.0)
             {
-                v15 = i;
-                v5 = *(unsigned int *)i;
-                v6 = *(unsigned int *)(i + 4);
-                v7 = *(unsigned int *)(i + 8);
-                LODWORD(v8) = *(unsigned int *)(i + 12);
-                v4 = i + 16;
-                HIDWORD(v8) = *(unsigned int *)(i + 16);
-                v9 = *(_QWORD *)(i + 20);
-                LODWORD(v10) = *(unsigned int *)(i + 28);
-                *(unsigned int *)&v3[72] = i + 32;
-                HIDWORD(v10) = *(unsigned int *)(i + 32);
-                v11 = *(_QWORD *)(i + 36);
-                LODWORD(v12) = *(unsigned int *)(i + 44);
-                *(unsigned int *)&v3[68] = i + 48;
-                HIDWORD(v12) = *(unsigned int *)(i + 48);
-                v13 = *(_QWORD *)(i + 52);
-                v14 = *(unsigned int *)(i + 60);
-                *(unsigned int *)v3 = v5;
-                *(unsigned int *)&v3[4] = v6;
-                *(unsigned int *)&v3[8] = v7;
-                *(_QWORD *)&v3[12] = v8;
-                *(_QWORD *)&v3[20] = v9;
-                *(_QWORD *)&v3[28] = v10;
-                *(_QWORD *)&v3[36] = v11;
-                *(_QWORD *)&v3[44] = v12;
-                *(_QWORD *)&v3[52] = v13;
-                *(unsigned int *)&v3[60] = v14;
-                ikMatrixLerp44((float (*)[4])ikIdentityMatrix44, (float (*)[4])v3, *(float *)&pPostModelMat, (float (*)[4])i);
+                v15 = (float *)xformMat;
+                v7 = *(_QWORD *)xformMat;
+                v8 = *(_QWORD *)&(*xformMat)[0][2];
+                v6 = (*xformMat)[1];
+                v9 = *(_QWORD *)&(*xformMat)[1][0];
+                v10 = *(_QWORD *)&(*xformMat)[1][2];
+                v5 = (*xformMat)[2];
+                v11 = *(_QWORD *)&(*xformMat)[2][0];
+                v12 = *(_QWORD *)&(*xformMat)[2][2];
+                v4 = (*xformMat)[3];
+                v13 = *(_QWORD *)&(*xformMat)[3][0];
+                v14 = *(_QWORD *)&(*xformMat)[3][2];
+                *(_QWORD *)&xformMatPreScaled[0][0] = v7;
+                *(_QWORD *)&xformMatPreScaled[0][2] = v8;
+                *(_QWORD *)&xformMatPreScaled[1][0] = v9;
+                *(_QWORD *)&xformMatPreScaled[1][2] = v10;
+                *(_QWORD *)&xformMatPreScaled[2][0] = v11;
+                *(_QWORD *)&xformMatPreScaled[2][2] = v12;
+                *(_QWORD *)&xformMatPreScaled[3][0] = v13;
+                *(_QWORD *)&xformMatPreScaled[3][2] = v14;
+                ikMatrixLerp44((float (*)[4])ikIdentityMatrix44, xformMatPreScaled, maxLayerLerp, (float (*)[4])xformMat);
             }
-            ikNormalizedMatrixAssert_func((float (*)[4])i);
+            ikNormalizedMatrixAssert_func((float (*)[4])xformMat);
         }
         else
         {
-            ikMatrixIdentity44((float (*)[4])i);
+            ikMatrixIdentity44((float (*)[4])xformMat);
         }
-        ++*(unsigned int *)&v33[136];
-        i += 64;
-        v35 += 16;
-        v34 += 16;
+        ++i;
+        ++xformMat;
+        ++pPreModelMat;
+        ++pPostModelMat;
     }
 }
 
