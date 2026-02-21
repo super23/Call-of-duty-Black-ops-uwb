@@ -1,24 +1,85 @@
 #include "g_spawnsystem_mp.h"
 
+#include <algorithm>
+#include <universal/com_math_anglevectors.h>
+#include "g_main_mp.h"
+#include <server/sv_world.h>
+#include <cgame/cg_drawtools.h>
+#include <client/cl_debugdata.h>
+#include <game/g_debug.h>
+
+float g_legacySpawnPointRaiseHeight = 35.0f;
+float missilePitchAdjust = 15.0f;
+float heliPitchAdjust = 15.0f;
+float speedScale = 2.0f;
+float sizeScale = 1.0f;
+float font_height = 1.5f;
+
+
+const dvar_t *spawnsystem_debug;
+const dvar_t *spawnsystem_debug_best_points;
+const dvar_t *spawnsystem_debug_points;
+const dvar_t *spawnsystem_debug_point_weights;
+const dvar_t *spawnsystem_debug_influencers;
+const dvar_t *spawnsystem_debug_influencer_types;
+const dvar_t *spawnsystem_debug_player;
+const dvar_t *spawnsystem_debug_team;
+const dvar_t *spawnsystem_debug_sideswitched;
+const dvar_t *spawnsystem_debug_visibility;
+const dvar_t *spawnsystem_debug_visibility_time;
+const dvar_t *spawnsystem_debug_archive;
+const dvar_t *spawnsystem_debug_showclients;
+const dvar_t *spawnsystem_debug_liveedit;
+const dvar_t *spawnsystem_weapon_influencer_sight_check;
+const dvar_t *spawnsystem_weapon_influencer_push_through;
+const dvar_t *spawnsystem_weapon_influencer_min_length;
+const dvar_t *spawnsystem_weapon_influencer_update_interval;
+const dvar_t *spawnsystem_friend_influencer_stacking;
+const dvar_t *spawnsystem_sight_check_max_distance;
+const dvar_t *spawnsystem_badspawn_damage_delay;
+const dvar_t *spawnsystem_badspawn_aggression_delay;
+const dvar_t *spawnsystem_badspawn_force_record;
+
+SpawnPoint g_spawnPoints[200];
+int g_spawnPointCount;
+SortedPointArray g_sortedTeamSpawnPoints[3];
+float g_spawnRandomVariation;
+int g_sortedSpawnInfluencerCount;
+int g_lastInfluencerSortTime;
+bool g_spawnPointsArchived;
+eSpawnSystemDebugMode g_spawnSystemDebugMode;
+SpawnInfluencer g_spawnInfluencers[328];
+int g_lastPointComputeTime[3];
+SpawnInfluencer *g_sortedSpawnInfluencers[328];
+SpawnInfluencerPreset g_spawnInfluencerPresets[328];
+int g_lastPointPlayer[3];
+int g_sortAxis;
+int g_debugHighlightedSpawnPoint;
+
 void __cdecl SpawnSystem_SortPoints()
 {
-    std::_Sort<SpawnPoint *,int,compare_spawnpoint_sort>(
-        g_spawnPoints,
-        &g_spawnPoints[g_spawnPointCount],
-        52 * g_spawnPointCount / 52,
-        0);
+    std::sort(&g_spawnPoints[0], &g_spawnPoints[g_spawnPointCount], NULL);
+    //std::_Sort<SpawnPoint *,int,compare_spawnpoint_sort>(
+    //    g_spawnPoints,
+    //    &g_spawnPoints[g_spawnPointCount],
+    //    52 * g_spawnPointCount / 52,
+    //    0);
 }
 
 void __cdecl SpawnSystem_SortPointsForTeamByScore(int team)
 {
     int *_Last; // [esp+E8h] [ebp-Ch]
 
-    _Last = &g_sortedTeamSpawnPoints[team].spawnPointsByIndex[dword_3F294F0[202 * team]];
-    std::_Sort<int *,int,compare_spawnpoint_score_sort>(
-        g_sortedTeamSpawnPoints[team].spawnPointsByIndex,
-        _Last,
-        ((char *)_Last - (char *)&g_sortedTeamSpawnPoints[team]) >> 2,
-        (compare_spawnpoint_score_sort)team);
+    _Last = &g_sortedTeamSpawnPoints[team].spawnPointsByIndex[g_sortedTeamSpawnPoints[team].count];
+    //std::_Sort<int *, int, compare_spawnpoint_score_sort>(
+    //    g_sortedTeamSpawnPoints[team].spawnPointsByIndex,
+    //    _Last,
+    //    ((char *)_Last - (char *)&g_sortedTeamSpawnPoints[team]) >> 2,
+    //    (compare_spawnpoint_score_sort)team);
+
+    std::sort(g_sortedTeamSpawnPoints[team].spawnPointsByIndex, 
+        &g_sortedTeamSpawnPoints[team].spawnPointsByIndex[g_sortedTeamSpawnPoints[team].count],
+        team);
 }
 
 void __cdecl SpawnSystem_Init()
@@ -37,8 +98,8 @@ void __cdecl SpawnSystem_Init()
     memset((unsigned __int8 *)g_spawnInfluencers, 0, sizeof(g_spawnInfluencers));
     memset((unsigned __int8 *)g_sortedSpawnInfluencers, 0, sizeof(g_sortedSpawnInfluencers));
     g_lastPointComputeTime[0] = 0;
-    dword_3F29B5C = 0;
-    dword_3F29B60 = 0;
+    g_lastPointComputeTime[1] = 0;
+    g_lastPointComputeTime[2] = 0;
     memset((unsigned __int8 *)g_spawnInfluencerPresets, 0, sizeof(g_spawnInfluencerPresets));
     for ( i = 0; i < 328; ++i )
         g_spawnInfluencerPresets[i].type = INFLUENCER_TYPE_UNUSED;
@@ -256,7 +317,7 @@ void __cdecl SpawnSystem_ClearPointsBaseWeight(int teammask)
     int i; // [esp+4h] [ebp-4h]
 
     if ( !teammask )
-        LOBYTE(teammask) = 7;
+        teammask = 7;
     for ( i = 0; i < g_spawnPointCount; ++i )
         SpawnSystem_SetPointBaseWeight(&g_spawnPoints[i], teammask, 0.0);
 }
@@ -291,10 +352,11 @@ void __cdecl SpawnSystem_SetPointsBaseWeight(int teammask, float *objective_posi
     SpawnPoint *point; // [esp+5Ch] [ebp-4h]
 
     if ( !teammask )
-        LOBYTE(teammask) = 7;
+        teammask = 7;
     point = 0;
-    __libm_sse2_cos(v6);
-    angle_cos = angle * 0.017453292;
+    //__libm_sse2_cos(v6);
+    //angle_cos = angle * 0.017453292;
+    angle_cos = cos(angle * 0.017453292);
     dot = 0.0f;
     for ( i = 0; i < g_spawnPointCount; ++i )
     {
@@ -317,36 +379,38 @@ void __cdecl SpawnSystem_SetPointsBaseWeight(int teammask, float *objective_posi
                 + (float)(forward[2] * direction[2]);
         if ( dot < angle_cos )
         {
-            v5 = dot;
-            __libm_sse2_acos(v7);
-            *(float *)&v5 = v5;
-            if ( (float)((float)(*(float *)&v5 * 180.0) / 3.1415927) <= angle
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
-                            994,
-                            0,
-                            "%s",
-                            "(acosf( dot ) * 180.f / M_PI) > angle") )
-            {
-                __debugbreak();
-            }
+            iassert((acosf(dot) * 180.f / M_PI) > angle);
+            //v5 = dot;
+            //__libm_sse2_acos(v7);
+            //*(float *)&v5 = v5;
+            //if ( (float)((float)(*(float *)&v5 * 180.0) / 3.1415927) <= angle
+            //    && !Assert_MyHandler(
+            //                "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
+            //                994,
+            //                0,
+            //                "%s",
+            //                "(acosf( dot ) * 180.f / M_PI) > angle") )
+            //{
+            //    __debugbreak();
+            //}
             SpawnSystem_SetPointBaseWeight(&g_spawnPoints[i], teammask, 0.0);
         }
         else
         {
-            v4 = dot;
-            __libm_sse2_acos(v7);
-            *(float *)&v4 = v4;
-            if ( angle < (float)((float)(*(float *)&v4 * 180.0) / 3.1415927)
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
-                            989,
-                            0,
-                            "%s",
-                            "(acosf( dot ) * 180.f / M_PI) <= angle") )
-            {
-                __debugbreak();
-            }
+            iassert((acosf(dot) * 180.f / M_PI) <= angle);
+            //v4 = dot;
+            //__libm_sse2_acos(v7);
+            //*(float *)&v4 = v4;
+            //if ( angle < (float)((float)(*(float *)&v4 * 180.0) / 3.1415927)
+            //    && !Assert_MyHandler(
+            //                "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
+            //                989,
+            //                0,
+            //                "%s",
+            //                "(acosf( dot ) * 180.f / M_PI) <= angle") )
+            //{
+            //    __debugbreak();
+            //}
             SpawnSystem_SetPointBaseWeight(&g_spawnPoints[i], teammask, score);
         }
     }
@@ -465,7 +529,7 @@ void __cdecl SpawnSystem_InitInfluencer(
     influencer->length = axis_length;
     if ( entNum == 1023 || entNum == 1022 )
     {
-        EntHandle::setEnt(&influencer->entity, 0);
+        influencer->entity.setEnt(0);
     }
     else
     {
@@ -484,7 +548,7 @@ void __cdecl SpawnSystem_InitInfluencer(
         {
             __debugbreak();
         }
-        EntHandle::setEnt(&influencer->entity, &g_entities[entNum]);
+        influencer->entity.setEnt(&g_entities[entNum]);
     }
     if ( !influencer->teamMask )
         influencer->teamMask = 7;
@@ -716,9 +780,9 @@ void __cdecl SpawnSystem_UpdateCylinderInfluencer(SpawnInfluencer *influencer)
     {
         __debugbreak();
     }
-    if ( !EntHandle::isDefined(&influencer->entity) )
+    if ( !influencer->entity.isDefined() )
         goto LABEL_13;
-    ent = EntHandle::ent(&influencer->entity);
+    ent = influencer->entity.ent();
     if ( !ent->client || ent->client->ps.pm_type != 2 && ent->client->ps.pm_type != 3 )
     {
         SpawnSystem_CalculateCylinderAxis(influencer);
@@ -762,9 +826,9 @@ void __cdecl SpawnSystem_CalculateCylinderLength(SpawnInfluencer *influencer)
     //col_context_t::col_context_t(&context);
     if ( influencer->active && g_spawnSystemDebugMode == SS_DEBUG_OFF )
     {
-        if ( influencer->preset->type == INFLUENCER_TYPE_VEHICLE && EntHandle::isDefined(&influencer->entity) )
+        if ( influencer->preset->type == INFLUENCER_TYPE_VEHICLE && influencer->entity.isDefined() )
         {
-            ent = EntHandle::ent(&influencer->entity);
+            ent = influencer->entity.ent();
             if ( !ent->scr_vehicle
                 && !Assert_MyHandler(
                             "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
@@ -785,7 +849,7 @@ void __cdecl SpawnSystem_CalculateCylinderLength(SpawnInfluencer *influencer)
                      && spawnsystem_weapon_influencer_sight_check->current.enabled
                      && level.time > spawnsystem_weapon_influencer_update_interval->current.integer + influencer->lastUpdateTime )
         {
-            player = EntHandle::ent(&influencer->entity);
+            player = influencer->entity.ent();
             if ( !player->client
                 && !Assert_MyHandler(
                             "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
@@ -808,7 +872,7 @@ void __cdecl SpawnSystem_CalculateCylinderLength(SpawnInfluencer *influencer)
                 vec3_origin,
                 end,
                 player->s.number,
-                (int)&loc_806833,
+                0x806833,
                 &context);
             fraction = trace.fraction;
             if ( spawnsystem_weapon_influencer_min_length->current.value > trace.fraction )
@@ -865,9 +929,9 @@ void __cdecl SpawnSystem_CalculateCylinderAxis(SpawnInfluencer *influencer)
     {
         __debugbreak();
     }
-    if ( EntHandle::isDefined(&influencer->entity) )
+    if ( influencer->entity.isDefined() )
     {
-        ent = EntHandle::ent(&influencer->entity);
+        ent = influencer->entity.ent();
         if ( ent->client && influencer->preset->type == INFLUENCER_TYPE_WEAPON )
         {
             client = ent->client;
@@ -1082,39 +1146,39 @@ void __cdecl SpawnSystem_RemoveSortedInfluencerByIndex(unsigned int influencer_i
 
 char __cdecl SpawnSystem_EnableInfluencer(unsigned int influencer_index, bool enabled)
 {
-    if ( influencer_index >= 0x148
+    if (influencer_index >= 0x148
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
-                    1523,
-                    0,
-                    "influencer_index doesn't index MAX_INFLUENCERS\n\t%i not in [0, %i)",
-                    influencer_index,
-                    328) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
+            1523,
+            0,
+            "influencer_index doesn't index MAX_INFLUENCERS\n\t%i not in [0, %i)",
+            influencer_index,
+            328))
     {
         __debugbreak();
     }
-    if ( !g_spawnInfluencers[influencer_index].used )
+    if (!g_spawnInfluencers[influencer_index].used)
         return 0;
-    byte_3F2C411[124 * influencer_index] = enabled;
+    g_spawnInfluencers[influencer_index].active = enabled;
     return 1;
 }
 
 char __cdecl SpawnSystem_SetInfluencerTeamMask(unsigned int influencer_index, int team_mask)
 {
-    if ( influencer_index >= 0x148
+    if (influencer_index >= 0x148
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
-                    1539,
-                    0,
-                    "influencer_index doesn't index MAX_INFLUENCERS\n\t%i not in [0, %i)",
-                    influencer_index,
-                    328) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
+            1539,
+            0,
+            "influencer_index doesn't index MAX_INFLUENCERS\n\t%i not in [0, %i)",
+            influencer_index,
+            328))
     {
         __debugbreak();
     }
-    if ( !g_spawnInfluencers[influencer_index].used )
+    if (!g_spawnInfluencers[influencer_index].used)
         return 0;
-    dword_3F2C41C[31 * influencer_index] = team_mask;
+    g_spawnInfluencers[influencer_index].teamMask = team_mask;
     return 1;
 }
 
@@ -1122,32 +1186,32 @@ void __cdecl SpawnSystem_ClearEntityInfluencers(gentity_s *ent)
 {
     int i; // [esp+0h] [ebp-4h]
 
-    if ( !ent
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp", 1555, 0, "%s", "ent") )
+    if (!ent
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp", 1555, 0, "%s", "ent"))
     {
         __debugbreak();
     }
-    if ( ent->s.eType == 1
+    if (ent->s.eType == 1
         || ent->s.eType == 17
         || ent->s.eType == 14
         || ent->s.eType == 6
         || ent->s.eType == 4
-        || ent->s.eType == 12 )
+        || ent->s.eType == 12)
     {
-        for ( i = 0; i < 328; ++i )
+        for (i = 0; i < 328; ++i)
         {
-            if ( g_spawnInfluencers[i].used
-                && EntHandle::isDefined((EntHandle *)&unk_3F2C420 + 31 * i)
-                && EntHandle::ent((EntHandle *)&unk_3F2C420 + 31 * i) == ent )
+            if (g_spawnInfluencers[i].used
+                && g_spawnInfluencers[i].entity.isDefined()
+                && g_spawnInfluencers[i].entity.ent() == ent)
             {
-                if ( dword_3F2C414[31 * i] <= level.time )
+                if (g_spawnInfluencers[i].expireTime <= level.time)
                 {
                     g_spawnInfluencers[i].used = 0;
                     SpawnSystem_RemoveSortedInfluencer(&g_spawnInfluencers[i]);
                 }
                 else
                 {
-                    EntHandle::setEnt((EntHandle *)&unk_3F2C420 + 31 * i, 0);
+                    g_spawnInfluencers[i].entity.setEnt(0);
                 }
             }
         }
@@ -1158,9 +1222,9 @@ void __cdecl SpawnSystem_ClearTimedOutInfluencers()
 {
     int i; // [esp+0h] [ebp-4h]
 
-    for ( i = 0; i < 328; ++i )
+    for (i = 0; i < 328; ++i)
     {
-        if ( g_spawnInfluencers[i].used && dword_3F2C414[31 * i] && dword_3F2C414[31 * i] < level.time )
+        if (g_spawnInfluencers[i].used && g_spawnInfluencers[i].expireTime && g_spawnInfluencers[i].expireTime < level.time)
         {
             g_spawnInfluencers[i].used = 0;
             SpawnSystem_RemoveSortedInfluencer(&g_spawnInfluencers[i]);
@@ -1187,14 +1251,16 @@ void __cdecl SpawnSystem_Update()
 
 void SpawnSystem_SortInfluencers()
 {
-    if ( g_lastInfluencerSortTime < level.time )
+    if (g_lastInfluencerSortTime < level.time)
     {
         g_lastInfluencerSortTime = level.time;
-        std::_Sort<SpawnInfluencer * *,int,compare_spawninfluencer_sort>(
-            g_sortedSpawnInfluencers,
-            (SpawnInfluencer **)(4 * g_sortedSpawnInfluencerCount + 66227360),
-            (4 * g_sortedSpawnInfluencerCount + 66227360 - (int)g_sortedSpawnInfluencers) >> 2,
-            0);
+        //std::_Sort<SpawnInfluencer **, int, compare_spawninfluencer_sort>(
+        //    g_sortedSpawnInfluencers,
+        //    &g_sortedSpawnInfluencers[g_sortedSpawnInfluencerCount],
+        //    (4 * g_sortedSpawnInfluencerCount) >> 2,
+        //    0);
+
+        std::sort(&g_sortedSpawnInfluencers[0], &g_sortedSpawnInfluencers[g_sortedSpawnInfluencerCount], 0);
     }
 }
 
@@ -1224,7 +1290,7 @@ void SpawnSystem_UpdateInfluencerBounds()
         {
             __debugbreak();
         }
-        if ( g_sortedSpawnInfluencers[i]->active && EntHandle::isDefined(&g_sortedSpawnInfluencers[i]->entity) )
+        if ( g_sortedSpawnInfluencers[i]->active && g_sortedSpawnInfluencers[i]->entity.isDefined() )
         {
             SpawnSystem_ComputeInfluencerBounds(g_sortedSpawnInfluencers[i]);
             if ( g_sortedSpawnInfluencers[i]->preset->shape == INFLUENCER_SHAPE_CYLINDER )
@@ -1263,9 +1329,9 @@ void SpawnSystem_UpdateInfluencerOriginAngles()
         }
         if ( g_sortedSpawnInfluencers[i]->active )
         {
-            if ( EntHandle::isDefined(&g_sortedSpawnInfluencers[i]->entity) )
+            if ( g_sortedSpawnInfluencers[i]->entity.isDefined() )
             {
-                ent = EntHandle::ent(&g_sortedSpawnInfluencers[i]->entity);
+                ent = g_sortedSpawnInfluencers[i]->entity.ent();
                 if ( !ent->client || ent->client->ps.pm_type != 2 && ent->client->ps.pm_type != 3 )
                 {
                     origin = g_sortedSpawnInfluencers[i]->origin;
@@ -1399,10 +1465,7 @@ double __cdecl SpawnSystem_ComputeCylinderInfluence(SpawnInfluencer *influencer,
     amp_4 = point->origin[1] - influencer->midPoint[1];
     amp_8 = point->origin[2] - influencer->midPoint[2];
     Vec3NormalizeTo(influencer->up, udir);
-    LODWORD(midpoint_axial_distance) = COERCE_UNSIGNED_INT(
-                                                                             (float)((float)(amp * udir[0]) + (float)(amp_4 * udir[1]))
-                                                                         + (float)(amp_8 * udir[2]))
-                                                                     & _mask__AbsFloat_;
+    midpoint_axial_distance = fabs((float)((float)(amp * udir[0]) + (float)(amp_4 * udir[1])) + (float)(amp_8 * udir[2]));
     if ( (float)(0.5 * influencer->length) <= midpoint_axial_distance )
         return 0.0;
     rsquared = (float)((float)((float)(amp * amp) + (float)(amp_4 * amp_4)) + (float)(amp_8 * amp_8))
@@ -1492,8 +1555,8 @@ void __cdecl SpawnSystem_ComputePointWeight(
                 break;
             if ( !player
                 || influencer->preset->type != INFLUENCER_TYPE_PLAYER
-                || !EntHandle::isDefined(&influencer->entity)
-                || EntHandle::ent(&influencer->entity) != player )
+                || !influencer->entity.isDefined()
+                || influencer->entity.ent() != player )
             {
                 influencer_score = 0.0f;
                 if ( influencer->preset->type >= (unsigned int)MAX_INFLUENCER_TYPE
@@ -1569,38 +1632,38 @@ void __cdecl SpawnSystem_ComputePointWeights(gentity_s *player, unsigned int poi
     SpawnPoint *spList; // [esp+4h] [ebp-Ch]
     int spCount; // [esp+8h] [ebp-8h]
 
-    if ( point_team >= 3
+    if (point_team >= 3
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
-                    2055,
-                    0,
-                    "point_team doesn't index MAX_SPAWNPOINT_TEAM\n\t%i not in [0, %i)",
-                    point_team,
-                    3) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
+            2055,
+            0,
+            "point_team doesn't index MAX_SPAWNPOINT_TEAM\n\t%i not in [0, %i)",
+            point_team,
+            3))
     {
         __debugbreak();
     }
-    if ( influencer_team >= 3
+    if (influencer_team >= 3
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
-                    2056,
-                    0,
-                    "influencer_team doesn't index MAX_SPAWNPOINT_TEAM\n\t%i not in [0, %i)",
-                    influencer_team,
-                    3) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
+            2056,
+            0,
+            "influencer_team doesn't index MAX_SPAWNPOINT_TEAM\n\t%i not in [0, %i)",
+            influencer_team,
+            3))
     {
         __debugbreak();
     }
-    dword_3F294F0[202 * point_team] = 0;
+    g_sortedTeamSpawnPoints[point_team].count = 0;
     spCount = SpawnSystem_GetSpawnPointCount();
     spList = SpawnSystem_GetSpawnPoints();
-    for ( index = 0; index < spCount; ++index )
+    for (index = 0; index < spCount; ++index)
     {
-        if ( ((1 << point_team) & spList[index].teamMask) != 0 )
+        if (((1 << point_team) & spList[index].teamMask) != 0)
         {
-            if ( g_spawnSystemDebugMode != SS_DEBUG_ARCHIVE_VIEW )
+            if (g_spawnSystemDebugMode != SS_DEBUG_ARCHIVE_VIEW)
                 SpawnSystem_ComputePointWeight(player, point_team, influencer_team, &spList[index], 0);
-            g_sortedTeamSpawnPoints[point_team].spawnPointsByIndex[dword_3F294F0[202 * point_team]++] = index;
+            g_sortedTeamSpawnPoints[point_team].spawnPointsByIndex[g_sortedTeamSpawnPoints[point_team].count++] = index;
         }
     }
 }
@@ -1633,37 +1696,37 @@ void __cdecl SpawnSystem_SortPointsByScore(unsigned int team)
 
 int __cdecl SpawnSystem_UpdateSpawnPointsForTeam(unsigned int point_team, unsigned int influencer_team)
 {
-    if ( point_team >= 3
+    if (point_team >= 3
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
-                    2106,
-                    0,
-                    "point_team doesn't index MAX_SPAWNPOINT_TEAM\n\t%i not in [0, %i)",
-                    point_team,
-                    3) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
+            2106,
+            0,
+            "point_team doesn't index MAX_SPAWNPOINT_TEAM\n\t%i not in [0, %i)",
+            point_team,
+            3))
     {
         __debugbreak();
     }
-    if ( influencer_team >= 3
+    if (influencer_team >= 3
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
-                    2107,
-                    0,
-                    "influencer_team doesn't index MAX_SPAWNPOINT_TEAM\n\t%i not in [0, %i)",
-                    influencer_team,
-                    3) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
+            2107,
+            0,
+            "influencer_team doesn't index MAX_SPAWNPOINT_TEAM\n\t%i not in [0, %i)",
+            influencer_team,
+            3))
     {
         __debugbreak();
     }
-    if ( g_lastPointPlayer[point_team] != 1023 )
+    if (g_lastPointPlayer[point_team] != 1023)
     {
-        dword_3F294F4[202 * point_team] = 0;
+        g_sortedTeamSpawnPoints[point_team].sortTime = 0;
         g_lastPointComputeTime[point_team] = 0;
     }
     SpawnSystem_ComputePointWeights(0, point_team, influencer_team);
     SpawnSystem_SortPointsByScore(point_team);
     g_lastPointPlayer[point_team] = 1023;
-    return dword_3F294F0[202 * point_team];
+    return g_sortedTeamSpawnPoints[point_team].count;
 }
 
 int __cdecl SpawnSystem_UpdateSpawnPointsForPlayer(
@@ -1671,97 +1734,97 @@ int __cdecl SpawnSystem_UpdateSpawnPointsForPlayer(
                 unsigned int point_team,
                 unsigned int influencer_team)
 {
-    if ( point_team >= 3
+    if (point_team >= 3
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
-                    2130,
-                    0,
-                    "point_team doesn't index MAX_SPAWNPOINT_TEAM\n\t%i not in [0, %i)",
-                    point_team,
-                    3) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
+            2130,
+            0,
+            "point_team doesn't index MAX_SPAWNPOINT_TEAM\n\t%i not in [0, %i)",
+            point_team,
+            3))
     {
         __debugbreak();
     }
-    if ( influencer_team >= 3
+    if (influencer_team >= 3
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
-                    2131,
-                    0,
-                    "influencer_team doesn't index MAX_SPAWNPOINT_TEAM\n\t%i not in [0, %i)",
-                    influencer_team,
-                    3) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
+            2131,
+            0,
+            "influencer_team doesn't index MAX_SPAWNPOINT_TEAM\n\t%i not in [0, %i)",
+            influencer_team,
+            3))
     {
         __debugbreak();
     }
-    if ( !ent
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp", 2132, 0, "%s", "ent") )
+    if (!ent
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp", 2132, 0, "%s", "ent"))
     {
         __debugbreak();
     }
-    if ( !ent->client
+    if (!ent->client
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
-                    2133,
-                    0,
-                    "%s",
-                    "ent->client") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
+            2133,
+            0,
+            "%s",
+            "ent->client"))
     {
         __debugbreak();
     }
-    if ( ent->s.number != g_lastPointPlayer[point_team] )
+    if (ent->s.number != g_lastPointPlayer[point_team])
     {
-        dword_3F294F4[202 * point_team] = 0;
+        g_sortedTeamSpawnPoints[point_team].sortTime = 0;
         g_lastPointComputeTime[point_team] = 0;
     }
     SpawnSystem_ComputePointWeights(ent, point_team, influencer_team);
     SpawnSystem_SortPointsByScore(point_team);
     g_lastPointPlayer[point_team] = ent->s.number;
-    return dword_3F294F0[202 * point_team];
+    return g_sortedTeamSpawnPoints[point_team].count;
 }
 
 int __cdecl SpawnSystem_GetSortedPointEntNum(unsigned int team, unsigned int index)
 {
-    if ( team >= 3
+    if (team >= 3
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
-                    2203,
-                    0,
-                    "team doesn't index MAX_SPAWNPOINT_TEAM\n\t%i not in [0, %i)",
-                    team,
-                    3) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
+            2203,
+            0,
+            "team doesn't index MAX_SPAWNPOINT_TEAM\n\t%i not in [0, %i)",
+            team,
+            3))
     {
         __debugbreak();
     }
-    if ( index >= dword_3F294F0[202 * team]
+    if (index >= g_sortedTeamSpawnPoints[team].count
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
-                    2204,
-                    0,
-                    "index doesn't index g_sortedTeamSpawnPoints[team].count\n\t%i not in [0, %i)",
-                    index,
-                    dword_3F294F0[202 * team]) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
+            2204,
+            0,
+            "index doesn't index g_sortedTeamSpawnPoints[team].count\n\t%i not in [0, %i)",
+            index,
+            g_sortedTeamSpawnPoints[team].count))
     {
         __debugbreak();
     }
-    if ( g_sortedTeamSpawnPoints[team].spawnPointsByIndex[index] >= (unsigned int)g_spawnPointCount
+    if (g_sortedTeamSpawnPoints[team].spawnPointsByIndex[index] >= (unsigned int)g_spawnPointCount
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
-                    2205,
-                    0,
-                    "g_sortedTeamSpawnPoints[team].spawnPointsByIndex[index] doesn't index g_spawnPointCount\n\t%i not in [0, %i)",
-                    g_sortedTeamSpawnPoints[team].spawnPointsByIndex[index],
-                    g_spawnPointCount) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
+            2205,
+            0,
+            "g_sortedTeamSpawnPoints[team].spawnPointsByIndex[index] doesn't index g_spawnPointCount\n\t%i not in [0, %i)",
+            g_sortedTeamSpawnPoints[team].spawnPointsByIndex[index],
+            g_spawnPointCount))
     {
         __debugbreak();
     }
-    if ( g_sortedTeamSpawnPoints[team].spawnPointsByIndex[index] >= (unsigned int)g_spawnPointCount
+    if (g_sortedTeamSpawnPoints[team].spawnPointsByIndex[index] >= (unsigned int)g_spawnPointCount
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
-                    2206,
-                    0,
-                    "g_sortedTeamSpawnPoints[team].spawnPointsByIndex[index] doesn't index g_spawnPointCount\n\t%i not in [0, %i)",
-                    g_sortedTeamSpawnPoints[team].spawnPointsByIndex[index],
-                    g_spawnPointCount) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
+            2206,
+            0,
+            "g_sortedTeamSpawnPoints[team].spawnPointsByIndex[index] doesn't index g_spawnPointCount\n\t%i not in [0, %i)",
+            g_sortedTeamSpawnPoints[team].spawnPointsByIndex[index],
+            g_spawnPointCount))
     {
         __debugbreak();
     }
@@ -1811,7 +1874,8 @@ char __cdecl SpawnSystem_IsSpawnPointVisible(
     sight_point[1] = v8;
     sight_point[2] = v9;
     //col_context_t::col_context_t(&context, iClipMask);
-    col_context_t::init_locational(&context, iIgnoreEntNum);
+    context.init_locational(iIgnoreEntNum);
+    //col_context_t::init_locational(&context, iIgnoreEntNum);
     hitnum = -1;
     for ( index = 0; index < com_maxclients->current.integer; ++index )
     {
@@ -1885,7 +1949,7 @@ void __cdecl SpawnSystem_DebugRenderVisibilityBox(float *point1, float *angles1,
     mins[2] = 0.0f;
     maxs[0] = 16.0f;
     maxs[1] = 16.0f;
-    maxs[2] = FLOAT_72_0;
+    maxs[2] = 72.0f;
     time = 500;
     if ( spawnsystem_debug_visibility_time )
         time = spawnsystem_debug_visibility_time->current.integer;
@@ -1924,9 +1988,9 @@ void __cdecl SpawnSystem_DebugRenderVisibilityCheck(
     {
         memset(&trace, 0, 16);
         if ( ignore_entity )
-            G_TraceCapsule(&trace, start, vec3_origin, vec3_origin, end, ignore_entity->s.number, (int)&loc_806833, &context);
+            G_TraceCapsule(&trace, start, vec3_origin, vec3_origin, end, ignore_entity->s.number, 0x806833, &context);
         else
-            G_TraceCapsule(&trace, start, vec3_origin, vec3_origin, end, 1023, (int)&loc_806833, &context);
+            G_TraceCapsule(&trace, start, vec3_origin, vec3_origin, end, 1023, 0x806833, &context);
         Vec3Lerp(start, end, trace.fraction, end);
     }
     CG_DebugLine(start, end, color, 1, time);
@@ -2042,12 +2106,12 @@ void SpawnSystem_DebugRender()
                     && (influencer_team & influencerList[j].teamMask) != 0
                     && influencerList[j].disableTime < level.time
                     && (!player
-                     || !EntHandle::isDefined(&influencerList[j].entity)
-                     || EntHandle::ent(&influencerList[j].entity) != player) )
+                     || !influencerList[j].entity.isDefined()
+                     || influencerList[j].entity.ent() != player) )
                 {
                     if ( influencerList[j].preset->shape )
                     {
-                        if ( influencerList[j].preset->shape == INFLUENCER_SHAPE_CYLINDER )
+                        //if ( influencerList[j].preset->shape == INFLUENCER_SHAPE_CYLINDER )
                             //BLOPS_NULLSUB();
                     }
                     else
@@ -2061,6 +2125,7 @@ void SpawnSystem_DebugRender()
             SpawnSystem_DebugRenderTeamPoints(point_team);
         if ( spawnsystem_debug_point_weights->current.enabled )
             SpawnSystem_DebugRenderTeamPointWeights(point_team);
+#if 0
         if ( spawnsystem_debug_best_points->current.enabled )
         {
             if ( (point_team & 1) != 0 )
@@ -2072,6 +2137,7 @@ void SpawnSystem_DebugRender()
         }
         if ( spawnsystem_debug_showclients->current.enabled )
             //BLOPS_NULLSUB();
+#endif
     }
 }
 
@@ -2196,7 +2262,7 @@ void __cdecl SpawnSystem_DebugRenderSpawnPointBox(SpawnPoint *sp, const float *c
     mins[2] = 0.0f;
     maxs[0] = 16.0f;
     maxs[1] = 16.0f;
-    maxs[2] = FLOAT_72_0;
+    maxs[2] = 72.0f;
     height_offset = 45.0f;
     origin[0] = sp->origin[0];
     origin[1] = sp->origin[1];
@@ -2221,7 +2287,7 @@ void __cdecl SpawnSystem_SetSpawnPointsOrder(int team)
     SpawnPoint *SpawnPoints; // [esp+8h] [ebp-4h]
 
     SpawnPoints = SpawnSystem_GetSpawnPoints();
-    for ( index = 0; index < dword_3F294F0[202 * team]; ++index )
+    for (index = 0; index < g_sortedTeamSpawnPoints[team].count; ++index)
         SpawnPoints[g_sortedTeamSpawnPoints[team].spawnPointsByIndex[index]].orderNum = index;
 }
 

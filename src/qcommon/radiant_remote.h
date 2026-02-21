@@ -80,3 +80,6 @@ char __cdecl CG_ProcessRadiantCmds();
 CommandProcessorType __cdecl GetCommandProcessorType(const SpawnVar *spawnVar);
 void __cdecl G_ProcessRadiantCmd(const RadiantCommand *command);
 char __cdecl G_ProcessRadiantCmds();
+
+
+extern gentity_s *g_radiant_selected_ent;

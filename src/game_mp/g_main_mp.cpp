@@ -20,6 +20,82 @@
 #include <turret/turret_placement.h>
 #include <DynEntity/DynEntity_server.h>
 #include <qcommon/dobj_management.h>
+#include "g_utils_mp.h"
+#include <game/g_targets.h>
+#include "actor_mp.h"
+#include <gfx_d3d/r_dvars.h>
+#include <bgame/bg_dog_animations_mp.h>
+#include "g_active_mp.h"
+#include <glass/glass_server.h>
+#include <universal/com_files.h>
+#include <game/g_hudelem.h>
+#include <clientscript/cscr_vm.h>
+#include <client_mp/sv_client_mp.h>
+#include <server/sv_game.h>
+#include <universal/com_shared.h>
+#include <server_mp/sv_main_mp.h>
+#include <server_mp/sv_init_mp.h>
+#include <game/actor_script_cmd.h>
+#include <client_mp/cl_cgame_mp.h>
+#include "g_misc_mp.h"
+#include "g_combat_mp.h"
+#include <bgame/bg_fire.h>
+#include <game/g_debug.h>
+#include <ik/ik.h>
+#include "g_spawn_mp.h"
+#include "g_team_mp.h"
+#include "g_spawnsystem_mp.h"
+#include <game/actor_corpse.h>
+#include <live/live_steam_server.h>
+#include <bgame/bg_pmove.h>
+#include <server/sv_world.h>
+#include <flame/flame_damage.h>
+#include <game/g_mover.h>
+#include <game/g_player_corpse.h>
+#include <game/g_weapon.h>
+#include <client/cl_debugdata.h>
+
+const char *g_entcountNames[8] =
+{
+  "off",
+  "basic entity statistics",
+  "entities by type",
+  "entities in server snapshot (NO_CLIENT unset)",
+  "entities considered for delta (NO_CLIENT and CLIENT_ONCE unset)",
+  "delta compared script_model breakdown",
+  "entities in server snapshot by eType",
+  NULL
+};
+
+const char *g_entinfoTypeNames[4] =
+{ "all", "AI only", "vehicle only", NULL };
+
+const char *g_entinfoAITextNames[6] =
+{ "all", "brief", "combat", "movement", "state", NULL };
+
+const char *g_entinfoNames[9] =
+{
+  "off",
+  "all ents / draw lines / draw info",
+  "selected ent / draw lines / draw info",
+  "selected ent / draw info",
+  "all ents / draw goal lines and radii",
+  "selected ent / draw goal lines and radii",
+  "script models considered for network",
+  "selected ent / animation tree",
+  NULL
+};
+
+const char *moveOrientModeStrings[7] =
+{
+  "invalid",
+  "dont_change",
+  "motion",
+  "enemy",
+  "enemy_or_motion",
+  "enemy_or_motion_sidestep",
+  "goal"
+};
 
 const dvar_t *g_connectpaths;
 const dvar_t *g_loadScripts;
@@ -231,6 +307,9 @@ const dvar_t *g_turretServerPitchMax;
 const dvar_t *g_turretBipodOffset;
 
 level_locals_t level;
+
+int g_timed_radius_damage_count;
+TIMED_RADIUS_DAMAGE g_timed_radius_damage[512];
 
 gentity_s g_entities[MAX_GENTITIES];
 sentient_s g_sentients[48];
@@ -492,8 +571,10 @@ void __cdecl G_FreeEntities(bool clearTargets)
                 Actor_ClearPileUp(&level.actors[ia]);
         }
     }
+
     for ( ib = 0; ib < 32; ++ib )
-        EntHandle::setEnt((EntHandle *)(4 * ib + 65348584), 0);
+        level.droppedWeaponCue[ib].setEnt(0);
+
     if ( g_entities[1023].r.inuse
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp",
@@ -541,7 +622,7 @@ int __cdecl G_IsServerGameSystem(int clientNum)
         return 0;
     if ( clientNum != g_debugPlayerAnimScript->current.integer )
         return 0;
-    if ( *(bgs_t **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) != &level_bgs )
+    if (bgs != &level_bgs)
         return 0;
     Com_Printf(19, "(%i) ", level.time);
     return 1;
@@ -1790,7 +1871,7 @@ XAnim_s *G_LoadAnimTreeInstances()
     for ( ib = 0; ib < 8; ++ib )
     {
         result = (XAnim_s *)XAnimCreateTree(anims, (void *(__cdecl *)(int))Hunk_AllocActorXAnimServer);
-        *(unsigned int *)&g_scr_data.actorCorpseInfo[1504 * ib + 32] = result;
+        *(unsigned int *)&g_scr_data.actorCorpseInfo[1504 * ib + 32] = (unsigned int)result;
         *(unsigned int *)&g_scr_data.actorCorpseInfo[1504 * ib + 36] = -1;
     }
     return result;
@@ -1808,8 +1889,8 @@ void G_PrintAllFastFileErrors()
     {
         __debugbreak();
     }
-    G_PrintFastFileErrors("code_post_gfx_mp");
-    G_PrintFastFileErrors("common_mp");
+    G_PrintFastFileErrors((char*)"code_post_gfx_mp");
+    G_PrintFastFileErrors((char*)"common_mp");
     G_PrintFastFileErrors((char *)sv_mapname->current.integer);
 }
 
@@ -1956,7 +2037,8 @@ void __cdecl G_ShutdownGame(int freeScripts)
     for ( i = 0; i < 32; ++i )
     {
         p_proximity_data = &g_pmove[i].proximity_data;
-        colgeom_visitor_inlined_t<500>::reset(p_proximity_data);
+        p_proximity_data->reset();
+        //colgeom_visitor_inlined_t<500>::reset(p_proximity_data);
     }
     ShutdownRopes();
     GlassSv_Shutdown();
@@ -1967,7 +2049,8 @@ void __cdecl G_ShutdownGame(int freeScripts)
         G_LogPrintf("------------------------------------------------------------\n");
         FS_FCloseFile(level.logFile);
     }
-    *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = 0;
+    //*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = 0;
+    bgs = 0;
     G_FreeEntities(1);
     HudElem_DestroyAll();
     Path_Shutdown();
@@ -2267,7 +2350,7 @@ void __cdecl G_RunThink(gentity_s *ent)
         ent->nextthink = 0;
         think = entityHandlers[ent->handler].think;
         if ( !think )
-            Com_Error(ERR_DROP, &byte_CBD214);
+            Com_Error(ERR_DROP, "NULL ent->think");
         think(ent);
     }
 }
@@ -2304,6 +2387,7 @@ void __cdecl ScriptPump()
     Scr_RunCurrentThreads(SCRIPTINSTANCE_SERVER);
 }
 
+int lastEntTime;
 void __cdecl ShowEntityInfo()
 {
     int v0; // [esp+0h] [ebp-A4h]
@@ -2345,10 +2429,10 @@ void __cdecl ShowEntityInfo()
             }
             else
             {
-                G_TraceCapsule(&trace, vStart, vec3_origin, vec3_origin, vEnd, 0, (int)&loc_80A080, &context);
+                G_TraceCapsule(&trace, vStart, vec3_origin, vec3_origin, vEnd, 0, 0x80A080, &context);
             }
             hitEntId = Trace_GetEntityHitId(&trace);
-            entinfo = (void (__cdecl *)(gentity_s *, float *))dword_E07CF0[12 * g_entities[hitEntId].handler];
+            entinfo = entityHandlers[g_entities[hitEntId].handler].entinfo;
             if ( entinfo )
             {
                 Dvar_SetIntByName("ai_debugEntIndex", hitEntId);
@@ -2359,7 +2443,7 @@ void __cdecl ShowEntityInfo()
                 ent = &g_entities[ai_debugEntIndex->current.integer];
                 if ( ent->actor && ai_debugCoverEntityNum->current.integer > 0 )
                     Dvar_SetInt((dvar_s *)ai_debugCoverEntityNum, ent->s.number);
-                entinfo = (void (__cdecl *)(gentity_s *, float *))dword_E07CF0[12 * ent->handler];
+                entinfo = entityHandlers[ent->handler].entinfo;
                 if ( entinfo )
                     entinfo(ent, vStart);
             }
@@ -2391,7 +2475,7 @@ void __cdecl ShowEntityInfo()
                         goto LABEL_24;
                     }
                 }
-                entinfo = (void (__cdecl *)(gentity_s *, float *))dword_E07CF0[12 * ent->handler];
+                entinfo = entityHandlers[ent->handler].entinfo;
                 if ( entinfo )
                     entinfo(ent, vStart);
             }
@@ -2428,6 +2512,8 @@ void __cdecl G_UpdateIKDisableTerrainMappingTimeout(gentity_s *ent)
     }
 }
 
+static float dir[3];
+static float hitPos[3];
 void __cdecl G_UpdateTimedDamage(gentity_s *ent)
 {
     int max; // [esp+Ch] [ebp-10h]
@@ -2595,7 +2681,7 @@ bool __cdecl ResolveParentClientMask(const gentity_s *entChild, gentity_s *entPa
     return changed;
 }
 
-void    G_RunFrame(__m128 a1@<xmm0>, int levelTime)
+void    G_RunFrame(int levelTime)
 {
     int Time; // eax
     int v3; // eax
@@ -2619,18 +2705,8 @@ void    G_RunFrame(__m128 a1@<xmm0>, int levelTime)
     level_bgs.time = levelTime;
     level_bgs.latestSnapshotTime = levelTime;
     level_bgs.frametime = levelTime - level.previousTime;
-    if ( *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp",
-                    3575,
-                    0,
-                    "%s\n\t(bgs) = %p",
-                    "(bgs == 0)",
-                    *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-    {
-        __debugbreak();
-    }
-    *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = &level_bgs;
+    iassert(bgs == 0);
+    bgs = &level_bgs;
     if ( level.frametime < 0
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp",
@@ -2655,7 +2731,7 @@ void    G_RunFrame(__m128 a1@<xmm0>, int levelTime)
             }
             if ( (ent->client->flags & 3) == 0 )
                 G_DoTouchTriggers(ent);
-            G_UpdateWeapons(a1, ent);
+            G_UpdateWeapons(ent);
             G_UpdateTimedDamage(ent);
             G_UpdateIKPlayerClipTerrainTimeout(ent);
             G_UpdateIKDisableTerrainMappingTimeout(ent);
@@ -2666,8 +2742,10 @@ void    G_RunFrame(__m128 a1@<xmm0>, int levelTime)
     }
     //if ( GetCurrentThreadId() == g_DXDeviceThread )
         //D3DPERF_EndEvent();
+#ifdef KISAK_LIVE
     if ( onlinegame->current.enabled && com_sv_running->current.enabled )
         MatchRecordMovement();
+#endif
     G_DebugTimedDamage();
     Time = G_GetTime();
     SV_Flame_Age_All_Objects(Time);
@@ -2897,18 +2975,9 @@ void    G_RunFrame(__m128 a1@<xmm0>, int levelTime)
     G_UpdateActorCorpses();
     Path_Update();
     DebugDumpAnims();
-    if ( *(bgs_t **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) != &level_bgs
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp",
-                    3811,
-                    0,
-                    "%s\n\t(bgs) = %p",
-                    "(bgs == &level_bgs)",
-                    *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-    {
-        __debugbreak();
-    }
-    *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = 0;
+
+    iassert(bgs == &level_bgs);
+    bgs = 0;
     ShowEntityInfo();
     //BLOPS_NULLSUB();
     GlassSv_Update();
@@ -2993,7 +3062,7 @@ void __cdecl G_UpdateIKCulling(gentity_s *ent)
         if ( ent->client )
         {
             ent->client->ps.eFlags |= 0x20000u;
-            if ( ((unsigned int)&loc_90000C & ent->client->ps.pm_flags) == 0
+            if ( (0x90000C & ent->client->ps.pm_flags) == 0
                 && ((ent->client->ps.pm_flags & 0x8000) == 0
                  || g_pmove[ent->client->ps.clientNum].xyspeed <= player_sprintThreshhold->current.value) )
             {
@@ -3222,7 +3291,7 @@ LABEL_63:
     }
 }
 
-void    G_UpdateWeapons(__m128 a1@<xmm0>, gentity_s *ent)
+void    G_UpdateWeapons(gentity_s *ent)
 {
     weaponParms wp; // [esp+4h] [ebp-48h] BYREF
 
@@ -3244,7 +3313,7 @@ void    G_UpdateWeapons(__m128 a1@<xmm0>, gentity_s *ent)
         Weapon_Flamethrower_Update(ent, &wp);
     }
     if ( ent->client )
-        Weapon_Overheat_Update(a1, ent);
+        Weapon_Overheat_Update(ent);
 }
 
 int G_PopulateMatchState()

@@ -944,7 +944,6 @@ struct pmove_t;
 struct playerState_s;
 struct pml_t;
 struct WeaponVariantDef;
-struct WeaponDef;
 
 void __cdecl BG_LoadPenetrationDepthTable();
 void __cdecl BG_ParsePenetrationDepthTable(const char *penetrateType, float *depthTable, char *buffer);

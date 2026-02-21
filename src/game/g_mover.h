@@ -62,3 +62,5 @@ void __cdecl trigger_use_shared(gentity_s *self, SpawnVar *spawnVar);
 void __cdecl trigger_use_touch(gentity_s *ent, SpawnVar *spawnVar);
 //mover_info_t *__thiscall phys_simple_allocator<mover_info_t>::allocate(phys_simple_allocator<mover_info_t> *this);
 gentity_s *__cdecl GetEntity(scr_entref_t entref);
+
+extern const char *hintStrings[8];

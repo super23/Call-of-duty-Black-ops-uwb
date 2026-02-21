@@ -1,4 +1,15 @@
 #include "g_trigger_mp.h"
+#include <clientscript/cscr_vm.h>
+#include "g_main_mp.h"
+#include "g_spawn_mp.h"
+#include <clientscript/scr_const.h>
+#include <server/sv_game.h>
+#include "g_utils_mp.h"
+#include <server/sv_world.h>
+#include "g_combat_mp.h"
+#include <game/g_load_utils.h>
+#include "actor_mp.h"
+#include <qcommon/cm_world.h>
 
 void __cdecl G_Trigger(gentity_s *self, gentity_s *other)
 {
@@ -100,7 +111,7 @@ void __cdecl SP_trigger_multiple(gentity_s *ent, SpawnVar *spawnVar)
         if ( InitTrigger(ent) )
         {
             InitSentientTrigger(ent);
-            SV_LinkEntity((int)&savedregs, ent);
+            SV_LinkEntity(ent);
         }
     }
 }
@@ -152,7 +163,7 @@ void __cdecl SP_trigger_radius(gentity_s *ent, SpawnVar *spawnVar)
     init_trigger_radius(ent, radius, height);
     ent->handler = 4;
     InitTriggerWait(ent, 64, spawnVar);
-    SV_LinkEntity((int)&savedregs, ent);
+    SV_LinkEntity(ent);
 }
 
 void __cdecl init_trigger_radius(gentity_s *ent, float radius, float height)
@@ -173,13 +184,13 @@ void __cdecl init_trigger_radius(gentity_s *ent, float radius, float height)
     ent->s.otherEntityNum = 1023;
 }
 
-void __cdecl SP_trigger_radius_use(gentity_s *ent)
+void __cdecl SP_trigger_radius_use(gentity_s *ent, SpawnVar *v)
 {
     int savedregs; // [esp+8h] [ebp+0h] BYREF
 
     init_trigger_radius(ent, 128.0, 96.0);
     ent->handler = 22;
-    SV_LinkEntity((int)&savedregs, ent);
+    SV_LinkEntity(ent);
 }
 
 void __cdecl SP_trigger_disk(gentity_s *ent, SpawnVar *spawnVar)
@@ -207,14 +218,14 @@ void __cdecl SP_trigger_disk(gentity_s *ent, SpawnVar *spawnVar)
         radius = radius + 64.0;
         ent->r.mins[0] = -radius;
         ent->r.mins[1] = -radius;
-        ent->r.mins[2] = FLOAT_N100000_0;
+        ent->r.mins[2] = -100000.0f;
         ent->r.maxs[0] = radius;
         ent->r.maxs[1] = radius;
-        ent->r.maxs[2] = FLOAT_100000_0;
+        ent->r.maxs[2] = 100000.0f;
         ent->r.svFlags = 65;
         InitTriggerWait(ent, 64, spawnVar);
         InitSentientTrigger(ent);
-        SV_LinkEntity((int)&savedregs, ent);
+        SV_LinkEntity(ent);
     }
 }
 
@@ -281,7 +292,7 @@ void __cdecl SP_trigger_hurt(gentity_s *self, SpawnVar *spawnVar)
     }
 }
 
-void __cdecl SP_trigger_once(gentity_s *ent)
+void __cdecl SP_trigger_once(gentity_s *ent, SpawnVar *spawnVar)
 {
     int savedregs; // [esp+0h] [ebp+0h] BYREF
 
@@ -296,7 +307,7 @@ void __cdecl SP_trigger_once(gentity_s *ent)
         if ( InitTrigger(ent) )
         {
             InitSentientTrigger(ent);
-            SV_LinkEntity((int)&savedregs, ent);
+            SV_LinkEntity(ent);
         }
     }
 }
@@ -376,14 +387,15 @@ void __cdecl SP_trigger_damage(gentity_s *pSelf, SpawnVar *spawnVar)
 {
     int savedregs; // [esp+0h] [ebp+0h] BYREF
 
-    G_SpawnInt(spawnVar, "accumulate", "0", &pSelf->item[0].clipAmmoCount);
-    G_SpawnInt(spawnVar, "threshold", "0", (int *)&pSelf->540);
+    G_SpawnInt(spawnVar, "accumulate", "0", &pSelf->trigger.accumulate);
+    G_SpawnInt(spawnVar, "threshold", "0", &pSelf->trigger.threshold);
+
     pSelf->health = 32000;
     pSelf->takedamage = 1;
     pSelf->handler = 7;
     InitTriggerWait(pSelf, 512, spawnVar);
     if ( InitTrigger(pSelf) )
-        SV_LinkEntity((int)&savedregs, pSelf);
+        SV_LinkEntity(pSelf);
 }
 
 void __cdecl G_CheckHitTriggerDamage(gentity_s *pActivator, float *vStart, float *vEnd, int iDamage, unsigned int iMOD)
@@ -518,7 +530,7 @@ void __cdecl G_GrenadeTouchTriggerDamage(gentity_s *pActivator, float *vStart, f
     }
 }
 
-void __cdecl SP_trigger_lookat(gentity_s *self)
+void __cdecl SP_trigger_lookat(gentity_s *self, SpawnVar *v)
 {
     if ( SV_SetBrushModel(self) )
     {
@@ -549,13 +561,13 @@ void __cdecl trigger_ik_playerclip_terrain_touch(gentity_s *ent, gentity_s *othe
     }
 }
 
-void __cdecl SP_trigger_ik_playerclip_terrain(gentity_s *self)
+void __cdecl SP_trigger_ik_playerclip_terrain(gentity_s *self, SpawnVar *v)
 {
     int savedregs; // [esp+0h] [ebp+0h] BYREF
 
     self->handler = 29;
     if ( InitTrigger(self) )
-        SV_LinkEntity((int)&savedregs, self);
+        SV_LinkEntity(self);
 }
 
 void __cdecl trigger_ik_disable_terrain_mapping_touch(gentity_s *ent, gentity_s *other, int __formal)

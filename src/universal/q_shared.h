@@ -184,11 +184,13 @@ typedef ull                         uint64;
 #define WORDn(x, n)     (*((_WORD*)&(x)+n))
 #define DWORDn(x, n)    (*((_DWORD*)&(x)+n))
 
+#define LOBYTE_NAMEHACK(x)    BYTEn(x,LOW_IND(x,_BYTE))
 #define LOBYTE(x)    BYTEn(x,LOW_IND(x,_BYTE))
 #define LOWORD(x)    WORDn(x,LOW_IND(x,_WORD))
 #define LOWORD_NAMEHACK(x)    WORDn(x,LOW_IND(x,_WORD)) // windows. 
 #define LODWORD(x) DWORDn(x,LOW_IND(x,_DWORD))
 #define HIBYTE(x)    BYTEn(x,HIGH_IND(x,_BYTE))
+#define HIBYTE_NAMEHACK(x)    BYTEn(x,HIGH_IND(x,_BYTE))
 #define HIWORD(x)    WORDn(x,HIGH_IND(x,_WORD))
 #define HIDWORD(x) DWORDn(x,HIGH_IND(x,_DWORD))
 #define BYTE1(x)     BYTEn(x,    1)                 // byte 1 (counting from 0)

@@ -1,4 +1,25 @@
 #include "g_cmds_mp.h"
+#include "g_main_mp.h"
+#include <server/sv_game.h>
+#include <server_mp/sv_main_mp.h>
+#include <server_mp/sv_init_mp.h>
+#include <game/g_weapon.h>
+#include <bgame/bg_misc.h>
+#include "g_utils_mp.h"
+#include <bgame/bg_weapons_ammo.h>
+#include "g_client_script_cmd_mp.h"
+#include "g_combat_mp.h"
+#include <client_mp/g_client_mp.h>
+#include "g_active_mp.h"
+#include "g_spawn_mp.h"
+#include <clientscript/scr_const.h>
+#include "g_team_mp.h"
+#include <game/g_load_utils.h>
+#include <server_mp/sv_main_pc_mp.h>
+#include <client_mp/sv_client_mp.h>
+#include "g_misc_mp.h"
+#include <clientscript/cscr_vm.h>
+#include <game/actor_fields.h>
 
 int __cdecl CheatsOk(gentity_s *ent)
 {
@@ -28,6 +49,7 @@ int __cdecl CheatsOk(gentity_s *ent)
     }
 }
 
+char line[1024];
 char *__cdecl ConcatArgs(int start)
 {
     unsigned int v1; // kr00_4
@@ -243,11 +265,11 @@ LABEL_50:
 
 void __cdecl Cmd_Take_f(gentity_s *ent)
 {
-    const WeaponVariantDef *WeaponVariantDef; // eax
-    int v2; // eax
-    const WeaponVariantDef *v3; // eax
+    const WeaponVariantDef *weapVarDef; // eax
+    int v3; // eax
+    const WeaponVariantDef *weapVarDef2; // eax
     int AmmoNotInClip; // [esp-4h] [ebp-44h]
-    int v5; // [esp-4h] [ebp-44h]
+    int v6; // [esp-4h] [ebp-44h]
     int j; // [esp+20h] [ebp-20h]
     int i; // [esp+24h] [ebp-1Ch]
     int slot; // [esp+28h] [ebp-18h]
@@ -257,97 +279,97 @@ void __cdecl Cmd_Take_f(gentity_s *ent)
     unsigned int weapIndex; // [esp+38h] [ebp-8h]
     unsigned int weapIndexa; // [esp+38h] [ebp-8h]
     unsigned int weapIndexb; // [esp+38h] [ebp-8h]
-    bool take_all; // [esp+3Ch] [ebp-4h]
+    BOOL take_all; // [esp+3Ch] [ebp-4h]
 
-    if ( CheatsOk(ent) )
+    if (CheatsOk(ent))
     {
         amt = ConcatArgs(2);
         amount = atoi(amt);
         name = ConcatArgs(1);
-        if ( name )
+        if (name)
         {
-            if ( strlen(name) )
+            if (strlen(name))
             {
                 take_all = I_stricmp(name, "all") == 0;
-                if ( !take_all )
+                if (!take_all)
                 {
-                    if ( I_strnicmp(name, "health", 6) )
+                    if (I_strnicmp(name, "health", 6))
                         goto LABEL_22;
                 }
-                if ( amount )
+                if (amount)
                 {
                     ent->health -= amount;
-                    if ( ent->health < 1 )
+                    if (ent->health < 1)
                         ent->health = 1;
                 }
                 else
                 {
                     ent->health = 1;
                 }
-                if ( take_all )
+                if (take_all)
                 {
-LABEL_22:
-                    if ( !take_all && I_stricmp(name, "weapons") )
+                LABEL_22:
+                    if (!take_all && I_stricmp(name, "weapons"))
                         goto LABEL_35;
-                    for ( slot = 0; slot < 15; ++slot )
+                    for (slot = 0; slot < 15; ++slot)
                     {
-                        if ( ent->client->ps.heldWeapons[slot].weapon )
+                        if (ent->client->ps.heldWeapons[slot].weapon)
                             BG_TakePlayerWeapon(&ent->client->ps, ent->client->ps.heldWeapons[slot].weapon);
                     }
-                    if ( ent->client->ps.weapon )
+                    if (ent->client->ps.weapon)
                     {
                         ent->client->ps.weapon = 0;
                         G_SelectWeaponIndex(ent - g_entities, 0);
                     }
-                    if ( take_all )
+                    if (take_all)
                     {
-LABEL_35:
-                        if ( !take_all && I_strnicmp(name, "ammo", 4) )
+                    LABEL_35:
+                        if (!take_all && I_strnicmp(name, "ammo", 4))
                             goto LABEL_37;
-                        if ( amount )
+                        if (amount)
                         {
-                            if ( ent->client->ps.weapon )
+                            if (ent->client->ps.weapon)
                             {
                                 weapIndex = ent->client->ps.weapon;
                                 BG_AddAmmoToPool(&ent->client->ps, weapIndex, -amount);
-                                if ( BG_GetAmmoNotInClip(&ent->client->ps, weapIndex) < 0 )
+                                if (BG_GetAmmoNotInClip(&ent->client->ps, weapIndex) < 0)
                                 {
                                     AmmoNotInClip = BG_GetAmmoNotInClip(&ent->client->ps, weapIndex);
-                                    WeaponVariantDef = BG_GetWeaponVariantDef(weapIndex);
-                                    BG_AddAmmoToClip(&ent->client->ps, WeaponVariantDef->iClipIndex, AmmoNotInClip);
+                                    weapVarDef = BG_GetWeaponVariantDef(weapIndex);
+                                    BG_AddAmmoToClip(&ent->client->ps, weapVarDef->iClipIndex, AmmoNotInClip);
                                     BG_SetAmmoInPool(&ent->client->ps, weapIndex, 0);
                                 }
                             }
                         }
                         else
                         {
-                            for ( i = 0; i < 15; ++i )
+                            for (i = 0; i < 15; ++i)
                             {
                                 weapIndexa = ent->client->ps.heldWeapons[i].weapon;
-                                if ( weapIndexa )
+                                if (weapIndexa)
                                 {
                                     BG_SetAmmoInPool(&ent->client->ps, weapIndexa, 0);
-                                    v2 = BG_ClipForWeapon(weapIndexa);
-                                    BG_SetAmmoInClip(&ent->client->ps, v2, 0);
+                                    v3 = BG_ClipForWeapon(weapIndexa);
+                                    BG_SetAmmoInClip(&ent->client->ps, v3, 0);
                                 }
                             }
                         }
-                        if ( take_all )
+                        if (take_all)
                         {
-LABEL_37:
-                            if ( !I_strnicmp(name, "allammo", 7) && amount )
+                        LABEL_37:
+                            if (!I_strnicmp(name, "allammo", 7) && amount)
                             {
-                                for ( j = 0; j < 15; ++j )
+                                for (j = 0; j < 15; ++j)
                                 {
                                     weapIndexb = ent->client->ps.heldWeapons[j].weapon;
-                                    if ( weapIndexb )
+                                    if (weapIndexb)
                                     {
                                         BG_AddAmmoToPool(&ent->client->ps, weapIndexb, -amount);
-                                        if ( BG_GetAmmoNotInClip(&ent->client->ps, weapIndexb) < 0 )
+                                        if (BG_GetAmmoNotInClip(&ent->client->ps, weapIndexb) < 0)
                                         {
-                                            v5 = BG_GetAmmoNotInClip(&ent->client->ps, weapIndexb);
-                                            v3 = BG_GetWeaponVariantDef(weapIndexb);
-                                            BG_AddAmmoToClip(&ent->client->ps, v3->iClipIndex, v5);
+                                            v6 = BG_GetAmmoNotInClip(&ent->client->ps, weapIndexb);
+                                            weapVarDef2 = BG_GetWeaponVariantDef(weapIndexb);
+                                            BG_AddAmmoToClip(&ent->client->ps, weapVarDef2->iClipIndex, v6);
                                             BG_SetAmmoInPool(&ent->client->ps, weapIndexb, 0);
                                         }
                                     }
@@ -452,51 +474,31 @@ void __cdecl Cmd_UFO_f(gentity_s *ent)
 
 void __cdecl Cmd_Kill_f(gentity_s *ent)
 {
-    if ( !ent->client
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_cmds_mp.cpp", 666, 0, "%s", "ent->client") )
+    if (!ent->client
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_cmds_mp.cpp", 666, 0, "%s", "ent->client"))
     {
         __debugbreak();
     }
-    if ( ent->client->sess.connected == CON_DISCONNECTED
+    if (ent->client->sess.connected == CON_DISCONNECTED
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_cmds_mp.cpp",
-                    667,
-                    0,
-                    "%s",
-                    "ent->client->sess.connected != CON_DISCONNECTED") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_cmds_mp.cpp",
+            667,
+            0,
+            "%s",
+            "ent->client->sess.connected != CON_DISCONNECTED"))
     {
         __debugbreak();
     }
-    if ( ent->client->sess.sessionState == SESS_STATE_PLAYING && CheatsOk(ent) )
+    if (ent->client->sess.sessionState == SESS_STATE_PLAYING && CheatsOk(ent))
     {
-        if ( *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_cmds_mp.cpp",
-                        675,
-                        0,
-                        "%s\n\t(bgs) = %p",
-                        "(bgs == 0)",
-                        *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-        {
-            __debugbreak();
-        }
-        *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = &level_bgs;
+        iassert(bgs == 0);
+        bgs = &level_bgs;
         ent->flags &= 0xFFFFFFFC;
         ent->health = 0;
         ent->client->ps.stats[0] = 0;
         player_die(ent, ent, ent, 100000, 0xDu, 0, 0, HITLOC_NONE, 0);
-        if ( *(bgs_t **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) != &level_bgs
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_cmds_mp.cpp",
-                        682,
-                        0,
-                        "%s\n\t(bgs) = %p",
-                        "(bgs == &level_bgs)",
-                        *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-        {
-            __debugbreak();
-        }
-        *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = 0;
+        iassert(bgs == &level_bgs);
+        bgs = 0;
     }
 }
 
@@ -545,7 +547,7 @@ void __cdecl StopFollowing(gentity_s *ent)
         vMaxs[0] = 8.0f;
         vMaxs[1] = 8.0f;
         vMaxs[2] = 8.0f;
-        G_TraceCapsule(&trace, vPos, vMins, vMaxs, vEnd, 1023, (int)&loc_810011, &context);
+        G_TraceCapsule(&trace, vPos, vMins, vMaxs, vEnd, 1023, 0x810011, &context);
         Vec3Lerp(vPos, vEnd, trace.fraction, vPos);
         AssignToSmallerType<unsigned char>(&client->ps.clientNum, ent - g_entities);
         client->ps.pm_flags &= 0xFFFEFFEF;
@@ -600,7 +602,7 @@ int __cdecl Cmd_FollowCycle_f(gentity_s *ent, int dir)
         __debugbreak();
     }
     if ( dir != 1 && dir != -1 )
-        Com_Error(ERR_DROP, &byte_CB6134, dir);
+        Com_Error(ERR_DROP, "Cmd_FollowCycle_f: bad dir %i", dir);
     if ( !ent->client
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_cmds_mp.cpp", 792, 0, "%s", "ent->client") )
     {
@@ -773,29 +775,29 @@ void __cdecl G_SayTo(
         }
         if ( ent->client->sess.cs.team == TEAM_SPECTATOR )
         {
-            Com_sprintf(szStateString, 0x40u, &byte_CB6248);
+            Com_sprintf(szStateString, 0x40u, "( GAME_SPECTATOR )");
         }
         else if ( ent->client->sess.sessionState )
         {
-            Com_sprintf(szStateString, 0x40u, &byte_CB6234, team_color);
+            Com_sprintf(szStateString, 0x40u, "%s ( GAME_DEAD )", team_color);
         }
         else
         {
-            Com_sprintf(szStateString, 0x40u, off_C5DB40, team_color);
+            Com_sprintf(szStateString, 0x40u, "%s", team_color); // KISAKTODO
         }
         if ( mode == 1 )
         {
-            Com_sprintf(name, 0x80u, aS_47, szStateString, teamString, cleanname, a7_0);
+            Com_sprintf(name, 0x80u, "%s( %s )%s%s", szStateString, teamString, cleanname, "^7");
         }
         else if ( mode == 2 )
         {
-            Com_sprintf(name, 0x80u, "%s[%s]%s: ", szStateString, cleanname, a7_0);
+            Com_sprintf(name, 0x80u, "%s[%s]%s: ", szStateString, cleanname, "^7");
         }
         else
         {
-            Com_sprintf(name, 0x80u, "%s%s%s: ", szStateString, cleanname, a7_0);
+            Com_sprintf(name, 0x80u, "%s%s%s: ", szStateString, cleanname, "^7");
         }
-        v7 = va(aC_9, (char)((mode == 1) + 104), name, 94, color, message);
+        v7 = va("%c %s%c%c%s", (char)((mode == 1) + 104), name, 94, color, message);
         SV_GameSendServerCommand(other - g_entities, SV_CMD_CAN_IGNORE, v7);
     }
 }
@@ -806,7 +808,7 @@ void __cdecl Cmd_Where_f(gentity_s *ent)
     const char *v2; // eax
 
     v1 = vtos(ent->r.currentOrigin);
-    v2 = va(aC_5, 101, v1);
+    v2 = va("%c \"%s\"", 101, v1);
     SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v2);
 }
 
@@ -818,9 +820,9 @@ void __cdecl Cmd_CallVote_f(gentity_s *ent)
     const char *v4; // eax
     const char *v5; // eax
     const char *v6; // eax
-    int v7; // eax
-    int v8; // eax
-    int v9; // eax
+    char *v7; // eax
+    char *v8; // eax
+    char *v9; // eax
     const char *v10; // eax
     const char *v11; // eax
     const char *v12; // eax
@@ -884,13 +886,13 @@ void __cdecl Cmd_CallVote_f(gentity_s *ent)
     SV_Cmd_ArgvBuffer(1, arg1, 256);
     SV_Cmd_ArgvBuffer(2, arg2, 256);
     SV_Cmd_ArgvBuffer(3, arg3, 256);
-    strchr((unsigned __int8 *)arg1, 0x3Bu);
+    v7 = strchr(arg1, 0x3Bu);
     if ( v7 )
         goto LABEL_85;
-    strchr((unsigned __int8 *)arg2, 0x3Bu);
+    v8 = strchr(arg2, 0x3Bu);
     if ( v8 )
         goto LABEL_85;
-    strchr((unsigned __int8 *)arg3, 0x3Bu);
+    v9 = strchr(arg3, 0x3Bu);
     if ( v9 )
         goto LABEL_85;
     if ( !g_oldVoting->current.enabled )
@@ -910,6 +912,10 @@ void __cdecl Cmd_CallVote_f(gentity_s *ent)
     {
         v10 = va("%c \"GAME_INVALIDVOTESTRING\"", 101);
         SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v10);
+        const char aCGameVotecomma[] =
+            "%c \"GAME_VOTECOMMANDSARE\x15 map_restart, map_rotate, map <mapname>, g_gametype <typename>, typemap <typename> <mapname>, kick <player>, clientkick <clientnum>, tempBanUser <player>, tempBanClient <clientNum>\"\x00\x00tempBanClient";
+
+
         v11 = va(aCGameVotecomma, 101);
         SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v11);
         return;
@@ -934,8 +940,8 @@ LABEL_32:
         SV_Cmd_ArgvBuffer(3, arg3, 256);
         if ( !useFastFile->current.enabled && !SV_MapExists(arg3) )
         {
-LABEL_37:
-            v14 = va(aC_4, 101);
+        LABEL_37:
+            v14 = va("%c \"\x15the server doesn't have that map\"\x00\x00%c \"GAME_INVALIDGAMETYPE\"", 101);
             SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v14);
             return;
         }
@@ -956,19 +962,21 @@ LABEL_37:
                 Com_sprintf(level.voteString, 0x400u, "map %s", arg3);
             if ( arg2[0] )
             {
+                const char aGameVoteGamety_0[] =
+                    "GAME_VOTE_GAMETYPE\x14%s\x15 - \x14GAME_VOTE_MAP\x15%s\x00\x00map %s";
                 GameTypeNameForScript = Scr_GetGameTypeNameForScript(arg2);
                 Com_sprintf(level.voteDisplayString, 0x400u, aGameVoteGamety_0, GameTypeNameForScript, arg3);
             }
             else
             {
-                Com_sprintf(level.voteDisplayString, 0x400u, aGameVoteMap, arg3);
+                Com_sprintf(level.voteDisplayString, 0x400u, "GAME_VOTE_MAP", arg3);
             }
         }
         else
         {
             Com_sprintf(level.voteString, 0x400u, "g_gametype %s; map_restart", arg2);
             v17 = Scr_GetGameTypeNameForScript(arg2);
-            Com_sprintf(level.voteDisplayString, 0x400u, aGameVoteGamety, v17);
+            Com_sprintf(level.voteDisplayString, 0x400u, "GAME_VOTE_GAMETYPE %s", v17);
         }
         goto LABEL_96;
     }
@@ -978,7 +986,7 @@ LABEL_37:
             goto LABEL_32;
         Com_sprintf(level.voteString, 0x400u, "%s %s; map_restart", arg1, arg2);
         v18 = Scr_GetGameTypeNameForScript(arg2);
-        Com_sprintf(level.voteDisplayString, 0x400u, aGameVoteGamety, v18);
+        Com_sprintf(level.voteDisplayString, 0x400u, "GAME_VOTE_GAMETYPE %s", v18);
         goto LABEL_96;
     }
     if ( !I_stricmp(arg1, "map_restart") )
@@ -993,7 +1001,7 @@ LABEL_37:
         Com_sprintf(level.voteDisplayString, 0x400u, "GAME_VOTE_NEXTMAP");
 LABEL_96:
         playerName = CS_DisplayName(&ent->client->sess.cs, 3);
-        v22 = va(aCGameCalledavo, 101, playerName);
+        v22 = va("%c GAME_CALLEDAVOTE %s", 101, playerName);
         SV_GameSendServerCommand(-1, SV_CMD_CAN_IGNORE, v22);
         level.voteTime = level.time + 30000;
         level.voteYes = 1;
@@ -1015,7 +1023,7 @@ LABEL_96:
         if ( !useFastFile->current.enabled && !SV_MapExists(arg2) )
             goto LABEL_37;
         Com_sprintf(level.voteString, 0x400u, "%s %s", arg1, arg2);
-        Com_sprintf(level.voteDisplayString, 0x400u, aGameVoteMap, arg2);
+        Com_sprintf(level.voteDisplayString, 0x400u, "GAME_VOTE_MAP", arg2);
         goto LABEL_96;
     }
     if ( !I_stricmp(arg1, "kick")
@@ -1072,7 +1080,7 @@ LABEL_85:
         else
             Com_sprintf(level.voteString, 0x400u, "%s \"%d\"", "clientkick", kicknum);
         v26 = CS_DisplayName(&level.clients[kicknum].sess.cs, 3);
-        Com_sprintf(level.voteDisplayString, 0x400u, aGameVoteKick, kicknum, v26);
+        Com_sprintf(level.voteDisplayString, 0x400u, "GAME_VOTE_KICK (%i)%s", kicknum, v26);
         goto LABEL_96;
     }
     if ( !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_cmds_mp.cpp", 1283, 0, "unhandled callvote") )
@@ -1123,7 +1131,7 @@ void __cdecl Cmd_Vote_f(gentity_s *ent)
         }
         else
         {
-            Scr_PlayerVote(ent, "yes");
+            Scr_PlayerVote(ent, (char*)"yes");
         }
     }
     else if ( g_oldVoting->current.enabled )
@@ -1133,7 +1141,7 @@ void __cdecl Cmd_Vote_f(gentity_s *ent)
     }
     else
     {
-        Scr_PlayerVote(ent, "no");
+        Scr_PlayerVote(ent, (char *)"no");
     }
 }
 
@@ -1163,7 +1171,7 @@ void __cdecl Cmd_SetViewpos_f(gentity_s *ent)
     }
     if ( SV_Cmd_Argc() < 4 || SV_Cmd_Argc() > 6 )
     {
-        v2 = va(aCGameUsage, 101);
+        v2 = va("%c GAME_USAGE : setviewpos x y z yaw", 101);
         SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v2);
         return;
     }
@@ -1281,7 +1289,7 @@ void __cdecl ClientCommand(int clientNum)
                                                                                                 if ( I_stricmp(cmd, "visionsetnight") )
                                                                                                 {
                                                                                                     memset(errMsg, 0, 64);
-                                                                                                    if ( Com_sprintf(errMsg, 0x40u, aCGameUnknowncl, 101, cmd) < 0 )
+                                                                                                    if ( Com_sprintf(errMsg, 0x40u, "%c GAME_UNKNOWNCLIENTCOMMAND", 101, cmd) < 0)
                                                                                                         memset(&errMsg[60], 46, 3);
                                                                                                     errMsg[63] = 0;
                                                                                                     SV_GameSendServerCommand(clientNum, SV_CMD_CAN_IGNORE, errMsg);

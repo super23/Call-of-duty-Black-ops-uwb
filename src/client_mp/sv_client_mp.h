@@ -71,3 +71,5 @@ bool __cdecl SV_IsTestClient(unsigned int clientNum);
 bool __cdecl SV_IsDemoClient(unsigned int clientNum);
 char __cdecl SV_AddDemoClient();
 void __cdecl SV_RemoveDemoClient();
+
+extern int sv_serverId_value;

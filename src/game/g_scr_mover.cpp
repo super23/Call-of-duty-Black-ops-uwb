@@ -241,7 +241,7 @@ void __cdecl InitScriptMover(gentity_s *pSelf)
     pSelf->flags |= 0x1000u;
 }
 
-void __cdecl SP_script_brushmodel(gentity_s *self)
+void __cdecl SP_script_brushmodel(gentity_s *self, SpawnVar *v)
 {
     int savedregs; // [esp+18h] [ebp+0h] BYREF
 
@@ -264,7 +264,7 @@ void __cdecl SP_script_brushmodel(gentity_s *self)
     }
 }
 
-void __cdecl SP_script_model(gentity_s *pSelf)
+void __cdecl SP_script_model(gentity_s *pSelf, SpawnVar *v)
 {
     DObj *obj; // [esp+0h] [ebp-4h]
     int savedregs; // [esp+4h] [ebp+0h] BYREF
@@ -295,7 +295,7 @@ void __cdecl SP_script_model(gentity_s *pSelf)
         pSelf->flags |= 0x40000800u;
 }
 
-void __cdecl SP_script_origin(gentity_s *pSelf)
+void __cdecl SP_script_origin(gentity_s *pSelf, SpawnVar *v)
 {
     int savedregs; // [esp+0h] [ebp+0h] BYREF
 

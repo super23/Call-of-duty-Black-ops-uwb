@@ -3,6 +3,51 @@
 #include <qcommon/common.h>
 #include <qcommon/cm_load.h>
 
+colgeom_visitor_t::colgeom_visitor_t()
+{
+    //this->__vftable = (colgeom_visitor_t_vtbl *)&visitor_base_t::`vftable';
+    //this->__vftable = (colgeom_visitor_t_vtbl *)&colgeom_visitor_t::`vftable';
+    this->m_mn.vec.u[0] = 0;
+    this->m_mn.vec.u[1] = 0;
+    this->m_mn.vec.u[2] = 0;
+    this->m_mn.vec.u[3] = 0;
+    this->m_mx.vec.u[0] = 0;
+    this->m_mx.vec.u[1] = 0;
+    this->m_mx.vec.u[2] = 0;
+    this->m_mx.vec.u[3] = 0;
+    this->m_p0.vec.u[0] = 0;
+    this->m_p0.vec.u[1] = 0;
+    this->m_p0.vec.u[2] = 0;
+    this->m_p0.vec.u[3] = 0;
+    this->m_p1.vec.u[0] = 0;
+    this->m_p1.vec.u[1] = 0;
+    this->m_p1.vec.u[2] = 0;
+    this->m_p1.vec.u[3] = 0;
+    this->m_delta.vec.u[0] = 0;
+    this->m_delta.vec.u[1] = 0;
+    this->m_delta.vec.u[2] = 0;
+    this->m_delta.vec.u[3] = 0;
+    this->m_rvec.vec.u[0] = 0;
+    this->m_rvec.vec.u[1] = 0;
+    this->m_rvec.vec.u[2] = 0;
+    this->m_rvec.vec.u[3] = 0;
+}
+
+colgeom_visitor_t::colgeom_visitor_t(const colgeom_visitor_t *__that)
+{
+    //this->__vftable = (colgeom_visitor_t_vtbl *)&visitor_base_t::`vftable';
+    //    this->__vftable = (colgeom_visitor_t_vtbl *)&colgeom_visitor_t::`vftable';
+    this->m_mn = __that->m_mn;
+    this->m_mx = __that->m_mx;
+    this->m_p0 = __that->m_p0;
+    this->m_p1 = __that->m_p1;
+    this->m_delta = __that->m_delta;
+    this->m_rvec = __that->m_rvec;
+    this->m_radius = __that->m_radius;
+    this->m_mask = __that->m_mask;
+    this->m_threadInfo = __that->m_threadInfo;
+}
+
 void colgeom_visitor_t::intersect_box(float *mn, float *mx, int mask)
 {
     cLeaf_s *leaf; // [esp+18h] [ebp-1050h]

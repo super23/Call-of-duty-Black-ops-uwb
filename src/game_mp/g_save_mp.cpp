@@ -1,4 +1,5 @@
 #include "g_save_mp.h"
+#include <universal/q_shared.h>
 
 void __cdecl MemFile_WriteByte(MemoryFile *memFile, unsigned __int8 value)
 {

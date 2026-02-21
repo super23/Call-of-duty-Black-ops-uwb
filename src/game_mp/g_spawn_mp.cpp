@@ -1,4 +1,83 @@
 #include "g_spawn_mp.h"
+#include <game/g_load_utils.h>
+#include <clientscript/cscr_vm.h>
+#include "g_utils_mp.h"
+#include <clientscript/cscr_stringlist.h>
+#include <server_mp/sv_init_mp.h>
+#include <game/pathnode_load_obj.h>
+#include "actor_mp.h"
+#include <clientscript/scr_const.h>
+#include <game/g_mover.h>
+#include "g_trigger_mp.h"
+#include "g_misc_mp.h"
+#include "game/turret.h"
+#include <game/g_scr_mover.h>
+#include <bgame/bg_misc.h>
+#include <game/g_weapon.h>
+#include <game/g_client_fields.h>
+#include <cgame/cg_hudelem.h>
+
+struct ent_field_t // sizeof=0x14
+{                                       // XREF: .rdata:fields_1/r
+    const char *name;
+    int ofs;
+    int size[1];
+    fieldtype_t type;
+    void (__cdecl *callback)(gentity_s *, int);
+};
+
+const ent_field_t fields_1[16] =
+{
+  { "classname", 356, { 2 }, F_STRING, Scr_ReadOnlyField },
+  { "origin", 292, { 12 }, F_VECTOR, Scr_SetOrigin },
+  { "model", 348, { 2 }, F_MODEL, Scr_ReadOnlyField },
+  { "spawnflags", 368, { 4 }, F_INT, Scr_ReadOnlyField },
+  { "target", 358, { 2 }, F_STRING, NULL },
+  { "targetname", 360, { 2 }, F_STRING, NULL },
+  { "script_noteworthy", 362, { 2 }, F_STRING, NULL },
+  { "count", 532, { 4 }, F_INT, NULL },
+  { "health", 404, { 4 }, F_INT, Scr_SetHealth },
+  { "dmg", 412, { 4 }, F_INT, NULL },
+  { "angles", 304, { 12 }, F_VECTOR, Scr_SetAngles },
+  { "birthtime", 748, { 4 }, F_INT, Scr_ReadOnlyField },
+  { "index", 560, { 4 }, F_INT, Scr_SetExposureIndex },
+  { "lerp_to_lighter", 564, { 4 }, F_FLOAT, Scr_SetExposureLerpToLighter },
+  { "lerp_to_darker", 568, { 4 }, F_FLOAT, Scr_SetExposureLerpToDarker },
+  { NULL, 0, { 0 }, F_INT, NULL }
+};
+
+const SpawnFuncEntry s_bspOnlySpawns[15] =
+{
+  { "trigger_use", trigger_use_touch },
+  { "trigger_use_touch", trigger_use_touch },
+  { "trigger_multiple", SP_trigger_multiple },
+  { "trigger_disk", SP_trigger_disk },
+  { "trigger_hurt", SP_trigger_hurt },
+  { "trigger_once", SP_trigger_once },
+  { "trigger_damage", SP_trigger_damage },
+  { "trigger_lookat", SP_trigger_lookat },
+  { "trigger_ik_playerclip_terrain", SP_trigger_ik_playerclip_terrain },
+  { "light", SP_light },
+  { "misc_mg42", SP_turret },
+  { "misc_turret", SP_turret },
+  { "script_brushmodel", SP_script_brushmodel },
+  { "script_struct", G_FreeEntityWrapper },
+  { "script_vehicle", SP_script_vehicle }
+};
+
+const SpawnFuncEntry s_bspOrDynamicSpawns[7] =
+{
+  { "info_notnull", SP_info_notnull },
+  { "info_notnull_big", SP_info_notnull },
+  { "trigger_radius", SP_trigger_radius },
+  { "trigger_radius_use", SP_trigger_radius_use },
+  { "script_model", SP_script_model },
+  { "script_origin", SP_script_origin },
+  { "script_vehicle_collmap", SP_script_vehicle_collmap }
+};
+
+
+
 
 int __cdecl G_SpawnFloat(const SpawnVar *spawnVar, const char *key, const char *defaultString, float *out)
 {
@@ -20,12 +99,12 @@ int __cdecl G_SpawnInt(const SpawnVar *spawnVar, const char *key, const char *de
     return present;
 }
 
-void __cdecl Scr_ReadOnlyField()
+void __cdecl Scr_ReadOnlyField(gentity_s *ent, int)
 {
     Scr_Error("Tried to set a read only entity field", 0);
 }
 
-void __cdecl G_FreeEntityWrapper(gentity_s *ent)
+void __cdecl G_FreeEntityWrapper(gentity_s *ent, SpawnVar *v)
 {
     G_FreeEntity(ent);
 }
@@ -504,16 +583,16 @@ int __cdecl G_CallSpawnEntity(gentity_s *ent)
             spawnFunc = (void (__cdecl *)(gentity_s *))G_FindSpawnFunc(classname, s_bspOrDynamicSpawns, 7);
             if ( spawnFunc )
             {
-                if ( spawnFunc == G_FreeEntityWrapper
-                    && !Assert_MyHandler(
-                                "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp",
-                                729,
-                                0,
-                                "%s",
-                                "spawnFunc != G_FreeEntityWrapper") )
-                {
-                    __debugbreak();
-                }
+                //if ( spawnFunc == G_FreeEntityWrapper
+                //    && !Assert_MyHandler(
+                //                "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp",
+                //                729,
+                //                0,
+                //                "%s",
+                //                "spawnFunc != G_FreeEntityWrapper") )
+                //{
+                //    __debugbreak();
+                //}
                 ((void (__cdecl *)(gentity_s *, unsigned int))spawnFunc)(ent, 0);
                 if ( !ent->r.inuse
                     && !Assert_MyHandler(
@@ -576,7 +655,7 @@ void __cdecl GScr_AddFieldsForEntity()
 
 void __cdecl GScr_AddFieldsForRadiant()
 {
-    Scr_AddFields("radiant", "txt", SCRIPTINSTANCE_SERVER);
+    Scr_AddFields("radiant", (char*)"txt", SCRIPTINSTANCE_SERVER);
 }
 
 void __cdecl GScr_SetGenericField(unsigned __int8 *b, fieldtype_t type, int ofs, unsigned int whichbits)
@@ -590,26 +669,26 @@ void __cdecl GScr_SetGenericField(unsigned __int8 *b, fieldtype_t type, int ofs,
         case F_ACTOR:
             ent = Scr_GetEntityAllowNull(0, SCRIPTINSTANCE_SERVER);
             if ( ent )
-                *(unsigned int *)&b[ofs] = ent->actor;
+                *(unsigned int *)&b[ofs] = (unsigned int)ent->actor;
             else
                 *(unsigned int *)&b[ofs] = 0;
             break;
         case F_SENTIENT:
             enta = Scr_GetEntityAllowNull(0, SCRIPTINSTANCE_SERVER);
             if ( enta )
-                *(unsigned int *)&b[ofs] = enta->sentient;
+                *(unsigned int *)&b[ofs] = (unsigned int)enta->sentient;
             else
                 *(unsigned int *)&b[ofs] = 0;
             break;
         case F_SENTIENTHANDLE:
             entb = Scr_GetEntityAllowNull(0, SCRIPTINSTANCE_SERVER);
             if ( entb )
-                SentientHandle::setSentient((SentientHandle *)&b[ofs], entb->sentient);
+                ((SentientHandle *)&b[ofs])->setSentient(entb->sentient);
             else
-                SentientHandle::setSentient((SentientHandle *)&b[ofs], 0);
+                ((SentientHandle *)&b[ofs])->setSentient(0);
             break;
         case F_PATHNODE:
-            *(unsigned int *)&b[ofs] = Scr_GetPathnode(0, SCRIPTINSTANCE_SERVER);
+            *(unsigned int *)&b[ofs] = (unsigned int)Scr_GetPathnode(0, SCRIPTINSTANCE_SERVER);
             break;
         default:
             Scr_SetGenericField(b, type, ofs, SCRIPTINSTANCE_SERVER, whichbits);
@@ -793,9 +872,9 @@ void __cdecl GScr_GetGenericField(unsigned __int8 *b, fieldtype_t type, int ofs,
                 Scr_AddEntity(*(gentity_s **)&b[ofs], SCRIPTINSTANCE_SERVER);
             break;
         case F_ENTHANDLE:
-            if ( EntHandle::isDefined((EntHandle *)&b[ofs]) )
+            if ( ((EntHandle *)&b[ofs])->isDefined() )
             {
-                v4 = EntHandle::ent((EntHandle *)&b[ofs]);
+                v4 = ((EntHandle *)&b[ofs])->ent();
                 Scr_AddEntity(v4, SCRIPTINSTANCE_SERVER);
             }
             break;
@@ -808,9 +887,9 @@ void __cdecl GScr_GetGenericField(unsigned __int8 *b, fieldtype_t type, int ofs,
                 Scr_AddEntity(**(gentity_s ***)&b[ofs], SCRIPTINSTANCE_SERVER);
             break;
         case F_SENTIENTHANDLE:
-            if ( SentientHandle::isDefined((SentientHandle *)&b[ofs]) )
+            if ( ((SentientHandle *)&b[ofs])->isDefined() )
             {
-                v5 = SentientHandle::sentient((SentientHandle *)&b[ofs]);
+                v5 = ((SentientHandle *)&b[ofs])->sentient();
                 Scr_AddEntity(v5->ent, SCRIPTINSTANCE_SERVER);
             }
             break;
@@ -943,7 +1022,8 @@ gentity_s *__cdecl Scr_GetEntityAllowNull(unsigned int index, scriptInstance_t i
 
     if ( !Scr_GetType(index, inst) )
         return 0;
-    v4 = *Scr_GetEntityRef(&v3, index, inst);
+    //v4 = *Scr_GetEntityRef(&v3, index, inst);
+    v4 = Scr_GetEntityRef(index, inst);
     entref = v4;
     if ( v4.classnum )
         return 0;
@@ -966,7 +1046,8 @@ gentity_s *__cdecl Scr_GetEntity(unsigned int index)
     scr_entref_t v3; // [esp+Ah] [ebp-Eh]
     scr_entref_t entref; // [esp+10h] [ebp-8h]
 
-    v3 = *Scr_GetEntityRef(&v2, index, SCRIPTINSTANCE_SERVER);
+    //v3 = *Scr_GetEntityRef(&v2, index, SCRIPTINSTANCE_SERVER);
+    v3 = Scr_GetEntityRef(index, SCRIPTINSTANCE_SERVER);
     entref = v3;
     if ( v3.classnum )
     {
@@ -1250,8 +1331,8 @@ void __cdecl SP_worldspawn(SpawnVar *spawnVar)
 
     G_SpawnString(spawnVar, "classname", "", &s);
     if ( I_stricmp(s, "worldspawn") )
-        Com_Error(ERR_DROP, &byte_CCB794);
-    SV_SetConfigstring(2, "cod");
+        Com_Error(ERR_DROP, "SP_worldspawn: The first entity isn't 'worldspawn'");
+    SV_SetConfigstring(2, (char*)"cod");
     G_SpawnString(spawnVar, "ambienttrack", "", &s);
     if ( *s )
     {
@@ -1284,7 +1365,7 @@ void __cdecl SP_worldspawn(SpawnVar *spawnVar)
     }
     else
     {
-        SV_SetConfigstring(1548, "0");
+        SV_SetConfigstring(1548, (char*)"0");
         level.compassNorth[0] = 1.0f;
         level.compassNorth[1] = 0.0f;
     }
@@ -1293,7 +1374,7 @@ void __cdecl SP_worldspawn(SpawnVar *spawnVar)
     g_entities[1022].s.number = 1022;
     Scr_SetString(&g_entities[1022].classname, scr_const.worldspawn, SCRIPTINSTANCE_SERVER);
     g_entities[1022].r.inuse = 1;
-    if ( EntHandle::isDefined(&g_entities[1022].r.ownerNum) )
+    if ( g_entities[1022].r.ownerNum.isDefined() )
     {
         if ( !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp",
@@ -1308,7 +1389,7 @@ void __cdecl SP_worldspawn(SpawnVar *spawnVar)
 void __cdecl G_SpawnEntitiesFromString()
 {
     if ( !G_ParseSpawnVars(&level.spawnVar) )
-        Com_Error(ERR_DROP, &byte_CCB7D4);
+        Com_Error(ERR_DROP, "SpawnEntities: no entities");
     SP_worldspawn(&level.spawnVar);
     while ( G_ParseSpawnVars(&level.spawnVar) )
         G_CallSpawn(&level.spawnVar);

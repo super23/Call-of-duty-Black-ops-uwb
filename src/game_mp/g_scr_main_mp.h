@@ -4,6 +4,7 @@
 #include <database/db_registry.h>
 #include <qcommon/common.h>
 #include <game/actor_animapi.h>
+#include <game/g_player_corpse.h>
 
 struct gentity_s;
 struct scr_animscript_t;
@@ -53,33 +54,20 @@ struct scr_data_t_unnamed_type_gametype // sizeof=0x10BC
                                         // Scr_ParseGameTypeList_LoadObj+14A/o ...
 };
 
-struct scr_data_t // sizeof=0x9810
-{                                       // XREF: .data:scr_data_t g_scr_data/r
-    int levelscript;                    // XREF: Scr_LoadLevel(void)+4/r
-                                        // Scr_LoadLevel(void)+11/r ...
+struct scr_data_t
+{
+    int levelscript;
     int gametypescript;
     scr_data_t_unnamed_type_gametype gametype;
-                                        // XREF: GScr_LoadGameTypeScript(void)+41/w
-                                        // GScr_LoadGameTypeScript(void)+5C/w ...
-    int delete_;                        // XREF: GScr_LoadScripts(scriptInstance_t)+29/w
-                                        // G_FreeEntityDelay(gentity_s *)+4/r ...
-    int initstructs;                    // XREF: GScr_LoadScripts(scriptInstance_t)+46/w
-                                        // G_LoadStructs(void)+6/r ...
-    int createstruct;                   // XREF: GScr_LoadScripts(scriptInstance_t)+63/w
-                                        // G_SpawnStruct(SpawnVar &):loc_683EB6/r ...
-    int findstruct;                     // XREF: GScr_LoadScripts(scriptInstance_t)+80/w
-                                        // G_FindStruct(SpawnVar &,int):loc_6EC836/r ...
-    AnimScriptList dogAnim;             // XREF: GScr_LoadDogAnimScripts+8/o
-                                        // .text:006418CE/o ...
-    // padding byte
-    // padding byte
-    // padding byte
-    // padding byte
-    _BYTE playerCorpseInfo[5984];       // XREF: PlayerCmd_ClonePlayer+401/o
-                                        // G_FreeAnimTreeInstances+88/r ...
-    XAnimTree_s *actorXAnimTrees[16];   // XREF: G_GetActorAnimTree(actor_s *)+F/r
-    _BYTE actorCorpseInfo[11968];       // XREF: G_FreeAnimTreeInstances+E3/r
-                                        // G_FreeAnimTreeInstances+F9/r ...
+    int delete_;
+    int initstructs;
+    int createstruct;
+    int findstruct;
+    AnimScriptList dogAnim;
+    corpseInfo_t playerCorpseInfo[4];
+    XAnimTree_s *actorXAnimTrees[16];
+    corpseInfo_t actorCorpseInfo[8];
+    //_BYTE gap97F8[96];
     int destructible_callback;
     int levelnotify;
     int faceeventnotify;
@@ -122,8 +110,8 @@ int GScr_LoadLevelScript();
 int GScr_LoadPreGameScript();
 void __cdecl GScr_PostLoadScripts(scriptInstance_t inst);
 void __cdecl GScr_FreeScripts(scriptInstance_t inst);
-void __cdecl ScrCmd_GetClanId();
-void __cdecl ScrCmd_GetClanName();
+void __cdecl ScrCmd_GetClanId(scr_entref_t entref);
+void __cdecl ScrCmd_GetClanName(scr_entref_t entref);
 void GScr_CreatePrintChannel();
 void GScr_printChannelSet();
 void __cdecl Scr_LocalizationError(unsigned int iParm, const char *pszErrorMessage);
@@ -150,7 +138,7 @@ int __cdecl Scr_GetArrayValues_Vector(
                 float (*vector_array)[3],
                 int vector_array_size,
                 const char *array_type_description);
-int GScr_linelist();
+void GScr_linelist();
 void GScr_IsDefined();
 void GScr_AddDebugCommand();
 void GScr_IsMP();
@@ -189,7 +177,7 @@ gentity_s *__cdecl SpawnTurretInternal(unsigned int classname, float *origin, co
 void GScr_SpawnTurret();
 void GScr_SpawnHelicopter();
 void __cdecl GScr_SetTurretCarried(scr_entref_t entref);
-int GScr_GetAnimTreesLoaded();
+void GScr_GetAnimTreesLoaded();
 void GScr_FindAnimByName();
 void GScr_PrecacheTurret();
 void __cdecl ScrCmd_SetMoveSpeedScale(scr_entref_t entref);
@@ -236,7 +224,7 @@ void __cdecl ScrCmd_PlaySoundToTeam(scr_entref_t entref);
 void __cdecl ScrCmd_PlayBattleChatterToTeam(scr_entref_t entref);
 gentity_s *__cdecl StartScriptPlayBattleChatterOnEnt(scr_entref_t entref);
 void __cdecl ScrCmd_PlaySoundToPlayer(scr_entref_t entref);
-gentity_s *Scr_PlaySoundAtPosition();
+void Scr_PlaySoundAtPosition();
 void __cdecl ScrCmd_PlayLoopSound(scr_entref_t entref);
 void __cdecl ScrCmd_StopLoopSound(scr_entref_t entref);
 void __cdecl ScrCmd_Delete(scr_entref_t entref);
@@ -272,7 +260,7 @@ void __cdecl GScr_SetTurretTeam(scr_entref_t entref);
 void __cdecl GScr_SetTurretIgnoreGoals(scr_entref_t entref);
 void __cdecl GScr_MakeTurretUsable(scr_entref_t entref);
 void __cdecl GScr_MakeTurretUnusable(scr_entref_t entref);
-void __cdecl GScr_SetTurretAccuracy();
+void __cdecl GScr_SetTurretAccuracy(scr_entref_t entref);
 void __cdecl GScr_GetTurretTarget(scr_entref_t entref);
 void __cdecl GScr_DisconnectPaths(scr_entref_t entref);
 void __cdecl GScr_ConnectPaths(scr_entref_t entref);
@@ -298,16 +286,16 @@ void __cdecl ClearObjective(objective_t *obj);
 void Scr_Objective_Add();
 void __cdecl ClearObjective_OnEntity(objective_t *obj);
 void __cdecl SetObjectiveIcon(objective_t *obj, unsigned int paramNum);
-VariableUnion Scr_Objective_Delete();
+void Scr_Objective_Delete();
 void Scr_Objective_State();
 void Scr_Objective_Icon();
-objective_t *Scr_Objective_Position();
+void Scr_Objective_Position();
 void Scr_Objective_OnEntity();
 void Scr_Objective_Current();
-int Scr_Objective_SetVisibleToPlayer();
-int Scr_Objective_SetInvisibleToPlayer();
-VariableUnion Scr_Objective_SetVisibleToAll();
-VariableUnion Scr_Objective_SetInvisibleToAll();
+void Scr_Objective_SetVisibleToPlayer();
+void Scr_Objective_SetInvisibleToPlayer();
+void Scr_Objective_SetVisibleToAll();
+void Scr_Objective_SetInvisibleToAll();
 void Scr_Objective_SetSize();
 void Scr_Objective_SetColor();
 void GScr_Objective_Team();
@@ -315,7 +303,7 @@ void __cdecl GetNormalised2DMapPosition(float *inPos, float *outPos);
 void __cdecl SetArtilleryIconLocation();
 void GScr_LogPrint();
 void GScr_WorldEntNumber();
-gentity_s *GScr_Obituary();
+void GScr_Obituary();
 void __cdecl GScr_ReviveObituary();
 void GScr_LerpFloat();
 void GScr_LerpVector();
@@ -359,7 +347,7 @@ void GScr_IsWeaponClipOnly();
 void GScr_IsWeaponDetonationTimed();
 void GScr_PrecacheLocationSelector();
 int __cdecl GScr_GetLocSelIndex(const char *mtlName);
-unsigned intScr_BulletTrace();
+void Scr_BulletTrace();
 void Scr_BulletTracePassed();
 void __cdecl Scr_SightTracePassed();
 void Scr_PhysicsTrace();
@@ -436,19 +424,19 @@ void __cdecl GScr_GetWaterHeight();
 void __cdecl GScr_DepthInWater(scr_entref_t entref);
 void __cdecl GScr_DepthOfPlayerInWater(scr_entref_t entref);
 void Scr_SoundFade();
-int Scr_PrecacheModel();
+void Scr_PrecacheModel();
 void __cdecl Scr_ErrorOnDefaultAsset(XAssetType type, char *assetName);
 void Scr_PrecacheShellShock();
 void Scr_PrecacheItem();
-int Scr_PrecacheShader();
-char *Scr_PrecacheString();
-int Scr_GrenadeExplosionEffect();
+void Scr_PrecacheShader();
+void Scr_PrecacheString();
+void Scr_GrenadeExplosionEffect();
 void GScr_RadiusDamage();
 void __cdecl GScr_RadiusDamageInternal(gentity_s *inflictor);
 void __cdecl GScr_EntityRadiusDamage(scr_entref_t entref);
 void GScr_GlassRadiusDamage();
 void __cdecl GScr_Detonate(scr_entref_t entref);
-VariableUnion GScr_SetPlayerIgnoreRadiusDamage();
+void GScr_SetPlayerIgnoreRadiusDamage();
 void __cdecl GScr_DamageConeTrace(scr_entref_t entref);
 void __cdecl GScr_DamageConeTraceInternal(scr_entref_t entref, int contentMask);
 void __cdecl GScr_SightConeTrace(scr_entref_t entref);
@@ -474,13 +462,13 @@ void __cdecl Scr_FxParamError(unsigned int paramIndex, const char *errorString, 
 void Scr_PlayFXOnTag();
 void Scr_PlayLoopedFX();
 void Scr_SpawnFX();
-int Scr_TriggerFX();
+void Scr_TriggerFX();
 void __cdecl ScrCmd_SpawnActor(scr_entref_t entref);
 void __cdecl GScr_CreateDynEntAndLaunch();
-gentity_s *Scr_PhysicsExplosionSphere();
+void Scr_PhysicsExplosionSphere();
 void Scr_CreateStreamerHint();
-__int16 Scr_PhysicsRadiusJolt();
-int Scr_PhysicsExplosionCylinder();
+void Scr_PhysicsRadiusJolt();
+void Scr_PhysicsExplosionCylinder();
 void Scr_SetExponentialFog();
 void __cdecl Scr_SetFog(
                 const char *cmd,
@@ -521,12 +509,12 @@ void GScr_ClientAnnouncement();
 void GScr_GetTeamScore();
 void GScr_SetTeamScore();
 void GScr_SetClientNameMode();
-int GScr_UpdateClientNames();
+void GScr_UpdateClientNames();
 void GScr_GetTeamPlayersAlive();
 void GScr_GetDroppedWeapons();
 void __cdecl GScr_GetNumParts();
 void __cdecl GScr_GetPartName();
-gentity_s *GScr_Earthquake();
+void GScr_Earthquake();
 void __cdecl GScr_ShellShock(scr_entref_t entref);
 void __cdecl GScr_StopShellShock(scr_entref_t entref);
 void __cdecl GScr_GetTagOrigin(scr_entref_t entref);
@@ -576,7 +564,7 @@ void GScr_FReadLn();
 void GScr_FGetArg();
 void GScr_ExecDevgui();
 void Scr_IsGlobalStatsServer();
-unsigned intGScr_SetPlayerStatsForMatchRecording();
+void GScr_SetPlayerStatsForMatchRecording();
 void GScr_SetPlayerFinalForMatchRecording();
 void GScr_SetBeginForMatchRecording();
 void GScr_GetAssignedTeam();
@@ -635,9 +623,9 @@ void GScr_SetGameEndTime();
 void GScr_SetTimeScale();
 void GScr_SetMiniMap();
 void GScr_IncrementEscrow();
-VariableUnion GScr_SetTeamSpyplane();
+void GScr_SetTeamSpyplane();
 void GScr_GetTeamSpyplane();
-VariableUnion GScr_SetTeamSatellite();
+void GScr_SetTeamSatellite();
 void GScr_GetTeamSatellite();
 void GScr_GetArrayKeys();
 void __cdecl GScr_Launch(scr_entref_t entref);
@@ -748,12 +736,12 @@ void __cdecl G_SetAnimTree(gentity_s *ent, scr_animtree_t *animtree);
 void __cdecl GScr_UseAnimTree(scr_entref_t entref);
 void (__cdecl *__cdecl Scr_GetMethod(const char **pName, int *type))(scr_entref_t);
 void (__cdecl *__cdecl BuiltIn_GetMethod(const char **pName, int *type))(scr_entref_t);
-void __cdecl Scr_SetOrigin(gentity_s *ent);
-void __cdecl Scr_SetAngles(gentity_s *ent);
-void __cdecl Scr_SetExposureIndex(gentity_s *ent);
-void __cdecl Scr_SetExposureLerpToLighter(gentity_s *ent);
-void __cdecl Scr_SetExposureLerpToDarker(gentity_s *ent);
-void __cdecl Scr_SetHealth(gentity_s *ent);
+void __cdecl Scr_SetOrigin(gentity_s *ent, int);
+void __cdecl Scr_SetAngles(gentity_s *ent, int);
+void __cdecl Scr_SetExposureIndex(gentity_s *ent, int);
+void __cdecl Scr_SetExposureLerpToLighter(gentity_s *ent, int);
+void __cdecl Scr_SetExposureLerpToDarker(gentity_s *ent, int);
+void __cdecl Scr_SetHealth(gentity_s *ent, int);
 void __cdecl GScr_AddVector(float *vVec);
 void __cdecl GScr_AddEntity(gentity_s *pEnt);
 void __cdecl Scr_ParseGameTypeList();

@@ -13,8 +13,8 @@ struct SpawnFuncEntry // sizeof=0x8
 
 int __cdecl G_SpawnFloat(const SpawnVar *spawnVar, const char *key, const char *defaultString, float *out);
 int __cdecl G_SpawnInt(const SpawnVar *spawnVar, const char *key, const char *defaultString, int *out);
-void __cdecl Scr_ReadOnlyField();
-void __cdecl G_FreeEntityWrapper(gentity_s *ent);
+void __cdecl Scr_ReadOnlyField(gentity_s *ent, int);
+void __cdecl G_FreeEntityWrapper(gentity_s *ent, SpawnVar *v = NULL);
 unsigned int __cdecl G_SetEntityScriptVariableInternal(const char *key, char *value);
 void __cdecl G_ParseEntityFields(const SpawnVar *spawnVar, gentity_s *ent, int radiant_update);
 void __cdecl G_ParseEntityField(const char *key, char *value, gentity_s *ent, int radiant_update);

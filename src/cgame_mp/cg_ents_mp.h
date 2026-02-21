@@ -191,3 +191,4 @@ bool __cdecl CG_ClientFlagIsSet(const centity_s *cent, unsigned int flagNum);
 char *__cdecl CG_AllocAnimTree(int size);
 
 extern int g_processEvents;
+extern const unsigned short *controller_names[6];

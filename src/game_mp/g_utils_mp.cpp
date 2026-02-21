@@ -1,4 +1,35 @@
 #include "g_utils_mp.h"
+#include <qcommon/dobj_management.h>
+#include <clientscript/cscr_stringlist.h>
+#include <server_mp/sv_init_mp.h>
+#include <clientscript/scr_const.h>
+#include <clientscript/cscr_vm.h>
+#include "g_main_mp.h"
+#include <server/sv_game.h>
+#include <xanim/xmodel_load_obj.h>
+#include <universal/com_math_anglevectors.h>
+#include <universal/com_memory.h>
+#include <clientscript/cscr_memorytree.h>
+#include <client_mp/g_client_mp.h>
+#include <cgame/cg_drawtools.h>
+#include "g_spawnsystem_mp.h"
+#include <server/sv_world.h>
+#include <game/actor_script_cmd.h>
+#include <xanim/dobj_skel.h>
+#include <game/g_missile.h>
+#include <game/g_targets.h>
+#include "actor_mp.h"
+#include <game/actor_event_listeners.h>
+#include <game/actor_corpse.h>
+#include <game/turret.h>
+#include <game/g_player_corpse.h>
+#include "g_spawn_mp.h"
+#include <bgame/bg_misc.h>
+#include <sound/snd_utils.h>
+
+const char *origErrorMsg = "localized string";
+
+XModel *cached_models[512];
 
 void __cdecl G_SafeDObjFree(unsigned int handle, int unusedLocalClientNum)
 {
@@ -57,7 +88,7 @@ int __cdecl G_FindConfigstringIndex(char *name, int start, int max, int create, 
                 v8 = SL_ConvertToString(ConfigstringConst, SCRIPTINSTANCE_SERVER);
                 Com_Printf(15, "%i: %s\n", i, v8);
             }
-            v9 = va(&byte_CCCA74, start, name);
+            v9 = va("G_FindConfigstringIndex: overflow (%d): %s", start, name);
             Com_Error(ERR_DROP, v9);
         }
         SV_SetConfigstring(i + start, name);
@@ -198,7 +229,7 @@ int __cdecl G_ModelIndex(char *name)
         __debugbreak();
     }
     if ( i == 512 )
-        Com_Error(ERR_DROP, &byte_CCCB98);
+        Com_Error(ERR_DROP, "G_ModelIndex: overflow");
     cached_models[i] = SV_XModelGet(name);
     SV_SetConfigstring(i + 1568, name);
     return i;
@@ -374,8 +405,8 @@ void __cdecl G_UpdateVehicleAttachedModels(gentity_s *ent)
         for ( i = 0; i < 2; ++i )
         {
             modelIndex = ent->attachModelNames[i];
-            AssignToSmallerType<short>(&ent->s.un2.vehicleState.attachModelIndex[i], modelIndex);
-            ent->s.un2.vehicleState.attachTagIndex[i] = 0;
+            AssignToSmallerType<short>(&ent->s.vehicleState.attachModelIndex[i], modelIndex);
+            ent->s.vehicleState.attachTagIndex[i] = 0;
             if ( modelIndex )
             {
                 if ( !ent->attachTagNames[i]
@@ -390,7 +421,7 @@ void __cdecl G_UpdateVehicleAttachedModels(gentity_s *ent)
                 }
                 tagName = SL_ConvertToString(ent->attachTagNames[i], SCRIPTINSTANCE_SERVER);
                 v1 = G_TagIndex(tagName);
-                AssignToSmallerType<unsigned char>(&ent->s.un2.vehicleState.attachTagIndex[i], v1);
+                AssignToSmallerType<unsigned char>(&ent->s.vehicleState.attachTagIndex[i], v1);
             }
         }
     }
@@ -821,7 +852,7 @@ int __cdecl G_EntLinkToInternal(gentity_s *ent, gentity_s *parent, unsigned int 
             break;
     }
     tagInfo = MT_Alloc(112, 17, SCRIPTINSTANCE_SERVER);
-    *(unsigned int *)tagInfo = parent;
+    *(unsigned int *)tagInfo = (unsigned int)parent;
     *((_WORD *)tagInfo + 4) = 0;
     if ( tagName )
     {
@@ -839,7 +870,7 @@ int __cdecl G_EntLinkToInternal(gentity_s *ent, gentity_s *parent, unsigned int 
         }
     }
     Scr_SetString((unsigned __int16 *)tagInfo + 4, tagName, SCRIPTINSTANCE_SERVER);
-    *((unsigned int *)tagInfo + 1) = parent->tagChildren;
+    *((unsigned int *)tagInfo + 1) = (unsigned int)parent->tagChildren;
     *((unsigned int *)tagInfo + 3) = index;
     memset((unsigned __int8 *)tagInfo + 16, 0, 0x30u);
     parent->tagChildren = ent;
@@ -970,7 +1001,7 @@ void __cdecl G_EntUnlink(gentity_s *ent)
             }
         }
         Scr_SetString(&tagInfo->name, 0, SCRIPTINSTANCE_SERVER);
-        MT_Free(tagInfo, 112, SCRIPTINSTANCE_SERVER);
+        MT_Free((unsigned char*)tagInfo, 112, SCRIPTINSTANCE_SERVER);
         G_UpdateClientLinkInfo(ent);
     }
 }
@@ -1302,7 +1333,7 @@ void __cdecl G_SetPlayerFixedLink(gentity_s *ent)
             G_SetOrigin(ent, worldAxis[3]);
         }
         ent->s.lerp.pos.trType = 1;
-        SV_LinkEntity((int)&savedregs, ent);
+        SV_LinkEntity(ent);
     }
 }
 
@@ -1330,7 +1361,7 @@ void __cdecl G_GeneralLink(gentity_s *ent)
     ent->s.lerp.apos.trDelta[2] = 0.0f;
     ent->s.lerp.apos.trTime = 0;
     ent->s.lerp.apos.trDuration = 0;
-    SV_LinkEntity((int)&savedregs, ent);
+    SV_LinkEntity(ent);
 }
 
 void __cdecl G_SafeDObjFree(gentity_s *ent)
@@ -1380,8 +1411,8 @@ void __cdecl G_DObjCalcPose(gentity_s *ent, int *partBits)
         __debugbreak();
     if ( !SV_DObjCreateSkelForBones(obj, partBits) )
     {
-        controller = (void (__cdecl *)(const gentity_s *, int *))dword_E07CF4[12 * ent->handler];
-        if ( controller )
+        controller = entityHandlers[ent->handler].controller;
+        if (controller)
             controller(ent, partBits);
         DObjCalcSkel(obj, partBits);
     }
@@ -1397,8 +1428,8 @@ void __cdecl G_DObjCalcBone(const gentity_s *ent, int boneIndex)
     if ( obj && !SV_DObjCreateSkelForBone(obj, boneIndex) )
     {
         DObjGetHierarchyBits(obj, boneIndex, partBits);
-        controller = (void (__cdecl *)(const gentity_s *, int *))dword_E07CF4[12 * ent->handler];
-        if ( controller )
+        controller = entityHandlers[ent->handler].controller;
+        if (controller)
             controller(ent, partBits);
         DObjCalcSkel(obj, partBits);
     }
@@ -1565,16 +1596,9 @@ void __cdecl G_InitGentity(gentity_s *e)
     e->r.inuse = 1;
     Scr_SetString(&e->classname, scr_const.noclass, SCRIPTINSTANCE_SERVER);
     e->s.number = e - g_entities;
-    if ( EntHandle::isDefined(&e->r.ownerNum)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_utils_mp.cpp",
-                    1925,
-                    0,
-                    "%s",
-                    "!e->r.ownerNum.isDefined()") )
-    {
-        __debugbreak();
-    }
+
+    iassert(!e->r.ownerNum.isDefined());
+
     e->eventTime = 0;
     e->birthTime = level.time;
     e->freeAfterEvent = 0;
@@ -1619,7 +1643,7 @@ gentity_s *__cdecl G_Spawn()
         if ( level.num_entities == 1022 )
         {
             G_PrintEntities();
-            Com_Error(ERR_DROP, &byte_CCCF44);
+            Com_Error(ERR_DROP, "G_Spawn: no free entities");
         }
         e = &level.gentities[level.num_entities++];
         SV_LocateGameData(level.gentities, level.num_entities, 760, &level.clients->ps, 10720);
@@ -1717,8 +1741,8 @@ void __cdecl G_FreeEntityRefs(gentity_s *ed)
         {
             other = &g_entities[i];
             if ( other->r.inuse
-                && EntHandle::isDefined(&other->r.ownerNum)
-                && EntHandle::entnum(&other->r.ownerNum) == entnum
+                && other->r.ownerNum.isDefined()
+                && other->r.ownerNum.entnum() == entnum
                 && other->s.eType == 11 )
             {
                 other->active = 0;
@@ -1865,9 +1889,9 @@ void __cdecl G_FreeEntity(gentity_s *ed)
     EntHandleDissociate(ed);
     if ( ed->client )
         Com_Printf(14, "G_FreeEntity: Player %i is being freed.\n", ed->s.number);
-    EntHandle::setEnt(&ed->r.ownerNum, 0);
-    EntHandle::setEnt(&ed->parent, 0);
-    EntHandle::setEnt(&ed->missileTargetEnt, 0);
+    ed->r.ownerNum.setEnt(0);
+    ed->parent.setEnt(0);
+    ed->missileTargetEnt.setEnt(0);
     if ( !ed->r.inuse
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_utils_mp.cpp", 2258, 0, "%s", "ed->r.inuse") )
     {
@@ -1951,7 +1975,7 @@ gentity_s *__cdecl G_TempEntity(const float *origin, int event)
     snapped[1] = (float)(int)snapped[1];
     snapped[2] = (float)(int)snapped[2];
     G_SetOrigin(e, snapped);
-    SV_LinkEntity((int)&savedregs, e);
+    SV_LinkEntity(e);
     return e;
 }
 
@@ -2105,6 +2129,9 @@ const char *__cdecl G_GetEntityTypeName(const gentity_s *ent)
     }
     return entityTypeNames[ent->s.eType];
 }
+
+unsigned int holdrand = 2309737967u;
+
 
 void __cdecl G_srand(unsigned int seed)
 {

@@ -9066,7 +9066,7 @@ void __cdecl SP_script_vehicle(gentity_s *pSelf, SpawnVar *spawnVar)
     }
 }
 
-void __cdecl SP_script_vehicle_collmap(gentity_s *pSelf)
+void __cdecl SP_script_vehicle_collmap(gentity_s *pSelf, SpawnVar *v)
 {
     pSelf->r.contents = 0;
     pSelf->s.eType = 15;

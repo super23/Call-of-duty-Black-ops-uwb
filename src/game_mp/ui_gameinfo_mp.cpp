@@ -1,4 +1,13 @@
 #include "ui_gameinfo_mp.h"
+#include <universal/q_parse.h>
+#include <ui/ui_utils.h>
+#include <universal/com_files.h>
+
+char *ui_arenaInfos[128];
+int ui_numArenas;
+const char *ui_browserMapNameTable[129];
+
+const dvar_t *ui_browserMap;
 
 int __cdecl UI_ParseInfos(const char *buf, int max, char **infos)
 {
@@ -64,15 +73,15 @@ LABEL_14:
 
 void __cdecl UI_LoadArenas()
 {
-    char *v0; // eax
     char *v1; // eax
     char *v2; // eax
     char *v3; // eax
-    const char *v4; // eax
-    bool v5; // [esp+0h] [ebp-2034h]
-    char v6; // [esp+4h] [ebp-2030h]
+    char *v4; // eax
+    char *v5; // eax
+    bool v6; // [esp+0h] [ebp-2034h]
+    char v7; // [esp+4h] [ebp-2030h]
     char *data_p; // [esp+201Ch] [ebp-18h] BYREF
-    char *v9; // [esp+2020h] [ebp-14h]
+    char *v10; // [esp+2020h] [ebp-14h]
     int j; // [esp+2024h] [ebp-10h]
     int i; // [esp+2028h] [ebp-Ch]
     char ModArenas; // [esp+202Fh] [ebp-5h]
@@ -81,66 +90,66 @@ void __cdecl UI_LoadArenas()
     sharedUiInfo.mapCount = 0;
     ui_numArenas = 0;
     ModArenas = 0;
-    if ( fs_gameDirVar && *(_BYTE *)fs_gameDirVar->current.integer )
+    if (fs_gameDirVar && *(_BYTE *)fs_gameDirVar->current.integer)
         ModArenas = UI_LoadModArenas();
-    if ( !ModArenas || (!fs_gameDirVar || !*(_BYTE *)fs_gameDirVar->current.integer ? (v6 = 0) : (v6 = 1), !v6) )
+    if (!ModArenas || (!fs_gameDirVar || !*(_BYTE *)fs_gameDirVar->current.integer ? (v7 = 0) : (v7 = 1), !v7))
         UI_LoadArenasFromFile();
-    v5 = fs_gameDirVar && *(_BYTE *)fs_gameDirVar->current.integer;
-    if ( v5 && !ModArenas )
+    v6 = fs_gameDirVar && *(_BYTE *)fs_gameDirVar->current.integer;
+    if (v6 && !ModArenas)
     {
         UI_LoadModsMap(FFD_MOD_DIR);
         UI_LoadModsMap(FFD_USER_MAP);
     }
     ui_browserMapNameTable[0] = UI_SafeTranslateString("MENU_ALL");
-    for ( i = 0; i < ui_numArenas; ++i )
+    for (i = 0; i < ui_numArenas; ++i)
     {
-        v0 = Info_ValueForKey(ui_arenaInfos[i], "map");
-        I_strncpyz(&sharedUiInfo.mapList[sharedUiInfo.mapCount].mapName[28], v0, 24);
-        v1 = Info_ValueForKey(ui_arenaInfos[i], "longname");
-        I_strncpyz(&sharedUiInfo.joinGameTypes[32].gameType[304 * sharedUiInfo.mapCount], v1, 32);
-        v2 = Info_ValueForKey(ui_arenaInfos[i], "loadname");
-        I_strncpyz(&sharedUiInfo.mapList[sharedUiInfo.mapCount].mapLoadName[20], v2, 32);
-        sharedUiInfo.mapList[sharedUiInfo.mapCount].timeToBeat[31] = 0;
-        v3 = Info_ValueForKey(ui_arenaInfos[i], "loadscreen");
-        I_strncpyz((char *)&sharedUiInfo.mapList[sharedUiInfo.mapCount].mapPackTypeIndex, v3, 42);
-        v9 = Info_ValueForKey(ui_arenaInfos[i], "gametype");
-        if ( !v9 )
+        v1 = Info_ValueForKey(ui_arenaInfos[i], "map");
+        I_strncpyz(sharedUiInfo.mapList[sharedUiInfo.mapCount].mapLoadName, v1, 24);
+        v2 = Info_ValueForKey(ui_arenaInfos[i], "longname");
+        I_strncpyz(sharedUiInfo.mapList[sharedUiInfo.mapCount].mapName, v2, 32);
+        v3 = Info_ValueForKey(ui_arenaInfos[i], "loadname");
+        I_strncpyz(sharedUiInfo.mapList[sharedUiInfo.mapCount].mapNameCaps, v3, 32);
+        sharedUiInfo.mapList[sharedUiInfo.mapCount].levelShot = 0;
+        v4 = Info_ValueForKey(ui_arenaInfos[i], "loadscreen");
+        I_strncpyz(sharedUiInfo.mapList[sharedUiInfo.mapCount].imageName, v4, 42);
+        v10 = Info_ValueForKey(ui_arenaInfos[i], "gametype");
+        if (!v10)
             goto LABEL_35;
-        if ( *v9 )
+        if (*v10)
         {
-            *(unsigned int *)sharedUiInfo.contentPackList[19 * sharedUiInfo.mapCount - 2422].mapPackName = 0;
-            v4 = va(".arena files : %s", &sharedUiInfo.mapList[sharedUiInfo.mapCount].mapName[28]);
-            Com_BeginParseSession(v4);
-            data_p = v9;
-            while ( 1 )
+            sharedUiInfo.mapList[sharedUiInfo.mapCount].typeBits = 0;
+            v5 = va(".arena files : %s", sharedUiInfo.mapList[sharedUiInfo.mapCount].mapLoadName);
+            Com_BeginParseSession(v5);
+            data_p = v10;
+            while (1)
             {
                 s0 = (char *)Com_Parse((const char **)&data_p);
-                if ( !s0 || !*s0 )
+                if (!s0 || !*s0)
                     break;
-                for ( j = 0; j < sharedUiInfo.playerClientNums[31]; ++j )
+                for (j = 0; j < sharedUiInfo.numGameTypes; ++j)
                 {
-                    if ( !I_stricmp(s0, (const char *)&sharedUiInfo.playerClientNums[29 * j + 32]) )
-                        *(unsigned int *)sharedUiInfo.contentPackList[19 * sharedUiInfo.mapCount - 2422].mapPackName |= 1 << j;
+                    if (!I_stricmp(s0, sharedUiInfo.gameTypes[j].gameType))
+                        sharedUiInfo.mapList[sharedUiInfo.mapCount].typeBits |= 1 << j;
                 }
             }
             Com_EndParseSession();
         }
         else
         {
-LABEL_35:
-            *(unsigned int *)sharedUiInfo.contentPackList[19 * sharedUiInfo.mapCount - 2422].mapPackName = -1;
+        LABEL_35:
+            sharedUiInfo.mapList[sharedUiInfo.mapCount].typeBits = -1;
         }
-        dword_98A4D5C[sharedUiInfo.mapCount] = (int)UI_SafeTranslateString(&sharedUiInfo.joinGameTypes[32].gameType[304 * sharedUiInfo.mapCount]);
-        if ( ++sharedUiInfo.mapCount >= 128 )
+        ui_browserMapNameTable[sharedUiInfo.mapCount + 1] = UI_SafeTranslateString(sharedUiInfo.mapList[sharedUiInfo.mapCount].mapName);
+        if (++sharedUiInfo.mapCount >= 128)
             break;
     }
-    dword_98A4D5C[sharedUiInfo.mapCount] = 0;
+    ui_browserMapNameTable[sharedUiInfo.mapCount + 1] = 0;
     ui_browserMap = _Dvar_RegisterEnum(
-                                        "ui_browserMap",
-                                        ui_browserMapNameTable,
-                                        0,
-                                        1u,
-                                        "Map preferred in the server browser filter.");
+        "ui_browserMap",
+        ui_browserMapNameTable,
+        0,
+        1u,
+        "Map preferred in the server browser filter.");
 }
 
 char __cdecl UI_LoadModArenas()
@@ -310,7 +319,7 @@ const char *UI_LoadArenasFromFile_LoadObj()
     unsigned int v9; // [esp+24B4h] [ebp-4h]
 
     ui_numArenas = 0;
-    result = (const char *)FS_GetFileList("mp", "arena", FS_LIST_PURE_ONLY, listbuf, 1024);
+    result = (const char *)FS_GetFileList("mp", (char*)"arena", FS_LIST_PURE_ONLY, listbuf, 1024);
     v1 = result;
     v3 = listbuf;
     v8 = 0;
@@ -349,7 +358,7 @@ void UI_LoadArenasFromFile_FastFile()
 {
     RawFile *rawfile; // [esp+8h] [ebp-8h]
 
-    rawfile = DB_FindXAssetHeader(ASSET_TYPE_RAWFILE, "mp/mpmaps.arena", 1, -1).rawfile;
+    rawfile = DB_FindXAssetHeader(ASSET_TYPE_RAWFILE, (char *)"mp/mpmaps.arena", 1, -1).rawfile;
     if ( rawfile )
         ui_numArenas = UI_ParseInfos(rawfile->buffer, 128 - ui_numArenas, (char **)(4 * ui_numArenas + 160058192));
     else
@@ -369,7 +378,7 @@ void __cdecl UI_LoadMaps()
     int i; // [esp+4h] [ebp-38h]
     char tableName[20]; // [esp+8h] [ebp-34h] BYREF
     const char *dlcMapPackIndex; // [esp+20h] [ebp-1Ch]
-    const StringTable *table; // [esp+24h] [ebp-18h] BYREF
+    XAssetHeader table; // [esp+24h] [ebp-18h] BYREF
     char packIndex[4]; // [esp+28h] [ebp-14h] BYREF
     int mapPackIndex; // [esp+2Ch] [ebp-10h]
     char index[4]; // [esp+30h] [ebp-Ch] BYREF
@@ -378,37 +387,37 @@ void __cdecl UI_LoadMaps()
 
     I_strncpyz(tableName, "mp/mapsTable.csv", 18);
     StringTable_GetAsset(tableName, &table);
-    if (!table
+    if (!table.xmodelPieces
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui_mp\\ui_gameinfo_mp.cpp", 434, 0, "%s", "table"))
     {
         __debugbreak();
     }
-    memset(sharedUiInfo.mapList, 0, sizeof(sharedUiInfo.mapList));
-    v0 = StringTable_Lookup(table, 0, "maxnum_map", 1);
+    memset((unsigned __int8 *)sharedUiInfo.mapList, 0, sizeof(sharedUiInfo.mapList));
+    v0 = StringTable_Lookup(table.stringTable, 0, "maxnum_map", 1);
     sharedUiInfo.mapCount = atoi(v0);
-    v1 = StringTable_Lookup(table, 0, "mappack_count", 1);
+    v1 = StringTable_Lookup(table.stringTable, 0, "mappack_count", 1);
     mapPackCount = atoi(v1);
     for (i = 0; i < mapPackCount; ++i)
     {
         Com_sprintf(packIndex, 4u, "%i", i);
-        v2 = StringTable_Lookup(table, 1, packIndex, 0);
+        v2 = StringTable_Lookup(table.stringTable, 1, packIndex, 0);
         I_strncpyz(sharedUiInfo.contentPackList[i].mapPackName, v2, 16);
     }
     count = 0;
     for (j = 0; j < sharedUiInfo.mapCount; ++j)
     {
         Com_sprintf(index, 4u, "%i", j);
-        dlcMapPackIndex = StringTable_Lookup(table, 5, index, 11);
+        dlcMapPackIndex = StringTable_Lookup(table.stringTable, 5, index, 11);
         mapPackIndex = atoi(dlcMapPackIndex);
-        v3 = StringTable_Lookup(table, 5, index, 0);
+        v3 = StringTable_Lookup(table.stringTable, 5, index, 0);
         I_strncpyz(sharedUiInfo.mapList[count].mapLoadName, v3, 24);
-        v4 = StringTable_Lookup(table, 5, index, 3);
+        v4 = StringTable_Lookup(table.stringTable, 5, index, 3);
         I_strncpyz(sharedUiInfo.mapList[count].mapName, v4, 32);
-        v5 = StringTable_Lookup(table, 1, dlcMapPackIndex, 0);
+        v5 = StringTable_Lookup(table.stringTable, 1, dlcMapPackIndex, 0);
         I_strncpyz(sharedUiInfo.mapList[count].mapPackType, v5, 16);
         sharedUiInfo.mapList[count].mapPackTypeIndex = mapPackIndex;
         Com_sprintf(sharedUiInfo.mapList[count].mapNameCaps, 0x20u, "%s%s", sharedUiInfo.mapList[count].mapName, "_CAPS");
-        v6 = StringTable_Lookup(table, 5, index, 10);
+        v6 = StringTable_Lookup(table.stringTable, 5, index, 10);
         if (I_strcmp(v6, "YES"))
             sharedUiInfo.mapList[count].splitscreen = 0;
         else

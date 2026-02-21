@@ -3,6 +3,24 @@
 #include <game/actor.h>
 #include <game/actor_fields.h>
 
+struct PhysicsInputs // sizeof=0x1C
+{                                       // XREF: Actor_PhysicsAndDodge/r
+    float vVelocity[3];
+    unsigned __int16 groundEntNum;
+    // padding byte
+    // padding byte
+    int bHasGroundPlane;
+    float groundplaneSlope;
+    int iFootstepTimer;
+};
+
+struct AITypeScript // sizeof=0xC
+{
+    int main;
+    int precache;
+    int spawner;
+};
+
 void __fastcall VisCache_Update(vis_cache_t *pCache, bool bVisible);
 void __fastcall SentientInfo_Clear(sentient_info_t *pInfo);
 void __fastcall SentientInfo_Copy(actor_s *pTo, const actor_s *pFrom, int index);
@@ -78,7 +96,7 @@ void __fastcall Actor_InitMove(actor_s *self);
 bool __cdecl Actor_IsDodgeEntity(actor_s *self, int entnum);
 void __fastcall Actor_DoMove(actor_s *self);
 int __fastcall Actor_PhysicsAndDodge(actor_s *self);
-char *__fastcall Actor_Physics_GetLeftOrRightDodge(actor_s *self, bool dodgeRight, float length);
+int __fastcall Actor_Physics_GetLeftOrRightDodge(actor_s *self, bool dodgeRight, float length);
 void __cdecl Actor_PhysicsBackupInputs(actor_s *self, PhysicsInputs *inputs);
 void __cdecl Actor_PhysicsRestoreInputs(actor_s *self, PhysicsInputs *inputs);
 bool __fastcall Actor_ShouldMoveAwayFromCloseEnt(actor_s *self);
@@ -150,7 +168,7 @@ void __fastcall Actor_UpdateMoveHistory(actor_s *self);
 void __fastcall Actor_UpdateNetworkLeanAmount(actor_s *self);
 void __fastcall Path_UpdateLeanAmount(actor_s *self, float *vWishDir);
 double __fastcall Path_UpdateMomentum(actor_s *self, float *vWishDir, float fMoveDist);
-void Path_UpdateMovementDelta(float fMoveDist);
+void Path_UpdateMovementDelta(actor_s *self, float fMoveDist);
 void __cdecl Actor_SetFlashed(actor_s *self, int flashed, float strength);
 void __fastcall Actor_AddStationaryMoveHistory(actor_s *self);
 bool __fastcall Actor_IsMoving(actor_s *self);
@@ -165,3 +183,24 @@ bool __fastcall Actor_IsInsideArc(
                 float angle0,
                 float angle1,
                 float halfHeight);
+
+
+const float ACTOR_DEFAULT_FOV_COS = 0.0099999998;
+const float ACTOR_GOAL_ANGLE_TOLERANCE = 20.0;
+const float ACTOR_DEFAULT_WALK_DIST = 128.0;
+const float ACTOR_DEFAULT_INTERVAL = 96.0;
+const float ACTOR_DEFAULT_GRENADE_AWARENESS = 0.33000001;
+const float ACTOR_ENTINFO_SCALE = 0.60000002;
+const float ACTOR_DROP_NUDGE_HEIGHT = 1.0;
+const float ACTOR_DROP_HEIGHT = 128.0;
+const float ACTOR_PATH_RETRY_FRACTION = 0.25;
+const float ACTOR_EYE_OFFSET = 64.0;
+const int ACTOR_MAX_HEALTH = 100;
+const int ACTOR_TEAMMOVE_WAIT_TIME = 500;
+const float ACTOR_DEFAULT_BADPLACE_AWARENESS = 0.75;
+const float ACTOR_NEAR_NODE_DIST = 15.0;
+const float ACTOR_PLAYER_PUSH_LOOKAHEAD = 0.1;
+const float ACTOR_PLAYER_PUSH_MIN_SPEED = 60.0;
+
+// means o' death
+extern unsigned __int16 *modNames[21];

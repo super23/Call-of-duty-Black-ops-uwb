@@ -2,6 +2,71 @@
 #include <clientscript/cscr_vm.h>
 #include "g_main_mp.h"
 #include <cgame/cg_scr_main.h>
+#include "g_spawn_mp.h"
+#include <clientscript/cscr_stringlist.h>
+#include <universal/com_memory.h>
+#include <client/con_channels.h>
+#include <server/sv_game.h>
+#include <server_mp/sv_main_mp.h>
+#include <client/cl_debugdata.h>
+#include <cgame/cg_drawtools.h>
+#include <game/g_debug.h>
+#include <game/g_weapon.h>
+#include <xanim/xmodel_utils.h>
+#include <bgame/bg_weapons_ammo.h>
+#include "g_utils_mp.h"
+#include <clientscript/scr_const.h>
+#include <server/sv_world.h>
+#include <game/turret.h>
+#include <game/g_scr_helicopter.h>
+#include <qcommon/dobj_management.h>
+#include <xanim/dobj_utils.h>
+#include <game/actor_script_cmd.h>
+#include "g_combat_mp.h"
+#include <game/g_mover.h>
+#include <server_mp/sv_init_mp.h>
+#include <bgame/bg_perks.h>
+#include <demo/demo_recording.h>
+#include <qcommon/cm_world.h>
+#include <bgame/bg_weapons_load_obj.h>
+#include "g_client_script_cmd_mp.h"
+#include <universal/surfaceflags.h>
+#include <universal/com_math_anglevectors.h>
+#include <cstring>
+#include <bgame/bg_misc.h>
+#include <database/db_assetnames.h>
+#include <glass/glass_server.h>
+#include <game/g_missile.h>
+#include "g_active_mp.h"
+#include <game/actor_spawner.h>
+#include <gfx_d3d/r_reflection_probe.h>
+#include "g_cmds_mp.h"
+#include <client_mp/g_client_mp.h>
+#include <client_mp/sv_client_mp.h>
+#include <server_mp/sv_main_pc_mp.h>
+#include <universal/com_files.h>
+#include <universal/q_parse.h>
+#include <DW/MatchRecorder.h>
+#include <client/splitscreen.h>
+#include <bgame/bg_unlockable_items.h>
+#include <live/live_stats.h>
+#include <live/live_contracts.h>
+#include <ui_mp/ui_gametype_custom_mp.h>
+#include <gfx_d3d/r_fog.h>
+#include <game/bullet.h>
+#include <cgame_mp/cg_ents_mp.h>
+#include <cgame/cg_event.h>
+#include "g_spawnsystem_mp.h"
+#include <ui_mp/ui_gametype_variants_mp.h>
+#include "pregame.h"
+#include <live/live_storage_win.h>
+#include <live/live_counter.h>
+#include <game/g_client_fields.h>
+#include <game/g_scr_mover.h>
+#include "actor_mp.h"
+#include <win32/win_shared.h>
+#include <qcommon/cm_load.h>
+#include <game/g_targets.h>
 
 scr_data_t g_scr_data;
 
@@ -99,9 +164,9 @@ void __cdecl Scr_LoadPreGame()
 {
     unsigned __int16 t; // [esp+0h] [ebp-4h]
 
-    if ( dword_3EDB4E8 )
+    if (g_scr_data.pregamescript)
     {
-        t = Scr_ExecThread(SCRIPTINSTANCE_SERVER, dword_3EDB4E8, 0);
+        t = Scr_ExecThread(SCRIPTINSTANCE_SERVER, g_scr_data.pregamescript, 0);
         Scr_FreeThread(t, SCRIPTINSTANCE_SERVER);
     }
 }
@@ -187,13 +252,13 @@ int __cdecl GScr_LoadScriptAndLabel(scriptInstance_t inst, const char *filename,
 
     if ( !g_loadScripts || !g_loadScripts->current.enabled )
         return 0;
-    if ( !Scr_LoadScript(inst, filename) && bEnforceExists )
-        Com_Error(ERR_DROP, &byte_CC266C, filename);
+    if ( !Scr_LoadScript(inst, (char*)filename) && bEnforceExists )
+        Com_Error(ERR_DROP, "Could not find script '%s'", filename);
     func = Scr_GetFunctionHandle(inst, filename, label);
     if ( !func )
     {
         if ( bEnforceExists )
-            Com_Error(ERR_DROP, &byte_C8DF14, label, filename);
+            Com_Error(ERR_DROP, "Could not find label '%s' in script '%s'", label, filename);
     }
     return func;
 }
@@ -205,8 +270,16 @@ void __cdecl    GScr_LoadScripts(scriptInstance_t inst)
     g_scr_data.initstructs = GScr_LoadScriptAndLabel(inst, "codescripts/struct", "initstructs", 1);
     g_scr_data.createstruct = GScr_LoadScriptAndLabel(inst, "codescripts/struct", "createstruct", 1);
     g_scr_data.findstruct = GScr_LoadScriptAndLabel(inst, "codescripts/struct", "findstruct", 1);
-    dword_3EDB4D8 = GScr_LoadScriptAndLabel(inst, "maps/mp/_destructible", "CodeCallback_DestructibleEvent", 1);
-    dword_3EDB4E4 = GScr_LoadScriptAndLabel(inst, "maps/mp/gametypes/_spawning", "CodeCallback_UpdateSpawnPoints", 1);
+    g_scr_data.destructible_callback = GScr_LoadScriptAndLabel(
+        inst,
+        "maps/mp/_destructible",
+        "CodeCallback_DestructibleEvent",
+        1);
+    g_scr_data.updatespawnpoints = GScr_LoadScriptAndLabel(
+        inst,
+        "maps/mp/gametypes/_spawning",
+        "CodeCallback_UpdateSpawnPoints",
+        1);
     GScr_LoadDogAnimScripts(inst);
 }
 
@@ -227,7 +300,7 @@ void __cdecl    GScr_LoadSingleAnimScript(scriptInstance_t inst, scr_animscript_
     if ( !name && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_scr_main_mp.cpp", 273, 0, "%s", "name") )
         __debugbreak();
     Com_sprintf(filename, 0x40u, "maps/mp/animscripts/%s", name);
-    GScr_AllocString(name);
+    GScr_AllocString((char*)name);
 }
 
 void GScr_SetScriptsForPathNodes()
@@ -332,7 +405,7 @@ int GScr_LoadPreGameScript()
 
     Com_sprintf(filename, 0x40u, "maps/mp/gametypes/_pregame");
     result = GScr_LoadScriptAndLabel(SCRIPTINSTANCE_SERVER, filename, "main", 0);
-    dword_3EDB4E8 = result;
+    g_scr_data.pregamescript = result;
     return result;
 }
 
@@ -357,12 +430,12 @@ void __cdecl GScr_FreeScripts(scriptInstance_t inst)
         Scr_RemoveClassMap(inst, classnum);
 }
 
-void __cdecl ScrCmd_GetClanId()
+void __cdecl ScrCmd_GetClanId(scr_entref_t entref)
 {
     Scr_AddString("0", SCRIPTINSTANCE_SERVER);
 }
 
-void __cdecl ScrCmd_GetClanName()
+void __cdecl ScrCmd_GetClanName(scr_entref_t entref)
 {
     Scr_AddString((char *)"", SCRIPTINSTANCE_SERVER);
 }
@@ -1012,10 +1085,9 @@ int __cdecl Scr_GetArrayValues_Vector(
     return vector_array_index;
 }
 
-int GScr_linelist()
+void GScr_linelist()
 {
     VariableUnion v0; // eax
-    int result; // eax
     int point_index; // [esp+4h] [ebp-C30h]
     VariableUnion depth_test; // [esp+8h] [ebp-C2Ch]
     float points[256][3]; // [esp+Ch] [ebp-C28h] BYREF
@@ -1054,8 +1126,7 @@ $LN6_64:
             color[2] = rgb[2];
 $LN14_16:
             v0.intValue = Scr_GetObject(0, SCRIPTINSTANCE_SERVER).intValue;
-            result = Scr_GetArrayValues_Vector(0, v0.stringValue, points, 256, "line list");
-            point_count = result;
+            point_count = Scr_GetArrayValues_Vector(0, v0.stringValue, points, 256, "line list");
             break;
         default:
             Scr_Error("illegal call to linelist()", 0);
@@ -1063,7 +1134,6 @@ $LN14_16:
     }
     for ( point_index = 0; point_index < point_count - 1; point_index += 2 )
         CL_AddDebugLine(points[point_index], points[point_index + 1], color, depth_test.intValue, duration);
-    return result;
 }
 
 void GScr_IsDefined()
@@ -1510,7 +1580,7 @@ gentity_s *__cdecl GetPlayerEntity(scr_entref_t entref)
 {
     char *v1; // eax
     const char *v2; // eax
-    char *v4; // [esp+24h] [ebp-8h]
+    const char *v4; // [esp+24h] [ebp-8h]
     gentity_s *ent; // [esp+28h] [ebp-4h]
 
     ent = GetEntity(entref);
@@ -1850,7 +1920,7 @@ void GScr_SpawnTimedFX()
     ent->s.lerp.eFlags |= 0x10u;
     ent->handler = 11;
     ent->nextthink = level.time + 1;
-    SV_LinkEntity((int)&savedregs, ent);
+    SV_LinkEntity( ent);
 }
 
 gentity_s *__cdecl SpawnTurretInternal(unsigned int classname, float *origin, const char *weaponinfoname)
@@ -1881,7 +1951,7 @@ void GScr_SpawnTurret()
     ent = SpawnTurretInternal(classname, origin, weaponinfoname);
     ent->takedamage = 1;
     ent->r.svFlags = 4;
-    SV_LinkEntity((int)&savedregs, ent);
+    SV_LinkEntity(ent);
     Scr_AddEntity(ent, SCRIPTINSTANCE_SERVER);
 }
 
@@ -1935,64 +2005,61 @@ void __cdecl GScr_SetTurretCarried(scr_entref_t entref)
     Turret_SetTurretCarried(self, v3.intValue);
 }
 
-int GScr_GetAnimTreesLoaded()
+void GScr_GetAnimTreesLoaded()
 {
-    int result; // eax
-    scr_animtree_t animTree; // [esp+10h] [ebp-8h]
+    XAnim_s *animTree; // [esp+10h] [ebp-8h]
     unsigned __int16 treeIndex; // [esp+14h] [ebp-4h]
 
     Scr_MakeArray(SCRIPTINSTANCE_SERVER);
-    for ( treeIndex = 1; ; ++treeIndex )
+    for (treeIndex = 1; ; ++treeIndex)
     {
-        result = treeIndex;
-        if ( (unsigned int)treeIndex > MEMORY[0x9CF6640][0] )
+        if (treeIndex > gScrAnimPub[0].xanim_num[1])
             break;
-        animTree.anims = (XAnim_s *)MEMORY[0x9CF643C][treeIndex];
-        if ( animTree.anims
-            && animTree.anims->size > 1
-            && animTree.anims->debugName
-            && &animTree.anims->debugName[strlen(animTree.anims->debugName) + 1] != animTree.anims->debugName + 1 )
+        animTree = gScrAnimPub[0].xanim_lookup[1][treeIndex].anims;
+        if (animTree
+            && animTree->size > 1
+            && animTree->debugName
+            && &animTree->debugName[strlen(animTree->debugName) + 1] != animTree->debugName + 1)
         {
-            Scr_AddString((char *)animTree.anims->debugName, SCRIPTINSTANCE_SERVER);
+            Scr_AddString((char *)animTree->debugName, SCRIPTINSTANCE_SERVER);
             Scr_AddArray(SCRIPTINSTANCE_SERVER);
         }
     }
-    return result;
 }
 
 void GScr_FindAnimByName()
 {
-    const char *v0; // eax
-    const char *v1; // eax
+    char *v1; // eax
+    char *v2; // eax
     unsigned __int16 i; // [esp+48h] [ebp-1Ch]
-    scr_animtree_t animTree; // [esp+4Ch] [ebp-18h]
+    XAnim_s *animTree; // [esp+4Ch] [ebp-18h]
     scr_anim_s retAnim; // [esp+50h] [ebp-14h]
     char *temp; // [esp+54h] [ebp-10h]
     char *tempa; // [esp+54h] [ebp-10h]
     const char *treeNameParam; // [esp+5Ch] [ebp-8h]
     unsigned __int16 treeIndex; // [esp+60h] [ebp-4h]
 
-    animTree.anims = 0;
+    animTree = 0;
     temp = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
-    if ( strlen(temp) )
+    if (strlen(temp))
     {
         treeNameParam = temp;
         tempa = Scr_GetString(1u, SCRIPTINSTANCE_SERVER);
-        if ( strlen(tempa) )
+        if (strlen(tempa))
         {
-            for ( treeIndex = 1; (unsigned int)treeIndex <= MEMORY[0x9CF6640][0]; ++treeIndex )
+            for (treeIndex = 1; treeIndex <= gScrAnimPub[0].xanim_num[1]; ++treeIndex)
             {
-                if ( !strcmp(*(const char **)MEMORY[0x9CF643C][treeIndex], treeNameParam) )
+                if (!strcmp(gScrAnimPub[0].xanim_lookup[1][treeIndex].anims->debugName, treeNameParam))
                 {
-                    animTree.anims = (XAnim_s *)MEMORY[0x9CF643C][treeIndex];
+                    animTree = gScrAnimPub[0].xanim_lookup[1][treeIndex].anims;
                     break;
                 }
             }
-            if ( animTree.anims )
+            if (animTree)
             {
-                for ( i = 1; i <= animTree.anims->size - 1; ++i )
+                for (i = 1; i <= animTree->size - 1; ++i)
                 {
-                    if ( animTree.anims->entries[i].bCreated && !strcmp(animTree.anims->debugAnimNames[i], tempa) )
+                    if (animTree->entries[i].bCreated && !strcmp(animTree->debugAnimNames[i], tempa))
                     {
                         retAnim.tree = treeIndex;
                         retAnim.index = i;
@@ -2001,13 +2068,13 @@ void GScr_FindAnimByName()
                     }
                 }
                 Scr_AddAnim((scr_anim_s)65537, SCRIPTINSTANCE_SERVER);
-                v1 = va("Couldn't find anim %s in animtree %s\n", tempa, treeNameParam);
-                Scr_Error(v1, 0);
+                v2 = va("Couldn't find anim %s in animtree %s\n", tempa, treeNameParam);
+                Scr_Error(v2, 0);
             }
             else
             {
-                v0 = va("Couldn't find animtree %s\n", treeNameParam);
-                Scr_Error(v0, 0);
+                v1 = va("Couldn't find animtree %s\n", treeNameParam);
+                Scr_Error(v1, 0);
             }
         }
     }
@@ -2720,7 +2787,7 @@ void __cdecl ScrCmd_Unlink(scr_entref_t entref)
 
     ent = GetEntity(entref);
     if ( ent->client && (ent->client->ps.eFlags & 0x4000) != 0 )
-        VEH_UnlinkPlayer(ent, 0, "ScrCmd_Unlink");
+        VEH_UnlinkPlayer(ent, 0, (char*)"ScrCmd_Unlink");
     else
         G_EntUnlink(ent);
 }
@@ -2856,7 +2923,7 @@ void __cdecl ScrCmd_UseBy(scr_entref_t entref)
     pOther = Scr_GetEntity(0);
     Scr_AddEntity(pOther, SCRIPTINSTANCE_SERVER);
     Scr_Notify(pEnt, scr_const.trigger, 1u);
-    use = (void (__cdecl *)(gentity_s *, gentity_s *, gentity_s *))dword_E07CE0[12 * pEnt->handler];
+    use = entityHandlers[pEnt->handler].use;
     if ( use )
         use(pEnt, pOther, pOther);
 }
@@ -3220,8 +3287,8 @@ void __cdecl ScrCmd_PlaySoundToTeam(scr_entref_t entref)
     tempEnt = G_PlaySoundAlias(Entity, AliasId, 0, 0);
     if ( !tempEnt )
     {
-        if ( g_DXDeviceThread != GetCurrentThreadId() )
-            return;
+        //if ( g_DXDeviceThread != GetCurrentThreadId() )
+        //    return;
         goto LABEL_21;
     }
     tempEnt->r.clientMask[0] = -1;
@@ -3348,24 +3415,24 @@ void __cdecl ScrCmd_PlaySoundToPlayer(scr_entref_t entref)
     }
 }
 
-gentity_s *Scr_PlaySoundAtPosition()
+void  Scr_PlaySoundAtPosition()
 {
     int NumParam; // eax
-    const char *v1; // eax
+    char *v2; // eax
     char *String; // eax
     unsigned int AliasId; // eax
     float origin[3]; // [esp+0h] [ebp-Ch] BYREF
 
-    if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) != 2 )
+    if (Scr_GetNumParam(SCRIPTINSTANCE_SERVER) != 2)
     {
         NumParam = Scr_GetNumParam(SCRIPTINSTANCE_SERVER);
-        v1 = va("playsoundatposition has %d parameters.    There should be two.", NumParam);
-        Scr_Error(v1, 0);
+        v2 = va("playsoundatposition has %d parameters.  There should be two.", NumParam);
+        Scr_Error(v2, 0);
     }
     Scr_GetVector(1u, origin, SCRIPTINSTANCE_SERVER);
     String = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
     AliasId = SND_FindAliasId(String);
-    return G_PlaySoundAliasAtPoint(origin, AliasId);
+    G_PlaySoundAliasAtPoint(origin, AliasId);
 }
 
 void __cdecl ScrCmd_PlayLoopSound(scr_entref_t entref)
@@ -3450,7 +3517,7 @@ void __cdecl SetModelInternal(gentity_s *ent, char *modelName)
             DObjCalcBounds(obj, ent->r.mins, ent->r.maxs);
         }
     }
-    SV_LinkEntity((int)&savedregs, ent);
+    SV_LinkEntity(ent);
 }
 
 void __cdecl ScrCmd_SetModel(scr_entref_t entref)
@@ -3586,7 +3653,7 @@ void __cdecl ScrCmd_DoDamage(scr_entref_t entref)
 $LN15_18:
             dflags = Scr_GetInt(6u, SCRIPTINSTANCE_SERVER).intValue;
 $LN14_17:
-            mod = G_MeansOfDeathFromScriptParam(5u);
+            mod = (meansOfDeath_t)G_MeansOfDeathFromScriptParam(5u);
 $LN13_17:
             if ( !Scr_GetInt(4u, SCRIPTINSTANCE_SERVER).intValue )
                 hitLoc = HITLOC_NONE;
@@ -3887,7 +3954,7 @@ void __cdecl ScrCmd_SetContents(scr_entref_t entref)
     contents = Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue;
     Scr_AddInt(ent->r.contents, SCRIPTINSTANCE_SERVER);
     ent->r.contents = contents;
-    SV_LinkEntity((int)&savedregs, ent);
+    SV_LinkEntity(ent);
 }
 
 void __cdecl GScr_StartFiring(scr_entref_t entref)
@@ -4034,9 +4101,9 @@ void __cdecl GScr_GetTurretOwner(scr_entref_t entref)
     }
     if ( ent->active )
     {
-        if ( EntHandle::isDefined(&ent->r.ownerNum) )
+        if ( ent->r.ownerNum.isDefined() )
         {
-            v3 = EntHandle::ent(&ent->r.ownerNum);
+            v3 = ent->r.ownerNum.ent();
             Scr_AddEntity(v3, SCRIPTINSTANCE_SERVER);
         }
         else
@@ -4071,7 +4138,7 @@ void __cdecl GScr_SetTargetEntity(scr_entref_t entref)
         __debugbreak();
     }
     Entity = Scr_GetEntity(0);
-    EntHandle::setEnt(&ent->pTurretInfo->manualTarget, Entity);
+    ent->pTurretInfo->manualTarget.setEnt(Entity);
 }
 
 void __cdecl GScr_SetAiSpread(scr_entref_t entref)
@@ -4220,7 +4287,7 @@ void __cdecl GScr_ClearTargetEntity(scr_entref_t entref)
     {
         __debugbreak();
     }
-    EntHandle::setEnt(&ent->pTurretInfo->manualTarget, 0);
+    ent->pTurretInfo->manualTarget.setEnt(0);
 }
 
 void __cdecl GScr_SetTurretTeam(scr_entref_t entref)
@@ -4351,7 +4418,7 @@ void __cdecl GScr_MakeTurretUnusable(scr_entref_t entref)
     ent->pTurretInfo->flags &= ~0x1000u;
 }
 
-void __cdecl GScr_SetTurretAccuracy()
+void __cdecl GScr_SetTurretAccuracy(scr_entref_t entref)
 {
     Com_PrintWarning(24, "WARNING: Turret Accuracy no longer has any effect\n");
 }
@@ -4380,11 +4447,11 @@ void __cdecl GScr_GetTurretTarget(scr_entref_t entref)
     {
         __debugbreak();
     }
-    if ( EntHandle::isDefined(&ent->pTurretInfo->target) )
+    if ( ent->pTurretInfo->target.isDefined() )
     {
         if ( (ent->pTurretInfo->flags & 0x40) != 0 )
         {
-            v3 = EntHandle::ent(&ent->pTurretInfo->target);
+            v3 = ent->pTurretInfo->target.ent();
             Scr_AddEntity(v3, SCRIPTINSTANCE_SERVER);
         }
     }
@@ -4758,7 +4825,7 @@ void __cdecl GScr_MissileSetTarget(scr_entref_t entref)
         v1 = va("Entity %i is not a rocket\n", missile->s.number);
         Scr_Error(v1, 0);
     }
-    EntHandle::setEnt(&missile->missileTargetEnt, Entity);
+    missile->missileTargetEnt.setEnt(Entity);
     if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) <= 1 )
     {
         missile->mover.pos3[2] = 0.0f;
@@ -4924,10 +4991,9 @@ void __cdecl SetObjectiveIcon(objective_t *obj, unsigned int paramNum)
     obj->icon = G_MaterialIndex(shaderName);
 }
 
-VariableUnion Scr_Objective_Delete()
+void Scr_Objective_Delete()
 {
     const char *v0; // eax
-    VariableUnion result; // eax
     int objNum; // [esp+0h] [ebp-4h]
 
     objNum = Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue;
@@ -4938,10 +5004,8 @@ VariableUnion Scr_Objective_Delete()
     }
     ClearObjective_OnEntity(&level.objectives[objNum]);
     ClearObjective(&level.objectives[objNum]);
-    result.intValue = objNum;
     level.objectivesClientMask[objNum][0] = 0;
     level.objectivesClientMask[objNum][1] = 0;
-    return result;
 }
 
 void Scr_Objective_State()
@@ -4989,10 +5053,9 @@ void Scr_Objective_Icon()
     SetObjectiveIcon(&level.objectives[objNum], 1u);
 }
 
-objective_t *Scr_Objective_Position()
+void Scr_Objective_Position()
 {
     const char *v0; // eax
-    objective_t *result; // eax
     objective_t *obj; // [esp+0h] [ebp-8h]
     int objNum; // [esp+4h] [ebp-4h]
 
@@ -5007,9 +5070,7 @@ objective_t *Scr_Objective_Position()
     Scr_GetVector(1u, obj->origin, SCRIPTINSTANCE_SERVER);
     obj->origin[0] = (float)(int)obj->origin[0];
     obj->origin[1] = (float)(int)obj->origin[1];
-    result = obj;
     obj->origin[2] = (float)(int)obj->origin[2];
-    return result;
 }
 
 void Scr_Objective_OnEntity()
@@ -5065,10 +5126,9 @@ void Scr_Objective_Current()
     }
 }
 
-int Scr_Objective_SetVisibleToPlayer()
+void Scr_Objective_SetVisibleToPlayer()
 {
     const char *v0; // eax
-    int result; // eax
     int objNum; // [esp+0h] [ebp-Ch]
     gentity_s *player; // [esp+8h] [ebp-4h]
 
@@ -5089,15 +5149,12 @@ int Scr_Objective_SetVisibleToPlayer()
     {
         __debugbreak();
     }
-    result = player->s.number >> 5;
-    level.objectivesClientMask[objNum][result] &= ~(1 << (player->s.number & 0x1F));
-    return result * 4;
+    level.objectivesClientMask[objNum][player->s.number >> 5] &= ~(1 << (player->s.number & 0x1F));
 }
 
-int Scr_Objective_SetInvisibleToPlayer()
+void Scr_Objective_SetInvisibleToPlayer()
 {
     const char *v0; // eax
-    int result; // eax
     int objNum; // [esp+0h] [ebp-Ch]
     gentity_s *player; // [esp+8h] [ebp-4h]
 
@@ -5118,45 +5175,37 @@ int Scr_Objective_SetInvisibleToPlayer()
     {
         __debugbreak();
     }
-    result = player->s.number >> 5;
-    level.objectivesClientMask[objNum][result] |= 1 << (player->s.number & 0x1F);
-    return result * 4;
+    level.objectivesClientMask[objNum][player->s.number >> 5] |= 1 << (player->s.number & 0x1F);
 }
 
-VariableUnion Scr_Objective_SetVisibleToAll()
+void  Scr_Objective_SetVisibleToAll()
 {
-    VariableUnion result; // eax
     const char *v1; // eax
     int objNum; // [esp+0h] [ebp-4h]
 
-    result.intValue = Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue;
-    objNum = result.intValue;
-    if ( result.intValue >= 0x20u )
+    objNum = Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue;
+    if ((unsigned int)objNum >= 0x20)
     {
-        v1 = va("index %i is an illegal objective index. Valid indexes are 0 to %i\n", result.intValue, 31);
+        v1 = va("index %i is an illegal objective index. Valid indexes are 0 to %i\n", objNum, 31);
         Scr_ParamError(0, v1, SCRIPTINSTANCE_SERVER);
     }
     level.objectivesClientMask[objNum][0] = 0;
     level.objectivesClientMask[objNum][1] = 0;
-    return result;
 }
 
-VariableUnion Scr_Objective_SetInvisibleToAll()
+void Scr_Objective_SetInvisibleToAll()
 {
-    VariableUnion result; // eax
-    const char *v1; // eax
+    char *v1; // eax
     int objNum; // [esp+0h] [ebp-4h]
 
-    result.intValue = Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue;
-    objNum = result.intValue;
-    if ( result.intValue >= 0x20u )
+    objNum = Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue;
+    if ((unsigned int)objNum >= 0x20)
     {
-        v1 = va("index %i is an illegal objective index. Valid indexes are 0 to %i\n", result.intValue, 31);
+        v1 = va("index %i is an illegal objective index. Valid indexes are 0 to %i\n", objNum, 31);
         Scr_ParamError(0, v1, SCRIPTINSTANCE_SERVER);
     }
     level.objectivesClientMask[objNum][0] = -1;
     level.objectivesClientMask[objNum][1] = -1;
-    return result;
 }
 
 void Scr_Objective_SetSize()
@@ -5276,7 +5325,7 @@ void __cdecl GetNormalised2DMapPosition(float *inPos, float *outPos)
     posDelta = *outPos - level.compassMapUpperLeft[0];
     posDelta_4 = outPos[1] - level.compassMapUpperLeft[1];
     *outPos = (float)(level.compassNorth[1] * posDelta) - (float)(level.compassNorth[0] * posDelta_4);
-    outPos[1] = (float)(COERCE_FLOAT(LODWORD(level.compassNorth[1]) ^ _mask__NegFloat_) * posDelta_4)
+    outPos[1] = (float)((-(level.compassNorth[1])) * posDelta_4)
                         - (float)(level.compassNorth[0] * posDelta);
     if ( level.compassMapWorldSize[0] != 0.0 && level.compassMapWorldSize[1] != 0.0 )
     {
@@ -5419,9 +5468,8 @@ void GScr_WorldEntNumber()
     Scr_AddInt(1022, SCRIPTINSTANCE_SERVER);
 }
 
-gentity_s *GScr_Obituary()
+void GScr_Obituary()
 {
-    gentity_s *result; // eax
     gentity_s *pOtherEnt; // [esp+0h] [ebp-18h]
     char *pszWeapon; // [esp+4h] [ebp-14h]
     const WeaponDef *weapondef; // [esp+8h] [ebp-10h]
@@ -5436,29 +5484,26 @@ gentity_s *GScr_Obituary()
     pOtherEnt = Scr_GetEntity(0);
     pEnt = G_TempEntity(vec3_origin, 94);
     pEnt->s.otherEntityNum = pOtherEnt->s.number;
-    if ( Scr_GetType(1u, SCRIPTINSTANCE_SERVER) == 1 && Scr_GetPointerType(1u, SCRIPTINSTANCE_SERVER) == 19 )
+    if (Scr_GetType(1u, SCRIPTINSTANCE_SERVER) == 1 && Scr_GetPointerType(1u, SCRIPTINSTANCE_SERVER) == 19)
         pEnt->s.attackerEntityNum = Scr_GetEntity(1u)->s.number;
     else
         pEnt->s.attackerEntityNum = 1022;
     pEnt->r.svFlags = 8;
-    if ( iMODNum == 16 && weapondef->impactType != IMPACT_TYPE_BLADE
+    if (iMODNum == 16 && weapondef->impactType != IMPACT_TYPE_BLADE
         || iMODNum == 7
         || iMODNum == 9
         || iMODNum == 13
         || iMODNum == 12
-        || iMODNum == 10 )
+        || iMODNum == 10)
     {
-        result = pEnt;
         pEnt->s.eventParm = iMODNum;
         pEnt->s.weaponModel = 0;
     }
     else
     {
-        result = pEnt;
         pEnt->s.eventParm = iWeaponNum;
         pEnt->s.weaponModel = 1;
     }
-    return result;
 }
 
 void __cdecl GScr_ReviveObituary()
@@ -5570,7 +5615,7 @@ void __cdecl Scr_UpdateSpawnPoints()
 {
     unsigned __int16 callback; // [esp+0h] [ebp-4h]
 
-    callback = Scr_ExecThread(SCRIPTINSTANCE_SERVER, dword_3EDB4E4, 0);
+    callback = Scr_ExecThread(SCRIPTINSTANCE_SERVER, g_scr_data.updatespawnpoints, 0);
     Scr_FreeThread(callback, SCRIPTINSTANCE_SERVER);
 }
 
@@ -6266,7 +6311,7 @@ int __cdecl GScr_GetLocSelIndex(const char *mtlName)
     return 0;
 }
 
-unsigned intScr_BulletTrace()
+void Scr_BulletTrace()
 {
     char *value; // eax
     unsigned intresult; // eax
@@ -6340,14 +6385,14 @@ unsigned intScr_BulletTrace()
         Scr_AddString(value, SCRIPTINSTANCE_SERVER);
         Scr_AddArrayStringIndexed(scr_const.surfacetype, SCRIPTINSTANCE_SERVER);
     }
-    result = GetCurrentThreadId();
-    if ( result == (unsigned int)g_DXDeviceThread )
-    {
-        result = 0;
-        if ( !HIDWORD(g_DXDeviceThread) )
-            return //D3DPERF_EndEvent();
-    }
-    return result;
+    //result = GetCurrentThreadId();
+    //if ( result == (unsigned int)g_DXDeviceThread )
+    //{
+    //    result = 0;
+    //    if ( !HIDWORD(g_DXDeviceThread) )
+    //        return //D3DPERF_EndEvent();
+    //}
+    //return result;
 }
 
 void Scr_BulletTracePassed()
@@ -6374,7 +6419,8 @@ void Scr_BulletTracePassed()
         iIgnoreEntNum = pIgnoreEnt->s.number;
     }
     //col_context_t::col_context_t(&context, iClipMask);
-    col_context_t::init_locational(&context, iIgnoreEntNum);
+    //col_context_t::init_locational(&context, iIgnoreEntNum);
+    context.init_locational(iIgnoreEntNum);
     hitnum = -1;
     v0 = SV_SightTracePoint(&hitnum, vStart, vEnd, &context);
     Scr_AddBool(v0, SCRIPTINSTANCE_SERVER);
@@ -6407,6 +6453,8 @@ void __cdecl Scr_SightTracePassed()
     SV_SightTracePoint(&hitNum, vStart, vEnd, &context);
     Scr_AddBool(hitNum == 0, SCRIPTINSTANCE_SERVER);
 }
+
+const int scriptMaskToPhysicsMask[3] = { 42003603, 529, 32 };
 
 void Scr_PhysicsTrace()
 {
@@ -6588,6 +6636,7 @@ void Scr_RandomFloatRange()
 
 void GScr_log()
 {
+#if 0
     double value; // xmm0_8
     long double v1; // [esp+4h] [ebp-8h]
     scriptInstance_t v2; // [esp+4h] [ebp-8h]
@@ -6598,10 +6647,16 @@ void GScr_log()
     __libm_sse2_log(v1);
     *(float *)&value = value;
     Scr_AddFloat(*(float *)&value, v2);
+#endif
+
+    float value = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
+    value = log(value);
+    Scr_AddFloat(value, SCRIPTINSTANCE_SERVER);
 }
 
 void GScr_sin()
 {
+#if 0
     double value; // xmm0_8
     long double v1; // [esp+4h] [ebp-8h]
     scriptInstance_t v2; // [esp+4h] [ebp-8h]
@@ -6612,10 +6667,16 @@ void GScr_sin()
     __libm_sse2_sin(v1);
     *(float *)&value = value;
     Scr_AddFloat(*(float *)&value, v2);
+#endif
+
+    float value = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
+    value = sin(value);
+    Scr_AddFloat(value, SCRIPTINSTANCE_SERVER);
 }
 
 void GScr_cos()
 {
+#if 0
     double value; // xmm0_8
     long double v1; // [esp+4h] [ebp-8h]
     scriptInstance_t v2; // [esp+4h] [ebp-8h]
@@ -6626,6 +6687,11 @@ void GScr_cos()
     __libm_sse2_cos(v1);
     *(float *)&value = value;
     Scr_AddFloat(*(float *)&value, v2);
+#endif
+
+    float value = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
+    value = cos(value);
+    Scr_AddFloat(value, SCRIPTINSTANCE_SERVER);
 }
 
 void GScr_tan()
@@ -6644,6 +6710,7 @@ void GScr_tan()
 
 void GScr_asin()
 {
+#if 0
     const char *v0; // eax
     double v1; // xmm0_8
     long double v2; // [esp+8h] [ebp-8h]
@@ -6660,10 +6727,16 @@ void GScr_asin()
     __libm_sse2_asin(v2);
     *(float *)&v1 = v1;
     Scr_AddFloat(*(float *)&v1 * 57.295776, v3);
+#endif
+
+    float value = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
+    value = asin(value);
+    Scr_AddFloat(RAD2DEG(value), SCRIPTINSTANCE_SERVER);
 }
 
 void GScr_acos()
 {
+#if 0
     const char *v0; // eax
     double v1; // xmm0_8
     long double v2; // [esp+8h] [ebp-8h]
@@ -6680,10 +6753,15 @@ void GScr_acos()
     __libm_sse2_acos(v2);
     *(float *)&v1 = v1;
     Scr_AddFloat(*(float *)&v1 * 57.295776, v3);
+#endif
+    float value = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
+    value = acos(value);
+    Scr_AddFloat(RAD2DEG(value), SCRIPTINSTANCE_SERVER);
 }
 
 void GScr_atan()
 {
+#if 0
     double v0; // xmm0_8
     long double v1; // [esp+4h] [ebp-8h]
     scriptInstance_t v2; // [esp+4h] [ebp-8h]
@@ -6694,6 +6772,10 @@ void GScr_atan()
     __libm_sse2_atan(v1);
     *(float *)&v0 = v0;
     Scr_AddFloat(*(float *)&v0 * 57.295776, v2);
+#endif
+    float value = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
+    value = atan(value);
+    Scr_AddFloat(RAD2DEG(value), SCRIPTINSTANCE_SERVER);
 }
 
 void GScr_abs()
@@ -6858,9 +6940,9 @@ void GScr_VectorFromLineToPoint()
     fraction = (float)((float)((float)(BA[0] * (float)(P[0] - segmentA[0])) + (float)(BA[1] * (float)(P[1] - segmentA[1])))
                                      + (float)(BA[2] * (float)(P[2] - segmentA[2])))
                      / segmentLengthSq;
-    result[0] = (float)(COERCE_FLOAT(LODWORD(fraction) ^ _mask__NegFloat_) * BA[0]) + (float)(P[0] - segmentA[0]);
-    result[1] = (float)(COERCE_FLOAT(LODWORD(fraction) ^ _mask__NegFloat_) * BA[1]) + (float)(P[1] - segmentA[1]);
-    result[2] = (float)(COERCE_FLOAT(LODWORD(fraction) ^ _mask__NegFloat_) * BA[2]) + (float)(P[2] - segmentA[2]);
+    result[0] = (float)((-(fraction)) * BA[0]) + (float)(P[0] - segmentA[0]);
+    result[1] = (float)((-(fraction)) * BA[1]) + (float)(P[1] - segmentA[1]);
+    result[2] = (float)((-(fraction)) * BA[2]) + (float)(P[2] - segmentA[2]);
     Scr_AddVector(result, SCRIPTINSTANCE_SERVER);
 }
 
@@ -7144,13 +7226,13 @@ void Scr_RotatePoint()
 
 void Scr_IsSubStr()
 {
-    unsigned __int8 *v0; // eax
-    int v1; // eax
-    unsigned __int8 *String; // [esp-8h] [ebp-8h]
+    char *v0; // eax
+    char *v1; // eax
+    char *String; // [esp-8h] [ebp-8h]
 
-    String = (unsigned __int8 *)Scr_GetString(1u, SCRIPTINSTANCE_SERVER);
-    v0 = (unsigned __int8 *)Scr_GetString(0, SCRIPTINSTANCE_SERVER);
-    strstr(v0, String);
+    String = Scr_GetString(1u, SCRIPTINSTANCE_SERVER);
+    v0 = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
+    v1 = strstr(v0, String);
     Scr_AddBool(v1 != 0, SCRIPTINSTANCE_SERVER);
 }
 
@@ -7298,9 +7380,7 @@ void __cdecl GScr_NeedsRevive(scr_entref_t entref)
     {
         __debugbreak();
     }
-    *(unsigned int *)(*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)
-                        + 1480 * pEnt->client->ps.clientNum
-                        + 256) = needsRevive;
+    bgs->clientinfo[pEnt->client->ps.clientNum].needsRevive = needsRevive;
     G_GetClientState(pEnt->client->ps.clientNum)->needsRevive = needsRevive;
 }
 
@@ -7433,7 +7513,7 @@ void __cdecl GScr_SpawnNapalmGroundFlame(scr_entref_t entref)
     ent->s.lerp.eFlags2 |= 1u;
     ent->handler = 11;
     ent->nextthink = level.time + 1;
-    SV_LinkEntity((int)&savedregs, ent);
+    SV_LinkEntity(ent);
 }
 
 void __cdecl GScr_RestoreDefaultDropPitch(scr_entref_t entref)
@@ -7885,18 +7965,18 @@ void Scr_SoundFade()
     SV_GameSendServerCommand(-1, SV_CMD_RELIABLE, v0);
 }
 
-int Scr_PrecacheModel()
+void Scr_PrecacheModel()
 {
     char *modelName; // [esp+4h] [ebp-4h]
 
-    if ( !level.initializing )
+    if (!level.initializing)
         Scr_Error("precacheModel must be called before any wait statements in the gametype or level script\n", 0);
     modelName = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
-    if ( !*modelName )
+    if (!*modelName)
         Scr_ParamError(0, "Model name string is empty", SCRIPTINSTANCE_SERVER);
-    if ( useFastFile->current.enabled )
+    if (useFastFile->current.enabled)
         Scr_ErrorOnDefaultAsset(ASSET_TYPE_XMODEL, modelName);
-    return G_ModelIndex(modelName);
+    G_ModelIndex(modelName);
 }
 
 void __cdecl Scr_ErrorOnDefaultAsset(XAssetType type, char *assetName)
@@ -7924,7 +8004,7 @@ void Scr_PrecacheShellShock()
     shellshockName = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
     index = G_ShellShockIndex(shellshockName);
     if ( !BG_LoadShellShockDvars(shellshockName) )
-        Com_Error(ERR_DROP, &byte_CC458C, shellshockName);
+        Com_Error(ERR_DROP, "couldn't find shell shock %s -- see console", shellshockName);
     ShellshockParms = BG_GetShellshockParms(index);
     BG_SetShellShockParmsFromDvars(ShellshockParms);
 }
@@ -7944,34 +8024,32 @@ void Scr_PrecacheItem()
     }
 }
 
-int Scr_PrecacheShader()
+void Scr_PrecacheShader()
 {
     char *shaderName; // [esp+0h] [ebp-4h]
 
-    if ( !level.initializing )
+    if (!level.initializing)
         Scr_Error("precacheShader must be called before any wait statements in the gametype or level script\n", 0);
     shaderName = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
-    if ( !*shaderName )
+    if (!*shaderName)
         Scr_ParamError(0, "Shader name string is empty", SCRIPTINSTANCE_SERVER);
-    return G_MaterialIndex(shaderName);
+    G_MaterialIndex( shaderName);
 }
 
-char *Scr_PrecacheString()
+void Scr_PrecacheString()
 {
-    char *result; // eax
+    char *stringName; // [esp+0h] [ebp-4h]
 
-    if ( !level.initializing )
+    if (!level.initializing)
         Scr_Error("precacheString must be called before any wait statements in the gametype or level script\n", 0);
-    result = Scr_GetIString(0, SCRIPTINSTANCE_SERVER);
-    if ( *result )
-        return (char *)G_LocalizedStringIndex(result);
-    return result;
+    stringName = Scr_GetIString(0, SCRIPTINSTANCE_SERVER);
+    if (*stringName)
+        G_LocalizedStringIndex( stringName);
 }
 
-int Scr_GrenadeExplosionEffect()
+void Scr_GrenadeExplosionEffect()
 {
     unsigned __int8 v0; // al
-    int result; // eax
     col_context_t context; // [esp+0h] [ebp-98h] BYREF
     float vDir[3]; // [esp+28h] [ebp-70h] BYREF
     float vOrg[3]; // [esp+34h] [ebp-64h] BYREF
@@ -7996,9 +8074,7 @@ int Scr_GrenadeExplosionEffect()
     vEnd[1] = vPos[1];
     vEnd[2] = vPos[2] - 17.0;
     G_TraceCapsule(&trace, vPos, vec3_origin, vec3_origin, vEnd, 1023, 2065, &context);
-    result = (int)((unsigned int)&bg_vehicleInfos[11].rotorTailStartFx[20] & trace.sflags) >> 20;
-    pEnt->s.surfType = result;
-    return result;
+    pEnt->s.surfType = (trace.sflags & 0x3F00000) >> 20;
 }
 
 void GScr_RadiusDamage()
@@ -8026,7 +8102,7 @@ void __cdecl GScr_RadiusDamageInternal(gentity_s *inflictor)
         attacker = Scr_GetEntity(4u);
     mod = MOD_EXPLOSIVE;
     if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) > 5 && Scr_GetType(5u, SCRIPTINSTANCE_SERVER) )
-        mod = G_MeansOfDeathFromScriptParam(5u);
+        mod = (meansOfDeath_t)G_MeansOfDeathFromScriptParam(5u);
     weapon = -1;
     if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) > 6 && Scr_GetType(6u, SCRIPTINSTANCE_SERVER) )
     {
@@ -8060,7 +8136,7 @@ void GScr_GlassRadiusDamage()
     min_damage = Scr_GetFloat(3u, SCRIPTINSTANCE_SERVER);
     mod = MOD_EXPLOSIVE;
     if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) > 4 && Scr_GetType(4u, SCRIPTINSTANCE_SERVER) )
-        mod = G_MeansOfDeathFromScriptParam(4u);
+        mod = (meansOfDeath_t)G_MeansOfDeathFromScriptParam(4u);
     GlassSv_RadiusDamage(origin, range, 1.0, 0, max_damage, min_damage, mod);
 }
 
@@ -8086,23 +8162,19 @@ void __cdecl GScr_Detonate(scr_entref_t entref)
             player = Scr_GetEntity(0);
             if ( !player->client )
                 Scr_ParamError(0, "Entity is not a player", SCRIPTINSTANCE_SERVER);
-            EntHandle::setEnt(&ent->parent, player);
+            ent->parent.setEnt(player);
         }
         else
         {
-            EntHandle::setEnt(&ent->parent, &g_entities[1022]);
+            ent->parent.setEnt(&g_entities[1022]);
         }
     }
-    G_ExplodeMissile((cStaticModel_s *)&savedregs, ent);
+    G_ExplodeMissile(ent);
 }
 
-VariableUnion GScr_SetPlayerIgnoreRadiusDamage()
+void GScr_SetPlayerIgnoreRadiusDamage()
 {
-    VariableUnion result; // eax
-
-    result.intValue = Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue;
-    level.bPlayerIgnoreRadiusDamageLatched = result.intValue;
-    return result;
+    level.bPlayerIgnoreRadiusDamageLatched = Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue;
 }
 
 void __cdecl GScr_DamageConeTrace(scr_entref_t entref)
@@ -8135,14 +8207,14 @@ void __cdecl GScr_DamageConeTraceInternal(scr_entref_t entref, int contentMask)
     if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) > 2 )
         Scr_GetVector(2u, damageAngles, SCRIPTINSTANCE_SERVER);
     if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) <= 3 )
-        *((float *)&v4 + 1) = FLOAT_65_0;
+        coneAngleDegrees = 65.0f;
     else
-        *((float *)&v4 + 1) = Scr_GetFloat(3u, SCRIPTINSTANCE_SERVER);
-    coneAngleDegrees = *((float *)&v4 + 1);
-    v2 = (float)(*((float *)&v4 + 1) * 0.017453292);
-    __libm_sse2_cos(v4);
-    *(float *)&v2 = v2;
-    coneAngleCos = *(float *)&v2;
+        coneAngleDegrees = Scr_GetFloat(3u, SCRIPTINSTANCE_SERVER);
+    //coneAngleDegrees = *((float *)&v4 + 1);
+    //v2 = (float)(*((float *)&v4 + 1) * 0.017453292);
+    //__libm_sse2_cos(v4);
+    //*(float *)&v2 = v2;
+    coneAngleCos = cos(coneAngleDegrees * 0.017453292);// * //*(float *)&v2;
     if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) <= 2 )
         v5 = 1.0f;
     else
@@ -8615,10 +8687,7 @@ void __cdecl Scr_SetFxAngles(unsigned int givenAxisCount, float (*axis)[3], floa
     }
     else if ( givenAxisCount == 2 )
     {
-        LODWORD(v4) = COERCE_UNSIGNED_INT(
-                                        (float)((float)((*axis)[0] * (*axis)[6]) + (float)((*axis)[1] * (*axis)[7]))
-                                    + (float)((*axis)[2] * (*axis)[8]))
-                                ^ _mask__NegFloat_;
+        (v4) = -((float)((float)((*axis)[0] * (*axis)[6]) + (float)((*axis)[1] * (*axis)[7])) + (float)((*axis)[2] * (*axis)[8]));
         (*axis)[6] = (float)(v4 * (*axis)[0]) + (*axis)[6];
         (*axis)[7] = (float)(v4 * (*axis)[1]) + (*axis)[7];
         (*axis)[8] = (float)(v4 * (*axis)[2]) + (*axis)[8];
@@ -8659,8 +8728,8 @@ void __cdecl Scr_FxParamError(unsigned int paramIndex, const char *errorString, 
 void Scr_PlayFXOnTag()
 {
     const char *v0; // eax
-    unsigned __int8 *v1; // eax
-    int v2; // eax
+    char *v1; // eax
+    char *v2; // eax
     unsigned int v3; // eax
     char *v4; // eax
     const char *v5; // eax
@@ -8684,8 +8753,8 @@ void Scr_PlayFXOnTag()
     if ( !ent->model )
         Scr_ParamError(1u, "cannot play fx on entity with no model", SCRIPTINSTANCE_SERVER);
     tag = Scr_GetConstLowercaseString(2u, SCRIPTINSTANCE_SERVER).stringValue;
-    v1 = (unsigned __int8 *)SL_ConvertToString(tag, SCRIPTINSTANCE_SERVER);
-    strchr(v1, 0x22u);
+    v1 = SL_ConvertToString(tag, SCRIPTINSTANCE_SERVER);
+    v2 = strchr(v1, 0x22u);
     if ( v2 )
         Scr_ParamError(2u, "cannot use \" characters in tag names\n", SCRIPTINSTANCE_SERVER);
     if ( SV_DObjGetBoneIndex(ent, tag) < 0 )
@@ -8776,7 +8845,7 @@ LABEL_13:
     Scr_SetFxAngles(givenAxisCount, axis, ent->s.lerp.apos.trBase);
     ent->s.lerp.u.turret.gunAngles[0] = cullDist;
     ent->s.lerp.u.loopFx.period = repeat;
-    SV_LinkEntity((int)&savedregs, ent);
+    SV_LinkEntity(ent);
     Scr_AddEntity(ent, SCRIPTINSTANCE_SERVER);
 }
 
@@ -8844,35 +8913,31 @@ LABEL_12:
     {
         __debugbreak();
     }
-    SV_LinkEntity((int)&savedregs, ent);
+    SV_LinkEntity(ent);
     Scr_AddEntity(ent, SCRIPTINSTANCE_SERVER);
 }
 
-int Scr_TriggerFX()
+void Scr_TriggerFX()
 {
-    int result; // eax
     float v1; // [esp+4h] [ebp-14h]
     gentity_s *ent; // [esp+14h] [ebp-4h]
 
-    if ( !Scr_GetNumParam(SCRIPTINSTANCE_SERVER) || (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) > 2 )
+    if (!Scr_GetNumParam(SCRIPTINSTANCE_SERVER) || (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) > 2)
         Scr_Error("Incorrect number of parameters", 0);
-    ent = Scr_GetEntity(0);
-    if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_scr_main_mp.cpp", 9496, 0, "%s", "ent") )
+    ent = Scr_GetEntity( 0);
+    if (!ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_scr_main_mp.cpp", 9496, 0, "%s", "ent"))
         __debugbreak();
-    if ( ent->s.eType != 8 )
+    if (ent->s.eType != 8)
         Scr_ParamError(0, "entity wasn't created with 'newFx'", SCRIPTINSTANCE_SERVER);
-    result = Scr_GetNumParam(SCRIPTINSTANCE_SERVER);
-    if ( result == 2 )
+    if (Scr_GetNumParam(SCRIPTINSTANCE_SERVER) == 2)
     {
         v1 = Scr_GetFloat(1u, SCRIPTINSTANCE_SERVER) * 1000.0;
-        result = (int)(v1 + 9.313225746154785e-10);
-        ent->s.time2 = result;
+        ent->s.time2 = (int)(v1 + 9.313225746154785e-10);
     }
     else
     {
         ent->s.time2 = level.time;
     }
-    return result;
 }
 
 void __cdecl ScrCmd_SpawnActor(scr_entref_t entref)
@@ -8882,7 +8947,7 @@ void __cdecl ScrCmd_SpawnActor(scr_entref_t entref)
     double v3; // [esp+0h] [ebp-30h]
     double v4; // [esp+8h] [ebp-28h]
     double v5; // [esp+10h] [ebp-20h]
-    char *v6; // [esp+1Ch] [ebp-14h]
+    const char *v6; // [esp+1Ch] [ebp-14h]
     gentity_s *guy; // [esp+20h] [ebp-10h]
     int noEnemyInfo; // [esp+24h] [ebp-Ch]
     VariableUnion targetname; // [esp+28h] [ebp-8h]
@@ -8967,15 +9032,13 @@ void __cdecl GScr_CreateDynEntAndLaunch()
     tempent->s.un1.scale = fxId;
 }
 
-gentity_s *Scr_PhysicsExplosionSphere()
+void Scr_PhysicsExplosionSphere()
 {
-    gentity_s *result; // eax
-    double Float; // st7
     float pos[3]; // [esp+0h] [ebp-10h] BYREF
     gentity_s *ent; // [esp+Ch] [ebp-4h]
 
-    if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) < 4
-        || (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) > 6 )
+    if ((unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) < 4
+        || (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) > 6)
     {
         Scr_Error("Incorrect number of parameters", 0);
     }
@@ -8983,23 +9046,17 @@ gentity_s *Scr_PhysicsExplosionSphere()
     ent = G_TempEntity(pos, 72);
     ent->s.eventParm = (unsigned __int16)Scr_GetInt(1u, SCRIPTINSTANCE_SERVER).floatValue;
     ent->s.lerp.u.turret.gunAngles[0] = Scr_GetFloat(2u, SCRIPTINSTANCE_SERVER);
-    ent->s.lerp.u.actor.team = 0;
-    ent->s.lerp.u.destructibleHit.modelState3 = 0;
-    if ( ent->s.lerp.u.turret.gunAngles[0] < 0.0 )
+    ent->s.lerp.u.actor.team = 0.0f;
+    ent->s.lerp.u.destructibleHit.modelState3 = 0.0f;
+    if (ent->s.lerp.u.turret.gunAngles[0] < 0.0)
         Scr_ParamError(2u, "Radius is negative", SCRIPTINSTANCE_SERVER);
-    if ( ent->s.lerp.u.turret.gunAngles[0] > (float)ent->s.eventParm )
+    if (ent->s.lerp.u.turret.gunAngles[0] > (float)ent->s.eventParm)
         Scr_Error("Inner radius is outside the outer radius", 0);
     ent->s.lerp.u.turret.gunAngles[1] = Scr_GetFloat(3u, SCRIPTINSTANCE_SERVER);
-    if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) > 4 )
+    if ((unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) > 4)
         ent->s.lerp.u.turret.heatVal = Scr_GetFloat(4u, SCRIPTINSTANCE_SERVER);
-    result = (gentity_s *)Scr_GetNumParam(SCRIPTINSTANCE_SERVER);
-    if ( (unsigned int)result > 5 )
-    {
-        Float = Scr_GetFloat(4u, SCRIPTINSTANCE_SERVER);
-        result = ent;
-        ent->s.lerp.u.turret.gunAngles[2] = Float;
-    }
-    return result;
+    if ((unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) > 5)
+        ent->s.lerp.u.turret.gunAngles[2] = Scr_GetFloat(4u, SCRIPTINSTANCE_SERVER);
 }
 
 void Scr_CreateStreamerHint()
@@ -9019,86 +9076,50 @@ void Scr_CreateStreamerHint()
     ent->s.lerp.u.turret.gunAngles[0] = Scr_GetFloat(1u, SCRIPTINSTANCE_SERVER);
     if ( ent->s.lerp.u.turret.gunAngles[0] < 0.0 )
         Scr_ParamError(1u, "streamer hint factor is negative", SCRIPTINSTANCE_SERVER);
-    SV_LinkEntity((int)&savedregs, ent);
+    SV_LinkEntity(ent);
     Scr_AddEntity(ent, SCRIPTINSTANCE_SERVER);
 }
 
-__int16 Scr_PhysicsRadiusJolt()
+void Scr_PhysicsRadiusJolt()
 {
-    char v0; // fl
-    bool v1; // cf
-    bool v2; // zf
-    char v3; // sf
-    char v4; // of
-    char v5; // pf
-    __int16 result; // ax
-    int v7; // [esp+0h] [ebp-18h]
     float pos[3]; // [esp+8h] [ebp-10h] BYREF
     gentity_s *ent; // [esp+14h] [ebp-4h]
 
-    if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) != 4 )
+    if (Scr_GetNumParam(SCRIPTINSTANCE_SERVER) != 4)
         Scr_Error("Incorrect number of parameters", 0);
     Scr_GetVector(0, pos, SCRIPTINSTANCE_SERVER);
     ent = G_TempEntity(pos, 74);
     ent->s.eventParm = (unsigned __int16)Scr_GetInt(1u, SCRIPTINSTANCE_SERVER).floatValue;
     ent->s.lerp.u.turret.gunAngles[0] = Scr_GetFloat(2u, SCRIPTINSTANCE_SERVER);
-    if ( ent->s.lerp.u.turret.gunAngles[0] < 0.0 )
+    if (ent->s.lerp.u.turret.gunAngles[0] < 0.0)
         Scr_ParamError(2u, "Radius is negative", SCRIPTINSTANCE_SERVER);
-    if ( ent->s.lerp.u.turret.gunAngles[0] > (float)ent->s.eventParm )
+    if (ent->s.lerp.u.turret.gunAngles[0] > (float)ent->s.eventParm)
         Scr_Error("Inner radius is outside the outer radius", 0);
     Scr_GetVector(3u, &ent->s.lerp.u.turret.gunAngles[1], SCRIPTINSTANCE_SERVER);
-    LOBYTE(result) = (_BYTE)ent + 88;
-    v1 = ent->s.lerp.u.turret.gunAngles[1] > 0.0;
-    v5 = 0;
-    v2 = 0.0 == ent->s.lerp.u.turret.gunAngles[1];
-    v3 = 0;
-    v4 = 0;
-    HIBYTE(result) = v0;
-    if ( 0.0 != ent->s.lerp.u.turret.gunAngles[1] )
-        goto LABEL_11;
-    v1 = ent->s.lerp.u.turret.gunAngles[2] > 0.0;
-    v5 = 0;
-    v2 = ent->s.lerp.u.turret.gunAngles[2] == 0.0;
-    v3 = 0;
-    v4 = 0;
-    HIBYTE(result) = v0;
-    if ( ent->s.lerp.u.turret.gunAngles[2] != 0.0 )
-        goto LABEL_11;
-    LOBYTE(result) = (_BYTE)ent + 88;
-    v1 = ent->s.lerp.u.primaryLight.cosHalfFovOuter > 0.0;
-    v5 = 0;
-    v2 = ent->s.lerp.u.primaryLight.cosHalfFovOuter == 0.0;
-    v3 = 0;
-    v4 = 0;
-    HIBYTE(result) = v0;
-    if ( ent->s.lerp.u.primaryLight.cosHalfFovOuter == 0.0 )
-        v7 = 1;
-    else
-LABEL_11:
-        v7 = 0;
-    if ( v7 )
-        ent->s.lerp.u.turret.gunAngles[1] = FLOAT_1_1754944eN38;
-    return result;
+    if (0.0 == ent->s.lerp.u.turret.gunAngles[1]
+        && ent->s.lerp.u.turret.gunAngles[2] == 0.0
+        && ent->s.lerp.u.primaryLight.cosHalfFovOuter == 0.0)
+    {
+        ent->s.lerp.u.turret.gunAngles[1] = 1.1754944;// eN38;
+    }
 }
 
-int Scr_PhysicsExplosionCylinder()
+void Scr_PhysicsExplosionCylinder()
 {
-    int result; // eax
     float pos[3]; // [esp+0h] [ebp-10h] BYREF
     gentity_s *ent; // [esp+Ch] [ebp-4h]
 
-    if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) != 4 )
+    if (Scr_GetNumParam(SCRIPTINSTANCE_SERVER) != 4)
         Scr_Error("Incorrect number of parameters", 0);
     Scr_GetVector(0, pos, SCRIPTINSTANCE_SERVER);
     ent = G_TempEntity(pos, 73);
     ent->s.eventParm = (unsigned __int16)Scr_GetInt(1u, SCRIPTINSTANCE_SERVER).floatValue;
     ent->s.lerp.u.turret.gunAngles[0] = Scr_GetFloat(2u, SCRIPTINSTANCE_SERVER);
-    if ( ent->s.lerp.u.turret.gunAngles[0] < 0.0 )
+    if (ent->s.lerp.u.turret.gunAngles[0] < 0.0)
         Scr_ParamError(2u, "Radius is negative", SCRIPTINSTANCE_SERVER);
-    if ( ent->s.lerp.u.turret.gunAngles[0] > (float)ent->s.eventParm )
+    if (ent->s.lerp.u.turret.gunAngles[0] > (float)ent->s.eventParm)
         Scr_Error("Inner radius is outside the outer radius", 0);
     ent->s.lerp.u.turret.gunAngles[1] = Scr_GetFloat(3u, SCRIPTINSTANCE_SERVER);
-    return result;
 }
 
 void Scr_SetExponentialFog()
@@ -9524,6 +9545,7 @@ void Scr_TableLookupIString()
     }
 }
 
+float locs[255][3];
 void __cdecl Scr_GetReflectionLocs()
 {
     unsigned int i; // [esp+0h] [ebp-8h]
@@ -9545,7 +9567,7 @@ void __cdecl Scr_GetReflectionOrigin()
     unsigned int index; // [esp+18h] [ebp-4h]
 
     if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) != 1 )
-        Com_Error(ERR_DROP, &byte_CC51CC);
+        Com_Error(ERR_DROP, "Invalid origin");
     Scr_GetVector(0, queryPos, SCRIPTINSTANCE_SERVER);
     index = R_CalcReflectionProbeIndex(queryPos);
     R_GetReflectionProbePosition(index, probePos);
@@ -9736,33 +9758,30 @@ void GScr_SetClientNameMode()
     }
 }
 
-int GScr_UpdateClientNames()
+void GScr_UpdateClientNames()
 {
-    int result; // eax
-    gclient_s *j; // [esp+14h] [ebp-2Ch]
+    gclient_s *clients; // [esp+14h] [ebp-2Ch]
     char oldname[32]; // [esp+18h] [ebp-28h] BYREF
     int i; // [esp+3Ch] [ebp-4h]
 
-    if ( !level.manualNameChange )
+    if (!level.manualNameChange)
         Scr_Error("Only works in [manual_change] mode", 0);
     i = 0;
-    for ( j = level.clients; ; ++j )
+    clients = level.clients;
+    while (i < level.maxclients)
     {
-        result = i;
-        if ( i >= level.maxclients )
-            break;
-        if ( j->sess.connected == CON_CONNECTED )
+        if (clients->sess.connected == CON_CONNECTED)
         {
-            if ( strcmp(j->sess.cs.name, j->sess.newnetname) )
+            if (strcmp(clients->sess.cs.name, clients->sess.newnetname))
             {
-                I_strncpyz(oldname, j->sess.cs.name, 32);
-                I_strncpyz(j->sess.cs.name, j->sess.newnetname, 32);
+                I_strncpyz(oldname, clients->sess.cs.name, 32);
+                I_strncpyz(clients->sess.cs.name, clients->sess.newnetname, 32);
                 ClientUserinfoChanged(i);
             }
         }
         ++i;
+        ++clients;
     }
-    return result;
 }
 
 void GScr_GetTeamPlayersAlive()
@@ -9802,11 +9821,12 @@ void GScr_GetDroppedWeapons()
     int i; // [esp+4h] [ebp-4h]
 
     Scr_MakeArray(SCRIPTINSTANCE_SERVER);
-    for ( i = 0; i < 32; ++i )
+    for (i = 0; i < 32; ++i)
     {
-        if ( EntHandle::isDefined((EntHandle *)(4 * i + 65348584)) )
+        if (level.droppedWeaponCue[i].isDefined())
         {
-            ent = EntHandle::ent((EntHandle *)(4 * i + 65348584));
+            //ent = EntHandle::ent(&level.droppedWeaponCue[i]);
+            ent = level.droppedWeaponCue[i].ent();
             Scr_AddEntity(ent, SCRIPTINSTANCE_SERVER);
             Scr_AddArray(SCRIPTINSTANCE_SERVER);
         }
@@ -9849,9 +9869,8 @@ void __cdecl GScr_GetPartName()
     Scr_AddConstString(name, SCRIPTINSTANCE_SERVER);
 }
 
-gentity_s *GScr_Earthquake()
+void GScr_Earthquake()
 {
-    gentity_s *result; // eax
     float v1; // [esp+0h] [ebp-34h]
     int clientNum; // [esp+10h] [ebp-24h]
     float source[3]; // [esp+14h] [ebp-20h] BYREF
@@ -9866,32 +9885,29 @@ gentity_s *GScr_Earthquake()
     duration = (int)(v1 + 9.313225746154785e-10);
     Scr_GetVector(2u, source, SCRIPTINSTANCE_SERVER);
     radius = Scr_GetFloat(3u, SCRIPTINSTANCE_SERVER);
-    if ( scale <= 0.0 )
+    if (scale <= 0.0)
         Scr_ParamError(0, "Scale must be greater than 0", SCRIPTINSTANCE_SERVER);
-    if ( duration <= 0 )
+    if (duration <= 0)
         Scr_ParamError(1u, "duration must be greater than 0", SCRIPTINSTANCE_SERVER);
-    if ( radius <= 0.0 )
+    if (radius <= 0.0)
         Scr_ParamError(3u, "Radius must be greater than 0", SCRIPTINSTANCE_SERVER);
-    if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) < 5 )
+    if ((unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) < 5)
         target = 0;
     else
         target = Scr_GetEntity(4u);
     tent = G_TempEntity(source, 88);
     tent->s.lerp.u.turret.gunAngles[0] = scale;
     tent->s.lerp.u.actor.team = duration;
-    result = tent;
     tent->s.lerp.u.turret.gunAngles[1] = radius;
-    if ( target )
+    if (target)
     {
-        if ( target->client )
+        if (target->client)
         {
             tent->r.clientMask[0] = -1;
             clientNum = target->client->ps.clientNum;
-            result = (gentity_s *)(clientNum >> 5);
             tent->r.clientMask[clientNum >> 5] &= ~(1 << (clientNum & 0x1F));
         }
     }
-    return result;
 }
 
 void __cdecl GScr_ShellShock(scr_entref_t entref)
@@ -9917,8 +9933,8 @@ void __cdecl GScr_ShellShock(scr_entref_t entref)
         {
             v2 = va("shellshock '%s' was not precached\n", shock);
             Scr_Error(v2, 0);
-            if ( GetCurrentThreadId() != g_DXDeviceThread )
-                return;
+            //if ( GetCurrentThreadId() != g_DXDeviceThread )
+            //    return;
             goto LABEL_18;
         }
         SV_GetConfigstring(id + 2532, s, 1024);
@@ -9941,17 +9957,18 @@ void __cdecl GScr_ShellShock(scr_entref_t entref)
     if ( ent->health > 0 )
     {
         ent->client->ps.pm_flags |= 0x10000u;
-        *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = &level_bgs;
-        if ( *(bgs_t **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) != &level_bgs
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_scr_main_mp.cpp",
-                        10679,
-                        0,
-                        "%s",
-                        "bgs == &level_bgs") )
-        {
-            __debugbreak();
-        }
+        //*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = &level_bgs;
+        bgs = &level_bgs;
+        //if ( *(bgs_t **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) != &level_bgs
+        //    && !Assert_MyHandler(
+        //                "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_scr_main_mp.cpp",
+        //                10679,
+        //                0,
+        //                "%s",
+        //                "bgs == &level_bgs") )
+        //{
+        //    __debugbreak();
+        //}
     }
     //if ( g_DXDeviceThread == GetCurrentThreadId() )
 LABEL_18:
@@ -10359,7 +10376,7 @@ void GScr_TestSpawnPoint()
     memset(&trace, 0, 16);
     //col_context_t::col_context_t(&context);
     Scr_GetVector(0, point, SCRIPTINSTANCE_SERVER);
-    G_TraceCapsule(&trace, point, playerMins, playerMaxs, point, 1023, (int)&loc_810011, &context);
+    G_TraceCapsule(&trace, point, playerMins, playerMaxs, point, 1023, (int)0x810011, &context);
     if ( trace.startsolid || trace.allsolid )
         Scr_AddBool(0, SCRIPTINSTANCE_SERVER);
     else
@@ -11199,7 +11216,7 @@ void Scr_IsGlobalStatsServer()
         Scr_AddInt(0, SCRIPTINSTANCE_SERVER);
 }
 
-unsigned intGScr_SetPlayerStatsForMatchRecording()
+void Scr_SetPlayerStatsForMatchRecording()
 {
     unsigned intresult; // eax
     char *statName; // [esp+8h] [ebp-10h]
@@ -11218,11 +11235,13 @@ unsigned intGScr_SetPlayerStatsForMatchRecording()
     if ( !statName )
         Scr_ParamError(1u, "recordPlayerStats Error: param 1 is not a string.", SCRIPTINSTANCE_SERVER);
     statValue = Scr_GetInt(2u, SCRIPTINSTANCE_SERVER).stringValue;
+#ifdef KISAK_LIVE
     MatchRecordSetPlayerStat(ent->client, statName, statValue);
-    result = GetCurrentThreadId();
-    if ( result == g_DXDeviceThread )
-        return //D3DPERF_EndEvent();
-    return result;
+#endif
+    //result = GetCurrentThreadId();
+    //if ( result == g_DXDeviceThread )
+    //    return //D3DPERF_EndEvent();
+    //return result;
 }
 
 void GScr_SetPlayerFinalForMatchRecording()
@@ -11236,12 +11255,16 @@ void GScr_SetPlayerFinalForMatchRecording()
         Scr_ParamError(0, "recordplayermatchend Error: param 0 is not an entity.", SCRIPTINSTANCE_SERVER);
     if ( !ent->client )
         Scr_ParamError(0, "recordplayermatchend Error: param 0 is not an player.", SCRIPTINSTANCE_SERVER);
+#ifdef KISAK_LIVE
     MatchRecordEnd(ent->client);
+#endif
 }
 
 void GScr_SetBeginForMatchRecording()
 {
+#ifdef KISAK_LIVE
     MatchRecordBegin();
+#endif
 }
 
 void GScr_GetAssignedTeam()
@@ -11371,7 +11394,7 @@ void GScr_GetItemGroupFromItemIndex()
 void GScr_GetBaseWeaponItemIndex()
 {
     int WeaponTableItemIndex; // eax
-    const WeaponVariantDef *WeaponVariantDef; // [esp+0h] [ebp-18h]
+    const WeaponVariantDef *weapVarDef; // [esp+0h] [ebp-18h]
     const WeaponVariantDef *weapVariantDef; // [esp+8h] [ebp-10h]
     int weaponItemIndex; // [esp+Ch] [ebp-Ch]
     unsigned int iWeaponIndex; // [esp+10h] [ebp-8h]
@@ -11380,23 +11403,48 @@ void GScr_GetBaseWeaponItemIndex()
     weaponItemIndex = 0;
     pszWeaponName = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
     iWeaponIndex = G_GetWeaponIndexForName(pszWeaponName);
-    if ( iWeaponIndex )
+    if (iWeaponIndex)
     {
         weapVariantDef = BG_GetWeaponVariantDef(iWeaponIndex);
-        if ( weapVariantDef && weapVariantDef->weapDef )
+        if (weapVariantDef && weapVariantDef->weapDef)
             weaponItemIndex = weapVariantDef->weapDef->itemIndex;
-        if ( !weaponItemIndex )
+        if (!weaponItemIndex)
         {
-            WeaponVariantDef = BG_GetWeaponVariantDef(iWeaponIndex);
-            if ( WeaponVariantDef->iVariantCount >= 0 )
+            weapVarDef = BG_GetWeaponVariantDef(iWeaponIndex);
+            if (weapVarDef->iVariantCount >= 0)
                 WeaponTableItemIndex = BG_GetWeaponTableItemIndex(iWeaponIndex);
             else
-                WeaponTableItemIndex = BG_GetWeaponTableItemIndex(-WeaponVariantDef->iVariantCount);
+                WeaponTableItemIndex = BG_GetWeaponTableItemIndex(-weapVarDef->iVariantCount);
             weaponItemIndex = WeaponTableItemIndex;
         }
     }
     Scr_AddInt(weaponItemIndex, SCRIPTINSTANCE_SERVER);
 }
+
+const char *lbWagerGameModeEnum[5] =
+{ "oic", "hlnd", "gun", "shrp", NULL };
+
+const char *lbTypeEnum[17] =
+{
+  "tdm",
+  "dm",
+  "ctf",
+  "dom",
+  "sab",
+  "sd",
+  "koth",
+  "dem",
+  "hctdm",
+  "hcdm",
+  "hcctf",
+  "hcdom",
+  "hcsab",
+  "hcsd",
+  "hckoth",
+  "hcdem",
+  NULL
+};
+
 
 void GScr_GetGameTypeEnumFromName()
 {
@@ -12492,8 +12540,7 @@ void GScr_SetMiniMap()
     north[1] = sin(v2);
     level.compassMapWorldSize[0] = (float)((float)(lowerRight[0] - upperLeft) * north[1])
                                                              - (float)((float)(lowerRight[1] - upperLeft_4) * north[0]);
-    level.compassMapWorldSize[1] = (float)(COERCE_FLOAT(COERCE_UNSIGNED_INT(lowerRight[0] - upperLeft) ^ _mask__NegFloat_)
-                                                                             * north[0])
+    level.compassMapWorldSize[1] = (float)((-(lowerRight[0] - upperLeft)) * north[0])
                                                              - (float)((float)(lowerRight[1] - upperLeft_4) * north[1]);
     if ( level.compassMapWorldSize[0] < 0.0 || level.compassMapWorldSize[1] < 0.0 )
         Scr_Error(
@@ -12526,47 +12573,43 @@ void GScr_IncrementEscrow()
     }
 }
 
-VariableUnion GScr_SetTeamSpyplane()
+void GScr_SetTeamSpyplane()
 {
-    char *v0; // eax
-    const char *v1; // eax
-    VariableUnion result; // eax
+    char *v1; // eax
+    char *v2; // eax
     unsigned __int16 team; // [esp+0h] [ebp-8h]
     unsigned int SpyplaneAvailable; // [esp+4h] [ebp-4h]
 
     team = (unsigned __int16)Scr_GetConstString(0, SCRIPTINSTANCE_SERVER).floatValue;
-    if ( team != scr_const.allies && team != scr_const.axis && team != scr_const.none )
+    if (team != scr_const.allies && team != scr_const.axis && team != scr_const.none)
     {
-        v0 = SL_ConvertToString(team, SCRIPTINSTANCE_SERVER);
-        v1 = va("Illegal team string '%s'. Must be allies, axis, or none.", v0);
-        Scr_ParamError(0, v1, SCRIPTINSTANCE_SERVER);
+        v1 = SL_ConvertToString(team, SCRIPTINSTANCE_SERVER);
+        v2 = va("Illegal team string '%s'. Must be allies, axis, or none.", v1);
+        Scr_ParamError(0, v2, SCRIPTINSTANCE_SERVER);
     }
-    result.intValue = Scr_GetInt(1u, SCRIPTINSTANCE_SERVER).intValue;
-    SpyplaneAvailable = result.intValue;
-    if ( team == scr_const.allies )
+    SpyplaneAvailable = Scr_GetInt(1u, SCRIPTINSTANCE_SERVER).stringValue;
+    if (team == scr_const.allies)
     {
-        level.teamHasSpyplane[2] = result.stringValue;
+        level.teamHasSpyplane[2] = SpyplaneAvailable;
     }
-    else if ( team == scr_const.axis )
+    else if (team == scr_const.axis)
     {
-        level.teamHasSpyplane[1] = result.stringValue;
+        level.teamHasSpyplane[1] = SpyplaneAvailable;
     }
     else
     {
-        if ( team != scr_const.none )
+        if (team != scr_const.none
+            && !Assert_MyHandler(
+                "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_scr_main_mp.cpp",
+                14352,
+                0,
+                "%s",
+                "team == scr_const.none"))
         {
-            result.intValue = Assert_MyHandler(
-                                                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_scr_main_mp.cpp",
-                                                    14352,
-                                                    0,
-                                                    "%s",
-                                                    "team == scr_const.none");
-            if ( !LOBYTE(result.floatValue) )
-                __debugbreak();
+            __debugbreak();
         }
         level.teamHasSpyplane[0] = SpyplaneAvailable;
     }
-    return result;
 }
 
 void GScr_GetTeamSpyplane()
@@ -12596,47 +12639,43 @@ void GScr_GetTeamSpyplane()
     }
 }
 
-VariableUnion GScr_SetTeamSatellite()
+void GScr_SetTeamSatellite()
 {
-    char *v0; // eax
-    const char *v1; // eax
-    VariableUnion result; // eax
+    char *v1; // eax
+    char *v2; // eax
     unsigned __int16 team; // [esp+0h] [ebp-8h]
     unsigned int SatelliteAvailable; // [esp+4h] [ebp-4h]
 
     team = (unsigned __int16)Scr_GetConstString(0, SCRIPTINSTANCE_SERVER).floatValue;
-    if ( team != scr_const.allies && team != scr_const.axis && team != scr_const.none )
+    if (team != scr_const.allies && team != scr_const.axis && team != scr_const.none)
     {
-        v0 = SL_ConvertToString(team, SCRIPTINSTANCE_SERVER);
-        v1 = va("Illegal team string '%s'. Must be allies, axis, or none.", v0);
-        Scr_ParamError(0, v1, SCRIPTINSTANCE_SERVER);
+        v1 = SL_ConvertToString(team, SCRIPTINSTANCE_SERVER);
+        v2 = va("Illegal team string '%s'. Must be allies, axis, or none.", v1);
+        Scr_ParamError(0, v2, SCRIPTINSTANCE_SERVER);
     }
-    result.intValue = Scr_GetInt(1u, SCRIPTINSTANCE_SERVER).intValue;
-    SatelliteAvailable = result.intValue;
-    if ( team == scr_const.allies )
+    SatelliteAvailable = Scr_GetInt(1u, SCRIPTINSTANCE_SERVER).stringValue;
+    if (team == scr_const.allies)
     {
-        level.teamHasSatellite[2] = result.stringValue;
+        level.teamHasSatellite[2] = SatelliteAvailable;
     }
-    else if ( team == scr_const.axis )
+    else if (team == scr_const.axis)
     {
-        level.teamHasSatellite[1] = result.stringValue;
+        level.teamHasSatellite[1] = SatelliteAvailable;
     }
     else
     {
-        if ( team != scr_const.none )
+        if (team != scr_const.none
+            && !Assert_MyHandler(
+                "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_scr_main_mp.cpp",
+                14431,
+                0,
+                "%s",
+                "team == scr_const.none"))
         {
-            result.intValue = Assert_MyHandler(
-                                                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_scr_main_mp.cpp",
-                                                    14431,
-                                                    0,
-                                                    "%s",
-                                                    "team == scr_const.none");
-            if ( !LOBYTE(result.floatValue) )
-                __debugbreak();
+            __debugbreak();
         }
         level.teamHasSatellite[0] = SatelliteAvailable;
     }
-    return result;
 }
 
 void GScr_GetTeamSatellite()
@@ -12759,7 +12798,7 @@ void __cdecl GScr_Launch(scr_entref_t entref)
     if ( ent->s.eType != 4 )
     {
         ent->r.contents = 0;
-        SV_LinkEntity((int)&savedregs, ent);
+        SV_LinkEntity(ent);
     }
 }
 
@@ -12842,7 +12881,6 @@ void __cdecl GScr_MagicBullet()
                     {
 LABEL_22:
                         projectile = Weapon_RocketLauncher_Fire(
-                                                     COERCE_FLOAT(&savedregs),
                                                      attacker,
                                                      weapon,
                                                      0.0,
@@ -13125,6 +13163,7 @@ void __cdecl GScr_SetLightRadius(scr_entref_t entref)
 
 void __cdecl GScr_GetLightFovInner(scr_entref_t entref)
 {
+#if 0
     double v1; // xmm0_8
     long double varC; // [esp+8h] [ebp-Ch]
 
@@ -13134,10 +13173,21 @@ void __cdecl GScr_GetLightFovInner(scr_entref_t entref)
     __libm_sse2_acos(varC);
     *(float *)&v1 = v1;
     Scr_AddFloat(*(float *)&v1 * 2.0, SCRIPTINSTANCE_SERVER);
+#endif
+
+    gentity_s *ent = GScr_SetupLightEntity(entref);
+
+    // Offset 100 (0x64) holds the cosine of half the inner FOV
+    float innerCos = *(float *)((char *)ent + 100);
+
+    float fov = acosf(innerCos) * 2.0f;
+
+    Scr_AddFloat(fov, SCRIPTINSTANCE_SERVER);
 }
 
 void __cdecl GScr_GetLightFovOuter(scr_entref_t entref)
 {
+#if 0
     double v1; // xmm0_8
     long double varC; // [esp+8h] [ebp-Ch]
 
@@ -13147,6 +13197,15 @@ void __cdecl GScr_GetLightFovOuter(scr_entref_t entref)
     __libm_sse2_acos(varC);
     *(float *)&v1 = v1;
     Scr_AddFloat(*(float *)&v1 * 2.0, SCRIPTINSTANCE_SERVER);
+#endif
+    gentity_s *ent = GScr_SetupLightEntity(entref);
+
+    // Offset 96 (0x60) holds cosine of half the outer FOV
+    float outerCos = *(float *)((char *)ent + 96);
+
+    float fov = acosf(outerCos) * 2.0f;
+
+    Scr_AddFloat(fov, SCRIPTINSTANCE_SERVER);
 }
 
 void __cdecl GScr_SetLightFovRange(scr_entref_t entref)
@@ -13177,8 +13236,9 @@ void __cdecl GScr_SetLightFovRange(scr_entref_t entref)
     fovOuter = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
     if ( fovOuter < 0.99900001 || fovOuter >= 136.00101 )
         Scr_ParamError(0, "outer fov must be in the range of 1 to 136", SCRIPTINSTANCE_SERVER);
-    __libm_sse2_cos(v2);
-    cosHalfFovOuter = (float)(fovOuter * 0.017453292) * 0.5;
+    //__libm_sse2_cos(v2);
+    //cosHalfFovOuter = (float)(fovOuter * 0.017453292) * 0.5;
+    cosHalfFovOuter = (float)cos(fovOuter * 0.017453292) * 0.5;
     if ( (float)(refLight->cosHalfFovOuter - 0.001) > cosHalfFovOuter )
         Scr_ParamError(0, "outer fov cannot be larger than the fov when the map was compiled", SCRIPTINSTANCE_SERVER);
     if ( (float)(cosHalfFovOuter - 1.0) < 0.0 )
@@ -13194,8 +13254,9 @@ void __cdecl GScr_SetLightFovRange(scr_entref_t entref)
         fovInner = Scr_GetFloat(1u, SCRIPTINSTANCE_SERVER);
         if ( fovInner < -0.001 || fovInner >= (float)(fovOuter + 0.001) )
             Scr_ParamError(1u, "inner fov must be in the range of 0 to outer fov", SCRIPTINSTANCE_SERVER);
-        __libm_sse2_cos(v3);
-        cosHalfFovInner = (float)(fovInner * 0.017453292) * 0.5;
+        //__libm_sse2_cos(v3);
+        //cosHalfFovInner = (float)(fovInner * 0.017453292) * 0.5;
+        cosHalfFovInner = (float)cos(fovInner * 0.017453292) * 0.5;
         if ( (float)(cosHalfFovInner - 1.0) < 0.0 )
             v7 = (float)(fovInner * 0.017453292) * 0.5;
         else
@@ -13586,7 +13647,7 @@ void __cdecl GScr_GetCorpseAnim(scr_entref_t entref)
     {
         corpseInfo = (corpseInfo_t *)&g_scr_data.actorXAnimTrees[376 * G_GetPlayerCorpseIndex(ent, "GScr_GetCorpseAnim")
                                                                                                                      - 1496];
-        anim.index = ent->s.un2.animState.state & 0xFBFF;
+        anim.index = ent->s.animState.state & 0xFBFF;
         treeAnims = XAnimGetAnims(corpseInfo->tree);
         anim.tree = Scr_GetAnimsIndex(treeAnims, SCRIPTINSTANCE_SERVER);
         Scr_AddAnim(anim, SCRIPTINSTANCE_SERVER);
@@ -13612,7 +13673,7 @@ void __cdecl ScrCmd_ItemWeaponSetAmmo(scr_entref_t entref)
     itemEnt = GetEntity(entref);
     if ( itemEnt->s.eType != 3 )
         Scr_Error("Entity is not an item.", 0);
-    if ( bg_itemlist[itemEnt->s.un3.item] != 1 )
+    if ( bg_itemlist[itemEnt->s.un3.item].giType != IT_WEAPON )
         Scr_Error("Item entity is not a weapon.", 0);
     clipAmmo = Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue;
     if ( clipAmmo < 0 )
@@ -13915,7 +13976,7 @@ void __cdecl GScr_AddSpawnPoints()
             Scr_ParamError(1u, v1, SCRIPTINSTANCE_SERVER);
             break;
         }
-        v3 = *Scr_GetEntityIdRef(&v2, SCRIPTINSTANCE_SERVER, entry_value->u.next);
+        v3 = Scr_GetEntityIdRef(SCRIPTINSTANCE_SERVER, entry_value->u.next);
         if ( !SpawnSystem_AddPoint(team, &g_entities[v3.entnum]) )
         {
             v0 = va("Adding to many spawn points to spawnpoint system.    Max: %i\n", 200);
@@ -14093,14 +14154,14 @@ void __cdecl GScr_AddSphereInfluencer()
         if ( influencer_index == -1 )
         {
             Scr_Error("USAGE: addsphereinfluencer could not create influencer \n", 0);
-            if ( g_DXDeviceThread != GetCurrentThreadId() )
-                return;
+            //if ( g_DXDeviceThread != GetCurrentThreadId() )
+            //    return;
         }
         else
         {
             Scr_AddInt(influencer_index, SCRIPTINSTANCE_SERVER);
-            if ( GetCurrentThreadId() != g_DXDeviceThread )
-                return;
+            //if ( GetCurrentThreadId() != g_DXDeviceThread )
+            //    return;
         }
         goto LABEL_29;
     }
@@ -14410,14 +14471,10 @@ void GScr_CollisionTestPointsInCylinder()
                             v11 = Vec3DistanceSq(points[point_index], axis_midpoint);
                             if ( bounding_sphere_radius_squared > v11 )
                             {
-                                LODWORD(midpoint_axial_distance) = COERCE_UNSIGNED_INT(
-                                                                                                         (float)((float)((float)(points[point_index][0] - axis_midpoint[0])
-                                                                                                                                     * cylinder_height_unit_vector[0])
-                                                                                                                     + (float)((float)(points[point_index][1] - axis_midpoint[1])
-                                                                                                                                     * cylinder_height_unit_vector[1]))
-                                                                                                     + (float)((float)(points[point_index][2] - axis_midpoint[2])
-                                                                                                                     * cylinder_height_unit_vector[2]))
-                                                                                                 & _mask__AbsFloat_;
+                                (midpoint_axial_distance) = fabs((float)((float)((float)(points[point_index][0] - axis_midpoint[0]) * cylinder_height_unit_vector[0]) 
+                                    + (float)((float)(points[point_index][1] - axis_midpoint[1]) * cylinder_height_unit_vector[1]))
+                                    + (float)((float)(points[point_index][2] - axis_midpoint[2]) * cylinder_height_unit_vector[2]))
+                                                                                                 ;
                                 if ( half_cylinder_height > midpoint_axial_distance )
                                 {
                                     dsquared = Vec3DistanceSq(points[point_index], axis_midpoint);
@@ -14551,16 +14608,9 @@ void GScr_CollisionTestPointsInPill()
                                         v15 = Vec3DistanceSq(points[point_index], cylinder_top);
                                         if ( cylinder_radius_squared <= v15 )
                                         {
-                                            LODWORD(midpoint_axial_distance) = COERCE_UNSIGNED_INT(
-                                                                                                                     (float)((float)((float)(points[point_index][0]
-                                                                                                                                                                 - axis_midpoint[0])
-                                                                                                                                                 * cylinder_height_unit_vector[0])
-                                                                                                                                 + (float)((float)(points[point_index][1]
-                                                                                                                                                                 - axis_midpoint[1])
-                                                                                                                                                 * cylinder_height_unit_vector[1]))
-                                                                                                                 + (float)((float)(points[point_index][2] - axis_midpoint[2])
-                                                                                                                                 * cylinder_height_unit_vector[2]))
-                                                                                                             & _mask__AbsFloat_;
+                                            (midpoint_axial_distance) = fabs((float)((float)((float)(points[point_index][0] - axis_midpoint[0]) * cylinder_height_unit_vector[0])
+                                                + (float)((float)(points[point_index][1] - axis_midpoint[1]) * cylinder_height_unit_vector[1]))
+                                                + (float)((float)(points[point_index][2] - axis_midpoint[2]) * cylinder_height_unit_vector[2]));
                                             if ( half_cylinder_height > midpoint_axial_distance )
                                             {
                                                 dsquared = Vec3DistanceSq(points[point_index], axis_midpoint);
@@ -14734,7 +14784,7 @@ void GScr_CollisionTestPointsInCone()
                                                         + (float)((float)(radial_edge[1] - cone_tip[1]) * (float)(radial_edge[1] - cone_tip[1])))
                                         + (float)((float)(radial_edge[2] - cone_tip[2]) * (float)(radial_edge[2] - cone_tip[2]));
                             else
-                                v15 = FLOAT_0_0000099999997;
+                                v15 = 0.0000099999997f;
                             te_magnitude_squared = v15;
                             teto2_over_te = (float)(te_dot_to * te_dot_to) / v15;
                             Scr_MakeArray(SCRIPTINSTANCE_SERVER);
@@ -14743,15 +14793,13 @@ void GScr_CollisionTestPointsInCone()
                                 memset(collision_results, 0, sizeof(collision_results));
                                 v13 = Vec3DistanceSq(points[point_index], axis_midpoint);
                                 if ( bounding_sphere_radius_squared > v13
-                                    && half_cone_height > COERCE_FLOAT(
-                                                                                    COERCE_UNSIGNED_INT(
-                                                                                        (float)((float)((float)(points[point_index][0] - axis_midpoint[0])
+                                    && half_cone_height > fabs((float)((float)((float)(points[point_index][0] - axis_midpoint[0])
                                                                                                                     * cone_height_unit_vector[0])
                                                                                                     + (float)((float)(points[point_index][1] - axis_midpoint[1])
                                                                                                                     * cone_height_unit_vector[1]))
                                                                                     + (float)((float)(points[point_index][2] - axis_midpoint[2])
                                                                                                     * cone_height_unit_vector[2]))
-                                                                                & _mask__AbsFloat_) )
+                                                                                 )
                                 {
                                     tp = points[point_index][0] - cone_tip[0];
                                     tp_4 = points[point_index][1] - cone_tip[1];
@@ -14760,7 +14808,7 @@ void GScr_CollisionTestPointsInCone()
                                                          - (float)((float)((float)(tp * tp) + (float)(tp_4 * tp_4)) + (float)(tp_8 * tp_8))) < 0.0 )
                                         v14 = (float)((float)(tp * tp) + (float)(tp_4 * tp_4)) + (float)(tp_8 * tp_8);
                                     else
-                                        v14 = FLOAT_0_0000099999997;
+                                        v14 = 0.0000099999997;
                                     tp_dot_to = (float)((float)(tp * to[0]) + (float)(tp_4 * to[1])) + (float)(tp_8 * to[2]);
                                     if ( (float)((float)(tp_dot_to * tp_dot_to) / v14) > teto2_over_te )
                                     {
@@ -14933,21 +14981,9 @@ void GScr_CollisionTestPointsInBox()
                                     if ( bounding_sphere_radius_squared > (float)((float)((float)(v18[0] * v18[0])
                                                                                                                                             + (float)(v18[1] * v18[1]))
                                                                                                                             + (float)(v18[2] * v18[2]))
-                                        && half_box_width > COERCE_FLOAT(
-                                                                                    COERCE_UNSIGNED_INT(
-                                                                                        (float)((float)(v18[0] * box_forward[0]) + (float)(v18[1] * box_forward[1]))
-                                                                                    + (float)(v18[2] * box_forward[2]))
-                                                                                & _mask__AbsFloat_)
-                                        && half_box_height > COERCE_FLOAT(
-                                                                                     COERCE_UNSIGNED_INT(
-                                                                                         (float)((float)(v18[0] * box_left[0]) + (float)(v18[1] * box_left[1]))
-                                                                                     + (float)(v18[2] * box_left[2]))
-                                                                                 & _mask__AbsFloat_)
-                                        && half_box_depth > COERCE_FLOAT(
-                                                                                    COERCE_UNSIGNED_INT(
-                                                                                        (float)((float)(v18[0] * box_up[0]) + (float)(v18[1] * box_up[1]))
-                                                                                    + (float)(v18[2] * box_up[2]))
-                                                                                & _mask__AbsFloat_) )
+                                        && half_box_width >  (fabs((float)((float)(v18[0] * box_forward[0]) + (float)(v18[1] * box_forward[1])) + (float)(v18[2] * box_forward[2])) )
+                                        && half_box_height > (fabs((float)((float)(v18[0] * box_left[0]) + (float)(v18[1] * box_left[1])) + (float)(v18[2] * box_left[2])) )
+                                        && half_box_depth >  (fabs((float)((float)(v18[0] * box_up[0]) + (float)(v18[1] * box_up[1])) + (float)(v18[2] * box_up[2]))) )
                                     {
                                         collision_results[0] = 1.0f;
                                         collision_results[1] = (float)((float)(v18[0] * v18[0]) + (float)(v18[1] * v18[1]))
@@ -15508,6 +15544,17 @@ void GScr_PixBeginEvent()
     //PIXBeginNamedEvent(0, v1);
 }
 
+void GScr_PixEndEvent()
+{
+    //char *String; // eax
+    //const char *v1; // eax
+    //
+    //String = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
+    //v1 = va("SCRIPT: %s", String);
+    //PIXBeginNamedEvent(0, v1);
+
+}
+
 void GScr_PixMarker()
 {
     char *String; // eax
@@ -15515,7 +15562,7 @@ void GScr_PixMarker()
 
     String = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
     v1 = va("SCRIPT: %s", String);
-    PIXSetMarker(0, v1);
+    //PIXSetMarker(0, v1);
 }
 
 void GScr_IncrementCounter()
@@ -15692,17 +15739,474 @@ void GScr_PregameStartGame()
     Pregame_StartGame();
 }
 
+void print_0()
+{
+    const dvar_s *result; // eax
+    char *DebugString; // eax
+    int num; // [esp+0h] [ebp-8h]
+    const dvar_s *i; // [esp+4h] [ebp-4h]
+
+    if (!g_NoScriptSpam->current.enabled)
+    {
+        num = Scr_GetNumParam(SCRIPTINSTANCE_SERVER);
+        for (i = 0; ; i = (const dvar_s *)((char *)i + 1))
+        {
+            result = i;
+            if ((int)i >= num)
+                break;
+            DebugString = Scr_GetDebugString((unsigned int)i, SCRIPTINSTANCE_SERVER);
+            Com_Printf(level.scriptPrintChannel, "%s", DebugString);
+        }
+    }
+}
+
+void println_0()
+{
+    if (!g_NoScriptSpam->current.enabled)
+    {
+        print_0();
+        Com_Printf(level.scriptPrintChannel, "\n");
+    }
+}
+
+void FUNCTION_NULLSUB()
+{
+
+}
+
+void assertCmd_0()
+{
+    if (!Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue)
+        Scr_Error("assert fail", 0);
+}
+
+void assertexCmd_0()
+{
+    char *String; // eax
+    char *v2; // eax
+
+    if (!Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue)
+    {
+        String = Scr_GetString(1u, SCRIPTINSTANCE_SERVER);
+        v2 = va("assert fail: %s", String);
+        Scr_Error(v2, 0);
+    }
+}
+
+void assertmsgCmd_0()
+{
+    char *String; // eax
+    char *v2; // eax
+
+    String = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
+    v2 = va("assert fail: %s", String);
+    Scr_Error(v2, 0);
+}
+
+BuiltinFunctionDef functions[383] =
+{
+  { "createprintchannel", GScr_CreatePrintChannel, 1 },
+  { "setprintchannel", GScr_printChannelSet, 1 },
+  { "print", print_0, 1 },
+  { "println", println_0, 1 },
+  { "iprintln", iprintln, 0 },
+  { "iprintlnbold", iprintlnbold, 0 },
+  { "print3d", GScr_print3d, 1 },
+  { "box", GScr_box, 1 },
+  { "line", GScr_line, 1 },
+  { "linelist", GScr_linelist, 1 },
+  { "debugstar", GScr_debugstar, 1 },
+  { "circle", GScr_circle, 1 },
+  { "sphere", GScr_sphere, 1 },
+  { "getreflectionlocs", Scr_GetReflectionLocs, 1 },
+  { "getreflectionorigin", Scr_GetReflectionOrigin, 1 },
+  { "logstring", FUNCTION_NULLSUB, 0 },
+  { "bbprint", FUNCTION_NULLSUB, 0 },
+  { "getent", Scr_GetEnt, 0 },
+  { "getentarray", Scr_GetEntArray, 0 },
+  { "getnode", Scr_GetNode, 0 },
+  { "getnodearray", Scr_GetNodeArray, 0 },
+  { "getallnodes", Scr_GetAllNodes, 0 },
+  { "getatrloaded", GScr_GetAnimTreesLoaded, 0 },
+  { "findanimbyname", GScr_FindAnimByName, 0 },
+  { "spawn", GScr_Spawn, 0 },
+  { "spawncollision", GScr_SpawnCollision, 0 },
+  { "spawntimedfx", GScr_SpawnTimedFX, 0 },
+  { "spawnvehicle", GScr_SpawnVehicle, 0 },
+  { "spawnplane", GScr_SpawnPlane, 0 },
+  { "spawnturret", GScr_SpawnTurret, 0 },
+  { "precacheturret", GScr_PrecacheTurret, 0 },
+  { "spawnstruct", Scr_AddStruct, 0 },
+  { "spawnhelicopter", GScr_SpawnHelicopter, 0 },
+  { "assert", assertCmd_0, 1 },
+  { "assertex", assertexCmd_0, 1 },
+  { "assertmsg", assertmsgCmd_0, 1 },
+  { "adddebugcommand", GScr_AddDebugCommand, 1 },
+  { "isdefined", GScr_IsDefined, 0 },
+  { "ismp", GScr_IsMP, 0 },
+  { "isint", GScr_IsInt, 0 },
+  { "isfloat", GScr_IsFloat, 0 },
+  { "isvec", GScr_IsVec, 0 },
+  { "isstring", GScr_IsString, 0 },
+  { "isarray", GScr_IsArray, 0 },
+  { "isalive", GScr_IsAlive, 0 },
+  { "getdvar", GScr_GetDvar, 0 },
+  { "getdvarint", GScr_GetDvarInt, 0 },
+  { "getdvarfloat", GScr_GetDvarFloat, 0 },
+  { "getdvarcolorred", GScr_GetDvarColorRed, 0 },
+  { "getdvarcolorgreen", GScr_GetDvarColorGreen, 0 },
+  { "getdvarcolorblue", GScr_GetDvarColorBlue, 0 },
+  { "setdvar", GScr_SetDvar, 0 },
+  { "gettime", GScr_GetTime, 0 },
+  { "getentbynum", Scr_GetEntByNum, 1 },
+  { "getweaponmodel", Scr_GetWeaponModel, 0 },
+  { "getweaponstowedmodel", Scr_GetWeaponStowedModel, 0 },
+  { "getanimlength", GScr_GetAnimLength, 0 },
+  { "animhasnotetrack", GScr_AnimHasNotetrack, 0 },
+  { "getnotetracktimes", GScr_GetNotetrackTimes, 0 },
+  { "getbrushmodelcenter", GScr_GetBrushModelCenter, 0 },
+  { "getattachmentindex", GScr_GetAttachmentIndex, 0 },
+  { "objective_add", Scr_Objective_Add, 0 },
+  { "objective_delete", Scr_Objective_Delete, 0 },
+  { "objective_state", Scr_Objective_State, 0 },
+  { "objective_icon", Scr_Objective_Icon, 0 },
+  { "objective_position", Scr_Objective_Position, 0 },
+  { "objective_onentity", Scr_Objective_OnEntity, 0 },
+  { "objective_current", Scr_Objective_Current, 0 },
+  { "objective_setvisibletoplayer", Scr_Objective_SetVisibleToPlayer, 0 },
+  { "objective_setinvisibletoplayer", Scr_Objective_SetInvisibleToPlayer, 0 },
+  { "objective_setvisibletoall", Scr_Objective_SetVisibleToAll, 0 },
+  { "objective_setinvisibletoall", Scr_Objective_SetInvisibleToAll, 0 },
+  { "objective_setsize", Scr_Objective_SetSize, 0 },
+  { "objective_setcolor", Scr_Objective_SetColor, 0 },
+  { "missile_createattractorent", Scr_MissileCreateAttractorEnt, 0 },
+  { "missile_createattractororigin", Scr_MissileCreateAttractorOrigin, 0 },
+  { "missile_createrepulsorent", Scr_MissileCreateRepulsorEnt, 0 },
+  { "missile_createrepulsororigin", Scr_MissileCreateRepulsorOrigin, 0 },
+  { "missile_deleteattractor", Scr_MissileDeleteAttractor, 0 },
+  { "bullettrace", Scr_BulletTrace, 0 },
+  { "bullettracepassed", Scr_BulletTracePassed, 0 },
+  { "sighttracepassed", Scr_SightTracePassed, 0 },
+  { "physicstrace", Scr_PhysicsTrace, 0 },
+  { "playerphysicstrace", Scr_PlayerPhysicsTrace, 0 },
+  { "getmovedelta", GScr_GetMoveDelta, 0 },
+  { "getangledelta", GScr_GetAngleDelta, 0 },
+  { "getnorthyaw", GScr_GetNorthYaw, 0 },
+  { "randomint", Scr_RandomInt, 0 },
+  { "randomfloat", Scr_RandomFloat, 0 },
+  { "randomintrange", Scr_RandomIntRange, 0 },
+  { "randomfloatrange", Scr_RandomFloatRange, 0 },
+  { "log", GScr_log, 0 },
+  { "sin", GScr_sin, 0 },
+  { "cos", GScr_cos, 0 },
+  { "tan", GScr_tan, 0 },
+  { "asin", GScr_asin, 0 },
+  { "acos", GScr_acos, 0 },
+  { "atan", GScr_atan, 0 },
+  { "int", GScr_CastInt, 0 },
+  { "float", GScr_CastFloat, 0 },
+  { "abs", GScr_abs, 0 },
+  { "min", GScr_min, 0 },
+  { "max", GScr_max, 0 },
+  { "floor", GScr_floor, 0 },
+  { "ceil", GScr_ceil, 0 },
+  { "sqrt", GScr_sqrt, 0 },
+  { "lerpfloat", GScr_LerpFloat, 0 },
+  { "lerpvector", GScr_LerpVector, 0 },
+  { "vectorfromlinetopoint", GScr_VectorFromLineToPoint, 0 },
+  { "pointonsegmentnearesttopoint", GScr_PointOnSegmentNearestToPoint, 0 },
+  { "distance", Scr_Distance, 0 },
+  { "distance2d", Scr_Distance2D, 0 },
+  { "distancesquared", Scr_DistanceSquared, 0 },
+  { "length", Scr_Length, 0 },
+  { "lengthsquared", Scr_LengthSquared, 0 },
+  { "closer", Scr_Closer, 0 },
+  { "vectordot", Scr_VectorDot, 0 },
+  { "vectorcross", Scr_VectorCross, 0 },
+  { "vectornormalize", Scr_VectorNormalize, 0 },
+  { "vectortoangles", Scr_VectorToAngles, 0 },
+  { "vectorlerp", Scr_VectorLerp, 0 },
+  { "anglestoup", Scr_AnglesToUp, 0 },
+  { "anglestoright", Scr_AnglesToRight, 0 },
+  { "anglestoforward", Scr_AnglesToForward, 0 },
+  { "combineangles", Scr_CombineAngles, 0 },
+  { "angleclamp180", Scr_ClampAngle180, 0 },
+  { "absangleclamp180", Scr_AbsAngleClamp180, 0 },
+  { "rotatepoint", Scr_RotatePoint, 0 },
+  { "issubstr", Scr_IsSubStr, 0 },
+  { "getsubstr", Scr_GetSubStr, 0 },
+  { "tolower", Scr_ToLower, 0 },
+  { "strtok", Scr_StrTok, 0 },
+  { "soundfade", Scr_SoundFade, 0 },
+  { "playsoundatposition", Scr_PlaySoundAtPosition, 0 },
+  { "getvehiclenode", GScr_GetVehicleNode, 0 },
+  { "precachemodel", Scr_PrecacheModel, 0 },
+  { "precacheshellshock", Scr_PrecacheShellShock, 0 },
+  { "precacheitem", Scr_PrecacheItem, 0 },
+  { "precacheshader", Scr_PrecacheShader, 0 },
+  { "precachestring", Scr_PrecacheString, 0 },
+  { "precacherumble", FUNCTION_NULLSUB, 0 },
+  { "precachevehicle", GScr_PrecacheVehicle, 0 },
+  { "precachemenu", GScr_PrecacheMenu, 0 },
+  { "precachestatusicon", GScr_PrecacheStatusIcon, 0 },
+  { "precacheheadicon", GScr_PrecacheHeadIcon, 0 },
+  { "precachelocationselector", GScr_PrecacheLocationSelector, 0 },
+  { "loadfx", Scr_LoadFX, 0 },
+  { "playfx", Scr_PlayFX, 0 },
+  { "playfxontag", Scr_PlayFXOnTag, 0 },
+  { "getwaterheight", GScr_GetWaterHeight, 0 },
+  { "playloopedfx", Scr_PlayLoopedFX, 0 },
+  { "spawnfx", Scr_SpawnFX, 0 },
+  { "triggerfx", Scr_TriggerFX, 0 },
+  { "physicsexplosionsphere", Scr_PhysicsExplosionSphere, 0 },
+  { "physicsexplosioncylinder", Scr_PhysicsExplosionCylinder, 0 },
+  { "physicsjolt", Scr_PhysicsRadiusJolt, 0 },
+  { "createstreamerhint", Scr_CreateStreamerHint, 0 },
+  { "setexpfog", Scr_SetExponentialFog, 0 },
+  { "setvolfog", Scr_SetVolumetricFog, 0 },
+  { "setculldist", Scr_SetCullDist, 0 },
+  { "grenadeexplosioneffect", Scr_GrenadeExplosionEffect, 0 },
+  { "magicbullet", GScr_MagicBullet, 0 },
+  { "radiusdamage", GScr_RadiusDamage, 0 },
+  { "setplayerignoreradiusdamage", GScr_SetPlayerIgnoreRadiusDamage, 0 },
+  { "glassradiusdamage", GScr_GlassRadiusDamage, 0 },
+  { "getnumparts", GScr_GetNumParts, 0 },
+  { "getpartname", GScr_GetPartName, 0 },
+  { "earthquake", GScr_Earthquake, 0 },
+  { "newhudelem", GScr_NewHudElem, 0 },
+  { "newclienthudelem", GScr_NewClientHudElem, 0 },
+  { "newteamhudelem", GScr_NewTeamHudElem, 0 },
+  { "newscorehudelem", GScr_NewScoreHudElem, 0 },
+  { "newdebughudelem", GScr_NewDebugHudElem, 0 },
+  { "resettimeout", Scr_ResetTimeout, 0 },
+  { "weaponfiretime", GScr_WeaponFireTime, 0 },
+  { "weaponreloadtime", GScr_WeaponReloadTime, 0 },
+  { "isweaponcliponly", GScr_IsWeaponClipOnly, 0 },
+  { "isweapondetonationtimed", GScr_IsWeaponDetonationTimed, 0 },
+  { "weaponclipsize", GScr_WeaponClipSize, 0 },
+  { "weaponissemiauto", GScr_WeaponIsSemiAuto, 0 },
+  { "weaponisboltaction", GScr_WeaponIsBoltAction, 0 },
+  { "weapontype", GScr_WeaponType, 0 },
+  { "weaponclass", GScr_WeaponClass, 0 },
+  { "weaponmountable", GScr_WeaponIsMountable, 0 },
+  { "weaponinventorytype", GScr_WeaponInventoryType, 0 },
+  { "weaponstartammo", GScr_WeaponStartAmmo, 0 },
+  { "weaponmaxammo", GScr_WeaponMaxAmmo, 0 },
+  { "weaponaltweaponname", GScr_WeaponAltWeaponName, 0 },
+  { "getwatcherweapons", GScr_GetWatcherWeapons, 0 },
+  { "getretrievableweapons", GScr_GetRetrievableWeapons, 0 },
+  { "getweaponmindamagerange", GScr_GetWeaponMinDamageRange, 0 },
+  { "getweaponmaxdamagerange", GScr_GetWeaponMaxDamageRange, 0 },
+  { "getweaponmindamage", GScr_GetWeaponMinDamage, 0 },
+  { "getweaponmaxdamage", GScr_GetWeaponMaxDamage, 0 },
+  { "getweaponfusetime", GScr_GetWeaponFuseTime, 0 },
+  { "getweaponprojexplosionsound", GScr_GetWeaponProjExplosionSound, 0 },
+  { "isweaponspecificuse", GScr_IsWeaponSpecificUse, 0 },
+  { "isweaponscopeoverlay", GScr_IsWeaponScopeOverlay, 0 },
+  { "isweaponequipment", GScr_IsWeaponEquipment, 0 },
+  { "isweaponprimary", GScr_IsWeaponPrimary, 0 },
+  { "isturretfiring", GScr_IsTurretFiring, 0 },
+  { "getweaponfiresound", GScr_GetWeaponFireSound, 0 },
+  { "getweaponfiresoundplayer", GScr_GetWeaponFireSoundPlayer, 0 },
+  { "getweaponpickupsoundplayer", GScr_GetWeaponPickupSoundPlayer, 0 },
+  { "getweaponpickupsound", GScr_GetWeaponPickupSound, 0 },
+  { "getweaponindexfromname", GScr_GetWeaponIndexFromName, 0 },
+  { "isplayer", GScr_IsPlayer, 0 },
+  { "isplayernumber", GScr_IsPlayerNumber, 0 },
+  { "setwinningplayer", GScr_SetWinningPlayer, 0 },
+  { "setwinningteam", GScr_SetWinningTeam, 0 },
+  { "announcement", GScr_Announcement, 0 },
+  { "clientannouncement", GScr_ClientAnnouncement, 0 },
+  { "getteamscore", GScr_GetTeamScore, 0 },
+  { "setteamscore", GScr_SetTeamScore, 0 },
+  { "setclientnamemode", GScr_SetClientNameMode, 0 },
+  { "updateclientnames", GScr_UpdateClientNames, 0 },
+  { "getteamplayersalive", GScr_GetTeamPlayersAlive, 0 },
+  { "getdroppedweapons", GScr_GetDroppedWeapons, 0 },
+  { "objective_team", GScr_Objective_Team, 0 },
+  { "artilleryiconlocation", SetArtilleryIconLocation, 0 },
+  { "logprint", GScr_LogPrint, 0 },
+  { "worldentnumber", GScr_WorldEntNumber, 0 },
+  { "obituary", GScr_Obituary, 0 },
+  { "reviveobituary", GScr_ReviveObituary, 0 },
+  { "adddemobookmark", GScr_AddDemoBookmark, 0 },
+  { "positionwouldtelefrag", GScr_positionWouldTelefrag, 0 },
+  { "boundswouldtelefrag", GScr_BoundsWouldTelefrag, 0 },
+  { "recordusedspawnpoint", GScr_RecordUsedSpawnPoint, 0 },
+  { "testspawnpoint", GScr_TestSpawnPoint, 0 },
+  { "getstarttime", GScr_getStartTime, 0 },
+  { "map_restart", GScr_MapRestart, 0 },
+  { "exitlevel", GScr_ExitLevel, 0 },
+  { "killserver", GScr_KillServer, 0 },
+  { "addtestclient", GScr_AddTestClient, 0 },
+  { "makedvarserverinfo", GScr_MakeDvarServerInfo, 0 },
+  { "setbombtimer", GScr_SetBombTimer, 0 },
+  { "setmatchflag", GScr_SetMatchFlag, 0 },
+  { "setmatchtalkflag", GScr_SetMatchTalkFlag, 0 },
+  { "setarchive", FUNCTION_NULLSUB, 0 },
+  { "allclientsprint", GScr_AllClientsPrint, 0 },
+  { "clientprint", GScr_ClientPrint, 0 },
+  { "mapexists", GScr_MapExists, 0 },
+  { "isvalidgametype", GScr_IsValidGameType, 0 },
+  { "matchend", FUNCTION_NULLSUB, 0 },
+  { "setplayerteamrank", FUNCTION_NULLSUB, 0 },
+  { "sendranks", FUNCTION_NULLSUB, 0 },
+  { "endparty", FUNCTION_NULLSUB, 0 },
+  { "setteamspyplane", GScr_SetTeamSpyplane, 0 },
+  { "getteamspyplane", GScr_GetTeamSpyplane, 0 },
+  { "setteamsatellite", GScr_SetTeamSatellite, 0 },
+  { "getteamsatellite", GScr_GetTeamSatellite, 0 },
+  { "getassignedteam", GScr_GetAssignedTeam, 0 },
+  { "uploadstats", GScr_UploadStats, 0 },
+  { "getdefaultclassslot", GScr_GetDefaultClassSlot, 0 },
+  { "getitemattachment", GScr_GetItemAttachment, 0 },
+  { "getreffromitemindex", GScr_GetRefFromItemIndex, 0 },
+  { "getitemgroupfromitemindex", GScr_GetItemGroupFromItemIndex, 0 },
+  { "getbaseweaponitemindex", GScr_GetBaseWeaponItemIndex, 0 },
+  { "getgametypeenumfromname", GScr_GetGameTypeEnumFromName, 0 },
+  { "getwagergametypelist", GScr_GetWagerGametypeList, 0 },
+  { "setscoreboardcolumns", GScr_SetScoreboardColumns, 0 },
+  { "iscollectors", GScr_IsCollectors, 0 },
+  { "recordplayerstats", GScr_SetPlayerStatsForMatchRecording, 0 },
+  { "recordplayermatchend", GScr_SetPlayerFinalForMatchRecording, 0 },
+  { "recordmatchbegin", GScr_SetBeginForMatchRecording, 0 },
+  { "setvotestring", GScr_SetVoteString, 0 },
+  { "setvotetime", GScr_SetVoteTime, 0 },
+  { "setvoteyescount", GScr_SetVoteYesCount, 0 },
+  { "setvotenocount", GScr_SetVoteNoCount, 0 },
+  { "openfile", GScr_OpenFile, 1 },
+  { "closefile", GScr_CloseFile, 1 },
+  { "fprintln", GScr_FPrintln, 1 },
+  { "fprintfields", GScr_FPrintFields, 1 },
+  { "freadln", GScr_FReadLn, 1 },
+  { "fgetarg", GScr_FGetArg, 1 },
+  { "execdevgui", GScr_ExecDevgui, 1 },
+  { "reportmtu", FUNCTION_NULLSUB, 0 },
+  { "pcserverupdateplaylist", GScr_PCServerUpdatePlaylist, 0 },
+  { "kick", GScr_KickPlayer, 0 },
+  { "ban", GScr_BanPlayer, 0 },
+  { "map", GScr_LoadMap, 0 },
+  { "playrumbleonposition", FUNCTION_NULLSUB, 0 },
+  { "playrumblelooponposition", FUNCTION_NULLSUB, 0 },
+  { "stopallrumbles", FUNCTION_NULLSUB, 0 },
+  { "soundexists", ScrCmd_SoundExists, 0 },
+  { "issplitscreen", GScr_GetAssignedTeam, 0 },
+  { "isglobalstatsserver", Scr_IsGlobalStatsServer, 0 },
+  { "setminimap", GScr_SetMiniMap, 0 },
+  { "setmapcenter", GScr_SetMapCenter, 0 },
+  { "isdemorecording", GScr_IsDemoRecording, 0 },
+  { "isdemoenabled", isDemoEnabled, 0 },
+  { "setdemointermissionpoint", GScr_SetDemoIntermissionPoint, 0 },
+  { "startdemorecording", GScr_StartDemoRecording, 0 },
+  { "stopdemorecording", GScr_StopDemoRecording, 0 },
+  { "setgameendtime", GScr_SetGameEndTime, 0 },
+  { "settimescale", GScr_SetTimeScale, 0 },
+  { "incrementescrow", GScr_IncrementEscrow, 0 },
+  { "getarraykeys", GScr_GetArrayKeys, 0 },
+  { "searchforonlinegames", FUNCTION_NULLSUB, 0 },
+  { "quitlobby", FUNCTION_NULLSUB, 0 },
+  { "quitparty", FUNCTION_NULLSUB, 0 },
+  { "startparty", FUNCTION_NULLSUB, 0 },
+  { "startprivatematch", FUNCTION_NULLSUB, 0 },
+  { "visionsetnaked", Scr_VisionSetNaked, 0 },
+  { "visionsetnight", Scr_VisionSetNight, 0 },
+  { "tablelookup", Scr_TableLookup, 0 },
+  { "tablelookupistring", Scr_TableLookupIString, 0 },
+  { "tablelookuprownum", Scr_TableLookupRowNum, 0 },
+  { "tablelookupcolumnforrow", Scr_TableLookupColumnForRow, 0 },
+  { "endlobby", FUNCTION_NULLSUB, 0 },
+  { "clientsysregister", GScr_ClientSysRegister, 0 },
+  { "clientsyssetstate", GScr_ClientSysSetState, 0 },
+  { "isai", GScr_IsAI, 0 },
+  { "getaitriggerflags", GScr_GetAITriggerFlags, 0 },
+  { "isvehicle", GScr_IsVehicle, 0 },
+  { "getmaxvehicles", GScr_GetMaxVehicles, 0 },
+  { "getvehicletreadfxarray", GScr_GetVehicleTreadFXArray, 0 },
+  { "disabledestructiblepieces", GScr_DisableDestructiblePieces, 0 },
+  { "enablealldestructiblepieces", GScr_EnableAllDestructiblePieces, 0 },
+  { "createdynentandlaunch", GScr_CreateDynEntAndLaunch, 0 },
+  { "getvehicletriggerflags", GScr_GetMaxVehicles, 0 },
+  { "collisiontestpointsinsphere", GScr_CollisionTestPointsInSphere, 0 },
+  { "collisiontestpointsincylinder", GScr_CollisionTestPointsInCylinder, 0 },
+  { "collisiontestpointsinpill", GScr_CollisionTestPointsInPill, 0 },
+  { "collisiontestpointsincone", GScr_CollisionTestPointsInCone, 0 },
+  { "collisiontestpointsinbox", GScr_CollisionTestPointsInBox, 0 },
+  {
+    "qsortscoredspawnpointsascending",
+    GScr_QSortScoredSpawnPointArrayAscending,
+    0
+  },
+  { "matrix4x4transformpoints", GScr_Matrix4x4TransformPoints, 0 },
+  { "setspawnpointrandomvariation", GScr_SetSpawnPointRandomVariation, 0 },
+  { "clearspawnpoints", GScr_ClearSpawnPoints, 0 },
+  { "addspawnpoints", GScr_AddSpawnPoints, 0 },
+  { "getsortedspawnpoints", GScr_GetSortedSpawnPoints, 0 },
+  { "clearspawnpointsbaseweight", GScr_ClearSpawnPointsBaseWeight, 0 },
+  { "setspawnpointsbaseweight", GScr_SetSpawnPointsBaseWeight, 0 },
+  { "getplayerspawnid", FUNCTION_NULLSUB, 0 },
+  { "isspawnpointvisible", GScr_IsSpawnPointVisible, 0 },
+  { "addsphereinfluencer", GScr_AddSphereInfluencer, 0 },
+  { "addcylinderinfluencer", GScr_AddCylinderInfluencer, 0 },
+  { "removeinfluencer", GScr_RemoveInfluencer, 0 },
+  { "enableinfluencer", GScr_EnableInfluencer, 0 },
+  { "setinfluencerteammask", GScr_SetInfluencerTeamMask, 0 },
+  { "setdebugsideswitch", GScr_SetDebugSideSwitch, 1 },
+  { "target_set", Scr_Target_Set, 0 },
+  { "target_remove", Scr_Target_Remove, 0 },
+  { "target_setshader", Scr_Target_SetShader, 0 },
+  { "target_setoffscreenshader", Scr_Target_SetOffscreenShader, 0 },
+  { "target_isinrect", Scr_Target_IsInRect, 0 },
+  { "target_isincircle", Scr_Target_IsInCircle, 0 },
+  { "target_startreticlelockon", Scr_Target_StartLockOn, 0 },
+  { "target_clearreticlelockon", Scr_Target_ClearLockOn, 0 },
+  { "target_getarray", Scr_Target_GetArray, 0 },
+  { "target_istarget", Scr_Target_IsTarget, 0 },
+  { "target_setattackmode", Scr_Target_SetAttackMode, 0 },
+  { "target_setjavelinonly", Scr_Target_SetJavelinOnly, 0 },
+  { "target_setturretaquire", Scr_Target_SetTurretAquire, 0 },
+  { "getnumgvrules", GScr_GetNumGVRules, 0 },
+  { "getgvrule", GScr_GetGVRule, 0 },
+  { "getmaxactivecontracts", GScr_GetMaxActiveContracts, 0 },
+  { "getcontractstattype", GScr_GetContractStatType, 0 },
+  { "getcontractstatname", GScr_GetContractStatName, 0 },
+  { "getcontractrewardxp", GScr_GetContractRewardXP, 0 },
+  { "getcontractrewardcp", GScr_GetContractRewardCP, 0 },
+  { "getcontractrequirements", GScr_GetContractRequirements, 0 },
+  { "getcontractname", GScr_GetContractName, 0 },
+  { "getcontractrequiredcount", GScr_GetContractRequiredCount, 0 },
+  { "getcontractresetconditions", GScr_GetContractResetConditions, 0 },
+  { "getfogsettings", GScr_GetFogSettings, 0 },
+  { "getcustomclassloadoutitem", Gscr_GetCustomClassLoadoutItem, 0 },
+  { "getcustomclassmodifier", Gscr_GetCustomClassLoadoutModifier, 0 },
+  { "pixbeginevent", GScr_PixBeginEvent, 0 },
+  { "pixendevent", GScr_PixEndEvent, 0 },
+  { "pixmarker", GScr_PixMarker, 0 },
+  { "changeadvertisedstatus", FUNCTION_NULLSUB, 0 },
+  { "setqosgamedatapayload", FUNCTION_NULLSUB, 0 },
+  { "resetqosgamedatapayload", FUNCTION_NULLSUB, 0 },
+  { "incrementcounter", GScr_IncrementCounter, 0 },
+  { "getcountertotal", GScr_GetCounterTotal, 0 },
+  { "enableoccluder", GScr_EnableOccluder, 0 },
+  { "ispregameenabled", GScr_IsPregameEnabled, 0 },
+  { "ispregamegamestarted", GScr_IsPregameGameStarted, 0 },
+  { "pregamestartgame", GScr_PregameStartGame, 0 },
+  { "resetpregamedata", GScr_ResetPregameData, 0 },
+  { "sethostmigrationstatus", FUNCTION_NULLSUB, 0 }
+};
+
+
+
 void (__cdecl *__cdecl Scr_GetFunction(const char **pName, int *type))()
 {
     unsigned int i; // [esp+18h] [ebp-4h]
 
-    for ( i = 0; i < 0x17F; ++i )
+    for (i = 0; i < 0x17F; ++i)
     {
-        if ( !strcmp(*pName, functions[i].actionString) )
+        if (!strcmp(*pName, functions[i].actionString))
         {
             *pName = functions[i].actionString;
-            *type = dword_E08518[3 * i];
-            return (void (__cdecl *)())*(&off_E08514 + 3 * i);
+            *type = functions[i].type;
+            return functions[i].actionFunc;
         }
     }
     return 0;
@@ -15760,24 +16264,24 @@ void __cdecl GScr_IsMissileInsideHeightLock(scr_entref_t entref)
     gentity_s *pSelf; // [esp+24h] [ebp-4h]
 
     pSelf = GetEntity(entref);
-    if ( !pSelf
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_scr_main_mp.cpp", 18507, 0, "%s", "pSelf") )
+    if (!pSelf
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_scr_main_mp.cpp", 18507, 0, "%s", "pSelf"))
     {
         __debugbreak();
     }
-    for ( i = 0; i < num_heli_height_lock_patches; ++i )
+    for (i = 0; i < num_heli_height_lock_patches; ++i)
     {
         CM_ModelBounds(heli_height_lock_patches[i].brushmodel, meshMins, meshMaxs);
-        meshMins[0] = meshMins[0] + *((float *)&unk_3F3CE8C + 6 * i);
-        meshMins[1] = meshMins[1] + *((float *)&unk_3F3CE8C + 6 * i + 1);
-        meshMins[2] = meshMins[2] + *((float *)&unk_3F3CE8C + 6 * i + 2);
-        meshMaxs[0] = meshMaxs[0] + *((float *)&unk_3F3CE8C + 6 * i);
-        meshMaxs[1] = meshMaxs[1] + *((float *)&unk_3F3CE8C + 6 * i + 1);
-        meshMaxs[2] = meshMaxs[2] + *((float *)&unk_3F3CE8C + 6 * i + 2);
-        if ( pSelf->r.currentOrigin[0] >= meshMins[0]
+        meshMins[0] = meshMins[0] + heli_height_lock_patches[i].origin[0];
+        meshMins[1] = meshMins[1] + heli_height_lock_patches[i].origin[1];
+        meshMins[2] = meshMins[2] + heli_height_lock_patches[i].origin[2];
+        meshMaxs[0] = meshMaxs[0] + heli_height_lock_patches[i].origin[0];
+        meshMaxs[1] = meshMaxs[1] + heli_height_lock_patches[i].origin[1];
+        meshMaxs[2] = meshMaxs[2] + heli_height_lock_patches[i].origin[2];
+        if (pSelf->r.currentOrigin[0] >= meshMins[0]
             && meshMaxs[0] >= pSelf->r.currentOrigin[0]
             && pSelf->r.currentOrigin[1] >= meshMins[1]
-            && meshMaxs[1] >= pSelf->r.currentOrigin[1] )
+            && meshMaxs[1] >= pSelf->r.currentOrigin[1])
         {
             Scr_AddInt(1, SCRIPTINSTANCE_SERVER);
             return;
@@ -16059,6 +16563,255 @@ void (__cdecl *__cdecl Scr_GetMethod(const char **pName, int *type))(scr_entref_
         return BuiltIn_GetMethod(pName, type);
 }
 
+void METHOD_NULLSUB(scr_entref_t ref)
+{
+
+}
+
+BuiltinMethodDef methods_3[234] =
+{
+  { "attach", ScrCmd_attach, 0 },
+  { "detach", ScrCmd_detach, 0 },
+  { "detachall", ScrCmd_detachAll, 0 },
+  { "getattachsize", ScrCmd_GetAttachSize, 0 },
+  { "getattachmodelname", ScrCmd_GetAttachModelName, 0 },
+  { "getattachtagname", ScrCmd_GetAttachTagName, 0 },
+  { "getattachignorecollision", ScrCmd_GetAttachIgnoreCollision, 0 },
+  { "getammocount", GScr_GetAmmoCount, 0 },
+  { "getclanid", ScrCmd_GetClanId, 0 },
+  { "getclanname", ScrCmd_GetClanName, 0 },
+  { "hidepart", ScrCmd_hidepart, 0 },
+  { "showpart", ScrCmd_showpart, 0 },
+  { "showallparts", ScrCmd_showallparts, 0 },
+  { "setvisibletoplayer", ScrCmd_SetVisibleToPlayer, 0 },
+  { "setinvisibletoplayer", ScrCmd_SetInvisibleToPlayer, 0 },
+  { "setvisibletoall", ScrCmd_SetVisibleToAll, 0 },
+  { "setinvisibletoall", ScrCmd_SetInvisibleToAll, 0 },
+  { "setvisibletoteam", ScrCmd_SetVisibleToTeam, 0 },
+  { "setforcenocull", ScrCmd_SetForceNoCull, 0 },
+  { "islinkedto", ScrCmd_IsLinkedTo, 0 },
+  { "linkto", ScrCmd_LinkTo, 0 },
+  { "playerlinktodelta", ScrCmd_PlayerLinkToDelta, 0 },
+  { "unlink", ScrCmd_Unlink, 0 },
+  { "enablelinkto", ScrCmd_EnableLinkTo, 0 },
+  { "getorigin", ScrCmd_GetOrigin, 0 },
+  { "getangles", ScrCmd_GetAngles, 0 },
+  { "getmins", ScrCmd_GetMins, 0 },
+  { "getmaxs", ScrCmd_GetMaxs, 0 },
+  { "getabsmins", ScrCmd_GetAbsMins, 0 },
+  { "getabsmaxs", ScrCmd_GetAbsMaxs, 0 },
+  { "getpointinbounds", ScrCmd_GetPointInBounds, 0 },
+  { "geteye", ScrCmd_GetEye, 0 },
+  { "geteyeapprox", ScrCmd_GetEyeApprox, 0 },
+  { "useby", ScrCmd_UseBy, 0 },
+  { "setstablemissile", Scr_SetStableMissile, 0 },
+  { "istouching", ScrCmd_IsTouching, 0 },
+  { "istouchingswept", ScrCmd_IsTouchingSwept, 0 },
+  { "playsound", ScrCmd_PlaySound, 0 },
+  { "playsoundontag", ScrCmd_PlaySoundOnTag, 0 },
+  { "playsoundasmaster", ScrCmd_PlaySound, 0 },
+  { "playsoundtoteam", ScrCmd_PlaySoundToTeam, 0 },
+  { "playbattlechattertoteam", ScrCmd_PlayBattleChatterToTeam, 0 },
+  { "playsoundtoplayer", ScrCmd_PlaySoundToPlayer, 0 },
+  { "playloopsound", ScrCmd_PlayLoopSound, 0 },
+  { "stoploopsound", ScrCmd_StopLoopSound, 0 },
+  { "playrumbleonentity", METHOD_NULLSUB, 0 },
+  { "playrumblelooponentity", METHOD_NULLSUB, 0 },
+  { "stoprumble", METHOD_NULLSUB, 0 },
+  { "delete", ScrCmd_Delete, 0 },
+  { "setmodel", ScrCmd_SetModel, 0 },
+  { "setenemymodel", ScrCmd_SetEnemyModel, 0 },
+  { "dodamage", ScrCmd_DoDamage, 0 },
+  { "getnormalhealth", ScrCmd_GetNormalHealth, 0 },
+  { "setnormalhealth", ScrCmd_SetNormalHealth, 0 },
+  { "show", ScrCmd_Show, 0 },
+  { "hide", ScrCmd_Hide, 0 },
+  { "ghost", ScrCmd_Ghost, 0 },
+  { "laseron", METHOD_NULLSUB, 0 },
+  { "laseroff", METHOD_NULLSUB, 0 },
+  { "showtoplayer", ScrCmd_ShowToPlayer, 0 },
+  { "setcontents", ScrCmd_SetContents, 0 },
+  { "startfiring", GScr_StartFiring, 0 },
+  { "stopfiring", GScr_StopFiring, 0 },
+  { "shootturret", GScr_ShootTurret, 0 },
+  { "stopshootturret", GScr_StopShootTurret, 0 },
+  { "setmode", GScr_SetMode, 0 },
+  { "getturretowner", GScr_GetTurretOwner, 0 },
+  { "settargetentity", GScr_SetTargetEntity, 0 },
+  { "setplayerspread", GScr_SetPlayerSpread, 0 },
+  { "setaispread", GScr_SetAiSpread, 0 },
+  { "setconvergencetime", GScr_SetConvergenceTime, 0 },
+  { "setsuppressiontime", GScr_SetSuppressionTime, 0 },
+  { "cleartargetentity", GScr_ClearTargetEntity, 0 },
+  { "setturretteam", GScr_SetTurretTeam, 0 },
+  { "maketurretusable", GScr_MakeTurretUsable, 0 },
+  { "maketurretunusable", GScr_MakeTurretUnusable, 0 },
+  { "setturretaccuracy", GScr_SetTurretAccuracy, 0 },
+  { "setturretignoregoals", GScr_SetTurretIgnoreGoals, 0 },
+  { "getturrettarget", GScr_GetTurretTarget, 0 },
+  { "disconnectpaths", GScr_DisconnectPaths, 0 },
+  { "connectpaths", GScr_ConnectPaths, 0 },
+  { "getstance", ScrCmd_GetStance, 0 },
+  { "setcursorhint", GScr_SetCursorHint, 0 },
+  { "setrevivehintstring", GScr_SetReviveHintString, 0 },
+  { "sethintstring", GScr_SetHintString, 0 },
+  { "sethintstringforperk", GScr_SetHintStringForPerk, 0 },
+  { "sethintlowpriority", GScr_SetHintLowPriority, 0 },
+  { "usetriggerrequirelookat", GScr_UseTriggerRequireLookAt, 0 },
+  { "shellshock", GScr_ShellShock, 0 },
+  { "gettagorigin", GScr_GetTagOrigin, 0 },
+  { "gettagangles", GScr_GetTagAngles, 0 },
+  { "getentnum", GScr_GetEntnum, 1 },
+  { "stopshellshock", GScr_StopShellShock, 0 },
+  { "setdepthoffield", GScr_SetDepthOfField, 0 },
+  { "setburn", GScr_SetBurn, 0 },
+  { "setelectrified", GScr_SetElectrified, 0 },
+  { "spawnnapalmgroundflame", GScr_SpawnNapalmGroundFlame, 0 },
+  { "needsrevive", GScr_NeedsRevive, 0 },
+  { "isinsecondchance", GScr_IsInSecondChance, 0 },
+  { "depthinwater", GScr_DepthInWater, 0 },
+  { "shootup", GScr_ShootUp, 0 },
+  { "depthofplayerinwater", GScr_DepthOfPlayerInWater, 0 },
+  { "starttanning", GScr_StartTanning, 0 },
+  { "stopburning", GScr_StopBurning, 0 },
+  { "restoredefaultdroppitch", GScr_RestoreDefaultDropPitch, 0 },
+  { "clearcenterpopups", GScr_clearCenterPopups, 0 },
+  { "clearpopups", GScr_clearPopups, 0 },
+  { "displaymedal", GScr_DisplayMedal, 0 },
+  { "displaygamemodemessage", GScr_DisplayGameModeMessage, 0 },
+  { "displayteammessage", GScr_DisplayTeamMessage, 0 },
+  { "displaycontract", GScr_DisplayContract, 0 },
+  { "displaychallengecomplete", GScr_DisplayChallengeComplete, 0 },
+  { "clearendgame", GScr_ClearEndGameComplete, 0 },
+  { "displayendgame", GScr_DisplayEndGame, 0 },
+  { "displayendgamemilestone", GScr_DisplayEndGameMilestoneComplete, 0 },
+  { "displaykillstreak", GScr_DisplayKillstreak, 0 },
+  { "displayrankup", GScr_DisplayRankUp, 0 },
+  { "displaywagerpopup", GScr_DisplayWagerPopup, 0 },
+  { "displayhudanim", GScr_DisplayHudAnim, 0 },
+  { "isfiringturret", GScr_IsFiringTurret, 0 },
+  { "isturretlockedon", GScr_IsTurretLockedOn, 0 },
+  { "setviewmodeldepthoffield", GScr_SetViewModelDepthOfField, 0 },
+  { "viewkick", GScr_ViewKick, 0 },
+  { "localtoworldcoords", GScr_LocalToWorldCoords, 0 },
+  { "setrightarc", GScr_SetRightArc, 0 },
+  { "setleftarc", GScr_SetLeftArc, 0 },
+  { "settoparc", GScr_SetTopArc, 0 },
+  { "setbottomarc", GScr_SetBottomArc, 0 },
+  { "radiusdamage", GScr_EntityRadiusDamage, 0 },
+  { "detonate", GScr_Detonate, 0 },
+  { "damageconetrace", GScr_DamageConeTrace, 0 },
+  { "sightconetrace", GScr_SightConeTrace, 0 },
+  { "heliturretsighttrace", GScr_HeliTurretSightTrace, 0 },
+  { "heliturretdogtrace", GScr_HeliTurretDogTrace, 0 },
+  { "playersighttrace", GScr_PlayerSightTrace, 0 },
+  { "visionsetlerpratio", GScr_VisionSetLerpRatio, 0 },
+  { "docowardswayanims", GScr_DoCowardsWayAnims, 0 },
+  { "startpoisoning", GScr_StartPoisoning, 0 },
+  { "stoppoisoning", GScr_StopPoisoning, 0 },
+  { "startbinocs", GScr_StartBinocs, 0 },
+  { "stopbinocs", GScr_StopBinocs, 0 },
+  { "isflared", GScr_IsFlared, 0 },
+  { "ispoisoned", GScr_IsPoisoned, 0 },
+  { "sightconetrace", GScr_SightConeTrace, 0 },
+  { "setcameraspikeactive", GScr_SetCameraSpikeActive, 0 },
+  { "ismissileinsideheightlock", GScr_IsMissileInsideHeightLock, 0 },
+  { "isonground", GScr_IsOnGround, 0 },
+  { "setanim", GScr_SetAnim, 0 },
+  { "useanimtree", GScr_UseAnimTree, 0 },
+  { "ismartyrdomgrenade", GScr_IsMartyrdomGrenade, 0 },
+  { "getentitynumber", GScr_GetEntityNumber, 0 },
+  { "enablegrenadetouchdamage", GScr_EnableGrenadeTouchDamage, 0 },
+  { "disablegrenadetouchdamage", GScr_DisableGrenadeTouchDamage, 0 },
+  { "enableaimassist", GScr_EnableAimAssist, 0 },
+  { "disableaimassist", GScr_DisableAimAssist, 0 },
+  { "placespawnpoint", GScr_PlaceSpawnPoint, 0 },
+  { "setspawnclientflag", METHOD_NULLSUB, 0 },
+  { "directionalhitindicator", GScr_DirectionalHitIndicator, 0 },
+  { "sendfaceevent", ScrCmd_SendFaceEvent, 0 },
+  { "setteamfortrigger", GScr_SetTeamForTrigger, 0 },
+  { "setperkfortrigger", GScr_SetPerkForTrigger, 0 },
+  { "setignoreentfortrigger", GScr_SetIgnoreEntForTrigger, 0 },
+  { "clientclaimtrigger", GScr_ClientClaimTrigger, 0 },
+  { "clientreleasetrigger", GScr_ClientReleaseTrigger, 0 },
+  { "releaseclaimedtrigger", GScr_ReleaseClaimedTrigger, 0 },
+  { "isitemlocked", GScr_IsItemLocked, 0 },
+  { "isitempurchased", GScr_IsItemPurchased, 0 },
+  { "getdstat", GScr_GetDStat, 0 },
+  { "setdstat", GScr_SetDStat, 0 },
+  { "sendleaderboards", GScr_SendLeaderboards, 0 },
+  { "setnemesisxuid", GScr_SetNemesisXuid, 0 },
+  { "getloadoutitemfromprofile", GScr_GetLoadoutItemFromProfile, 0 },
+  { "setmovespeedscale", ScrCmd_SetMoveSpeedScale, 0 },
+  { "getmovespeedscale", ScrCmd_GetMoveSpeedScale, 0 },
+  { "logstring", METHOD_NULLSUB, 0 },
+  { "missile_settarget", GScr_MissileSetTarget, 0 },
+  { "isonladder", GScr_IsOnLadder, 0 },
+  { "ismantling", GScr_IsMantling, 0 },
+  { "startdoorbreach", GScr_StartDoorBreach, 0 },
+  { "stopdoorbreach", GScr_StopDoorBreach, 0 },
+  { "startragdoll", GScr_StartRagdoll, 0 },
+  { "isragdoll", GScr_IsRagdoll, 0 },
+  { "launchragdoll", GScr_RagdollLaunch, 0 },
+  { "launchvehicle", GScr_VehicleLaunch, 0 },
+  { "giveachievement", GScr_GiveAchievement, 0 },
+  { "setvehicleteam", GScr_SetTeam, 0 },
+  { "setteam", GScr_SetTeam, 0 },
+  { "getteam", GScr_GetTeam, 0 },
+  { "setowner", GScr_SetOwner, 0 },
+  { "setturretowner", GScr_SetTurretOwner, 0 },
+  { "setturrettype", GScr_SetTurretType, 0 },
+  { "getcorpseanim", GScr_GetCorpseAnim, 0 },
+  { "itemweaponsetammo", ScrCmd_ItemWeaponSetAmmo, 0 },
+  { "getlightcolor", GScr_GetLightColor, 0 },
+  { "setlightcolor", GScr_SetLightColor, 0 },
+  { "getlightintensity", GScr_GetLightIntensity, 0 },
+  { "setlightintensity", GScr_SetLightIntensity, 0 },
+  { "getlightradius", GScr_GetLightRadius, 0 },
+  { "setlightradius", GScr_SetLightRadius, 0 },
+  { "getlightfovinner", GScr_GetLightFovInner, 0 },
+  { "getlightfovouter", GScr_GetLightFovOuter, 0 },
+  { "setlightfovrange", GScr_SetLightFovRange, 0 },
+  { "getlightexponent", GScr_GetLightExponent, 0 },
+  { "setlightexponent", GScr_SetLightExponent, 0 },
+  { "setturretcarried", GScr_SetTurretCarried, 0 },
+  { "reportuser", METHOD_NULLSUB, 0 },
+  { "getvelocity", ScrCmd_GetVelocity, 0 },
+  { "spawnactor", ScrCmd_SpawnActor, 0 },
+  { "getshootatpos", ScrCmd_GetShootAtPosition, 0 },
+  { "setdefaultdroppitch", GScr_SetDefaultDropPitch, 0 },
+  { "setscanningpitch", GScr_SetScanningPitch, 0 },
+  { "launchbomb", GScr_LaunchBomb, 0 },
+  { "launch", GScr_Launch, 0 },
+  { "makegrenadedud", GScr_MakeGrenadeDud, 0 },
+  { "setclientflag", GScr_SetClientFlag, 0 },
+  { "clearclientflag", GScr_ClearClientFlag, 0 },
+  { "fakefire", GScr_FakeFire, 0 },
+  { "makeusable", ScrCmd_MakeUsable, 0 },
+  { "makeunusable", ScrCmd_MakeUnusable, 0 },
+  { "predictgrenade", GScr_PredictGrenade, 0 },
+  { "getindexforactivecontract", GScr_GetIndexForActiveContract, 0 },
+  { "getactivecontractprogress", GScr_GetActiveContractProgress, 0 },
+  {
+    "incrementactivecontractprogress",
+    GScr_IncrementActiveContractProgress,
+    0
+  },
+  { "incrementactivecontracttime", GScr_IncrementActiveContractTime, 0 },
+  { "isactivecontractcomplete", GScr_IsActiveContractComplete, 0 },
+  { "hasactivecontractexpired", GScr_HasActiveContractExpired, 0 },
+  { "getactivecontracttimepassed", GScr_GetActiveContractTimePassed, 0 },
+  { "resetactivecontractprogress", GScr_ResetActiveContractProgress, 0 },
+  { "getpregameclass", GScr_GetPregameClass, 0 },
+  { "getpregameteam", GScr_GetPregameTeam, 0 },
+  { "setpregameclass", GScr_SetPregameClass, 0 },
+  { "setpregameteam", GScr_SetPregameTeam, 0 },
+  { "isdemoclient", GScr_isDemoClient, 0 },
+  { "istestclient", GScr_isTestClient, 0 }
+};
+
+
+
 void (__cdecl *__cdecl BuiltIn_GetMethod(const char **pName, int *type))(scr_entref_t)
 {
     unsigned int i; // [esp+18h] [ebp-4h]
@@ -16075,7 +16828,7 @@ void (__cdecl *__cdecl BuiltIn_GetMethod(const char **pName, int *type))(scr_ent
     return 0;
 }
 
-void __cdecl Scr_SetOrigin(gentity_s *ent)
+void __cdecl Scr_SetOrigin(gentity_s *ent, int)
 {
     float org[3]; // [esp+0h] [ebp-Ch] BYREF
     int savedregs; // [esp+Ch] [ebp+0h] BYREF
@@ -16083,10 +16836,10 @@ void __cdecl Scr_SetOrigin(gentity_s *ent)
     Scr_GetVector(0, org, SCRIPTINSTANCE_SERVER);
     G_SetOrigin(ent, org);
     if ( ent->r.linked )
-        SV_LinkEntity((int)&savedregs, ent);
+        SV_LinkEntity(ent);
 }
 
-void __cdecl Scr_SetAngles(gentity_s *ent)
+void __cdecl Scr_SetAngles(gentity_s *ent, int)
 {
     float angles[3]; // [esp+0h] [ebp-Ch] BYREF
 
@@ -16094,22 +16847,22 @@ void __cdecl Scr_SetAngles(gentity_s *ent)
     G_SetAngle(ent, angles);
 }
 
-void __cdecl Scr_SetExposureIndex(gentity_s *ent)
+void __cdecl Scr_SetExposureIndex(gentity_s *ent, int)
 {
     ent->item[1].index = Scr_GetInt(0, SCRIPTINSTANCE_SERVER).intValue;
 }
 
-void __cdecl Scr_SetExposureLerpToLighter(gentity_s *ent)
+void __cdecl Scr_SetExposureLerpToLighter(gentity_s *ent, int)
 {
     ent->trigger.exposureLerpToLighter = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
 }
 
-void __cdecl Scr_SetExposureLerpToDarker(gentity_s *ent)
+void __cdecl Scr_SetExposureLerpToDarker(gentity_s *ent, int)
 {
     ent->trigger.exposureLerpToDarker = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
 }
 
-void __cdecl Scr_SetHealth(gentity_s *ent)
+void __cdeclScr_SetHealth(gentity_s *ent, int)
 {
     int health; // [esp+0h] [ebp-4h]
 
@@ -16156,7 +16909,7 @@ int Scr_ParseGameTypeList_LoadObj()
     const char *v1; // eax
     int result; // eax
     char *qpath; // [esp+10h] [ebp-1430h]
-    const char *src; // [esp+14h] [ebp-142Ch]
+    char *src; // [esp+14h] [ebp-142Ch]
     unsigned __int8 buffer[1024]; // [esp+18h] [ebp-1428h] BYREF
     char *data_p; // [esp+418h] [ebp-1028h] BYREF
     char *s0; // [esp+41Ch] [ebp-1024h]
@@ -16171,7 +16924,7 @@ int Scr_ParseGameTypeList_LoadObj()
 
     memset((unsigned __int8 *)g_scr_data.gametype.list, 0, sizeof(g_scr_data.gametype.list));
     v11 = 0;
-    FileList = FS_GetFileList("maps/mp/gametypes", "gsc", FS_LIST_PURE_ONLY, listbuf, 4096);
+    FileList = FS_GetFileList("maps/mp/gametypes", (char*)"gsc", FS_LIST_PURE_ONLY, listbuf, 4096);
     src = listbuf;
     for ( i = 0; i < FileList; ++i )
     {
@@ -16247,7 +17000,7 @@ void Scr_ParseGameTypeList_FastFile()
 
     memset((unsigned __int8 *)g_scr_data.gametype.list, 0, sizeof(g_scr_data.gametype.list));
     iNumGameTypes = 0;
-    gametypesFile = DB_FindXAssetHeader(ASSET_TYPE_RAWFILE, "maps/mp/gametypes/_gametypes.txt", 1, -1).rawfile;
+    gametypesFile = DB_FindXAssetHeader(ASSET_TYPE_RAWFILE, (char*)"maps/mp/gametypes/_gametypes.txt", 1, -1).rawfile;
     if ( gametypesFile )
     {
         gametypesBuf = gametypesFile->buffer;
@@ -16683,24 +17436,24 @@ void __cdecl Scr_AddStruct(scriptInstance_t inst)
 
 void __cdecl Scr_ResetTimeout(scriptInstance_t inst)
 {
-    unsigned intv1; // eax
+    DWORD v1; // eax
 
-    dword_A0667E0[2058 * inst] = Sys_Milliseconds();
-    if ( !logScriptTimes
+    gScrVmGlob[inst].starttime = Sys_Milliseconds();
+    if (!logScriptTimes
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\clientscript\\cscr_vm.cpp",
-                    5847,
-                    0,
-                    "%s",
-                    "logScriptTimes") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\clientscript\\cscr_vm.cpp",
+            5847,
+            0,
+            "%s",
+            "logScriptTimes"))
     {
         __debugbreak();
     }
-    if ( logScriptTimes->current.enabled )
+    if (logScriptTimes->current.enabled)
     {
         v1 = Sys_Milliseconds();
         Com_Printf(24, "RESET TIME: %d\n", v1);
     }
-    memset((unsigned __int8 *)&dword_A0642EC[1155 * inst], 0, 0x200u);
+    memset((unsigned __int8 *)gScrVmDebugPub[inst].jumpbackHistory, 0, sizeof(gScrVmDebugPub[inst].jumpbackHistory));
 }
 

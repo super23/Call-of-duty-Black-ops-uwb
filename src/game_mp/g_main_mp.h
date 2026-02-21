@@ -21,6 +21,21 @@ enum clientConnected_t : __int32
     CON_CONNECTED    = 0x2,
 };
 
+struct TIMED_RADIUS_DAMAGE // sizeof=0x2C
+{                                       // XREF: .data:TIMED_RADIUS_DAMAGE * g_timed_radius_damage/r
+    float pos[3];
+    int life;                           // XREF: G_UpdateTimedDamage(gentity_s *)+50/r
+                                        // G_DebugTimedDamage(void)+3C/r
+    float radius;
+    float radiusSqr;                    // XREF: G_UpdateTimedDamage(gentity_s *)+8D/r
+    int damage;                         // XREF: G_UpdateTimedDamage(gentity_s *)+11D/r
+    int rate;                           // XREF: G_UpdateTimedDamage(gentity_s *)+AB/r
+    int mod;                            // XREF: G_UpdateTimedDamage(gentity_s *)+10E/r
+    int weapon;                         // XREF: G_UpdateTimedDamage(gentity_s *)+101/r
+    int fireStarterClientNum;           // XREF: G_UpdateTimedDamage(gentity_s *)+C0/r
+                                        // G_UpdateTimedDamage(gentity_s *)+CF/r ...
+};
+
 struct playerTeamState_t // sizeof=0x4
 {                                       // XREF: clientSession_t/r
     int location;

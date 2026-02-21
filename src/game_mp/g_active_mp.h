@@ -2,6 +2,7 @@
 #include <bgame/bg_public.h>
 #include "g_main_mp.h"
 #include <cgame/cg_weapons.h>
+#include <cgame_mp/cg_predict_mp.h>
 
 struct viewState_t;
 
@@ -43,3 +44,5 @@ void __cdecl ClientEndFrame(gentity_s *ent);
 void __cdecl G_AddClientKnife(clientInfo_t *ci, playerState_s *ps);
 gentity_s *__cdecl G_GetPlayer(unsigned int clientNum);
 void __cdecl G_PlayerEvent(int clientNum, int event);
+
+extern pmove_t g_pmove[];

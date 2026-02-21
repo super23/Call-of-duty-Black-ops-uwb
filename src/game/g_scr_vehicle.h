@@ -444,7 +444,7 @@ void __cdecl Scr_Vehicle_Die(
                 const hitLocation_t hitLoc,
                 int timeOffset);
 void __cdecl SP_script_vehicle(gentity_s *pSelf, SpawnVar *spawnVar);
-void __cdecl SP_script_vehicle_collmap(gentity_s *pSelf);
+void __cdecl SP_script_vehicle_collmap(gentity_s *pSelf, SpawnVar *v = NULL);
 void (__cdecl *__cdecl ScriptVehicle_GetMethod(const char **pName))(scr_entref_t);
 void __cdecl CMD_VEH_AttachPath(scr_entref_t entref);
 void __cdecl VEH_ResetWheels(gentity_s *ent, vehicle_physic_t *phys);

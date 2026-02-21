@@ -289,3 +289,5 @@ void __cdecl Path_CheckNodeCountForDodge(path_t *pPath, int numNeeded, pathpoint
 void __cdecl Path_DodgeDrawRaisedLine(const float *start, const float *end, const float *color);
 bool __fastcall Path_MayFaceEnemy(path_t *pPath, float *vEnemyDir, float *vOrg);
 void __fastcall Path_TrimToBadPlaceLink(path_t *pPath, team_t eTeam);
+
+extern float g_pathAttemptGoalPos[3];

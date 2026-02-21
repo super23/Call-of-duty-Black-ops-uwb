@@ -65,6 +65,7 @@ ucmd_t ucmds[13] =
   { NULL, NULL, 0 }
 };
 
+int sv_serverId_value;
 
 unsigned __int16 botport;
 unsigned __int64 g_notifyLeave[32];
@@ -3085,7 +3086,6 @@ void __cdecl SV_UserMove(client_t *cl, msg_t *msg, int delta)
     }
 }
 
-int sv_serverId_value;
 void __cdecl SV_ExecuteClientMessage(client_t *cl, msg_t *msg)
 {
     msg_t v2; // [esp+0h] [ebp-70h] BYREF

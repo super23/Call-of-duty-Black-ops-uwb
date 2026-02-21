@@ -458,3 +458,4 @@ extern const dvar_s *bg_freeCamClipToHeliPatch;
 extern const dvar_s *zero_idle_movement;
 
 extern const char *eventnames[];
+extern const char *entityTypeNames[21];

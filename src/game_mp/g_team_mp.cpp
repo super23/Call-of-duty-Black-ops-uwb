@@ -1,4 +1,5 @@
 #include "g_team_mp.h"
+#include "g_main_mp.h"
 
 bool __cdecl OnSameTeam(gentity_s *ent1, gentity_s *ent2)
 {

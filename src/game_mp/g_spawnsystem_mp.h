@@ -2,6 +2,18 @@
 #include <universal/dvar.h>
 #include <bgame/bg_public.h>
 
+enum eSpawnSystemDebugMode : __int32
+{
+    SS_DEBUG_OFF                   = 0x0,
+    SS_DEBUG_LIVE                  = 0x1,
+    SS_DEBUG_ARCHIVE_LOADING       = 0x2,
+    SS_DEBUG_ARCHIVE_VIEW          = 0x3,
+    SS_DEBUG_ARCHIVE_SIMULATE      = 0x4,
+    SS_DEBUG_ARCHIVE_SIMULATE_LIVE = 0x5,
+    SS_DEBUG_ARCHIVE_MAX           = 0x5,
+    SS_DEBUG_COUNT                 = 0x6,
+};
+
 enum eInfluencerType : __int32
 {                                       // XREF: SpawnInfluencerPreset/r
                                         // ?SpawnSystem_SetPresetData@@YAPAUSpawnInfluencerPreset@@HW4eInfluencerType@@W4eInfluencerShape@@MMMW4eInfluencerScoreCurve@@PBD@Z/r ...
@@ -34,6 +46,13 @@ enum eInfluencerScoreCurve : __int32
     INFLUENCER_SC_INVERSE_LINEAR = 0x3,
     INFLUENCER_SC_NEGATIVE_TO_POSITIVE = 0x4,
     MAX_INFLUENCER_SCORE_CURVE   = 0x5,
+};
+
+struct SortedPointArray // sizeof=0x328
+{                                       // XREF: .data:SortedPointArray * g_sortedTeamSpawnPoints/r
+    int spawnPointsByIndex[200];        // XREF: SpawnSystem_ComputePointWeights(gentity_s *,int,int)+106/w
+    int count;                          // XREF: SpawnSystem_SortPointsForTeamByScore(int)+21/r
+    int sortTime;                       // XREF: SpawnSystem_UpdateSpawnPointsForTeam(int,int)+76/w
 };
 
 struct SpawnPoint // sizeof=0x34

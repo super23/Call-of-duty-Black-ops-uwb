@@ -11,6 +11,9 @@
 #include <cgame_mp/cg_ents_mp.h>
 #include <cgame/cg_scr_main.h>
 #include <server/sv_world.h>
+#include <client_mp/g_client_mp.h>
+#include <bgame/bg_misc.h>
+#include <clientscript/cscr_vm.h>
 
 static const float color[4] = { 0.5, 0.5, 0.5, 1.0 };
 void __cdecl misc_EntInfo(gentity_s *self, float *source)
@@ -165,7 +168,7 @@ float __cdecl G_GetEntInfoScale()
     return CG_GetViewZoomScale() * g_entinfo_scale->current.value;
 }
 
-void __cdecl SP_info_notnull(gentity_s *self)
+void __cdecl SP_info_notnull(gentity_s *self, SpawnVar *v)
 {
     G_SetOrigin(self, self->r.currentOrigin);
 }
@@ -290,7 +293,7 @@ void __cdecl TeleportPlayer(gentity_s *player, float *origin, float *angles)
     player->r.currentOrigin[1] = v3[1];
     player->r.currentOrigin[2] = v3[2];
     if ( linked )
-        SV_LinkEntity((int)&savedregs, player);
+        SV_LinkEntity(player);
 }
 
 void __cdecl ScrNotify_FaceEvent(gentity_s *self, unsigned __int16 face_event)

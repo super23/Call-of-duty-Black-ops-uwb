@@ -1,5 +1,20 @@
 #include "player_use_mp.h"
+#include <clientscript/cscr_vm.h>
+#include "g_spawn_mp.h"
+#include <clientscript/scr_const.h>
+#include <game/turret.h>
+#include <client_mp/g_client_mp.h>
+#include <bgame/bg_misc.h>
+#include <qcommon/cm_world.h>
+#include <server/sv_game.h>
+#include "g_team_mp.h"
+#include <bgame/bg_perks.h>
 
+#include <algorithm>
+#include "g_utils_mp.h"
+#include <game/actor_script_cmd.h>
+
+static const float turretScanRadiusSq = 16384.0;
 char __cdecl Player_IsPlayerUsingTurretNearby(gentity_s *ent)
 {
     gentity_s *clEnt; // [esp+Ch] [ebp-8h]
@@ -38,32 +53,32 @@ void __cdecl Player_UpdateActivate(gentity_s *ent)
     ent->client->ps.weapFlags &= ~1u;
     ent->client->ps.weapFlags &= ~0x10000u;
     useSucceeded = 0;
-    if ( bitarray<51>::testBit(&ent->client->button_bits, 0x32u) )
+    if ( ent->client->button_bits.testBit(0x32u) )
     {
         Player_ActivateDoubleTapCmd(ent);
     }
-    else if ( (EntHandle::isDefined(&ent->client->useHoldEntity) || ent->client->ps.mountAvailable)
-                 && bitarray<51>::testBit(&ent->client->oldbutton_bits, 5u)
-                 && !bitarray<51>::testBit(&ent->client->button_bits, 5u) )
+    else if ( (ent->client->useHoldEntity.isDefined() || ent->client->ps.mountAvailable)
+                 &&  ent->client->oldbutton_bits.testBit(5u)
+                 && !ent->client->button_bits.testBit(5u) )
     {
         ent->client->ps.weapFlags |= 1u;
         ent->client->ps.weapFlags |= 0x10000u;
     }
     else
     {
-        if ( bitarray<51>::testBit(&ent->client->latched_button_bits, 3u)
-            || bitarray<51>::testBit(&ent->client->latched_button_bits, 5u)
-            || bitarray<51>::testBit(&ent->client->latched_button_bits, 4u) )
+        if (   ent->client->latched_button_bits.testBit(3u)
+            || ent->client->latched_button_bits.testBit(5u)
+            || ent->client->latched_button_bits.testBit(4u) )
         {
             useSucceeded = Player_ActivateCmd(ent);
         }
-        if ( EntHandle::isDefined(&ent->client->useHoldEntity) || useSucceeded || ent->client->ps.mountAvailable )
+        if ( ent->client->useHoldEntity.isDefined() || useSucceeded || ent->client->ps.mountAvailable )
         {
-            if ( bitarray<51>::testBit(&ent->client->button_bits, 3u) || bitarray<51>::testBit(&ent->client->button_bits, 5u) )
+            if ( ent->client->button_bits.testBit(3u) || ent->client->button_bits.testBit(5u) )
                 Player_ActivateHoldCmd(ent);
             ent->client->useButtonDone = 1;
         }
-        else if ( bitarray<51>::testBit(&ent->client->latched_button_bits, 5u) )
+        else if ( ent->client->latched_button_bits.testBit(5u) )
         {
             ent->client->ps.weapFlags |= 1u;
             ent->client->ps.weapFlags |= 0x10000u;
@@ -87,7 +102,7 @@ char __cdecl Player_ActivateCmd(gentity_s *ent)
     }
     if ( !Scr_IsSystemActive(1u, SCRIPTINSTANCE_SERVER) )
         return 0;
-    EntHandle::setEnt(&ent->client->useHoldEntity, 0);
+    ent->client->useHoldEntity.setEnt(0);
     if ( ent->active )
     {
         if ( (ent->client->ps.eFlags & 0x300) != 0 )
@@ -130,7 +145,7 @@ char __cdecl Player_ActivateCmd(gentity_s *ent)
                         {
                             __debugbreak();
                         }
-                        EntHandle::setEnt(&ent->client->useHoldEntity, &g_entities[ent->client->ps.cursorHintEntIndex]);
+                        ent->client->useHoldEntity.setEnt(&g_entities[ent->client->ps.cursorHintEntIndex]);
                     }
                     ent->client->useHoldTime = level.time;
                     return 1;
@@ -165,9 +180,9 @@ void __cdecl Player_ActivateHoldCmd(gentity_s *ent)
         __debugbreak();
     }
     if ( Scr_IsSystemActive(1u, SCRIPTINSTANCE_SERVER)
-        && (EntHandle::isDefined(&ent->client->useHoldEntity) || ent->client->ps.mountAvailable)
+        && (ent->client->useHoldEntity.isDefined() || ent->client->ps.mountAvailable)
         && level.time - ent->client->lastSpawnTime >= g_useholdspawndelay->current.integer
-        && (!bitarray<51>::testBit(&ent->client->button_bits, 5u)
+        && (!ent->client->button_bits.testBit(5u)
          || level.time - ent->client->useHoldTime >= g_useholdtime->current.integer) )
     {
         if ( ent->client->ps.mountAvailable )
@@ -189,10 +204,10 @@ void __cdecl Player_ActivateHoldCmd(gentity_s *ent)
                      && ent->client->ps.weaponstate != 4
                      && ent->client->ps.weaponstate != 5 )
         {
-            useEnt = EntHandle::ent(&ent->client->useHoldEntity);
-            if ( useEnt->s.number != EntHandle::entnum(&ent->client->useHoldEntity) )
+            useEnt = ent->client->useHoldEntity.ent();
+            if ( useEnt->s.number != ent->client->useHoldEntity.entnum() )
             {
-                v1 = EntHandle::entnum(&ent->client->useHoldEntity);
+                v1 = ent->client->useHoldEntity.entnum();
                 if ( !Assert_MyHandler(
                                 "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp",
                                 205,
@@ -220,57 +235,57 @@ void __cdecl Player_ActivateHoldCmd(gentity_s *ent)
 
 void __cdecl Player_UseEntity(gentity_s *playerEnt, gentity_s *useEnt)
 {
-    void (__cdecl *touch)(gentity_s *, gentity_s *, int); // [esp+0h] [ebp-8h]
-    void (__cdecl *use)(gentity_s *, gentity_s *, gentity_s *); // [esp+4h] [ebp-4h]
+    void(__cdecl * touch)(gentity_s *, gentity_s *, int); // [esp+0h] [ebp-8h]
+    void(__cdecl * use)(gentity_s *, gentity_s *, gentity_s *); // [esp+4h] [ebp-4h]
 
-    if ( !playerEnt
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp", 40, 0, "%s", "playerEnt") )
+    if (!playerEnt
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp", 40, 0, "%s", "playerEnt"))
     {
         __debugbreak();
     }
-    if ( !playerEnt->client
+    if (!playerEnt->client
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp",
-                    41,
-                    0,
-                    "%s",
-                    "playerEnt->client") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp",
+            41,
+            0,
+            "%s",
+            "playerEnt->client"))
     {
         __debugbreak();
     }
-    if ( !useEnt
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp", 42, 0, "%s", "useEnt") )
+    if (!useEnt
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp", 42, 0, "%s", "useEnt"))
     {
         __debugbreak();
     }
-    if ( !useEnt->r.inuse
+    if (!useEnt->r.inuse
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp",
-                    44,
-                    0,
-                    "%s",
-                    "useEnt->r.inuse") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp",
+            44,
+            0,
+            "%s",
+            "useEnt->r.inuse"))
     {
         __debugbreak();
     }
-    if ( useEnt->s.eType == 3 )
+    if (useEnt->s.eType == 3)
     {
         Scr_AddEntity(playerEnt, SCRIPTINSTANCE_SERVER);
         Scr_Notify(useEnt, scr_const.touch, 1u);
         useEnt->active = 1;
-        touch = (void (__cdecl *)(gentity_s *, gentity_s *, int))dword_E07CDC[12 * useEnt->handler];
-        if ( touch )
+        touch = entityHandlers[useEnt->handler].touch;
+        if (touch)
             touch(useEnt, playerEnt, 0);
     }
-    else if ( useEnt->s.eType != 11 || G_IsTurretUsable(useEnt, playerEnt) )
+    else if (useEnt->s.eType != 11 || G_IsTurretUsable(useEnt, playerEnt))
     {
         Scr_AddEntity(playerEnt, SCRIPTINSTANCE_SERVER);
         Scr_Notify(useEnt, scr_const.trigger, 1u);
-        use = (void (__cdecl *)(gentity_s *, gentity_s *, gentity_s *))dword_E07CE0[12 * useEnt->handler];
-        if ( use )
+        use = entityHandlers[useEnt->handler].use;
+        if (use)
             use(useEnt, playerEnt, playerEnt);
     }
-    EntHandle::setEnt(&playerEnt->client->useHoldEntity, 0);
+    playerEnt->client->useHoldEntity.setEnt(0);
 }
 
 void __cdecl Player_ActivateDoubleTapCmd(gentity_s *ent)
@@ -286,7 +301,7 @@ void __cdecl Player_ActivateDoubleTapCmd(gentity_s *ent)
         __debugbreak();
     }
     if ( Scr_IsSystemActive(1u, SCRIPTINSTANCE_SERVER)
-        && EntHandle::isDefined(&ent->client->useHoldEntity)
+        && ent->client->useHoldEntity.isDefined()
         && level.time - ent->client->lastSpawnTime >= g_useholdspawndelay->current.integer
         && ent->client->ps.weaponstate != 35
         && ent->client->ps.weaponstate != 36
@@ -294,10 +309,10 @@ void __cdecl Player_ActivateDoubleTapCmd(gentity_s *ent)
         && (ent->client->ps.eFlags & 0x300) == 0
         && (ent->client->ps.pm_flags & 4) == 0 )
     {
-        useEnt = EntHandle::ent(&ent->client->useHoldEntity);
-        if ( useEnt->s.number != EntHandle::entnum(&ent->client->useHoldEntity) )
+        useEnt = ent->client->useHoldEntity.ent();
+        if ( useEnt->s.number != ent->client->useHoldEntity.entnum() )
         {
-            v1 = EntHandle::entnum(&ent->client->useHoldEntity);
+            v1 = ent->client->useHoldEntity.entnum();
             if ( !Assert_MyHandler(
                             "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp",
                             244,
@@ -571,12 +586,12 @@ int __cdecl Player_GetUseList(gentity_s *ent, MaterialMemory *useList, int prevH
     gentity_s *ent2; // [esp+13ACh] [ebp+8h]
 
     fl_256 = 256.0f;
-    fl_0_76 = 0.75f999999;
+    fl_0_76 = 0.75999999f;
     v47 = 0;
     if ( (float)(192.0 - player_throwbackOuterRadius->current.value) < 0.0 )
         value = player_throwbackOuterRadius->current.value;
     else
-        value = FLOAT_192_0;
+        value = 192.0f;
     v33 = value;
     if ( (float)(value - player_MGUseRadius->current.value) < 0.0 )
         v6 = player_MGUseRadius->current.value;
@@ -627,7 +642,7 @@ int __cdecl Player_GetUseList(gentity_s *ent, MaterialMemory *useList, int prevH
                 {
                     if ( SV_EntityContact(&v53, &v27, gEnt) )
                     {
-                        *(float *)&useList[v41].memory = FLOAT_N256_0;
+                        *(float *)&useList[v41].memory = -256.0f;
                         useList[v41++].material = (Material *)gEnt;
                     }
                 }
@@ -638,9 +653,9 @@ int __cdecl Player_GetUseList(gentity_s *ent, MaterialMemory *useList, int prevH
                     goto LABEL_42;
                 if ( ps->waterlevel < 3 && BG_GetWeaponDef(gEnt->s.weapon)->bThrowBack && !gEnt->s.lerp.u.turret.ownerNum )
                 {
-                    if ( EntHandle::isDefined(&gEnt->parent) )
+                    if ( gEnt->parent.isDefined() )
                     {
-                        ent1 = EntHandle::ent(&gEnt->parent);
+                        ent1 = gEnt->parent.ent();
                         v14 = OnSameTeam(ent1, ent);
                         if ( (!v14
                              || ent->client->sess.cs.team == TEAM_FREE
@@ -771,11 +786,15 @@ LABEL_61:
             }
         }
     }
-    std::_Sort<RagdollSortStruct *,int,bool (__cdecl *)(RagdollSortStruct const &,RagdollSortStruct const &)>(
-        useList,
-        &useList[v41],
-        (8 * v41) >> 3,
-        (bool (__cdecl *)(const MaterialMemory *, const MaterialMemory *))compare_use);
+
+    //std::_Sort<RagdollSortStruct *,int,bool (__cdecl *)(RagdollSortStruct const &,RagdollSortStruct const &)>(
+    //    useList,
+    //    &useList[v41],
+    //    (8 * v41) >> 3,
+    //    (bool (__cdecl *)(const MaterialMemory *, const MaterialMemory *))compare_use);
+
+    std::sort(&useList[0], &useList[v41], compare_use);
+
     v41 -= v47;
     v42 = 0;
     //col_context_t::col_context_t(&context, 17);
@@ -808,11 +827,14 @@ LABEL_61:
             }
         }
     }
-    std::_Sort<RagdollSortStruct *,int,bool (__cdecl *)(RagdollSortStruct const &,RagdollSortStruct const &)>(
-        useList,
-        &useList[v41],
-        (8 * v41) >> 3,
-        (bool (__cdecl *)(const MaterialMemory *, const MaterialMemory *))compare_use);
+    //std::_Sort<RagdollSortStruct *,int,bool (__cdecl *)(RagdollSortStruct const &,RagdollSortStruct const &)>(
+    //    useList,
+    //    &useList[v41],
+    //    (8 * v41) >> 3,
+    //    (bool (__cdecl *)(const MaterialMemory *, const MaterialMemory *))compare_use);
+
+    std::sort(&useList[0], &useList[v41], compare_use);
+
     return v41 - v42;
 }
 
@@ -859,16 +881,16 @@ int __cdecl Player_GetItemCursorHint(const gclient_s *client, const gentity_s *t
     {
         __debugbreak();
     }
-    if ( bg_itemlist[index] != 1
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp",
-                    662,
-                    0,
-                    "%s",
-                    "item->giType == IT_WEAPON") )
-    {
-        __debugbreak();
-    }
+    //if ( bg_itemlist[index] != IT_WEAPON
+    //    && !Assert_MyHandler(
+    //                "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp",
+    //                662,
+    //                0,
+    //                "%s",
+    //                "item->giType == IT_WEAPON") )
+    //{
+    //    __debugbreak();
+    //}
     weapDefItem = BG_GetWeaponDef(index % 2048);
     weapDefPlayer = BG_GetWeaponDef(client->ps.weapon);
     if ( BG_PlayerHasWeapon(&client->ps, index % 2048) )

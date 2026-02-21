@@ -1,4 +1,29 @@
 #include "g_combat_mp.h"
+#include "g_main_mp.h"
+#include <clientscript/cscr_stringlist.h>
+#include <universal/com_loadutils.h>
+#include <clientscript/cscr_vm.h>
+#include "actor_mp.h"
+#include <server_mp/sv_init_mp.h>
+#include <qcommon/dobj_management.h>
+#include <game/turret.h>
+#include "g_misc_mp.h"
+#include <clientscript/scr_const.h>
+#include "g_spawn_mp.h"
+#include "g_active_mp.h"
+#include <server/sv_world.h>
+#include "g_utils_mp.h"
+#include <bgame/bg_misc.h>
+#include <game/g_missile.h>
+#include <bgame/bg_perks.h>
+#include <game/actor_script_cmd.h>
+#include <client_mp/g_client_mp.h>
+#include <cgame/cg_drawtools.h>
+#include <qcommon/cm_world.h>
+#include <universal/com_math_anglevectors.h>
+#include <game/g_weapon.h>
+#include <DynEntity/DynEntity_server.h>
+#include <glass/glass_server.h>
 
 unsigned char bulletPriorityMap[20] =
 {
@@ -24,6 +49,32 @@ unsigned char bulletPriorityMap[20] =
   0u
 };
 
+const char *g_HitLocNames[19] =
+{
+  "none",
+  "helmet",
+  "head",
+  "neck",
+  "torso_upper",
+  "torso_lower",
+  "right_arm_upper",
+  "left_arm_upper",
+  "right_arm_lower",
+  "left_arm_lower",
+  "right_hand",
+  "left_hand",
+  "right_leg_upper",
+  "left_leg_upper",
+  "right_leg_lower",
+  "left_leg_lower",
+  "right_foot",
+  "left_foot",
+  "gun"
+};
+
+unsigned __int16 g_HitLocConstNames[19];
+float g_fHitLocDamageMult[19];
+
 void __cdecl G_ParseHitLocDmgTable()
 {
     unsigned __int16 v0; // ax
@@ -32,7 +83,7 @@ void __cdecl G_ParseHitLocDmgTable()
     char loadBuffer[16384]; // [esp+F0h] [ebp-4008h] BYREF
     int i; // [esp+40F4h] [ebp-4h]
 
-    for ( i = 0; i < 19; ++i )
+    for (i = 0; i < 19; ++i)
     {
         g_fHitLocDamageMult[i] = 1.0f;
         pFieldList[i].szName = g_HitLocNames[i];
@@ -41,17 +92,17 @@ void __cdecl G_ParseHitLocDmgTable()
         v0 = Scr_AllocString((char *)g_HitLocNames[i], 1, SCRIPTINSTANCE_SERVER);
         g_HitLocConstNames[i] = v0;
     }
-    dword_3CD1630 = 0;
-    pszBuffer = Com_LoadInfoString("info/mp_lochit_dmgtable", "hitloc damage table", "LOCDMGTABLE", loadBuffer);
-    if ( !ParseConfigStringToStruct(
-                    (unsigned __int8 *)g_fHitLocDamageMult,
-                    pFieldList,
-                    19,
-                    pszBuffer,
-                    0,
-                    0,
-                    BG_StringCopy) )
-        Com_Error(ERR_DROP, &byte_CB6890, "info/mp_lochit_dmgtable");
+    g_fHitLocDamageMult[18] = 0.0f;
+    pszBuffer = Com_LoadInfoString((char*)"info/mp_lochit_dmgtable", "hitloc damage table", "LOCDMGTABLE", loadBuffer);
+    if (!ParseConfigStringToStruct(
+        (unsigned __int8 *)g_fHitLocDamageMult,
+        pFieldList,
+        19,
+        pszBuffer,
+        0,
+        0,
+        BG_StringCopy))
+        Com_Error(ERR_DROP, "Error parsing hitloc damage table %s", "info/mp_lochit_dmgtable");
 }
 
 void __cdecl LookAtKiller(gentity_s *self, gentity_s *inflictor, gentity_s *attacker)
@@ -116,7 +167,7 @@ void __cdecl player_die(
     float *viewangles; // [esp+4h] [ebp-2Ch]
     float *velocity; // [esp+Ch] [ebp-24h]
     gentity_s *turret; // [esp+14h] [ebp-1Ch]
-    char *weaponName; // [esp+18h] [ebp-18h]
+    const char *weaponName; // [esp+18h] [ebp-18h]
     int deathAnimDuration; // [esp+1Ch] [ebp-14h]
     int i; // [esp+24h] [ebp-Ch]
     const WeaponDef *weapDef; // [esp+28h] [ebp-8h]
@@ -139,8 +190,10 @@ void __cdecl player_die(
     weapDef = BG_GetWeaponDef(iWeapon);
     if ( weapDef )
         weaponName = (char *)BG_WeaponName(iWeapon);
+#ifdef KISAK_LIVE
     if ( onlinegame->current.enabled && com_sv_running->current.enabled && self && attacker )
         MatchRecordDeath(self->client, attacker->client, weaponName, hitLoc);
+#endif
     if ( Com_GetServerDObj(self->client->ps.clientNum)
         && (self->client->ps.pm_type < 2u
          || self->client->ps.pm_type == 6
@@ -148,17 +201,8 @@ void __cdecl player_die(
          || self->client->ps.pm_type == 8)
         && (self->client->ps.otherFlags & 2) == 0 )
     {
-        if ( *(bgs_t **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) != &level_bgs
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_combat_mp.cpp",
-                        386,
-                        0,
-                        "%s\n\t(bgs) = %p",
-                        "(bgs == &level_bgs)",
-                        *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-        {
-            __debugbreak();
-        }
+        iassert(bgs == &level_bgs);
+
         if ( (self->client->ps.eFlags & 0x300) != 0 )
         {
             if ( self->client->ps.viewlocked_entNum == 1023
@@ -185,8 +229,8 @@ void __cdecl player_die(
             if ( turret->pTurretInfo )
                 G_ClientStopUsingTurret(turret);
         }
-        if ( attacker->s.eType == 11 && EntHandle::isDefined(&attacker->r.ownerNum) )
-            attacker = EntHandle::ent(&attacker->r.ownerNum);
+        if ( attacker->s.eType == 11 && attacker->r.ownerNum.isDefined() )
+            attacker = attacker->r.ownerNum.ent();
         ScrNotify_FaceEvent(self, scr_const.death);
         isFlared = self->client->ps.visionSetLerpRatio > 0.001;
         Scr_AddBool(self->client->ps.poisoned, SCRIPTINSTANCE_SERVER);
@@ -249,7 +293,7 @@ void __cdecl player_die(
             damage,
             meansOfDeath,
             iWeapon,
-            vDir,
+            (float*)vDir,
             hitLoc,
             psTimeOffset,
             deathAnimDuration);
@@ -270,7 +314,7 @@ void __cdecl player_die(
             self->s.loopSoundFade = 0;
             Sentient_Dissociate(self->sentient);
             if ( (self->client->ps.eFlags & 0x4000) != 0 )
-                VEH_UnlinkPlayer(self, 0, "player_die");
+                VEH_UnlinkPlayer(self, 0, (char*)"player_die");
             SV_UnlinkEntity(self);
             self->r.maxs[2] = 30.0f;
             if ( self->r.maxs[2] < self->r.mins[2]
@@ -283,20 +327,10 @@ void __cdecl player_die(
             {
                 __debugbreak();
             }
-            SV_LinkEntity((int)&savedregs, self);
+            SV_LinkEntity(self);
             self->health = 0;
             self->handler = 15;
-            if ( *(bgs_t **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) != &level_bgs
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_combat_mp.cpp",
-                            517,
-                            0,
-                            "%s\n\t(bgs) = %p",
-                            "(bgs == &level_bgs)",
-                            *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-            {
-                __debugbreak();
-            }
+            iassert(bgs == &level_bgs);
         }
     }
 }
@@ -308,16 +342,16 @@ void __cdecl DeathGrenadeDrop(gentity_s *self)
     gentity_s *v3; // edx
     int grenadeTimeLeft; // [esp-4h] [ebp-5Ch]
     int fuseTime; // [esp-4h] [ebp-5Ch]
-    const WeaponDef *WeaponDef; // [esp+34h] [ebp-24h]
+    const WeaponDef *weapDef2; // [esp+34h] [ebp-24h]
     unsigned int grenadeWeaponIndex; // [esp+38h] [ebp-20h]
     int grenadeWeaponIndexa; // [esp+38h] [ebp-20h]
     float launchvel[3]; // [esp+3Ch] [ebp-1Ch] BYREF
     float launchspot[3]; // [esp+48h] [ebp-10h] BYREF
     const WeaponDef *weapDef; // [esp+54h] [ebp-4h]
 
-    if ( self->client->ps.grenadeTimeLeft && (self->client->ps.eFlags & 0x4000) == 0 )
+    if (self->client->ps.grenadeTimeLeft && (self->client->ps.eFlags & 0x4000) == 0)
     {
-        if ( (self->client->ps.weapFlags & 2) != 0 )
+        if ((self->client->ps.weapFlags & 2) != 0)
             grenadeWeaponIndex = self->client->ps.offHandIndex;
         else
             grenadeWeaponIndex = self->client->ps.weapon;
@@ -331,23 +365,23 @@ void __cdecl DeathGrenadeDrop(gentity_s *self)
         launchspot[1] = self->r.currentOrigin[1];
         launchspot[2] = self->r.currentOrigin[2];
         weapDef = BG_GetWeaponDef(grenadeWeaponIndex);
-        if ( weapDef->stickiness != WEAPSTICKINESS_ALL )
+        if (weapDef->stickiness != WEAPSTICKINESS_ALL)
             launchspot[2] = launchspot[2] + 40.0;
-        if ( weapDef->offhandSlot != OFFHAND_SLOT_EQUIPMENT )
+        if (weapDef->offhandSlot != OFFHAND_SLOT_EQUIPMENT)
         {
             grenadeTimeLeft = self->client->ps.grenadeTimeLeft;
             PlayerWeaponModel = BG_GetPlayerWeaponModel(&self->client->ps, grenadeWeaponIndex);
             G_FireGrenade(self, launchspot, launchvel, grenadeWeaponIndex, PlayerWeaponModel, 1, grenadeTimeLeft);
         }
     }
-    if ( (self->client->ps.weapFlags & 0x40000) != 0
+    if ((self->client->ps.weapFlags & 0x40000) != 0
         && (self->client->ps.perks[0] & 0x4000000) != 0
-        && ((self->client->ps.eFlags & 0x4000) == 0 || self->client->ps.vehicleType == 6) )
+        && ((self->client->ps.eFlags & 0x4000) == 0 || self->client->ps.vehicleType == 6))
     {
         grenadeWeaponIndexa = BG_FindWeaponIndexForName(perk_grenadeDeath->current.string);
-        if ( grenadeWeaponIndexa )
+        if (grenadeWeaponIndexa)
         {
-            WeaponDef = BG_GetWeaponDef(grenadeWeaponIndexa);
+            weapDef2 = BG_GetWeaponDef(grenadeWeaponIndexa);
             launchvel[0] = G_crandom();
             launchvel[1] = G_crandom();
             launchvel[2] = G_crandom();
@@ -358,7 +392,7 @@ void __cdecl DeathGrenadeDrop(gentity_s *self)
             launchspot[1] = self->r.currentOrigin[1];
             launchspot[2] = self->r.currentOrigin[2];
             launchspot[2] = launchspot[2] + 40.0;
-            fuseTime = WeaponDef->fuseTime;
+            fuseTime = weapDef2->fuseTime;
             v2 = BG_GetPlayerWeaponModel(&self->client->ps, grenadeWeaponIndexa);
             v3 = G_FireGrenade(self, launchspot, launchvel, grenadeWeaponIndexa, v2, 1, fuseTime);
             v3->flags |= 0x8000u;
@@ -467,11 +501,13 @@ void __cdecl G_DamageClient(
         }
         if ( damage <= 0 )
             damage = 1;
+#ifdef KISAK_LIVE
         if ( onlinegame->current.enabled && com_sv_running->current.enabled )
         {
             if ( attacker )
                 MatchRecordHit(attacker->client, hitLoc);
         }
+#endif
         Scr_PlayerDamage(targ, inflictor, attacker, damage, dflags, mod, weapon, point, dir, hitLoc, timeOffset);
     }
 }
@@ -621,7 +657,6 @@ void __cdecl G_DamageVehicle(
                 __debugbreak();
         }
         Scr_Vehicle_DamageScale(
-            COERCE_FLOAT(&savedregs),
             targ,
             attacker,
             inflictor,
@@ -731,11 +766,11 @@ void __cdecl G_Damage(
 
     if ( targ->client )
     {
-        G_DamageClient(targ, inflictor, attacker, dir, point, damage, dFlags, mod, weapon, hitLoc, timeOffset);
+        G_DamageClient(targ, inflictor, attacker, (float*)dir, (float *)point, damage, dFlags, mod, weapon, hitLoc, timeOffset);
     }
     else if ( targ->actor )
     {
-        G_DamageActor(targ, inflictor, attacker, dir, point, damage, dFlags, mod, weapon, hitLoc, timeOffset);
+        G_DamageActor(targ, inflictor, attacker, (float *)dir, (float *)point, damage, dFlags, mod, weapon, hitLoc, timeOffset);
     }
     else if ( targ->scr_vehicle )
     {
@@ -743,8 +778,8 @@ void __cdecl G_Damage(
             targ,
             inflictor,
             attacker,
-            dir,
-            point,
+            (float*)dir,
+            (float*)point,
             damage,
             dFlags,
             mod,
@@ -817,10 +852,10 @@ void __cdecl G_Damage(
                 if ( targ->classname != scr_const.trigger_damage )
                     targ->health -= damage;
                 v14 = BG_WeaponName(weapon);
-                G_DamageNotify(scr_const.damage, targ, attacker, dir, point, damage, mod, dFlags, modelIndex, partName, v14);
+                G_DamageNotify(scr_const.damage, targ, attacker, (float *)dir, (float *)point, damage, mod, dFlags, modelIndex, partName, (char*)v14);
                 if ( targ->health > 0 )
                 {
-                    pain = (void (__cdecl *)(gentity_s *, gentity_s *, int, const float *, const int, const float *, const hitLocation_t, const int))dword_E07CE4[12 * targ->handler];
+                    pain = entityHandlers[targ->handler].pain;
                     if ( pain )
                         pain(targ, attacker, damage, point, mod, localdir, hitLoc, weapon);
                 }
@@ -831,7 +866,7 @@ void __cdecl G_Damage(
                     ScrNotify_FaceEvent(targ, scr_const.death);
                     Scr_AddEntity(attacker, SCRIPTINSTANCE_SERVER);
                     Scr_Notify(targ, scr_const.death, 1u);
-                    die = (void (__cdecl *)(gentity_s *, gentity_s *, gentity_s *, int, int, const int, const float *, const hitLocation_t, int))dword_E07CEC[12 * targ->handler];
+                    die = entityHandlers[targ->handler].die;
                     if ( die )
                         die(targ, inflictor, attacker, damage, mod, weapon, localdir, hitLoc, timeOffset);
                 }
@@ -878,7 +913,6 @@ double __cdecl CanDamage(
     float halfHeight; // [esp+1A0h] [ebp-78h]
     int hits; // [esp+1A4h] [ebp-74h]
     int hitnum; // [esp+1A8h] [ebp-70h] BYREF
-    col_context_t context; // [esp+1ACh] [ebp-6Ch] BYREF
     int inflictorNum; // [esp+1D4h] [ebp-44h]
     float dest[5][3]; // [esp+1D8h] [ebp-40h] BYREF
     int i; // [esp+214h] [ebp-4h]
@@ -899,7 +933,10 @@ double __cdecl CanDamage(
         inflictorNum = 1023;
     }
     //col_context_t::col_context_t(&context, contentMask);
-    col_context_t::init_locational(&context, targ->s.number, inflictorNum);
+    col_context_t context; // [esp+1ACh] [ebp-6Ch] BYREF
+
+    context.init_locational(targ->s.number, inflictorNum);
+    //col_context_t::init_locational(&context, targ->s.number, inflictorNum);
     hitnum = -1;
     if ( targ->client )
     {
@@ -924,7 +961,7 @@ double __cdecl CanDamage(
         dest[0][1] = 0.5 * dest[0][1];
         dest[0][2] = 0.5 * dest[0][2];
 
-        dest[1][0] = (float)(15.0 * COERCE_FLOAT(LODWORD(forward[1]) ^ _mask__NegFloat_)) + dest[0][0];
+        dest[1][0] = (float)(15.0 * (-(forward[1]))) + dest[0][0];
         dest[1][1] = (float)(15.0 * forward[0]) + dest[0][1];
         dest[1][2] = (float)(15.0 * forward[2]) + dest[0][2];
 
@@ -936,16 +973,14 @@ double __cdecl CanDamage(
         dest[2][2] = (float)(15.0 * forward[2]) + dest[0][2];
         dest[2][2] = dest[2][2] - halfHeight;
 
-        dest[3][0] = (float)(COERCE_FLOAT(LODWORD(15.0f) ^ _mask__NegFloat_)
-                                             * COERCE_FLOAT(LODWORD(forward[1]) ^ _mask__NegFloat_))
-                             + dest[0][0];
-        dest[3][1] = (float)(COERCE_FLOAT(LODWORD(15.0f) ^ _mask__NegFloat_) * forward[0]) + dest[0][1];
-        dest[3][2] = (float)(COERCE_FLOAT(LODWORD(15.0f) ^ _mask__NegFloat_) * forward[2]) + dest[0][2];
+        dest[3][0] = (float)((-(15.0f)) * (-(forward[1]))) + dest[0][0];
+        dest[3][1] = (float)((-(15.0f)) * forward[0]) + dest[0][1];
+        dest[3][2] = (float)((-(15.0f)) * forward[2]) + dest[0][2];
         dest[3][2] = dest[3][2] + halfHeight;
 
         dest[4][0] = dest[3][0];
         dest[4][1] = dest[3][1];
-        dest[4][2] = (float)(COERCE_FLOAT(LODWORD(15.0f) ^ _mask__NegFloat_) * forward[2]) + dest[0][2];
+        dest[4][2] = (float)((-(15.0f)) * forward[2]) + dest[0][2];
         dest[4][2] = dest[4][2] - halfHeight;
         if ( radius_damage_debug->current.enabled )
         {
@@ -1287,7 +1322,7 @@ bool __cdecl CanEntityBeFlashbanged(gentity_s *ent)
         return 1;
     return ent->s.eType == 14
             && G_IsVehicleOccupied(ent)
-            && G_IsVehicleRemoteControl(ent->s.un2.vehicleState.vehicleInfoIndex);
+            && G_IsVehicleRemoteControl(ent->s.vehicleState.vehicleInfoIndex);
 }
 
 void __cdecl GetFlashbangViewPos(gentity_s *ent, float *origin)

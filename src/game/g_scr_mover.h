@@ -20,9 +20,9 @@ void __cdecl ScriptMover_SetupPhysicsLaunch(
                 const float *contact_point,
                 const float *initial_force);
 void __cdecl InitScriptMover(gentity_s *pSelf);
-void __cdecl SP_script_brushmodel(gentity_s *self);
-void __cdecl SP_script_model(gentity_s *pSelf);
-void __cdecl SP_script_origin(gentity_s *pSelf);
+void __cdecl SP_script_brushmodel(gentity_s *self, SpawnVar *v = NULL);
+void __cdecl SP_script_model(gentity_s *pSelf, SpawnVar *v = NULL);
+void __cdecl SP_script_origin(gentity_s *pSelf, SpawnVar *v = NULL);
 void __cdecl ScriptEntCmdGetCommandTimes(float *pfTotalTime, float *pfAccelTime, float *pfDecelTime);
 void __cdecl ScriptEntCmd_MoveTo(scr_entref_t entref);
 void __cdecl ScriptMover_Move(gentity_s *pEnt, const float *vPos, float fTotalTime, float fAccelTime, float fDecelTime);

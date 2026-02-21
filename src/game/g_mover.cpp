@@ -22,7 +22,7 @@
 #include <physics/physics_system.h>
 #include <bgame/bg_slidemove.h>
 
-const char *hintStrings[] =
+const char *hintStrings[8] =
 {
   "",
   "HINT_NOICON",

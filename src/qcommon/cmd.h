@@ -145,3 +145,5 @@ void __cdecl Cmd_ExecAddText_f();
 const char *__cdecl Cmd_Argv(int argIndex);
 CmdArgs *__cdecl Cmd_Args();
 int __cdecl Cmd_Argc();
+
+extern CmdArgs sv_cmd_args;

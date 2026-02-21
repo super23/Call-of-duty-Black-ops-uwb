@@ -1,4 +1,11 @@
 #include "pregame.h"
+#include <server_mp/sv_main_pc_mp.h>
+#include <cstring>
+
+pregameStateGlobal pregameG;
+const dvar_t *g_pregame_enabled;
+const dvar_t *ui_pregame;
+const dvar_t *g_pregame_minplayers;
 
 void __cdecl Pregame_SetState(pregameStateEnum s)
 {

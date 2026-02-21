@@ -9,6 +9,19 @@ enum pregameStateEnum : __int32
     PREGAME_GAMESTARTED = 0x2,
 };
 
+struct pregameClient // sizeof=0x24
+{                                       // XREF: pregameStateGlobal/r
+    team_t pregame_team;                // XREF: Pregame_GetAssignedPregameTeam(uint)+33/r
+    char pregame_class[32];             // XREF: Pregame_SetAssignedPregameClass(uint,char const *)+39/o
+};
+
+struct pregameStateGlobal // sizeof=0x484
+{                                       // XREF: .data:pregameStateGlobal pregameG/r
+    pregameStateEnum state;             // XREF: Pregame_SetState(pregameStateEnum)+6/w
+    // Pregame_GetState(void)+3/r
+    pregameClient clients[32];          // XREF: Pregame_ResetData(void)+A/o
+};
+
 void __cdecl Pregame_SetState(pregameStateEnum s);
 pregameStateEnum __cdecl Pregame_GetState();
 bool __cdecl Pregame_isEnabled();

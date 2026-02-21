@@ -14,6 +14,92 @@
 #include <client_mp/g_client_mp.h>
 #include "g_spawn_mp.h"
 #include <game/actor_state.h>
+#include <universal/com_memory.h>
+#include <game/actor_senses.h>
+#include <game/actor_events.h>
+#include <bgame/bg_dog.h>
+#include <game/actor_navigation.h>
+#include <game/actor_exposed.h>
+#include <cgame/cg_event.h>
+#include "g_combat_mp.h"
+#include "g_active_mp.h"
+#include <server/sv_game.h>
+#include <game/actor_corpse.h>
+#include <bgame/bg_slidemove.h>
+#include <game/bullet.h>
+#include <client_mp/cl_cgame_mp.h>
+#include "g_misc_mp.h"
+#include <game/g_debug.h>
+#include <cgame/cg_drawtools.h>
+#include <universal/com_math_anglevectors.h>
+#include <xanim/dobj_utils.h>
+#include <game/actor_team_move.h>
+#include <glass/glass_server.h>
+
+unsigned __int16 *modNames[21] =
+{
+    &scr_const.mod_unknown,
+    &scr_const.mod_pistol_bullet,
+    &scr_const.mod_rifle_bullet,
+    &scr_const.mod_grenade,
+    &scr_const.mod_grenade_splash,
+    &scr_const.mod_projectile,
+    &scr_const.mod_projectile_splash,
+    &scr_const.mod_melee,
+    &scr_const.mod_bayonet,
+    &scr_const.mod_head_shot,
+    &scr_const.mod_crush,
+    &scr_const.mod_telefrag,
+    &scr_const.mod_falling,
+    &scr_const.mod_suicide,
+    &scr_const.mod_trigger_hurt,
+    &scr_const.mod_explosive,
+    &scr_const.mod_impact,
+    &scr_const.mod_burned,
+    &scr_const.mod_hit_by_object,
+    &scr_const.mod_drown,
+    &scr_const.mod_gas,
+};
+
+float colorTeam[5][4] =
+{
+  { 1.0, 1.0, 1.0, 1.0 },
+  { 1.0, 0.40000001, 0.40000001, 1.0 },
+  { 0.5, 0.5, 1.0, 1.0 },
+  { 0.0, 1.0, 0.0, 1.0 },
+  { 0.5, 0.5, 0.5, 1.0 }
+};
+
+const char *ai_orient_mode_text[7] =
+{
+  "invalid",
+  "dont_change",
+  "motion",
+  "enemy",
+  "enemy_or_motion",
+  "enemy_or_motion_sidestep",
+  "goal"
+};
+
+const char *animModeNames[10] =
+{
+  "none",
+  "(code)",
+  "(pos deltas)",
+  "angle_deltas",
+  "gravity",
+  "(noclip)",
+  "nogravity",
+  "zonly_physics",
+  "(nophysics)",
+  "point_relative"
+};
+
+
+const char *g_entinfoAITextNames[6] = { "all", "brief", "combat", "movement", "state", NULL };
+
+
+
 
 void __fastcall VisCache_Update(vis_cache_t *pCache, bool bVisible)
 {
@@ -672,7 +758,7 @@ void __cdecl Actor_SetDefaults(actor_s *actor)
     actor->talkToSpecies = -1;
     actor->deathContents = (int)&objBuf[1824][4];
     actor->fovDot = ACTOR_DEFAULT_FOV_COS;
-    actor->fMaxSightDistSqrd = FLOAT_6_7108864e7;
+    actor->fMaxSightDistSqrd = 6.7108864e7f;
     actor->eTraverseMode = AI_TRAVERSE_NOGRAVITY;
     actor->CodeOrient.eMode = AI_ORIENT_DONT_CHANGE;
     actor->ScriptOrient.eMode = AI_ORIENT_INVALID;
@@ -1037,9 +1123,11 @@ void __fastcall Actor_PreThink(actor_s *self)
     if ( self->preThinkTime != level.time )
     {
         self->preThinkTime = level.time;
-        if ( SentientHandle::isDefined(&self->pFavoriteEnemy) )
+        //if ( SentientHandle::isDefined(&self->pFavoriteEnemy) )
+        if ( self->pFavoriteEnemy.isDefined() )
         {
-            v1 = SentientHandle::sentient(&self->pFavoriteEnemy);
+            //v1 = SentientHandle::sentient(&self->pFavoriteEnemy);
+            v1 = self->pFavoriteEnemy.sentient();
             Actor_GetPerfectInfo(self, v1);
         }
         Actor_UpdateSight(self);
@@ -1081,9 +1169,11 @@ void __fastcall Actor_CheckClearNodeClaimCloseEnt(actor_s *self)
     const pathnode_t *pClaimedNode; // [esp+4h] [ebp-4h]
 
     pClaimedNode = self->sentient->pClaimedNode;
-    if ( pClaimedNode && EntHandle::isDefined(&self->pCloseEnt) )
+    //if ( pClaimedNode && EntHandle::isDefined(&self->pCloseEnt) )
+    if ( pClaimedNode && self->pCloseEnt.isDefined() )
     {
-        v1 = EntHandle::ent(&self->pCloseEnt);
+        //v1 = EntHandle::ent(&self->pCloseEnt);
+        v1 = self->pCloseEnt.ent();
         if ( Actor_PointNearNode(v1->r.currentOrigin, pClaimedNode) )
             Actor_NodeClaimRevoked(self, 1000);
     }
@@ -1138,8 +1228,12 @@ gentity_s *__fastcall Actor_GetTargetEntity(actor_s *self)
     {
         __debugbreak();
     }
-    if ( EntHandle::isDefined(&self->sentient->targetEnt) )
-        return EntHandle::ent(&self->sentient->targetEnt);
+    //if ( EntHandle::isDefined(&self->sentient->targetEnt) )
+    if (self->sentient->targetEnt.isDefined())
+    {
+        //return EntHandle::ent(&self->sentient->targetEnt);
+        return self->sentient->targetEnt.ent();
+    }
     else
         return 0;
 }
@@ -1153,8 +1247,13 @@ sentient_s *__fastcall Actor_GetTargetSentient(actor_s *self)
     {
         __debugbreak();
     }
-    if ( EntHandle::isDefined(&self->sentient->targetEnt) )
-        return EntHandle::ent(&self->sentient->targetEnt)->sentient;
+
+    //if ( EntHandle::isDefined(&self->sentient->targetEnt) )
+    if (self->sentient->targetEnt.isDefined())
+    {
+        //return EntHandle::ent(&self->sentient->targetEnt)->sentient;
+        return self->sentient->targetEnt.ent()->sentient;
+    }
     else
         return 0;
 }
@@ -1170,17 +1269,10 @@ void __fastcall Actor_GetTargetPosition(actor_s *self, float *position)
     {
         __debugbreak();
     }
-    if ( !EntHandle::isDefined(&self->sentient->targetEnt)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\actor_mp.cpp",
-                    1471,
-                    0,
-                    "%s",
-                    "self->sentient->targetEnt.isDefined()") )
-    {
-        __debugbreak();
-    }
-    v2 = (float *)EntHandle::ent(&self->sentient->targetEnt);
+    iassert(self->sentient->targetEnt.isDefined());
+
+    //v2 = (float *)EntHandle::ent(&self->sentient->targetEnt);
+    v2 = (float *)self->sentient->targetEnt.ent();
     *position = v2[73];
     v2 += 73;
     position[1] = v2[1];
@@ -1198,16 +1290,9 @@ void __fastcall Actor_GetTargetLookPosition(actor_s *self, float *position)
     {
         __debugbreak();
     }
-    if ( !EntHandle::isDefined(&self->sentient->targetEnt)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\actor_mp.cpp",
-                    1488,
-                    0,
-                    "%s",
-                    "self->sentient->targetEnt.isDefined()") )
-    {
-        __debugbreak();
-    }
+
+    iassert(self->sentient->targetEnt.isDefined());
+    
     targetEnt = Actor_GetTargetEntity(self);
     if ( targetEnt->sentient )
         Sentient_GetEyePosition(targetEnt->sentient, position);
@@ -1224,8 +1309,9 @@ gentity_s *__fastcall Actor_GetScriptTargetEntity(actor_s *self)
     {
         __debugbreak();
     }
-    if ( EntHandle::isDefined(&self->sentient->scriptTargetEnt) )
-        return EntHandle::ent(&self->sentient->scriptTargetEnt);
+    //if ( EntHandle::isDefined(&self->sentient->scriptTargetEnt) )
+    if ( self->sentient->scriptTargetEnt.isDefined() )
+        return self->sentient->scriptTargetEnt.ent();
     else
         return 0;
 }
@@ -1404,7 +1490,7 @@ void __cdecl Actor_Think(gentity_s *self)
             self->s.lerp.apos.trBase[2] = self->r.currentAngles[2];
             if ( originChanged )
             {
-                SV_LinkEntity((int)&savedregs, self);
+                SV_LinkEntity(self);
                 Actor_PostPhysics(&actor->Physics);
             }
             if ( Sentient_NearestNodeDirty(actor->sentient, originChanged) )
@@ -1505,8 +1591,9 @@ actor_think_result_t __fastcall Actor_CallThink(actor_s *self)
     self->Physics.vOrigin[2] = currentOrigin[2];
     setup_gjkcc_input(&self->Physics, &gjkcc_in);
     self->Physics.m_gjkcc_input = &gjkcc_in;
-    gjkcc_prolog((int)&savedregs, &gjkcc_in, self->Physics.vOrigin);
-    eThinkResult = ((int (__thiscall *)(actor_s *))AIFuncTable[self->species][self->eState[self->stateLevel]].pfnThink)(self);
+    gjkcc_prolog(&gjkcc_in, self->Physics.vOrigin);
+    //eThinkResult = ((int (__thiscall *)(actor_s *))AIFuncTable[self->species][self->eState[self->stateLevel]].pfnThink)(self);
+    eThinkResult = (actor_think_result_t)((int (__thiscall *)(actor_s *))AIFuncTable[self->species][self->eState[self->stateLevel]].pfnThink)(self);
     gjkcc_epilog(&gjkcc_in, self->Physics.vOrigin);
     self->Physics.m_gjkcc_input = 0;
     if ( (unsigned int)eThinkResult > ACTOR_THINK_MOVE_TO_BODY_QUEUE
@@ -1607,10 +1694,11 @@ void __fastcall Actor_UpdateCloseEnt(actor_s *self)
 
     if ( !self && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\actor_mp.cpp", 1277, 0, "%s", "self") )
         __debugbreak();
-    if ( EntHandle::isDefined(&self->pCloseEnt) )
+    //if ( EntHandle::isDefined(&self->pCloseEnt) )
+    if ( self->pCloseEnt.isDefined() )
     {
-        closeActor = EntHandle::ent(&self->pCloseEnt)->actor;
-        currentOrigin = EntHandle::ent(&self->pCloseEnt)->r.currentOrigin;
+        closeActor =    self->pCloseEnt.ent()->actor;
+        currentOrigin = self->pCloseEnt.ent()->r.currentOrigin;
         v5 = *currentOrigin - self->ent->r.currentOrigin[0];
         v6 = currentOrigin[1] - self->ent->r.currentOrigin[1];
         if ( (float)((float)(v5 * v5) + (float)(v6 * v6)) < 1406.25 )
@@ -1619,40 +1707,36 @@ void __fastcall Actor_UpdateCloseEnt(actor_s *self)
                 goto LABEL_14;
         }
         else if ( closeActor
-                     && EntHandle::isDefined(&closeActor->pCloseEnt)
-                     && EntHandle::ent(&closeActor->pCloseEnt) == self->ent )
+                     && closeActor->pCloseEnt.isDefined()
+                     && closeActor->pCloseEnt.ent() == self->ent)
         {
-            EntHandle::setEnt(&closeActor->pCloseEnt, 0);
+            closeActor->pCloseEnt.setEnt(0);
         }
-        EntHandle::setEnt(&self->pCloseEnt, 0);
+        //EntHandle::setEnt(&self->pCloseEnt, 0);
+        self->pCloseEnt.setEnt(0);
     }
 LABEL_14:
     for ( clientNum = 0; clientNum < com_maxclients->current.integer; ++clientNum )
     {
         player = G_GetPlayer(clientNum);
-        if ( player->sentient && EntHandle::isDefined(&self->pCloseEnt) && EntHandle::ent(&self->pCloseEnt) != player )
+
+        //if ( player->sentient && EntHandle::isDefined(&self->pCloseEnt) && EntHandle::ent(&self->pCloseEnt) != player )
+        if ( player->sentient && self->pCloseEnt.isDefined() && self->pCloseEnt.ent() != player)
             Actor_UpdatePlayerPush(self, player);
     }
-    if ( EntHandle::isDefined(&self->pCloseEnt) )
+    //if ( EntHandle::isDefined(&self->pCloseEnt) )
+    if ( self->pCloseEnt.isDefined() )
     {
-        if ( !EntHandle::isDefined(&self->pCloseEnt)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\actor_mp.cpp",
-                        1312,
-                        0,
-                        "%s",
-                        "self->pCloseEnt.isDefined()") )
-        {
-            __debugbreak();
-        }
-        v1 = EntHandle::ent(&self->pCloseEnt);
+        iassert(self->pCloseEnt.isDefined());
+        
+        v1 = self->pCloseEnt.ent();
         distSqr = Vec2DistanceSq(self->ent->r.currentOrigin, v1->r.currentOrigin);
         if ( distSqr >= 900.0 && !self->pPileUpActor && self->eAnimMode == AI_ANIM_MOVE_CODE && Actor_HasPath(self) )
         {
-            v2 = EntHandle::ent(&self->pCloseEnt);
+            v2 = self->pCloseEnt.ent();
             Vec2Sub(self->ent->r.currentOrigin, v2->r.currentOrigin, delta);
             if ( (float)((float)(self->Path.lookaheadDir[0] * delta[0]) + (float)(self->Path.lookaheadDir[1] * delta[1])) > 0.0 )
-                EntHandle::setEnt(&self->pCloseEnt, 0);
+                self->pCloseEnt.setEnt(0);
         }
     }
 }
@@ -1724,7 +1808,7 @@ void __fastcall Actor_UpdatePlayerPush(actor_s *self, gentity_s *player)
             {
                 if ( Actor_AtClaimNode(self) )
                     Sentient_StealClaimNode(player->sentient, self->sentient);
-                EntHandle::setEnt(&self->pCloseEnt, player);
+                self->pCloseEnt.setEnt(player);
             }
         }
     }
@@ -1771,7 +1855,7 @@ bool __fastcall Actor_CheckGoalNotify(actor_s *self)
     if ( !node || Path_IsCoverNode(node) || !Path_IsValidClaimNode(node) )
         return 1;
     fAngleDelta = AngleNormalize180(node->constant.fAngle - self->ent->r.currentAngles[1]);
-    return fAngleDelta >= COERCE_FLOAT(LODWORD(ACTOR_GOAL_ANGLE_TOLERANCE) ^ _mask__NegFloat_) && fAngleDelta <= 20.0;
+    return fAngleDelta >= (-(ACTOR_GOAL_ANGLE_TOLERANCE)) && fAngleDelta <= 20.0;
 }
 
 int __cdecl Actor_UpdateActorInfo(gentity_s *ent)
@@ -1963,10 +2047,10 @@ void __cdecl Actor_Pain(
         iMod,
         vDir,
         hitLoc);
-    EntHandle::setEnt(&self->sentient->lastAttacker, pAttacker);
+    self->sentient->lastAttacker.setEnt(pAttacker);
     if ( pAttacker->sentient )
         Actor_WasAttackedBy(actor, pAttacker->sentient);
-    if ( !EntHandle::isDefined(&actor->sentient->syncedMeleeEnt) && actor->allowPain )
+    if ( !actor->sentient->syncedMeleeEnt.isDefined() && actor->allowPain)
     {
         if ( Actor_PushState(actor, AIS_PAIN) )
             Actor_KillAnimScript(actor);
@@ -2051,7 +2135,7 @@ void __cdecl Actor_Die(
     }
     if ( actor->eState[actor->stateLevel] != AIS_DEATH )
     {
-        Scr_ActorKilled(self, pInflictor, pAttacker, iDamage, iMod, iWeapon, vDir, hitLoc, timeOffset);
+        Scr_ActorKilled(self, pInflictor, pAttacker, iDamage, iMod, iWeapon, (float*)vDir, hitLoc, timeOffset);
         actor->iDamageTaken = iDamage;
         actor->damageDir[0] = *vDir;
         actor->damageDir[1] = vDir[1];
@@ -2078,7 +2162,7 @@ void __cdecl Actor_Die(
         }
         Actor_ForceState(actor, AIS_DEATH);
         actor->Physics.bIsAlive = 0;
-        EntHandle::setEnt(&self->sentient->lastAttacker, pAttacker);
+        self->sentient->lastAttacker.setEnt(pAttacker);
         Scr_SetString(&self->targetname, 0, SCRIPTINSTANCE_SERVER);
         Actor_KillAnimScript(actor);
     }
@@ -2092,7 +2176,7 @@ bool __cdecl usingCodeGoal(actor_s *actor)
     v2 = 0;
     if ( actor->codeGoalSrc )
     {
-        if ( EntHandle::isDefined(&actor->scriptGoalEnt) )
+        if ( actor->scriptGoalEnt.isDefined() )
             return 1;
         v3 = actor->scriptGoal.pos[0] == actor->codeGoal.pos[0]
             && actor->scriptGoal.pos[1] == actor->codeGoal.pos[1]
@@ -2156,15 +2240,15 @@ void __cdecl Actor_EntInfo(gentity_s *self, float *source)
     char *v19; // eax
     char *v20; // eax
     char *v21; // [esp+14h] [ebp-998h]
-    char *v22; // [esp+1Ch] [ebp-990h]
+    const char *v22; // [esp+1Ch] [ebp-990h]
     const char *v23; // [esp+20h] [ebp-98Ch]
     unsigned int missCount; // [esp+24h] [ebp-988h]
     int number; // [esp+28h] [ebp-984h]
-    char *v26; // [esp+2Ch] [ebp-980h]
+    const char *v26; // [esp+2Ch] [ebp-980h]
     const char *v27; // [esp+30h] [ebp-97Ch]
     const float *v28; // [esp+34h] [ebp-978h]
-    char *v29; // [esp+38h] [ebp-974h]
-    char *v30; // [esp+3Ch] [ebp-970h]
+    const char *v29; // [esp+38h] [ebp-974h]
+    const char *v30; // [esp+3Ch] [ebp-970h]
     float v31; // [esp+70h] [ebp-93Ch]
     float v[3]; // [esp+90h] [ebp-91Ch] BYREF
     float myPos[3]; // [esp+9Ch] [ebp-910h] BYREF
@@ -2367,6 +2451,9 @@ void __cdecl Actor_EntInfo(gentity_s *self, float *source)
                     fact = 0.0f;
                     v40 = 1.0f;
 
+                    static int endTime;
+                    static int direction = 1;
+
                     if ( level.time <= endTime )
                     {
                         if ( endTime - level.time > 1000 )
@@ -2391,7 +2478,7 @@ void __cdecl Actor_EntInfo(gentity_s *self, float *source)
                         timingColor[1] = 1.0 - fact;
                         timingColor[0] = 1.0 - fact;
                     }
-                    if ( !EntHandle::isDefined(&actor->scriptGoalEnt) )
+                    if ( !actor->scriptGoalEnt.isDefined() )
                     {
                         pos[0] = actor->scriptGoal.pos[0];
                         pos[1] = actor->scriptGoal.pos[1];
@@ -2409,12 +2496,12 @@ void __cdecl Actor_EntInfo(gentity_s *self, float *source)
                         timingColor[0] = 0.0f;
                         G_DebugLine(xyz, pos, timingColor, 0);
                         G_DebugCircle(pos, actor->fixedNodeSafeRadius, timingColor, 0, 1, 0);
-                        if ( EntHandle::isDefined(&actor->fixedNodeSafeVolume) )
+                        if ( actor->fixedNodeSafeVolume.isDefined() )
                         {
                             if ( ai_showVolume->current.integer == self->s.number
                                 || ai_showVolume->current.integer > 0 && ai_debugEntIndex->current.integer == self->s.number )
                             {
-                                v2 = EntHandle::ent(&actor->fixedNodeSafeVolume);
+                                v2 = actor->fixedNodeSafeVolume.ent();
                                 G_DebugDrawBrushModel(v2, colorGreenFaded, 0, 0);
                             }
                         }
@@ -2463,8 +2550,9 @@ void __cdecl Actor_EntInfo(gentity_s *self, float *source)
                         {
                             G_DebugDrawBrushModel(actor->codeGoal.volume, colorWhiteFaded, 1, 0);
                         }
-                        if ( ai_showRegion->current.enabled )
-                            Actor_DebugDrawNodesInVolume(actor);
+                        // LWSS: wtf, I dont see this dvar anywhere
+                        //if ( ai_showRegion->current.enabled )
+                        //    Actor_DebugDrawNodesInVolume(actor);
                     }
                 }
                 if ( actor->sentient->eTeam > (unsigned int)TEAM_NUM_TEAMS )
@@ -2617,12 +2705,12 @@ void __cdecl Actor_EntInfo(gentity_s *self, float *source)
                         if ( Actor_HasPath(actor) )
                         {
                             xyz[2] = xyz[2] - (float)(infoScale * 7.0);
-                            G_AddDebugString(xyz, colorWhite, infoScale * 0.60000002, "has path", 0);
+                            G_AddDebugString(xyz, colorWhite, infoScale * 0.60000002, (char*)"has path", 0);
                         }
                         if ( actor->Path.wPathLen > 0 && !Path_DistanceGreaterThan(&actor->Path, 128.0) )
                         {
                             xyz[2] = xyz[2] - (float)(infoScale * 7.0);
-                            G_AddDebugString(xyz, colorWhite, infoScale * 0.60000002, "minDistForceFaceEnemy", 0);
+                            G_AddDebugString(xyz, colorWhite, infoScale * 0.60000002, (char *)"minDistForceFaceEnemy", 0);
                         }
                         if ( actor->pPileUpActor )
                         {
@@ -2630,22 +2718,22 @@ void __cdecl Actor_EntInfo(gentity_s *self, float *source)
                             v16 = va("blockee: %d, blocker: %d", actor->pPileUpActor->ent->s.number, actor->pPileUpEnt->s.number);
                             G_AddDebugString(xyz, colorWhite, infoScale * 0.60000002, v16, 0);
                         }
-                        if ( EntHandle::isDefined(&actor->pCloseEnt) )
+                        if ( actor->pCloseEnt.isDefined() )
                         {
                             xyz[2] = xyz[2] - (float)(infoScale * 7.0);
-                            v17 = EntHandle::ent(&actor->pCloseEnt);
+                            v17 = actor->pCloseEnt.ent();
                             v18 = va("closeEnt: %d", v17->s.number);
                             G_AddDebugString(xyz, colorWhite, infoScale * 0.60000002, v18, 0);
                         }
                         if ( actor->bDontAvoidPlayer )
                         {
                             xyz[2] = xyz[2] - (float)(infoScale * 7.0);
-                            G_AddDebugString(xyz, colorWhite, infoScale * 0.60000002, "dontavoidplayer", 0);
+                            G_AddDebugString(xyz, colorWhite, infoScale * 0.60000002, (char *)"dontavoidplayer", 0);
                         }
                         if ( ((unsigned int)&cls.wagerServers[5331].basictraining & actor->Physics.iTraceMask) == 0 )
                         {
                             xyz[2] = xyz[2] - (float)(infoScale * 7.0);
-                            G_AddDebugString(xyz, colorWhite, infoScale * 0.60000002, "pushPlayer", 0);
+                            G_AddDebugString(xyz, colorWhite, infoScale * 0.60000002, (char *)"pushPlayer", 0);
                         }
                         xyz[2] = xyz[2] - (float)(infoScale * 7.0);
                         v19 = va("physics %d", actor->Physics.ePhysicsType);
@@ -2676,12 +2764,12 @@ void __cdecl Actor_EntInfo(gentity_s *self, float *source)
                         if ( !actor->ent->takedamage )
                         {
                             xyz[2] = xyz[2] - (float)(infoScale * 7.0);
-                            G_AddDebugString(xyz, colorRed, infoScale * 0.60000002, "Invulnerable", 0);
+                            G_AddDebugString(xyz, colorRed, infoScale * 0.60000002, (char*)"Invulnerable", 0);
                         }
                         if ( actor->provideCoveringFire )
                         {
                             xyz[2] = xyz[2] - (float)(infoScale * 7.0);
-                            G_AddDebugString(xyz, colorWhite, infoScale * 0.60000002, "Covering fire", 0);
+                            G_AddDebugString(xyz, colorWhite, infoScale * 0.60000002, (char *)"Covering fire", 0);
                         }
                     }
                 }
@@ -2702,17 +2790,23 @@ void __fastcall Actor_InitMove(actor_s *self)
     {
         __debugbreak();
     }
+
     memset((unsigned __int8 *)&self->Physics, 0, sizeof(self->Physics));
-    if ( (_S2_8 & 1) == 0 )
-    {
-        _S2_8 |= 1u;
-        colgeom_visitor_t::colgeom_visitor_t(&dummy_3);
-        dummy_3.__vftable = (colgeom_visitor_inlined_t<200>_vtbl *)&colgeom_visitor_inlined_t<200>::`vftable';
-        colgeom_visitor_inlined_t<500>::reset(&dummy_3);
-        atexit(Actor_InitMove_::_2_::_dynamic_atexit_destructor_for__dummy__);
-    }
-    self->Physics.proximity_data.__vftable = dummy_3.__vftable;
-    colgeom_visitor_inlined_t<500>::reset(&self->Physics.proximity_data);
+
+    static colgeom_visitor_inlined_t<200> dummy_3;
+    //if ( (_S2_8 & 1) == 0 )
+    //{
+    //    _S2_8 |= 1u;
+    //    colgeom_visitor_t::colgeom_visitor_t(&dummy_3);
+    //    dummy_3.__vftable = (colgeom_visitor_inlined_t<200>_vtbl *)&colgeom_visitor_inlined_t<200>::`vftable';
+    //    colgeom_visitor_inlined_t<500>::reset(&dummy_3);
+    //    atexit(Actor_InitMove_::_2_::_dynamic_atexit_destructor_for__dummy__);
+    //}
+
+    //self->Physics.proximity_data.__vftable = dummy_3.__vftable;
+    self->Physics.proximity_data = dummy_3;
+    //colgeom_visitor_inlined_t<500>::reset(&self->Physics.proximity_data);
+    self->Physics.proximity_data.reset();
     self->Physics.vOrigin[0] = 0.0f;
     self->Physics.vOrigin[1] = 0.0f;
     self->Physics.vOrigin[2] = 0.0f;
@@ -2855,19 +2949,16 @@ void __fastcall Actor_DoMove(actor_s *self)
         self->Physics.vWishDelta[1] = v9 * forward[1];
         self->Physics.vWishDelta[2] = v9 * forward[2];
 
-        self->Physics.vWishDelta[0] = (float)(COERCE_FLOAT(LODWORD(wishdelta_1) ^ _mask__NegFloat_) * right[0])
-                                                                + self->Physics.vWishDelta[0];
-        self->Physics.vWishDelta[1] = (float)(COERCE_FLOAT(LODWORD(wishdelta_1) ^ _mask__NegFloat_) * right[1])
-                                                                + self->Physics.vWishDelta[1];
-        self->Physics.vWishDelta[2] = (float)(COERCE_FLOAT(LODWORD(wishdelta_1) ^ _mask__NegFloat_) * right[2])
-                                                                + self->Physics.vWishDelta[2];
+        self->Physics.vWishDelta[0] = (float)((-(wishdelta_1)) * right[0]) + self->Physics.vWishDelta[0];
+        self->Physics.vWishDelta[1] = (float)((-(wishdelta_1)) * right[1]) + self->Physics.vWishDelta[1];
+        self->Physics.vWishDelta[2] = (float)((-(wishdelta_1)) * right[2]) + self->Physics.vWishDelta[2];
         self->Physics.vWishDelta[2] = self->Physics.vWishDelta[2] + wishdelta_2;
     }
     self->Physics.fGravity = bg_gravity->current.value;
     if ( self->eAnimMode != AI_ANIM_MOVE_CODE
         || !self->moveMode
         || !Actor_HasPath(self)
-        || EntHandle::isDefined(&self->pCloseEnt) )
+        || self->pCloseEnt.isDefined() )
     {
         if ( !Actor_ShouldMoveAwayFromCloseEnt(self) )
         {
@@ -3040,7 +3131,8 @@ int __fastcall Actor_PhysicsAndDodge(actor_s *self)
         {
             __debugbreak();
         }
-        pathDir = (float *)(&self->Physics.proximity_data.prims[194].4 + 7 * self->Path.wPathLen);
+        //pathDir = (float *)(&self->Physics.proximity_data.prims[194].4 + 7 * self->Path.wPathLen);
+        pathDir = (float *)(&self->Physics.proximity_data.prims[194].tree + 7 * self->Path.wPathLen);
         length = Vec2Length(self->Physics.vWishDelta);
         for ( attempts = 0; attempts < 2; ++attempts )
         {
@@ -3133,47 +3225,42 @@ LABEL_56:
     return 1;
 }
 
-char *__fastcall Actor_Physics_GetLeftOrRightDodge(actor_s *self, bool dodgeRight, float length)
+int __fastcall Actor_Physics_GetLeftOrRightDodge(actor_s *self, bool dodgeRight, float length)
 {
     float v3; // xmm0_4
     float v5; // xmm0_4
 
-    if ( !self && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\actor_mp.cpp", 2616, 0, "%s", "self") )
-        __debugbreak();
-    if ( dodgeRight )
+    iassert(self);
+
+    if (dodgeRight)
     {
-        if ( ((unsigned int)&g_hunk_track[370327].name[64] & self->ent->flags) != 0 )
+        if ((self->ent->flags & 0x8000000) != 0)
         {
-            self->Physics.vWishDelta[0] = (float)((float)(COERCE_FLOAT(LODWORD(self->Physics.vHitNormal[1]) ^ _mask__NegFloat_)
-                                                                                                    * length)
-                                                                                    * 0.33000001)
-                                                                    + self->Physics.vWishDelta[0];
+            self->Physics.vWishDelta[0] = (float)((float)((-(self->Physics.vHitNormal[1])) * length) * 0.33000001) + self->Physics.vWishDelta[0];
             v3 = (float)((float)(self->Physics.vHitNormal[0] * length) * 0.33000001) + self->Physics.vWishDelta[1];
         }
         else
         {
-            self->Physics.vWishDelta[0] = COERCE_FLOAT(LODWORD(self->Physics.vHitNormal[1]) ^ _mask__NegFloat_) * length;
+            self->Physics.vWishDelta[0] = (-(self->Physics.vHitNormal[1])) * length;
             v3 = self->Physics.vHitNormal[0] * length;
         }
         self->Physics.vWishDelta[1] = v3;
-        return (char *)0x10000000;
+        return 0x10000000;
     }
     else
     {
-        if ( (self->ent->flags & 0x10000000) != 0 )
+        if ((self->ent->flags & 0x10000000) != 0)
         {
-            self->Physics.vWishDelta[0] = (float)((float)(self->Physics.vHitNormal[1] * length) * 0.33000001)
-                                                                    + self->Physics.vWishDelta[0];
-            v5 = (float)((float)(COERCE_FLOAT(LODWORD(self->Physics.vHitNormal[0]) ^ _mask__NegFloat_) * length) * 0.33000001)
-                 + self->Physics.vWishDelta[1];
+            self->Physics.vWishDelta[0] = (float)((float)(self->Physics.vHitNormal[1] * length) * 0.33000001) + self->Physics.vWishDelta[0];
+            v5 = (float)((float)((-(self->Physics.vHitNormal[0])) * length) * 0.33000001) + self->Physics.vWishDelta[1];
         }
         else
         {
             self->Physics.vWishDelta[0] = self->Physics.vHitNormal[1] * length;
-            v5 = COERCE_FLOAT(LODWORD(self->Physics.vHitNormal[0]) ^ _mask__NegFloat_) * length;
+            v5 = (-(self->Physics.vHitNormal[0])) * length;
         }
         self->Physics.vWishDelta[1] = v5;
-        return &g_hunk_track[370327].name[64];
+        return 0x8000000;
     }
 }
 
@@ -3203,7 +3290,8 @@ bool __fastcall Actor_ShouldMoveAwayFromCloseEnt(actor_s *self)
 {
     if ( !self && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\actor_mp.cpp", 2923, 0, "%s", "self") )
         __debugbreak();
-    if ( !EntHandle::isDefined(&self->pCloseEnt) )
+    //if ( !EntHandle::isDefined(&self->pCloseEnt) )
+    if ( !self->pCloseEnt.isDefined() )
         return 0;
     if ( self->Physics.ePhysicsType == AIPHYS_NOCLIP )
         return 0;
@@ -3217,7 +3305,7 @@ int __fastcall Actor_PhysicsMoveAway(actor_s *self)
     float v5; // [esp+40h] [ebp-90h]
     float v6; // [esp+44h] [ebp-8Ch]
     float *currentOrigin; // [esp+6Ch] [ebp-64h]
-    char *newFlags; // [esp+74h] [ebp-5Ch]
+    int newFlags; // [esp+74h] [ebp-5Ch]
     float translation[3]; // [esp+7Ch] [ebp-54h] BYREF
     float distance; // [esp+88h] [ebp-48h]
     float rotation[2]; // [esp+8Ch] [ebp-44h] BYREF
@@ -3240,17 +3328,8 @@ int __fastcall Actor_PhysicsMoveAway(actor_s *self)
     {
         __debugbreak();
     }
-    if ( !EntHandle::isDefined(&self->pCloseEnt)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\actor_mp.cpp",
-                    2980,
-                    0,
-                    "%s",
-                    "self->pCloseEnt.isDefined()") )
-    {
-        __debugbreak();
-    }
-    other = EntHandle::ent(&self->pCloseEnt);
+    iassert(self->pCloseEnt.isDefined());
+    other = self->pCloseEnt.ent();
     Actor_PhysicsBackupInputs(self, &physicsInputs);
     currentOrigin = self->ent->r.currentOrigin;
     self->Physics.vOrigin[0] = *currentOrigin;
@@ -3279,7 +3358,7 @@ int __fastcall Actor_PhysicsMoveAway(actor_s *self)
         Actor_GetAnimDeltas(self, rotation, translation);
         lengthSqrd = (float)(translation[0] * translation[0]) + (float)(translation[1] * translation[1]);
         if ( lengthSqrd < 2.2500002 )
-            lengthSqrd = FLOAT_2_2500002;
+            lengthSqrd = 2.2500002f;
         length = sqrtf(lengthSqrd);
     }
     lengthSqrd = lengthSqrd * 0.25;
@@ -3323,8 +3402,8 @@ int __fastcall Actor_PhysicsMoveAway(actor_s *self)
             self->Physics.iHitEntnum = other->s.number;
             if ( other->actor )
             {
-                if ( !EntHandle::isDefined(&other->actor->pCloseEnt) )
-                    EntHandle::setEnt(&other->actor->pCloseEnt, self->ent);
+                if ( !other->actor->pCloseEnt.isDefined() )
+                    other->actor->pCloseEnt.setEnt(self->ent);
             }
             self->ent->flags &= 0xE7FFFFFF;
             Actor_PhysicsRestoreInputs(self, &physicsInputs);
@@ -3373,11 +3452,13 @@ double __cdecl Actor_CalcultatePlayerPushDelta(const actor_s *self, const gentit
         Vec2NormalizeTo(viewDir, moveDir);
     }
     *pushDir = moveDir[1];
-    *((unsigned int *)pushDir + 1) = LODWORD(moveDir[0]) ^ _mask__NegFloat_;
+    pushDir[1] = -moveDir[0];
+    //*((unsigned int *)pushDir + 1) = LODWORD(moveDir[0]) ^ _mask__NegFloat_;
 
     if ( (float)((float)(*pushDir * delta) + (float)(pushDir[1] * delta_4)) < 0.0 )
     {
-        *(unsigned int *)pushDir = LODWORD(moveDir[1]) ^ _mask__NegFloat_;
+        //*(unsigned int *)pushDir = LODWORD(moveDir[1]) ^ _mask__NegFloat_;
+        pushDir[0] = -moveDir[1];
         pushDir[1] = moveDir[0];
     }
     if ( speed < 60.0 )
@@ -3426,7 +3507,7 @@ int __cdecl Actor_MoveAwayNoWorse(actor_s *self)
         other = &level.actors[i];
         if ( other->inuse
             && other != self
-            && (!EntHandle::isDefined(&self->pCloseEnt) || other->ent != EntHandle::ent(&self->pCloseEnt)) )
+            && (!self->pCloseEnt.isDefined() || other->ent != self->pCloseEnt.ent()) )
         {
             v4 = other->ent->r.currentOrigin[0] - self->Physics.vOrigin[0];
             v5 = other->ent->r.currentOrigin[1] - self->Physics.vOrigin[1];
@@ -3437,8 +3518,8 @@ int __cdecl Actor_MoveAwayNoWorse(actor_s *self)
                 if ( (float)((float)(v2 * v2) + (float)(v3 * v3)) >= 900.0
                     && !Actor_AtDifferentElevation(self->ent->r.currentOrigin, other->ent->r.currentOrigin) )
                 {
-                    if ( !EntHandle::isDefined(&other->pCloseEnt) && !Actor_AtClaimNode(other) )
-                        EntHandle::setEnt(&other->pCloseEnt, self->ent);
+                    if ( !other->pCloseEnt.isDefined() && !Actor_AtClaimNode(other))
+                        other->pCloseEnt.setEnt(self->ent);
                     bResult = 0;
                 }
             }
@@ -3748,8 +3829,8 @@ bool __fastcall Actor_FindPathToGoalDirectInternal(actor_s *self)
         return 0;
     perp[0] = self->Path.lookaheadDir[1];
     perp[1] = -self->Path.lookaheadDir[0];
-    if ( self->sideMove < 0.0 )
-        LODWORD(sideMove) ^= _mask__NegFloat_;
+    if (self->sideMove < 0.0)
+        sideMove = -sideMove;
     vNewGoalPos[0] = (float)(sideMove * perp[0]) + self->codeGoal.pos[0];
     vNewGoalPos[1] = (float)(sideMove * perp[1]) + self->codeGoal.pos[1];
     vNewGoalPos[2] = self->codeGoal.pos[2];
@@ -4210,7 +4291,7 @@ void __fastcall Actor_UpdateAnglesAndDelta(actor_s *self)
     switch ( self->eAnimMode )
     {
         case AI_ANIM_MOVE_CODE:
-            if ( self->moveMode && Actor_HasPath(self) && !EntHandle::isDefined(&self->pCloseEnt) )
+            if ( self->moveMode && Actor_HasPath(self) && !self->pCloseEnt.isDefined() )
             {
                 Actor_GetAnimDeltas(self, rotation, translation);
                 if ( !Actor_HasPath(self)
@@ -4563,7 +4644,7 @@ void __fastcall Actor_CheckCollisions(actor_s *self)
     {
         __debugbreak();
     }
-    if ( !EntHandle::isDefined(&self->pCloseEnt) )
+    if ( !self->pCloseEnt.isDefined() )
     {
         currentOrigin = self->ent->r.currentOrigin;
         vOrgSelf[0] = *currentOrigin;
@@ -4579,7 +4660,7 @@ void __fastcall Actor_CheckCollisions(actor_s *self)
                 && (!bDontDisturb || level.gentities[other->Physics.iHitEntnum].sentient)
                 && Actor_PointNear(other->sentient->ent->r.currentOrigin, vOrgSelf) )
             {
-                EntHandle::setEnt(&self->pCloseEnt, other->ent);
+                self->pCloseEnt.setEnt(other->ent);
                 return;
             }
         }
@@ -4782,7 +4863,7 @@ void __fastcall Actor_UpdateMoveHistory(actor_s *self)
 
 void __fastcall Actor_UpdateNetworkLeanAmount(actor_s *self)
 {
-    self->ent->s.un2.animState.fLeanAmount = self->leanAmount;
+    self->ent->s.animState.fLeanAmount = self->leanAmount;
 }
 
 void __fastcall Path_UpdateLeanAmount(actor_s *self, float *vWishDir)
@@ -4836,7 +4917,8 @@ double __fastcall Path_UpdateMomentum(actor_s *self, float *vWishDir, float fMov
         if ( self->leanAmount > 0.0
             && (float)((float)(*vWishDir * self->prevMoveDir[1]) - (float)(vWishDir[1] * self->prevMoveDir[0])) < 0.0 )
         {
-            LODWORD(self->leanAmount) ^= _mask__NegFloat_;
+            //LODWORD(self->leanAmount) ^= _mask__NegFloat_;
+            self->leanAmount = -self->leanAmount;
             Actor_UpdateNetworkLeanAmount(self);
         }
         value = ai_pathMomentum->current.value;
@@ -4849,77 +4931,46 @@ double __fastcall Path_UpdateMomentum(actor_s *self, float *vWishDir, float fMov
     return fMoveDist;
 }
 
-void __userpurge Path_UpdateMovementDelta(actor_s *self@<ecx>, float fMoveDist)
+void Path_UpdateMovementDelta(actor_s *self, float fMoveDist)
 {
-    int v2; // ebp
-    int IsDodgeEntity; // eax
-    long double v4; // [esp+4h] [ebp-9Ch]
-    long double v5; // [esp+4h] [ebp-9Ch]
-    float *v6; // [esp+8h] [ebp-98h]
-    float *vWishDelta; // [esp+Ch] [ebp-94h]
-    float v8; // [esp+14h] [ebp-8Ch]
-    float v9; // [esp+14h] [ebp-8Ch]
-    float dot[3]; // [esp+20h] [ebp-80h] BYREF
-    float vEndPos[3]; // [esp+2Ch] [ebp-74h]
-    float maxSideMove[2]; // [esp+38h] [ebp-68h] BYREF
-    float sideMove; // [esp+40h] [ebp-60h]
-    float vNewDir[3]; // [esp+44h] [ebp-5Ch]
-    float *forwardLookaheadDir2D; // [esp+50h] [ebp-50h]
-    float v16[1]; // [esp+54h] [ebp-4Ch]
-    float vLookDir[2]; // [esp+58h] [ebp-48h] BYREF
-    float t; // [esp+60h] [ebp-40h]
-    float speed; // [esp+64h] [ebp-3Ch]
-    int moveHistoryIndex; // [esp+68h] [ebp-38h]
-    float perp[3]; // [esp+6Ch] [ebp-34h] BYREF
-    float *lookaheadDir; // [esp+78h] [ebp-28h]
-    float vWishDir[3]; // [esp+7Ch] [ebp-24h] BYREF
-    float *vOrg; // [esp+88h] [ebp-18h]
-    path_t *pPath_; // [esp+8Ch] [ebp-14h]
-    actor_s *self_; // [esp+90h] [ebp-10h]
-    int v27; // [esp+94h] [ebp-Ch]
-    path_t *pPath; // [esp+98h] [ebp-8h]
-    path_t *retaddr; // [esp+A0h] [ebp+0h]
-    float fMoveDista; // [esp+A4h] [ebp+4h]
+    // kcod4
+    path_t *pPath; // r30
+    int iHitEntnum; // r4
+    long double lookAheadLen; // fp2
+    double calculatedLen; // fp12
+    int moveHistoryIndex; // r29
+    float vWishDir[3];
+    float vNewDir[3];
+    float maxSideMove[2];
+    float perp[3];
+    float vEndPos[3];
+    float dot[3];
 
-    v27 = v2;
-    pPath = retaddr;
-    self_ = self;
-    pPath_ = &self->Path;
-    if ( self == (actor_s *)-2564
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\actor_mp.cpp", 5526, 0, "%s", "pPath") )
+    pPath = &self->Path;
+    iassert(pPath->wPathLen > 0);
+
+    vWishDir[0] = self->ent->r.currentOrigin[0];
+    vWishDir[1] = self->ent->r.currentOrigin[1];
+    vWishDir[2] = self->ent->r.currentOrigin[2];
+
+    Path_UpdateLookahead(pPath, vWishDir, Actor_IsDodgeEntity(self, self->Physics.iHitEntnum), 0, 1, 1);
+
+    perp[0] = pPath->lookaheadDir[0];
+    perp[1] = pPath->lookaheadDir[1];
+    perp[2] = pPath->lookaheadDir[2];
+    moveHistoryIndex = self->moveHistoryIndex;
+    float speed = g_actorAssumedSpeed[self->species];
+    float t = ((fMoveDist * 20.0f) - (speed * 0.5f)) / (speed * 0.5f);
+
+    float vLookDir[2];
+
+    if (t > 0.0f)
     {
-        __debugbreak();
-    }
-    if ( pPath_->wPathLen <= 0
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\actor_mp.cpp",
-                    5527,
-                    0,
-                    "%s",
-                    "pPath->wPathLen > 0") )
-    {
-        __debugbreak();
-    }
-    vOrg = self_->ent->r.currentOrigin;
-    vWishDir[0] = *vOrg;
-    vWishDir[1] = vOrg[1];
-    vWishDir[2] = vOrg[2];
-    IsDodgeEntity = Actor_IsDodgeEntity(self_, self_->Physics.iHitEntnum);
-    Path_UpdateLookahead(pPath_, vWishDir, IsDodgeEntity, 0, 1, 1);
-    lookaheadDir = pPath_->lookaheadDir;
-    perp[0] = pPath_->lookaheadDir[0];
-    perp[1] = pPath_->lookaheadDir[1];
-    perp[2] = pPath_->lookaheadDir[2];
-    moveHistoryIndex = self_->moveHistoryIndex;
-    speed = g_actorAssumedSpeed[self_->species];
-    t = (float)((float)(fMoveDist * 20.0) - (float)(speed * 0.5)) / (float)(speed * 0.5);
-    if ( t > 0.0 )
-    {
-        if ( t < 1.0 )
+        if (t < 1.0f)
         {
-            forwardLookaheadDir2D = self_->Path.forwardLookaheadDir2D;
-            vLookDir[0] = t * self_->Path.forwardLookaheadDir2D[0];
-            vLookDir[1] = t * self_->Path.forwardLookaheadDir2D[1];
+            //forwardLookaheadDir2D = self_->Path.forwardLookaheadDir2D;
+            vLookDir[0] = t * self->Path.forwardLookaheadDir2D[0];
+            vLookDir[1] = t * self->Path.forwardLookaheadDir2D[1];
             t = 1.0 - t;
             vLookDir[0] = (float)(t * perp[0]) + vLookDir[0];
             vLookDir[1] = (float)(t * perp[1]) + vLookDir[1];
@@ -4927,8 +4978,10 @@ void __userpurge Path_UpdateMovementDelta(actor_s *self@<ecx>, float fMoveDist)
         }
         else
         {
-            LODWORD(v16[0]) = self_->Path.forwardLookaheadDir2D;
-            *(_QWORD *)vLookDir = *(_QWORD *)self_->Path.forwardLookaheadDir2D;
+            //LODWORD(v16[0]) = self_->Path.forwardLookaheadDir2D;
+            //*(_QWORD *)vLookDir = *(_QWORD *)self_->Path.forwardLookaheadDir2D;
+            vLookDir[0] = self->Path.forwardLookaheadDir2D[0];
+            vLookDir[1] = self->Path.forwardLookaheadDir2D[1];
         }
     }
     else
@@ -4936,33 +4989,32 @@ void __userpurge Path_UpdateMovementDelta(actor_s *self@<ecx>, float fMoveDist)
         vLookDir[0] = perp[0];
         vLookDir[1] = perp[1];
     }
-    if ( self_->sideMove != 0.0 && !Path_CompleteLookahead(pPath_) )
+    if (self->sideMove != 0.0 && !Path_CompleteLookahead(pPath))
     {
         vNewDir[1] = perp[1];
-        vNewDir[2] = -perp[0];
-        vNewDir[0] = pPath_->fLookaheadDist;
+        vNewDir[2] = (-perp[0]);
+        vNewDir[0] = pPath->fLookaheadDist;
         maxSideMove[0] = vNewDir[0] * perp[0];
         maxSideMove[1] = vNewDir[0] * perp[1];
-        vEndPos[2] = pPath_->fLookaheadDist * 0.5;
-        vEndPos[1] = self_->sideMove;
-        vEndPos[0] = fabs(vEndPos[1]);
+        vEndPos[2] = pPath->fLookaheadDist * 0.5f;
+        vEndPos[1] = self->sideMove;
+        vEndPos[0] = (-vEndPos[1]);
 
-        if ( vEndPos[2] > fabs(vEndPos[1]) )
+        if (vEndPos[2] > -vEndPos[1])
             vEndPos[2] = vEndPos[0];
 
-        if ( self_->sideMove < 0.0 )
-            LODWORD(vEndPos[2]) ^= _mask__NegFloat_;
+        if (self->sideMove < 0.0)
+            vEndPos[2] = -vEndPos[2];
 
         vNewDir[1] = vEndPos[2] * vNewDir[1];
         vNewDir[2] = vEndPos[2] * vNewDir[2];
         maxSideMove[0] = maxSideMove[0] + vNewDir[1];
         maxSideMove[1] = maxSideMove[1] + vNewDir[2];
         Vec2Normalize(maxSideMove);
-        sideMove = perp[2];
-        dot[0] = (float)(60.0 * maxSideMove[0]) + vWishDir[0];
-        dot[1] = (float)(60.0 * maxSideMove[1]) + vWishDir[1];
-        dot[2] = (float)(60.0 * perp[2]) + vWishDir[2];
-        if ( Path_LookaheadPredictionTrace(pPath_, vWishDir, dot) )
+        dot[0] = (60.0f * maxSideMove[0]) + vWishDir[0];
+        dot[1] = (60.0f * maxSideMove[1]) + vWishDir[1];
+        dot[2] = (60.0f * perp[2]) + vWishDir[2];
+        if (Path_LookaheadPredictionTrace(pPath, vWishDir, dot))
         {
             perp[0] = maxSideMove[0];
             perp[1] = maxSideMove[1];
@@ -4970,33 +5022,39 @@ void __userpurge Path_UpdateMovementDelta(actor_s *self@<ecx>, float fMoveDist)
             vLookDir[1] = maxSideMove[1];
         }
     }
-    v8 = (float)(pPath_->lookaheadDir[0] * pPath_->forwardLookaheadDir2D[0])
-         + (float)(pPath_->lookaheadDir[1] * pPath_->forwardLookaheadDir2D[1]);
-    if ( v8 < 0.000001 )
-        v8 = FLOAT_0_000001;
-    __libm_sse2_log(v4);
-    __libm_sse2_exp(v5);
-    v9 = 0.333 * v8;
 
-    if ( v9 < 0.60000002 )
-        v9 = 0.6f;
+    lookAheadLen = (pPath->lookaheadDir[0] * pPath->forwardLookaheadDir2D[0]) + (pPath->lookaheadDir[1] * pPath->forwardLookaheadDir2D[1]);
 
-    fMoveDista = fMoveDist * v9;
+    if (lookAheadLen < 0.000001f)
+        lookAheadLen = 0.000001f;
 
-    if ( fMoveDista > pPath_->fLookaheadDist )
-        fMoveDista = pPath_->fLookaheadDist;
+    //__libm_sse2_log(v4);
+    //__libm_sse2_exp(v5);
 
-    if ( self_->species == AI_SPECIES_DOG && (self_->Path.flags & 2) != 0 )
-        fMoveDista = Path_UpdateMomentum(self_, perp, fMoveDista);
+    lookAheadLen = log(lookAheadLen);
+    lookAheadLen = exp(lookAheadLen);
 
-    vWishDelta = self_->Physics.vWishDelta;
-    self_->Physics.vWishDelta[0] = fMoveDista * perp[0];
-    vWishDelta[1] = fMoveDista * perp[1];
-    vWishDelta[2] = fMoveDista * perp[2];
-    v6 = self_->moveHistory[moveHistoryIndex];
-    *v6 = vLookDir[0];
-    v6[1] = vLookDir[1];
-    Actor_UpdateMoveHistory(self_);
+    calculatedLen = 0.333 * lookAheadLen;
+
+    if (calculatedLen < 0.6f)
+        calculatedLen = 0.6f;
+
+    fMoveDist = fMoveDist * calculatedLen;
+
+    if (fMoveDist > pPath->fLookaheadDist)
+        fMoveDist = pPath->fLookaheadDist;
+
+    if (self->species == AI_SPECIES_DOG && (self->Path.flags & 2) != 0)
+        fMoveDist = Path_UpdateMomentum(self, perp, fMoveDist);
+
+    self->Physics.vWishDelta[0] = fMoveDist * perp[0];
+    self->Physics.vWishDelta[1] = fMoveDist * perp[1];
+    self->Physics.vWishDelta[2] = fMoveDist * perp[2];
+
+    self->moveHistory[moveHistoryIndex][0] = vLookDir[0];
+    self->moveHistory[moveHistoryIndex][0] = vLookDir[1];
+
+    Actor_UpdateMoveHistory(self);
 }
 
 void __cdecl Actor_SetFlashed(actor_s *self, int flashed, float strength)
@@ -5071,18 +5129,10 @@ void __fastcall Actor_UpdateGoalPos(actor_s *self)
     }
     else
     {
-        if ( EntHandle::isDefined(&self->scriptGoalEnt) )
+        if ( self->scriptGoalEnt.isDefined() )
         {
-            if ( !EntHandle::ent(&self->scriptGoalEnt)->r.inuse
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\actor_mp.cpp",
-                            5700,
-                            0,
-                            "%s",
-                            "self->scriptGoalEnt.ent()->r.inuse") )
-            {
-                __debugbreak();
-            }
+            iassert(self->scriptGoalEnt.ent()->r.inuse);
+            
             if ( self->scriptGoal.node
                 && !Assert_MyHandler(
                             "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\actor_mp.cpp",
@@ -5105,9 +5155,9 @@ void __fastcall Actor_UpdateGoalPos(actor_s *self)
             }
             self->codeGoal.node = 0;
             self->codeGoal.volume = 0;
-            if ( EntHandle::ent(&self->scriptGoalEnt)->sentient )
+            if ( self->scriptGoalEnt.ent()->sentient)
                 Sentient_EnemyTeam(self->sentient->eTeam);
-            v1 = EntHandle::ent(&self->scriptGoalEnt);
+            v1 = self->scriptGoalEnt.ent();
             self->codeGoal.pos[0] = v1->r.currentOrigin[0];
             self->codeGoal.pos[1] = v1->r.currentOrigin[1];
             self->codeGoal.pos[2] = v1->r.currentOrigin[2];

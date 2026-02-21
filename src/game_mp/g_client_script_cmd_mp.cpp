@@ -1,50 +1,227 @@
 #include "g_client_script_cmd_mp.h"
+#include "g_main_mp.h"
+#include <clientscript/cscr_vm.h>
+#include <game/g_weapon.h>
+#include <bgame/bg_weapons.h>
+#include <bgame/bg_misc.h>
+#include <server_mp/sv_main_mp.h>
+#include <bgame/bg_weapons_util.h>
+#include <bgame/bg_weapons_load_obj.h>
+#include <server/sv_game.h>
+#include <bgame/bg_unlockable_items.h>
+#include <ui_mp/ui_gametype_custom_mp.h>
+#include <ui_mp/ui_gametype_variants_mp.h>
+#include <live/live_stats.h>
+#include <client_mp/sv_client_mp.h>
+#include <cgame/cg_weapon_options.h>
+#include <clientscript/scr_const.h>
+#include <server_mp/sv_bot_mp.h>
+#include <bgame/bg_weapons_ammo.h>
+#include <server/sv_world.h>
+#include <client_mp/g_client_mp.h>
+#include "g_spawn_mp.h"
+#include <cgame_mp/cg_predict_mp.h>
+#include "g_active_mp.h"
+#include <devgui/devgui.h>
+#include <client/cl_keys.h>
+#include <qcommon/com_clients.h>
+#include "g_utils_mp.h"
+#include "g_combat_mp.h"
+#include <universal/surfaceflags.h>
+#include <game/bullet.h>
+#include <game/actor_script_cmd.h>
+#include <game/turret.h>
+#include <game/g_player_corpse.h>
+#include <qcommon/dobj_management.h>
+#include "g_cmds_mp.h"
+#include <live/live_sessions.h>
+#include <server/sv_live_stats.h>
+#include <bgame/bg_perks.h>
+#include <server_mp/sv_init_mp.h>
+#include <game/g_targets.h>
+#include <turret/turret_placement.h>
+#include <cgame/cg_scr_main.h>
 
-pmove_t *__thiscall pmove_t::pmove_t(pmove_t *this)
+void __cdecl METHOD_NULLSUB(scr_entref_t entref)
 {
-    int j; // [esp+30h] [ebp-10h]
-    int i; // [esp+3Ch] [ebp-4h]
 
-    for ( i = 0; i < 2; ++i )
-        this->cmd.button_bits.array[i] = 0;
-    for ( j = 0; j < 2; ++j )
-        this->oldcmd.button_bits.array[j] = 0;
-    colgeom_visitor_t::colgeom_visitor_t(&this->proximity_data);
-    this->proximity_data.__vftable = (colgeom_visitor_inlined_t<200>_vtbl *)&colgeom_visitor_inlined_t<200>::`vftable';
-    colgeom_visitor_inlined_t<500>::reset(&this->proximity_data);
-    return this;
 }
 
-colgeom_visitor_t *__thiscall colgeom_visitor_t::colgeom_visitor_t(colgeom_visitor_t *this)
+const BuiltinMethodDef methods[154] =
 {
-    this->__vftable = (colgeom_visitor_t_vtbl *)&visitor_base_t::`vftable';
-    this->__vftable = (colgeom_visitor_t_vtbl *)&colgeom_visitor_t::`vftable';
-    this->m_mn.vec.u[0] = 0;
-    this->m_mn.vec.u[1] = 0;
-    this->m_mn.vec.u[2] = 0;
-    this->m_mn.vec.u[3] = 0;
-    this->m_mx.vec.u[0] = 0;
-    this->m_mx.vec.u[1] = 0;
-    this->m_mx.vec.u[2] = 0;
-    this->m_mx.vec.u[3] = 0;
-    this->m_p0.vec.u[0] = 0;
-    this->m_p0.vec.u[1] = 0;
-    this->m_p0.vec.u[2] = 0;
-    this->m_p0.vec.u[3] = 0;
-    this->m_p1.vec.u[0] = 0;
-    this->m_p1.vec.u[1] = 0;
-    this->m_p1.vec.u[2] = 0;
-    this->m_p1.vec.u[3] = 0;
-    this->m_delta.vec.u[0] = 0;
-    this->m_delta.vec.u[1] = 0;
-    this->m_delta.vec.u[2] = 0;
-    this->m_delta.vec.u[3] = 0;
-    this->m_rvec.vec.u[0] = 0;
-    this->m_rvec.vec.u[1] = 0;
-    this->m_rvec.vec.u[2] = 0;
-    this->m_rvec.vec.u[3] = 0;
-    return this;
-}
+  { "giveweapon", &PlayerCmd_giveWeapon, 0 },
+  { "setblockweaponpickup", &PlayerCmd_setBlockWeaponPickup, 0 },
+  { "calcweaponoptions", &PlayerCmd_calcWeaponOptions, 0 },
+  { "calcplayeroptions", &PlayerCmd_calcPlayerOptions, 0 },
+  { "setplayerrenderoptions", &PlayerCmd_setPlayerRenderOptions, 0 },
+  { "nextplayerrenderoption", &PlayerCmd_NextPlayerRenderOption, 0 },
+  { "sethighlighted", &PlayerCmd_SetHighlighted, 0 },
+  { "takeweapon", &PlayerCmd_takeWeapon, 0 },
+  { "isthrowinggrenade", &PlayerCmd_IsThrowingGrenade, 0 },
+  { "takeallweapons", &PlayerCmd_takeAllWeapons, 0 },
+  { "getcurrentweapon", &PlayerCmd_getCurrentWeapon, 0 },
+  { "getcurrentoffhand", &PlayerCmd_getCurrentOffhand, 0 },
+  { "hasweapon", &PlayerCmd_hasWeapon, 0 },
+  { "switchtoweapon", &PlayerCmd_switchToWeapon, 0 },
+  { "switchtooffhand", &PlayerCmd_switchToOffhand, 0 },
+  { "getlockonradius", &PlayerCmd_getLockOnRadius, 0 },
+  { "getlockonspeed", &PlayerCmd_getLockOnSpeed, 0 },
+  { "givestartammo", &PlayerCmd_giveStartAmmo, 0 },
+  { "givemaxammo", &PlayerCmd_giveMaxAmmo, 0 },
+  { "getfractionstartammo", &PlayerCmd_getFractionStartAmmo, 0 },
+  { "getfractionmaxammo", &PlayerCmd_getFractionMaxAmmo, 0 },
+  { "setorigin", &PlayerCmd_setOrigin, 0 },
+  { "setvelocity", &PlayerCmd_SetVelocity, 0 },
+  { "setplayerangles", &PlayerCmd_setAngles, 0 },
+  { "getplayerangles", &PlayerCmd_getAngles, 0 },
+  { "cameraactivate", &PlayerCmd_CameraActivate, 0 },
+  { "camerasetposition", &PlayerCmd_CameraSetPosition, 0 },
+  { "camerasetlookat", &PlayerCmd_CameraSetLookAt, 0 },
+  { "usebuttonpressed", &PlayerCmd_useButtonPressed, 0 },
+  { "changeseatbuttonpressed", &PlayerCmd_ChangeSeatButtonPressed, 0 },
+  { "attackbuttonpressed", &PlayerCmd_attackButtonPressed, 0 },
+  { "actionslotonebuttonpressed", &PlayerCmd_actionSlotOneButtonPressed, 0 },
+  { "actionslottwobuttonpressed", &PlayerCmd_actionSlotTwoButtonPressed, 0 },
+  { "actionslotthreebuttonpressed", &PlayerCmd_actionSlotThreeButtonPressed, 0 },
+  { "actionslotfourbuttonpressed", &PlayerCmd_actionSlotFourButtonPressed, 0 },
+  { "adsbuttonpressed", &PlayerCmd_adsButtonPressed, 0 },
+  { "throwbuttonpressed", &PlayerCmd_throwButtonPressed, 0 },
+  { "meleebuttonpressed", &PlayerCmd_meleeButtonPressed, 0 },
+  { "jumpbuttonpressed", &PlayerCmd_jumpButtonPressed, 0 },
+  { "fragbuttonpressed", &PlayerCmd_fragButtonPressed, 0 },
+  {
+    "secondaryoffhandbuttonpressed",
+    &PlayerCmd_secondaryOffhandButtonPressed,
+    0
+  },
+  { "playerads", &PlayerCmd_playerADS, 0 },
+  { "pingplayer", &PlayerCmd_pingPlayer, 0 },
+  { "setviewmodel", &PlayerCmd_SetViewmodel, 0 },
+  { "getviewmodel", &PlayerCmd_GetViewmodel, 0 },
+  { "setoffhandsecondaryclass", &PlayerCmd_setOffhandSecondaryClass, 0 },
+  { "getoffhandsecondaryclass", &PlayerCmd_getOffhandSecondaryClass, 0 },
+  { "setoffhandprimaryclass", &PlayerCmd_setOffhandPrimaryClass, 0 },
+  { "beginlocationselection", &PlayerCmd_BeginLocationSelection, 0 },
+  {
+    "beginlocationairstrikeselection",
+    &PlayerCmd_BeginLocationAirstrikeSelection,
+    0
+  },
+  { "beginlocationmortarselection", &PlayerCmd_BeginLocationMortarSelection, 0 },
+  {
+    "beginlocationartilleryselection",
+    &PlayerCmd_BeginLocationArtillerySelection,
+    0
+  },
+  {
+    "beginlocationcomlinkselection",
+    &PlayerCmd_BeginLocationComlinkSelection,
+    0
+  },
+  { "beginlocationnapalmselection", &PlayerCmd_BeginLocationNapalmSelection, 0 },
+  { "endlocationselection", &PlayerCmd_EndLocationSelection, 0 },
+  { "clientsyssetstate", &PlayerCmd_ClientSysSetState, 0 },
+  { "weaponlockstart", &PlayerCmd_WeaponLockStart, 0 },
+  { "weaponlockfinalize", &PlayerCmd_WeaponLockFinalize, 0 },
+  { "weaponlockfree", &PlayerCmd_WeaponLockFree, 0 },
+  { "weaponlocktargettooclose", &PlayerCmd_WeaponLockTargetTooClose, 0 },
+  { "weaponlocknoclearance", &PlayerCmd_WeaponLockNoClearance, 0 },
+  { "buttonpressed", &PlayerCmd_buttonPressedDEVONLY, 0 },
+  { "giveweaponnextattachment", &PlayerCmd_giveWeaponNextAttachmentDEVONLY, 0 },
+  { "givenextbaseweapon", &PlayerCmd_giveNextBaseWeaponDEVONLY, 0 },
+  { "sayall", &PlayerCmd_SayAll, 0 },
+  { "sayteam", &PlayerCmd_SayTeam, 0 },
+  { "setspawnweapon", &PlayerCmd_setSpawnWeapon, 0 },
+  { "dropitem", &PlayerCmd_dropItem, 0 },
+  { "dropscavengeritem", &PlayerCmd_dropScavengerItem, 0 },
+  { "hasagrenadepulledback", &PlayerCmd_hasAGrenadePulledBack, 0 },
+  { "finishplayerdamage", &PlayerCmd_finishPlayerDamage, 0 },
+  { "suicide", &PlayerCmd_Suicide, 0 },
+  { "isinvehicle", &PlayerCmd_IsInVehicle, 0 },
+  { "isremotecontrolling", &PlayerCmd_IsRemoteControlling, 0 },
+  { "getvehicleoccupied", &PlayerCmd_GetVehicleOccupied, 0 },
+  { "openmenu", &PlayerCmd_OpenMenu, 0 },
+  { "openmenunomouse", &PlayerCmd_OpenMenuNoMouse, 0 },
+  { "closemenu", &PlayerCmd_CloseMenu, 0 },
+  { "closeingamemenu", &PlayerCmd_CloseInGameMenu, 0 },
+  { "freezecontrols", &PlayerCmd_FreezeControls, 0 },
+  { "disableusability", &PlayerCmd_DisableUsability, 0 },
+  { "enableusability", &PlayerCmd_EnableUsability, 0 },
+  { "disableweapons", &PlayerCmd_DisableWeapons, 0 },
+  { "enableweapons", &PlayerCmd_EnableWeapons, 0 },
+  { "disabledeathstreak", &PlayerCmd_DisableDeathStreak, 0 },
+  { "enabledeathstreak", &PlayerCmd_EnableDeathStreak, 0 },
+  { "deathstreakactive", &PlayerCmd_DeathStreakActive, 0 },
+  { "disableoffhandweapons", &PlayerCmd_DisableOffhandWeapons, 0 },
+  { "enableoffhandweapons", &PlayerCmd_EnableOffhandWeapons, 0 },
+  { "disableweaponcycling", &PlayerCmd_DisableWeaponCycling, 0 },
+  { "enableweaponcycling", &PlayerCmd_EnableWeaponCycling, 0 },
+  { "revive", &PlayerCmd_Revive, 0 },
+  { "setlaststandprevweap", &PlayerCmd_SetLastStandPrevWeap, 0 },
+  { "setreverb", &METHOD_NULLSUB, 0 },
+  { "deactivatereverb", &METHOD_NULLSUB, 0 },
+  { "setchannelvolumes", &METHOD_NULLSUB, 0 },
+  { "deactivatechannelvolumes", &METHOD_NULLSUB, 0 },
+  { "setweaponammoclip", &PlayerCmd_SetWeaponAmmoClip, 0 },
+  { "setweaponammostock", &PlayerCmd_SetWeaponAmmoStock, 0 },
+  { "getweaponammoclip", &PlayerCmd_GetWeaponAmmoClip, 0 },
+  { "getweaponammostock", &PlayerCmd_GetWeaponAmmoStock, 0 },
+  { "anyammoforweaponmodes", &PlayerCmd_AnyAmmoForWeaponModes, 0 },
+  { "iprintln", &iclientprintln, 0 },
+  { "iprintlnbold", &iclientprintlnbold, 0 },
+  { "spawn", &PlayerCmd_spawn, 0 },
+  { "setentertime", &PlayerCmd_setEnterTime, 0 },
+  { "cloneplayer", &PlayerCmd_ClonePlayer, 0 },
+  { "setclientdvar", &PlayerCmd_SetClientDvar, 0 },
+  { "setclientuivisibilityflag", &PlayerCmd_SetClientUIVisibilityFlag, 0 },
+  { "setclientdvars", &PlayerCmd_SetClientDvars, 0 },
+  { "playclientairstrike", &PlayerCmd_PlayClientAirstrike, 0 },
+  { "playclientnapalm", &PlayerCmd_PlayClientNapalm, 0 },
+  { "setcurrentspectatorclient", &PlayerCmd_SetCurrentSpectatorClient, 0 },
+  { "relinktoturret", &PlayerCmd_ReLinkToTurret, 0 },
+  { "carryturret", &PlayerCmd_CarryTurret, 0 },
+  { "stopcarryturret", &PlayerCmd_StopCarryTurret, 0 },
+  { "iscarryingturret", &PlayerCmd_isCarryingTurret, 0 },
+  { "canplayerplaceturret", &PlayerCmd_CanPlayerPlaceTurret, 0 },
+  { "linkguidedmissilecamera", &PlayerCmd_LinkGuidedMissileCamera, 0 },
+  { "unlinkguidedmissilecamera", &PlayerCmd_UnlinkGuidedMissileCamera, 0 },
+  { "playlocalsound", &ScrCmd_PlayLocalSound, 0 },
+  { "stoplocalsound", &ScrCmd_StopLocalSound, 0 },
+  { "istalking", &PlayerCmd_IsTalking, 0 },
+  { "allowspectateteam", &PlayerCmd_AllowSpectateTeam, 0 },
+  { "getguid", &PlayerCmd_GetGuid, 0 },
+  { "getxuid", &PlayerCmd_GetXuid, 0 },
+  { "ishost", &PlayerCmd_IsHost, 0 },
+  { "islocaltohost", &PlayerCmd_IsLocalToHost, 0 },
+  { "allowads", &PlayerCmd_AllowADS, 0 },
+  { "allowjump", &PlayerCmd_AllowJump, 0 },
+  { "allowsprint", &PlayerCmd_AllowSprint, 0 },
+  { "setsprintduration", &PlayerCmd_SetSprintDuration, 0 },
+  { "setsprintcooldown", &PlayerCmd_SetSprintCooldown, 0 },
+  { "setspreadoverride", &PlayerCmd_SetSpreadOverride, 0 },
+  { "resetspreadoverride", &PlayerCmd_ResetSpreadOverride, 0 },
+  { "setactionslot", &PlayerCmd_SetActionSlot, 0 },
+  { "getweaponslist", &PlayerCmd_GetWeaponsList, 0 },
+  { "getweaponslistprimaries", &PlayerCmd_GetWeaponsListPrimaries, 0 },
+  { "setperk", &PlayerCmd_SetPerk, 0 },
+  { "hasperk", &PlayerCmd_HasPerk, 0 },
+  { "getperks", &PlayerCmd_GetPerks, 0 },
+  { "clearperks", &PlayerCmd_ClearPerks, 0 },
+  { "unsetperk", &PlayerCmd_UnsetPerk, 0 },
+  { "setrank", &PlayerCmd_SetRank, 0 },
+  { "enableinvulnerability", &PlayerCmd_EnableInvulnerability, 0 },
+  { "disableinvulnerability", &PlayerCmd_DisableInvulnerability, 0 },
+  { "setscriptgoal", &PlayerCmd_BotSetScriptGoal, 0 },
+  { "clearscriptgoal", &PlayerCmd_BotClearScriptGoal, 0 },
+  { "setscriptenemy", &PlayerCmd_BotSetScriptEnemy, 0 },
+  { "clearscriptenemy", &PlayerCmd_BotClearScriptEnemy, 0 },
+  { "setattacker", &PlayerCmd_BotSetAttacker, 0 },
+  { "pressusebutton", &PlayerCmd_BotPressUseButton, 0 },
+  { "issplitscreen", &PlayerCmd_IsSplitscreen, 0 },
+  { "isplayeronsamemachine", &PlayerCmd_IsPlayerOnSameMachine, 0 }
+};
+
+
 
 void __cdecl PlayerCmd_setBlockWeaponPickup(scr_entref_t entref)
 {
@@ -160,7 +337,7 @@ void __cdecl PlayerCmd_giveWeapon(scr_entref_t entref)
     hadWeapon = BG_PlayerHasWeapon(ps, weaponIndex);
     if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) <= 1 )
     {
-        LOBYTE(weaponModel) = 0;
+        (weaponModel) = 0;
     }
     else
     {
@@ -169,11 +346,11 @@ void __cdecl PlayerCmd_giveWeapon(scr_entref_t entref)
         if ( (unsigned int)weaponModel < 0x100 )
         {
             if ( !weapDef->gunXModel[weaponModel] )
-                LOBYTE(weaponModel) = 0;
+                (weaponModel) = 0;
         }
         else
         {
-            LOBYTE(weaponModel) = 0;
+            (weaponModel) = 0;
         }
         if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) > 2 )
             weaponOptions.i = Scr_GetInt(2u, SCRIPTINSTANCE_SERVER).stringValue;
@@ -1980,7 +2157,7 @@ void __cdecl PlayerCmd_setOrigin(scr_entref_t entref)
     pSelf->r.currentOrigin[0] = *v2;
     pSelf->r.currentOrigin[1] = v2[1];
     pSelf->r.currentOrigin[2] = v2[2];
-    SV_LinkEntity((int)&savedregs, pSelf);
+    SV_LinkEntity(pSelf);
 }
 
 void __cdecl PlayerCmd_SetVelocity(scr_entref_t entref)
@@ -2266,7 +2443,6 @@ void __cdecl PlayerCmd_Revive(scr_entref_t entref)
 {
     const char *v1; // eax
     gentity_s *pSelf; // [esp+8h] [ebp-91Ch]
-    pmove_t pm; // [esp+Ch] [ebp-918h] BYREF
 
     if ( entref.classnum )
     {
@@ -2292,17 +2468,20 @@ void __cdecl PlayerCmd_Revive(scr_entref_t entref)
             Scr_ObjectError(v1, SCRIPTINSTANCE_SERVER);
         }
     }
-    pmove_t::pmove_t(&pm, &g_pmove[pSelf->client->ps.clientNum]);
+    pmove_t pm(&g_pmove[pSelf->client->ps.clientNum]); // [esp+Ch] [ebp-918h] BYREF
+
+    //pmove_t::pmove_t(&pm, &g_pmove[pSelf->client->ps.clientNum]);
     pSelf->client->lastStand = 0;
     pSelf->client->revive = 0;
     pSelf->client->ps.pm_type = 8;
     pSelf->health = pSelf->client->sess.maxHealth;
     pSelf->client->damage_blood = 0;
-    if ( bitarray<51>::testBit(&pm.cmd.button_bits, 9u) )
+
+    if ( pm.cmd.button_bits.testBit(9u) )
     {
         BG_AnimScriptEvent(&g_pmove[pSelf->client->ps.clientNum], ANIM_ET_LASTSTAND_TO_CROUCH, 0, 1);
     }
-    else if ( bitarray<51>::testBit(&pm.cmd.button_bits, 8u) )
+    else if ( pm.cmd.button_bits.testBit(8u) )
     {
         BG_AnimScriptEvent(&g_pmove[pSelf->client->ps.clientNum], ANIM_ET_LASTSTAND_TO_PRONE, 0, 1);
     }
@@ -2314,56 +2493,6 @@ void __cdecl PlayerCmd_Revive(scr_entref_t entref)
     pSelf->client->ps.damageTimer = 0;
     pSelf->client->ps.damageDuration = 0;
     pSelf->client->damage_fromWorld = 0;
-}
-
-pmove_t *__thiscall pmove_t::pmove_t(pmove_t *this, const pmove_t *__that)
-{
-    colgeom_visitor_inlined_t<200> *p_proximity_data; // [esp+10h] [ebp-4h]
-
-    this->ps = __that->ps;
-    memcpy(&this->cmd, &__that->cmd, sizeof(this->cmd));
-    memcpy(&this->oldcmd, &__that->oldcmd, 0x3Cu);
-    memcpy(this->touchents, __that->touchents, 0x84u);
-    memcpy(this->touchGlasses, __that->touchGlasses, 0xA8u);
-    memcpy(this->pitchHistory, __that->pitchHistory, 0x81u);
-    this->mantleEndPos[0] = __that->mantleEndPos[0];
-    this->mantleEndPos[1] = __that->mantleEndPos[1];
-    this->mantleEndPos[2] = __that->mantleEndPos[2];
-    this->mantleDuration = __that->mantleDuration;
-    this->viewChangeTime = __that->viewChangeTime;
-    this->viewChange = __that->viewChange;
-    this->vehicleAngles[0] = __that->vehicleAngles[0];
-    this->vehicleAngles[1] = __that->vehicleAngles[1];
-    this->vehicleAngles[2] = __that->vehicleAngles[2];
-    this->vehAnimState = __that->vehAnimState;
-    this->handler = __that->handler;
-    this->localClientNum = __that->localClientNum;
-    this->m_gjkcc_input = __that->m_gjkcc_input;
-    p_proximity_data = &this->proximity_data;
-    colgeom_visitor_t::colgeom_visitor_t(&this->proximity_data, &__that->proximity_data);
-    p_proximity_data->__vftable = (colgeom_visitor_inlined_t<200>_vtbl *)&colgeom_visitor_inlined_t<200>::`vftable';
-    p_proximity_data->nprims = __that->proximity_data.nprims;
-    p_proximity_data->overflow = __that->proximity_data.overflow;
-    memcpy(p_proximity_data->prims, __that->proximity_data.prims, sizeof(p_proximity_data->prims));
-    return this;
-}
-
-colgeom_visitor_t *__thiscall colgeom_visitor_t::colgeom_visitor_t(
-                colgeom_visitor_t *this,
-                const colgeom_visitor_t *__that)
-{
-    this->__vftable = (colgeom_visitor_t_vtbl *)&visitor_base_t::`vftable';
-    this->__vftable = (colgeom_visitor_t_vtbl *)&colgeom_visitor_t::`vftable';
-    this->m_mn = __that->m_mn;
-    this->m_mx = __that->m_mx;
-    this->m_p0 = __that->m_p0;
-    this->m_p1 = __that->m_p1;
-    this->m_delta = __that->m_delta;
-    this->m_rvec = __that->m_rvec;
-    this->m_radius = __that->m_radius;
-    this->m_mask = __that->m_mask;
-    this->m_threadInfo = __that->m_threadInfo;
-    return this;
 }
 
 void __cdecl PlayerCmd_useButtonPressed(scr_entref_t entref)
@@ -2396,10 +2525,10 @@ void __cdecl PlayerCmd_useButtonPressed(scr_entref_t entref)
         }
     }
     if ( (pSelf->client->ps.pm_flags & 0x400000) == 0
-        && (bitarray<51>::testBit(&pSelf->client->button_bitsSinceLastFrame, 3u)
-         || bitarray<51>::testBit(&pSelf->client->button_bits, 3u)
-         || bitarray<51>::testBit(&pSelf->client->button_bitsSinceLastFrame, 5u)
-         || bitarray<51>::testBit(&pSelf->client->button_bits, 5u)) )
+        && (pSelf->client->button_bitsSinceLastFrame.testBit(3u)
+         || pSelf->client->button_bits.testBit(3u)
+         || pSelf->client->button_bitsSinceLastFrame.testBit(5u)
+         || pSelf->client->button_bits.testBit(5u)) )
     {
         Scr_AddInt(1, SCRIPTINSTANCE_SERVER);
     }
@@ -2438,8 +2567,8 @@ void __cdecl PlayerCmd_ChangeSeatButtonPressed(scr_entref_t entref)
             Scr_ObjectError(v1, SCRIPTINSTANCE_SERVER);
         }
     }
-    if ( bitarray<51>::testBit(&pSelf->client->button_bitsSinceLastFrame, 0x1Cu)
-        || bitarray<51>::testBit(&pSelf->client->button_bits, 0x1Cu) )
+    if (   pSelf->client->button_bitsSinceLastFrame.testBit(0x1Cu)
+        || pSelf->client->button_bits.testBit(0x1Cu) )
     {
         Scr_AddInt(1, SCRIPTINSTANCE_SERVER);
     }
@@ -2478,8 +2607,8 @@ void __cdecl PlayerCmd_attackButtonPressed(scr_entref_t entref)
             Scr_ObjectError(v1, SCRIPTINSTANCE_SERVER);
         }
     }
-    if ( bitarray<51>::testBit(&pSelf->client->button_bitsSinceLastFrame, 0)
-        || bitarray<51>::testBit(&pSelf->client->button_bits, 0) )
+    if (   pSelf->client->button_bitsSinceLastFrame.testBit(0)
+        || pSelf->client->button_bits.testBit(0) )
     {
         Scr_AddInt(1, SCRIPTINSTANCE_SERVER);
     }
@@ -2518,8 +2647,8 @@ void __cdecl PlayerCmd_actionSlotOneButtonPressed(scr_entref_t entref)
             Scr_ObjectError(v1, SCRIPTINSTANCE_SERVER);
         }
     }
-    if ( bitarray<51>::testBit(&pSelf->client->button_bitsSinceLastFrame, 0x2Du)
-        || bitarray<51>::testBit(&pSelf->client->button_bits, 0x2Du) )
+    if (   pSelf->client->button_bitsSinceLastFrame.testBit(0x2Du)
+        || pSelf->client->button_bits.testBit(0x2Du) )
     {
         Scr_AddInt(1, SCRIPTINSTANCE_SERVER);
     }
@@ -2558,8 +2687,8 @@ void __cdecl PlayerCmd_actionSlotTwoButtonPressed(scr_entref_t entref)
             Scr_ObjectError(v1, SCRIPTINSTANCE_SERVER);
         }
     }
-    if ( bitarray<51>::testBit(&pSelf->client->button_bitsSinceLastFrame, 0x2Eu)
-        || bitarray<51>::testBit(&pSelf->client->button_bits, 0x2Eu) )
+    if ( pSelf->client->button_bitsSinceLastFrame.testBit(0x2E)
+        || pSelf->client->button_bits.testBit(0x2E) )
     {
         Scr_AddInt(1, SCRIPTINSTANCE_SERVER);
     }
@@ -2598,8 +2727,8 @@ void __cdecl PlayerCmd_actionSlotThreeButtonPressed(scr_entref_t entref)
             Scr_ObjectError(v1, SCRIPTINSTANCE_SERVER);
         }
     }
-    if ( bitarray<51>::testBit(&pSelf->client->button_bitsSinceLastFrame, 0x2Fu)
-        || bitarray<51>::testBit(&pSelf->client->button_bits, 0x2Fu) )
+    if ( pSelf->client->button_bitsSinceLastFrame.testBit(0x2F)
+        || pSelf->client->button_bits.testBit(0x2F) )
     {
         Scr_AddInt(1, SCRIPTINSTANCE_SERVER);
     }
@@ -2638,8 +2767,8 @@ void __cdecl PlayerCmd_actionSlotFourButtonPressed(scr_entref_t entref)
             Scr_ObjectError(v1, SCRIPTINSTANCE_SERVER);
         }
     }
-    if ( bitarray<51>::testBit(&pSelf->client->button_bitsSinceLastFrame, 0x30u)
-        || bitarray<51>::testBit(&pSelf->client->button_bits, 0x30u) )
+    if ( pSelf->client->button_bitsSinceLastFrame.testBit(0x30)
+        || pSelf->client->button_bits.testBit(0x30) )
     {
         Scr_AddInt(1, SCRIPTINSTANCE_SERVER);
     }
@@ -2678,8 +2807,8 @@ void __cdecl PlayerCmd_adsButtonPressed(scr_entref_t entref)
             Scr_ObjectError(v1, SCRIPTINSTANCE_SERVER);
         }
     }
-    if ( bitarray<51>::testBit(&pSelf->client->button_bitsSinceLastFrame, 0xBu)
-        || bitarray<51>::testBit(&pSelf->client->button_bits, 0xBu) )
+    if ( pSelf->client->button_bitsSinceLastFrame.testBit(0xB)
+        || pSelf->client->button_bits.testBit(0xB) )
     {
         Scr_AddInt(1, SCRIPTINSTANCE_SERVER);
     }
@@ -2718,8 +2847,8 @@ void __cdecl PlayerCmd_throwButtonPressed(scr_entref_t entref)
             Scr_ObjectError(v1, SCRIPTINSTANCE_SERVER);
         }
     }
-    if ( bitarray<51>::testBit(&pSelf->client->button_bitsSinceLastFrame, 0x18u)
-        || bitarray<51>::testBit(&pSelf->client->button_bits, 0x18u) )
+    if ( pSelf->client->button_bitsSinceLastFrame.testBit(0x18)
+        || pSelf->client->button_bits.testBit(0x18) )
     {
         Scr_AddInt(1, SCRIPTINSTANCE_SERVER);
     }
@@ -2758,8 +2887,8 @@ void __cdecl PlayerCmd_meleeButtonPressed(scr_entref_t entref)
             Scr_ObjectError(v1, SCRIPTINSTANCE_SERVER);
         }
     }
-    if ( bitarray<51>::testBit(&pSelf->client->button_bitsSinceLastFrame, 2u)
-        || bitarray<51>::testBit(&pSelf->client->button_bits, 2u) )
+    if ( pSelf->client->button_bitsSinceLastFrame.testBit(2)
+        || pSelf->client->button_bits.testBit(2) )
     {
         Scr_AddInt(1, SCRIPTINSTANCE_SERVER);
     }
@@ -2798,8 +2927,8 @@ void __cdecl PlayerCmd_jumpButtonPressed(scr_entref_t entref)
             Scr_ObjectError(v1, SCRIPTINSTANCE_SERVER);
         }
     }
-    if ( bitarray<51>::testBit(&pSelf->client->button_bitsSinceLastFrame, 0xAu)
-        || bitarray<51>::testBit(&pSelf->client->button_bits, 0xAu) )
+    if ( pSelf->client->button_bitsSinceLastFrame.testBit(0xA)
+        || pSelf->client->button_bits.testBit(0xA) )
     {
         Scr_AddInt(1, SCRIPTINSTANCE_SERVER);
     }
@@ -2838,8 +2967,8 @@ void __cdecl PlayerCmd_fragButtonPressed(scr_entref_t entref)
             Scr_ObjectError(v1, SCRIPTINSTANCE_SERVER);
         }
     }
-    if ( bitarray<51>::testBit(&pSelf->client->button_bitsSinceLastFrame, 0xEu)
-        || bitarray<51>::testBit(&pSelf->client->button_bits, 0xEu) )
+    if ( pSelf->client->button_bitsSinceLastFrame.testBit(0xE)
+        || pSelf->client->button_bits.testBit(0xE) )
     {
         Scr_AddInt(1, SCRIPTINSTANCE_SERVER);
     }
@@ -2878,8 +3007,8 @@ void __cdecl PlayerCmd_secondaryOffhandButtonPressed(scr_entref_t entref)
             Scr_ObjectError(v1, SCRIPTINSTANCE_SERVER);
         }
     }
-    if ( bitarray<51>::testBit(&pSelf->client->button_bitsSinceLastFrame, 0xFu)
-        || bitarray<51>::testBit(&pSelf->client->button_bits, 0xFu) )
+    if ( pSelf->client->button_bitsSinceLastFrame.testBit(0xF)
+        || pSelf->client->button_bits.testBit(0xF) )
     {
         Scr_AddInt(1, SCRIPTINSTANCE_SERVER);
     }
@@ -3610,7 +3739,7 @@ void __cdecl PlayerCmd_finishPlayerDamage(scr_entref_t entref)
             if ( Scr_GetType(1u, SCRIPTINSTANCE_SERVER) && Scr_GetPointerType(1u, SCRIPTINSTANCE_SERVER) == 19 )
                 attacker = Scr_GetEntity(1u);
             dflags = Scr_GetInt(3u, SCRIPTINSTANCE_SERVER).intValue;
-            mod = G_MeansOfDeathFromScriptParam(4u);
+            mod = (meansOfDeath_t)G_MeansOfDeathFromScriptParam(4u);
             if ( pSelf->client->lastStand
                 && mod != MOD_MELEE
                 && G_GetClientState(pSelf->s.number)->lastStandStartTime > level.time )
@@ -3631,7 +3760,7 @@ void __cdecl PlayerCmd_finishPlayerDamage(scr_entref_t entref)
                 dir = vDir;
             }
             floatValue = (unsigned __int16)Scr_GetConstString(8u, SCRIPTINSTANCE_SERVER).floatValue;
-            hitLoc = G_GetHitLocationIndexFromString(floatValue);
+            hitLoc = (hitLocation_t)G_GetHitLocationIndexFromString(floatValue);
             psTimeOffset = Scr_GetInt(9u, SCRIPTINSTANCE_SERVER).intValue;
             v4 = Scr_GetString(0xAu, SCRIPTINSTANCE_SERVER);
             iSurfType = Com_SurfaceTypeFromName(v4);
@@ -3782,13 +3911,13 @@ void __cdecl PlayerCmd_finishPlayerDamage(scr_entref_t entref)
             Scr_Notify(pSelf, scr_const.damage, 2u);
             //if ( g_DXDeviceThread == GetCurrentThreadId() )
                 //D3DPERF_EndEvent();
-            if ( !dword_E07CEC[12 * pSelf->handler] )
+            if (!entityHandlers[pSelf->handler].die)
                 Com_Printf(1, "No die handler for player entity type %i", pSelf->handler);
             if ( pSelf->health > 0 )
             {
                 //PIXBeginNamedEvent(-1, "pain");
                 ApplyKnockBack(pSelf, damage, localdir, dflags, 0);
-                pain = (void (__cdecl *)(gentity_s *, gentity_s *, int, const float *, const int, const float *, const hitLocation_t, const int))dword_E07CE4[12 * pSelf->handler];
+                pain = entityHandlers[pSelf->handler].pain;
                 if ( pain )
                     pain(pSelf, attacker, damage, point, mod, localdir, hitLoc, iWeapon);
                 //if ( g_DXDeviceThread == GetCurrentThreadId() )
@@ -3838,9 +3967,9 @@ void __cdecl PlayerCmd_finishPlayerDamage(scr_entref_t entref)
             ApplyKnockBack(pSelf, damage, localdir, dflags, 1);
             if ( (pSelf->client->ps.eFlags & 0x4000) != 0 )
             {
-                if ( EntHandle::isDefined(&pSelf->r.ownerNum) )
+                if ( pSelf->r.ownerNum.isDefined() )
                 {
-                    v8 = EntHandle::ent(&pSelf->r.ownerNum);
+                    v8 = pSelf->r.ownerNum.ent();
                     if ( G_GetVehicleSeatPlayerOccupies(v8, pSelf) > 0 )
                     {
                         Scr_AddBool(0, SCRIPTINSTANCE_SERVER);
@@ -3848,7 +3977,7 @@ void __cdecl PlayerCmd_finishPlayerDamage(scr_entref_t entref)
                     }
                 }
             }
-            die = (void (__cdecl *)(gentity_s *, gentity_s *, gentity_s *, int, int, const int, const float *, const hitLocation_t, int))dword_E07CEC[12 * pSelf->handler];
+            die = entityHandlers[pSelf->handler].die;
             if ( die )
                 die(pSelf, inflictor, attacker, damage, mod, iWeapon, localdir, hitLoc, psTimeOffset);
             //if ( g_DXDeviceThread == GetCurrentThreadId() )
@@ -3920,11 +4049,11 @@ void __cdecl ApplyKnockBack(gentity_s *pSelf, int damage, float *localdir, char 
         knockbackMod = 0.3f;
         if ( (pSelf->client->ps.pm_flags & 1) != 0 )
         {
-            knockbackMod = FLOAT_0_02;
+            knockbackMod = 0.02f;
         }
         else if ( (pSelf->client->ps.pm_flags & 2) != 0 )
         {
-            knockbackMod = 0.1f5000001;
+            knockbackMod = 0.15000001f;
         }
         knockback = (int)(float)((float)damage * knockbackMod);
         if ( knockback > 60 )
@@ -4155,9 +4284,9 @@ void __cdecl PlayerCmd_GetVehicleOccupied(scr_entref_t entref)
     }
     if ( (pSelf->client->ps.eFlags & 0x4000) != 0 )
     {
-        if ( EntHandle::isDefined(&pSelf->r.ownerNum) )
+        if ( pSelf->r.ownerNum.isDefined() )
         {
-            v3 = EntHandle::ent(&pSelf->r.ownerNum);
+            v3 = pSelf->r.ownerNum.ent();
             Scr_AddEntity(v3, SCRIPTINSTANCE_SERVER);
         }
         else
@@ -4770,12 +4899,15 @@ void __cdecl PlayerCmd_spawn(scr_entref_t entref)
     Scr_GetVector(0, spawn_origin, SCRIPTINSTANCE_SERVER);
     Scr_GetVector(1u, spawn_angles, SCRIPTINSTANCE_SERVER);
     ClientSpawn(pSelf, spawn_origin, spawn_angles);
+#ifdef KISAK_LIVE // lol lets invent another ifdef name
     if ( onlinegame->current.enabled
         && com_sv_running->current.enabled
         && pSelf->client->sess.sessionState == SESS_STATE_PLAYING )
     {
         MatchRecordSpawn(pSelf->client);
     }
+#endif
+
     //if ( GetCurrentThreadId() == g_DXDeviceThread )
         //D3DPERF_EndEvent();
 }
@@ -4976,11 +5108,11 @@ void __cdecl PlayerCmd_ClonePlayer(scr_entref_t entref)
     body->r.absmax[0] = pSelf->r.absmax[0];
     body->r.absmax[1] = pSelf->r.absmax[1];
     body->r.absmax[2] = pSelf->r.absmax[2];
-    body->s.un2.animState.state = client->ps.legsAnim;
-    body->s.un2.anim.torsoAnim = client->ps.torsoAnim;
+    body->s.animState.state = client->ps.legsAnim;
+    body->s.anim.torsoAnim = client->ps.torsoAnim;
     body->clipmask = 65537;
     body->r.contents = 67125248;
-    SV_LinkEntity((int)&savedregs, body);
+    SV_LinkEntity(body);
     body->nextthink = deathAnimDuration + level.time;
     body->handler = 16;
     GScr_AddEntity(body);
@@ -6523,7 +6655,7 @@ void __cdecl PlayerCmd_BeginLocationTypeSelection(scr_entref_t entref, locSel_t 
     }
     if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) < 2 )
     {
-        radiusa = 0.1f5000001;
+        radiusa = 0.15000001f;
     }
     else
     {

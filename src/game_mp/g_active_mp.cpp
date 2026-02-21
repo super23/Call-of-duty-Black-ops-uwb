@@ -1,4 +1,56 @@
 #include "g_active_mp.h"
+#include <bgame/bg_misc.h>
+#include <universal/com_math_anglevectors.h>
+#include <game/actor_script_cmd.h>
+#include <cgame_mp/cg_predict_mp.h>
+#include <clientscript/cscr_vm.h>
+#include "g_spawn_mp.h"
+#include <clientscript/scr_const.h>
+#include <glass/glass_server.h>
+#include <qcommon/cm_world.h>
+#include <server/sv_game.h>
+#include "g_cmds_mp.h"
+#include <bgame/bg_pmove.h>
+#include <server_mp/sv_main_mp.h>
+#include <game/g_weapon.h>
+#include "g_utils_mp.h"
+#include <game/g_missile.h>
+#include "g_combat_mp.h"
+#include <game/bullet.h>
+#include <game/actor_events.h>
+#include <bgame/bg_perks.h>
+#include <qcommon/dobj_management.h>
+#include <cgame/cg_drawtools.h>
+#include <xanim/dobj_utils.h>
+#include <xanim/xmodel_utils.h>
+#include <cstring>
+#include <clientscript/cscr_stringlist.h>
+#include <bgame/bg_weapons_view.h>
+#include "player_use_mp.h"
+#include <qcommon/threads.h>
+#include <client_mp/g_client_mp.h>
+#include <server_mp/sv_bot_mp.h>
+#include <server_mp/sv_init_mp.h>
+#include <cgame_mp/cg_pose_mp.h>
+#include <cgame_mp/cg_ents_mp.h>
+#include <demo/demo_recording.h>
+#include <game/turret.h>
+#include <client/cl_debugdata.h>
+
+pmove_t g_pmove[];
+
+float zBoost = 100.0;
+float xySpeed = 100.0;
+float gunnerZheight = 90.0;
+float gunnerXYradius = 30.0;
+float fCrouchHeightPanzer_0 = 105.0;
+float fCrouchHeightT34_0 = 109.0;
+float handOfs_1 = -5.0;
+float handOfs_2 = -6.0;
+float scale_1 = 0.15000001;
+float thresh_0 = 88.0;
+
+hudelem_s g_dummyHudCurrent;
 
 void __cdecl P_DamageFeedback(gentity_s *player)
 {
@@ -52,10 +104,7 @@ void __cdecl P_DamageFeedback(gentity_s *player)
             {
                 vectoangles(client->damage_from, angles);
                 AnglesToAxis(client->ps.viewangles, viewaxis);
-                client->v_dmg_roll = COERCE_FLOAT(LODWORD(kick) ^ _mask__NegFloat_)
-                                                     * (float)((float)((float)(client->damage_from[0] * viewaxis[1][0])
-                                                                                     + (float)(client->damage_from[1] * viewaxis[1][1]))
-                                                                     + (float)(client->damage_from[2] * viewaxis[1][2]));
+                client->v_dmg_roll = (-(kick)) * (float)((float)((float)(client->damage_from[0] * viewaxis[1][0]) + (float)(client->damage_from[1] * viewaxis[1][1])) + (float)(client->damage_from[2] * viewaxis[1][2]));
                 client->v_dmg_pitch = (float)((float)((float)(client->damage_from[0] * viewaxis[0][0])
                                                                                         + (float)(client->damage_from[1] * viewaxis[0][1]))
                                                                         + (float)(client->damage_from[2] * viewaxis[0][2]))
@@ -74,184 +123,187 @@ void __cdecl P_DamageFeedback(gentity_s *player)
 void __cdecl ClientImpacts(gentity_s *ent, pmove_t *pm)
 {
     int j; // [esp+4h] [ebp-14h]
-    void (__cdecl *entTouch)(gentity_s *, gentity_s *, int); // [esp+8h] [ebp-10h]
+    void(__cdecl * entTouch)(gentity_s *, gentity_s *, int); // [esp+8h] [ebp-10h]
     gentity_s *other; // [esp+Ch] [ebp-Ch]
-    void (__cdecl *otherTouch)(gentity_s *, gentity_s *, int); // [esp+10h] [ebp-8h]
+    void(__cdecl * otherTouch)(gentity_s *, gentity_s *, int); // [esp+10h] [ebp-8h]
     int i; // [esp+14h] [ebp-4h]
     int ia; // [esp+14h] [ebp-4h]
 
-    entTouch = (void (__cdecl *)(gentity_s *, gentity_s *, int))dword_E07CDC[12 * ent->handler];
-    for ( i = 0; i < pm->numtouch; ++i )
+    entTouch = entityHandlers[ent->handler].touch;
+    for (i = 0; i < pm->numtouch; ++i)
     {
-        for ( j = 0; j < i && pm->touchents[j] != pm->touchents[i]; ++j )
+        for (j = 0; j < i && pm->touchents[j] != pm->touchents[i]; ++j)
             ;
-        if ( j == i )
+        if (j == i)
         {
             other = &g_entities[pm->touchents[i]];
-            if ( Scr_IsSystemActive(1u, SCRIPTINSTANCE_SERVER) )
+            if (Scr_IsSystemActive(1u, SCRIPTINSTANCE_SERVER))
             {
                 Scr_AddEntity(other, SCRIPTINSTANCE_SERVER);
                 Scr_Notify(ent, scr_const.touch, 1u);
                 Scr_AddEntity(ent, SCRIPTINSTANCE_SERVER);
                 Scr_Notify(other, scr_const.touch, 1u);
             }
-            otherTouch = (void (__cdecl *)(gentity_s *, gentity_s *, int))dword_E07CDC[12 * other->handler];
-            if ( otherTouch )
+            otherTouch = entityHandlers[other->handler].touch;
+            if (otherTouch)
                 otherTouch(other, ent, 1);
-            if ( entTouch )
+            if (entTouch)
                 entTouch(ent, other, 1);
         }
     }
-    for ( ia = 0; ia < pm->numGlassTouch; ++ia )
+    for (ia = 0; ia < pm->numGlassTouch; ++ia)
         GlassSv_Touch(pm->touchGlasses[ia], ent);
 }
 
 void __cdecl G_DoTouchTriggers(gentity_s *ent)
 {
     gclient_s *client; // edx
-    float v2; // xmm0_4
+    float v3; // xmm0_4
     float *origin; // [esp+1Ch] [ebp-103Ch]
     int entityList[1024]; // [esp+28h] [ebp-1030h] BYREF
     int contentmask; // [esp+1028h] [ebp-30h]
-    float mins[3]; // [esp+102Ch] [ebp-2Ch] BYREF
-    void (__cdecl *v7)(gentity_s *, entityState_s *, int); // [esp+1038h] [ebp-20h]
+    float mins; // [esp+102Ch] [ebp-2Ch] BYREF
+    float v8; // [esp+1030h] [ebp-28h]
+    float v9; // [esp+1034h] [ebp-24h]
+    void(__cdecl * touch)(gentity_s *, gentity_s *, int); // [esp+1038h] [ebp-20h]
     entityState_s *item; // [esp+103Ch] [ebp-1Ch]
-    float maxs[3]; // [esp+1040h] [ebp-18h] BYREF
-    void (__cdecl *v10)(entityState_s *, gentity_s *, int); // [esp+104Ch] [ebp-Ch]
-    int v11; // [esp+1050h] [ebp-8h]
+    float maxs; // [esp+1040h] [ebp-18h] BYREF
+    float v13; // [esp+1044h] [ebp-14h]
+    float v14; // [esp+1048h] [ebp-10h]
+    void(__cdecl * v15)(gentity_s *, gentity_s *, int); // [esp+104Ch] [ebp-Ch]
+    int v16; // [esp+1050h] [ebp-8h]
     int i; // [esp+1054h] [ebp-4h]
 
-    if ( !ent->client
+    if (!ent->client
         && !ent->actor
         && !ent->scr_vehicle
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
-                    241,
-                    0,
-                    "%s",
-                    "ent->client || ent->actor || ent->scr_vehicle") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
+            241,
+            0,
+            "%s",
+            "ent->client || ent->actor || ent->scr_vehicle"))
     {
         __debugbreak();
     }
-    if ( !ent->client
+    if (!ent->client
         || ent->client->ps.pm_type <= 1
         || ent->client->ps.pm_type == 6
         || ent->client->ps.pm_type == 7
-        || ent->client->ps.pm_type == 8 )
+        || ent->client->ps.pm_type == 8)
     {
-        mins[0] = ent->r.absmin[0] - 20.0;
-        mins[1] = ent->r.absmin[1] - 20.0;
-        mins[2] = ent->r.absmin[2] - 20.0;
-
-        maxs[0] = ent->r.absmax[0] + 20.0;
-        maxs[1] = ent->r.absmax[1] + 20.0;
-        maxs[2] = ent->r.absmax[2] + 20.0;
-        if ( ent->scr_vehicle )
+        mins = ent->r.absmin[0] - 20.0;
+        v8 = ent->r.absmin[1] - 20.0;
+        v9 = ent->r.absmin[2] - 20.0;
+        maxs = ent->r.absmax[0] + 20.0;
+        v13 = ent->r.absmax[1] + 20.0;
+        v14 = ent->r.absmax[2] + 20.0;
+        if (ent->scr_vehicle)
         {
             contentmask = 8;
-LABEL_26:
-            v11 = CM_AreaEntities(mins, maxs, entityList, 1024, contentmask);
-            if ( ent->client )
+        LABEL_26:
+            v16 = CM_AreaEntities(&mins, &maxs, entityList, 1024, contentmask);
+            if (ent->client)
             {
                 origin = ent->client->ps.origin;
-                mins[0] = *origin + ent->r.mins[0];
-                mins[1] = origin[1] + ent->r.mins[1];
-                mins[2] = origin[2] + ent->r.mins[2];
+                mins = *origin + ent->r.mins[0];
+                v8 = origin[1] + ent->r.mins[1];
+                v9 = origin[2] + ent->r.mins[2];
                 client = ent->client;
-                maxs[0] = client->ps.origin[0] + ent->r.maxs[0];
-                maxs[1] = client->ps.origin[1] + ent->r.maxs[1];
-                v2 = client->ps.origin[2];
+                maxs = client->ps.origin[0] + ent->r.maxs[0];
+                v13 = client->ps.origin[1] + ent->r.maxs[1];
+                v3 = client->ps.origin[2];
             }
             else
             {
-                mins[0] = ent->r.currentOrigin[0] + ent->r.mins[0];
-                mins[1] = ent->r.currentOrigin[1] + ent->r.mins[1];
-                mins[2] = ent->r.currentOrigin[2] + ent->r.mins[2];
-                maxs[0] = ent->r.currentOrigin[0] + ent->r.maxs[0];
-                maxs[1] = ent->r.currentOrigin[1] + ent->r.maxs[1];
-                v2 = ent->r.currentOrigin[2];
+                mins = ent->r.currentOrigin[0] + ent->r.mins[0];
+                v8 = ent->r.currentOrigin[1] + ent->r.mins[1];
+                v9 = ent->r.currentOrigin[2] + ent->r.mins[2];
+                maxs = ent->r.currentOrigin[0] + ent->r.maxs[0];
+                v13 = ent->r.currentOrigin[1] + ent->r.maxs[1];
+                v3 = ent->r.currentOrigin[2];
             }
-            maxs[2] = v2 + ent->r.maxs[2];
-            ExpandBoundsToWidth(mins, maxs);
-            v7 = (void (__cdecl *)(gentity_s *, entityState_s *, int))dword_E07CDC[12 * ent->handler];
-            for ( i = 0; ; ++i )
+            v14 = v3 + ent->r.maxs[2];
+            ExpandBoundsToWidth(&mins, &maxs);
+            touch = entityHandlers[ent->handler].touch;
+            for (i = 0; ; ++i)
             {
-                if ( i >= v11 )
+                if (i >= v16)
                     return;
                 item = &g_entities[entityList[i]].s;
-                if ( (LODWORD(item[1].lerp.pos.trDelta[1]) & 0x405C0008) == 0
+                if ((LODWORD(item[1].lerp.pos.trDelta[1]) & 0x405C0008) == 0
                     && !Assert_MyHandler(
-                                "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
-                                319,
-                                0,
-                                "%s",
-                                "hit->r.contents & MASK_TRIGGER") )
+                        "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
+                        319,
+                        0,
+                        "%s",
+                        "hit->r.contents & MASK_TRIGGER"))
                 {
                     __debugbreak();
                 }
-                if ( item->eType == 4
+                if (item->eType == 4
                     && !Assert_MyHandler(
-                                "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
-                                320,
-                                0,
-                                "%s",
-                                "hit->s.eType != ET_MISSILE") )
+                        "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
+                        320,
+                        0,
+                        "%s",
+                        "hit->s.eType != ET_MISSILE"))
                 {
                     __debugbreak();
                 }
-                v10 = (void (__cdecl *)(entityState_s *, gentity_s *, int))dword_E07CDC[12 * BYTE2(item[1].solid)];
-                if ( (v10 || v7)
+                v15 = entityHandlers[BYTE2(item[1].solid)].touch;
+                if ((v15 || touch)
                     && (!ent->client
-                     || (*(&item[1].lerp.eFlags + ((int)ent->client->ps.clientNum >> 5))
-                         & (1 << (ent->client->ps.clientNum & 0x1F))) == 0) )
+                        || (*(&item[1].lerp.eFlags + ((int)ent->client->ps.clientNum >> 5))
+                            & (1 << (ent->client->ps.clientNum & 0x1F))) == 0))
                 {
-                    if ( item->eType == 3 )
+                    if (item->eType == 3)
                     {
-                        if ( !ent->client || !BG_PlayerTouchesItem(&ent->client->ps, item, level.time) )
+                        if (!ent->client || !BG_PlayerTouchesItem(&ent->client->ps, item, level.time))
                             continue;
                     }
-                    else if ( !SV_EntityContact(mins, maxs, (const gentity_s *)item) )
+                    else if (!SV_EntityContact(&mins, &maxs, (const gentity_s *)item))
                     {
                         continue;
                     }
-                    if ( Scr_IsSystemActive(1u, SCRIPTINSTANCE_SERVER) )
+                    if (Scr_IsSystemActive(1u, SCRIPTINSTANCE_SERVER))
                     {
                         Scr_AddEntity(ent, SCRIPTINSTANCE_SERVER);
                         Scr_Notify((gentity_s *)item, scr_const.touch, 1u);
                         Scr_AddEntity((gentity_s *)item, SCRIPTINSTANCE_SERVER);
                         Scr_Notify(ent, scr_const.touch, 1u);
                     }
-                    if ( v10 )
-                        v10(item, ent, 1);
-                    if ( ent->actor )
+                    if (v15)
+                        v15((gentity_s *)item, ent, 1);
+                    if (ent->actor)
                     {
-                        if ( v7 )
-                            v7(ent, item, 1);
+                        if (touch)
+                            touch(ent, (gentity_s *)item, 1);
                     }
                 }
             }
         }
-        if ( !ent->sentient )
+        if (!ent->sentient)
         {
             contentmask = 0x400000;
             goto LABEL_26;
         }
-        if ( ent->client )
+        if (ent->client)
         {
             contentmask = 0x40000000;
             goto LABEL_26;
         }
-        switch ( ent->sentient->eTeam )
+        switch (ent->sentient->eTeam)
         {
-            case TEAM_AXIS:
-                contentmask = 0x40000;
-                goto LABEL_26;
-            case TEAM_ALLIES:
-                contentmask = 0x80000;
-                goto LABEL_26;
-            case TEAM_FREE:
-                contentmask = 0x100000;
-                goto LABEL_26;
+        case TEAM_AXIS:
+            contentmask = 0x40000;
+            goto LABEL_26;
+        case TEAM_ALLIES:
+            contentmask = 0x80000;
+            goto LABEL_26;
+        case TEAM_FREE:
+            contentmask = 0x100000;
+            goto LABEL_26;
         }
     }
 }
@@ -292,15 +344,15 @@ void __cdecl SpectatorThink(gentity_s *ent, usercmd_s *ucmd)
         {
             if ( client->spectatorClient >= 0 )
             {
-                v2 = bitarray<51>::testBit(&client->button_bits, 2u);
-                if ( v2 != bitarray<51>::testBit(&client->oldbutton_bits, 2u) )
+                v2 = client->button_bits.testBit(2u);
+                if ( v2 != client->oldbutton_bits.testBit(2u) )
                     StopFollowing(ent);
             }
         }
     }
-    if ( !bitarray<51>::testBit(&client->button_bits, 0) || bitarray<51>::testBit(&client->oldbutton_bits, 0) )
+    if ( !client->button_bits.testBit(0) || client->oldbutton_bits.testBit(0) )
     {
-        if ( bitarray<51>::testBit(&client->button_bits, 0xBu) && !bitarray<51>::testBit(&client->oldbutton_bits, 0xBu) )
+        if ( client->button_bits.testBit(0xBu) && !client->oldbutton_bits.testBit(0xBu) )
             Cmd_FollowCycle_f(ent, -1);
     }
     else
@@ -318,7 +370,7 @@ void __cdecl SpectatorThink(gentity_s *ent, usercmd_s *ucmd)
         pm->localClientNum = -1;
         pm->ps = &client->ps;
         memcpy(&pm->cmd, ucmd, sizeof(pm->cmd));
-        pm->tracemask = (int)&loc_800811;
+        pm->tracemask = 0x800811;
         pm->handler = 1;
         Pmove(pm);
         ent->r.currentOrigin[0] = client->ps.origin[0];
@@ -347,8 +399,8 @@ int __cdecl ClientInactivityTimer(gclient_s *client)
     {
         if ( client->sess.cmd.forwardmove
             || client->sess.cmd.rightmove
-            || bitarray<51>::testBit(&client->sess.cmd.button_bits, 0)
-            || bitarray<51>::testBit(&client->sess.cmd.button_bits, 0xAu) )
+            || client->sess.cmd.button_bits.testBit(0)
+            || client->sess.cmd.button_bits.testBit(0xAu) )
         {
             client->inactivityTime = level.time + 1000 * g_inactivity->current.integer;
             client->inactivityWarning = 0;
@@ -572,7 +624,7 @@ LABEL_6:
                 if ( eventParm < 100 )
                     damage = (float)eventParm * 0.0099999998;
                 else
-                    damage = FLOAT_1_1;
+                    damage = 1.1f;
                 if ( damage != 0.0 )
                 {
                     damage = (float)client->ps.stats[2] * damage;
@@ -584,7 +636,7 @@ LABEL_6:
 LABEL_54:
                 if ( (event == 103 || event == 104 || event == 105 || event == 110 || event >= 111 && event <= 141)
                     && (ent->client->ps.pm_flags & 2) == 0
-                    && !bitarray<51>::testBit(&ent->client->sess.cmd.button_bits, 0xBu)
+                    && !ent->client->sess.cmd.button_bits.testBit(0xBu)
                     && (ent->client->ps.perks[1] & 0x40) == 0
                     && ent->sentient )
                 {
@@ -603,50 +655,50 @@ LABEL_54:
 
 void __cdecl AttemptLiveGrenadePickup(gentity_s *clientEnt)
 {
-    void (__cdecl *touch)(gentity_s *, gentity_s *, int); // [esp+14h] [ebp-Ch]
+    void(__cdecl * touch)(gentity_s *, gentity_s *, int); // [esp+14h] [ebp-Ch]
     gentity_s *grenadeEnt; // [esp+18h] [ebp-8h]
     int weapIdx; // [esp+1Ch] [ebp-4h]
 
-    if ( !clientEnt
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp", 539, 0, "%s", "clientEnt") )
+    if (!clientEnt
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp", 539, 0, "%s", "clientEnt"))
     {
         __debugbreak();
     }
-    if ( !clientEnt->client
+    if (!clientEnt->client
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
-                    540,
-                    0,
-                    "%s",
-                    "clientEnt->client") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
+            540,
+            0,
+            "%s",
+            "clientEnt->client"))
     {
         __debugbreak();
     }
-    if ( clientEnt->client->ps.cursorHintEntIndex >= 0x400u
+    if (clientEnt->client->ps.cursorHintEntIndex >= 0x400u
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
-                    541,
-                    0,
-                    "%s",
-                    "(unsigned)clientEnt->client->ps.cursorHintEntIndex < MAX_GENTITIES") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
+            541,
+            0,
+            "%s",
+            "(unsigned)clientEnt->client->ps.cursorHintEntIndex < MAX_GENTITIES"))
     {
         __debugbreak();
     }
     grenadeEnt = &g_entities[clientEnt->client->ps.cursorHintEntIndex];
-    if ( IsLiveGrenade(grenadeEnt) )
+    if (IsLiveGrenade(grenadeEnt))
     {
-        if ( clientEnt->client->ps.throwBackGrenadeTimeLeft )
+        if (clientEnt->client->ps.throwBackGrenadeTimeLeft)
         {
-            touch = (void (__cdecl *)(gentity_s *, gentity_s *, int))dword_E07CDC[12 * grenadeEnt->handler];
-            if ( touch )
+            touch = entityHandlers[grenadeEnt->handler].touch;
+            if (touch)
             {
-                if ( EntHandle::isDefined(&grenadeEnt->parent) )
-                    clientEnt->client->ps.throwBackGrenadeOwner = EntHandle::entnum(&grenadeEnt->parent);
+                if (grenadeEnt->parent.isDefined())
+                    clientEnt->client->ps.throwBackGrenadeOwner = grenadeEnt->parent.entnum();
                 else
                     clientEnt->client->ps.throwBackGrenadeOwner = 1022;
-                if ( (clientEnt->client->ps.perks[1] & 0x10) != 0 )
+                if ((clientEnt->client->ps.perks[1] & 0x10) != 0)
                 {
-                    if ( clientEnt->client->ps.throwBackGrenadeTimeLeft >= perk_grenadeTossBackTimer->current.integer )
+                    if (clientEnt->client->ps.throwBackGrenadeTimeLeft >= perk_grenadeTossBackTimer->current.integer)
                         clientEnt->client->ps.grenadeTimeLeft = clientEnt->client->ps.throwBackGrenadeTimeLeft;
                     else
                         clientEnt->client->ps.grenadeTimeLeft = perk_grenadeTossBackTimer->current.integer;
@@ -657,17 +709,17 @@ void __cdecl AttemptLiveGrenadePickup(gentity_s *clientEnt)
                 }
                 weapIdx = grenadeEnt->s.un3.item % 2048;
                 touch(grenadeEnt, clientEnt, 0);
-                if ( !clientEnt->client->ps.throwBackGrenadeTimeLeft
+                if (!clientEnt->client->ps.throwBackGrenadeTimeLeft
                     && !Assert_MyHandler(
-                                "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
-                                576,
-                                0,
-                                "%s",
-                                "clientEnt->client->ps.throwBackGrenadeTimeLeft") )
+                        "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
+                        576,
+                        0,
+                        "%s",
+                        "clientEnt->client->ps.throwBackGrenadeTimeLeft"))
                 {
                     __debugbreak();
                 }
-                if ( clientEnt->client->ps.offHandIndex != weapIdx )
+                if (clientEnt->client->ps.offHandIndex != weapIdx)
                 {
                     BG_AddPredictableEventToPlayerstate(0x2Bu, weapIdx, &clientEnt->client->ps);
                     clientEnt->client->ps.offHandIndex = weapIdx;
@@ -677,7 +729,7 @@ void __cdecl AttemptLiveGrenadePickup(gentity_s *clientEnt)
     }
 }
 
-int __thiscall EntHandle::entnum(EntHandle *this)
+int __thiscall EntHandle::entnum()
 {
     if ( (unsigned int)this->number - 1 >= 0x3FF
         && !Assert_MyHandler(
@@ -783,27 +835,18 @@ void __cdecl ClientVehicleInteraction(gentity_s *ent)
     }
     if ( (client->ps.eFlags & 0x4000) != 0 && (client->ps.eFlags & 0x10000) == 0 && ent->health > 0 )
     {
-        if ( !EntHandle::isDefined(&ent->r.ownerNum)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
-                        934,
-                        0,
-                        "%s",
-                        "ent->r.ownerNum.isDefined()") )
-        {
-            __debugbreak();
-        }
-        vehicle = EntHandle::ent(&ent->r.ownerNum);
-        if ( bitarray<51>::testBit(&client->latched_button_bits, 0x1Cu) && client->ps.fWeaponPosFrac == 0.0 )
+        iassert(ent->r.ownerNum.isDefined());
+        vehicle = ent->r.ownerNum.ent();
+        if ( client->latched_button_bits.testBit(0x1Cu) && client->ps.fWeaponPosFrac == 0.0 )
         {
             VEH_SwitchClientToNextSeat(vehicle, ent);
-            bitarray<51>::resetBit(&client->latched_button_bits, 0x1Cu);
+            client->latched_button_bits.resetBit(0x1Cu);
         }
         if ( (vehicle->r.contents & 0x200000) != 0
-            && (bitarray<51>::testBit(&client->latched_button_bits, 3u)
-             || bitarray<51>::testBit(&client->latched_button_bits, 5u)) )
+            && (client->latched_button_bits.testBit(3u)
+             || client->latched_button_bits.testBit(5u)) )
         {
-            VEH_UnlinkPlayer(ent, 0, "G_VehicleFinishedAnimating");
+            VEH_UnlinkPlayer(ent, 0, (char*)"G_VehicleFinishedAnimating");
         }
     }
 }
@@ -853,7 +896,7 @@ void __cdecl G_PlayerVehiclePositionAndBlend(gentity_s *ent, gentity_s *pTurretE
     const char *Name; // eax
     const XModel *v5; // eax
     unsigned __int8 *v6; // eax
-    int v7; // eax
+    char *v7; // eax
     float v8; // xmm1_4
     const char *AnimDebugName; // eax
     const char *v10; // eax
@@ -1030,7 +1073,7 @@ void __cdecl G_PlayerVehiclePositionAndBlend(gentity_s *ent, gentity_s *pTurretE
                             {
                                 v5 = DObjGetModel(turretObj, 0);
                                 v6 = (unsigned __int8 *)XModelGetName(v5);
-                                strstr(v6, "t34");
+                                v7 = strstr((char*)v6, "t34");
                                 if ( v7 )
                                 {
                                     v14 = tagMat->trans;
@@ -1064,7 +1107,7 @@ void __cdecl G_PlayerVehiclePositionAndBlend(gentity_s *ent, gentity_s *pTurretE
                             if ( !numVertChildren )
                             {
                                 AnimDebugName = XAnimGetAnimDebugName(pXAnims, baseAnim);
-                                Com_Error(ERR_DROP, &byte_C88174, AnimDebugName);
+                                Com_Error(ERR_DROP, "player anim '%s' has no children", AnimDebugName);
                             }
                             i = 0;
                             do
@@ -1074,7 +1117,7 @@ void __cdecl G_PlayerVehiclePositionAndBlend(gentity_s *ent, gentity_s *pTurretE
                                 if ( !numHorChildren )
                                 {
                                     v10 = XAnimGetAnimDebugName(pXAnims, heightAnim);
-                                    Com_Error(ERR_DROP, &byte_C88174, v10);
+                                    Com_Error(ERR_DROP, "player anim '%s' has no children", v10);
                                 }
                                 fBlend = (float)numHorChildren * 0.5;
                                 if ( fBlend >= 0.0 )
@@ -1211,7 +1254,6 @@ void __cdecl ClientThink_real(gentity_s *ent, usercmd_s *ucmd)
     float loc2d_4; // [esp+E8h] [ebp-174h]
     float loc[3]; // [esp+ECh] [ebp-170h] BYREF
     int yaw; // [esp+F8h] [ebp-164h]
-    bitarray<51> mask_bits; // [esp+FCh] [ebp-160h] BYREF
     gclient_s *client; // [esp+104h] [ebp-158h]
     float vAxis3[3][3]; // [esp+108h] [ebp-154h] BYREF
     weaponState_t ws; // [esp+12Ch] [ebp-130h] BYREF
@@ -1254,12 +1296,12 @@ void __cdecl ClientThink_real(gentity_s *ent, usercmd_s *ucmd)
                     client->oldbutton_bits.array[i] = client->button_bits.array[i];
                 if ( !client->useButtonDone )
                 {
-                    bitarray<51>::resetBit(&client->oldbutton_bits, 3u);
-                    bitarray<51>::resetBit(&client->oldbutton_bits, 5u);
+                    client->oldbutton_bits.resetBit(3u);
+                    client->oldbutton_bits.resetBit(5u);
                 }
                 for ( j = 0; j < 2; ++j )
                     client->button_bits.array[j] = client->sess.cmd.button_bits.array[j];
-                if ( !bitarray<51>::testBit(&client->button_bits, 3u) && !bitarray<51>::testBit(&client->button_bits, 5u) )
+                if ( !client->button_bits.testBit(3u) && !client->button_bits.testBit(5u) )
                     client->useButtonDone = 0;
                 for ( k = 0; k < 2; ++k )
                     temp_oldbits.array[k] = 0;
@@ -1275,7 +1317,7 @@ void __cdecl ClientThink_real(gentity_s *ent, usercmd_s *ucmd)
                 p_button_bitsSinceLastFrame = &client->button_bitsSinceLastFrame;
                 for ( kk = 0; kk < 2; ++kk )
                     p_button_bitsSinceLastFrame->array[kk] |= client->latched_button_bits.array[kk];
-                if ( bitarray<51>::testBit(&client->latched_button_bits, 0x32u) )
+                if ( client->latched_button_bits.testBit(0x32u) )
                     Scr_Notify(ent, scr_const.doubletap_detonate, 0);
                 ClientVehicleInteraction(ent);
                 ClientVehicleJumpOff(ent);
@@ -1301,16 +1343,17 @@ LABEL_53:
                         loc[1] = (float)(level.compassMapUpperLeft[1] - (float)(loc2d * level.compassNorth[0]))
                                      - (float)(loc2d_4 * level.compassNorth[1]);
                         loc[2] = 0.0f;
-                        if ( bitarray<51>::testBit(&client->button_bitsSinceLastFrame, 0x10u) )
+                        if ( client->button_bitsSinceLastFrame.testBit(0x10u) )
                         {
                             Scr_AddInt(yaw, SCRIPTINSTANCE_SERVER);
                             Scr_AddVector(loc, SCRIPTINSTANCE_SERVER);
                             Scr_Notify(ent, scr_const.confirm_location, 2u);
                         }
                     }
-                    if ( bitarray<51>::testBit(&client->button_bitsSinceLastFrame, 0x11u) )
+                    if ( client->button_bitsSinceLastFrame.testBit(0x11u) )
                         Scr_Notify(ent, scr_const.cancel_location, 0);
-                    bitarray<51>::bitarray<51>(&mask_bits, 0xCu, 8, 9, -1);
+                    bitarray<51> mask_bits(0xCu, 8, 9, -1); // [esp+FCh] [ebp-160h] BYREF
+                    //bitarray<51>::bitarray<51>(&mask_bits, 0xCu, 8, 9, -1);
                     p_button_bits = &client->button_bits;
                     for ( nn = 0; nn < 2; ++nn )
                         p_button_bits->array[nn] &= mask_bits.array[nn];
@@ -1328,9 +1371,9 @@ LABEL_53:
                 memcpy(&pm->cmd, ucmd, sizeof(pm->cmd));
                 memcpy(&pm->oldcmd, &client->sess.oldcmd, sizeof(pm->oldcmd));
                 if ( pm->ps->pm_type < 9 )
-                    pm->tracemask = (int)&cls.recentServers[7647].hostName[20];
+                    pm->tracemask = 0x2818011;
                 else
-                    pm->tracemask = (int)&loc_810011;
+                    pm->tracemask = 0x810011;
                 pm->handler = 1;
                 vs.ps = &client->ps;
                 vs.damageTime = client->damageTime;
@@ -1433,17 +1476,9 @@ LABEL_53:
                     BG_PlayerStateToEntityState(&client->ps, &ent->s, 1, 1u);
                 if ( (client->ps.eFlags & 0x4000) != 0 && client->ps.vehiclePos >= 1 && client->ps.vehiclePos <= 4 )
                 {
-                    if ( !EntHandle::isDefined(&ent->r.ownerNum)
-                        && !Assert_MyHandler(
-                                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
-                                    1659,
-                                    0,
-                                    "%s",
-                                    "ent->r.ownerNum.isDefined()") )
-                    {
-                        __debugbreak();
-                    }
-                    vehicle = EntHandle::ent(&ent->r.ownerNum);
+                    iassert(ent->r.ownerNum.isDefined());
+
+                    vehicle = ent->r.ownerNum.ent();
                     G_PlayerVehiclePositionAndBlend(ent, vehicle);
                     ent->s.lerp.pos.trBase[0] = ent->r.currentOrigin[0];
                     ent->s.lerp.pos.trBase[1] = ent->r.currentOrigin[1];
@@ -1470,7 +1505,7 @@ LABEL_53:
                     ent->s.lerp.apos.trBase[2] = ent->r.currentAngles[2];
                 }
                 ClientEvents(ent, oldEventSequence);
-                SV_LinkEntity((int)&savedregs, ent);
+                SV_LinkEntity(ent);
                 origin = client->ps.origin;
                 ent->r.currentOrigin[0] = client->ps.origin[0];
                 ent->r.currentOrigin[1] = origin[1];
@@ -1551,8 +1586,8 @@ void __cdecl G_AddPlayerMantleBlockage(float *endPos, int duration, pmove_t *pm)
 
     owner = &g_entities[pm->ps->clientNum];
     ent = G_Spawn();
-    EntHandle::setEnt(&ent->parent, owner);
-    EntHandle::setEnt(&ent->r.ownerNum, owner);
+    ent->parent.setEnt(owner);
+    ent->r.ownerNum.setEnt(owner);
     ent->r.contents = 0x10000;
     ent->clipmask = 0x10000;
     ent->r.svFlags = 33;
@@ -1565,7 +1600,7 @@ void __cdecl G_AddPlayerMantleBlockage(float *endPos, int duration, pmove_t *pm)
     ent->r.maxs[1] = owner->r.maxs[1];
     ent->r.maxs[2] = owner->r.maxs[2];
     G_SetOrigin(ent, endPos);
-    SV_LinkEntity((int)&savedregs, ent);
+    SV_LinkEntity(ent);
     ent->nextthink = g_mantleBlockTimeBuffer->current.integer + duration + level.time;
 }
 
@@ -1656,51 +1691,23 @@ void __cdecl ClientThink(int clientNum)
 {
     gentity_s *ent; // [esp+8h] [ebp-4h]
 
-    if ( !Sys_IsServerThread()
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
-                    1723,
-                    0,
-                    "%s",
-                    "Sys_IsServerThread()") )
-    {
-        __debugbreak();
-    }
+    iassert(Sys_IsServerThread());
+
     ent = &g_entities[clientNum];
-    if ( !ent->client
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp", 1729, 0, "%s", "ent->client") )
-    {
-        __debugbreak();
-    }
-    if ( *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
-                    1731,
-                    0,
-                    "%s\n\t(bgs) = %p",
-                    "(bgs == 0)",
-                    *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-    {
-        __debugbreak();
-    }
-    *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = &level_bgs;
+    iassert(ent->client);
+
+    iassert(bgs == 0);
+    
+    bgs = &level_bgs;
     memcpy(&ent->client->sess.oldcmd, &ent->client->sess.cmd, sizeof(ent->client->sess.oldcmd));
     SV_GetUsercmd(clientNum, &ent->client->sess.cmd);
     ent->client->lastCmdTime = level.time;
-    if ( !g_synchronousClients->current.enabled )
+
+    if (!g_synchronousClients->current.enabled)
         ClientThink_real(ent, &ent->client->sess.cmd);
-    if ( *(bgs_t **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) != &level_bgs
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
-                    1746,
-                    0,
-                    "%s\n\t(bgs) = %p",
-                    "(bgs == &level_bgs)",
-                    *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-    {
-        __debugbreak();
-    }
-    *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = 0;
+
+    iassert(bgs == &level_bgs);
+    bgs = 0;
 }
 
 void __cdecl G_RunClient(gentity_s *ent)
@@ -1748,7 +1755,7 @@ void __cdecl G_RunClient(gentity_s *ent)
             ent->s.lerp.apos.trDelta[0] = 0.0f;
             ent->s.lerp.apos.trDelta[1] = 0.0f;
             ent->s.lerp.apos.trDelta[2] = 0.0f;
-            SV_LinkEntity((int)&savedregs, ent);
+            SV_LinkEntity(ent);
             origin = ent->client->ps.origin;
             *origin = ent->r.currentOrigin[0];
             origin[1] = ent->r.currentOrigin[1];
@@ -2098,12 +2105,15 @@ int __cdecl StuckInClient(gentity_s *self)
     hit->client->ps.pm_time = 300;
     hit->client->ps.pm_flags |= 0x80u;
     v4 = self->client->ps.velocity;
-    *v4 = COERCE_FLOAT(LODWORD(selfSpeed) ^ _mask__NegFloat_) * vDelta[0];
-    v4[1] = COERCE_FLOAT(LODWORD(selfSpeed) ^ _mask__NegFloat_) * vDelta[1];
+    v4[0] = (-(selfSpeed)) * vDelta[0];
+    v4[1] = (-(selfSpeed)) * vDelta[1];
     self->client->ps.pm_time = 300;
     self->client->ps.pm_flags |= 0x80u;
     return 1;
 }
+
+const float aiMins[3] = { -25.0, -25.0, 0.0 };
+const float aiMaxs[3] = { 25.0, 25.0, 70.0 };
 
 void __cdecl CM_CheckForTraps(gentity_s *ent)
 {
@@ -2221,17 +2231,9 @@ void __cdecl G_PlayerController(const gentity_s *self, int *partBits)
     {
         __debugbreak();
     }
-    if ( *(bgs_t **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) != &level_bgs
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
-                    2293,
-                    0,
-                    "%s\n\t(bgs) = %p",
-                    "(bgs == &level_bgs)",
-                    *(const void **)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)) )
-    {
-        __debugbreak();
-    }
+
+    iassert(bgs == &level_bgs);
+    
     BG_Player_DoControllersSetup(&self->s, ci, level.frametime);
     obj = Com_GetServerDObj(self->s.number);
     for ( i = 0; i < 6; ++i )
@@ -2342,29 +2344,12 @@ int __cdecl G_UpdateClientInfo(gentity_s *ent)
         client->sess.cs.attachedVehEntNum = 1023;
         client->sess.cs.attachedVehSeat = 0;
     }
-    else if ( EntHandle::isDefined(&ent->r.ownerNum) )
+    else if ( ent->r.ownerNum.isDefined() )
     {
-        if ( !EntHandle::isDefined(&ent->r.ownerNum)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
-                        2385,
-                        0,
-                        "%s",
-                        "ent->r.ownerNum.isDefined()") )
-        {
-            __debugbreak();
-        }
-        if ( EntHandle::entnum(&ent->r.ownerNum) != client->ps.viewlocked_entNum
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
-                        2386,
-                        0,
-                        "%s",
-                        "ent->r.ownerNum.entnum() == (unsigned)client->ps.viewlocked_entNum") )
-        {
-            __debugbreak();
-        }
-        client->sess.cs.attachedVehEntNum = EntHandle::entnum(&ent->r.ownerNum);
+        iassert(ent->r.ownerNum.isDefined());
+        iassert(ent->r.ownerNum.entnum() == (unsigned)client->ps.viewlocked_entNum);
+
+        client->sess.cs.attachedVehEntNum = ent->r.ownerNum.entnum();
         client->sess.cs.attachedVehSeat = client->ps.vehiclePos;
     }
     else
@@ -2551,7 +2536,7 @@ void __cdecl ClientEndFrame(gentity_s *ent)
                 {
                     __debugbreak();
                 }
-                info = BG_GetVehicleInfo(veh->s.un2.vehicleState.vehicleInfoIndex);
+                info = BG_GetVehicleInfo(veh->s.vehicleState.vehicleInfoIndex);
                 if ( !info
                     && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp", 2640, 0, "%s", "info") )
                 {
@@ -2662,12 +2647,12 @@ void __cdecl ClientEndFrame(gentity_s *ent)
                     {
                         __debugbreak();
                     }
-                    if ( !EntHandle::isDefined(&level.gentities[client->ps.viewlocked_entNum].r.ownerNum)
-                        || EntHandle::ent(&level.gentities[client->ps.viewlocked_entNum].r.ownerNum) != ent )
+                    if ( !level.gentities[client->ps.viewlocked_entNum].r.ownerNum.isDefined()
+                        || level.gentities[client->ps.viewlocked_entNum].r.ownerNum.ent() != ent )
                     {
-                        if ( EntHandle::isDefined(&level.gentities[client->ps.viewlocked_entNum].r.ownerNum) )
+                        if ( level.gentities[client->ps.viewlocked_entNum].r.ownerNum.isDefined() )
                         {
-                            v6 = EntHandle::entnum(&level.gentities[client->ps.viewlocked_entNum].r.ownerNum);
+                            v6 = level.gentities[client->ps.viewlocked_entNum].r.ownerNum.entnum();
                             v4 = va(
                                          "viewlocked_entNum is %i, ownerNum is %i, ent->s.number is %i",
                                          client->ps.viewlocked_entNum,
@@ -2696,17 +2681,9 @@ void __cdecl ClientEndFrame(gentity_s *ent)
                 }
                 if ( (client->ps.eFlags & 0x4000) != 0 && client->ps.vehiclePos >= 1 && client->ps.vehiclePos <= 4 )
                 {
-                    if ( !EntHandle::isDefined(&ent->r.ownerNum)
-                        && !Assert_MyHandler(
-                                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
-                                    2726,
-                                    0,
-                                    "%s",
-                                    "ent->r.ownerNum.isDefined()") )
-                    {
-                        __debugbreak();
-                    }
-                    vehicle = EntHandle::ent(&ent->r.ownerNum);
+                    iassert(ent->r.ownerNum.isDefined());
+
+                    vehicle = ent->r.ownerNum.ent();
                     G_PlayerVehiclePositionAndBlend(ent, vehicle);
                 }
                 if ( g_debugLocDamage->current.integer == 1 && SV_DObjExists(ent) )
