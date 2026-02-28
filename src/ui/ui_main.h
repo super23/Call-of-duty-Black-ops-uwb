@@ -367,7 +367,8 @@ unsigned __int8 __cdecl UI_ToUpper_CodePage_1252(unsigned __int8 character);
 unsigned __int8 __cdecl UI_CharToUpper(unsigned __int8 character);
 char *__cdecl UI_ToUpper(const char *sourceString);
 
-
+extern const dvar_t *ui_netGameType;
+extern const dvar_t *uiscript_debug;
 extern const dvar_t *ui_animSpeedScale;
 extern const dvar_t *ui_customModeIndex;
 extern const dvar_t *ui_customModeName;
@@ -436,3 +437,5 @@ extern const dvar_t *ui_readingSaveDevice;
 extern const dvar_t *ui_signedInToProfile;
 extern const dvar_t *emblem_scroll_delay_first;
 extern const dvar_t *emblem_scroll_delay_rest;
+
+extern UiContext uiInfoArray;

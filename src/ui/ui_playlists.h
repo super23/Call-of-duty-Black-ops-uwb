@@ -2,6 +2,26 @@
 
 #include <universal/dvar.h>
 
+enum PlaylistLockState : __int32
+{                                       // XREF: UI_DrawPlaylistDescription/r
+    PLS_UNLOCKED                   = 0x0,
+    PLS_FETCHING                   = 0x1,
+    PLS_XP                         = 0x2,
+    PLS_PLEVEL                     = 0x3,
+    PLS_MAXPARTY                   = 0x4,
+    PLS_MINPARTY                   = 0x5,
+    PLS_GAMETYPEBAN                = 0x6,
+    PLS_COLLECTORS                 = 0x7,
+    PLS_FINISHEDSOLO               = 0x8,
+    PLS_REQUIRED_DLC_DISABLED      = 0x9,
+    PLS_REQUIRED_DLC_NOT_AVAILABLE = 0xA,
+    PLS_CODPOINTS                  = 0xB,
+    PLS_VISDVAR                    = 0xC,
+    PLS_LOCALPLAYERS               = 0xD,
+    PLS_NOGUESTS                   = 0xE,
+    PLS_COUNT                      = 0xF,
+};
+
 enum parseBlockTypes : __int32
 {                                       // XREF: ?LiveContracts_ParseContracts@@YAXPAD@Z/r
                                         // ?Playlist_ParsePlaylists@@YAXPBD@Z/r

@@ -970,9 +970,9 @@ void __cdecl Script_Open(int localClientNum, UiContext *dc, itemDef_s *item, con
 void __cdecl Script_OpenImmediate(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
 void __cdecl Script_OpenForGameType(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
 void __cdecl Script_CloseForGameType(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
-void __cdecl Script_ActivateBlur(int localClientNum, UiContext *dc, itemDef_s *item);
+void __cdecl Script_ActivateBlur(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
 char __cdecl RemoveMenuFromBlurStack(int localClientNum, UiContext *dc, const char *menuName);
-void __cdecl Script_DeactivateBlur(int localClientNum, UiContext *dc, itemDef_s *item);
+void __cdecl Script_DeactivateBlur(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
 void __cdecl Script_SetDvarStringUsingTable(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
 const char *__cdecl Script_TableLookupParse(UiContext *dc, const char **args);
 void __cdecl Script_OpParse(int *operand, const char **args);
@@ -1001,7 +1001,7 @@ void __cdecl Script_ExecHandler(
 void __cdecl Script_AddTextWrapper(int localClientNum, int controllerIndex, itemDef_s *__formal, const char *text);
 void __cdecl Script_ExecNow(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
 void __cdecl Script_ExecDvar(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
-void __cdecl Script_ExecOnDvarStringValue(int localClientNum, UiContext *dc, itemDef_s *item, char **args);
+void __cdecl Script_ExecOnDvarStringValue(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
 void __cdecl Script_ConditionalExecHandler(
                 int localClientNum,
                 UiContext *dc,
@@ -1009,14 +1009,24 @@ void __cdecl Script_ConditionalExecHandler(
                 char **args,
                 bool (__cdecl *shouldExec)(const char *, const char *),
                 void (__cdecl *textCallback)(int, int, itemDef_s *, const char *));
+inline void __cdecl Script_ConditionalExecHandler(
+    int localClientNum,
+    UiContext *dc,
+    itemDef_s *item,
+    const char **args,
+    bool(__cdecl *shouldExec)(const char *, const char *),
+    void(__cdecl *textCallback)(int, int, itemDef_s *, const char *))
+{
+    Script_ConditionalExecHandler(localClientNum, dc, item, (char **)args, shouldExec, textCallback);
+}
 bool __cdecl Script_ExecIfStringsEqual(const char *dvarValue, const char *testValue);
-void __cdecl Script_ExecOnDvarIntValue(int localClientNum, UiContext *dc, itemDef_s *item, char **args);
+void __cdecl Script_ExecOnDvarIntValue(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
 bool __cdecl Script_ExecIfIntsEqual(const char *dvarValue, const char *testValue);
-void __cdecl Script_ExecOnDvarFloatValue(int localClientNum, UiContext *dc, itemDef_s *item, char **args);
+void __cdecl Script_ExecOnDvarFloatValue(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
 bool __cdecl Script_ExecIfFloatsEqual(const char *dvarValue, const char *testValue);
-void __cdecl Script_ExecNowOnDvarStringValue(int localClientNum, UiContext *dc, itemDef_s *item, char **args);
-void __cdecl Script_ExecNowOnDvarIntValue(int localClientNum, UiContext *dc, itemDef_s *item, char **args);
-void __cdecl Script_ExecNowOnDvarFloatValue(int localClientNum, UiContext *dc, itemDef_s *item, char **args);
+void __cdecl Script_ExecNowOnDvarStringValue(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
+void __cdecl Script_ExecNowOnDvarIntValue(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
+void __cdecl Script_ExecNowOnDvarFloatValue(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
 void __cdecl Script_RespondOnDvarStringValue(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
 void __cdecl Script_ConditionalResponseHandler(
                 int localClientNum,
@@ -1031,10 +1041,10 @@ UILocalVarContext *__cdecl Script_ParseLocalVar(UiContext *dc, const char **args
 void __cdecl Script_SetLocalVarInt(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
 void __cdecl Script_SetLocalVarFloat(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
 void __cdecl Script_SetLocalVarString(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
-void __cdecl Script_FeederTop(int localClientNum, UiContext *dc, itemDef_s *item);
-void __cdecl Script_FeederBottom(int localClientNum, UiContext *dc, itemDef_s *item);
-void __cdecl Script_SetDvarFromLocString(int localClientNum, UiContext *dc, itemDef_s *item, char **args);
-void __cdecl Script_Play();
+void __cdecl Script_FeederTop(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
+void __cdecl Script_FeederBottom(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
+void __cdecl Script_SetDvarFromLocString(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
+void __cdecl Script_Play(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
 void __cdecl Script_ScriptMenuResponse(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
 void __cdecl Script_SetUIVisibilityBit(int localClientNum, UiContext *dc, itemDef_s *item, const char **args);
 bool __cdecl Item_IsOutcomeAccepted(bool outcome, bool fireOnTrue);
@@ -1354,3 +1364,5 @@ void __cdecl UI_SetLoadingScreenMaterial();
 
 
 extern sharedUiInfo_t sharedUiInfo;
+
+extern int g_editingField;

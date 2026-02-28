@@ -20,6 +20,20 @@
 #include <universal/com_stringtable.h>
 #include <qcommon/com_clients.h>
 #include <client_mp/cl_cgame_mp.h>
+#include <client/cl_keys.h>
+#include <ui_mp/ui_feeders_mp.h>
+#include <win32/win_gamerprofile.h>
+#include <win32/win_gamepad.h>
+#include <cgame_mp/cg_consolecmds_mp.h>
+#include <cgame_mp/cg_newDraw_mp.h>
+#include <cgame/cg_hudelem.h>
+#include <gfx_d3d/r_ui3d.h>
+#include "ui_atoms.h"
+#include <client/cl_console.h>
+#include <iterator>
+#include <client_mp/cl_input_mp.h>
+#include <sound/snd_public_async.h>
+#include <cgame/cg_sound.h>
 
 cmd_function_s UI_SetLocalVarBool_f_VAR;
 cmd_function_s UI_SetLocalVarInt_f_VAR;
@@ -52,6 +66,25 @@ cmd_function_s UI_ValidatePrivateMatchGametype_f_VAR;
 cmd_function_s UI_SetActiveMenu_f_VAR;
 
 sharedUiInfo_t sharedUiInfo;
+
+scrollInfo_s scrollInfo;
+
+int g_editingField;
+itemDef_s *g_editItem;
+rectDef_s rect;
+
+void(__cdecl *captureFunc)(int, UiContext *, void *);
+void *captureData;
+itemDef_s *itemCapture;
+itemDef_s *g_bindItem;
+
+int mouseLocationX = 2147483647;
+int mouseLocationY = 2147483647;
+int mouseTimeUntilReadyToMove;
+int lastListBoxClickTime;
+int g_waitingForKey;
+int inHandleKey;
+int g_debugMode;
 
 struct commandDef_t // sizeof=0x8
 {                                       // XREF: .rdata:commandList/r
@@ -1735,7 +1768,7 @@ void __cdecl Script_CloseForGameType(int localClientNum, UiContext *dc, itemDef_
     }
 }
 
-void __cdecl Script_ActivateBlur(int localClientNum, UiContext *dc, itemDef_s *item)
+void __cdecl Script_ActivateBlur(int localClientNum, UiContext *dc, itemDef_s *item, const char **args)
 {
     const char *menuName; // [esp+20h] [ebp-4h]
 
@@ -1818,7 +1851,7 @@ char __cdecl RemoveMenuFromBlurStack(int localClientNum, UiContext *dc, const ch
     }
 }
 
-void __cdecl Script_DeactivateBlur(int localClientNum, UiContext *dc, itemDef_s *item)
+void __cdecl Script_DeactivateBlur(int localClientNum, UiContext *dc, itemDef_s *item, const char **args)
 {
     if ( !CL_AnyLocalClientStateActive() )
         RemoveMenuFromBlurStack(localClientNum, dc, item->parent->window.name);
@@ -2389,7 +2422,7 @@ void __cdecl Script_ExecDvar(int localClientNum, UiContext *dc, itemDef_s *item,
     }
 }
 
-void __cdecl Script_ExecOnDvarStringValue(int localClientNum, UiContext *dc, itemDef_s *item, char **args)
+void __cdecl Script_ExecOnDvarStringValue(int localClientNum, UiContext *dc, itemDef_s *item, const char **args)
 {
     Script_ConditionalExecHandler(localClientNum, dc, item, args, Script_ExecIfStringsEqual, Script_AddTextWrapper);
 }
@@ -2441,7 +2474,7 @@ bool __cdecl Script_ExecIfStringsEqual(const char *dvarValue, const char *testVa
     return I_stricmp(dvarValue, testValue) == 0;
 }
 
-void __cdecl Script_ExecOnDvarIntValue(int localClientNum, UiContext *dc, itemDef_s *item, char **args)
+void __cdecl Script_ExecOnDvarIntValue(int localClientNum, UiContext *dc, itemDef_s *item, const char **args)
 {
     Script_ConditionalExecHandler(localClientNum, dc, item, args, Script_ExecIfIntsEqual, Script_AddTextWrapper);
 }
@@ -2454,7 +2487,7 @@ bool __cdecl Script_ExecIfIntsEqual(const char *dvarValue, const char *testValue
     return v2 == atoi(testValue);
 }
 
-void __cdecl Script_ExecOnDvarFloatValue(int localClientNum, UiContext *dc, itemDef_s *item, char **args)
+void __cdecl Script_ExecOnDvarFloatValue(int localClientNum, UiContext *dc, itemDef_s *item, const char **args)
 {
     Script_ConditionalExecHandler(localClientNum, dc, item, args, Script_ExecIfFloatsEqual, Script_AddTextWrapper);
 }
@@ -2469,7 +2502,7 @@ bool __cdecl Script_ExecIfFloatsEqual(const char *dvarValue, const char *testVal
     return fabs(v4) < 0.0000099999997;
 }
 
-void __cdecl Script_ExecNowOnDvarStringValue(int localClientNum, UiContext *dc, itemDef_s *item, char **args)
+void __cdecl Script_ExecNowOnDvarStringValue(int localClientNum, UiContext *dc, itemDef_s *item, const char **args)
 {
     Script_ConditionalExecHandler(
         localClientNum,
@@ -2480,7 +2513,7 @@ void __cdecl Script_ExecNowOnDvarStringValue(int localClientNum, UiContext *dc, 
         (void (__cdecl *)(int, int, itemDef_s *, const char *))Cbuf_ExecuteBufferUI);
 }
 
-void __cdecl Script_ExecNowOnDvarIntValue(int localClientNum, UiContext *dc, itemDef_s *item, char **args)
+void __cdecl Script_ExecNowOnDvarIntValue(int localClientNum, UiContext *dc, itemDef_s *item, const char **args)
 {
     Script_ConditionalExecHandler(
         localClientNum,
@@ -2491,7 +2524,7 @@ void __cdecl Script_ExecNowOnDvarIntValue(int localClientNum, UiContext *dc, ite
         (void (__cdecl *)(int, int, itemDef_s *, const char *))Cbuf_ExecuteBufferUI);
 }
 
-void __cdecl Script_ExecNowOnDvarFloatValue(int localClientNum, UiContext *dc, itemDef_s *item, char **args)
+void __cdecl Script_ExecNowOnDvarFloatValue(int localClientNum, UiContext *dc, itemDef_s *item, const char **args)
 {
     Script_ConditionalExecHandler(
         localClientNum,
@@ -2634,7 +2667,7 @@ void __cdecl Script_SetLocalVarString(int localClientNum, UiContext *dc, itemDef
     }
 }
 
-void __cdecl Script_FeederTop(int localClientNum, UiContext *dc, itemDef_s *item)
+void __cdecl Script_FeederTop(int localClientNum, UiContext *dc, itemDef_s *item, const char **args)
 {
     listBoxDef_s *listPtr; // [esp+8h] [ebp-4h]
 
@@ -2654,7 +2687,7 @@ void __cdecl Script_FeederTop(int localClientNum, UiContext *dc, itemDef_s *item
     }
 }
 
-void __cdecl Script_FeederBottom(int localClientNum, UiContext *dc, itemDef_s *item)
+void __cdecl Script_FeederBottom(int localClientNum, UiContext *dc, itemDef_s *item, const char **args)
 {
     int v3; // [esp+8h] [ebp-18h]
     const char *v4; // [esp+Ch] [ebp-14h]
@@ -2673,7 +2706,7 @@ void __cdecl Script_FeederBottom(int localClientNum, UiContext *dc, itemDef_s *i
         {
             max = Item_ListBox_MaxScroll(localClientNum, dc->contextIndex, item);
             viewmax = Item_ListBox_Viewmax(localClientNum, dc->contextIndex, item);
-            v4 = UI_FeederCount(localClientNum, dc->contextIndex, listPtr->special, listPtr) - 1;
+            v4 = (const char *)UI_FeederCount(localClientNum, dc->contextIndex, listPtr->special, listPtr) - 1;
             if ( (int)v4 > 0 )
                 v3 = (int)v4;
             else
@@ -2683,7 +2716,7 @@ void __cdecl Script_FeederBottom(int localClientNum, UiContext *dc, itemDef_s *i
     }
 }
 
-void __cdecl Script_SetDvarFromLocString(int localClientNum, UiContext *dc, itemDef_s *item, char **args)
+void __cdecl Script_SetDvarFromLocString(int localClientNum, UiContext *dc, itemDef_s *item, const char **args)
 {
     const char *VariantString; // eax
     char string; // [esp+0h] [ebp-1C08h] BYREF
@@ -2733,7 +2766,7 @@ void __cdecl Script_SetDvarFromLocString(int localClientNum, UiContext *dc, item
     Com_UngetToken();
 }
 
-void __cdecl Script_Play()
+void __cdecl Script_Play(int localClientNum, UiContext *dc, itemDef_s *item, const char **args)
 {
     ;
 }
@@ -2985,8 +3018,8 @@ void __cdecl Item_RunScript(int localClientNum, UiContext *dc, itemDef_s *item, 
                 }
                 if ( !bRan )
                 {
-                    HIDWORD(v4) = s;
-                    LODWORD(v4) = &p;
+                    HIDWORD(v4) = (DWORD)s;
+                    LODWORD(v4) = (DWORD)&p;
                     UI_RunMenuScript(localClientNum, dc->contextIndex, v4);
                 }
             }
@@ -3527,8 +3560,8 @@ void __cdecl UI_MoveFeeder_f()
     int v8; // [esp+8h] [ebp-80h]
     int special; // [esp+Ch] [ebp-7Ch]
     int v10; // [esp+10h] [ebp-78h]
-    const char *v11; // [esp+24h] [ebp-64h]
-    const char *v12; // [esp+38h] [ebp-50h]
+    int v11; // [esp+24h] [ebp-64h]
+    int v12; // [esp+38h] [ebp-50h]
     const char *max; // [esp+68h] [ebp-20h]
     itemDef_s *feederItem; // [esp+6Ch] [ebp-1Ch]
     listBoxDef_s *listPtr; // [esp+74h] [ebp-14h]
@@ -3790,7 +3823,7 @@ void __cdecl UI_RefreshFeederSelection_f()
     int selection; // [esp+28h] [ebp-10h]
     listBoxDef_s *listPtr; // [esp+2Ch] [ebp-Ch]
     int contextIndex; // [esp+30h] [ebp-8h]
-    const char *count; // [esp+34h] [ebp-4h]
+    int count; // [esp+34h] [ebp-4h]
 
     item = Cmd_ItemDef();
     if ( Cmd_Argc() > 1 )
@@ -3808,7 +3841,7 @@ void __cdecl UI_RefreshFeederSelection_f()
             contextIndex = Com_LocalClient_GetUIContextIndex(0);
             count = UI_FeederCount(0, contextIndex, listPtr->special, listPtr);
             selection = listPtr->cursorPos[contextIndex];
-            if ( selection < 0 || selection >= (int)count )
+            if ( selection < 0 || selection >= count )
                 selection = 0;
             UI_FeederSelection(0, contextIndex, listPtr->special, selection);
         }
@@ -3885,7 +3918,7 @@ void __cdecl UI_SetActiveMenu_f()
 
 int __cdecl Item_SetFocus(int localClientNum, UiContext *dc, itemDef_s *item, float x, float y)
 {
-    int v6; // eax
+    const char *v6; // eax
     bool v7; // [esp+8h] [ebp-48h]
     listBoxDef_s *listPtr; // [esp+10h] [ebp-40h]
     menuDef_t *serverBrowser; // [esp+14h] [ebp-3Ch]
@@ -3955,7 +3988,7 @@ int __cdecl Item_SetFocus(int localClientNum, UiContext *dc, itemDef_s *item, fl
             serverBrowser = Menu_GetFocused(dc);
             if ( serverBrowser )
             {
-                strstr((unsigned __int8 *)serverBrowser->window.name, "server_browser");
+                v6 = strstr(serverBrowser->window.name, "server_browser");
                 if ( v6 )
                     Window_RemoveDynamicFlags(dc->contextIndex, &serverBrowser->window, 2);
             }
@@ -4014,14 +4047,14 @@ textDef_s *__cdecl Item_GetTextRect(int contextIndex, const itemDef_s *item)
 const char *__cdecl Item_ListBox_MaxScroll(int localClientNum, int contextIndex, itemDef_s *item)
 {
     int v3; // esi
-    const char *v6; // [esp+10h] [ebp-8h]
+    int v6; // [esp+10h] [ebp-8h]
     listBoxDef_s *listPtr; // [esp+14h] [ebp-4h]
 
     listPtr = Item_GetListBoxDef(item);
     v3 = Item_ListBox_Viewmax(localClientNum, contextIndex, item);
-    v6 = &UI_FeederCount(localClientNum, contextIndex, listPtr->special, listPtr)[-v3];
-    if ( (int)v6 > 0 )
-        return v6;
+    v6 = UI_FeederCount(localClientNum, contextIndex, listPtr->special, listPtr) - v3;
+    if (v6 > 0)
+        return (const char *)v6;
     else
         return 0;
 }
@@ -4263,7 +4296,6 @@ void __cdecl Menus_Open(int localClientNum, UiContext *dc, menuDef_t *menu)
     int openFadingTime; // [esp+4h] [ebp-18h]
     int i; // [esp+18h] [ebp-4h]
     int ia; // [esp+18h] [ebp-4h]
-    int savedregs; // [esp+1Ch] [ebp+0h] BYREF
 
     for ( i = dc->openMenuCount - 1; i >= 0; --i )
         Menu_LoseFocusDueToOpen(localClientNum, dc, dc->menuStack[i].menu);
@@ -4308,11 +4340,11 @@ void __cdecl Menus_Open(int localClientNum, UiContext *dc, menuDef_t *menu)
             menu->openFadingTime = openSlideSpeed;
         }
     }
-    Menus_SetupOpenMenu((GenericEventHandler *)&savedregs, localClientNum, dc, menu);
+    Menus_SetupOpenMenu(localClientNum, dc, menu);
     if ( dc->openMenuCount > 0 && dc->Menus[2 * dc->openMenuCount + 599] != menu )
     {
         Menu_LoseFocusDueToOpen(localClientNum, dc, menu);
-        Menus_SetupOpenMenu((GenericEventHandler *)&savedregs, localClientNum, dc, dc->Menus[2 * dc->openMenuCount + 599]);
+        Menus_SetupOpenMenu(localClientNum, dc, dc->Menus[2 * dc->openMenuCount + 599]);
     }
 }
 
@@ -4323,7 +4355,7 @@ void __cdecl Menus_AddToStack(int localClientNum, UiContext *dc, menuDef_t *pMen
 
     Menus_RemoveFromStack(localClientNum, dc, pMenu);
     if ( dc->openMenuCount == 16 )
-        Com_Error(ERR_DROP, &byte_CFCAE0);
+        Com_Error(ERR_DROP, "Too many menus opened");
     for ( i = ++dc->openMenuCount - 2; i >= -1; --i )
     {
         if ( i == -1 || dc->menuStack[i].menu && dc->menuStack[i].menu->priority >= pMenu->priority )
@@ -4404,14 +4436,14 @@ int __cdecl Menus_OpenImmediateByName(int localClientNum, UiContext *dc, const c
     }
 }
 
-void    Menus_SetupOpenMenu(GenericEventHandler *a1@<ebp>, int localClientNum, UiContext *dc, menuDef_t *menu)
+void    Menus_SetupOpenMenu(int localClientNum, UiContext *dc, menuDef_t *menu)
 {
     int v4; // [esp-Ch] [ebp-11Ch] BYREF
     itemDef_s item; // [esp+0h] [ebp-110h]
     UIAnimInfo *retaddr; // [esp+110h] [ebp+0h]
 
-    item.onEvent = a1;
-    item.animInfo = retaddr;
+    //item.onEvent = a1;
+    //item.animInfo = retaddr;
     Window_AddDynamicFlags(dc->contextIndex, &menu->window, 6);
     Menu_CallOnFocusDueToOpen(localClientNum, dc, menu);
     if ( Menu_GetCursorItem(dc->contextIndex, menu) == -1 )
@@ -4568,8 +4600,8 @@ int    Menu_CheckOnKey(int localClientNum, UiContext *dc, menuDef_t *menu, int k
     void *v11; // [esp+120h] [ebp-8h]
     void *retaddr; // [esp+128h] [ebp+0h]
 
-    *((unsigned int *)&it.animInfo + 1) = a1;
-    v11 = retaddr;
+    //*((unsigned int *)&it.animInfo + 1) = a1;
+    //v11 = retaddr;
     for ( it.animInfo = (UIAnimInfo *)menu->onKey; it.animInfo; it.animInfo = (UIAnimInfo *)it.animInfo->currentAnimState.name )
     {
         if ( it.animInfo->animStateCount == -1 || it.animInfo->animStateCount == key )
@@ -4605,7 +4637,7 @@ LABEL_22:
     return 0;
 }
 
-void    Menu_HandleKey(int a1@<ebp>, int localClientNum, UiContext *dc, menuDef_t *menu, int key, int down)
+void    Menu_HandleKey(int localClientNum, UiContext *dc, menuDef_t *menu, int key, int down)
 {
     int ControllerIndex; // eax
     const rectDef_s *v7; // eax
@@ -4634,8 +4666,8 @@ void    Menu_HandleKey(int a1@<ebp>, int localClientNum, UiContext *dc, menuDef_
     itemDef_s *item; // [esp+164h] [ebp-8h]
     itemDef_s *retaddr; // [esp+16Ch] [ebp+0h]
 
-    inHandler = a1;
-    item = retaddr;
+    //inHandler = a1;
+    //item = retaddr;
     binding = 0;
     v27 = 0;
     i = 0;
@@ -4698,7 +4730,7 @@ LABEL_15:
                     }
                     else if ( down )
                     {
-                        if ( (key <= 0 || key > 255 || !Menu_CheckOnKey((int)&inHandler, localClientNum, dc, menu, key))
+                        if ( (key <= 0 || key > 255 || !Menu_CheckOnKey(localClientNum, dc, menu, key))
                             && (key != 205 && key != 206 || v27 && v27->type == 4) )
                         {
                             v22 = key - 1;
@@ -4774,7 +4806,7 @@ LABEL_15:
                                                 {
                                                     if ( v27->type != 4 )
                                                         goto LABEL_109;
-                                                    LODWORD(tmpRect.h) = Item_GetListBoxDef(v27);
+                                                    LODWORD(tmpRect.h) = (DWORD)Item_GetListBoxDef(v27);
                                                     if ( !LODWORD(tmpRect.h)
                                                         && !Assert_MyHandler(
                                                                     "C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_shared.cpp",
@@ -4915,7 +4947,7 @@ int __cdecl Item_ListBox_HandleKey(int localClientNum, UiContext *dc, itemDef_s 
     int result; // eax
     menuDef_t *v7; // eax
     menuDef_t *Focused; // eax
-    const char *v9; // eax
+    int v9; // eax
     int special; // [esp+8h] [ebp-B8h]
     int v11; // [esp+Ch] [ebp-B4h]
     int v12; // [esp+10h] [ebp-B0h]
@@ -5179,11 +5211,11 @@ LABEL_147:
         {
             case 165:
             case 182:
-                Script_FeederTop(localClientNum, dc, item);
+                Script_FeederTop(localClientNum, dc, item, NULL);
                 return 1;
             case 166:
             case 188:
-                Script_FeederBottom(localClientNum, dc, item);
+                Script_FeederBottom(localClientNum, dc, item, NULL);
                 return 1;
             case 164:
             case 184:
@@ -6340,7 +6372,7 @@ void __cdecl Scroll_Slider_SetThumbPos(UiContext *dc, itemDef_s *item)
         scrPlace = &scrPlaceView[dc->contextIndex];
         cursorx = ScrPlace_ApplyX(scrPlace, dc->cursor.x, 4);
         usableStart = (float)(x + 5.0) + 1.0;
-        usableWidth = FLOAT_88_0;
+        usableWidth = 88.0f;
         yIgnored = 0.0f;
         hIgnored = 0.0f;
         ScrPlace_ApplyRect(scrPlace, &usableStart, &yIgnored, &usableWidth, &hIgnored, rect->horzAlign, rect->vertAlign);
@@ -6605,9 +6637,9 @@ char __cdecl Menu_ItemsAreAnimating(int localClientNum, UiContext *dc, menuDef_t
 void __cdecl Item_TextColor(UiContext *dc, itemDef_s *item, float (*newColor)[4])
 {
     UILocalVarContext *LocalVarsContext; // eax
-    double v4; // xmm0_8
+    float v4; // xmm0_4
     float *disableColor; // edx
-    long double v6; // [esp+1Ch] [ebp-24h]
+    UILocalVarContext *var; // [esp+20h] [ebp-20h]
     float lowLight[4]; // [esp+24h] [ebp-1Ch] BYREF
     menuDef_t *parent; // [esp+34h] [ebp-Ch]
     textDef_s *textDefPtr; // [esp+38h] [ebp-8h]
@@ -6616,7 +6648,7 @@ void __cdecl Item_TextColor(UiContext *dc, itemDef_s *item, float (*newColor)[4]
     parent = item->parent;
     textDefPtr = Item_GetTextDef(item);
     LocalVarsContext = UI_UIContext_GetLocalVarsContext(dc->contextIndex);
-    HIDWORD(v6) = UILocalVar_Find(LocalVarsContext, "ui_choicegroup");
+    var = UILocalVar_Find(LocalVarsContext, "ui_choicegroup");
     flags = Window_GetDynamicFlags(dc->contextIndex, &item->window);
     Fade(
         &flags,
@@ -6629,11 +6661,11 @@ void __cdecl Item_TextColor(UiContext *dc, itemDef_s *item, float (*newColor)[4]
         parent->fadeInAmount,
         dc);
     Window_SetDynamicFlags(dc->contextIndex, &item->window, flags);
-    if ( Window_HasFocus(dc->contextIndex, &item->window) )
+    if (Window_HasFocus(dc->contextIndex, &item->window))
     {
-        if ( !HIDWORD(v6)
-            || I_strcmp(*(const char **)(HIDWORD(v6) + 8), "popmenu")
-            || ((unsigned int)&cls.rankedServers[711].game[35] & item->parent->window.staticFlags) != 0 )
+        if (!var
+            || I_strcmp(var->table[0].u.string, "popmenu")
+            || ((unsigned int)&cls.rankedServers[711].game[35] & item->parent->window.staticFlags) != 0)
         {
             (*newColor)[0] = item->window.foreColor[0];
             (*newColor)[1] = item->window.foreColor[1];
@@ -6648,7 +6680,7 @@ void __cdecl Item_TextColor(UiContext *dc, itemDef_s *item, float (*newColor)[4]
             (*newColor)[3] = item->window.foreColor[3];
         }
     }
-    else if ( textDefPtr->textStyle != 1 || ((dc->realTime / 256) & 1) != 0 )
+    else if (textDefPtr->textStyle != 1 || ((dc->realTime / 256) & 1) != 0)
     {
         (*newColor)[0] = item->window.foreColor[0];
         (*newColor)[1] = item->window.foreColor[1];
@@ -6661,18 +6693,17 @@ void __cdecl Item_TextColor(UiContext *dc, itemDef_s *item, float (*newColor)[4]
         lowLight[1] = 0.80000001 * item->window.foreColor[1];
         lowLight[2] = 0.80000001 * item->window.foreColor[2];
         lowLight[3] = 0.80000001 * item->window.foreColor[3];
-        *(float *)&v6 = (float)(dc->realTime / 75);
-        v4 = *(float *)&v6;
-        __libm_sse2_sin(v6);
-        *(float *)&v4 = v4;
-        LerpColor(item->window.foreColor, lowLight, (float *)newColor, (float)(*(float *)&v4 * 0.5) + 0.5);
+        
+        //v4 = __libm_sse2_sin((float)(dc->realTime / 75));
+        v4 = sin((float)(dc->realTime / 75));
+        LerpColor(item->window.foreColor, lowLight, (float *)newColor, (float)(v4 * 0.5) + 0.5);
     }
-    if ( item->enableDvar
+    if (item->enableDvar
         && *item->enableDvar
         && item->dvarTest
         && *item->dvarTest
         && (item->dvarFlags & 3) != 0
-        && !Item_EnableShowViaDvar(item, 1) )
+        && !Item_EnableShowViaDvar(item, 1))
     {
         disableColor = parent->disableColor;
         (*newColor)[0] = parent->disableColor[0];
@@ -7826,14 +7857,14 @@ bool __cdecl IsVisible(char flags)
     return (flags & 4) != 0 && (flags & 0x10) == 0;
 }
 
-char    Menu_IsVisible@<al>(GenericEventHandler *a1@<ebp>, int localClientNum, UiContext *dc, menuDef_t *menu)
+char    Menu_IsVisible(int localClientNum, UiContext *dc, menuDef_t *menu)
 {
     int v5; // [esp-Ch] [ebp-11Ch] BYREF
     itemDef_s dummyDef; // [esp+0h] [ebp-110h]
     UIAnimInfo *retaddr; // [esp+110h] [ebp+0h]
 
-    dummyDef.onEvent = a1;
-    dummyDef.animInfo = retaddr;
+    //dummyDef.onEvent = a1;
+    //dummyDef.animInfo = retaddr;
     if ( !Window_IsVisible(dc->contextIndex, &menu->window) )
         return 0;
     if ( menu->window.ownerDrawFlags && !UI_OwnerDrawVisible(menu->window.ownerDrawFlags) )
@@ -7861,13 +7892,17 @@ LABEL_18:
         return 0;
     }
     dummyDef.enableDvar = (const char *)menu;
-    if ( (dword_98DADA8[2 * localClientNum] & menu->showBits) != LODWORD(menu->showBits)
-        || (dword_98DADAC[2 * localClientNum] & HIDWORD(menu->showBits)) != HIDWORD(menu->showBits)
-        || (dword_98DADA8[2 * localClientNum] | LODWORD(menu->hideBits)) != LODWORD(menu->hideBits)
-        || (dword_98DADAC[2 * localClientNum] | HIDWORD(menu->hideBits)) != HIDWORD(menu->hideBits) )
+
+    if (__PAIR64__(
+        HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) & HIDWORD(menu->showBits),
+        sharedUiInfo.visibilityBits[localClientNum] & LODWORD(menu->showBits)) != menu->showBits
+        || __PAIR64__(
+            HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | HIDWORD(menu->hideBits),
+            LODWORD(sharedUiInfo.visibilityBits[localClientNum]) | LODWORD(menu->hideBits)) != menu->hideBits)
     {
         return 0;
     }
+
     if ( !menu->visibleExp.filename || IsExpressionTrue(localClientNum, (itemDef_s *)&v5, &menu->visibleExp) )
         return 1;
     if ( uiscript_debug && uiscript_debug->current.integer )
@@ -7882,128 +7917,130 @@ LABEL_18:
 
 void __cdecl Menu_PerformTransitionEffects(int localClientNum, UiContext *dc, menuDef_t *menu)
 {
-    float v3; // xmm0_4
-    double v4; // xmm0_8
-    float v5; // xmm0_4
-    long double v6; // [esp-20h] [ebp-3Ch]
-    long double v7; // [esp-20h] [ebp-3Ch]
-    long double v8; // [esp-20h] [ebp-3Ch]
-    long double v9; // [esp-20h] [ebp-3Ch]
-    int v10; // [esp-14h] [ebp-30h]
-    signed int v11; // [esp-Ch] [ebp-28h]
-    signed int v12; // [esp-Ch] [ebp-28h]
+    double v3; // xmm0_8
+    float v4; // xmm0_4
+    double v5; // xmm0_8
+    float v6; // xmm0_4
+    int v7; // [esp-20h] [ebp-3Ch]
+    int v8; // [esp-14h] [ebp-30h]
+    signed int v9; // [esp-Ch] [ebp-28h]
+    signed int v10; // [esp-Ch] [ebp-28h]
     float openFadingTime; // [esp-8h] [ebp-24h]
-    float v14; // [esp-8h] [ebp-24h]
+    float v12; // [esp-8h] [ebp-24h]
     float openSlideSpeed; // [esp-4h] [ebp-20h]
-    float v16; // [esp-4h] [ebp-20h]
+    float v14; // [esp-4h] [ebp-20h]
     int timeElapsed; // [esp+0h] [ebp-1Ch]
     float fadeTime; // [esp+4h] [ebp-18h]
-    int direction; // [esp+Ch] [ebp-10h]
+    unsigned __int8 direction[4]; // [esp+Ch] [ebp-10h]
 
-    direction = 0;
+    direction[3] = 0;
+    direction[2] = 0;
+    direction[1] = 0;
+    direction[0] = 0;
     timeElapsed = -1;
     openSlideSpeed = 0.0f;
     openFadingTime = 0.0f;
-    if ( (Window_GetDynamicFlags(dc->contextIndex, &menu->window) & 0x20000) != 0 )
+    if ((Window_GetDynamicFlags(dc->contextIndex, &menu->window) & 0x20000) != 0)
     {
-        HIBYTE(direction) = 1;
+        direction[3] = 1;
         timeElapsed = menu->openSlideDirection;
         openSlideSpeed = (float)menu->openSlideSpeed;
         Window_RemoveDynamicFlags(dc->contextIndex, &menu->window, 0x40000);
     }
-    if ( (Window_GetDynamicFlags(dc->contextIndex, &menu->window) & 0x40000) != 0 )
+    if ((Window_GetDynamicFlags(dc->contextIndex, &menu->window) & 0x40000) != 0)
     {
-        BYTE2(direction) = 1;
+        direction[2] = 1;
         timeElapsed = menu->closeSlideDirection;
         openSlideSpeed = (float)menu->closeSlideSpeed;
         Window_RemoveDynamicFlags(dc->contextIndex, &menu->window, 0x20000);
     }
-    if ( (Window_GetDynamicFlags(dc->contextIndex, &menu->window) & 0x80000) != 0 )
+    if ((Window_GetDynamicFlags(dc->contextIndex, &menu->window) & 0x80000) != 0)
     {
-        BYTE1(direction) = 1;
+        direction[1] = 1;
         openFadingTime = (float)menu->openFadingTime;
         Window_RemoveDynamicFlags(dc->contextIndex, &menu->window, 0x2000);
     }
-    if ( (Window_GetDynamicFlags(dc->contextIndex, &menu->window) & 0x2000) != 0 )
+    if ((Window_GetDynamicFlags(dc->contextIndex, &menu->window) & 0x2000) != 0)
     {
-        LOBYTE(direction) = 1;
+        direction[0] = 1;
         openFadingTime = (float)menu->closeFadingTime;
         Window_RemoveDynamicFlags(dc->contextIndex, &menu->window, 0x80000);
     }
-    if ( HIWORD(direction) )
+    if (direction[3] || direction[2])
     {
-        v11 = Sys_Milliseconds() - menu->slideTimeCounter;
-        v16 = (float)(1.0 / ui_animSpeedScale->current.value) * openSlideSpeed;
-        if ( (int)v16 < v11 )
-            v10 = (int)v16;
+        v9 = Sys_Milliseconds() - menu->slideTimeCounter;
+        v14 = (float)(1.0 / ui_animSpeedScale->current.value) * openSlideSpeed;
+        if ((int)v14 < v9)
+            v8 = (int)v14;
         else
-            v10 = v11;
-        __libm_sse2_sin(v6);
-        __libm_sse2_sin(v7);
-        v3 = (double)v10 * (1.5707 / v16) * 1.5707;
-        if ( cls.vidConfig.aspectRatioWindow == 0.0 )
+            v8 = v9;
+        //v3 = __libm_sse2_sin((double)v8 * (1.5707 / v14));
+        v3 = sin((double)v8 * (1.5707 / v14));
+        //v4 = __libm_sse2_sin(v3 * 1.5707);
+        v4 = sin(v3 * 1.5707);
+        if (cls.vidConfig.aspectRatioWindow == 0.0)
             fadeTime = 480.0f;
         else
             fadeTime = 480.0 * cls.vidConfig.aspectRatioWindow;
-        switch ( timeElapsed )
+        switch (timeElapsed)
         {
-            case 0:
-                if ( HIBYTE(direction) )
-                {
-                    menu->window.rect.x = COERCE_FLOAT(LODWORD(menu->initialRectInfo.w) ^ _mask__NegFloat_)
-                                                            + (float)((float)(menu->initialRectInfo.w + menu->initialRectInfo.x) * v3);
-                    menu->window.rect.y = menu->initialRectInfo.y;
-                }
-                else
-                {
-                    menu->window.rect.x = (float)((float)(fadeTime - menu->initialRectInfo.x) * v3) + menu->initialRectInfo.x;
-                }
-                break;
-            case 1:
-                if ( HIBYTE(direction) )
-                {
-                    menu->window.rect.x = fadeTime - (float)((float)(fadeTime - menu->initialRectInfo.x) * v3);
-                    menu->window.rect.y = menu->initialRectInfo.y;
-                }
-                else
-                {
-                    menu->window.rect.x = menu->initialRectInfo.x - (float)((float)(menu->initialRectInfo.x + fadeTime) * v3);
-                }
-                break;
-            case 2:
-                if ( HIBYTE(direction) )
-                {
-                    menu->window.rect.y = COERCE_FLOAT(COERCE_UNSIGNED_INT(480.0 - menu->initialRectInfo.y) ^ _mask__NegFloat_)
-                                                            + (float)(480.0 * v3);
-                    menu->window.rect.x = menu->initialRectInfo.x;
-                }
-                else
-                {
-                    menu->window.rect.y = (float)((float)(480.0 - menu->initialRectInfo.y) * v3) + menu->initialRectInfo.y;
-                }
-                break;
-            case 3:
-                if ( HIBYTE(direction) )
-                {
-                    menu->window.rect.y = 480.0 - (float)((float)(480.0 - menu->initialRectInfo.y) * v3);
-                    menu->window.rect.x = menu->initialRectInfo.x;
-                }
-                else
-                {
-                    menu->window.rect.y = menu->initialRectInfo.y
-                                                            - (float)((float)(menu->initialRectInfo.y + menu->window.rect.h) * v3);
-                }
-                break;
-            default:
-                Com_Printf(13, "Invalid value for openSlideDirection.");
-                break;
+        case 0:
+            if (direction[3])
+            {
+                menu->window.rect.x = (-(menu->initialRectInfo.w))
+                    + (float)((float)(menu->initialRectInfo.w + menu->initialRectInfo.x) * v4);
+                menu->window.rect.y = menu->initialRectInfo.y;
+            }
+            else
+            {
+                menu->window.rect.x = (float)((float)(fadeTime - menu->initialRectInfo.x) * v4) + menu->initialRectInfo.x;
+            }
+            break;
+        case 1:
+            if (direction[3])
+            {
+                menu->window.rect.x = fadeTime - (float)((float)(fadeTime - menu->initialRectInfo.x) * v4);
+                menu->window.rect.y = menu->initialRectInfo.y;
+            }
+            else
+            {
+                menu->window.rect.x = menu->initialRectInfo.x - (float)((float)(menu->initialRectInfo.x + fadeTime) * v4);
+            }
+            break;
+        case 2:
+            if (direction[3])
+            {
+                menu->window.rect.y = (-(480.0 - menu->initialRectInfo.y))
+                    + (float)(480.0 * v4);
+                menu->window.rect.x = menu->initialRectInfo.x;
+            }
+            else
+            {
+                menu->window.rect.y = (float)((float)(480.0 - menu->initialRectInfo.y) * v4) + menu->initialRectInfo.y;
+            }
+            break;
+        case 3:
+            if (direction[3])
+            {
+                menu->window.rect.y = 480.0 - (float)((float)(480.0 - menu->initialRectInfo.y) * v4);
+                menu->window.rect.x = menu->initialRectInfo.x;
+            }
+            else
+            {
+                menu->window.rect.y = menu->initialRectInfo.y
+                    - (float)((float)(menu->initialRectInfo.y + menu->window.rect.h) * v4);
+            }
+            break;
+        default:
+            Com_Printf(13, "Invalid value for openSlideDirection.");
+            break;
         }
-        if ( (float)v11 >= v16 )
+        if ((float)v9 >= v14)
         {
-            if ( HIBYTE(direction) )
+            if (direction[3])
             {
                 Window_RemoveDynamicFlags(dc->contextIndex, &menu->window, 0x20000);
-                if ( dc->Menus[2 * dc->openMenuCount + 599] == menu )
+                if (dc->Menus[2 * dc->openMenuCount + 599] == menu)
                     Menu_CallOnFocusDueToOpen(localClientNum, dc, menu);
                 menu->slideTimeCounter = -1;
             }
@@ -8014,34 +8051,33 @@ void __cdecl Menu_PerformTransitionEffects(int localClientNum, UiContext *dc, me
             }
         }
     }
-    if ( (_WORD)direction )
+    if (direction[1] || direction[0])
     {
-        v12 = Sys_Milliseconds() - menu->fadeTimeCounter;
-        v14 = (float)(1.0 / ui_animSpeedScale->current.value) * openFadingTime;
-        LODWORD(v8) = (int)v14 < v12 ? (int)v14 : v12;
-        v4 = (double)SLODWORD(v8) * (1.5707 / v14);
-        HIDWORD(v8) = (int)v14;
-        __libm_sse2_sin(v8);
-        __libm_sse2_sin(v9);
-        v5 = v4 * 1.5707;
-        if ( BYTE1(direction) )
+        v10 = Sys_Milliseconds() - menu->fadeTimeCounter;
+        v12 = (float)(1.0 / ui_animSpeedScale->current.value) * openFadingTime;
+        v7 = (int)v12 < v10 ? (int)v12 : v10;
+        //v5 = __libm_sse2_sin((double)v7 * (1.5707 / v12));
+        v5 = sin((double)v7 * (1.5707 / v12));
+        //v6 = __libm_sse2_sin(v5 * 1.5707);
+        v6 = sin(v5 * 1.5707);
+        if (direction[1])
         {
-            menu->window.foreColor[3] = v5;
-            menu->window.backColor[3] = v5;
+            menu->window.foreColor[3] = v6;
+            menu->window.backColor[3] = v6;
         }
         else
         {
-            menu->window.foreColor[3] = 1.0 - v5;
-            menu->window.backColor[3] = 1.0 - v5;
-            v5 = 1.0 - v5;
+            menu->window.foreColor[3] = 1.0 - v6;
+            menu->window.backColor[3] = 1.0 - v6;
+            v6 = 1.0 - v6;
         }
-        menu->window.borderColor[3] = v5;
-        if ( (float)v12 >= v14 )
+        menu->window.borderColor[3] = v6;
+        if ((float)v10 >= v12)
         {
-            if ( BYTE1(direction) )
+            if (direction[1])
             {
                 Window_RemoveDynamicFlags(dc->contextIndex, &menu->window, 0x80000);
-                if ( dc->Menus[2 * dc->openMenuCount + 599] == menu )
+                if (dc->Menus[2 * dc->openMenuCount + 599] == menu)
                     Menu_CallOnFocusDueToOpen(localClientNum, dc, menu);
                 menu->fadeTimeCounter = -1;
             }
@@ -8054,8 +8090,7 @@ void __cdecl Menu_PerformTransitionEffects(int localClientNum, UiContext *dc, me
     }
 }
 
-char    Menu_Paint@<al>(
-                GenericEventHandler *a1@<ebp>,
+char    Menu_Paint(
                 int localClientNum,
                 UiContext *dc,
                 ScreenPlacementStack *scrPlaceViewStack,
@@ -8070,10 +8105,8 @@ char    Menu_Paint@<al>(
     int j; // [esp+90h] [ebp-15Ch]
     int k; // [esp+90h] [ebp-15Ch]
     bool v14; // [esp+97h] [ebp-155h]
-    ScopedScrPlaceViewStack v15; // [esp+B4h] [ebp-138h] BYREF
     GfxUI3DStack *v16; // [esp+B8h] [ebp-134h]
     GfxUI3DStack *UI3DStack; // [esp+BCh] [ebp-130h]
-    ScopedScrPlaceViewStack scopedScrPlaceStack; // [esp+C0h] [ebp-12Ch]
     ScopedUI3DStack windowIdStack; // [esp+C4h] [ebp-128h]
     const ScreenPlacement *v20; // [esp+C8h] [ebp-124h]
     const ScreenPlacement *scrPlace; // [esp+CCh] [ebp-120h]
@@ -8081,8 +8114,8 @@ char    Menu_Paint@<al>(
     itemDef_s dummyDef; // [esp+DCh] [ebp-110h] BYREF
     UIAnimInfo *retaddr; // [esp+1ECh] [ebp+0h]
 
-    dummyDef.onEvent = a1;
-    dummyDef.animInfo = retaddr;
+    //dummyDef.onEvent = a1;
+    //dummyDef.animInfo = retaddr;
     dummyDef.enableDvar = (const char *)menu;
     if ( !menu && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_shared.cpp", 10478, 0, "%s", "menu") )
         __debugbreak();
@@ -8097,7 +8130,8 @@ char    Menu_Paint@<al>(
         windowIdStack.mStack = (GfxUI3DStack *)&scrPlaceView[dc->contextIndex];
     else
         windowIdStack.mStack = (GfxUI3DStack *)R_UI3D_ScrPlaceFromTextureWindow((unsigned int)v20);
-    scopedScrPlaceStack.mStack = (ScreenPlacementStack *)windowIdStack.mStack;
+    ScopedScrPlaceViewStack scopedScrPlaceStack((ScreenPlacementStack *)windowIdStack.mStack, NULL); // [esp+C0h] [ebp-12Ch]
+    //scopedScrPlaceStack.mStack = (ScreenPlacementStack *)windowIdStack.mStack;
     UI3DStack = R_GetUI3DStack();
     v16 = UI3DStack;
     R_UI3DStack_Push(UI3DStack, (int)v20);
@@ -8112,7 +8146,9 @@ char    Menu_Paint@<al>(
     {
         __debugbreak();
     }
-    ScopedScrPlaceViewStack::ScopedScrPlaceViewStack(&v15, scrPlaceViewStack, scopedScrPlaceStack.mStack->stack);
+    ScopedScrPlaceViewStack v15(scrPlaceViewStack, scopedScrPlaceStack.mStack->stack); // [esp+B4h] [ebp-138h] BYREF
+    //ScopedScrPlaceViewStack::ScopedScrPlaceViewStack(&v15, scrPlaceViewStack, scopedScrPlaceStack.mStack->stack);
+
     if ( *(_BYTE *)ui_showMenuOnly->current.integer
         && menu->window.name
         && I_stricmp(menu->window.name, ui_showMenuOnly->current.string) )
@@ -8120,12 +8156,12 @@ char    Menu_Paint@<al>(
         goto LABEL_20;
     }
     //PIXBeginNamedEvent(-1, "Menu_IsVisible");
-    if ( !Menu_IsVisible((GenericEventHandler *)&dummyDef.onEvent, localClientNum, dc, menu) )
+    if ( !Menu_IsVisible(localClientNum, dc, menu) )
     {
         //if ( GetCurrentThreadId() == g_DXDeviceThread )
             //D3DPERF_EndEvent();
 LABEL_20:
-        ScopedScrPlaceViewStack::~ScopedScrPlaceViewStack(&v15);
+        //ScopedScrPlaceViewStack::~ScopedScrPlaceViewStack(&v15);
         R_UI3DStack_Pop(v16);
         return 0;
     }
@@ -8245,7 +8281,7 @@ LABEL_20:
     }
     //if ( GetCurrentThreadId() == g_DXDeviceThread )
         //D3DPERF_EndEvent();
-    ScopedScrPlaceViewStack::~ScopedScrPlaceViewStack(&v15);
+    //ScopedScrPlaceViewStack::~ScopedScrPlaceViewStack(&v15);
     R_UI3DStack_Pop(v16);
     return 1;
 }
@@ -8261,9 +8297,9 @@ void __cdecl Window_Paint(
                 int itemType,
                 itemDef_s *item)
 {
-    double v9; // xmm0_8
-    double v10; // xmm0_8
-    long double v11; // [esp+2Ch] [ebp-D8h]
+    float v9; // xmm0_4
+    float v10; // xmm0_4
+    float *v11; // [esp+2Ch] [ebp-D8h]
     float *v12; // [esp+30h] [ebp-D4h]
     float *v13; // [esp+34h] [ebp-D0h]
     float *v14; // [esp+38h] [ebp-CCh]
@@ -8293,18 +8329,18 @@ void __cdecl Window_Paint(
     borderRect.h = fillRect.h;
     *(_QWORD *)&borderRect.horzAlign = *(_QWORD *)&fillRect.horzAlign;
     scrPlace = &scrPlaceView[dc->contextIndex];
-    if ( itemType == 4 )
+    if (itemType == 4)
     {
         listPtr = Item_GetListBoxDef(item);
-        if ( !listPtr && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_shared.cpp", 533, 0, "%s", "listPtr") )
+        if (!listPtr && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_shared.cpp", 533, 0, "%s", "listPtr"))
             __debugbreak();
-        if ( !listPtr->noScrollBars && !Item_ListBox_RequiresScroll(localClientNum, dc->contextIndex, item) )
+        if (!listPtr->noScrollBars && !Item_ListBox_RequiresScroll(localClientNum, dc->contextIndex, item))
         {
             borderRect.w = borderRect.w - 14.0;
             fillRect.w = fillRect.w - 14.0;
         }
     }
-    if ( g_debugMode )
+    if (g_debugMode)
         UI_DrawRect(
             scrPlace,
             borderRect.x,
@@ -8315,9 +8351,9 @@ void __cdecl Window_Paint(
             origRect->vertAlign,
             1.0,
             colorWhite);
-    if ( w && (w->style || w->border) )
+    if (w && (w->style || w->border))
     {
-        if ( w->border && w->borderSize > 0.0 )
+        if (w->border && w->borderSize > 0.0)
         {
             fillRect.x = fillRect.x + w->borderSize;
             fillRect.y = fillRect.y + w->borderSize;
@@ -8325,43 +8361,18 @@ void __cdecl Window_Paint(
             fillRect.h = fillRect.h - (float)(w->borderSize + 1.0);
         }
         style = w->style;
-        if ( style == 12 )
+        if (style == 12)
             style = 3;
-        switch ( style )
+        switch (style)
         {
-            case 1u:
-                if ( w->background )
-                {
-                    flags = Window_GetDynamicFlags(dc->contextIndex, w);
-                    Fade(&flags, &w->backColor[3], fadeClamp, &w->nextTime, (int)fadeCycle, 1, fadeAmount, fadeInAmount, dc);
-                    Window_SetDynamicFlags(dc->contextIndex, w, flags);
-                    if ( w->rotation == 0.0 )
-                        UI_DrawHandlePic(
-                            scrPlace,
-                            fillRect.x,
-                            fillRect.y,
-                            fillRect.w,
-                            fillRect.h,
-                            origRect->horzAlign,
-                            origRect->vertAlign,
-                            w->backColor,
-                            w->background);
-                    else
-                        UI_DrawHandlePicRotated(
-                            scrPlace,
-                            fillRect.x,
-                            fillRect.y,
-                            fillRect.w,
-                            fillRect.h,
-                            origRect->horzAlign,
-                            origRect->vertAlign,
-                            w->backColor,
-                            w->rotation,
-                            w->background);
-                }
-                else if ( w->rotation == 0.0 )
-                {
-                    UI_FillRect(
+        case 1u:
+            if (w->background)
+            {
+                flags = Window_GetDynamicFlags(dc->contextIndex, w);
+                Fade(&flags, &w->backColor[3], fadeClamp, &w->nextTime, (int)fadeCycle, 1, fadeAmount, fadeInAmount, dc);
+                Window_SetDynamicFlags(dc->contextIndex, w, flags);
+                if (w->rotation == 0.0)
+                    UI_DrawHandlePic(
                         scrPlace,
                         fillRect.x,
                         fillRect.y,
@@ -8369,10 +8380,9 @@ void __cdecl Window_Paint(
                         fillRect.h,
                         origRect->horzAlign,
                         origRect->vertAlign,
-                        w->backColor);
-                }
+                        w->backColor,
+                        w->background);
                 else
-                {
                     UI_DrawHandlePicRotated(
                         scrPlace,
                         fillRect.x,
@@ -8383,120 +8393,11 @@ void __cdecl Window_Paint(
                         origRect->vertAlign,
                         w->backColor,
                         w->rotation,
-                        sharedUiInfo.assets.whiteMaterial);
-                }
-                break;
-            case 2u:
-                //BLOPS_NULLSUB();
-                break;
-            case 3u:
-                if ( (Window_GetDynamicFlags(dc->contextIndex, &item->parent->window) & 0x2000) != 0 )
-                {
-                    foreColor = w->foreColor;
-                }
-                else
-                {
-                    if ( (Window_GetDynamicFlags(dc->contextIndex, w) & 0x10000) != 0 )
-                        v17 = w->foreColor;
-                    else
-                        v17 = 0;
-                    foreColor = v17;
-                }
-                if ( itemType == 17 )
-                {
-                    oldColor[0] = *foreColor;
-                    oldColor[1] = foreColor[1];
-                    oldColor[2] = foreColor[2];
-                    oldColor[3] = foreColor[3];
-                    lowLight[0] = 0.80000001 * oldColor[0];
-                    lowLight[1] = 0.80000001 * oldColor[1];
-                    lowLight[2] = 0.80000001 * oldColor[2];
-                    lowLight[3] = 0.80000001 * oldColor[3];
-                    v9 = (float)(dc->realTime / 150);
-                    __libm_sse2_sin(v11);
-                    *(float *)&v9 = v9;
-                    LerpColor(oldColor, lowLight, newColor, (float)(*(float *)&v9 * 0.5) + 0.5);
-                    if ( w->rotation == 0.0 )
-                        UI_DrawHandlePic(
-                            scrPlace,
-                            fillRect.x,
-                            fillRect.y,
-                            fillRect.w,
-                            fillRect.h,
-                            origRect->horzAlign,
-                            origRect->vertAlign,
-                            newColor,
-                            w->background);
-                    else
-                        UI_DrawHandlePicRotated(
-                            scrPlace,
-                            fillRect.x,
-                            fillRect.y,
-                            fillRect.w,
-                            fillRect.h,
-                            origRect->horzAlign,
-                            origRect->vertAlign,
-                            newColor,
-                            w->rotation,
-                            w->background);
-                }
-                else
-                {
-                    if ( w->rotation != 0.0 )
-                        goto LABEL_42;
-                    UI_DrawHandlePic(
-                        scrPlace,
-                        fillRect.x,
-                        fillRect.y,
-                        fillRect.w,
-                        fillRect.h,
-                        origRect->horzAlign,
-                        origRect->vertAlign,
-                        foreColor,
                         w->background);
-                }
-                break;
-            case 5u:
-                if ( w->background )
-                {
-                    if ( (Window_GetDynamicFlags(dc->contextIndex, w) & 0x10000) != 0 )
-                        v14 = w->foreColor;
-                    else
-                        v14 = 0;
-                    foreColor = v14;
-                    if ( w->rotation == 0.0 )
-                        UI_DrawHandlePic(
-                            scrPlace,
-                            fillRect.x,
-                            fillRect.y,
-                            fillRect.w,
-                            fillRect.h,
-                            origRect->horzAlign,
-                            origRect->vertAlign,
-                            foreColor,
-                            w->background);
-                    else
-LABEL_42:
-                        UI_DrawHandlePicRotated(
-                            scrPlace,
-                            fillRect.x,
-                            fillRect.y,
-                            fillRect.w,
-                            fillRect.h,
-                            origRect->horzAlign,
-                            origRect->vertAlign,
-                            foreColor,
-                            w->rotation,
-                            w->background);
-                }
-                break;
-            case 6u:
-                if ( (Window_GetDynamicFlags(dc->contextIndex, w) & 0x10000) != 0 )
-                    v16 = w->foreColor;
-                else
-                    v16 = 0;
-                foreColor = v16;
-                UI_DrawLoadBar(
+            }
+            else if (w->rotation == 0.0)
+            {
+                UI_FillRect(
                     scrPlace,
                     fillRect.x,
                     fillRect.y,
@@ -8504,17 +8405,53 @@ LABEL_42:
                     fillRect.h,
                     origRect->horzAlign,
                     origRect->vertAlign,
-                    v16,
-                    w->background);
-                break;
-            case 7u:
-                if ( dword_98DADBC )
-                {
-                    if ( (Window_GetDynamicFlags(dc->contextIndex, w) & 0x10000) != 0 )
-                        v15 = w->foreColor;
-                    else
-                        v15 = 0;
-                    foreColor = v15;
+                    w->backColor);
+            }
+            else
+            {
+                UI_DrawHandlePicRotated(
+                    scrPlace,
+                    fillRect.x,
+                    fillRect.y,
+                    fillRect.w,
+                    fillRect.h,
+                    origRect->horzAlign,
+                    origRect->vertAlign,
+                    w->backColor,
+                    w->rotation,
+                    sharedUiInfo.assets.whiteMaterial);
+            }
+            break;
+        case 2u:
+            //BG_EvalVehicleName();
+            break;
+        case 3u:
+            if ((Window_GetDynamicFlags(dc->contextIndex, &item->parent->window) & 0x2000) != 0)
+            {
+                foreColor = w->foreColor;
+            }
+            else
+            {
+                if ((Window_GetDynamicFlags(dc->contextIndex, w) & 0x10000) != 0)
+                    v17 = w->foreColor;
+                else
+                    v17 = 0;
+                foreColor = v17;
+            }
+            if (itemType == 17)
+            {
+                oldColor[0] = *foreColor;
+                oldColor[1] = foreColor[1];
+                oldColor[2] = foreColor[2];
+                oldColor[3] = foreColor[3];
+                lowLight[0] = 0.80000001 * oldColor[0];
+                lowLight[1] = 0.80000001 * oldColor[1];
+                lowLight[2] = 0.80000001 * oldColor[2];
+                lowLight[3] = 0.80000001 * oldColor[3];
+                //v9 = __libm_sse2_sin((float)(dc->realTime / 150));
+                v9 = sin((float)(dc->realTime / 150));
+                LerpColor(oldColor, lowLight, newColor, (float)(v9 * 0.5) + 0.5);
+                if (w->rotation == 0.0)
                     UI_DrawHandlePic(
                         scrPlace,
                         fillRect.x,
@@ -8523,100 +8460,10 @@ LABEL_42:
                         fillRect.h,
                         origRect->horzAlign,
                         origRect->vertAlign,
-                        v15,
-                        dword_98DADBC);
-                }
-                break;
-            case 8u:
-                if ( (Window_GetDynamicFlags(dc->contextIndex, &item->parent->window) & 0x2000) != 0 )
-                {
-                    foreColor = w->foreColor;
-                }
-                else
-                {
-                    if ( (Window_GetDynamicFlags(dc->contextIndex, w) & 0x10000) != 0 )
-                        v13 = w->foreColor;
-                    else
-                        v13 = 0;
-                    foreColor = v13;
-                }
-                UI_DrawSpinner(
-                    scrPlace,
-                    fillRect.x,
-                    fillRect.y,
-                    fillRect.w,
-                    fillRect.h,
-                    origRect->horzAlign,
-                    origRect->vertAlign,
-                    foreColor);
-                break;
-            case 9u:
-                if ( (Window_GetDynamicFlags(dc->contextIndex, &item->parent->window) & 0x2000) != 0 )
-                {
-                    foreColor = w->foreColor;
-                }
-                else
-                {
-                    if ( (Window_GetDynamicFlags(dc->contextIndex, w) & 0x10000) != 0 )
-                        v12 = w->foreColor;
-                    else
-                        v12 = 0;
-                    foreColor = v12;
-                }
-                UI_DrawSpinnerLoadbar(
-                    scrPlace,
-                    fillRect.x,
-                    fillRect.y,
-                    fillRect.w,
-                    fillRect.h,
-                    origRect->horzAlign,
-                    origRect->vertAlign,
-                    foreColor);
-                break;
-            case 0xAu:
-                if ( (Window_GetDynamicFlags(dc->contextIndex, &item->parent->window) & 0x2000) != 0 )
-                {
-                    foreColor = w->foreColor;
-                }
-                else
-                {
-                    if ( (Window_GetDynamicFlags(dc->contextIndex, w) & 0x10000) != 0 )
-                        LODWORD(v11) = w->foreColor;
-                    else
-                        LODWORD(v11) = 0;
-                    foreColor = (const float *)LODWORD(v11);
-                }
-                if ( itemType == 17 )
-                {
-                    oldColor[0] = *foreColor;
-                    oldColor[1] = foreColor[1];
-                    oldColor[2] = foreColor[2];
-                    oldColor[3] = foreColor[3];
-                    lowLight[0] = 0.80000001 * oldColor[0];
-                    lowLight[1] = 0.80000001 * oldColor[1];
-                    lowLight[2] = 0.80000001 * oldColor[2];
-                    lowLight[3] = 0.80000001 * oldColor[3];
-                    v10 = (float)(dc->realTime / 150);
-                    __libm_sse2_sin(v11);
-                    *(float *)&v10 = v10;
-                    LerpColor(oldColor, lowLight, newColor, (float)(*(float *)&v10 * 0.5) + 0.5);
-                    UI_DrawHandlePicFramed(
-                        scrPlace,
-                        fillRect.x,
-                        fillRect.y,
-                        fillRect.w,
-                        fillRect.h,
-                        origRect->horzAlign,
-                        origRect->vertAlign,
-                        w->frameSize,
-                        w->frameTexSize,
-                        w->frameSides,
                         newColor,
                         w->background);
-                }
                 else
-                {
-                    UI_DrawHandlePicFramed(
+                    UI_DrawHandlePicRotated(
                         scrPlace,
                         fillRect.x,
                         fillRect.y,
@@ -8624,115 +8471,302 @@ LABEL_42:
                         fillRect.h,
                         origRect->horzAlign,
                         origRect->vertAlign,
-                        w->frameSize,
-                        w->frameTexSize,
-                        w->frameSides,
+                        newColor,
+                        w->rotation,
+                        w->background);
+            }
+            else
+            {
+                if (w->rotation != 0.0)
+                    goto LABEL_42;
+                UI_DrawHandlePic(
+                    scrPlace,
+                    fillRect.x,
+                    fillRect.y,
+                    fillRect.w,
+                    fillRect.h,
+                    origRect->horzAlign,
+                    origRect->vertAlign,
+                    foreColor,
+                    w->background);
+            }
+            break;
+        case 5u:
+            if (w->background)
+            {
+                if ((Window_GetDynamicFlags(dc->contextIndex, w) & 0x10000) != 0)
+                    v14 = w->foreColor;
+                else
+                    v14 = 0;
+                foreColor = v14;
+                if (w->rotation == 0.0)
+                    UI_DrawHandlePic(
+                        scrPlace,
+                        fillRect.x,
+                        fillRect.y,
+                        fillRect.w,
+                        fillRect.h,
+                        origRect->horzAlign,
+                        origRect->vertAlign,
                         foreColor,
                         w->background);
-                }
-                break;
-            case 0xBu:
-                if ( w->background )
-                {
-                    flags = Window_GetDynamicFlags(dc->contextIndex, w);
-                    Fade(&flags, &w->backColor[3], fadeClamp, &w->nextTime, (int)fadeCycle, 1, fadeAmount, fadeInAmount, dc);
-                    Window_SetDynamicFlags(dc->contextIndex, w, flags);
-                    UI_DrawHandlePicFramed(
-                        scrPlace,
-                        fillRect.x,
-                        fillRect.y,
-                        fillRect.w,
-                        fillRect.h,
-                        origRect->horzAlign,
-                        origRect->vertAlign,
-                        w->frameSize,
-                        w->frameTexSize,
-                        w->frameSides,
-                        w->backColor,
-                        w->background);
-                }
-                break;
-            default:
-                break;
+                else
+                    LABEL_42:
+                UI_DrawHandlePicRotated(
+                    scrPlace,
+                    fillRect.x,
+                    fillRect.y,
+                    fillRect.w,
+                    fillRect.h,
+                    origRect->horzAlign,
+                    origRect->vertAlign,
+                    foreColor,
+                    w->rotation,
+                    w->background);
+            }
+            break;
+        case 6u:
+            if ((Window_GetDynamicFlags(dc->contextIndex, w) & 0x10000) != 0)
+                v16 = w->foreColor;
+            else
+                v16 = 0;
+            foreColor = v16;
+            UI_DrawLoadBar(
+                scrPlace,
+                fillRect.x,
+                fillRect.y,
+                fillRect.w,
+                fillRect.h,
+                origRect->horzAlign,
+                origRect->vertAlign,
+                v16,
+                w->background);
+            break;
+        case 7u:
+            if (sharedUiInfo.loadingScreen)
+            {
+                if ((Window_GetDynamicFlags(dc->contextIndex, w) & 0x10000) != 0)
+                    v15 = w->foreColor;
+                else
+                    v15 = 0;
+                foreColor = v15;
+                UI_DrawHandlePic(
+                    scrPlace,
+                    fillRect.x,
+                    fillRect.y,
+                    fillRect.w,
+                    fillRect.h,
+                    origRect->horzAlign,
+                    origRect->vertAlign,
+                    v15,
+                    sharedUiInfo.loadingScreen);
+            }
+            break;
+        case 8u:
+            if ((Window_GetDynamicFlags(dc->contextIndex, &item->parent->window) & 0x2000) != 0)
+            {
+                foreColor = w->foreColor;
+            }
+            else
+            {
+                if ((Window_GetDynamicFlags(dc->contextIndex, w) & 0x10000) != 0)
+                    v13 = w->foreColor;
+                else
+                    v13 = 0;
+                foreColor = v13;
+            }
+            UI_DrawSpinner(
+                scrPlace,
+                fillRect.x,
+                fillRect.y,
+                fillRect.w,
+                fillRect.h,
+                origRect->horzAlign,
+                origRect->vertAlign,
+                foreColor);
+            break;
+        case 9u:
+            if ((Window_GetDynamicFlags(dc->contextIndex, &item->parent->window) & 0x2000) != 0)
+            {
+                foreColor = w->foreColor;
+            }
+            else
+            {
+                if ((Window_GetDynamicFlags(dc->contextIndex, w) & 0x10000) != 0)
+                    v12 = w->foreColor;
+                else
+                    v12 = 0;
+                foreColor = v12;
+            }
+            UI_DrawSpinnerLoadbar(
+                scrPlace,
+                fillRect.x,
+                fillRect.y,
+                fillRect.w,
+                fillRect.h,
+                origRect->horzAlign,
+                origRect->vertAlign,
+                foreColor);
+            break;
+        case 0xAu:
+            if ((Window_GetDynamicFlags(dc->contextIndex, &item->parent->window) & 0x2000) != 0)
+            {
+                foreColor = w->foreColor;
+            }
+            else
+            {
+                if ((Window_GetDynamicFlags(dc->contextIndex, w) & 0x10000) != 0)
+                    v11 = w->foreColor;
+                else
+                    v11 = 0;
+                foreColor = v11;
+            }
+            if (itemType == 17)
+            {
+                oldColor[0] = *foreColor;
+                oldColor[1] = foreColor[1];
+                oldColor[2] = foreColor[2];
+                oldColor[3] = foreColor[3];
+                lowLight[0] = 0.80000001 * oldColor[0];
+                lowLight[1] = 0.80000001 * oldColor[1];
+                lowLight[2] = 0.80000001 * oldColor[2];
+                lowLight[3] = 0.80000001 * oldColor[3];
+                //v10 = __libm_sse2_sin((float)(dc->realTime / 150));
+                v10 = sin((float)(dc->realTime / 150));
+                LerpColor(oldColor, lowLight, newColor, (float)(v10 * 0.5) + 0.5);
+                UI_DrawHandlePicFramed(
+                    scrPlace,
+                    fillRect.x,
+                    fillRect.y,
+                    fillRect.w,
+                    fillRect.h,
+                    origRect->horzAlign,
+                    origRect->vertAlign,
+                    w->frameSize,
+                    w->frameTexSize,
+                    w->frameSides,
+                    newColor,
+                    w->background);
+            }
+            else
+            {
+                UI_DrawHandlePicFramed(
+                    scrPlace,
+                    fillRect.x,
+                    fillRect.y,
+                    fillRect.w,
+                    fillRect.h,
+                    origRect->horzAlign,
+                    origRect->vertAlign,
+                    w->frameSize,
+                    w->frameTexSize,
+                    w->frameSides,
+                    foreColor,
+                    w->background);
+            }
+            break;
+        case 0xBu:
+            if (w->background)
+            {
+                flags = Window_GetDynamicFlags(dc->contextIndex, w);
+                Fade(&flags, &w->backColor[3], fadeClamp, &w->nextTime, (int)fadeCycle, 1, fadeAmount, fadeInAmount, dc);
+                Window_SetDynamicFlags(dc->contextIndex, w, flags);
+                UI_DrawHandlePicFramed(
+                    scrPlace,
+                    fillRect.x,
+                    fillRect.y,
+                    fillRect.w,
+                    fillRect.h,
+                    origRect->horzAlign,
+                    origRect->vertAlign,
+                    w->frameSize,
+                    w->frameTexSize,
+                    w->frameSides,
+                    w->backColor,
+                    w->background);
+            }
+            break;
+        default:
+            break;
         }
-        switch ( w->border )
+        switch (w->border)
         {
-            case 1u:
-                UI_DrawRect(
-                    scrPlace,
-                    borderRect.x,
-                    borderRect.y,
-                    borderRect.w,
-                    borderRect.h,
-                    origRect->horzAlign,
-                    origRect->vertAlign,
-                    w->borderSize,
-                    w->borderColor);
-                break;
-            case 2u:
-                UI_DrawTopBottom(
-                    scrPlace,
-                    borderRect.x,
-                    borderRect.y,
-                    borderRect.w,
-                    borderRect.h,
-                    origRect->horzAlign,
-                    origRect->vertAlign,
-                    w->borderSize,
-                    w->borderColor);
-                break;
-            case 3u:
-                UI_DrawSides(
-                    scrPlace,
-                    borderRect.x,
-                    borderRect.y,
-                    borderRect.w,
-                    borderRect.h,
-                    origRect->horzAlign,
-                    origRect->vertAlign,
-                    w->borderSize,
-                    w->borderColor);
-                break;
-            case 4u:
-                //BLOPS_NULLSUB();
-                //BLOPS_NULLSUB();
-                break;
-            case 5u:
-                value = ui_borderLowLightScale->current.value;
-                lowColor[0] = value * w->borderColor[0];
-                lowColor[1] = value * w->borderColor[1];
-                lowColor[2] = value * w->borderColor[2];
-                lowColor[3] = w->borderColor[3];
-                UI_DrawHighlightRect(
-                    scrPlace,
-                    borderRect.x,
-                    borderRect.y,
-                    borderRect.w,
-                    borderRect.h,
-                    origRect->horzAlign,
-                    origRect->vertAlign,
-                    w->borderSize,
-                    w->borderColor,
-                    lowColor);
-                break;
-            case 6u:
-                v18 = ui_borderLowLightScale->current.value;
-                lowColor[0] = v18 * w->borderColor[0];
-                lowColor[1] = v18 * w->borderColor[1];
-                lowColor[2] = v18 * w->borderColor[2];
-                lowColor[3] = w->borderColor[3];
-                UI_DrawHighlightRect(
-                    scrPlace,
-                    borderRect.x,
-                    borderRect.y,
-                    borderRect.w,
-                    borderRect.h,
-                    origRect->horzAlign,
-                    origRect->vertAlign,
-                    w->borderSize,
-                    lowColor,
-                    w->borderColor);
-                break;
+        case 1u:
+            UI_DrawRect(
+                scrPlace,
+                borderRect.x,
+                borderRect.y,
+                borderRect.w,
+                borderRect.h,
+                origRect->horzAlign,
+                origRect->vertAlign,
+                w->borderSize,
+                w->borderColor);
+            break;
+        case 2u:
+            UI_DrawTopBottom(
+                scrPlace,
+                borderRect.x,
+                borderRect.y,
+                borderRect.w,
+                borderRect.h,
+                origRect->horzAlign,
+                origRect->vertAlign,
+                w->borderSize,
+                w->borderColor);
+            break;
+        case 3u:
+            UI_DrawSides(
+                scrPlace,
+                borderRect.x,
+                borderRect.y,
+                borderRect.w,
+                borderRect.h,
+                origRect->horzAlign,
+                origRect->vertAlign,
+                w->borderSize,
+                w->borderColor);
+            break;
+        case 4u:
+            //BG_EvalVehicleName();
+            //BG_EvalVehicleName();
+            break;
+        case 5u:
+            value = ui_borderLowLightScale->current.value;
+            lowColor[0] = value * w->borderColor[0];
+            lowColor[1] = value * w->borderColor[1];
+            lowColor[2] = value * w->borderColor[2];
+            lowColor[3] = w->borderColor[3];
+            UI_DrawHighlightRect(
+                scrPlace,
+                borderRect.x,
+                borderRect.y,
+                borderRect.w,
+                borderRect.h,
+                origRect->horzAlign,
+                origRect->vertAlign,
+                w->borderSize,
+                w->borderColor,
+                lowColor);
+            break;
+        case 6u:
+            v18 = ui_borderLowLightScale->current.value;
+            lowColor[0] = v18 * w->borderColor[0];
+            lowColor[1] = v18 * w->borderColor[1];
+            lowColor[2] = v18 * w->borderColor[2];
+            lowColor[3] = w->borderColor[3];
+            UI_DrawHighlightRect(
+                scrPlace,
+                borderRect.x,
+                borderRect.y,
+                borderRect.w,
+                borderRect.h,
+                origRect->horzAlign,
+                origRect->vertAlign,
+                w->borderSize,
+                lowColor,
+                w->borderColor);
+            break;
         }
     }
 }
@@ -8762,10 +8796,10 @@ void __cdecl Item_Paint(int localClientNum, UiContext *dc, itemDef_s *item)
         {
             if ( item->forecolorAExp.filename )
                 item->window.foreColor[3] = GetExpressionFloat(localClientNum, item, &item->forecolorAExp);
-            if ( item->window.name )
-                //PIXBeginNamedEvent(-1, "Item_IsVisible %s", item->window.name);
-            else
-                //PIXBeginNamedEvent(-1, "Item_IsVisible");
+            //if ( item->window.name )
+            //    //PIXBeginNamedEvent(-1, "Item_IsVisible %s", item->window.name);
+            //else
+            //    //PIXBeginNamedEvent(-1, "Item_IsVisible");
             if ( Item_IsVisible(localClientNum, dc->contextIndex, item) )
             {
                 //if ( GetCurrentThreadId() == g_DXDeviceThread )
@@ -8885,11 +8919,13 @@ void __cdecl Item_Paint(int localClientNum, UiContext *dc, itemDef_s *item)
         }
         else if ( Window_HasFocus(dc->contextIndex, &item->window) )
         {
-            Menu_HandleKey((int)&savedregs, localClientNum, dc, parent, 155, 1);
-            Menu_HandleKey((int)&savedregs, localClientNum, dc, parent, 155, 0);
+            Menu_HandleKey(localClientNum, dc, parent, 155, 1);
+            Menu_HandleKey(localClientNum, dc, parent, 155, 0);
         }
     }
 }
+
+float MY_SUBTITLE_GLOWCOLOR[4] = { 0.0, 0.30000001, 0.0, 1.0 };
 
 void __cdecl Item_Text_Paint(int localClientNum, UiContext *dc, itemDef_s *item)
 {
@@ -9206,10 +9242,9 @@ void __cdecl Item_Text_AutoWrapped_Paint(
 void __cdecl Item_TextField_Paint(int localClientNum, UiContext *dc, itemDef_s *item)
 {
     const char *VariantString; // eax
-    double v4; // xmm0_8
-    long double v5; // [esp+24h] [ebp-464h]
+    float v4; // xmm0_4
     int maxPaintChars; // [esp+24h] [ebp-464h]
-    int v7; // [esp+28h] [ebp-460h]
+    int v6; // [esp+28h] [ebp-460h]
     char cursor; // [esp+33h] [ebp-455h]
     editFieldDef_s *editPtr; // [esp+34h] [ebp-454h]
     float lowLight[4]; // [esp+38h] [ebp-450h] BYREF
@@ -9229,16 +9264,16 @@ void __cdecl Item_TextField_Paint(int localClientNum, UiContext *dc, itemDef_s *
     parent = item->parent;
     editPtr = Item_GetEditFieldDef(item);
     textDefPtr = Item_GetTextDef(item);
-    if ( editPtr )
+    if (editPtr)
     {
         Item_Text_Paint(localClientNum, dc, item);
         buff[0] = 0;
-        if ( item->dvar )
+        if (item->dvar)
         {
-            if ( item->type == 30 )
+            if (item->type == 30)
             {
                 dvar = Dvar_FindVar(item->dvar);
-                if ( dvar && dvar->type == DVAR_TYPE_FLOAT )
+                if (dvar && dvar->type == DVAR_TYPE_FLOAT)
                     Com_LocalizedFloatToString(dvar->current.value, buff, 0x400u, 2u);
             }
             else
@@ -9249,16 +9284,15 @@ void __cdecl Item_TextField_Paint(int localClientNum, UiContext *dc, itemDef_s *
         }
         Item_SetTextExtents(dc->contextIndex, item, buff);
         parent = item->parent;
-        if ( Window_HasFocus(dc->contextIndex, &item->window) )
+        if (Window_HasFocus(dc->contextIndex, &item->window))
         {
             lowLight[0] = 0.80000001 * parent->focusColor[0];
             lowLight[1] = 0.80000001 * parent->focusColor[1];
             lowLight[2] = 0.80000001 * parent->focusColor[2];
             lowLight[3] = 0.80000001 * parent->focusColor[3];
-            v4 = (float)(dc->realTime / 75);
-            __libm_sse2_sin(v5);
-            *(float *)&v4 = v4;
-            LerpColor(parent->focusColor, lowLight, newColor, (float)(*(float *)&v4 * 0.5) + 0.5);
+            //v4 = __libm_sse2_sin((float)(dc->realTime / 75));
+            v4 = sin((float)(dc->realTime / 75));
+            LerpColor(parent->focusColor, lowLight, newColor, (float)(v4 * 0.5) + 0.5);
         }
         else
         {
@@ -9267,21 +9301,21 @@ void __cdecl Item_TextField_Paint(int localClientNum, UiContext *dc, itemDef_s *
             newColor[2] = item->window.foreColor[2];
             newColor[3] = item->window.foreColor[3];
         }
-        if ( textDefPtr->text && *textDefPtr->text )
-            v7 = 8;
+        if (textDefPtr->text && *textDefPtr->text)
+            v6 = 8;
         else
-            v7 = 0;
-        offset = v7;
+            v6 = 0;
+        offset = v6;
         textRect = (const rectDef_s *)Item_GetTextRect(dc->contextIndex, item);
         x = (float)(textRect->x + textRect->w) + (float)offset;
         text = &buff[editPtr->paintOffset];
-        if ( editPtr->maxPaintChars )
+        if (editPtr->maxPaintChars)
             maxPaintChars = editPtr->maxPaintChars;
         else
             maxPaintChars = 0x7FFFFFFF;
         maxChars = maxPaintChars;
         font = Item_GetFont(dc->contextIndex, item);
-        if ( item == g_editItem && g_editingField )
+        if (item == g_editItem && g_editingField)
         {
             cursor = Key_GetOverstrikeMode(dc->contextIndex) != 0 ? 95 : 124;
             rect = Window_GetRect(&item->window);
@@ -9440,8 +9474,8 @@ const char *__cdecl Item_DvarEnum_Setting(itemDef_s *item)
 void __cdecl Item_Slider_Paint(UiContext *dc, itemDef_s *item)
 {
     const char *VariantString; // eax
-    double v3; // xmm0_8
-    long double v4; // [esp+24h] [ebp-74h]
+    float v3; // xmm0_4
+    float v4; // [esp+24h] [ebp-74h]
     int blockNumber; // [esp+2Ch] [ebp-6Ch]
     float lowLight[4]; // [esp+30h] [ebp-68h] BYREF
     float thumbPositionX; // [esp+40h] [ebp-58h]
@@ -9458,38 +9492,36 @@ void __cdecl Item_Slider_Paint(UiContext *dc, itemDef_s *item)
     float value; // [esp+84h] [ebp-14h]
     float newColor[4]; // [esp+88h] [ebp-10h] BYREF
 
-    sliderColorFilled[0] = 0.96f;
-    sliderColorFilled[1] = 0.5f7999998;
-    sliderColorFilled[2] = 0.1f1;
-    sliderColorFilled[3] = 1.0f;
-    sliderColorEmpty[0] = 0.96f;
-    sliderColorEmpty[1] = 0.5f7999998;
-    sliderColorEmpty[2] = 0.1f1;
-    sliderColorEmpty[3] = 0.2f;
+    sliderColorFilled[0] = 0.95999998;
+    sliderColorFilled[1] = 0.57999998;
+    sliderColorFilled[2] = 0.11;
+    sliderColorFilled[3] = 1.0;
+    sliderColorEmpty[0] = 0.95999998;
+    sliderColorEmpty[1] = 0.57999998;
+    sliderColorEmpty[2] = 0.11;
+    sliderColorEmpty[3] = 0.2;
     parent = item->parent;
     textDefPtr = Item_GetTextDef(item);
     BLOCK_EPSILON = 2.0f;
-    if ( item->dvar )
+    if (item->dvar)
     {
         VariantString = Dvar_GetVariantString(item->dvar);
-        *(float *)&v4 = atof(VariantString);
+        v4 = atof(VariantString);
     }
     else
     {
-        LODWORD(v4) = 0;
+        v4 = 0.0f;
     }
-    value = *(float *)&v4;
-    if ( Window_HasFocus(dc->contextIndex, &item->window) )
+    value = v4;
+    if (Window_HasFocus(dc->contextIndex, &item->window))
     {
         lowLight[0] = 0.80000001 * parent->focusColor[0];
         lowLight[1] = 0.80000001 * parent->focusColor[1];
         lowLight[2] = 0.80000001 * parent->focusColor[2];
         lowLight[3] = 0.80000001 * parent->focusColor[3];
-        *((float *)&v4 + 1) = (float)(dc->realTime / 75);
-        v3 = *((float *)&v4 + 1);
-        __libm_sse2_sin(v4);
-        *(float *)&v3 = v3;
-        LerpColor(parent->focusColor, lowLight, newColor, (float)(*(float *)&v3 * 0.5) + 0.5);
+        //v3 = __libm_sse2_sin((float)(dc->realTime / 75));
+        v3 = sin((float)(dc->realTime / 75));
+        LerpColor(parent->focusColor, lowLight, newColor, (float)(v3 * 0.5) + 0.5);
     }
     else
     {
@@ -9503,12 +9535,12 @@ void __cdecl Item_Slider_Paint(UiContext *dc, itemDef_s *item)
     y = Item_GetRectPlacementY(textDefPtr->textAlignMode & 0xC, rect->y + textDefPtr->textaligny, rect->h, 9.0);
     scrPlace = &scrPlaceView[dc->contextIndex];
     thumbPositionX = Item_Slider_ThumbPosition(item);
-    for ( blockNumber = 0; blockNumber < 10; ++blockNumber )
+    for (blockNumber = 0; blockNumber < 10; ++blockNumber)
     {
         sliderBlockPosition = (float)(10 * blockNumber) + x;
-        if ( (float)(thumbPositionX + BLOCK_EPSILON) <= (float)(sliderBlockPosition + 10.0) )
+        if ((float)(thumbPositionX + BLOCK_EPSILON) <= (float)(sliderBlockPosition + 10.0))
         {
-            if ( sliderBlockPosition <= (float)(thumbPositionX - BLOCK_EPSILON) )
+            if (sliderBlockPosition <= (float)(thumbPositionX - BLOCK_EPSILON))
             {
                 UI_DrawHandlePic(
                     scrPlace,
@@ -10008,7 +10040,7 @@ void __cdecl Item_ListBox_PaintTextElem(
 
     textDefPtr = Item_GetTextDef(item);
     listPtr = Item_GetListBoxDef(item);
-    language = SEH_GetCurrentLanguage();
+    language = (language_t)SEH_GetCurrentLanguage();
     languageMultiplier = 1.0f;
     rect = Window_GetRect(&item->window);
     scrPlace = &scrPlaceView[contextIndex];
@@ -10131,26 +10163,26 @@ double __cdecl Item_ListBox_LanguageScale(language_t language, int feederID, int
             case 30:
             case 31:
                 if ( col == 7 )
-                    languageMultiplier = FLOAT_0_85000002;
+                    languageMultiplier = 0.85f;
                 goto $LN4_131;
             case 32:
             case 50:
             case 101:
                 if ( col == 5 )
-                    languageMultiplier = FLOAT_0_85000002;
+                    languageMultiplier = 0.85f;
                 break;
             case 67:
                 if ( !col )
-                    languageMultiplier = FLOAT_0_81999999;
+                    languageMultiplier = 0.82f;
                 break;
             case 74:
                 if ( !col )
-                    languageMultiplier = FLOAT_0_85000002;
+                    languageMultiplier = 0.85f;
                 break;
             case 83:
 $LN4_131:
                 if ( col == 4 )
-                    languageMultiplier = FLOAT_0_85000002;
+                    languageMultiplier = 0.85f;
                 break;
             default:
                 return languageMultiplier;
@@ -10209,8 +10241,8 @@ void __cdecl Item_ListBox_PaintBackground(
 // local variable allocation has failed, the output may be wrong!
 void __cdecl Item_ListBox_PaintHighlight(int localClientNum, int contextIndex, itemDef_s *item, float x, float y)
 {
-    double v5; // xmm0_8
-    _BYTE v6[20]; // [esp+20h] [ebp-50h] OVERLAPPED BYREF
+    float v5; // xmm0_4
+    float color[4]; // [esp+24h] [ebp-4Ch] BYREF
     float lowLight[4]; // [esp+34h] [ebp-3Ch] BYREF
     const ScreenPlacement *scrPlace; // [esp+44h] [ebp-2Ch]
     uiInfo_s *uiInfo; // [esp+48h] [ebp-28h]
@@ -10223,12 +10255,12 @@ void __cdecl Item_ListBox_PaintHighlight(int localClientNum, int contextIndex, i
 
     scrollbarSize = 16;
     listPtr = Item_GetListBoxDef(item);
-    if ( !listPtr && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_shared.cpp", 9348, 0, "%s", "listPtr") )
+    if (!listPtr && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_shared.cpp", 9348, 0, "%s", "listPtr"))
         __debugbreak();
     rect = Window_GetRect(&item->window);
     scrPlace = &scrPlaceView[contextIndex];
     uiInfo = UI_UIContext_GetInfo(contextIndex);
-    if ( listPtr->noBlinkingHighlight || (Window_GetDynamicFlags(contextIndex, &item->parent->window) & 0x82000) != 0 )
+    if (listPtr->noBlinkingHighlight || (Window_GetDynamicFlags(contextIndex, &item->parent->window) & 0x82000) != 0)
     {
         newColor[0] = item->window.outlineColor[0];
         newColor[1] = item->window.outlineColor[1];
@@ -10241,16 +10273,14 @@ void __cdecl Item_ListBox_PaintHighlight(int localClientNum, int contextIndex, i
         lowLight[1] = 0.80000001 * item->window.outlineColor[1];
         lowLight[2] = 0.80000001 * item->window.outlineColor[2];
         lowLight[3] = 0.80000001 * item->window.outlineColor[3];
-        *(float *)v6 = (float)(uiInfo->uiDC.realTime / 150);
-        v5 = *(float *)v6;
-        __libm_sse2_sin(*(long double *)v6);
-        *(float *)&v5 = v5;
-        LerpColor(item->window.outlineColor, lowLight, newColor, (float)(*(float *)&v5 * 0.5) + 0.5);
+        //v5 = __libm_sse2_sin((float)(uiInfo->uiDC.realTime / 150));
+        v5 = sin((float)(uiInfo->uiDC.realTime / 150));
+        LerpColor(item->window.outlineColor, lowLight, newColor, (float)(v5 * 0.5) + 0.5);
     }
-    if ( !Item_ListBox_RequiresScroll(localClientNum, contextIndex, item) )
+    if (!Item_ListBox_RequiresScroll(localClientNum, contextIndex, item))
         scrollbarSize = 0;
     optionalHighlightImage = listPtr->highlightTexture;
-    if ( optionalHighlightImage )
+    if (optionalHighlightImage)
     {
         UI_DrawHandlePic(
             scrPlace,
@@ -10286,14 +10316,14 @@ void __cdecl Item_ListBox_PaintHighlight(int localClientNum, int contextIndex, i
             listPtr->selectBorder);
     }
     optionalImage = listPtr->selectIcon;
-    if ( optionalImage )
+    if (optionalImage)
     {
-        if ( !listPtr->notselectable )
+        if (!listPtr->notselectable)
         {
-            *(float *)&v6[4] = 1.0f;
-            *(float *)&v6[8] = 1.0f;
-            *(float *)&v6[12] = 1.0f;
-            *(float *)&v6[16] = item->window.foreColor[3];
+            color[0] = 1.0f;
+            color[1] = 1.0f;
+            color[2] = 1.0f;
+            color[3] = item->window.foreColor[3];
             UI_DrawHandlePic(
                 scrPlace,
                 x + 3.0,
@@ -10302,7 +10332,7 @@ void __cdecl Item_ListBox_PaintHighlight(int localClientNum, int contextIndex, i
                 listPtr->elementHeight - 4.0,
                 rect->horzAlign,
                 rect->vertAlign,
-                (const float *)&v6[4],
+                color,
                 optionalImage);
         }
     }
@@ -10310,11 +10340,10 @@ void __cdecl Item_ListBox_PaintHighlight(int localClientNum, int contextIndex, i
 
 void __cdecl Item_OwnerDraw_Paint(int localClientNum, UiContext *dc, itemDef_s *item)
 {
-    double v3; // xmm0_8
-    double v4; // xmm0_8
+    float v4; // xmm0_4
+    float v5; // xmm0_4
     const char *VariantString; // eax
-    rectDef_s v6; // [esp+40h] [ebp-470h]
-    long double v7; // [esp+60h] [ebp-450h]
+    rectDef_s v7; // [esp+40h] [ebp-470h]
     float lowLight[4]; // [esp+6Ch] [ebp-444h] BYREF
     Font_s *font; // [esp+7Ch] [ebp-434h]
     const char *textPtr; // [esp+80h] [ebp-430h]
@@ -10327,7 +10356,7 @@ void __cdecl Item_OwnerDraw_Paint(int localClientNum, UiContext *dc, itemDef_s *
     char text[1028]; // [esp+A8h] [ebp-408h] BYREF
 
     textDefPtr = Item_GetTextDef(item);
-    if ( !item && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_shared.cpp", 9726, 0, "%s", "item") )
+    if (!item && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_shared.cpp", 9726, 0, "%s", "item"))
         __debugbreak();
     parent = item->parent;
     flags = Window_GetDynamicFlags(dc->contextIndex, &item->window);
@@ -10346,30 +10375,27 @@ void __cdecl Item_OwnerDraw_Paint(int localClientNum, UiContext *dc, itemDef_s *
     color[1] = item->window.foreColor[1];
     color[2] = item->window.foreColor[2];
     color[3] = item->window.foreColor[3];
-    if ( Window_HasFocus(dc->contextIndex, &item->window) )
+    if (Window_HasFocus(dc->contextIndex, &item->window))
     {
         lowLight[0] = 0.80000001 * parent->focusColor[0];
         lowLight[1] = 0.80000001 * parent->focusColor[1];
         lowLight[2] = 0.80000001 * parent->focusColor[2];
         lowLight[3] = 0.80000001 * parent->focusColor[3];
-        v3 = (float)(dc->realTime / 75);
-        __libm_sse2_sin(v7);
-        *(float *)&v3 = v3;
-        LerpColor(parent->focusColor, lowLight, color, (float)(*(float *)&v3 * 0.5) + 0.5);
+        //v4 = __libm_sse2_sin((float)(dc->realTime / 75));
+        v4 = sin((float)(dc->realTime / 75));
+        LerpColor(parent->focusColor, lowLight, color, (float)(v4 * 0.5) + 0.5);
     }
-    else if ( textDefPtr && textDefPtr->textStyle == 1 && ((dc->realTime / 256) & 1) == 0 )
+    else if (textDefPtr && textDefPtr->textStyle == 1 && ((dc->realTime / 256) & 1) == 0)
     {
         lowLight[0] = 0.80000001 * item->window.foreColor[0];
         lowLight[1] = 0.80000001 * item->window.foreColor[1];
         lowLight[2] = 0.80000001 * item->window.foreColor[2];
         lowLight[3] = 0.80000001 * item->window.foreColor[3];
-        *((float *)&v7 + 1) = (float)(dc->realTime / 75);
-        v4 = *((float *)&v7 + 1);
-        __libm_sse2_sin(v7);
-        *(float *)&v4 = v4;
-        LerpColor(item->window.foreColor, lowLight, color, (float)(*(float *)&v4 * 0.5) + 0.5);
+        //v5 = __libm_sse2_sin((float)(dc->realTime / 75));
+        v5 = sin((float)(dc->realTime / 75));
+        LerpColor(item->window.foreColor, lowLight, color, (float)(v5 * 0.5) + 0.5);
     }
-    if ( (item->dvarFlags & 3) != 0 && !Item_EnableShowViaDvar(item, 1) )
+    if ((item->dvarFlags & 3) != 0 && !Item_EnableShowViaDvar(item, 1))
     {
         color[0] = parent->disableColor[0];
         color[1] = parent->disableColor[1];
@@ -10379,26 +10405,26 @@ void __cdecl Item_OwnerDraw_Paint(int localClientNum, UiContext *dc, itemDef_s *
     rect = Window_GetRect(&item->window);
     font = Item_GetFont(dc->contextIndex, item);
     textPtr = 0;
-    if ( textDefPtr && textDefPtr->text )
+    if (textDefPtr && textDefPtr->text)
     {
         textPtr = textDefPtr->text;
     }
-    else if ( textDefPtr && textDefPtr->textExpData && textDefPtr->textExpData->textExp.filename )
+    else if (textDefPtr && textDefPtr->textExpData && textDefPtr->textExpData->textExp.filename)
     {
         textPtr = GetExpressionResultString(dc->contextIndex, item, &textDefPtr->textExpData->textExp);
     }
-    else if ( item->dvar )
+    else if (item->dvar)
     {
         VariantString = Dvar_GetVariantString(item->dvar);
         I_strncpyz(text, VariantString, 1024);
         textPtr = text;
     }
-    if ( textDefPtr && textDefPtr->text )
+    if (textDefPtr && textDefPtr->text)
     {
         Item_Text_Paint(localClientNum, dc, item);
         textRect = (const rectDef_s *)Item_GetTextRect(dc->contextIndex, item);
-        v6 = item->parent->window.rect;
-        if ( *textDefPtr->text )
+        v7 = item->parent->window.rect;
+        if (*textDefPtr->text)
             UI_OwnerDrawText(
                 localClientNum,
                 dc->contextIndex,
@@ -10419,7 +10445,7 @@ void __cdecl Item_OwnerDraw_Paint(int localClientNum, UiContext *dc, itemDef_s *
                 color,
                 item->window.background,
                 textDefPtr->textStyle,
-                v6,
+                v7,
                 textDefPtr->textAlignMode,
                 (char *)textDefPtr->text);
         else
@@ -10443,14 +10469,14 @@ void __cdecl Item_OwnerDraw_Paint(int localClientNum, UiContext *dc, itemDef_s *
                 color,
                 item->window.background,
                 textDefPtr->textStyle,
-                v6,
+                v7,
                 textDefPtr->textAlignMode,
                 0);
     }
-    else if ( textPtr && *textPtr && textDefPtr && textDefPtr->textExpData && (item->type == 18 || item->type == 20) )
+    else if (textPtr && *textPtr && textDefPtr && textDefPtr->textExpData && (item->type == 18 || item->type == 20))
     {
         textRect = (const rectDef_s *)Item_GetTextRect(dc->contextIndex, item);
-        if ( textPtr )
+        if (textPtr)
             Item_SetTextExtents(dc->contextIndex, item, textPtr);
         UI_OwnerDrawText(
             localClientNum,
@@ -10476,7 +10502,7 @@ void __cdecl Item_OwnerDraw_Paint(int localClientNum, UiContext *dc, itemDef_s *
             textDefPtr->textAlignMode,
             (char *)textPtr);
     }
-    else if ( item->type == 18 || item->type == 20 )
+    else if (item->type == 18 || item->type == 20)
     {
         UI_OwnerDrawText(
             localClientNum,
@@ -10502,7 +10528,7 @@ void __cdecl Item_OwnerDraw_Paint(int localClientNum, UiContext *dc, itemDef_s *
             textDefPtr->textAlignMode,
             (char *)textPtr);
     }
-    else if ( item->type == 6 )
+    else if (item->type == 6)
     {
         UI_OwnerDraw(
             localClientNum,
@@ -10600,6 +10626,7 @@ void __cdecl Menu_PaintAll_BeginVisibleList(char *stringBegin, unsigned int stri
 
 void __cdecl Menu_PaintAll_AppendToVisibleList(char *stringBegin, unsigned int stringSize, const char *stringToAppend)
 {
+#if 0
     unsigned int v3; // [esp+0h] [ebp-64h]
     std::reverse_iterator<char *> result; // [esp+44h] [ebp-20h] BYREF
     std::reverse_iterator<char *> _First; // [esp+48h] [ebp-1Ch]
@@ -10624,9 +10651,36 @@ void __cdecl Menu_PaintAll_AppendToVisibleList(char *stringBegin, unsigned int s
                                     &_Val)->current
                             - 1;
     if ( stringEnd - lastNewline <= 80 )
-        terminus = asc_C5E62C;
+        terminus = ", ";
     else
         terminus = ",\n    ";
+    I_strncat(stringBegin, stringSize, terminus);
+#endif
+    const int VISIBLE_LIST_LINE_LENGTH = 80;
+
+    // Find current end before append
+    size_t oldLen = strlen(stringBegin);
+    char *stringEnd = stringBegin + oldLen;
+
+    // Append the new item
+    I_strncat(stringBegin, stringSize, stringToAppend);
+
+    // Find last newline before the append
+    const char *lastNewline = strrchr(stringBegin, '\n');
+
+    if (!lastNewline)
+    {
+        // No newline in string — treat start as line beginning
+        lastNewline = stringBegin - 1;
+    }
+
+    size_t currentLineLength = stringEnd - lastNewline;
+
+    const char *terminus =
+        (currentLineLength <= VISIBLE_LIST_LINE_LENGTH)
+        ? ", "
+        : ",\n    ";
+
     I_strncat(stringBegin, stringSize, terminus);
 }
 
@@ -10642,9 +10696,9 @@ void __cdecl Menu_PaintAll_DrawVisibleList(char *stringBegin, UiContext *dc)
     color[2] = 0.5f;
     color[3] = 1.0f;
     if ( dc->FPS == 0.0 )
-        y = FLOAT_320_0;
+        y = 320.0f;
     else
-        y = FLOAT_400_0;
+        y = 400.0f;
     UI_DrawText(
         &scrPlaceFull,
         stringBegin,
@@ -10726,7 +10780,6 @@ void __cdecl Menu_PaintAll(int localClientNum, UiContext *dc)
             v2 = va("Menu_Paint %s", menu->window.name);
             //PIXBeginNamedEvent(-1, v2);
             drew = Menu_Paint(
-                             (GenericEventHandler *)&savedregs,
                              localClientNum,
                              dc,
                              scrPlaceStackPtr,
@@ -10762,7 +10815,6 @@ void __cdecl Menu_PaintAll(int localClientNum, UiContext *dc)
         if ( (Window_GetDynamicFlags(dc->contextIndex, &blurMenu->window) & 4) == 0 )
             Window_SetDynamicFlags(dc->contextIndex, &blurMenu->window, 4);
         Menu_Paint(
-            (GenericEventHandler *)&savedregs,
             localClientNum,
             dc,
             scrPlaceStackPtr,
@@ -10807,7 +10859,6 @@ void __cdecl Menu_PaintAll(int localClientNum, UiContext *dc)
         if ( Menu_DoesMenuOrParentsHaveControlFlag(dc, dc->menuStack[menuIndexc].menu, 3) )
             v14 = dc->menuStack[menuIndexc].localClientNum;
         drewa = Menu_Paint(
-                            (GenericEventHandler *)&savedregs,
                             v14,
                             dc,
                             scrPlaceStackPtr,
@@ -11050,7 +11101,7 @@ void __cdecl UI_AddMenu(int localClientNum, UiContext *dc, menuDef_t *menu, int 
             return;
     }
     if ( dc->menuCount >= 600 )
-        Com_Error(ERR_DROP, &byte_CFD478);
+        Com_Error(ERR_DROP, "UI_AddMenu: EXE_ERR_OUT_OF_MEMORY");
     if ( !menu && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_shared.cpp", 11051, 0, "%s", "menu") )
         __debugbreak();
     if ( dc->menuCount >= 0x258u
@@ -11065,7 +11116,7 @@ void __cdecl UI_AddMenu(int localClientNum, UiContext *dc, menuDef_t *menu, int 
         __debugbreak();
     }
     if ( useFastFile->current.enabled
-        && DB_FindXAssetHeader(ASSET_TYPE_MENU, menu->window.name, 1, -1).menu != menu
+        && DB_FindXAssetHeader(ASSET_TYPE_MENU, (char*)menu->window.name, 1, -1).menu != menu
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_shared.cpp", 11058, 0, "%s", "touchMenu == menu") )
     {
         __debugbreak();
@@ -11086,29 +11137,29 @@ void __cdecl UI_PlaySound(char context, char *aliasname)
 
 void __cdecl UI_ClearLocalUIVisibilityBits(int localClientNum)
 {
-    dword_98DADB0[2 * localClientNum] = 0;
-    dword_98DADB4[2 * localClientNum] = 0;
+    LODWORD(sharedUiInfo.localVisibilityBits[localClientNum]) = 0;
+    HIDWORD(sharedUiInfo.localVisibilityBits[localClientNum]) = 0;
 }
 
 void __cdecl UI_SetLocalUIVisbilityBit(int localClientNum, int bitShift, int value)
 {
     int v3; // edx
 
-    if ( bitShift >= 0 )
+    if (bitShift >= 0)
     {
-        if ( bitShift <= 64 )
+        if (bitShift <= 64)
         {
-            if ( value )
+            if (value)
             {
-                v3 = dword_98DADB4[2 * localClientNum] | ((unsigned __int64)(1LL << bitShift) >> 32);
-                dword_98DADB0[2 * localClientNum] |= 1LL << bitShift;
+                v3 = HIDWORD(sharedUiInfo.localVisibilityBits[localClientNum]) | ((unsigned __int64)(1LL << bitShift) >> 32);
+                LODWORD(sharedUiInfo.localVisibilityBits[localClientNum]) |= 1LL << bitShift;
             }
             else
             {
-                v3 = dword_98DADB4[2 * localClientNum] & ~((unsigned __int64)(1LL << bitShift) >> 32);
-                dword_98DADB0[2 * localClientNum] &= ~(unsigned int)(1LL << bitShift);
+                v3 = HIDWORD(sharedUiInfo.localVisibilityBits[localClientNum]) & ~((unsigned __int64)(1LL << bitShift) >> 32);
+                LODWORD(sharedUiInfo.localVisibilityBits[localClientNum]) &= ~(unsigned int)(1LL << bitShift);
             }
-            dword_98DADB4[2 * localClientNum] = v3;
+            HIDWORD(sharedUiInfo.localVisibilityBits[localClientNum]) = v3;
         }
         else
         {

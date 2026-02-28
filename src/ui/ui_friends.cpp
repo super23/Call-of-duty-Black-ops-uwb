@@ -1,4 +1,30 @@
 #include "ui_friends.h"
+#include "ui_main.h"
+
+const dvar_t *ui_friendsListOpen;
+const dvar_t *ui_playerListOpen;
+const dvar_t *ui_leaderboardOpen;
+const dvar_t *ui_lobbyLeaderBoard;
+const dvar_t *ui_playercardOpen;
+const dvar_t *ui_clancardOpen;
+const dvar_t *ui_friendCountNotZero;
+const dvar_t *ui_storeOfferCountNotZero;
+const dvar_t *ui_leaderboardFeederCountNotZero;
+const dvar_t *ui_clanName;
+const dvar_t *ui_clanDescription;
+const dvar_t *ui_onlineClanCount;
+const dvar_t *ui_clanRecommendationCount;
+const dvar_t *ui_totalClanMemberCount;
+const dvar_t *ui_incomingProposalCount;
+const dvar_t *ui_clanCountNotZero;
+const dvar_t *ui_recentPlayerCountNotZero;
+const dvar_t *ui_groupsCountNotZero;
+const dvar_t *ui_recommendedCountNotZero;
+const dvar_t *ui_incomingProposalCountNotZero;
+const dvar_t *ui_dropdownListMax;
+const dvar_t *ui_dropdownMax;
+const dvar_t *ui_dropdownOffset;
+const dvar_t *ui_dropdownButtonOffset;
 
 void __cdecl UI_FriendsRegisterDvars()
 {

@@ -333,7 +333,7 @@ void __cdecl UI_EmblemUpdate(int localClientNum)
     else if ( Key_IsDown(localClientNum, 200) && s_emblemMoveUpRepeatEnabled )
     {
         //v2 = va("emblemMove 0 %f", (float)(COERCE_FLOAT(LODWORD(MOVEMENT_VELOCITY) ^ _mask__NegFloat_) * timeScale));
-        v2 = va("emblemMove 0 %f", -MOVEMENT_VELOCITY * timeScale));
+        v2 = va("emblemMove 0 %f", -MOVEMENT_VELOCITY * timeScale);
         Cmd_ExecuteSingleCommand(localClientNum, controllerIndex, v2);
         s_emblemMoveDownRepeatEnabled = 0;
     }

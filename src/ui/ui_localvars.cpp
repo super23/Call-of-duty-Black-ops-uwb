@@ -1,4 +1,5 @@
 #include "ui_localvars.h"
+#include <universal/com_memory.h>
 
 void __cdecl UILocalVar_Init(UILocalVarContext *context)
 {
@@ -112,7 +113,7 @@ int __cdecl UILocalVar_GetInt(const UILocalVar *var)
     {
         if ( var->type == UILOCALVAR_FLOAT )
         {
-            return (UILocalVar::<unnamed_type_u>)(int)var->u.value;
+            return (int)var->u.value;
         }
         else
         {
@@ -127,7 +128,7 @@ int __cdecl UILocalVar_GetInt(const UILocalVar *var)
             {
                 __debugbreak();
             }
-            return (UILocalVar::<unnamed_type_u>)atoi(var->u.string);
+            return atoi(var->u.string);
         }
     }
     else
@@ -192,7 +193,7 @@ char *__cdecl UILocalVar_GetString(const UILocalVar *var, char *stringBuf, unsig
     }
 }
 
-void __cdecl UILocalVar_SetBool(const UILocalVar *var, bool b)
+void __cdecl UILocalVar_SetBool(UILocalVar *var, bool b)
 {
     if ( var->type == UILOCALVAR_STRING )
         FreeString(var->u.string, 36, SCRIPTINSTANCE_SERVER);
@@ -200,7 +201,7 @@ void __cdecl UILocalVar_SetBool(const UILocalVar *var, bool b)
     var->u.integer = b;
 }
 
-void __cdecl UILocalVar_SetInt(const UILocalVar *var, int i)
+void __cdecl UILocalVar_SetInt(UILocalVar *var, int i)
 {
     if ( var->type == UILOCALVAR_STRING )
         FreeString(var->u.string, 36, SCRIPTINSTANCE_SERVER);
@@ -208,7 +209,7 @@ void __cdecl UILocalVar_SetInt(const UILocalVar *var, int i)
     var->u.integer = i;
 }
 
-void __cdecl UILocalVar_SetFloat(const UILocalVar *var, float f)
+void __cdecl UILocalVar_SetFloat(UILocalVar *var, float f)
 {
     if ( var->type == UILOCALVAR_STRING )
         FreeString(var->u.string, 36, SCRIPTINSTANCE_SERVER);
@@ -216,7 +217,7 @@ void __cdecl UILocalVar_SetFloat(const UILocalVar *var, float f)
     var->u.value = f;
 }
 
-void __cdecl UILocalVar_SetString(const UILocalVar *var, char *s)
+void __cdecl UILocalVar_SetString(UILocalVar *var, char *s)
 {
     if ( var->type == UILOCALVAR_STRING )
         FreeString(var->u.string, 36, SCRIPTINSTANCE_SERVER);

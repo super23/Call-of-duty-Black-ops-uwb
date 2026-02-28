@@ -1,4 +1,72 @@
 #include "ui_viewer.h"
+#include <client_mp/cl_cgame_mp.h>
+#include <gfx_d3d/r_drawsurf.h>
+#include <gfx_d3d/r_material_load_obj.h>
+#include <gfx_d3d/r_skybox.h>
+#include <gfx_d3d/r_dvars.h>
+#include <bgame/bg_weapons_load_obj.h>
+#include <live/live_win.h>
+#include <cgame/cg_main.h>
+#include <client/cl_keys.h>
+#include <universal/com_math_anglevectors.h>
+#include <cgame/cg_spawn.h>
+#include <xanim/dobj_utils.h>
+#include <bgame/bg_unlockable_items.h>
+#include <live/live_stats.h>
+#include <ik/ik.h>
+#include <gfx_d3d/r_bsp_load_obj.h>
+#include <universal/com_workercmds.h>
+#include <gfx_d3d/r_ui3d.h>
+#include <qcommon/dobj_management.h>
+#include <gfx_d3d/r_stream.h>
+#include <live/live_clans.h>
+#include <cgame/cg_weapon_options.h>
+#include <clientscript/cscr_stringlist.h>
+#include <client/cl_debugdata.h>
+#include <cgame_mp/cg_ents_mp.h>
+#include <bgame/bg_misc.h>
+#include <qcommon/threads.h>
+#include <universal/com_memory.h>
+
+const char *modeNames[22] =
+{
+  "player",
+  "editplayerhead",
+  "editplayerbody",
+  "editfacepattern",
+  "editfacepatterncolor",
+  "choose_class_player",
+  "combatrecord",
+  "weapon",
+  "editweapon",
+  "editreticle",
+  "editreticlecolor",
+  "editlens",
+  "editcamo",
+  "editattachmenttop",
+  "editattachmentbottom",
+  "editattachmenttrigger",
+  "editattachmentmuzzle",
+  "edittag",
+  "editemblem",
+  "aar_weapon",
+  "choose_class_weapon",
+  NULL
+};
+
+const char *weaponSlotNames[3] =
+{ "primary", "secondary", NULL };
+
+UIViewer uiViewer;
+
+bool s_viewerRotateLeftRepeatEnabled;
+bool s_viewerRotateRightRepeatEnabled;
+
+cmd_function_s SetCameraPosCmd_VAR;
+cmd_function_s ResetCameraCmd_VAR;
+cmd_function_s SetControllerIndexCmd_VAR;
+cmd_function_s UI_ViewerRotateLeftRepeatEnabled_f_VAR;
+cmd_function_s UI_ViewerRotateRightRepeatEnabled_f_VAR;
 
 void __cdecl UI_ViewerRotateLeftRepeatEnabled_f()
 {
@@ -10,7 +78,7 @@ void __cdecl UI_ViewerRotateRightRepeatEnabled_f()
     s_viewerRotateRightRepeatEnabled = 1;
 }
 
-void __thiscall UIViewer::Init(UIViewer *this, bool _ingame)
+void __thiscall UIViewer::Init(bool _ingame)
 {
     int i; // [esp+20h] [ebp-4h]
 
@@ -55,8 +123,8 @@ void __thiscall UIViewer::Init(UIViewer *this, bool _ingame)
                                                              "UI viewer player camera name");
         this->cameraPitchRange = _Dvar_RegisterVec2(
                                                              "uiViewer_pitchRange",
-                                                             COERCE_UNSIGNED_INT(-15.0),
-                                                             COERCE_UNSIGNED_INT(30.0),
+                                                             (-15.0),
+                                                             (30.0),
                                                              -40.0,
                                                              40.0,
                                                              0,
@@ -99,9 +167,9 @@ void __thiscall UIViewer::Init(UIViewer *this, bool _ingame)
                                                         "use herolight to highlight the customized part");
         this->sceneOrigin = _Dvar_RegisterVec3(
                                                     "uiViewer_sceneOrigin",
-                                                    COERCE_UNSIGNED_INT(0.0),
-                                                    COERCE_UNSIGNED_INT(0.0),
-                                                    COERCE_UNSIGNED_INT(0.0),
+                                                    (0.0),
+                                                    (0.0),
+                                                    (0.0),
                                                     -10000.0,
                                                     10000.0,
                                                     0,
@@ -151,9 +219,9 @@ void __thiscall UIViewer::Init(UIViewer *this, bool _ingame)
     }
 }
 
-void __thiscall UIViewer::Shutdown(UIViewer *this)
+void __thiscall UIViewer::Shutdown()
 {
-    UIViewer::Hide(this);
+    UIViewer::Hide();
     this->inited = 0;
     if ( this->loaded )
         Dvar_SetBool((dvar_s *)this->loaded, 0);
@@ -161,7 +229,7 @@ void __thiscall UIViewer::Shutdown(UIViewer *this)
         BG_ShutdownWeaponDefFiles();
 }
 
-void __thiscall UIViewer::LoadMap(UIViewer *this)
+void __thiscall UIViewer::LoadMap()
 {
     char *v1; // eax
     unsigned int i; // [esp+4h] [ebp-4h]
@@ -185,7 +253,7 @@ void __thiscall UIViewer::LoadMap(UIViewer *this)
         this->animTree = 0;
     }
     if ( this->deferredShow )
-        UIViewer::Show(this);
+        UIViewer::Show();
     for ( i = 0; i < 4; ++i )
         this->playerWeaponHistory[i] = 0;
     this->nextPlayerWeaponHistory = 0;
@@ -193,10 +261,10 @@ void __thiscall UIViewer::LoadMap(UIViewer *this)
     Dvar_SetBool((dvar_s *)this->loaded, 1);
 }
 
-void __thiscall UIViewer::Show(UIViewer *this)
+void __thiscall UIViewer::Show()
 {
     int v1; // edx
-    DvarValue *p_current; // [esp+18h] [ebp-Ch]
+    const DvarValue *p_current; // [esp+18h] [ebp-Ch]
     int i; // [esp+1Ch] [ebp-8h]
     cg_s *cgameGlob; // [esp+20h] [ebp-4h]
 
@@ -204,10 +272,12 @@ void __thiscall UIViewer::Show(UIViewer *this)
     {
         if ( this->mapLoaded )
         {
-            UIViewer::SetCameraPos(this, "player", "none", 0);
-            UIViewer::InitFov(this);
+            //UIViewer::SetCameraPos("player", "none", 0);
+            this->SetCameraPos((char*)"player", (char *)"none", false);
+            UIViewer::InitFov();
             this->mode = MODE_PLAYER_FIRST;
-            UIViewer::State::Invalidate(&this->prevState);
+            //UIViewer::State::Invalidate(&this->prevState);
+            this->prevState.Invalidate();
             p_current = &this->sceneOrigin->current;
             this->prevSceneOrigin[0] = p_current->value;
             this->prevSceneOrigin[1] = p_current->vector[1];
@@ -226,16 +296,18 @@ void __thiscall UIViewer::Show(UIViewer *this)
                 {
                     BG_LoadPlayerAnimTypes();
                     BG_InitWeaponStrings();
-                    this->bgs.AllocXAnim = (void *(__cdecl *)(int))Hunk_AllocXAnimPrecache;
-                    this->bgs.GetDObj = (DObj *(__cdecl *)(int, int))UIViewer::GetDObj;
+                    this->bgs.AllocXAnim = (void *(__cdecl *)(unsigned int))Hunk_AllocXAnimPrecache;
+                    this->bgs.GetDObj = (DObj *(__cdecl *)(unsigned int, int))UIViewer::GetDObj;
                     this->bgs.Rand = CG_rand;
                     this->bgs.animData = &this->bgsAnim;
                     memset((unsigned __int8 *)this->bgs.animData, 0, 0x8D388u);
-                    *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = UIViewer::GetBGS(this);
+                    //*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = UIViewer::GetBGS();
+                    ::bgs = UIViewer::GetBGS();
                     Scr_BeginLoadAnimTrees(SCRIPTINSTANCE_SERVER, 0);
                     BG_LoadAnim(comWorld.name);
                     BG_PostLoadAnim(comWorld.name);
-                    *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = 0;
+                    ::bgs = 0;
+                    //*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = 0;
                     this->animTree = XAnimCreateTree(
                                                          this->bgs.animData->generic_human.tree.anims,
                                                          (void *(__cdecl *)(int))Hunk_AllocXAnimPrecache);
@@ -251,8 +323,11 @@ void __thiscall UIViewer::Show(UIViewer *this)
             memset((unsigned __int8 *)&this->pmove, 0, sizeof(this->pmove));
             memset((unsigned __int8 *)&this->ps, 0, sizeof(this->ps));
             this->pmove.ps = &this->ps;
-            for ( i = 0; i < 1; ++i )
-                UIViewer::DrawDobj::Init(&this->drawDobjs[i]);
+            for (i = 0; i < 1; ++i)
+            {
+                //UIViewer::DrawDobj::Init(&this->drawDobjs[i]);
+                this->drawDobjs[i].Init();
+            }
             this->show = 1;
             this->deferredShow = 0;
         }
@@ -263,7 +338,7 @@ void __thiscall UIViewer::Show(UIViewer *this)
     }
 }
 
-void __thiscall UIViewer::State::Invalidate(UIViewer::State *this)
+void __thiscall UIViewer::State::Invalidate()
 {
     UIViewer::WeaponParams *p_weaponParams; // ecx
 
@@ -273,7 +348,7 @@ void __thiscall UIViewer::State::Invalidate(UIViewer::State *this)
     this->playerParams.facePatternIndex = -1;
     this->playerParams.faceColorIndex = -1;
     p_weaponParams = &this->weaponParams;
-    p_weaponParams->weaponSlot = -1;
+    p_weaponParams->weaponSlot = (UIViewer::WeaponSlot)-1;
     p_weaponParams->weaponIndex = -1;
     p_weaponParams->attachTopIndex = -1;
     p_weaponParams->attachBottomIndex = -1;
@@ -291,7 +366,7 @@ void __thiscall UIViewer::State::Invalidate(UIViewer::State *this)
     *(unsigned int *)&this->faction[28] = 0;
 }
 
-void __thiscall UIViewer::Hide(UIViewer *this)
+void __thiscall UIViewer::Hide()
 {
     this->deferredShow = 0;
     if ( this->show )
@@ -308,7 +383,7 @@ void __thiscall UIViewer::Hide(UIViewer *this)
     }
 }
 
-void __thiscall UIViewer::UpdateCamera(UIViewer *this, refdef_s *refdef, float deltaTime)
+void __thiscall UIViewer::UpdateCamera(refdef_s *refdef, float deltaTime)
 {
     float v4[3]; // [esp+10h] [ebp-B0h] BYREF
     float axis[10]; // [esp+1Ch] [ebp-A4h] BYREF
@@ -357,7 +432,7 @@ void __thiscall UIViewer::UpdateCamera(UIViewer *this, refdef_s *refdef, float d
     }
     if ( this->cameraAnim )
     {
-        ANIM_TIME = FLOAT_0_333;
+        ANIM_TIME = 0.333f;
         v17 = (float)(cls.realtime - this->cameraAnimStartTime) * 0.001;
         if ( v17 >= 0.0 && v17 <= ANIM_TIME )
         {
@@ -366,14 +441,14 @@ void __thiscall UIViewer::UpdateCamera(UIViewer *this, refdef_s *refdef, float d
             this->camera.dist = (float)((float)(this->cameraAnimEnd.dist - this->cameraAnimStart.dist)
                                                                 * (float)(v17 / ANIM_TIME))
                                                 + this->cameraAnimStart.dist;
-            LODWORD(v8[3]) = this->cameraAnimStart.lookAt;
+            //LODWORD(v8[3]) = this->cameraAnimStart.lookAt;
             pitch = this->cameraAnimStart.pitch;
             yaw = this->cameraAnimStart.yaw;
             angles[0] = pitch;
             angles[1] = yaw;
             angles[2] = 0.0f;
             AnglesToQuat(angles, quatStart);
-            LODWORD(axis[9]) = this->cameraAnimEnd.lookAt;
+            //LODWORD(axis[9]) = this->cameraAnimEnd.lookAt;
             v6 = this->cameraAnimEnd.pitch;
             v7 = this->cameraAnimEnd.yaw;
             v8[0] = v6;
@@ -397,12 +472,13 @@ void __thiscall UIViewer::UpdateCamera(UIViewer *this, refdef_s *refdef, float d
             this->camera.pitch = this->cameraAnimEnd.pitch;
         }
     }
-    UIViewer::CameraParams::SetRefDef(&this->camera, refdef);
+    //UIViewer::CameraParams::SetRefDef(&this->camera, refdef);
+    this->camera.SetRefDef(refdef);
 }
 
-void __thiscall UIViewer::CameraParams::SetRefDef(UIViewer::CameraParams *this, refdef_s *refdef)
+void __thiscall UIViewer::CameraParams::SetRefDef(refdef_s *refdef)
 {
-    DvarValue *p_current; // [esp+8h] [ebp-28h]
+    const DvarValue *p_current; // [esp+8h] [ebp-28h]
     float v4; // [esp+18h] [ebp-18h]
     float angles[3]; // [esp+24h] [ebp-Ch] BYREF
 
@@ -420,7 +496,7 @@ void __thiscall UIViewer::CameraParams::SetRefDef(UIViewer::CameraParams *this, 
     refdef->vieworg[2] = refdef->vieworg[2] + p_current->vector[2];
 }
 
-DObj *__thiscall UIViewer::AllocDobj(UIViewer *this, unsigned int *entnum)
+DObj *__thiscall UIViewer::AllocDobj(unsigned int *entnum)
 {
     signed int v2; // ecx
     unsigned __int8 *Entity; // eax
@@ -441,7 +517,7 @@ DObj *__thiscall UIViewer::AllocDobj(UIViewer *this, unsigned int *entnum)
     return obj;
 }
 
-centity_s *__thiscall UIViewer::GetPlayerEntity(UIViewer *this)
+centity_s *__thiscall UIViewer::GetPlayerEntity()
 {
     unsigned __int16 EntNum; // ax
 
@@ -449,7 +525,7 @@ centity_s *__thiscall UIViewer::GetPlayerEntity(UIViewer *this)
     return CG_GetEntity(0, EntNum - 1);
 }
 
-XAnimTree_s *__thiscall UIViewer::GetAnimTree(UIViewer *this)
+XAnimTree_s *__thiscall UIViewer::GetAnimTree()
 {
     if ( this->ingame )
         return CG_GetLocalClientGlobals(0)->bgs.clientinfo[0].pXAnimTree;
@@ -457,7 +533,7 @@ XAnimTree_s *__thiscall UIViewer::GetAnimTree(UIViewer *this)
         return this->animTree;
 }
 
-bgs_t *__thiscall UIViewer::GetBGS(UIViewer *this)
+bgs_t *__thiscall UIViewer::GetBGS()
 {
     if ( this->ingame )
         return &CG_GetLocalClientGlobals(0)->bgs;
@@ -465,7 +541,7 @@ bgs_t *__thiscall UIViewer::GetBGS(UIViewer *this)
         return &this->bgs;
 }
 
-void __thiscall UIViewer::FreeDobjs(UIViewer *this)
+void __thiscall UIViewer::FreeDobjs()
 {
     unsigned __int16 EntNum; // ax
     int i; // [esp+4h] [ebp-4h]
@@ -481,7 +557,7 @@ void __thiscall UIViewer::FreeDobjs(UIViewer *this)
     this->nDrawDobjs = 0;
 }
 
-int __thiscall UIViewer::GetLoadout(UIViewer *this, loadoutSlot_t loadoutSlot, bool defaultIfZero)
+int __thiscall UIViewer::GetLoadout(loadoutSlot_t loadoutSlot, bool defaultIfZero)
 {
     const char *String; // eax
     const char *v5; // [esp+0h] [ebp-20h]
@@ -515,80 +591,67 @@ int __thiscall UIViewer::GetLoadout(UIViewer *this, loadoutSlot_t loadoutSlot, b
     return ret;
 }
 
-void __thiscall UIViewer::PlayerParams::PlayerParams(UIViewer::PlayerParams *this)
+UIViewer::PlayerParams::PlayerParams()
 {
-    this->bodyIndex = UIViewer::GetLoadout(&uiViewer, LOADOUTSLOT_BODY, 1);
-    this->headIndex = UIViewer::GetLoadout(&uiViewer, LOADOUTSLOT_HEAD, 1);
-    this->facePatternIndex = UIViewer::GetLoadout(&uiViewer, LOADOUTSLOT_FACEPAINT_PATTERN, 0);
-    this->faceColorIndex = UIViewer::GetLoadout(&uiViewer, LOADOUTSLOT_FACEPAINT_COLOR, 0);
+    this->bodyIndex = uiViewer.GetLoadout(LOADOUTSLOT_BODY, 1);
+    this->headIndex = uiViewer.GetLoadout(LOADOUTSLOT_HEAD, 1);
+    this->facePatternIndex = uiViewer.GetLoadout(LOADOUTSLOT_FACEPAINT_PATTERN, 0);
+    this->faceColorIndex = uiViewer.GetLoadout(LOADOUTSLOT_FACEPAINT_COLOR, 0);
 }
 
-void __thiscall UIViewer::WeaponParams::WeaponParams(UIViewer::WeaponParams *this, UIViewer::WeaponSlot slot)
+UIViewer::WeaponParams::WeaponParams(UIViewer::WeaponSlot slot)
 {
     this->weaponSlot = slot;
-    this->weaponIndex = UIViewer::GetLoadout(
-                                                &uiViewer,
-                                                slot != WEAPON_PRIMARY ? LOADOUTSLOT_SECONDARY_WEAPON : LOADOUTSLOT_FIRST,
-                                                1);
-    this->attachTopIndex = UIViewer::GetLoadout(
-                                                     &uiViewer,
-                                                     (loadoutSlot_t)(slot != WEAPON_PRIMARY
+    this->weaponIndex = uiViewer.GetLoadout(slot != WEAPON_PRIMARY ? LOADOUTSLOT_SECONDARY_WEAPON : LOADOUTSLOT_FIRST, 1);
+    this->attachTopIndex = uiViewer.GetLoadout((loadoutSlot_t)(slot != WEAPON_PRIMARY
                                                                                  ? LOADOUTSLOT_SECONDARY_ATTACHMENT_TOP
                                                                                  : LOADOUTSLOT_PRIMARY_ATTACHMENT_TOP),
                                                      0);
-    this->attachBottomIndex = UIViewer::GetLoadout(
-                                                            &uiViewer,
+    this->attachBottomIndex = uiViewer.GetLoadout(
                                                             (loadoutSlot_t)(slot != WEAPON_PRIMARY
                                                                                         ? LOADOUTSLOT_SECONDARY_ATTACHMENT_BOTTOM
                                                                                         : LOADOUTSLOT_PRIMARY_ATTACHMENT_BOTTOM),
                                                             0);
-    this->attachTriggerIndex = UIViewer::GetLoadout(
-                                                             &uiViewer,
+    this->attachTriggerIndex = uiViewer.GetLoadout(
                                                              (loadoutSlot_t)(slot != WEAPON_PRIMARY
                                                                                          ? LOADOUTSLOT_SECONDARY_ATTACHMENT_TRIGGER
                                                                                          : LOADOUTSLOT_PRIMARY_ATTACHMENT_TRIGGER),
                                                              0);
-    this->attachMuzzleIndex = UIViewer::GetLoadout(
-                                                            &uiViewer,
+    this->attachMuzzleIndex = uiViewer.GetLoadout(
                                                             (loadoutSlot_t)(slot != WEAPON_PRIMARY
                                                                                         ? LOADOUTSLOT_SECONDARY_ATTACHMENT_MUZZLE
                                                                                         : LOADOUTSLOT_PRIMARY_ATTACHMENT_MUZZLE),
                                                             0);
     this->weaponOptions.i = 0;
-    this->weaponOptions.i = UIViewer::GetLoadout(
-                                                        &uiViewer,
+    this->weaponOptions.i = uiViewer.GetLoadout(
                                                         (loadoutSlot_t)(slot != WEAPON_PRIMARY
                                                                                     ? LOADOUTSLOT_SECONDARY_CAMO
                                                                                     : LOADOUTSLOT_PRIMARY_CAMO),
                                                         0)
                                                 & 0x3F
                                                 | this->weaponOptions.i & 0xFFFFFFC0;
-    this->weaponOptions.i = ((UIViewer::GetLoadout(
-                                                            &uiViewer,
+    this->weaponOptions.i = ((uiViewer.GetLoadout(
                                                             (loadoutSlot_t)(slot != WEAPON_PRIMARY
                                                                                         ? LOADOUTSLOT_SECONDARY_LENS
                                                                                         : LOADOUTSLOT_PRIMARY_LENS),
                                                             0)
                                                     & 0xF) << 6)
                                                 | this->weaponOptions.i & 0xFFFFFC3F;
-    this->weaponOptions.i = ((UIViewer::GetLoadout(
-                                                            &uiViewer,
+    this->weaponOptions.i = ((uiViewer.GetLoadout(
                                                             (loadoutSlot_t)(slot != WEAPON_PRIMARY
                                                                                         ? LOADOUTSLOT_SECONDARY_RETICLE
                                                                                         : LOADOUTSLOT_PRIMARY_RETICLE),
                                                             0)
                                                     & 0x3F) << 10)
                                                 | this->weaponOptions.i & 0xFFFF03FF;
-    this->weaponOptions.i = ((UIViewer::GetLoadout(
-                                                            &uiViewer,
+    this->weaponOptions.i = ((uiViewer.GetLoadout(
                                                             (loadoutSlot_t)(slot != WEAPON_PRIMARY
                                                                                         ? LOADOUTSLOT_SECONDARY_RETICLE_COLOR
                                                                                         : LOADOUTSLOT_PRIMARY_RETICLE_COLOR),
                                                             0)
                                                     & 7) << 16)
                                                 | this->weaponOptions.i & 0xFFF8FFFF;
-    this->weaponOptions.i = ((UIViewer::GetLoadout(
-                                                            &uiViewer,
+    this->weaponOptions.i = ((uiViewer.GetLoadout(
                                                             (loadoutSlot_t)(slot != WEAPON_PRIMARY
                                                                                         ? LOADOUTSLOT_SECONDARY_EMBLEM
                                                                                         : LOADOUTSLOT_PRIMARY_EMBLEM),
@@ -599,7 +662,7 @@ void __thiscall UIViewer::WeaponParams::WeaponParams(UIViewer::WeaponParams *thi
     this->currentAttachmentPoint = 0;
 }
 
-void __thiscall UIViewer::Update(UIViewer *this, float deltaTime)
+void __thiscall UIViewer::Update(float deltaTime)
 {
     bool Bool; // al
     bool v3; // al
@@ -607,18 +670,20 @@ void __thiscall UIViewer::Update(UIViewer *this, float deltaTime)
     centity_s *PlayerEntity; // eax
     unsigned int *v6; // [esp+8h] [ebp-158h]
     bool v7; // [esp+10h] [ebp-150h]
-    DvarValue *p_current; // [esp+2Ch] [ebp-134h]
+    const DvarValue *p_current; // [esp+2Ch] [ebp-134h]
     pml_t pml; // [esp+38h] [ebp-128h] BYREF
     UIViewer::WeaponParams baseWeaponParam; // [esp+CCh] [ebp-94h] BYREF
     UIViewer::WeaponParams weapParams; // [esp+ECh] [ebp-74h] BYREF
     UIViewer::WeaponParams weaponParamForCombatRecord; // [esp+10Ch] [ebp-54h] BYREF
-    UIViewer::PlayerParams playerParams; // [esp+12Ch] [ebp-34h] BYREF
     bool isLocked; // [esp+13Fh] [ebp-21h]
-    UIViewer::WeaponParams weaponParam; // [esp+140h] [ebp-20h] BYREF
 
-    this->mode = this->modeDvar->current.integer;
-    UIViewer::WeaponParams::WeaponParams(&weaponParam, (UIViewer::WeaponSlot)this->equipWeapon->current.integer);
-    UIViewer::PlayerParams::PlayerParams(&playerParams);
+    this->mode = (UIViewer::Mode)(this->modeDvar->current.integer);
+
+    UIViewer::WeaponParams weaponParam((UIViewer::WeaponSlot)this->equipWeapon->current.integer); // [esp+140h] [ebp-20h] BYREF
+    //UIViewer::WeaponParams::WeaponParams(&weaponParam, (UIViewer::WeaponSlot)this->equipWeapon->current.integer);
+    UIViewer::PlayerParams playerParams; // [esp+12Ch] [ebp-34h] BYREF
+    //UIViewer::PlayerParams::PlayerParams(&playerParams);
+
     if ( this->sceneOrigin->current.value != this->prevSceneOrigin[0]
         || this->sceneOrigin->current.vector[1] != this->prevSceneOrigin[1]
         || this->sceneOrigin->current.vector[2] != this->prevSceneOrigin[2] )
@@ -627,7 +692,8 @@ void __thiscall UIViewer::Update(UIViewer *this, float deltaTime)
         this->prevSceneOrigin[0] = p_current->value;
         this->prevSceneOrigin[1] = p_current->vector[1];
         this->prevSceneOrigin[2] = p_current->vector[2];
-        UIViewer::State::Invalidate(&this->prevState);
+        //UIViewer::State::Invalidate(&this->prevState);
+        this->prevState.Invalidate();
     }
     if ( weaponParam.weaponIndex != -1 )
     {
@@ -636,26 +702,26 @@ void __thiscall UIViewer::Update(UIViewer *this, float deltaTime)
         {
             case MODE_PLAYER_FIRST:
             case MODE_CHOOSE_CLASS_PLAYER:
-                UIViewer::AddPlayerToScene(this, &playerParams, &weaponParam, 0);
+                UIViewer::AddPlayerToScene(&playerParams, &weaponParam, 0);
                 break;
             case MODE_EDIT_PLAYER_HEAD:
                 playerParams.headIndex = sharedUiInfo.itemIndex;
-                UIViewer::AddPlayerToScene(this, &playerParams, &weaponParam, 0);
+                UIViewer::AddPlayerToScene(&playerParams, &weaponParam, 0);
                 break;
             case MODE_EDIT_PLAYER_BODY:
                 playerParams.bodyIndex = BG_UnlockablesGetAssociatedBody(sharedUiInfo.itemIndex);
-                UIViewer::AddPlayerToScene(this, &playerParams, &weaponParam, 0);
+                UIViewer::AddPlayerToScene(&playerParams, &weaponParam, 0);
                 break;
             case MODE_EDIT_PLAYER_FACE_PATTERN:
                 v7 = BG_UnlockablesIsItemClassified(sharedUiInfo.itemIndex)
                     || BG_UnlockablesIsItemLocked(this->controllerIndex, sharedUiInfo.itemIndex);
                 isLocked = v7;
                 playerParams.facePatternIndex = !v7 ? sharedUiInfo.itemIndex : 0;
-                UIViewer::AddPlayerToScene(this, &playerParams, &weaponParam, v7);
+                UIViewer::AddPlayerToScene(&playerParams, &weaponParam, v7);
                 break;
             case MODE_EDIT_PLAYER_FACE_PATTERN_COLOR:
                 playerParams.faceColorIndex = sharedUiInfo.itemIndex;
-                UIViewer::AddPlayerToScene(this, &playerParams, &weaponParam, 0);
+                UIViewer::AddPlayerToScene(&playerParams, &weaponParam, 0);
                 break;
             case MODE_COMBAT_RECORD:
                 weaponParamForCombatRecord.currentAttachmentPoint = -1;
@@ -665,86 +731,89 @@ void __thiscall UIViewer::Update(UIViewer *this, float deltaTime)
                 memset(&weaponParamForCombatRecord.attachTopIndex, 0, 20);
                 v3 = Dvar_GetBool("ui_showFriendsCombatRecord");
                 playerParams.bodyIndex = (int)LiveCombatRecord_GetSortedItemData(6, v3, ITEM_INDEX);
-                UIViewer::AddPlayerToScene(this, &playerParams, &weaponParamForCombatRecord, 0);
+                UIViewer::AddPlayerToScene(&playerParams, &weaponParamForCombatRecord, 0);
                 break;
             case MODE_WEAPON_FIRST:
             case MODE_CHOOSE_CLASS_WEAPON:
-                UIViewer::AddWeaponToScene(this, &weaponParam, &weaponParam);
+                UIViewer::AddWeaponToScene(&weaponParam, &weaponParam);
                 break;
             case MODE_EDIT_WEAPON:
                 weapParams.currentAttachmentPoint = -1;
                 String = Dvar_GetString("selected_loadout_slot");
-                weapParams.weaponSlot = I_strcmp(String, "primary") != 0;
+                weapParams.weaponSlot = (UIViewer::WeaponSlot)(I_strcmp(String, "primary") != 0);
                 weapParams.weaponIndex = sharedUiInfo.itemIndex;
                 memset(&weapParams.attachTopIndex, 0, 20);
                 if ( BG_UnlockablesIsItemClassified(sharedUiInfo.itemIndex) )
                 {
-                    UIViewer::State::Invalidate(&this->prevState);
-                    UIViewer::FreeDobjs(this);
+                    //UIViewer::State::Invalidate(&this->prevState);
+                    this->prevState.Invalidate();
+                    UIViewer::FreeDobjs();
                 }
                 else
                 {
-                    UIViewer::AddWeaponToScene(this, &weapParams, &weapParams);
+                    UIViewer::AddWeaponToScene(&weapParams, &weapParams);
                 }
                 break;
             case MODE_EDIT_CAMO:
                 weaponParam.weaponOptions.i = sharedUiInfo.sortedItemPivot & 0x3F | weaponParam.weaponOptions.i & 0xFFFFFFC0;
-                UIViewer::AddWeaponToScene(this, &weaponParam, &weaponParam);
+                UIViewer::AddWeaponToScene(&weaponParam, &weaponParam);
                 break;
             case MODE_EDIT_ATTACHMENT_TOP:
             case MODE_EDIT_ATTACHMENT_BOTTOM:
             case MODE_EDIT_ATTACHMENT_TRIGGER:
             case MODE_EDIT_ATTACHMENT_MUZZLE:
                 memcpy(&baseWeaponParam, &weaponParam, sizeof(baseWeaponParam));
-                UIViewer::SetAttachmentIndex(this, &weaponParam, sharedUiInfo.attachmentNum);
-                UIViewer::ClearAttachmentIndex(this, &baseWeaponParam);
+                UIViewer::SetAttachmentIndex(&weaponParam, sharedUiInfo.attachmentNum);
+                UIViewer::ClearAttachmentIndex(&baseWeaponParam);
                 weaponParam.currentAttachmentPoint = sharedUiInfo.attachmentNum;
-                UIViewer::AddWeaponToScene(this, &weaponParam, &baseWeaponParam);
+                UIViewer::AddWeaponToScene(&weaponParam, &baseWeaponParam);
                 break;
             case MODE_EDIT_TAG:
                 weaponParam.weaponOptions.i = ((sharedUiInfo.sortedItemPivot & 1) << 20)
                                                                         | weaponParam.weaponOptions.i & 0xFFEFFFFF;
-                UIViewer::AddWeaponToScene(this, &weaponParam, &weaponParam);
+                UIViewer::AddWeaponToScene(&weaponParam, &weaponParam);
                 break;
             case MODE_EDIT_EMBLEM:
                 weaponParam.weaponOptions.i = ((sharedUiInfo.sortedItemPivot & 1) << 19)
                                                                         | weaponParam.weaponOptions.i & 0xFFF7FFFF;
-                UIViewer::AddWeaponToScene(this, &weaponParam, &weaponParam);
+                UIViewer::AddWeaponToScene(&weaponParam, &weaponParam);
                 break;
             case MODE_AAR_WEAPON:
                 weaponParam.weaponSlot = WEAPON_PRIMARY;
                 weaponParam.weaponIndex = Dvar_GetInt("ui_aar_curr_unlocked_weapon_index");
                 memset(&weaponParam.attachTopIndex, 0, 20);
-                UIViewer::AddWeaponToScene(this, &weaponParam, &weaponParam);
+                UIViewer::AddWeaponToScene(&weaponParam, &weaponParam);
                 break;
             default:
                 break;
         }
         if ( this->nDrawDobjs > 0 && this->mode <= (unsigned int)MODE_COMBAT_RECORD )
         {
-            *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = UIViewer::GetBGS(this);
+            //*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = UIViewer::GetBGS();
+            ::bgs = UIViewer::GetBGS();
             memset((unsigned __int8 *)&pml, 0, sizeof(pml));
             pml.msec = (int)(float)(deltaTime * 1000.0);
             PM_Weapon(&this->pmove, &pml);
-            v6 = (unsigned int *)((char *)UIViewer::GetPlayerEntity(this) + 804);
+            v6 = (unsigned int *)((char *)UIViewer::GetPlayerEntity() + 804);
             *v6 |= 2u;
-            UIViewer::GetPlayerEntity(this)->nextState.eType = 1;
-            UIViewer::GetPlayerEntity(this)->nextState.animState.state = this->ps.legsAnim;
-            UIViewer::GetPlayerEntity(this)->nextState.anim.torsoAnim = this->ps.torsoAnim;
-            this->bgs.clientinfo[0].pXAnimTree = UIViewer::GetAnimTree(this);
-            PlayerEntity = UIViewer::GetPlayerEntity(this);
+            UIViewer::GetPlayerEntity()->nextState.eType = 1;
+            UIViewer::GetPlayerEntity()->nextState.animState.state = this->ps.legsAnim;
+            UIViewer::GetPlayerEntity()->nextState.anim.torsoAnim = this->ps.torsoAnim;
+            this->bgs.clientinfo[0].pXAnimTree = UIViewer::GetAnimTree();
+            PlayerEntity = UIViewer::GetPlayerEntity();
             BG_PlayerAnimation(0, &PlayerEntity->nextState, this->bgs.clientinfo);
-            *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = 0;
+            //*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = 0;
+            ::bgs = 0;
         }
     }
 }
 
-void __thiscall UIViewer::DrawScene(UIViewer *this, unsigned int eyeToRender)
+void __thiscall UIViewer::DrawScene(unsigned int eyeToRender)
 {
-    double v2; // xmm0_8
-    char v3; // al
-    long double v4; // [esp+8h] [ebp-30h]
-    float v5; // [esp+14h] [ebp-24h]
+    float v3; // xmm0_4
+    char v4; // al
+    float v5; // [esp+8h] [ebp-30h]
+    float v7; // [esp+14h] [ebp-24h]
     int i; // [esp+18h] [ebp-20h]
     int screenWidth; // [esp+1Ch] [ebp-1Ch] BYREF
     float dxDzAtDefaultAspectRatio; // [esp+20h] [ebp-18h]
@@ -754,36 +823,34 @@ void __thiscall UIViewer::DrawScene(UIViewer *this, unsigned int eyeToRender)
     cg_s *cgameGlob; // [esp+30h] [ebp-8h]
     float deltaTime; // [esp+34h] [ebp-4h]
 
-    HIDWORD(v4) = this;
-    deltaTime = (float)((float)cls.frametime * 0.001) * this->timeScale->current.value;
-    if ( (float)(deltaTime - 0.1) < 0.0 )
-        v5 = deltaTime;
+    deltaTime = (cls.frametime * 0.001) * this->timeScale->current.value;
+    if ((deltaTime - 0.1) < 0.0)
+        v7 = deltaTime;
     else
-        v5 = 0.1f;
-    if ( (float)(0.0 - deltaTime) < 0.0 )
-        *(float *)&v4 = v5;
+        v7 = 0.1f;
+    if ((0.0 - deltaTime) < 0.0)
+        v5 = v7;
     else
-        LODWORD(v4) = 0;
-    deltaTime = *(float *)&v4;
-    UIViewer::Update(this, *(float *)&v4);
-    if ( !*(_BYTE *)(HIDWORD(v4) + 5) )
+        v5 = 0.0f;
+    deltaTime = v5;
+    UIViewer::Update(v5);
+    if (!this->ingame)
     {
         IK_UpdateTimeAll(cls.realtime, 0, 1);
         R_ClearScene(0);
         CL_ResetSkeletonCache(0);
     }
     cgameGlob = CG_GetLocalClientGlobals(0);
-    if ( !*(_BYTE *)(HIDWORD(v4) + 5) )
+    if (!this->ingame)
     {
-        memset((unsigned __int8 *)&cgameGlob->refdef, 0, sizeof(cgameGlob->refdef));
+        memset(&cgameGlob->refdef, 0, sizeof(cgameGlob->refdef));
         cgameGlob->refdef.exposure = rgp.world->sunParse.sunSettings[0].exposure;
-        v2 = (float)((float)(*(float *)(*(unsigned int *)(HIDWORD(v4) + 208) + 24) * 0.017453292) * 0.5);
-        __libm_sse2_tan(v4);
-        *(float *)&v2 = v2;
-        dxDzAtDefaultAspectRatio = *(float *)&v2;
-        cgameGlob->refdef.tanHalfFovX = *(float *)&v2;
+        //v3 = __libm_sse2_tan(((this->fov->current.value * 0.017453292) * 0.5));
+        v3 = tan(((this->fov->current.value * 0.017453292) * 0.5));
+        dxDzAtDefaultAspectRatio = v3;
+        cgameGlob->refdef.tanHalfFovX = v3;
         cgameGlob->refdef.tanHalfFovY = dxDzAtDefaultAspectRatio;
-        cgameGlob->refdef.fov_x = *(float *)(*(unsigned int *)(HIDWORD(v4) + 208) + 24);
+        cgameGlob->refdef.fov_x = this->fov->current.value;
         cgameGlob->refdef.x = 0;
         cgameGlob->refdef.y = 0;
         screenWidth = 512;
@@ -793,21 +860,19 @@ void __thiscall UIViewer::DrawScene(UIViewer *this, unsigned int eyeToRender)
         cgameGlob->refdef.height = screenHeight;
         cgameGlob->refdef.localClientNum = 0;
     }
-    UIViewer::UpdateCamera((UIViewer *)HIDWORD(v4), &cgameGlob->refdef, deltaTime);
+    UIViewer::UpdateCamera(&cgameGlob->refdef, deltaTime);
     R_SetLodOrigin(&cgameGlob->refdef);
     nDraws = 0;
-    for ( i = 0; i < *(unsigned int *)(HIDWORD(v4) + 1004); ++i )
+    for (i = 0; i < this->nDrawDobjs; ++i)
     {
-        v3 = UIViewer::DrawDobj::Draw(
-                     (UIViewer::DrawDobj *)(HIDWORD(v4) + 524 * i + 480),
-                     deltaTime,
-                     *(float *)(*(unsigned int *)(HIDWORD(v4) + 204) + 24));
-        nDraws += v3 != 0;
+        //v4 = UIViewer::DrawDobj::Draw(&this->drawDobjs[i], a2, deltaTime, this->lightMultiplier->current.value);
+        v4 = this->drawDobjs[i].Draw(deltaTime, this->lightMultiplier->current.value);
+        nDraws += v4 != 0;
     }
-    Dvar_SetBool(*(dvar_s **)(HIDWORD(v4) + 160), nDraws == 0);
-    if ( *(_BYTE *)(*(unsigned int *)(HIDWORD(v4) + 236) + 24) )
-        DObjDisplayAnim(*(const DObj **)(HIDWORD(v4) + 480), "After DObjInitServerTime\n");
-    if ( !*(_BYTE *)(HIDWORD(v4) + 5) )
+    Dvar_SetBool((dvar_s*)this->streaming, nDraws == 0);
+    if (this->dumpAnims->current.enabled)
+        DObjDisplayAnim(this->drawDobjs[0].dobj, "After DObjInitServerTime\n");
+    if (!this->ingame)
     {
         R_InitPrimaryLights(cgameGlob->refdef.primaryLights);
         R_ClearShadowedPrimaryLightHistory(0);
@@ -821,7 +886,7 @@ void __thiscall UIViewer::DrawScene(UIViewer *this, unsigned int eyeToRender)
     }
 }
 
-void __thiscall UIViewer::DrawDobj::Init(UIViewer::DrawDobj *this)
+void __thiscall UIViewer::DrawDobj::Init()
 {
     memset((unsigned __int8 *)this, 0, sizeof(UIViewer::DrawDobj));
     R_InitShaderConstantSet(&this->constantSet);
@@ -831,7 +896,6 @@ void __thiscall UIViewer::DrawDobj::Init(UIViewer::DrawDobj *this)
 }
 
 void __thiscall UIViewer::DrawDobj::Set(
-                UIViewer::DrawDobj *this,
                 const UIViewer::WeaponParams *weapParam,
                 const WeaponVariantDef *wvd,
                 bool hero)
@@ -839,11 +903,10 @@ void __thiscall UIViewer::DrawDobj::Set(
     UIViewer::PlayerParams playerParams; // [esp+4h] [ebp-10h] BYREF
 
     memset(&playerParams, 255, sizeof(playerParams));
-    UIViewer::DrawDobj::Set(this, &playerParams, weapParam, wvd, hero, 0);
+    UIViewer::DrawDobj::Set(&playerParams, weapParam, wvd, hero, 0);
 }
 
 void __thiscall UIViewer::DrawDobj::Set(
-                UIViewer::DrawDobj *this,
                 const UIViewer::PlayerParams *playerParams,
                 const UIViewer::WeaponParams *weapParam,
                 const WeaponVariantDef *wvd,
@@ -859,20 +922,20 @@ void __thiscall UIViewer::DrawDobj::Set(
     this->locked = lock;
 }
 
-char __thiscall UIViewer::DrawDobj::Draw(UIViewer::DrawDobj *this, float deltaTime, float lightMultiplier)
+char __thiscall UIViewer::DrawDobj::Draw(float deltaTime, float lightMultiplier)
 {
     char *Name; // eax
+    float v7; // xmm0_4
     unsigned __int16 EntNum; // ax
     unsigned int String; // eax
-    unsigned int v7; // eax
-    long double thisa; // [esp+28h] [ebp-6Ch]
-    float v9; // [esp+30h] [ebp-64h]
+    unsigned int v10; // eax
+    float v12; // [esp+30h] [ebp-64h]
     unsigned __int8 boneIndex; // [esp+37h] [ebp-5Dh] BYREF
     float origin[3]; // [esp+38h] [ebp-5Ch] BYREF
     float axis[3][3]; // [esp+44h] [ebp-50h] BYREF
     float LIGHT_CYCLE; // [esp+68h] [ebp-2Ch]
     float MAX_LIGHT; // [esp+6Ch] [ebp-28h]
-    float v15; // [esp+70h] [ebp-24h]
+    float v18; // [esp+70h] [ebp-24h]
     float ratio; // [esp+74h] [ebp-20h]
     float l; // [esp+78h] [ebp-1Ch]
     int textureOverrideIndex; // [esp+7Ch] [ebp-18h]
@@ -880,51 +943,51 @@ char __thiscall UIViewer::DrawDobj::Draw(UIViewer::DrawDobj *this, float deltaTi
     unsigned int renderFxFlags; // [esp+84h] [ebp-10h]
     float lightingOrigin[3]; // [esp+88h] [ebp-Ch] BYREF
 
-    LODWORD(thisa) = this;
-    if ( !R_StreamTouchDObjAndCheck(this->dobj, 0) )
+    if (!R_StreamTouchDObjAndCheck(this->dobj, 0))
         return 0;
     memset(lightingOrigin, 0, sizeof(lightingOrigin));
-    renderFxFlags = *(_BYTE *)(LODWORD(thisa) + 384) != 0 ? 3 : 0;
+    renderFxFlags = this->depthHack ? 3 : 0;
     Name = Clan_GetName(0);
     textureOverrideIndex = CG_SetupWeaponOptionsRender(
-                                                     0,
-                                                     (const float *)(LODWORD(thisa) + 56),
-                                                     *(const WeaponVariantDef **)(LODWORD(thisa) + 4),
-                                                     *(renderOptions_s *)(LODWORD(thisa) + 388),
-                                                     (ShaderConstantSet *)(LODWORD(thisa) + 404),
-                                                     Name);
+        0,
+        this->pose.origin,
+        this->weaponVariantDef,
+        this->weaponOptions,
+        &this->constantSet,
+        Name);
     l = 1.0f;
-    if ( *(_BYTE *)(LODWORD(thisa) + 392) )
+    if (this->heroLighting)
     {
         MAX_LIGHT = 4.0f;
         LIGHT_CYCLE = 2.0f;
-        v15 = (float)(cls.realtime - *(unsigned int *)(LODWORD(thisa) + 396)) * 0.001;
-        __libm_sse2_sin(thisa);
-        ratio = (float)((float)((float)(6.2831855 * v15) / 2.0) + 1.0) * 0.5;
-        if ( uiViewer.heroHighlight->current.enabled )
-            l = (float)(MAX_LIGHT * ratio) + 1.0;
+        v18 = (cls.realtime - this->startTime) * 0.001;
+        //v7 = __libm_sse2_sin(((6.2831855 * v18) / 2.0));
+        v7 = sin(((6.2831855 * v18) / 2.0));
+        ratio = (v7 + 1.0) * 0.5;
+        if (uiViewer.heroHighlight->current.enabled)
+            l = (MAX_LIGHT * ratio) + 1.0;
     }
-    if ( *(_BYTE *)(LODWORD(thisa) + 400) )
+    if (this->locked)
         lightMultiplier = lightMultiplier * 0.029999999;
     l = l * lightMultiplier;
-    R_SetShaderConstantSetValue((ShaderConstantSet *)(LODWORD(thisa) + 404), 4u, l, 0.0, 0.0, 0.0);
-    R_SetShaderConstantSetValue((ShaderConstantSet *)(LODWORD(thisa) + 404), 5u, 0.0, l, 0.0, 0.0);
-    R_SetShaderConstantSetValue((ShaderConstantSet *)(LODWORD(thisa) + 404), 6u, 0.0, 0.0, l, 0.0);
-    dobjConstantSet = (ShaderConstantSet *)(LODWORD(thisa) + 404);
-    v9 = *(float *)(LODWORD(thisa) + 380) - uiViewer.camera.yaw;
-    *(unsigned int *)(LODWORD(thisa) + 68) = 0;
-    *(float *)(LODWORD(thisa) + 72) = v9;
-    *(unsigned int *)(LODWORD(thisa) + 76) = 0;
-    EntNum = DObjGetEntNum(*(const DObj **)LODWORD(thisa));
+    R_SetShaderConstantSetValue(&this->constantSet, 4u, l, 0.0, 0.0, 0.0);
+    R_SetShaderConstantSetValue(&this->constantSet, 5u, 0.0, l, 0.0, 0.0);
+    R_SetShaderConstantSetValue(&this->constantSet, 6u, 0.0, 0.0, l, 0.0);
+    dobjConstantSet = &this->constantSet;
+    v12 = this->yaw - uiViewer.camera.yaw;
+    this->pose.angles[0] = 0.0f;
+    this->pose.angles[1] = v12;
+    this->pose.angles[2] = 0.0f;
+    EntNum = DObjGetEntNum(this->dobj);
     R_AddDObjToScene(
-        *(const DObj **)LODWORD(thisa),
-        (const cpose_t *)(LODWORD(thisa) + 8),
+        this->dobj,
+        &this->pose,
         EntNum - 1,
         renderFxFlags,
         lightingOrigin,
         0.0,
         0.0,
-        0.0,
+        (0.0),
         0.0,
         -1,
         textureOverrideIndex,
@@ -932,42 +995,28 @@ char __thiscall UIViewer::DrawDobj::Draw(UIViewer::DrawDobj *this, float deltaTi
         0,
         0.0,
         1.0);
-    if ( uiViewer.drawAttachPoints->current.enabled )
+    if (uiViewer.drawAttachPoints->current.enabled)
     {
         boneIndex = -2;
         String = SL_FindString("tag_weapon_right", SCRIPTINSTANCE_SERVER);
-        if ( DObjGetBoneIndex(*(const DObj **)LODWORD(thisa), String, &boneIndex, -1)
-            && CG_DObjGetWorldBoneMatrix(
-                     (const cpose_t *)(LODWORD(thisa) + 8),
-                     *(DObj **)LODWORD(thisa),
-                     boneIndex,
-                     axis,
-                     origin) )
+        if (DObjGetBoneIndex(this->dobj, String, &boneIndex, -1)
+            && CG_DObjGetWorldBoneMatrix(&this->pose, this->dobj, boneIndex, axis, origin))
         {
             CL_AddDebugSphere(origin, 1.0, colorRed, 12, 0, 0);
         }
         boneIndex = -2;
-        v7 = SL_FindString("tag_weapon_left", SCRIPTINSTANCE_SERVER);
-        if ( DObjGetBoneIndex(*(const DObj **)LODWORD(thisa), v7, &boneIndex, -1) )
+        v10 = SL_FindString("tag_weapon_left", SCRIPTINSTANCE_SERVER);
+        if (DObjGetBoneIndex(this->dobj, v10, &boneIndex, -1))
         {
-            if ( CG_DObjGetWorldBoneMatrix(
-                         (const cpose_t *)(LODWORD(thisa) + 8),
-                         *(DObj **)LODWORD(thisa),
-                         boneIndex,
-                         axis,
-                         origin) )
-            {
+            if (CG_DObjGetWorldBoneMatrix(&this->pose, this->dobj, boneIndex, axis, origin))
                 CL_AddDebugSphere(origin, 1.0, colorLtYellow, 12, 0, 0);
-            }
         }
     }
-    DObjUpdateClientInfo(*(DObj **)LODWORD(thisa), deltaTime, 0);
+    DObjUpdateClientInfo(this->dobj, deltaTime, 0);
     return 1;
 }
 
-const WeaponVariantDef *__thiscall UIViewer::GetWeaponVariantDef(
-                UIViewer *this,
-                const UIViewer::WeaponParams *weapParams)
+const WeaponVariantDef *__thiscall UIViewer::GetWeaponVariantDef(const UIViewer::WeaponParams *weapParams)
 {
     char *v4; // [esp+Ch] [ebp-A8h]
     char *v6; // [esp+14h] [ebp-A0h]
@@ -1031,19 +1080,17 @@ const WeaponVariantDef *__thiscall UIViewer::GetWeaponVariantDef(
 }
 
 const WeaponVariantDef *__thiscall UIViewer::AddWeaponXmodel(
-                UIViewer *this,
                 const UIViewer::WeaponParams *weapParams,
                 DObjModel_s *dobjModel,
                 bool world)
 {
     const WeaponVariantDef *WeaponVariantDef; // eax
 
-    WeaponVariantDef = UIViewer::GetWeaponVariantDef(this, weapParams);
-    return UIViewer::AddWeaponXmodel(this, WeaponVariantDef, dobjModel, world);
+    WeaponVariantDef = UIViewer::GetWeaponVariantDef(weapParams);
+    return UIViewer::AddWeaponXmodel(WeaponVariantDef, dobjModel, world);
 }
 
 const WeaponVariantDef *__thiscall UIViewer::AddWeaponXmodel(
-                UIViewer *this,
                 const WeaponVariantDef *weaponVariantDef,
                 DObjModel_s *dobjModel,
                 bool world)
@@ -1081,7 +1128,6 @@ const WeaponVariantDef *__thiscall UIViewer::AddWeaponXmodel(
 }
 
 void __thiscall UIViewer::HideWeaponTags(
-                UIViewer *this,
                 DObj *dobj,
                 const WeaponVariantDef *weapon,
                 unsigned int *partBits,
@@ -1111,7 +1157,6 @@ void __thiscall UIViewer::HideWeaponTags(
 }
 
 void __thiscall UIViewer::HideWeaponTags(
-                UIViewer *this,
                 DObj *dobj,
                 const unsigned __int16 *hideTags,
                 unsigned int *partBits)
@@ -1128,7 +1173,6 @@ void __thiscall UIViewer::HideWeaponTags(
 }
 
 void __thiscall UIViewer::UnhideWeaponTags(
-                UIViewer *this,
                 DObj *dobj,
                 const unsigned __int16 *hideTags,
                 unsigned int *partBits)
@@ -1145,7 +1189,6 @@ void __thiscall UIViewer::UnhideWeaponTags(
 }
 
 char __thiscall UIViewer::AddBodyPart(
-                UIViewer *this,
                 const char *partName,
                 const char *partType,
                 DObjModel_s *dobjModel,
@@ -1172,11 +1215,11 @@ char __thiscall UIViewer::AddBodyPart(
     {
         __debugbreak();
     }
-    Faction = UIViewer::GetFaction(this);
+    Faction = UIViewer::GetFaction();
     column = StringTable_LookupColumnNumForValue(this->bodyHeadTable, factionsRow, Faction);
     if ( column == -1 )
     {
-        v6 = UIViewer::GetFaction(this);
+        v6 = UIViewer::GetFaction();
         v7 = va("faction '%s' not found in table", v6);
         if ( !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_viewer.cpp",
@@ -1192,7 +1235,7 @@ char __thiscall UIViewer::AddBodyPart(
         return 0;
     if ( !*partModelName )
         return 0;
-    xmodel = DB_FindXAssetHeader(ASSET_TYPE_XMODEL, partModelName, 1, -1).model;
+    xmodel = DB_FindXAssetHeader(ASSET_TYPE_XMODEL, (char*)partModelName, 1, -1).model;
     if ( !xmodel )
         return 0;
     dobjModel->model = xmodel;
@@ -1206,7 +1249,6 @@ char __thiscall UIViewer::AddBodyPart(
 }
 
 void __thiscall UIViewer::UpdatePlayerDObj(
-                UIViewer *this,
                 const UIViewer::PlayerParams *playerParams,
                 const WeaponVariantDef *weaponVariantDef,
                 const UIViewer::WeaponParams *weapParams,
@@ -1222,7 +1264,7 @@ void __thiscall UIViewer::UpdatePlayerDObj(
     const WeaponVariantDef *v12; // eax
     __int16 v13; // [esp-10h] [ebp-144h]
     float *origin; // [esp+Ch] [ebp-128h]
-    DvarValue *p_current; // [esp+10h] [ebp-124h]
+    const DvarValue *p_current; // [esp+10h] [ebp-124h]
     DObj *dobj; // [esp+14h] [ebp-120h]
     unsigned int numModels; // [esp+18h] [ebp-11Ch]
     unsigned int entnum; // [esp+1Ch] [ebp-118h] BYREF
@@ -1234,40 +1276,40 @@ void __thiscall UIViewer::UpdatePlayerDObj(
     {
         __debugbreak();
     }
-    UIViewer::FreeDobjs(this);
+    UIViewer::FreeDobjs();
     ItemRef = BG_UnlockablesGetItemRef(playerParams->bodyIndex);
     numModels = 1;
-    if ( UIViewer::AddBodyPart(this, ItemRef, "body", dobjModels, 0) )
+    if ( UIViewer::AddBodyPart(ItemRef, "body", dobjModels, 0) )
     {
         v6 = BG_UnlockablesGetItemRef(playerParams->headIndex);
-        if ( UIViewer::AddBodyPart(this, v6, "headgear", &dobjModels[1], "J_HEAD") )
+        if ( UIViewer::AddBodyPart(v6, "headgear", &dobjModels[1], "J_HEAD") )
         {
             v7 = BG_UnlockablesGetItemRef(playerParams->bodyIndex);
             numModels = 3;
-            if ( !UIViewer::AddBodyPart(this, v7, "head_naked", &dobjModels[2], "J_HEAD") )
+            if ( !UIViewer::AddBodyPart(v7, "head_naked", &dobjModels[2], "J_HEAD") )
                 return;
         }
         else
         {
             v8 = BG_UnlockablesGetItemRef(playerParams->headIndex);
-            if ( UIViewer::AddBodyPart(this, v8, "head", &dobjModels[1], "J_HEAD") )
+            if ( UIViewer::AddBodyPart(v8, "head", &dobjModels[1], "J_HEAD") )
             {
                 numModels = 2;
             }
             else
             {
                 v9 = BG_UnlockablesGetItemRef(playerParams->bodyIndex);
-                if ( UIViewer::AddBodyPart(this, v9, "head_naked", &dobjModels[1], "J_HEAD") )
+                if ( UIViewer::AddBodyPart(v9, "head_naked", &dobjModels[1], "J_HEAD") )
                     numModels = 2;
             }
         }
-        if ( UIViewer::AddWeaponXmodel(this, weaponVariantDef, &dobjModels[numModels], 1) )
+        if ( UIViewer::AddWeaponXmodel(weaponVariantDef, &dobjModels[numModels], 1) )
         {
             dobjModels[numModels++].boneName = SL_FindString("tag_weapon_right", SCRIPTINSTANCE_SERVER);
             if ( weaponVariantDef->weapDef->bDualWield )
             {
                 v10 = BG_GetWeaponVariantDef(weaponVariantDef->weapDef->dualWieldWeaponIndex);
-                if ( UIViewer::AddWeaponXmodel(this, v10, &dobjModels[numModels], 1) )
+                if ( UIViewer::AddWeaponXmodel(v10, &dobjModels[numModels], 1) )
                     dobjModels[numModels++].boneName = SL_FindString("tag_weapon_left", SCRIPTINSTANCE_SERVER);
             }
             else if ( weaponVariantDef->weapDef->additionalMeleeModel )
@@ -1278,16 +1320,16 @@ void __thiscall UIViewer::UpdatePlayerDObj(
                 dobjModels[numModels++].boneName = SL_FindString("tag_weapon_left", SCRIPTINSTANCE_SERVER);
             }
         }
-        dobj = UIViewer::AllocDobj(this, &entnum);
+        dobj = UIViewer::AllocDobj(&entnum);
         v13 = entnum;
-        AnimTree = UIViewer::GetAnimTree(this);
+        AnimTree = UIViewer::GetAnimTree();
         DObjCreateExt(dobjModels, numModels, AnimTree, (unsigned __int8 *)dobj, v13, 0, 1, 0);
         memset(partBits, 0, sizeof(partBits));
-        UIViewer::HideWeaponTags(this, dobj, weaponVariantDef, partBits, 0);
+        UIViewer::HideWeaponTags(dobj, weaponVariantDef, partBits, 0);
         if ( weaponVariantDef->weapDef->bDualWield )
         {
             v12 = BG_GetWeaponVariantDef(weaponVariantDef->weapDef->dualWieldWeaponIndex);
-            UIViewer::HideWeaponTags(this, dobj, v12, partBits, 1);
+            UIViewer::HideWeaponTags(dobj, v12, partBits, 1);
         }
         DObjSetHidePartBits(dobj, partBits);
         this->drawDobjs[this->nDrawDobjs].dobj = dobj;
@@ -1302,12 +1344,13 @@ void __thiscall UIViewer::UpdatePlayerDObj(
         origin[2] = p_current->vector[2];
         this->drawDobjs[this->nDrawDobjs].yaw = 180.0f;
         this->drawDobjs[this->nDrawDobjs].depthHack = 0;
-        UIViewer::DrawDobj::Set(&this->drawDobjs[this->nDrawDobjs], playerParams, weapParams, weaponVariantDef, 0, locked);
+        //UIViewer::DrawDobj::Set(&this->drawDobjs[this->nDrawDobjs], playerParams, weapParams, weaponVariantDef, 0, locked);
+        this->drawDobjs[this->nDrawDobjs].Set(playerParams, weapParams, weaponVariantDef, 0, locked);
         ++this->nDrawDobjs;
     }
 }
 
-void __thiscall UIViewer::UpdatePlayerAnim(UIViewer *this, const WeaponVariantDef *weaponVariantDef)
+void __thiscall UIViewer::UpdatePlayerAnim(const WeaponVariantDef *weaponVariantDef)
 {
     int WeaponIndexForName; // eax
     unsigned int *v3; // [esp+0h] [ebp-8h]
@@ -1319,24 +1362,26 @@ void __thiscall UIViewer::UpdatePlayerAnim(UIViewer *this, const WeaponVariantDe
     }
     if ( this->nDrawDobjs > 0 )
     {
-        *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = UIViewer::GetBGS(this);
+        //*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = UIViewer::GetBGS();
+        ::bgs = UIViewer::GetBGS();
         WeaponIndexForName = BG_GetWeaponIndexForName((char *)weaponVariantDef->szInternalName, 0);
         AssignToSmallerType<unsigned short>(&this->ps.weapon, WeaponIndexForName);
-        UIViewer::GetPlayerEntity(this)->nextState.weapon = this->ps.weapon;
-        v3 = (unsigned int *)((char *)UIViewer::GetPlayerEntity(this) + 804);
+        UIViewer::GetPlayerEntity()->nextState.weapon = this->ps.weapon;
+        v3 = (unsigned int *)((char *)UIViewer::GetPlayerEntity() + 804);
         *v3 |= 2u;
-        UIViewer::GetPlayerEntity(this)->nextState.eType = 1;
+        UIViewer::GetPlayerEntity()->nextState.eType = 1;
         BG_SetConditionBit(0, 1, weaponVariantDef->weapDef->weapClass);
         BG_SetConditionBit(0, 0, weaponVariantDef->weapDef->playerAnimType);
         BG_SetConditionValue(0, 0x16u, 1u);
         BG_AnimScriptAnimation(&this->pmove, AISTATE_COMBAT, ANIM_MT_IDLE, 1);
-        *(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = 0;
+        //*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8) = 0;
+        ::bgs = 0;
         cgArray->predictedPlayerState.weapon = this->ps.weapon;
         this->currentPlayerWeapon = this->ps.weapon;
     }
 }
 
-const char *__thiscall UIViewer::GetFaction(UIViewer *this)
+const char *__thiscall UIViewer::GetFaction()
 {
     cg_s *LocalClientGlobals; // eax
 
@@ -1350,13 +1395,12 @@ const char *__thiscall UIViewer::GetFaction(UIViewer *this)
 }
 
 void __thiscall UIViewer::AddPlayerToScene(
-                UIViewer *this,
                 const UIViewer::PlayerParams *playerParams,
                 const UIViewer::WeaponParams *weapParams,
                 bool locked)
 {
-    const WeaponVariantDef *WeaponVariantDef; // eax
-    const WeaponVariantDef *v5; // eax
+    const WeaponVariantDef *weapVarDef; // eax
+    const WeaponVariantDef *weapVarDef2; // eax
     const WeaponVariantDef *v6; // eax
     char v7; // al
     char v8; // al
@@ -1372,7 +1416,7 @@ void __thiscall UIViewer::AddPlayerToScene(
     bool animate; // [esp+BAh] [ebp-2h]
     bool updated; // [esp+BBh] [ebp-1h]
 
-    Faction = UIViewer::GetFaction(this);
+    Faction = UIViewer::GetFaction();
     memset(&state, 0, 36);
     state.playerParams = *playerParams;
     memcpy(&state.weaponParams, weapParams, sizeof(state.weaponParams));
@@ -1383,32 +1427,33 @@ void __thiscall UIViewer::AddPlayerToScene(
     {
         v11 = *v13;
         *v12++ = *v13++;
-    }
-    while ( v11 );
+    } while (v11);
     animate = this->prevState.mode == 0;
     updated = 0;
-    if ( UIViewer::State::operator!=(&state, &this->prevState) )
+
+    //if (UIViewer::State::operator!=(&state, &this->prevState))
+    if (state != &this->prevState)
     {
-        wepVariantDef = UIViewer::GetWeaponVariantDef(this, weapParams);
-        if ( wepVariantDef )
+        wepVariantDef = UIViewer::GetWeaponVariantDef(weapParams);
+        if (wepVariantDef)
         {
-            newWeapon = BG_GetWeaponIndexForName((char *)wepVariantDef->szInternalName, 0);
-            this->pmove.cmd.weapon = BG_GetWeaponIndexForName((char *)wepVariantDef->szInternalName, 0);
+            newWeapon = BG_GetWeaponIndexForName(wepVariantDef->szInternalName, 0);
+            this->pmove.cmd.weapon = BG_GetWeaponIndexForName(wepVariantDef->szInternalName, 0);
             this->ps.weapon = this->pmove.cmd.weapon;
-            if ( !this->prevState.mode && newWeapon == this->currentPlayerWeapon )
+            if (!this->prevState.mode && newWeapon == this->currentPlayerWeapon)
             {
-                WeaponVariantDef = BG_GetWeaponVariantDef(this->ps.weapon);
-                UIViewer::UpdatePlayerDObj(this, playerParams, WeaponVariantDef, weapParams, locked);
+                weapVarDef = BG_GetWeaponVariantDef(this->ps.weapon);
+                UIViewer::UpdatePlayerDObj(playerParams, weapVarDef, weapParams, locked);
             }
             else
             {
-                UIViewer::UpdatePlayerDObj(this, playerParams, wepVariantDef, weapParams, locked);
-                UIViewer::UpdatePlayerAnim(this, wepVariantDef);
+                UIViewer::UpdatePlayerDObj(playerParams, wepVariantDef, weapParams, locked);
+                UIViewer::UpdatePlayerAnim(wepVariantDef);
             }
-            if ( !BG_PlayerHasWeapon(&this->ps, this->pmove.cmd.weapon) )
+            if (!BG_PlayerHasWeapon(&this->ps, this->pmove.cmd.weapon))
             {
                 BG_TakePlayerWeapon(&this->ps, this->playerWeaponHistory[this->nextPlayerWeaponHistory % 4u]);
-                if ( BG_HoldWeapon(&this->ps, this->pmove.cmd.weapon) )
+                if (BG_HoldWeapon(&this->ps, this->pmove.cmd.weapon))
                 {
                     this->playerWeaponHistory[this->nextPlayerWeaponHistory % 4u] = this->pmove.cmd.weapon;
                     ++this->nextPlayerWeaponHistory;
@@ -1418,50 +1463,49 @@ void __thiscall UIViewer::AddPlayerToScene(
             updated = 1;
         }
     }
-    else if ( this->ps.weapon != this->currentPlayerWeapon )
+    else if (this->ps.weapon != this->currentPlayerWeapon)
     {
-        v5 = BG_GetWeaponVariantDef(this->ps.weapon);
-        UIViewer::UpdatePlayerDObj(this, playerParams, v5, weapParams, locked);
+        weapVarDef2 = BG_GetWeaponVariantDef(this->ps.weapon);
+        UIViewer::UpdatePlayerDObj(playerParams, weapVarDef2, weapParams, locked);
         v6 = BG_GetWeaponVariantDef(this->ps.weapon);
-        UIViewer::UpdatePlayerAnim(this, v6);
+        UIViewer::UpdatePlayerAnim(v6);
     }
-    if ( strcmp(this->playerCameraName, this->playerCameraDvar->current.string) )
+    if (strcmp(this->playerCameraName, this->playerCameraDvar->current.string))
     {
-        if ( this->ingame )
-            v7 = UIViewer::SetCameraPos(this, (char *)this->playerCameraDvar->current.integer, "ingame", animate);
+        if (this->ingame)
+            v7 = UIViewer::SetCameraPos((char*)this->playerCameraDvar->current.integer, (char*)"ingame", animate);
         else
-            v7 = UIViewer::SetCameraPos(this, (char *)this->playerCameraDvar->current.integer, "none", animate);
-        if ( !v7 )
+            v7 = UIViewer::SetCameraPos((char *)this->playerCameraDvar->current.integer, (char *)"none", animate);
+        if (!v7)
         {
-            Dvar_SetString((dvar_s *)this->playerCameraDvar, "player");
-            UIViewer::SetCameraPos(this, (char *)this->playerCameraDvar->current.integer, "none", animate);
+            Dvar_SetString((dvar_s*)this->playerCameraDvar, "player");
+            UIViewer::SetCameraPos((char *)this->playerCameraDvar->current.integer, (char *)"none", animate);
         }
-        integer = (char *)this->playerCameraDvar->current.integer;
+        integer = (char*)this->playerCameraDvar->current.integer;
         playerCameraName = this->playerCameraName;
         do
         {
             v8 = *integer;
             *playerCameraName++ = *integer++;
-        }
-        while ( v8 );
+        } while (v8);
     }
 }
 
-bool __thiscall UIViewer::State::operator!=(UIViewer::State *this, const UIViewer::State *o)
+bool __thiscall UIViewer::State::operator!=(const UIViewer::State *o)
 {
     return this->mode != o->mode
-            || UIViewer::State::HasPlayerChanged(this, o)
+            || UIViewer::State::HasPlayerChanged(o)
             || memcmp((const char *)&this->weaponParams, (const char *)&o->weaponParams, 32);
 }
 
-bool __thiscall UIViewer::State::HasPlayerChanged(UIViewer::State *this, const UIViewer::State *o)
+bool __thiscall UIViewer::State::HasPlayerChanged(const UIViewer::State *o)
 {
     return memcmp((const char *)&this->playerParams, (const char *)&o->playerParams, 16)
             || memcmp(this->faction, o->faction, 0x20u)
             || this->locked != o->locked;
 }
 
-int *__thiscall UIViewer::GetAttachmentIndexPtr(UIViewer *this, UIViewer::WeaponParams *weapParams)
+int *__thiscall UIViewer::GetAttachmentIndexPtr(UIViewer::WeaponParams *weapParams)
 {
     eAttachmentPoint attachPoint; // [esp+4h] [ebp-14h]
     int *attachIndex[4]; // [esp+8h] [ebp-10h]
@@ -1502,42 +1546,41 @@ eAttachmentPoint __cdecl GetCurrentAttachPoint()
     return BG_GetAttachmentPointIndexFromAttachment(attachment);
 }
 
-int __thiscall UIViewer::GetAttachmentIndex(UIViewer *this, UIViewer::WeaponParams *weapParams)
+int __thiscall UIViewer::GetAttachmentIndex(UIViewer::WeaponParams *weapParams)
 {
     int *attachIndex; // [esp+4h] [ebp-4h]
 
-    attachIndex = UIViewer::GetAttachmentIndexPtr(this, weapParams);
+    attachIndex = UIViewer::GetAttachmentIndexPtr(weapParams);
     if ( attachIndex )
         return *attachIndex;
     else
         return 0;
 }
 
-void __thiscall UIViewer::SetAttachmentIndex(UIViewer *this, UIViewer::WeaponParams *weapParams, int index)
+void __thiscall UIViewer::SetAttachmentIndex(UIViewer::WeaponParams *weapParams, int index)
 {
     int *attachIndex; // [esp+4h] [ebp-4h]
 
-    attachIndex = UIViewer::GetAttachmentIndexPtr(this, weapParams);
+    attachIndex = UIViewer::GetAttachmentIndexPtr(weapParams);
     if ( attachIndex )
         *attachIndex = index;
 }
 
-void __thiscall UIViewer::ClearAttachmentIndex(UIViewer *this, UIViewer::WeaponParams *weapParams)
+void __thiscall UIViewer::ClearAttachmentIndex(UIViewer::WeaponParams *weapParams)
 {
     int *attachIndex; // [esp+4h] [ebp-4h]
 
-    attachIndex = UIViewer::GetAttachmentIndexPtr(this, weapParams);
+    attachIndex = UIViewer::GetAttachmentIndexPtr(weapParams);
     if ( attachIndex )
         *attachIndex = 0;
 }
 
-const char *__thiscall UIViewer::GetAttachmentSlotName(UIViewer *this)
+const char *__thiscall UIViewer::GetAttachmentSlotName()
 {
     return modeNames[this->mode] + 14;
 }
 
 void __thiscall UIViewer::AddWeaponToScene(
-                UIViewer *this,
                 UIViewer::WeaponParams *weapParams,
                 UIViewer::WeaponParams *baseWeapParams)
 {
@@ -1545,10 +1588,10 @@ void __thiscall UIViewer::AddWeaponToScene(
     bool v4; // [esp+8h] [ebp-260h]
     UIViewer::Mode v9; // [esp+3Ch] [ebp-22Ch]
     float *v10; // [esp+40h] [ebp-228h]
-    DvarValue *v11; // [esp+44h] [ebp-224h]
+    const DvarValue *v11; // [esp+44h] [ebp-224h]
     UIViewer::Mode v12; // [esp+48h] [ebp-220h]
     float *origin; // [esp+4Ch] [ebp-21Ch]
-    DvarValue *p_current; // [esp+50h] [ebp-218h]
+    const DvarValue *p_current; // [esp+50h] [ebp-218h]
     UIViewer::Mode mode; // [esp+54h] [ebp-214h]
     char *attachRef; // [esp+64h] [ebp-204h]
     char *attachMode; // [esp+68h] [ebp-200h]
@@ -1575,24 +1618,25 @@ void __thiscall UIViewer::AddWeaponToScene(
     memcpy(&state.weaponParams, weapParams, sizeof(state.weaponParams));
     state.locked = 0;
     memset(state.faction, 0, sizeof(state.faction));
-    if ( UIViewer::State::operator!=(&state, &this->prevState) )
+    //if ( UIViewer::State::operator!=(&state, &this->prevState) )
+    if ( state != &this->prevState )
     {
-        UIViewer::FreeDobjs(this);
-        weaponVariantDef = UIViewer::AddWeaponXmodel(this, weapParams, dobjModels, 1);
+        UIViewer::FreeDobjs();
+        weaponVariantDef = UIViewer::AddWeaponXmodel(weapParams, dobjModels, 1);
         numModels = 1;
         if ( weaponVariantDef )
         {
-            dobj = UIViewer::AllocDobj(this, &entnum);
+            dobj = UIViewer::AllocDobj(&entnum);
             DObjCreate(dobjModels, numModels, 0, (unsigned __int8 *)dobj, entnum);
             memset(partBits, 0, sizeof(partBits));
-            UIViewer::HideWeaponTags(this, dobj, weaponVariantDef, partBits, 0);
+            UIViewer::HideWeaponTags(dobj, weaponVariantDef, partBits, 0);
             mode = this->mode;
             if ( mode == MODE_EDIT_ATTACHMENT_TOP
                 || mode == MODE_EDIT_ATTACHMENT_BOTTOM
                 || mode == MODE_EDIT_ATTACHMENT_TRIGGER
                 || mode == MODE_EDIT_ATTACHMENT_MUZZLE )
             {
-                baseWeaponVariantDef = UIViewer::GetWeaponVariantDef(this, baseWeapParams);
+                baseWeaponVariantDef = UIViewer::GetWeaponVariantDef(baseWeapParams);
                 numAttachmentTags = 0;
                 memset((unsigned __int8 *)attachmentTags, 0, 0x40u);
                 for ( baseTagIndex = 0; baseTagIndex < 32 && baseWeaponVariantDef->hideTags[baseTagIndex]; ++baseTagIndex )
@@ -1609,7 +1653,7 @@ void __thiscall UIViewer::AddWeaponToScene(
                     if ( !found )
                         attachmentTags[numAttachmentTags++] = baseWeaponVariantDef->hideTags[baseTagIndex];
                 }
-                UIViewer::HideWeaponTags(this, dobj, attachmentTags, partBits);
+                UIViewer::HideWeaponTags(dobj, attachmentTags, partBits);
             }
             DObjSetHidePartBits(dobj, partBits);
             this->drawDobjs[this->nDrawDobjs].dobj = dobj;
@@ -1624,7 +1668,8 @@ void __thiscall UIViewer::AddWeaponToScene(
             origin[2] = p_current->vector[2];
             this->drawDobjs[this->nDrawDobjs].yaw = 90.0f;
             this->drawDobjs[this->nDrawDobjs].depthHack = this->mode == MODE_EDIT_ATTACHMENT_TOP;
-            UIViewer::DrawDobj::Set(&this->drawDobjs[this->nDrawDobjs], weapParams, weaponVariantDef, 0);
+            //UIViewer::DrawDobj::Set(&this->drawDobjs[this->nDrawDobjs], weapParams, weaponVariantDef, 0);
+            this->drawDobjs[this->nDrawDobjs].Set(weapParams, weaponVariantDef, 0);
             ++this->nDrawDobjs;
             v12 = this->mode;
             if ( v12 == MODE_EDIT_ATTACHMENT_TOP
@@ -1632,10 +1677,10 @@ void __thiscall UIViewer::AddWeaponToScene(
                 || v12 == MODE_EDIT_ATTACHMENT_TRIGGER
                 || v12 == MODE_EDIT_ATTACHMENT_MUZZLE )
             {
-                buf = (unsigned __int8 *)UIViewer::AllocDobj(this, &v19);
+                buf = (unsigned __int8 *)UIViewer::AllocDobj(&v19);
                 DObjCreate(dobjModels, numModels, 0, buf, v19);
                 memset(v20, 255, sizeof(v20));
-                UIViewer::UnhideWeaponTags(this, (DObj *)buf, attachmentTags, v20);
+                UIViewer::UnhideWeaponTags((DObj *)buf, attachmentTags, v20);
                 DObjSetHidePartBits((DObj *)buf, v20);
                 this->drawDobjs[this->nDrawDobjs].dobj = (DObj *)buf;
                 memset(
@@ -1649,7 +1694,8 @@ void __thiscall UIViewer::AddWeaponToScene(
                 v10[2] = v11->vector[2];
                 this->drawDobjs[this->nDrawDobjs].yaw = 90.0f;
                 this->drawDobjs[this->nDrawDobjs].depthHack = this->mode == MODE_EDIT_ATTACHMENT_TOP;
-                UIViewer::DrawDobj::Set(&this->drawDobjs[this->nDrawDobjs], weapParams, weaponVariantDef, 1);
+                //UIViewer::DrawDobj::Set(&this->drawDobjs[this->nDrawDobjs], weapParams, weaponVariantDef, 1);
+                this->drawDobjs[this->nDrawDobjs].Set(weapParams, weaponVariantDef, 1);
                 ++this->nDrawDobjs;
             }
             weaponRef = BG_UnlockablesGetItemRef(weapParams->weaponIndex);
@@ -1659,17 +1705,17 @@ void __thiscall UIViewer::AddWeaponToScene(
                 || v9 == MODE_EDIT_ATTACHMENT_TRIGGER
                 || v9 == MODE_EDIT_ATTACHMENT_MUZZLE )
             {
-                attachMode = (char *)UIViewer::GetAttachmentSlotName(this);
-                AttachmentIndex = UIViewer::GetAttachmentIndex(this, weapParams);
+                attachMode = (char *)UIViewer::GetAttachmentSlotName();
+                AttachmentIndex = UIViewer::GetAttachmentIndex(weapParams);
                 attachRef = (char *)BG_UnlockablesGetItemAttachmentRef(weapParams->weaponIndex, AttachmentIndex);
                 if ( !attachRef || !strcmp(attachRef, "none") )
                     attachRef = attachMode;
-                if ( !UIViewer::SetCameraPos(this, (char *)weaponRef, attachRef, 1)
-                    && !UIViewer::SetCameraPos(this, (char *)weaponRef, attachMode, 1)
-                    && !UIViewer::SetCameraPos(this, (char *)weaponRef, "none", 1)
-                    && !UIViewer::SetCameraPos(this, "default", attachRef, 1) )
+                if ( !UIViewer::SetCameraPos((char *)weaponRef, attachRef, 1)
+                    && !UIViewer::SetCameraPos((char *)weaponRef, attachMode, 1)
+                    && !UIViewer::SetCameraPos((char *)weaponRef, (char *)"none", 1)
+                    && !UIViewer::SetCameraPos((char *)"default", attachRef, 1) )
                 {
-                    UIViewer::SetCameraPos(this, "default", "none", 1);
+                    UIViewer::SetCameraPos((char *)"default", (char *)"none", 1);
                 }
             }
             else
@@ -1678,13 +1724,13 @@ void __thiscall UIViewer::AddWeaponToScene(
                     && this->mode != MODE_EDIT_WEAPON
                     && this->mode != MODE_AAR_WEAPON
                     && this->mode != MODE_CHOOSE_CLASS_WEAPON;
-                if ( (this->mode != MODE_EDIT_TAG || !UIViewer::SetCameraPos(this, (char *)weaponRef, "tag", v4))
-                    && (this->mode != MODE_EDIT_EMBLEM || !UIViewer::SetCameraPos(this, (char *)weaponRef, "emblem", v4))
-                    && (this->mode != MODE_AAR_WEAPON || !UIViewer::SetCameraPos(this, (char *)weaponRef, "aar", v4))
-                    && (this->mode != MODE_CHOOSE_CLASS_WEAPON || !UIViewer::SetCameraPos(this, (char *)weaponRef, "ingame", v4))
-                    && !UIViewer::SetCameraPos(this, (char *)weaponRef, "none", v4) )
+                if ( (this->mode != MODE_EDIT_TAG || !UIViewer::SetCameraPos((char *)weaponRef, (char *)"tag", v4))
+                    && (this->mode != MODE_EDIT_EMBLEM || !UIViewer::SetCameraPos((char *)weaponRef, (char *)"emblem", v4))
+                    && (this->mode != MODE_AAR_WEAPON || !UIViewer::SetCameraPos((char *)weaponRef, (char *)"aar", v4))
+                    && (this->mode != MODE_CHOOSE_CLASS_WEAPON || !UIViewer::SetCameraPos((char *)weaponRef, (char *)"ingame", v4))
+                    && !UIViewer::SetCameraPos((char *)weaponRef, (char *)"none", v4) )
                 {
-                    UIViewer::SetCameraPos(this, "default", "none", v4);
+                    UIViewer::SetCameraPos((char *)"default", (char *)"none", v4);
                 }
             }
             memcpy(&this->prevState, &state, sizeof(this->prevState));
@@ -1692,7 +1738,7 @@ void __thiscall UIViewer::AddWeaponToScene(
     }
 }
 
-char __thiscall UIViewer::SetCameraPos(UIViewer *this, char *string, bool animate)
+char __thiscall UIViewer::SetCameraPos(char *string, bool animate)
 {
     long double v3; // st7
     char str[256]; // [esp+1Ch] [ebp-130h] BYREF
@@ -1703,7 +1749,7 @@ char __thiscall UIViewer::SetCameraPos(UIViewer *this, char *string, bool animat
     int i; // [esp+148h] [ebp-4h]
 
     MAX_STRING = 256;
-    strncpy((unsigned __int8 *)str, (unsigned __int8 *)string, 0x100u);
+    strncpy(str, string, 0x100u);
     str[255] = 0;
     s = strtok(str, " ,");
     for ( i = 0; i < 5 && s; ++i )
@@ -1717,23 +1763,23 @@ char __thiscall UIViewer::SetCameraPos(UIViewer *this, char *string, bool animat
     at[0] = 0.0f;
     at[1] = vals[0];
     at[2] = vals[1];
-    UIViewer::SetCameraPos(this, at, vals[2], vals[3], vals[4], animate);
+    UIViewer::SetCameraPos(at, vals[2], vals[3], vals[4], animate);
     return 1;
 }
 
-char __thiscall UIViewer::SetCameraPos(UIViewer *this, char *weapon, char *attachment, bool animate)
+char __thiscall UIViewer::SetCameraPos(char *weapon, char *attachment, bool animate)
 {
     char *v5; // eax
     int column; // [esp+2Ch] [ebp-Ch]
     int i; // [esp+30h] [ebp-8h]
     int attachmentsRow; // [esp+34h] [ebp-4h]
 
-    strncpy((unsigned __int8 *)this->lastCameraWeapon, (unsigned __int8 *)weapon, 0x20u);
-    strncpy((unsigned __int8 *)this->lastCameraAttachment, (unsigned __int8 *)attachment, 0x20u);
+    strncpy(this->lastCameraWeapon, weapon, 0x20u);
+    strncpy(this->lastCameraAttachment, attachment, 0x20u);
     for ( i = 0; i < this->nCameraOverrides; ++i )
     {
         if ( !strcmp(this->cameraOverrides[i].weapon, weapon) && !strcmp(this->cameraOverrides[i].attachment, attachment) )
-            return UIViewer::SetCameraPos(this, this->cameraOverrides[i].params, animate);
+            return UIViewer::SetCameraPos(this->cameraOverrides[i].params, animate);
     }
     attachmentsRow = StringTable_LookupRowNumForValue(this->cameraPosTable, 0, "attachments");
     if ( attachmentsRow == -1 )
@@ -1742,11 +1788,10 @@ char __thiscall UIViewer::SetCameraPos(UIViewer *this, char *weapon, char *attac
     if ( column == -1 )
         return 0;
     v5 = (char *)StringTable_Lookup(this->cameraPosTable, 0, weapon, column);
-    return UIViewer::SetCameraPos(this, v5, animate);
+    return UIViewer::SetCameraPos(v5, animate);
 }
 
 void __thiscall UIViewer::SetCameraPos(
-                UIViewer *this,
                 const float *lookat,
                 float dist,
                 float yaw,
@@ -1777,7 +1822,7 @@ void __thiscall UIViewer::SetCameraPos(
     }
 }
 
-void __thiscall UIViewer::InitFov(UIViewer *this)
+void __thiscall UIViewer::InitFov()
 {
     float value; // [esp+4h] [ebp-Ch]
     const char *str; // [esp+Ch] [ebp-4h]
@@ -1822,7 +1867,8 @@ void __cdecl UIViewer::SetCameraPosCmd()
         yaw = atof(v3);
         v4 = Cmd_Argv(3);
         dist = atof(v4);
-        UIViewer::SetCameraPos(&uiViewer, lookat, dist, yaw, pitch, 0);
+        //UIViewer::SetCameraPos(&uiViewer, lookat, dist, yaw, pitch, 0);
+        uiViewer.SetCameraPos(lookat, dist, yaw, pitch, 0);
     }
     else
     {
@@ -1832,7 +1878,8 @@ void __cdecl UIViewer::SetCameraPosCmd()
 
 void __cdecl UIViewer::ResetCameraCmd()
 {
-    UIViewer::SetCameraPos(&uiViewer, uiViewer.lastCameraWeapon, uiViewer.lastCameraAttachment, 1);
+    //UIViewer::SetCameraPos(&uiViewer, uiViewer.lastCameraWeapon, uiViewer.lastCameraAttachment, 1);
+    uiViewer.SetCameraPos(uiViewer.lastCameraWeapon, uiViewer.lastCameraAttachment, 1);
 }
 
 void __cdecl UIViewer::SetControllerIndexCmd()
@@ -1845,10 +1892,10 @@ DObj *__cdecl UIViewer::GetDObj(int handle)
     return uiViewer.drawDobjs[handle].dobj;
 }
 
-void __thiscall UIViewer::Draw(UIViewer *this, int localClientNum, bool _ingame, unsigned int eyeToRender)
+void __thiscall UIViewer::Draw(int localClientNum, bool _ingame, unsigned int eyeToRender)
 {
     if ( !this->inited )
-        UIViewer::Init(this, _ingame);
+        UIViewer::Init(_ingame);
     if ( _ingame != this->ingame
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_viewer.cpp", 2107, 0, "%s", "_ingame == ingame") )
     {
@@ -1857,17 +1904,17 @@ void __thiscall UIViewer::Draw(UIViewer *this, int localClientNum, bool _ingame,
     if ( this->ingame || DB_IsZoneLoaded("common_mp") && DB_IsZoneLoaded("ui_viewer_mp") && comWorld.name )
     {
         if ( this->ingame && !this->mapLoaded || !this->ingame && !rgp.world )
-            UIViewer::LoadMap(this);
+            UIViewer::LoadMap();
         if ( this->showDvar->current.enabled )
-            UIViewer::Show(this);
+            UIViewer::Show();
         else
-            UIViewer::Hide(this);
+            UIViewer::Hide();
         if ( this->show )
-            UIViewer::DrawScene(this, eyeToRender);
+            UIViewer::DrawScene(eyeToRender);
     }
 }
 
-void __thiscall UIViewer::SetupStreamer(UIViewer *this)
+void __thiscall UIViewer::SetupStreamer()
 {
     int colCount; // [esp+8h] [ebp-1Ch]
     XModel *model; // [esp+Ch] [ebp-18h]
@@ -1894,7 +1941,7 @@ void __thiscall UIViewer::SetupStreamer(UIViewer *this)
                     modelName = StringTable_GetColumnValueForRow(this->bodyHeadTable, row, col);
                     if ( modelName && *modelName )
                     {
-                        model = DB_FindXAssetHeader(ASSET_TYPE_XMODEL, modelName, 1, -1).model;
+                        model = DB_FindXAssetHeader(ASSET_TYPE_XMODEL, (char*)modelName, 1, -1).model;
                         if ( model )
                             R_Stream_ForceLoadModel(model, 0);
                     }
@@ -1923,28 +1970,33 @@ void __cdecl ForceLoadWeapon(XAssetHeader header)
 
 void __cdecl UI_ViewerDraw(unsigned int eyeToRender)
 {
-    if ( DB_IsZoneLoaded("ui_mp") )
-        UIViewer::Draw(&uiViewer, 0, 0, eyeToRender);
+    if (DB_IsZoneLoaded("ui_mp"))
+    {
+        //UIViewer::Draw(&uiViewer, 0, 0, eyeToRender);
+        uiViewer.Draw(0, 0, eyeToRender);
+    }
 }
 
 void __cdecl UI_ViewerShutdown()
 {
-    UIViewer::Shutdown(&uiViewer);
+    //UIViewer::Shutdown(&uiViewer);
+    uiViewer.Shutdown();
 }
 
 void __cdecl UI_ViewerCheckStreamer()
 {
-    UIViewer::SetupStreamer(&uiViewer);
+    //UIViewer::SetupStreamer(&uiViewer);
+    uiViewer.SetupStreamer();
 }
 
-void __thiscall UIViewer::State::State(UIViewer::State *this)
+UIViewer::State::State()
 {
     this->mode = -1;
     this->playerParams.bodyIndex = -1;
     this->playerParams.headIndex = -1;
     this->playerParams.facePatternIndex = -1;
     this->playerParams.faceColorIndex = -1;
-    this->weaponParams.weaponSlot = -1;
+    this->weaponParams.weaponSlot = (UIViewer::WeaponSlot)-1;
     this->weaponParams.weaponIndex = -1;
     this->weaponParams.attachTopIndex = -1;
     this->weaponParams.attachBottomIndex = -1;

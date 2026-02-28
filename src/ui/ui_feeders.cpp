@@ -5,124 +5,153 @@
 #include <qcommon/com_gamemodes.h>
 #include <ui_mp/ui_feeders_mp.h>
 #include "ui_utils.h"
+#include "ui_playlists.h"
+#include <live/live_leaderboard.h>
+#include <live/live_friends_pc.h>
+#include <live/live_win.h>
+#include <live/live_meetplayer.h>
+#include "ui_friends.h"
+#include <live/live_fileshare.h>
+#include <client_mp/cl_ui_mp.h>
+#include <client_mp/cl_cgame_mp.h>
+#include <live/live_pcache.h>
+#include <live/live_pcache_profile.h>
+#include <client/cl_rank.h>
+#include <client_mp/cl_scrn_mp.h>
+#include <client_mp/cl_main_pc_mp.h>
+#include "ui_emblem.h"
+#include <live/live_fileshare_search.h>
+#include <cgame/cg_compass.h>
 
-const char *__cdecl UI_FeederCount(int localClientNum, int contextIndex, float feederID, listBoxDef_s *listPtr)
+static float newUIfeederHighlight[4] = { 1.0, 1.0, 1.0, 0.2 };
+static float newUIFeederBackgroundColor[4] = { 0.0, 0.0, 0.0, 0.2 };
+static float newUIGrey[4] = { 0.40000001, 0.40000001, 0.40000001, 1.0 };
+static float newUIRed[4] = { 0.73000002, 0.19, 0.19, 1.0 };
+static float newUIGreen[4] = { 0.41999999, 0.68000001, 0.46000001, 1.0 };
+
+
+
+
+XuidInfo recentPlayerInfo;
+FriendInfo friendInfo;
+
+int __cdecl UI_FeederCount(int localClientNum, int contextIndex, float feederID, listBoxDef_s *listPtr)
 {
-    const char *result; // eax
+    int result; // eax
     int CategoryIdForNum; // eax
-    const char *leaderboardFeederCount; // [esp+Ch] [ebp-14h]
+    int leaderboardFeederCount; // [esp+Ch] [ebp-14h]
     signed int noOfMetPlayers; // [esp+10h] [ebp-10h]
-    const char *friendCount; // [esp+14h] [ebp-Ch]
+    int friendCount; // [esp+14h] [ebp-Ch]
     int controllerIndex; // [esp+18h] [ebp-8h]
     uiInfo_s *uiInfo; // [esp+1Ch] [ebp-4h]
 
-    if ( localClientNum == -1
+    if (localClientNum == -1
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_feeders.cpp",
-                    284,
-                    0,
-                    "%s",
-                    "localClientNum != INVALID_CLIENT_NUMBER") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_feeders.cpp",
+            284,
+            0,
+            "%s",
+            "localClientNum != INVALID_CLIENT_NUMBER"))
     {
         __debugbreak();
     }
     controllerIndex = Com_LocalClient_GetControllerIndex(localClientNum);
-    if ( controllerIndex == -1
+    if (controllerIndex == -1
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_feeders.cpp",
-                    288,
-                    0,
-                    "%s",
-                    "controllerIndex != INVALID_CONTROLLER_PORT") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_feeders.cpp",
+            288,
+            0,
+            "%s",
+            "controllerIndex != INVALID_CONTROLLER_PORT"))
     {
         __debugbreak();
     }
     uiInfo = UI_UIContext_GetInfo(contextIndex);
-    switch ( (int)feederID )
+    switch ((int)feederID)
     {
-        case 2:
-            UI_UpdateDisplayServers(localClientNum, uiInfo);
-            UI_UpdateServerToolTips(localClientNum, listPtr);
-            result = *(const char **)&sharedUiInfo.gap0[81128];
-            break;
-        case 4:
-            result = (const char *)UI_MapCountByGameType();
-            break;
-        case 7:
-        case 19:
-            if ( uiInfo->uiDC.realTime > uiInfo->playerRefresh )
-            {
-                uiInfo->playerRefresh = uiInfo->uiDC.realTime + 3000;
-                UI_BuildPlayerList(localClientNum);
-            }
-            result = *(const char **)sharedUiInfo.gap58;
-            break;
-        case 9:
-            result = sharedUiInfo.modCount;
-            break;
-        case 13:
-            result = sharedUiInfo.serverStatusInfoScoreBoard.lines[2][5];
-            break;
-        case 26:
-        case 77:
-            if ( xblive_wagermatch->current.enabled )
-                CategoryIdForNum = Playlist_GetCategoryIdForNum(wagerCategory->current.integer);
-            else
-                CategoryIdForNum = Playlist_GetCategoryIdForNum(category->current.integer);
-            result = (const char *)Playlist_GetPlaylistCount(CategoryIdForNum);
-            break;
-        case 27:
-            result = (const char *)Playlist_GetGametypeCount();
-            break;
-        case 28:
-        case 76:
-            result = (const char *)Playlist_GetCategoryCount();
-            break;
-        case 29:
-            leaderboardFeederCount = (const char *)LB_FeederCount(localClientNum);
-            Dvar_SetBool((dvar_s *)ui_leaderboardFeederCountNotZero, (int)leaderboardFeederCount > 0);
-            result = leaderboardFeederCount;
-            break;
-        case 32:
-            friendCount = (const char *)Friends_GetCount(controllerIndex, 0);
-            Dvar_SetBoolIfChanged((dvar_s *)ui_friendCountNotZero, (int)friendCount > 0);
-            result = friendCount;
-            break;
-        case 45:
-        case 46:
-            result = 0;
-            break;
-        case 47:
-            result = (const char *)Live_GetInvitesCount();
-            break;
-        case 50:
-            noOfMetPlayers = LiveMeetPlayer_GetNoOfMetPlayers(controllerIndex);
-            LiveMeetPlayer_SortMetPlayers(controllerIndex, noOfMetPlayers);
-            Dvar_SetBool((dvar_s *)ui_recentPlayerCountNotZero, noOfMetPlayers > 0);
-            result = (const char *)noOfMetPlayers;
-            break;
-        case 54:
-            result = (const char *)listPtr->rowCount;
-            break;
-        case 74:
-        case 84:
-            result = (const char *)Live_FileShare_GetSearchResultsCount();
-            break;
-        case 79:
-            result = (const char *)Live_FileShare_GetOtherPrivateSlotsCount();
-            break;
-        case 80:
-            result = (const char *)Live_FileShare_GetMyPrivateSlotsCount();
-            break;
-        case 86:
-            result = (const char *)(3 * Live_FileShare_GetMyPrivateSlotsCount());
-            break;
-        case 91:
-            result = (const char *)sharedUiInfo.pendingServerStatus.server[0].valid;
-            break;
-        default:
-            result = (const char *)UI_Project_FeederCount(localClientNum, contextIndex, feederID, listPtr);
-            break;
+    case 2:
+        UI_UpdateDisplayServers(localClientNum, uiInfo);
+        UI_UpdateServerToolTips(localClientNum, listPtr);
+        result = sharedUiInfo.serverStatus.numDisplayServers;
+        break;
+    case 4:
+        result = UI_MapCountByGameType();
+        break;
+    case 7:
+    case 19:
+        if (uiInfo->uiDC.realTime > uiInfo->playerRefresh)
+        {
+            uiInfo->playerRefresh = uiInfo->uiDC.realTime + 3000;
+            UI_BuildPlayerList(localClientNum);
+        }
+        result = sharedUiInfo.playerCount;
+        break;
+    case 9:
+        result = sharedUiInfo.modCount;
+        break;
+    case 13:
+        result = sharedUiInfo.serverStatusInfo.numLines;
+        break;
+    case 26:
+    case 77:
+        if (xblive_wagermatch->current.enabled)
+            CategoryIdForNum = Playlist_GetCategoryIdForNum(wagerCategory->current.integer);
+        else
+            CategoryIdForNum = Playlist_GetCategoryIdForNum(category->current.integer);
+        result = Playlist_GetPlaylistCount(CategoryIdForNum);
+        break;
+    case 27:
+        result = Playlist_GetGametypeCount();
+        break;
+    case 28:
+    case 76:
+        result = Playlist_GetCategoryCount();
+        break;
+    case 29:
+        leaderboardFeederCount = LB_FeederCount(localClientNum);
+        Dvar_SetBool((dvar_s*)ui_leaderboardFeederCountNotZero, leaderboardFeederCount > 0);
+        result = leaderboardFeederCount;
+        break;
+    case 32:
+        friendCount = Friends_GetCount(controllerIndex, 0);
+        Dvar_SetBoolIfChanged((dvar_s *)ui_friendCountNotZero, friendCount > 0);
+        result = friendCount;
+        break;
+    case 45:
+    case 46:
+        result = 0;
+        break;
+    case 47:
+        result = Live_GetInvitesCount();
+        break;
+    case 50:
+        noOfMetPlayers = LiveMeetPlayer_GetNoOfMetPlayers(controllerIndex);
+        LiveMeetPlayer_SortMetPlayers(controllerIndex, noOfMetPlayers);
+        Dvar_SetBool((dvar_s *)ui_recentPlayerCountNotZero, noOfMetPlayers > 0);
+        result = noOfMetPlayers;
+        break;
+    case 54:
+        result = listPtr->rowCount;
+        break;
+    case 74:
+    case 84:
+        result = Live_FileShare_GetSearchResultsCount();
+        break;
+    case 79:
+        result = Live_FileShare_GetOtherPrivateSlotsCount();
+        break;
+    case 80:
+        result = Live_FileShare_GetMyPrivateSlotsCount();
+        break;
+    case 86:
+        result = 3 * Live_FileShare_GetMyPrivateSlotsCount();
+        break;
+    case 91:
+        result = sharedUiInfo.serverStatusInfoScoreBoard.numLines;
+        break;
+    default:
+        result = UI_Project_FeederCount(localClientNum, contextIndex, feederID, listPtr);
+        break;
     }
     return result;
 }
@@ -287,11 +316,15 @@ _CustomClassDescription *__cdecl UI_FeederItemText(
     }
 }
 
+int lastColumn;
+int lastTime_0;
+char info[1024];
+char clientBuff[38];
 char *__cdecl UI_FeederItemText_Servers(int localClientNum, int contextIndex, int index, int column, Material **handle)
 {
     char *v5; // eax
     char *v6; // eax
-    char *result; // eax
+    const char *result; // eax
     char *v8; // eax
     char *v9; // eax
     char *v10; // eax
@@ -317,332 +350,336 @@ char *__cdecl UI_FeederItemText_Servers(int localClientNum, int contextIndex, in
 
     uiInfo = UI_UIContext_GetInfo(contextIndex);
     UI_UpdateDisplayServers(localClientNum, uiInfo);
-    if ( index < 0 || index >= *(int *)&sharedUiInfo.gap0[81128] )
+    if (index < 0 || index >= sharedUiInfo.serverStatus.numDisplayServers)
         return (char *)"";
-    if ( lastColumn != column || lastTime_0 > uiInfo->uiDC.realTime + 5000 )
+    if (lastColumn != column || lastTime_0 > uiInfo->uiDC.realTime + 5000)
     {
-        LAN_GetServerInfo(ui_netSource->current.integer, *(unsigned int *)&sharedUiInfo.gap0[4 * index + 1128], info, 1024);
+        LAN_GetServerInfo(
+            ui_netSource->current.integer,
+            *(_DWORD *)&sharedUiInfo.serverStatusAddress[4 * index - 81328],
+            info,
+            1024);
         lastColumn = column;
         lastTime_0 = uiInfo->uiDC.realTime;
     }
     v5 = Info_ValueForKey(info, "ping");
     ping = atoi(v5);
-    switch ( column )
+    switch (column)
     {
-        case 0:
-            v10 = Info_ValueForKey(info, "wager");
-            iswager = atoi(v10);
-            v11 = Info_ValueForKey(info, "licensetype");
-            switch ( atoi(v11) )
-            {
-                case 2:
-                    if ( iswager )
-                        v13 = Material_RegisterHandle("wager_green", 7);
-                    else
-                        v13 = Material_RegisterHandle("os", 7);
-                    *handle = v13;
-                    break;
-                case 3:
-                    *handle = Material_RegisterHandle("no_ors", 7);
-                    break;
-                case 4:
-                    if ( iswager )
-                        v12 = Material_RegisterHandle("wager_yellow", 7);
-                    else
-                        v12 = Material_RegisterHandle("ors", 7);
-                    *handle = v12;
-                    break;
-                case 5:
-                    *handle = Material_RegisterHandle("listen_server", 7);
-                    break;
-                default:
-                    break;
-            }
-            result = (char *)"";
-            break;
-        case 1:
-            v9 = Info_ValueForKey(info, "pb");
-            if ( atoi(v9) )
-                *handle = Material_RegisterHandle("vac", 7);
-            result = (char *)"";
-            break;
+    case 0:
+        v10 = Info_ValueForKey(info, "wager");
+        iswager = atoi(v10);
+        v11 = Info_ValueForKey(info, "licensetype");
+        switch (atoi(v11))
+        {
         case 2:
-            v6 = Info_ValueForKey(info, "pswrd");
-            if ( atoi(v6) )
-                *handle = Material_RegisterHandle("lock", 7);
-            result = (char *)"";
+            if (iswager)
+                v13 = Material_RegisterHandle("wager_green", 7);
+            else
+                v13 = Material_RegisterHandle("os", 7);
+            *handle = v13;
             break;
         case 3:
-            if ( ping > 0 )
-            {
-                v17 = Info_ValueForKey(info, "hostname");
-                I_strncpyz(clientBuff, v17, 38);
-                UI_UseAltColorPalette(clientBuff);
-                result = clientBuff;
-            }
-            else
-            {
-                result = Info_ValueForKey(info, "addr");
-            }
+            *handle = Material_RegisterHandle("no_ors", 7);
             break;
         case 4:
-            v18 = Info_ValueForKey(info, "mapname");
-            result = UI_GetMapDisplayName(v18);
+            if (iswager)
+                v12 = Material_RegisterHandle("wager_yellow", 7);
+            else
+                v12 = Material_RegisterHandle("ors", 7);
+            *handle = v12;
             break;
         case 5:
-            v22 = Info_ValueForKey(info, "com_maxclients");
-            v19 = Info_ValueForKey(info, "clients");
-            Com_sprintf(clientBuff, 0x26u, "%s (%s)", v19, v22);
-            result = clientBuff;
+            *handle = Material_RegisterHandle("listen_server", 7);
             break;
-        case 6:
-            if ( Info_ValueForKey(info, "gametype") && *Info_ValueForKey(info, "gametype") )
+        default:
+            break;
+        }
+        result = (char *)"";
+        break;
+    case 1:
+        v9 = Info_ValueForKey(info, "pb");
+        if (atoi(v9))
+            *handle = Material_RegisterHandle("vac", 7);
+        result = (char *)"";
+        break;
+    case 2:
+        v6 = Info_ValueForKey(info, "pswrd");
+        if (atoi(v6))
+            *handle = Material_RegisterHandle("lock", 7);
+        result = (char *)"";
+        break;
+    case 3:
+        if (ping > 0)
+        {
+            v17 = Info_ValueForKey(info, "hostname");
+            I_strncpyz(clientBuff, v17, 38);
+            UI_UseAltColorPalette(clientBuff);
+            result = clientBuff;
+        }
+        else
+        {
+            result = Info_ValueForKey(info, "addr");
+        }
+        break;
+    case 4:
+        v18 = Info_ValueForKey(info, "mapname");
+        result = UI_GetMapDisplayName(v18);
+        break;
+    case 5:
+        v22 = Info_ValueForKey(info, "com_maxclients");
+        v19 = Info_ValueForKey(info, "clients");
+        Com_sprintf(clientBuff, 0x26u, "%s (%s)", v19, v22);
+        result = clientBuff;
+        break;
+    case 6:
+        if (Info_ValueForKey(info, "gametype") && *Info_ValueForKey(info, "gametype"))
+        {
+            v20 = Info_ValueForKey(info, "gametype");
+            tempstr = UI_GetGameTypeDisplayShortName(v20);
+            if (*tempstr)
             {
-                v20 = Info_ValueForKey(info, "gametype");
-                tempstr = UI_GetGameTypeDisplayShortName(v20);
-                if ( *tempstr )
-                {
-                    GameTypeDisplayName = tempstr;
-                }
-                else
-                {
-                    v21 = Info_ValueForKey(info, "gametype");
-                    GameTypeDisplayName = UI_GetGameTypeDisplayName(v21);
-                }
-                result = GameTypeDisplayName;
+                GameTypeDisplayName = tempstr;
             }
             else
             {
-                result = "?";
+                v21 = Info_ValueForKey(info, "gametype");
+                GameTypeDisplayName = UI_GetGameTypeDisplayName(v21);
             }
-            break;
-        case 7:
-            v14 = Info_ValueForKey(info, "licensetype");
-            if ( atoi(v14) != 5 )
+            result = GameTypeDisplayName;
+        }
+        else
+        {
+            result = "?";
+        }
+        break;
+    case 7:
+        v14 = Info_ValueForKey(info, "licensetype");
+        if (atoi(v14) != 5)
+        {
+            v16 = Info_ValueForKey(info, "region");
+            switch (atoi(v16))
             {
-                v16 = Info_ValueForKey(info, "region");
-                switch ( atoi(v16) )
-                {
-                    case 1:
-                        goto LABEL_34;
-                    case 2:
-                        goto LABEL_36;
-                    case 3:
-                        goto LABEL_38;
-                    case 4:
-                        goto LABEL_40;
-                    case 5:
-                        goto LABEL_42;
-                    case 6:
-                        goto LABEL_44;
-                    case 7:
-                        goto LABEL_46;
-                    case 8:
-                        goto LABEL_48;
-                    case 9:
-                        goto LABEL_50;
-                    case 10:
-                        goto LABEL_52;
-                    case 11:
-                        goto LABEL_54;
-                    case 12:
-                        goto LABEL_56;
-                    case 13:
-                        goto LABEL_58;
-                    case 14:
-                        goto LABEL_60;
-                    case 15:
-                        goto LABEL_62;
-                    case 16:
-                        goto LABEL_64;
-                    case 17:
-                        goto LABEL_66;
-                    case 18:
-                        goto LABEL_68;
-                    case 19:
-                        goto LABEL_73;
-                    default:
-                        goto LABEL_72;
-                }
+            case 1:
+                goto LABEL_34;
+            case 2:
+                goto LABEL_36;
+            case 3:
+                goto LABEL_38;
+            case 4:
+                goto LABEL_40;
+            case 5:
+                goto LABEL_42;
+            case 6:
+                goto LABEL_44;
+            case 7:
+                goto LABEL_46;
+            case 8:
+                goto LABEL_48;
+            case 9:
+                goto LABEL_50;
+            case 10:
+                goto LABEL_52;
+            case 11:
+                goto LABEL_54;
+            case 12:
+                goto LABEL_56;
+            case 13:
+                goto LABEL_58;
+            case 14:
+                goto LABEL_60;
+            case 15:
+                goto LABEL_62;
+            case 16:
+                goto LABEL_64;
+            case 17:
+                goto LABEL_66;
+            case 18:
+                goto LABEL_68;
+            case 19:
+                goto LABEL_73;
+            default:
+                goto LABEL_72;
             }
-            region = Info_ValueForKey(info, "countrycode");
-            if ( I_stricmp(region, "US") )
+        }
+        region = Info_ValueForKey(info, "countrycode");
+        if (I_stricmp(region, "US"))
+        {
+            if (I_stricmp(region, "CA"))
             {
-                if ( I_stricmp(region, "CA") )
+                if (I_stricmp(region, "NL"))
                 {
-                    if ( I_stricmp(region, "NL") )
+                    if (I_stricmp(region, "GB"))
                     {
-                        if ( I_stricmp(region, "GB") )
+                        if (I_stricmp(region, "DK"))
                         {
-                            if ( I_stricmp(region, "DK") )
+                            if (I_stricmp(region, "PL"))
                             {
-                                if ( I_stricmp(region, "PL") )
+                                if (I_stricmp(region, "DE"))
                                 {
-                                    if ( I_stricmp(region, "DE") )
+                                    if (I_stricmp(region, "AU"))
                                     {
-                                        if ( I_stricmp(region, "AU") )
+                                        if (I_stricmp(region, "JP"))
                                         {
-                                            if ( I_stricmp(region, "JP") )
+                                            if (I_stricmp(region, "RU"))
                                             {
-                                                if ( I_stricmp(region, "RU") )
+                                                if (I_stricmp(region, "ES"))
                                                 {
-                                                    if ( I_stricmp(region, "ES") )
+                                                    if (I_stricmp(region, "FR"))
                                                     {
-                                                        if ( I_stricmp(region, "FR") )
+                                                        if (I_stricmp(region, "IT"))
                                                         {
-                                                            if ( I_stricmp(region, "IT") )
+                                                            if (I_stricmp(region, "GR"))
                                                             {
-                                                                if ( I_stricmp(region, "GR") )
+                                                                if (I_stricmp(region, "IS"))
                                                                 {
-                                                                    if ( I_stricmp(region, "IS") )
+                                                                    if (I_stricmp(region, "ZA"))
                                                                     {
-                                                                        if ( I_stricmp(region, "ZA") )
+                                                                        if (I_stricmp(region, "SA"))
                                                                         {
-                                                                            if ( I_stricmp(region, "SA") )
+                                                                            if (I_stricmp(region, "KR"))
                                                                             {
-                                                                                if ( I_stricmp(region, "KR") )
-                                                                                {
-                                                                                    if ( I_stricmp(region, "AE") )
-LABEL_72:
-                                                                                        v15 = Material_RegisterHandle("sb_globe", 7);
-                                                                                    else
-LABEL_73:
-                                                                                        v15 = Material_RegisterHandle("flag_dubai", 7);
-                                                                                }
+                                                                                if (I_stricmp(region, "AE"))
+                                                                                    LABEL_72:
+                                                                                v15 = Material_RegisterHandle("sb_globe", 7);
                                                                                 else
-                                                                                {
-LABEL_68:
-                                                                                    v15 = Material_RegisterHandle("flag_skorea", 7);
-                                                                                }
+                                                                                    LABEL_73:
+                                                                                v15 = Material_RegisterHandle("flag_dubai", 7);
                                                                             }
                                                                             else
                                                                             {
-LABEL_66:
-                                                                                v15 = Material_RegisterHandle("flag_saudi", 7);
+                                                                            LABEL_68:
+                                                                                v15 = Material_RegisterHandle("flag_skorea", 7);
                                                                             }
                                                                         }
                                                                         else
                                                                         {
-LABEL_64:
-                                                                            v15 = Material_RegisterHandle("flag_safrica", 7);
+                                                                        LABEL_66:
+                                                                            v15 = Material_RegisterHandle("flag_saudi", 7);
                                                                         }
                                                                     }
                                                                     else
                                                                     {
-LABEL_62:
-                                                                        v15 = Material_RegisterHandle("flag_israel", 7);
+                                                                    LABEL_64:
+                                                                        v15 = Material_RegisterHandle("flag_safrica", 7);
                                                                     }
                                                                 }
                                                                 else
                                                                 {
-LABEL_60:
-                                                                    v15 = Material_RegisterHandle("flag_greece", 7);
+                                                                LABEL_62:
+                                                                    v15 = Material_RegisterHandle("flag_israel", 7);
                                                                 }
                                                             }
                                                             else
                                                             {
-LABEL_58:
-                                                                v15 = Material_RegisterHandle("flag_italy", 7);
+                                                            LABEL_60:
+                                                                v15 = Material_RegisterHandle("flag_greece", 7);
                                                             }
                                                         }
                                                         else
                                                         {
-LABEL_56:
-                                                            v15 = Material_RegisterHandle("flag_france", 7);
+                                                        LABEL_58:
+                                                            v15 = Material_RegisterHandle("flag_italy", 7);
                                                         }
                                                     }
                                                     else
                                                     {
-LABEL_54:
-                                                        v15 = Material_RegisterHandle("flag_spain", 7);
+                                                    LABEL_56:
+                                                        v15 = Material_RegisterHandle("flag_france", 7);
                                                     }
                                                 }
                                                 else
                                                 {
-LABEL_52:
-                                                    v15 = Material_RegisterHandle("flag_russia", 7);
+                                                LABEL_54:
+                                                    v15 = Material_RegisterHandle("flag_spain", 7);
                                                 }
                                             }
                                             else
                                             {
-LABEL_50:
-                                                v15 = Material_RegisterHandle("flag_japan", 7);
+                                            LABEL_52:
+                                                v15 = Material_RegisterHandle("flag_russia", 7);
                                             }
                                         }
                                         else
                                         {
-LABEL_48:
-                                            v15 = Material_RegisterHandle("flag_australia", 7);
+                                        LABEL_50:
+                                            v15 = Material_RegisterHandle("flag_japan", 7);
                                         }
                                     }
                                     else
                                     {
-LABEL_46:
-                                        v15 = Material_RegisterHandle("flag_germany", 7);
+                                    LABEL_48:
+                                        v15 = Material_RegisterHandle("flag_australia", 7);
                                     }
                                 }
                                 else
                                 {
-LABEL_44:
-                                    v15 = Material_RegisterHandle("flag_poland", 7);
+                                LABEL_46:
+                                    v15 = Material_RegisterHandle("flag_germany", 7);
                                 }
                             }
                             else
                             {
-LABEL_42:
-                                v15 = Material_RegisterHandle("flag_denmark", 7);
+                            LABEL_44:
+                                v15 = Material_RegisterHandle("flag_poland", 7);
                             }
                         }
                         else
                         {
-LABEL_40:
-                            v15 = Material_RegisterHandle("flag_brit", 7);
+                        LABEL_42:
+                            v15 = Material_RegisterHandle("flag_denmark", 7);
                         }
                     }
                     else
                     {
-LABEL_38:
-                        v15 = Material_RegisterHandle("flag_neth", 7);
+                    LABEL_40:
+                        v15 = Material_RegisterHandle("flag_brit", 7);
                     }
                 }
                 else
                 {
-LABEL_36:
-                    v15 = Material_RegisterHandle("flag_canada", 7);
+                LABEL_38:
+                    v15 = Material_RegisterHandle("flag_neth", 7);
                 }
             }
             else
             {
-LABEL_34:
-                v15 = Material_RegisterHandle("flag_usa", 7);
+            LABEL_36:
+                v15 = Material_RegisterHandle("flag_canada", 7);
             }
-            *handle = v15;
-            return (char *)"";
-        case 8:
-            if ( ping > 0 )
-                result = Info_ValueForKey(info, "ping");
-            else
-                result = "...";
-            break;
-        case 9:
-            mod = Info_ValueForKey(info, "game");
-            if ( mod && I_stristr(mod, "mods/") )
-                result = mod + 5;
-            else
-                result = (char *)"";
-            break;
-        case 10:
-            v8 = Info_ValueForKey(info, "voice");
-            if ( atoi(v8) )
-                result = "X";
-            else
-                result = (char *)"";
-            break;
-        default:
-            result = "Dt";
-            break;
+        }
+        else
+        {
+        LABEL_34:
+            v15 = Material_RegisterHandle("flag_usa", 7);
+        }
+        *handle = v15;
+        return (char *)"";
+    case 8:
+        if (ping > 0)
+            result = Info_ValueForKey(info, "ping");
+        else
+            result = "...";
+        break;
+    case 9:
+        mod = Info_ValueForKey(info, "game");
+        if (mod && I_stristr(mod, "mods/"))
+            result = mod + 5;
+        else
+            result = (char *)"";
+        break;
+    case 10:
+        v8 = Info_ValueForKey(info, "voice");
+        if (atoi(v8))
+            result = "X";
+        else
+            result = (char *)"";
+        break;
+    default:
+        result = "Dt";
+        break;
     }
-    return result;
+    return (char*)result;
 }
 
 char *__cdecl UI_FeederItemText_ServerStatus(int index, unsigned int column)
@@ -967,7 +1004,7 @@ char *__cdecl UI_FeederItemText_NewPlaylists(
     {
         if ( column == 1 )
             return UI_FeederItemText_Playlists(controllerIndex, index);
-        if ( column == 2 && listboxPtr->cursorPos[contextIndex] == index && Window_HasFocus(contextIndex, &item->window) )
+        //if ( column == 2 && listboxPtr->cursorPos[contextIndex] == index && Window_HasFocus(contextIndex, &item->window) )
             //BLOPS_NULLSUB();
     }
     else
@@ -981,12 +1018,12 @@ char *__cdecl UI_FeederItemText_MuteList(int localClientNum, int contextIndex, i
 {
     unsigned int ClientNumForPlayerListNum; // eax
 
-    if ( index < 0 || index >= *(int *)sharedUiInfo.gap58 )
+    if (index < 0 || index >= sharedUiInfo.playerCount)
         return (char *)"";
-    if ( column == 1 )
-        return &sharedUiInfo.gap58[32 * index + 4];
+    if (column == 1)
+        return sharedUiInfo.playerNames[index];
     ClientNumForPlayerListNum = UI_GetClientNumForPlayerListNum(index);
-    if ( CL_IsPlayerMuted(localClientNum, ClientNumForPlayerListNum) )
+    if (CL_IsPlayerMuted(localClientNum, ClientNumForPlayerListNum))
         return UI_SafeTranslateString("MP_MUTED");
     else
         return (char *)"";
@@ -1139,6 +1176,7 @@ void __cdecl UI_FeederItemOwnerDraw_Invites(
     }
 }
 
+FriendInfo info_0;
 void __cdecl UI_FeederItemOwnerDraw_OnlineFriends(
                 int controllerIndex,
                 int contextIndex,
@@ -1289,17 +1327,17 @@ LABEL_117:
         }
         if ( onFocus )
         {
-            color->value = newUIfeederHighlight[0];
-            LODWORD(color->vector[1]) = dword_E0BDB0;
-            LODWORD(color->vector[2]) = dword_E0BDB4;
-            LODWORD(color->vector[3]) = dword_E0BDB8;
+            color->vector[0] = newUIfeederHighlight[0];
+            color->vector[1] = newUIfeederHighlight[1];
+            color->vector[2] = newUIfeederHighlight[2];
+            color->vector[3] = newUIfeederHighlight[3];
             return;
         }
-LABEL_100:
-        color->value = newUIFeederBackgroundColor[0];
-        LODWORD(color->vector[1]) = dword_E0BDA0;
-        LODWORD(color->vector[2]) = dword_E0BDA4;
-        LODWORD(color->vector[3]) = dword_E0BDA8;
+    LABEL_100:
+        color->vector[0] = newUIFeederBackgroundColor[0];
+        color->vector[1] = newUIFeederBackgroundColor[1];
+        color->vector[2] = newUIFeederBackgroundColor[2];
+        color->vector[3] = newUIFeederBackgroundColor[3];
         return;
     }
     if ( feederID == 21.0 )
@@ -1315,15 +1353,15 @@ LABEL_100:
                 color->integer = 0;
                 color->vector[1] = 0.0f;
                 color->vector[2] = 0.0f;
-                color->vector[3] = 0.1f5000001;
+                color->vector[3] = 0.15000001f;
                 break;
             case 7:
             case 8:
                 if ( index >= Com_LocalClients_GetUsedControllerCount() )
                 {
-                    color->value = FLOAT_0_69;
-                    color->vector[1] = FLOAT_0_69;
-                    color->vector[2] = FLOAT_0_69;
+                    color->vector[0] = 0.69f;
+                    color->vector[1] = 0.69f;
+                    color->vector[2] = 0.69f;
                     color->vector[3] = 1.0f;
                 }
                 goto LABEL_117;
@@ -1351,8 +1389,8 @@ LABEL_100:
             }
             if ( column == 5 )
             {
-                color->value = 0.1f5000001;
-                color->vector[1] = FLOAT_0_61000001;
+                color->vector[0] = 0.15000001f;
+                color->vector[1] = 0.61f;
                 color->vector[2] = 0.0f;
                 color->vector[3] = 0.8f;
                 return;
@@ -1382,10 +1420,11 @@ LABEL_100:
                 }
                 else if ( listPtr->rows[index].status == 1 )
                 {
-                    color->value = newUIDisableColor[0];
-                    LODWORD(color->vector[1]) = dword_E0BD90;
-                    LODWORD(color->vector[2]) = dword_E0BD94;
-                    LODWORD(color->vector[3]) = dword_E0BD98;
+                    static float newUIDisableColor[4] = { 0.40000001, 0.40000001, 0.40000001, 1.0 };
+                    color->vector[0] = newUIDisableColor[0];
+                    color->vector[1] = newUIDisableColor[1];
+                    color->vector[2] = newUIDisableColor[2];
+                    color->vector[3] = newUIDisableColor[3];
                 }
                 else
                 {
@@ -1475,18 +1514,18 @@ LABEL_100:
                         }
                         else if ( !v10 && !Window_HasFocus(contextIndex, &item->window) )
                         {
-                            color->value = newUIGrey[0];
-                            LODWORD(color->vector[1]) = dword_E0BD80;
-                            LODWORD(color->vector[2]) = dword_E0BD84;
-                            LODWORD(color->vector[3]) = dword_E0BD88;
+                            color->vector[0] = newUIGrey[0];
+                            color->vector[1] = newUIGrey[1];
+                            color->vector[2] = newUIGrey[2];
+                            color->vector[3] = newUIGrey[3];
                         }
                     }
                     else
                     {
-                        color->value = newUIGrey[0];
-                        LODWORD(color->vector[1]) = dword_E0BD80;
-                        LODWORD(color->vector[2]) = dword_E0BD84;
-                        LODWORD(color->vector[3]) = dword_E0BD88;
+                        color->vector[0] = newUIGrey[0];
+                        color->vector[1] = newUIGrey[1];
+                        color->vector[2] = newUIGrey[2];
+                        color->vector[3] = newUIGrey[3];
                     }
                 }
             }
@@ -1494,18 +1533,18 @@ LABEL_100:
             {
                 if ( !v10 )
                 {
-                    color->value = newUIFeederBackgroundColor[0];
-                    LODWORD(color->vector[1]) = dword_E0BDA0;
-                    LODWORD(color->vector[2]) = dword_E0BDA4;
-                    LODWORD(color->vector[3]) = dword_E0BDA8;
+                    color->vector[0] = newUIFeederBackgroundColor[0];
+                    color->vector[1] = newUIFeederBackgroundColor[1];
+                    color->vector[2] = newUIFeederBackgroundColor[2];
+                    color->vector[3] = newUIFeederBackgroundColor[3];
                 }
             }
             else if ( v10 )
             {
-                color->value = newUIFeederBackgroundColor[0];
-                LODWORD(color->vector[1]) = dword_E0BDA0;
-                LODWORD(color->vector[2]) = dword_E0BDA4;
-                LODWORD(color->vector[3]) = dword_E0BDA8;
+                color->vector[0] = newUIFeederBackgroundColor[0];
+                color->vector[1] = newUIFeederBackgroundColor[1];
+                color->vector[2] = newUIFeederBackgroundColor[2];
+                color->vector[3] = newUIFeederBackgroundColor[3];
             }
             else
             {
@@ -1546,18 +1585,18 @@ LABEL_100:
                         }
                         else
                         {
-                            color->value = newUIGrey[0];
-                            LODWORD(color->vector[1]) = dword_E0BD80;
-                            LODWORD(color->vector[2]) = dword_E0BD84;
-                            LODWORD(color->vector[3]) = dword_E0BD88;
+                            color->vector[0] = newUIGrey[0];
+                            color->vector[1] = newUIGrey[1];
+                            color->vector[2] = newUIGrey[2];
+                            color->vector[3] = newUIGrey[3];
                         }
                     }
                     else if ( !v9 )
                     {
-                        color->integer = 0;
+                        color->vector[0] = 0;
                         color->vector[1] = 0.0f;
                         color->vector[2] = 0.0f;
-                        color->vector[3] = FLOAT_0_44999999;
+                        color->vector[3] = 0.44999999f;
                     }
                 }
             }
@@ -1574,10 +1613,10 @@ LABEL_100:
                 }
                 if ( !v9 )
                 {
-                    color->value = newUIFeederBackgroundColor[0];
-                    LODWORD(color->vector[1]) = dword_E0BDA0;
-                    LODWORD(color->vector[2]) = dword_E0BDA4;
-                    LODWORD(color->vector[3]) = dword_E0BDA8;
+                    color->vector[0] = newUIFeederBackgroundColor[0];
+                    color->vector[1] = newUIFeederBackgroundColor[1];
+                    color->vector[2] = newUIFeederBackgroundColor[2];
+                    color->vector[3] = newUIFeederBackgroundColor[3];
                 }
             }
         }
@@ -1841,13 +1880,7 @@ LABEL_188:
             if ( !CG_IsShowingZombieMap() )
             {
                 currIndex = listPtr->cursorPos[contextIndex];
-                if ( (const char *)currIndex == UI_FeederCount(
-                                                                                    localClientNum,
-                                                                                    contextIndex,
-                                                                                    (float)(int)listPtr->special,
-                                                                                    listPtr)
-                                                                            - 1
-                    && (key == 29 || key == 21) )
+                if ( currIndex == UI_FeederCount(localClientNum, contextIndex, (float)(int)listPtr->special, listPtr) - 1 && (key == 29 || key == 21) )
                 {
                     listPtr->cursorPos[contextIndex] = 0;
                     v13 = UI_UIContext_GetInfo(contextIndex);
@@ -1862,8 +1895,8 @@ LABEL_188:
             }
             return 0;
         case 'Z':
-            UI_GetListDetails(localClientNum, contextIndex, item, "clan_tag_list_edit", &itemToFocus, &lastIndex, &viewMax);
-            UI_GetListDetails(localClientNum, contextIndex, item, "clan_tag_list", &itemToFocus1, &lastIndex1, &viewMax1);
+            UI_GetListDetails(localClientNum, contextIndex, item, (char*)"clan_tag_list_edit", &itemToFocus, &lastIndex, &viewMax);
+            UI_GetListDetails(localClientNum, contextIndex, item, (char*)"clan_tag_list", &itemToFocus1, &lastIndex1, &viewMax1);
             if ( lastIndex == -1 || lastIndex1 == -1 )
                 return 0;
             if ( listPtr->cursorPos[contextIndex] == listPtr->endPos[contextIndex] - 1
@@ -1893,7 +1926,7 @@ LABEL_188:
                 localClientNum,
                 contextIndex,
                 item,
-                "stats_milestones_weapongrouplist",
+                (char *)"stats_milestones_weapongrouplist",
                 &itemToFocus,
                 &lastIndex,
                 &viewMax);
@@ -1901,7 +1934,7 @@ LABEL_188:
                 localClientNum,
                 contextIndex,
                 item,
-                "stats_milestones_list",
+                (char *)"stats_milestones_list",
                 &itemToFocus1,
                 &lastIndex1,
                 &viewMax1);
@@ -1937,7 +1970,7 @@ LABEL_188:
             }
             return 0;
         case '^':
-            UI_GetListDetails(localClientNum, contextIndex, item, "stats_milestones_list", &itemToFocus, &lastIndex, &viewMax);
+            UI_GetListDetails(localClientNum, contextIndex, item, (char *)"stats_milestones_list", &itemToFocus, &lastIndex, &viewMax);
             if ( lastIndex == -1 )
                 return 0;
             if ( listPtr->cursorPos[contextIndex] == listPtr->endPos[contextIndex] - 1 && (key == 29 || key == 21) )
@@ -1962,7 +1995,7 @@ LABEL_188:
                 localClientNum,
                 contextIndex,
                 item,
-                "global_challenges_list",
+                (char *)"global_challenges_list",
                 &itemToFocus,
                 &lastIndex,
                 &viewMax);
@@ -1974,7 +2007,7 @@ LABEL_188:
                 localClientNum,
                 contextIndex,
                 item,
-                "stats_milestones_attachments",
+                (char *)"stats_milestones_attachments",
                 &itemToFocus,
                 &lastIndex,
                 &viewMax);
@@ -1982,7 +2015,7 @@ LABEL_188:
                 Item_ListBox_SetCursorPos(localClientNum, contextIndex, itemToFocus, lastIndex, viewMax, 0, 1);
             return 0;
         case 'a':
-            UI_GetListDetails(localClientNum, contextIndex, item, "perks_type_list", &itemToFocus, &lastIndex, &viewMax);
+            UI_GetListDetails(localClientNum, contextIndex, item, (char *)"perks_type_list", &itemToFocus, &lastIndex, &viewMax);
             if ( key == 2 )
                 Item_ListBox_SetCursorPos(localClientNum, contextIndex, itemToFocus, lastIndex, viewMax, 0, 1);
             return 0;
@@ -1991,7 +2024,7 @@ LABEL_188:
                 localClientNum,
                 contextIndex,
                 item,
-                "killstreak_challenges_list",
+                (char *)"killstreak_challenges_list",
                 &itemToFocus,
                 &lastIndex,
                 &viewMax);
@@ -2003,7 +2036,7 @@ LABEL_188:
                 localClientNum,
                 contextIndex,
                 item,
-                "stats_milestones_grenades",
+                (char *)"stats_milestones_grenades",
                 &itemToFocus,
                 &lastIndex,
                 &viewMax);
@@ -2011,12 +2044,12 @@ LABEL_188:
                 Item_ListBox_SetCursorPos(localClientNum, contextIndex, itemToFocus, lastIndex, viewMax, 0, 1);
             return 0;
         case 'd':
-            UI_GetListDetails(localClientNum, contextIndex, item, "killstreaks", &itemToFocus, &lastIndex, &viewMax);
+            UI_GetListDetails(localClientNum, contextIndex, item, (char *)"killstreaks", &itemToFocus, &lastIndex, &viewMax);
             if ( key == 2 )
                 Item_ListBox_SetCursorPos(localClientNum, contextIndex, itemToFocus, lastIndex, viewMax, 0, 1);
             return 0;
         case 'f':
-            UI_GetListDetails(localClientNum, contextIndex, item, "clan_tag_list", &itemToFocus, &lastIndex, &viewMax);
+            UI_GetListDetails(localClientNum, contextIndex, item, (char *)"clan_tag_list", &itemToFocus, &lastIndex, &viewMax);
             if ( lastIndex == -1 )
                 return 0;
             if ( key == 29 || key == 21 || key == 155 )
@@ -2531,16 +2564,21 @@ void __cdecl UI_FeederSelection_AllMaps(int contextIndex, float feederID, int in
     Dvar_SetInt((dvar_s *)ui_currentNetMap, actual);
 }
 
+char info_1[1024];
 void __cdecl UI_FeederSelection_Servers(int contextIndex, float feederID, int index)
 {
-    char *v3; // eax
+    char *v4; // eax
     char *pos; // [esp+0h] [ebp-8h]
 
-    if ( *(int *)&sharedUiInfo.gap0[81128] > 0 )
-        *(unsigned int *)&sharedUiInfo.gap0[1124] = index;
-    LAN_GetServerInfo(ui_netSource->current.integer, *(unsigned int *)&sharedUiInfo.gap0[4 * index + 1128], info_1, 1024);
-    v3 = Info_ValueForKey(info_1, "mapname");
-    for ( pos = va("levelshots/%s", v3); *pos; ++pos )
+    if (sharedUiInfo.serverStatus.numDisplayServers > 0)
+        sharedUiInfo.serverStatus.currentServer = index;
+    LAN_GetServerInfo(
+        ui_netSource->current.integer,
+        *(_DWORD *)&sharedUiInfo.serverStatusAddress[4 * index - 81328],
+        info_1,
+        1024);
+    v4 = Info_ValueForKey(info_1, "mapname");
+    for (pos = va("levelshots/%s", v4); *pos; ++pos)
         *pos = tolower(*pos);
 }
 
@@ -2649,6 +2687,7 @@ void __cdecl UI_FeederSelection_Categories(int contextIndex, float feederID, int
     }
 }
 
+LBSelectedPlayerInfo info_2;
 char __cdecl UI_FeederDataExtended(
                 int localClientNum,
                 itemDef_s *item,
@@ -2757,6 +2796,8 @@ char __cdecl UI_FeederDataExtended(
     return result;
 }
 
+FriendInfo info_3;
+FriendInfo info_4;
 char __cdecl UI_FeederDataExtended_OnlineFriends(
                 int controllerIndex,
                 int index,
@@ -2867,7 +2908,7 @@ void __cdecl UI_AddToFeeder(itemDef_s *item, const char *eventName, int argCount
 
     if ( !item && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_feeders.cpp", 4310, 0, "%s", "item") )
         __debugbreak();
-    actualItem = Menu_GetMatchingItemByNumber(item->parent, 0, "dynamic_menu_feeder");
+    actualItem = Menu_GetMatchingItemByNumber(item->parent, 0, (char*)"dynamic_menu_feeder");
     if ( !actualItem
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_feeders.cpp", 4312, 0, "%s", "actualItem") )
     {
@@ -2924,7 +2965,7 @@ void __cdecl UI_AddToFeederExtended(
 
     if ( !item && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_feeders.cpp", 4349, 0, "%s", "item") )
         __debugbreak();
-    actualItem = Menu_GetMatchingItemByNumber(item->parent, 0, "dynamic_menu_feeder");
+    actualItem = Menu_GetMatchingItemByNumber(item->parent, 0, (char*)"dynamic_menu_feeder");
     if ( !actualItem
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_feeders.cpp", 4351, 0, "%s", "actualItem") )
     {
@@ -2973,7 +3014,7 @@ void __cdecl UI_ChangeRowStatus(itemDef_s *item, int rowToChange, int newStatus)
 
     if ( !item && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_feeders.cpp", 4392, 0, "%s", "item") )
         __debugbreak();
-    actualItem = Menu_GetMatchingItemByNumber(item->parent, 0, "dynamic_menu_feeder");
+    actualItem = Menu_GetMatchingItemByNumber(item->parent, 0, (char*)"dynamic_menu_feeder");
     if ( !actualItem
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_feeders.cpp", 4394, 0, "%s", "actualItem") )
     {
@@ -2998,7 +3039,7 @@ void __cdecl UI_ClearFeeder(int contextIndex, itemDef_s *item, bool resetCursorP
 
     if ( !item && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_feeders.cpp", 4414, 0, "%s", "item") )
         __debugbreak();
-    actualItem = Menu_GetMatchingItemByNumber(item->parent, 0, "dynamic_menu_feeder");
+    actualItem = Menu_GetMatchingItemByNumber(item->parent, 0, (char *)"dynamic_menu_feeder");
     if ( !actualItem
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_feeders.cpp", 4416, 0, "%s", "actualItem") )
     {
@@ -3032,7 +3073,7 @@ void __cdecl UI_RaiseFeederEvent(int localClientNum, itemDef_s *item, const char
 
     if ( !item && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_feeders.cpp", 4445, 0, "%s", "item") )
         __debugbreak();
-    actualItem = Menu_GetMatchingItemByNumber(item->parent, 0, "dynamic_menu_feeder");
+    actualItem = Menu_GetMatchingItemByNumber(item->parent, 0, (char *)"dynamic_menu_feeder");
     if ( !actualItem
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_feeders.cpp", 4447, 0, "%s", "actualItem") )
     {

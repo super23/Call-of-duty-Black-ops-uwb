@@ -1,4 +1,12 @@
 #include "ui_keyboard.h"
+#include <universal/assertive.h>
+#include <qcommon/cmd.h>
+#include <demo/demo_ui.h>
+#include "ui_utils.h"
+#include <qcommon/com_clients.h>
+#include <qcommon/profanityfilter.h>
+
+keyBoardUtitlity uiKeyboard;
 
 int __cdecl UI_GetActiveKeyboardType()
 {
@@ -79,7 +87,7 @@ void __cdecl UI_KeyboardComplete(int localClientNum)
 {
     const char *String; // eax
     int ControllerIndex; // eax
-    char *errorString; // [esp+4h] [ebp-414h]
+    const char *errorString; // [esp+4h] [ebp-414h]
     char textReturned[1028]; // [esp+8h] [ebp-410h] BYREF
     bool errorReported; // [esp+413h] [ebp-5h]
     int localControllerIndex; // [esp+414h] [ebp-4h]
@@ -109,12 +117,12 @@ void __cdecl UI_KeyboardComplete(int localClientNum)
     {
         localControllerIndex = Com_LocalClient_GetControllerIndex(localClientNum);
         if ( UI_GetActiveKeyboardType() == 1 )
-            Demo_KeyboardComplete(localClientNum, textReturned, errorReported, errorString);
+            Demo_KeyboardComplete(localClientNum, textReturned, errorReported, (char*)errorString);
         UI_ClearKeyboardActive();
     }
     else
     {
-        Com_SetErrorMessage(errorString);
+        Com_SetErrorMessage((char *)errorString);
         UI_OpenMenu(localClientNum, "error_popmenu_party");
         UI_ClearKeyboardActive();
     }

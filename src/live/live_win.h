@@ -202,6 +202,7 @@ void __cdecl Live_BroadcastSessionIfNeeded();
 extern MatchMakingInfo *g_matchmakingInfo;
 
 extern unsigned __int64 s_selectedPlayerXUID;
+extern unsigned __int64 s_selectedMetPlayerXUID;
 
 
 extern const dvar_t *live_service;

@@ -1,4 +1,44 @@
 #include "ui_main_pc.h"
+#include <universal/q_parse.h>
+#include <server_mp/sv_init_mp.h>
+#include <client_mp/cl_ui_mp.h>
+#include <client_mp/cl_cgame_mp.h>
+#include <client_mp/cl_ui_pc_mp.h>
+#include <client_mp/cl_main_pc_mp.h>
+#include "ui_server.h"
+#include "ui_atoms.h"
+#include <universal/com_files.h>
+#include "ui_utils.h"
+#include <live/live_win.h>
+
+const dvar_t *ui_joinGameType;
+const dvar_t *ui_netGameTypeName;
+const dvar_t *ui_dedicated;
+const dvar_t *ui_currentNetMap;
+const dvar_t *ui_browserShowFull;
+const dvar_t *ui_browserShowEmpty;
+const dvar_t *ui_browserShowPassword;
+const dvar_t *ui_browserShowPure;
+const dvar_t *ui_browserMod;
+const dvar_t *ui_browserShowDedicated;
+const dvar_t *ui_browserFriendlyfire;
+const dvar_t *ui_browserKillcam;
+const dvar_t *ui_browserVoiceChat;
+const dvar_t *ui_browserGameMode;
+const dvar_t *ui_friendNameNew;
+const dvar_t *ui_friendSelectedInd;
+const dvar_t *ui_friendPendingSelectedInd;
+const dvar_t *ui_inviteSelectedInd;
+const dvar_t *ui_inviteScreen;
+const dvar_t *ui_browserPlayerCount;
+const dvar_t *ui_browserDedicatedServerCount;
+const dvar_t *ui_browserShowToolTip;
+const dvar_t *ui_browserShowMapTip;
+const dvar_t *ui_browserToolTip;
+const dvar_t *ui_browserShowInfo;
+const dvar_t *ui_browserShowPunkBuster;
+const dvar_t *ui_allowConsole;
+const dvar_t *ui_allowFov;
 
 parseInfo_t *__cdecl UI_GetMapRotationToken()
 {
@@ -118,6 +158,8 @@ void __cdecl UI_RegisterDvars_PC()
     ui_allowConsole = _Dvar_RegisterBool("ui_allowConsole", 1, 0x10u, "Show the 'Enable Console' menu item?");
     ui_allowFov = _Dvar_RegisterBool("ui_allowFov", 0, 1u, "Show the 'FOV' graphics setting?");
 }
+
+const char *netSources[4] = { "EXE_LAN", "EXE_INTERNET", "EXE_FAVORITES", "EXE_FRIENDS" };
 
 const char *__cdecl UI_GetNetSources(unsigned int source)
 {
@@ -309,21 +351,31 @@ void __cdecl UI_RemoveServerFromDisplayList(int num)
     int j; // [esp+0h] [ebp-8h]
     int i; // [esp+4h] [ebp-4h]
 
-    for ( i = 0; i < *(int *)&sharedUiInfo.gap0[81128]; ++i )
+    for (i = 0; i < sharedUiInfo.serverStatus.numDisplayServers; ++i)
     {
-        if ( *(unsigned int *)&sharedUiInfo.gap0[4 * i + 1128] == num )
+        if (*(_DWORD *)&sharedUiInfo.serverStatusAddress[4 * i - 81328] == num)
         {
-            --*(unsigned int *)&sharedUiInfo.gap0[81128];
-            for ( j = i; j < *(int *)&sharedUiInfo.gap0[81128]; ++j )
+            --sharedUiInfo.serverStatus.numDisplayServers;
+            for (j = i; j < sharedUiInfo.serverStatus.numDisplayServers; ++j)
             {
-                *(unsigned int *)&sharedUiInfo.gap0[4 * j + 1128] = *(unsigned int *)&sharedUiInfo.gap0[4 * j + 1132];
-                if ( ui_netSource->current.integer == 4 && *(int *)&sharedUiInfo.gap0[81128] < 256 )
-                    sharedUiInfo.serverStatus[j + 82200] = sharedUiInfo.serverStatus[j + 82201];
+                *(_DWORD *)&sharedUiInfo.serverStatusAddress[4 * j - 81328] = *(_DWORD *)&sharedUiInfo.serverStatusAddress[4 * j - 81324];
+                if (ui_netSource->current.integer == 4 && sharedUiInfo.serverStatus.numDisplayServers < 256)
+                    sharedUiInfo.serverStatusAddress[j - 256] = sharedUiInfo.serverStatusAddress[j - 255];
             }
             return;
         }
     }
 }
+
+serverStatusDvar_t serverStatusDvars[5] =
+{
+  { "sv_maxclients", "@EXE_SV_INFO_MAXCLIENTS", SSC_STRING },
+  { "scr_team_fftype", "@EXE_SV_INFO_FRIENDLY_FIRE", SSC_YESNO },
+  { "sv_voice", "@EXE_SV_INFO_VOICE", SSC_YESNO },
+  { "geolocation", NULL, (sscType_t)4 },
+  { NULL, NULL, SSC_STRING }
+};
+
 
 char __cdecl UI_IsServerStatusDvar(const char *dvarname)
 {
@@ -339,12 +391,12 @@ char __cdecl UI_IsServerStatusDvar(const char *dvarname)
 
 int __cdecl UI_GetServerStatusInfo(char *serverAddress, serverStatusInfo_s *info)
 {
-    _BYTE *v3; // eax
-    _BYTE *v4; // eax
+    char *v3; // eax
+    char *v4; // eax
     char *hostname; // [esp+0h] [ebp-10h]
     char *servermessage; // [esp+4h] [ebp-Ch]
     char *mapname; // [esp+8h] [ebp-8h]
-    unsigned __int8 *p; // [esp+Ch] [ebp-4h]
+    char *p; // [esp+Ch] [ebp-4h]
     char *pa; // [esp+Ch] [ebp-4h]
 
     hostname = 0;
@@ -358,7 +410,7 @@ int __cdecl UI_GetServerStatusInfo(char *serverAddress, serverStatusInfo_s *info
             Dvar_SetBool((dvar_s *)ui_browserShowInfo, 1);
             UI_UseAltColorPalette(info->text);
             I_strncpyz(info->address, serverAddress, 64);
-            p = (unsigned __int8 *)info->text;
+            p = (char*)info->text;
             info->numLines = 0;
             do
             {
@@ -366,7 +418,7 @@ int __cdecl UI_GetServerStatusInfo(char *serverAddress, serverStatusInfo_s *info
                     break;
                 if ( !*p )
                     break;
-                strchr(p, 0x5Cu);
+                v3 = strchr(p, 0x5Cu);
                 if ( !v3 )
                     break;
                 *v3 = 0;
@@ -374,7 +426,7 @@ int __cdecl UI_GetServerStatusInfo(char *serverAddress, serverStatusInfo_s *info
                 if ( v3[1] == 92 )
                     break;
                 info->lines[info->numLines][0] = pa;
-                strchr((unsigned __int8 *)pa, 0x5Cu);
+                v4 = strchr(pa, 0x5Cu);
                 if ( !v4 )
                     break;
                 *v4 = 0;
@@ -416,7 +468,7 @@ int __cdecl UI_GetServerStatusInfo(char *serverAddress, serverStatusInfo_s *info
 
 void __cdecl UI_SortServerStatusInfo(serverStatusInfo_s *info)
 {
-    const char *v1; // eax
+    char *v2; // eax
     char *longname; // [esp+18h] [ebp-18h]
     int j; // [esp+1Ch] [ebp-14h]
     const char *tmp1; // [esp+20h] [ebp-10h]
@@ -425,11 +477,11 @@ void __cdecl UI_SortServerStatusInfo(serverStatusInfo_s *info)
     int i; // [esp+2Ch] [ebp-4h]
 
     index = 0;
-    for ( i = 0; serverStatusDvars[i].name; ++i )
+    for (i = 0; serverStatusDvars[i].name; ++i)
     {
-        for ( j = 0; j < info->numLines; ++j )
+        for (j = 0; j < info->numLines; ++j)
         {
-            if ( info->lines[j][1] && *info->lines[j][1] && !I_stricmp(serverStatusDvars[i].name, info->lines[j][0]) )
+            if (info->lines[j][1] && *info->lines[j][1] && !I_stricmp(serverStatusDvars[i].name, info->lines[j][0]))
             {
                 tmp1 = info->lines[index][0];
                 tmp2 = info->lines[index][1];
@@ -437,43 +489,43 @@ void __cdecl UI_SortServerStatusInfo(serverStatusInfo_s *info)
                 info->lines[index][1] = info->lines[j][1];
                 info->lines[j][0] = tmp1;
                 info->lines[j][1] = tmp2;
-                if ( (&off_E0C5DC)[3 * i] && strlen((&off_E0C5DC)[3 * i]) )
-                    info->lines[index][0] = (&off_E0C5DC)[3 * i];
-                switch ( dword_E0C5E0[3 * i] )
+                if (serverStatusDvars[i].altName && strlen(serverStatusDvars[i].altName))
+                    info->lines[index][0] = serverStatusDvars[i].altName;
+                switch (serverStatusDvars[i].type)
                 {
-                    case 0:
-                        break;
-                    case 1:
-                        if ( atoi(info->lines[index][1]) )
-                            info->lines[index][1] = "@EXE_YES";
-                        else
-                            info->lines[index][1] = "@EXE_NO";
-                        break;
-                    case 2:
-                        info->lines[index][1] = UI_GetGameTypeDisplayName(info->lines[index][1]);
-                        break;
-                    case 3:
-                        info->lines[index][1] = UI_GetMapDisplayName(info->lines[index][1]);
-                        break;
-                    case 4:
-                        if ( info->lines[index][1] && *info->lines[index][1] )
-                        {
-                            longname = CL_LongNameForShortName(info->lines[index][1]);
-                            if ( longname )
-                                info->lines[index][1] = longname;
-                        }
-                        else
-                        {
-                            info->lines[index][1] = UI_SafeTranslateString("PLATFORM_GEO_NOT_SPECIFIED");
-                        }
-                        info->lines[index][0] = info->lines[index][1];
-                        info->lines[index][1] = 0;
-                        break;
-                    default:
-                        v1 = va("unknown server status dvar type: %i", dword_E0C5E0[3 * i]);
-                        if ( !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_main_pc.cpp", 549, 0, v1) )
-                            __debugbreak();
-                        break;
+                case 0:
+                    break;
+                case 1:
+                    if (atoi(info->lines[index][1]))
+                        info->lines[index][1] = "@EXE_YES";
+                    else
+                        info->lines[index][1] = "@EXE_NO";
+                    break;
+                case 2:
+                    info->lines[index][1] = UI_GetGameTypeDisplayName(info->lines[index][1]);
+                    break;
+                case 3:
+                    info->lines[index][1] = UI_GetMapDisplayName(info->lines[index][1]);
+                    break;
+                case 4:
+                    if (info->lines[index][1] && *info->lines[index][1])
+                    {
+                        longname = CL_LongNameForShortName(info->lines[index][1]);
+                        if (longname)
+                            info->lines[index][1] = longname;
+                    }
+                    else
+                    {
+                        info->lines[index][1] = UI_SafeTranslateString("PLATFORM_GEO_NOT_SPECIFIED");
+                    }
+                    info->lines[index][0] = info->lines[index][1];
+                    info->lines[index][1] = 0;
+                    break;
+                default:
+                    v2 = va("unknown server status dvar type: %i", serverStatusDvars[i].type);
+                    if (!Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_main_pc.cpp", 549, 0, v2))
+                        __debugbreak();
+                    break;
                 }
                 ++index;
             }
@@ -483,21 +535,21 @@ void __cdecl UI_SortServerStatusInfo(serverStatusInfo_s *info)
 
 int __cdecl UI_GetServerStatusInfoScoreBoard(char *serverAddress, serverStatusInfo_s *info)
 {
-    _BYTE *v3; // eax
-    _BYTE *v4; // eax
-    _BYTE *v5; // eax
-    _BYTE *v6; // eax
-    _BYTE *v7; // eax
-    _BYTE *v8; // eax
-    int v9; // eax
-    _BYTE *v10; // eax
+    char *v3; // eax
+    char *v4; // eax
+    char *v5; // eax
+    char *v6; // eax
+    char *v7; // eax
+    char *v8; // eax
+    char *v9; // eax
+    char *v10; // eax
     char *kills; // [esp+0h] [ebp-28h]
     char *rank; // [esp+4h] [ebp-24h]
     char *assists; // [esp+8h] [ebp-20h]
     char *ping; // [esp+Ch] [ebp-1Ch]
     char *deaths; // [esp+18h] [ebp-10h]
     int i; // [esp+1Ch] [ebp-Ch]
-    unsigned __int8 *p; // [esp+20h] [ebp-8h]
+    char *p; // [esp+20h] [ebp-8h]
     char *score; // [esp+24h] [ebp-4h]
 
     if ( info )
@@ -506,7 +558,7 @@ int __cdecl UI_GetServerStatusInfoScoreBoard(char *serverAddress, serverStatusIn
         if ( LAN_GetServerStatusScoreBoard(serverAddress, info->text, 1024) )
         {
             I_strncpyz(info->address, serverAddress, 64);
-            p = (unsigned __int8 *)info->text;
+            p = info->text;
             info->numLines = 0;
             if ( info->numLines < 125 )
             {
@@ -523,7 +575,7 @@ int __cdecl UI_GetServerStatusInfoScoreBoard(char *serverAddress, serverStatusIn
                         *p++ = 0;
                     if ( !p )
                         break;
-                    strchr(p, 0x20u);
+                    v3 = strchr(p, 0x20u);
                     if ( !v3 )
                         break;
                     *v3 = 0;
@@ -566,7 +618,7 @@ int __cdecl UI_GetServerStatusInfoScoreBoard(char *serverAddress, serverStatusIn
                     info->lines[info->numLines][6] = ping;
                     if ( ++info->numLines >= 128 )
                         break;
-                    strchr((unsigned __int8 *)(v9 + 1), 0x5Cu);
+                    v10 = strchr((v9 + 1), 0x5Cu);
                     if ( !v10 )
                         break;
                     *v10 = 0;
@@ -608,6 +660,7 @@ void __cdecl UI_RefreshServers()
 
 void __cdecl UI_BuildFindPlayerList()
 {
+#if 0 // KISAKTODO
     char *v0; // eax
     int j; // [esp+4h] [ebp-18E4h]
     serverStatusInfo_s info; // [esp+8h] [ebp-18E0h] BYREF
@@ -732,6 +785,7 @@ void __cdecl UI_BuildFindPlayerList()
             uiInfo->nextFindPlayerRefresh = uiInfo->uiDC.realTime + 25;
         }
     }
+#endif
 }
 
 char *__cdecl stristr(char *str, char *charset)
@@ -986,6 +1040,7 @@ int __cdecl UI_NetSource_HandleKey(int flags, int key)
     return 1;
 }
 
+const int numServerFilters = 1;
 int __cdecl UI_NetFilter_HandleKey(int flags, int key)
 {
     if ( key != 200 && key != 201 && key != 13 && key != 191 )
@@ -1163,7 +1218,7 @@ void __cdecl UI_DrawNetFilter(
     if ( ui_serverFilterType < 0 || ui_serverFilterType > numServerFilters )
         ui_serverFilterType = 0;
     ServerFilter = UI_GetServerFilter((const char **)&filter, ui_serverFilterType);
-    v7 = va(aExeServerfilte, *ServerFilter);
+    v7 = va("EXE_SERVERFILTER %s", *ServerFilter);
     pszTeanslation = SEH_LocalizeTextMessage(v7, "server filter", LOCMSG_SAFE);
     UI_DrawText(
         &scrPlaceView[contextIndex],
@@ -1190,7 +1245,7 @@ void __cdecl UI_DrawNetSource(
     const char *v6; // eax
     char *translation; // [esp+1Ch] [ebp-4h]
 
-    v6 = va(aExeNetsource, netSources[ui_netSource->current.integer]);
+    v6 = va("EXE_NETSOURCE %s", netSources[ui_netSource->current.integer]);
     translation = (char *)SEH_LocalizeTextMessage(v6, "net source", LOCMSG_SAFE);
     UI_DrawText(
         &scrPlaceView[contextIndex],
@@ -1239,6 +1294,7 @@ bool __cdecl UI_LodMods_ShouldSkipMap(const char *dir)
     return I_strnicmp(dir, "mp_", 3) != 0;
 }
 
+char dirlist[8192];
 void __cdecl UI_LoadMods()
 {
     unsigned int v0; // [esp+10h] [ebp-44h]
@@ -1247,13 +1303,13 @@ void __cdecl UI_LoadMods()
     char *dirptr; // [esp+44h] [ebp-10h]
     int i; // [esp+4Ch] [ebp-8h]
 
-    sharedUiInfo.modList[63].modDescr = 0;
     sharedUiInfo.modCount = 0;
-    numdirs = FS_GetFileList("$modlist", (char *)"", FS_LIST_ALL, dirlist, 0x2000);
+    sharedUiInfo.modIndex = 0;
+    numdirs = FS_GetFileList("$modlist", (char*)"", FS_LIST_ALL, dirlist, 0x2000);
     dirptr = dirlist;
-    for ( i = 0; i < numdirs; ++i )
+    for (i = 0; i < numdirs; ++i)
     {
-        if ( UI_LodMods_ShouldSkipMap(dirptr) )
+        if (UI_LodMods_ShouldSkipMap(dirptr))
         {
             v1 = strlen(dirptr);
             dirptr += v1 + strlen(&dirptr[v1 + 1]) + 2;
@@ -1261,10 +1317,10 @@ void __cdecl UI_LoadMods()
         else
         {
             v0 = strlen(dirptr);
-            sharedUiInfo.serverHardwareIconList[2 * (int)sharedUiInfo.modList[63].modDescr + 9] = (Material *)String_Alloc(dirptr);
-            sharedUiInfo.modList[(int)sharedUiInfo.modList[63].modDescr].modName = String_Alloc(&dirptr[v0 + 1]);
+            sharedUiInfo.modList[sharedUiInfo.modCount].modName = String_Alloc(dirptr);
+            sharedUiInfo.modList[sharedUiInfo.modCount].modDescr = String_Alloc(&dirptr[v0 + 1]);
             dirptr += v0 + strlen(&dirptr[v0 + 1]) + 2;
-            if ( (int)++sharedUiInfo.modList[63].modDescr >= 64 )
+            if (++sharedUiInfo.modCount >= 64)
                 return;
         }
     }

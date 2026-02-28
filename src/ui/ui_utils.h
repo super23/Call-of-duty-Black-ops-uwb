@@ -14,6 +14,12 @@ struct focusItemDef_s;
 struct textDef_s;
 struct ownerDrawDef_s;
 
+struct stringDef_s // sizeof=0x8
+{                                       // XREF: stringDef_t/r
+    stringDef_s *next;
+    const char *str;
+};
+
 void __cdecl Window_SetDynamicFlags(int contextIndex, windowDef_t *w, int flags);
 void __cdecl Window_AddDynamicFlags(int contextIndex, windowDef_t *w, int newFlags);
 void __cdecl Window_RemoveDynamicFlags(int contextIndex, windowDef_t *w, int newFlags);
@@ -50,7 +56,7 @@ int __cdecl Float_Parse(const char **p, float *f);
 void __cdecl UI_GetGameTypesList();
 void UI_GetGameTypesList_LoadObj();
 void UI_GetGameTypesList_FastFile();
-char *__cdecl UI_GetBusyDotsIndicator();
+const char *__cdecl UI_GetBusyDotsIndicator();
 void __cdecl UI_ListMenus_f();
 void __cdecl CL_SelectStringTableEntryInDvar_f();
 bool __cdecl UI_VerifyString(const char *str);

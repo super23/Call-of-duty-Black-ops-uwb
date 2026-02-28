@@ -1,4 +1,16 @@
 #include "ui_utils.h"
+#include <universal/assertive.h>
+#include <client_mp/cl_scrn_mp.h>
+#include "ui_feeders.h"
+#include <universal/com_expressions_eval.h>
+#include <universal/com_memory.h>
+#include <qcommon/threads.h>
+#include <universal/q_parse.h>
+#include <universal/com_files.h>
+#include <win32/win_shared.h>
+#include <game_mp/g_main_mp.h>
+
+stringDef_s *g_strHandle[2048];
 
 void __cdecl Window_SetDynamicFlags(int contextIndex, windowDef_t *w, int flags)
 {
@@ -109,10 +121,11 @@ int __cdecl Item_IsVisible(int localClientNum, int contextIndex, itemDef_s *item
         return 0;
     if ( (item->dvarFlags & 0xC) != 0 && !Item_EnableShowViaDvar(item, 4) )
         return 0;
-    if ( (dword_98DADA8[2 * localClientNum] & item->showBits) != LODWORD(item->showBits)
-        || (dword_98DADAC[2 * localClientNum] & HIDWORD(item->showBits)) != HIDWORD(item->showBits)
-        || (dword_98DADA8[2 * localClientNum] | LODWORD(item->hideBits)) != LODWORD(item->hideBits)
-        || (dword_98DADAC[2 * localClientNum] | HIDWORD(item->hideBits)) != HIDWORD(item->hideBits) )
+    if ((sharedUiInfo.visibilityBits[localClientNum] & LODWORD(item->showBits)) != LODWORD(item->showBits)
+        || __PAIR64__(
+            LODWORD(sharedUiInfo.visibilityBits[localClientNum]) | LODWORD(item->hideBits),
+            HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) & HIDWORD(item->showBits)) != *(unsigned __int64 *)((char *)&item->showBits + 4)
+        || (HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | HIDWORD(item->hideBits)) != HIDWORD(item->hideBits))
     {
         return 0;
     }
@@ -572,6 +585,7 @@ void __cdecl String_Init()
     memset((unsigned __int8 *)g_strHandle, 0, sizeof(g_strHandle));
 }
 
+static const char *staticNULL = "";
 const char *__cdecl String_Alloc(const char *p)
 {
     char v2; // [esp+3h] [ebp-45h]
@@ -671,14 +685,14 @@ void __cdecl UI_GetGameTypesList()
     else
         ((void (__cdecl *)(void (*)()))UI_GetGameTypesList_LoadObj)(UI_GetGameTypesList_LoadObj);
     if ( !sharedUiInfo.playerClientNums[31] )
-        Com_Error(ERR_FATAL, &byte_CFF420, "maps/mp/");
+        Com_Error(ERR_FATAL, "No game type scripts found in %sgametypes folder", "maps/mp/");
 }
 
 void UI_GetGameTypesList_LoadObj()
 {
     char *v0; // eax
     unsigned int v1; // [esp+0h] [ebp-1030h]
-    const char *src; // [esp+10h] [ebp-1020h]
+    char *src; // [esp+10h] [ebp-1020h]
     char *data_p; // [esp+18h] [ebp-1018h] BYREF
     char *v4; // [esp+1Ch] [ebp-1014h]
     char listbuf[4096]; // [esp+20h] [ebp-1010h] BYREF
@@ -686,7 +700,7 @@ void UI_GetGameTypesList_LoadObj()
     char *MenuBuffer; // [esp+1028h] [ebp-8h]
     int FileList; // [esp+102Ch] [ebp-4h]
 
-    FileList = FS_GetFileList("maps/mp/gametypes", "gsc", FS_LIST_PURE_ONLY, listbuf, 4096);
+    FileList = FS_GetFileList("maps/mp/gametypes", (char*)"gsc", FS_LIST_PURE_ONLY, listbuf, 4096);
     src = listbuf;
     for ( i = 0; i < FileList; ++i )
     {
@@ -747,7 +761,7 @@ void UI_GetGameTypesList_FastFile()
     const char *gametypesBuf; // [esp+18h] [ebp-4h] BYREF
 
     v0 = va("%sgametypes/_gametypes.txt", "maps/mp/");
-    gametypesFile = DB_FindXAssetHeader(ASSET_TYPE_RAWFILE, v0, 1, -1).rawfile;
+    gametypesFile = DB_FindXAssetHeader(ASSET_TYPE_RAWFILE, (char*)v0, 1, -1).rawfile;
     if ( gametypesFile )
     {
         gametypesBuf = gametypesFile->buffer;
@@ -810,7 +824,7 @@ void UI_GetGameTypesList_FastFile()
     }
 }
 
-char *__cdecl UI_GetBusyDotsIndicator()
+const char *__cdecl UI_GetBusyDotsIndicator()
 {
     int v1; // [esp+0h] [ebp-8h]
 
@@ -838,7 +852,7 @@ void __cdecl UI_ListMenus_f()
 void __cdecl CL_SelectStringTableEntryInDvar_f()
 {
     const char *v0; // eax
-    unsigned intv1; // eax
+    unsigned int v1; // eax
     const char *v2; // eax
     int v3; // eax
     const char *v4; // eax

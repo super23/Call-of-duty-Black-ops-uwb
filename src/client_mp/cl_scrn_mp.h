@@ -28,3 +28,5 @@ void    CL_TakeHiResShot4();
 void    CL_TakeHiResShot8();
 
 extern bool updateScreenCalled;
+
+extern int dword_98DADAC[4];

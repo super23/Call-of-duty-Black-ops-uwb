@@ -1,4 +1,69 @@
 #include "l_script.h"
+#include "l_memory.h"
+
+#include <cstring>
+#include <qcommon/common.h>
+#include <universal/com_files.h>
+#include <universal/q_parse.h>
+
+punctuation_s default_punctuations[53] =
+{
+  { (char*)">>=", 1, NULL },
+  { (char*)"<<=", 2, NULL },
+  { (char*)"...", 3, NULL },
+  { (char*)"##", 4, NULL },
+  { (char*)"&&", 5, NULL },
+  { (char*)"||", 6, NULL },
+  { (char*)">=", 7, NULL },
+  { (char*)"<=", 8, NULL },
+  { (char*)"==", 9, NULL },
+  { (char*)"!=", 10, NULL },
+  { (char*)"*=", 11, NULL },
+  { (char*)"/=", 12, NULL },
+  { (char*)"%=", 13, NULL },
+  { (char*)"+=", 14, NULL },
+  { (char*)"-=", 15, NULL },
+  { (char*)"++", 16, NULL },
+  { (char*)"--", 17, NULL },
+  { (char*)"&=", 18, NULL },
+  { (char*)"|=", 19, NULL },
+  { (char*)"^=", 20, NULL },
+  { (char*)">>", 21, NULL },
+  { (char*)"<<", 22, NULL },
+  { (char*)"->", 23, NULL },
+  { (char*)"::", 24, NULL },
+  { (char*)".*", 25, NULL },
+  { (char*)"*", 26, NULL },
+  { (char*)"/", 27, NULL },
+  { (char*)"%", 28, NULL },
+  { (char*)"+", 29, NULL },
+  { (char*)"-", 30, NULL },
+  { (char*)"=", 31, NULL },
+  { (char*)"&", 32, NULL },
+  { (char*)"|", 33, NULL },
+  { (char*)"^", 34, NULL },
+  { (char*)"~", 35, NULL },
+  { (char*)"!", 36, NULL },
+  { (char*)">", 37, NULL },
+  { (char*)"<", 38, NULL },
+  { (char*)".", 39, NULL },
+  { (char*)",", 40, NULL },
+  { (char*)";", 41, NULL },
+  { (char*)":", 42, NULL },
+  { (char*)"?", 43, NULL },
+  { (char*)"(", 44, NULL },
+  { (char*)")", 45, NULL },
+  { (char*)"{", 46, NULL },
+  { (char*)"}", 47, NULL },
+  { (char*)"[", 48, NULL },
+  { (char*)"]", 49, NULL },
+  { (char*)"\\", 50, NULL },
+  { (char*)"#", 51, NULL },
+  { (char*)"$", 52, NULL },
+  { NULL, 0, NULL }
+};
+
+
 
 void __cdecl PS_CreatePunctuationTable(script_s *script, punctuation_s *punctuations)
 {
@@ -521,7 +586,7 @@ int __cdecl PS_ReadPunctuation(script_s *script, token_s *token)
         len = strlen(punc->p);
         if ( &script->script_p[len] <= script->end_p && !strncmp(script->script_p, p, len) )
         {
-            strncpy((unsigned __int8 *)token, (unsigned __int8 *)p, 0x400u);
+            strncpy((char*)token, p, 0x400u);
             script->script_p += len;
             token->type = 5;
             token->subtype = punc->n;

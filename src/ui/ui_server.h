@@ -1,5 +1,8 @@
 #pragma once
 
+struct uiInfo_s;
+struct listBoxDef_s;
+
 void __cdecl UI_ClearDisplayedServers();
 void __cdecl UI_BuildServerDisplayList(int localClientNum, uiInfo_s *uiInfo, int force);
 int __cdecl UI_BinaryServerInsertion(int num, int nameNum);
@@ -23,3 +26,5 @@ void __cdecl UI_DrawServerRefreshDate(
                 float *color,
                 int textStyle);
 void __cdecl UI_UpdateServerToolTips(int localClientNum, listBoxDef_s *listPtr);
+
+extern int ui_serverFilterType;

@@ -2,6 +2,7 @@
 
 void __cdecl UI_track_init()
 {
+#if 0
     g_mem_track_filename = "ui_main";
     TRACK_ui_main();
     g_mem_track_filename = "ui_shared";
@@ -14,5 +15,6 @@ void __cdecl UI_track_init()
     TRACK_g_memtrack();
     g_mem_track_filename = "ui_shared_obj";
     TRACK_ui_shared_obj();
+#endif
 }
 

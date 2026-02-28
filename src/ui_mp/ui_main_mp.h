@@ -201,3 +201,6 @@ extern const dvar_t *ui_closeAfterPurchase;
 extern const dvar_t *ui_classesCurrentItemEquippedIn;
 extern const dvar_t *ui_heatMapColor;
 extern const dvar_t *ui_heatMapColorForPlayer;
+
+extern char g_mapname[64];
+extern bool g_showLoadingScreenMenu;

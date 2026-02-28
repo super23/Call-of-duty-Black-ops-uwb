@@ -55,7 +55,7 @@ const char *demo_tags_enum_string_27[8] =
 int scr_initialized;
 bool updateScreenCalled;
 
-int dword_98DADA8[4];
+int dword_98DADAC[4];
 
 void __cdecl SCR_DrawSmallStringExt(int x, int y, char *string, const float *setColor)
 {
@@ -108,9 +108,8 @@ double __cdecl CL_GetMenuBlurRadius(int localClientNum)
 
 void __cdecl CL_UpdateUIVisibilityBits(int localClientNum)
 {
-    int v1; // edx
-    int v2; // ecx
-    int v3; // edx
+    int v2; // edx
+    int v3; // ecx
     int v4; // edx
     int v5; // edx
     int v6; // edx
@@ -123,8 +122,8 @@ void __cdecl CL_UpdateUIVisibilityBits(int localClientNum)
     int v13; // edx
     int v14; // edx
     int v15; // edx
+    int v16; // edx
     const WeaponDef *WeaponDef; // eax
-    int v17; // edx
     int v18; // edx
     int v19; // edx
     int v20; // edx
@@ -139,19 +138,20 @@ void __cdecl CL_UpdateUIVisibilityBits(int localClientNum)
     int v29; // edx
     int v30; // edx
     int v31; // edx
+    int v32; // edx
     int UIContextIndex; // eax
-    int v33; // edx
     int v34; // edx
     int v35; // edx
     int v36; // edx
     int v37; // edx
     int v38; // edx
     int v39; // edx
-    bool v40; // [esp+54h] [ebp-A8h]
-    bool v41; // [esp+70h] [ebp-8Ch]
-    bool v42; // [esp+8Ch] [ebp-70h]
+    int v40; // edx
+    bool v41; // [esp+54h] [ebp-A8h]
+    bool v42; // [esp+70h] [ebp-8Ch]
+    bool v43; // [esp+8Ch] [ebp-70h]
     int clientUIVisibilityFlags; // [esp+C0h] [ebp-3Ch]
-    __int64 v44; // [esp+D0h] [ebp-2Ch]
+    __int64 v45; // [esp+D0h] [ebp-2Ch]
     bool inKillCam; // [esp+E3h] [ebp-19h]
     cg_s *cgameGlob; // [esp+ECh] [ebp-10h]
     bool uiActive; // [esp+F1h] [ebp-Bh]
@@ -161,8 +161,8 @@ void __cdecl CL_UpdateUIVisibilityBits(int localClientNum)
     spectatingClient = 0;
     inKillCam = 0;
     uiActive = 0;
-    dword_98DADA8[2 * localClientNum] = 0;
-    dword_98DADA8[2 * localClientNum + 1] = 0;
+    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = 0;
+    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = 0;
     if (CL_LocalClient_IsCUIFlagSet(localClientNum, 32))
     {
         if (!ui_hud_visible || ui_hud_visible->current.enabled)
@@ -170,93 +170,94 @@ void __cdecl CL_UpdateUIVisibilityBits(int localClientNum)
             cgameGlob = CG_GetLocalClientGlobals(localClientNum);
             if (CG_GetLocalClientGlobals(localClientNum)->nextSnap)
             {
-                v44 = 16 * cgameGlob->matchUIVisibilityFlags;
-                v1 = HIDWORD(v44) | dword_98DADA8[2 * localClientNum + 1];
-                dword_98DADA8[2 * localClientNum] |= v44;
-                dword_98DADA8[2 * localClientNum + 1] = v1;
+                v45 = 16 * cgameGlob->matchUIVisibilityFlags;
+                v2 = HIDWORD(v45) | HIDWORD(sharedUiInfo.visibilityBits[localClientNum]);
+                LODWORD(sharedUiInfo.visibilityBits[localClientNum]) |= v45;
+                HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v2;
                 clientUIVisibilityFlags = cgameGlob->bgs.clientinfo[cgameGlob->clientNum].clientUIVisibilityFlags;
-                v2 = (clientUIVisibilityFlags >> 31) | dword_98DADA8[2 * localClientNum + 1];
-                dword_98DADA8[2 * localClientNum] |= clientUIVisibilityFlags;
-                dword_98DADA8[2 * localClientNum + 1] = v2;
-                v3 = dword_98DADA8[2 * localClientNum + 3] | dword_98DADA8[2 * localClientNum + 1];
-                dword_98DADA8[2 * localClientNum] |= dword_98DADA8[2 * localClientNum + 2];
-                dword_98DADA8[2 * localClientNum + 1] = v3;
+                v3 = (clientUIVisibilityFlags >> 31) | HIDWORD(sharedUiInfo.visibilityBits[localClientNum]);
+                LODWORD(sharedUiInfo.visibilityBits[localClientNum]) |= clientUIVisibilityFlags;
+                HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v3;
+                v4 = HIDWORD(sharedUiInfo.localVisibilityBits[localClientNum])
+                    | HIDWORD(sharedUiInfo.visibilityBits[localClientNum]);
+                LODWORD(sharedUiInfo.visibilityBits[localClientNum]) |= LODWORD(sharedUiInfo.localVisibilityBits[localClientNum]);
+                HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v4;
                 if (CG_IsInGuidedMissile(&cgameGlob->predictedPlayerState))
                 {
-                    v4 = dword_98DADA8[2 * localClientNum + 1];
-                    dword_98DADA8[2 * localClientNum] |= 0x10000000u;
-                    dword_98DADA8[2 * localClientNum + 1] = v4;
+                    v5 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]);
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) |= 0x10000000u;
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v5;
                 }
                 if (CG_IsInGuidedMissileStatic(&cgameGlob->predictedPlayerState))
                 {
-                    v5 = dword_98DADA8[2 * localClientNum + 1] | 0x40000;
-                    dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                    dword_98DADA8[2 * localClientNum + 1] = v5;
+                    v6 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 0x40000;
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v6;
                 }
                 if (cgameGlob->inKillCam)
                 {
-                    v6 = dword_98DADA8[2 * localClientNum + 1];
-                    dword_98DADA8[2 * localClientNum] |= 0x200000u;
-                    dword_98DADA8[2 * localClientNum + 1] = v6;
+                    v7 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]);
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) |= 0x200000u;
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v7;
                     inKillCam = 1;
                 }
                 if (CG_IsSelectingLocation(localClientNum))
                 {
-                    v7 = dword_98DADA8[2 * localClientNum + 1];
-                    dword_98DADA8[2 * localClientNum] |= 0x400000u;
-                    dword_98DADA8[2 * localClientNum + 1] = v7;
+                    v8 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]);
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) |= 0x400000u;
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v8;
                 }
                 if (CG_Flashbanged(localClientNum) || CG_Flared(localClientNum))
                 {
-                    v8 = dword_98DADA8[2 * localClientNum + 1];
-                    dword_98DADA8[2 * localClientNum] |= 0x800000u;
-                    dword_98DADA8[2 * localClientNum + 1] = v8;
+                    v9 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]);
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) |= 0x800000u;
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v9;
                 }
                 if (CL_IsUIActive(localClientNum))
                 {
-                    v9 = dword_98DADA8[2 * localClientNum + 1];
-                    dword_98DADA8[2 * localClientNum] |= 0x1000000u;
-                    dword_98DADA8[2 * localClientNum + 1] = v9;
+                    v10 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]);
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) |= 0x1000000u;
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v10;
                     uiActive = 1;
                 }
                 if ((cgameGlob->predictedPlayerState.otherFlags & 0x1A) != 0)
                 {
-                    v10 = dword_98DADA8[2 * localClientNum + 1];
-                    dword_98DADA8[2 * localClientNum] |= 0x2000000u;
-                    dword_98DADA8[2 * localClientNum + 1] = v10;
+                    v11 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]);
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) |= 0x2000000u;
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v11;
                     spectatingClient = 1;
                 }
                 if ((cgameGlob->predictedPlayerState.otherFlags & 0x18) != 0)
                 {
-                    v11 = dword_98DADA8[2 * localClientNum + 1];
-                    dword_98DADA8[2 * localClientNum] |= 0x10000000u;
-                    dword_98DADA8[2 * localClientNum + 1] = v11;
+                    v12 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]);
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) |= 0x10000000u;
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v12;
                     spectatingClient = 1;
                 }
                 if ((cgameGlob->predictedPlayerState.otherFlags & 0x10) != 0)
                 {
-                    v12 = dword_98DADA8[2 * localClientNum + 1] | 0x8000;
-                    dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                    dword_98DADA8[2 * localClientNum + 1] = v12;
+                    v13 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 0x8000;
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v13;
                 }
                 if ((cgameGlob->predictedPlayerState.otherFlags & 2) != 0)
                 {
-                    v13 = dword_98DADA8[2 * localClientNum + 1] | 0x10000;
-                    dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                    dword_98DADA8[2 * localClientNum + 1] = v13;
+                    v14 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 0x10000;
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v14;
                 }
                 if (CG_ScopeIsOverlayed(localClientNum)
                     && BG_GetWeaponDef(cgameGlob->predictedPlayerState.weapon)->guidedMissileType != MISSILE_GUIDANCE_TVGUIDED)
                 {
-                    v14 = dword_98DADA8[2 * localClientNum + 1];
-                    dword_98DADA8[2 * localClientNum] |= 0x4000000u;
-                    dword_98DADA8[2 * localClientNum + 1] = v14;
+                    v15 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]);
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) |= 0x4000000u;
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v15;
                 }
                 if ((cgameGlob->predictedPlayerState.eFlags & 0x4000) != 0)
                 {
-                    v15 = dword_98DADA8[2 * localClientNum + 1];
-                    dword_98DADA8[2 * localClientNum] |= 0x8000000u;
-                    dword_98DADA8[2 * localClientNum + 1] = v15;
+                    v16 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]);
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) |= 0x8000000u;
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v16;
                 }
                 if (cgameGlob->weaponSelect < BG_GetNumWeapons()
                     && BG_PlayerHasWeapon(&cgameGlob->predictedPlayerState, cgameGlob->weaponSelect))
@@ -269,74 +270,74 @@ void __cdecl CL_UpdateUIVisibilityBits(int localClientNum)
                 }
                 if (WeaponDef->fuelTankWeapon)
                 {
-                    v17 = dword_98DADA8[2 * localClientNum + 1];
-                    dword_98DADA8[2 * localClientNum] |= 0x20000000u;
-                    dword_98DADA8[2 * localClientNum + 1] = v17;
+                    v18 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]);
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) |= 0x20000000u;
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v18;
                 }
                 if ((cgameGlob->predictedPlayerState.locationSelectionInfo & 0xF) != 0xF
                     && cgameGlob->predictedPlayerState.locationSelectionInfo)
                 {
-                    v18 = dword_98DADA8[2 * localClientNum + 1];
-                    dword_98DADA8[2 * localClientNum] |= 0x40000000u;
-                    dword_98DADA8[2 * localClientNum + 1] = v18;
+                    v19 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]);
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) |= 0x40000000u;
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v19;
                 }
                 if (CG_JavelinADS(localClientNum))
                 {
-                    v19 = dword_98DADA8[2 * localClientNum + 1] | 2;
-                    dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                    dword_98DADA8[2 * localClientNum + 1] = v19;
+                    v20 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 2;
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v20;
                 }
                 if (CG_ExtraCamIsActive(localClientNum))
                 {
-                    v20 = dword_98DADA8[2 * localClientNum + 1] | 8;
-                    dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                    dword_98DADA8[2 * localClientNum + 1] = v20;
+                    v21 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 8;
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v21;
                 }
                 if (cgameGlob->extraCamStatic
                     || cgameGlob->extraCamActive && (cgameGlob->predictedPlayerState.weapFlags & 0x200000) == 0)
                 {
-                    v21 = dword_98DADA8[2 * localClientNum + 1] | 0x10;
-                    dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                    dword_98DADA8[2 * localClientNum + 1] = v21;
+                    v22 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 0x10;
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v22;
                 }
                 if ((CG_ExtraCamIsActive(localClientNum)
                     || cgameGlob->extraCamStatic
                     || cgameGlob->extraCamActive && (cgameGlob->predictedPlayerState.weapFlags & 0x200000) == 0)
                     && (cgameGlob->predictedPlayerState.eFlags & 0x4000) == 0)
                 {
-                    v22 = dword_98DADA8[2 * localClientNum + 1] | 4;
-                    dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                    dword_98DADA8[2 * localClientNum + 1] = v22;
+                    v23 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 4;
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v23;
                 }
                 if (CG_IsShowingZombieMap())
                 {
-                    v23 = dword_98DADA8[2 * localClientNum + 1] | 0x20;
-                    dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                    dword_98DADA8[2 * localClientNum + 1] = v23;
+                    v24 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 0x20;
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v24;
                 }
                 if (cgameGlob->bgs.clientinfo[cgameGlob->clientNum].infoValid)
                 {
                     switch (cgameGlob->bgs.clientinfo[cgameGlob->clientNum].team)
                     {
                     case TEAM_FREE:
-                        v24 = dword_98DADA8[2 * localClientNum + 1] | 0x40;
-                        dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                        dword_98DADA8[2 * localClientNum + 1] = v24;
+                        v25 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 0x40;
+                        LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                        HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v25;
                         break;
                     case TEAM_AXIS:
-                        v25 = dword_98DADA8[2 * localClientNum + 1] | 0x100;
-                        dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                        dword_98DADA8[2 * localClientNum + 1] = v25;
+                        v26 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 0x100;
+                        LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                        HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v26;
                         break;
                     case TEAM_ALLIES:
-                        v26 = dword_98DADA8[2 * localClientNum + 1] | 0x80;
-                        dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                        dword_98DADA8[2 * localClientNum + 1] = v26;
+                        v27 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 0x80;
+                        LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                        HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v27;
                         break;
                     case TEAM_SPECTATOR:
-                        v27 = dword_98DADA8[2 * localClientNum + 1] | 0x200;
-                        dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                        dword_98DADA8[2 * localClientNum + 1] = v27;
+                        v28 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 0x200;
+                        LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                        HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v28;
                         break;
                     default:
                         break;
@@ -344,84 +345,87 @@ void __cdecl CL_UpdateUIVisibilityBits(int localClientNum)
                 }
                 else
                 {
-                    v28 = dword_98DADA8[2 * localClientNum + 1] | 0x40;
-                    dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                    dword_98DADA8[2 * localClientNum + 1] = v28;
+                    v29 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 0x40;
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v29;
                 }
-                v42 = (dword_98DADA8[2 * localClientNum] & 0x40) != 0 && (dword_98DADA8[2 * localClientNum + 1] & 0x80) != 0;
-                v41 = (dword_98DADA8[2 * localClientNum] & 0x80) != 0 && (dword_98DADA8[2 * localClientNum + 1] & 0x100) != 0;
-                v40 = (dword_98DADA8[2 * localClientNum] & 4) != 0 && (dword_98DADA8[2 * localClientNum + 1] & 0x40) != 0;
-                if (((dword_98DADA8[2 * localClientNum] & 0x2000) == 0
+                v43 = (sharedUiInfo.visibilityBits[localClientNum] & 0x40) != 0
+                    && (sharedUiInfo.visibilityBits[localClientNum] & 0x8000000000LL) != 0;
+                v42 = (sharedUiInfo.visibilityBits[localClientNum] & 0x80) != 0
+                    && (sharedUiInfo.visibilityBits[localClientNum] & 0x10000000000LL) != 0;
+                v41 = (sharedUiInfo.visibilityBits[localClientNum] & 4) != 0
+                    && (sharedUiInfo.visibilityBits[localClientNum] & 0x4000000000LL) != 0;
+                if (((sharedUiInfo.visibilityBits[localClientNum] & 0x2000) == 0
+                    || v43
                     || v42
                     || v41
-                    || v40
-                    || (dword_98DADA8[2 * localClientNum] & 2) != 0)
-                    && ((dword_98DADA8[2 * localClientNum] & 0x2000000) == 0 || !cg_thirdPerson->current.integer))
+                    || (sharedUiInfo.visibilityBits[localClientNum] & 2) != 0)
+                    && ((sharedUiInfo.visibilityBits[localClientNum] & 0x2000000) == 0 || !cg_thirdPerson->current.integer))
                 {
-                    v29 = dword_98DADA8[2 * localClientNum + 1] | 0x400;
-                    dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                    dword_98DADA8[2 * localClientNum + 1] = v29;
+                    v30 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 0x400;
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v30;
                 }
                 if (Dvar_GetInt("ui_hud_showobjicons"))
                 {
-                    v30 = dword_98DADA8[2 * localClientNum + 1] | 0x800;
-                    dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                    dword_98DADA8[2 * localClientNum + 1] = v30;
+                    v31 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 0x800;
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v31;
                 }
                 if (Dvar_GetInt("ui_hud_obituaries"))
                 {
-                    v31 = dword_98DADA8[2 * localClientNum + 1] | 0x4000;
-                    dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                    dword_98DADA8[2 * localClientNum + 1] = v31;
+                    v32 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 0x4000;
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v32;
                 }
                 UIContextIndex = Com_LocalClient_GetUIContextIndex(localClientNum);
                 if (Menu_IsMenuOpenAndVisible(UIContextIndex, "scoreboard"))
                 {
-                    v33 = dword_98DADA8[2 * localClientNum + 1] | 0x1000;
-                    dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                    dword_98DADA8[2 * localClientNum + 1] = v33;
+                    v34 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 0x1000;
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v34;
                 }
                 if (Live_IsWagerMatch())
                 {
-                    v34 = dword_98DADA8[2 * localClientNum + 1] | 0x20000;
-                    dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                    dword_98DADA8[2 * localClientNum + 1] = v34;
+                    v35 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 0x20000;
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v35;
                 }
                 if (Demo_IsPlaying())
                 {
-                    v35 = dword_98DADA8[2 * localClientNum + 1];
-                    dword_98DADA8[2 * localClientNum] |= 0x80000000;
-                    dword_98DADA8[2 * localClientNum + 1] = v35;
+                    v36 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]);
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) |= 0x80000000;
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v36;
                 }
                 if (Demo_IsRenderingMovie())
                 {
-                    v36 = dword_98DADA8[2 * localClientNum + 1] | 1;
-                    dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                    dword_98DADA8[2 * localClientNum + 1] = v36;
+                    v37 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 1;
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v37;
                 }
                 if (Demo_IsGameHudHidden())
                 {
-                    v37 = dword_98DADA8[2 * localClientNum + 1];
-                    dword_98DADA8[2 * localClientNum] |= 0x80000u;
-                    dword_98DADA8[2 * localClientNum + 1] = v37;
+                    v38 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]);
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) |= 0x80000u;
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v38;
                 }
                 if (Demo_IsDemoHudHidden())
                 {
-                    v38 = dword_98DADA8[2 * localClientNum + 1];
-                    dword_98DADA8[2 * localClientNum] |= 0x100000u;
-                    dword_98DADA8[2 * localClientNum + 1] = v38;
+                    v39 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]);
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) |= 0x100000u;
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v39;
                 }
                 Demo_UpdateVisibilityBitsForCameraMode(localClientNum, -1);
                 if ((!spectatingClient || inKillCam)
-                    && (dword_98DADA8[2 * localClientNum + 1] & 0x1000) == 0
+                    && (sharedUiInfo.visibilityBits[localClientNum] & 0x100000000000LL) == 0
                     && !uiActive
-                    && (dword_98DADA8[2 * localClientNum] & 0x20000) == 0
-                    && (dword_98DADA8[2 * localClientNum] & 0x40000) == 0
-                    && (dword_98DADA8[2 * localClientNum] & 0x80000) == 0)
+                    && (sharedUiInfo.visibilityBits[localClientNum] & 0x20000) == 0
+                    && (sharedUiInfo.visibilityBits[localClientNum] & 0x40000) == 0
+                    && (sharedUiInfo.visibilityBits[localClientNum] & 0x80000) == 0)
                 {
-                    v39 = dword_98DADA8[2 * localClientNum + 1] | 0x2000;
-                    dword_98DADA8[2 * localClientNum] = dword_98DADA8[2 * localClientNum];
-                    dword_98DADA8[2 * localClientNum + 1] = v39;
+                    v40 = HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) | 0x2000;
+                    LODWORD(sharedUiInfo.visibilityBits[localClientNum]) = sharedUiInfo.visibilityBits[localClientNum];
+                    HIDWORD(sharedUiInfo.visibilityBits[localClientNum]) = v40;
                 }
             }
         }
@@ -433,16 +437,20 @@ void __cdecl CL_UpdateUIVisibilityBits(int localClientNum)
 void    SCR_UpdateScreen()
 {
     dvar_s *v1; // ecx
-    int semaphore; // [esp+10h] [ebp-Ch]
     int shouldSkipRender; // [esp+14h] [ebp-8h]
 
     if ( !updateScreenCalled && !SCR_ShouldSkipUpdateScreen() )
     {
+#ifdef KISAK_DW
+        int semaphore; // [esp+10h] [ebp-Ch]
         semaphore = R_AcquireDXDeviceOwnership(r_PumpDemonware);
+#endif 
         if ( Sys_QueryD3DDeviceOKEvent() )
         {
+#ifdef KISAK_DW
             if ( semaphore )
                 R_ReleaseDXDeviceOwnership();
+#endif
             if ( CL_GetLocalClientConnectionState(0) == 8 )
                 Sys_LoadingKeepAlive();
             shouldSkipRender = com_errorEntered;
@@ -460,10 +468,12 @@ void    SCR_UpdateScreen()
                 updateScreenCalled = 0;
             }
         }
+#ifdef KISAK_DW
         else if ( semaphore )
         {
             R_ReleaseDXDeviceOwnership();
         }
+#endif
     }
 }
 

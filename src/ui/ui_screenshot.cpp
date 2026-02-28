@@ -1,7 +1,10 @@
 #include "ui_screenshot.h"
+#include <universal/assertive.h>
+#include <universal/com_memory.h>
 
 void __cdecl UI_Screenshot_Success(dwFileShareReadFileTask *task)
 {
+#ifdef KISAK_SCREENSHOT
     if ( task->buffer == s_buffer )
     {
         if ( s_state != SCREENSHOT_DOWNLOADING
@@ -16,10 +19,12 @@ void __cdecl UI_Screenshot_Success(dwFileShareReadFileTask *task)
         }
         s_state = SCREENSHOT_DOWNLOADED;
     }
+#endif
 }
 
 void __cdecl UI_Screenshot_Failure(dwFileShareReadFileTask *task)
 {
+#ifdef KISAK_SCREENSHOT
     if ( task->buffer == s_buffer && s_state )
     {
         if ( s_state != SCREENSHOT_DOWNLOADING
@@ -34,29 +39,35 @@ void __cdecl UI_Screenshot_Failure(dwFileShareReadFileTask *task)
         }
         s_state = SCREENSHOT_ERROR;
     }
+#endif
 }
 
 void __cdecl UI_ScreenshotAlloc()
 {
+#ifdef KISAK_SCREENSHOT
     if ( s_buffer
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_screenshot.cpp", 87, 0, "%s", "s_buffer == NULL") )
     {
         __debugbreak();
     }
     s_buffer = Hunk_Alloc(0x100000u, "ScreenshotRead", 36);
+#endif
 }
 
 void __cdecl UI_ScreenshotShutdown()
 {
+#ifdef KISAK_SCREENSHOT
     s_buffer = 0;
     if ( s_state == SCREENSHOT_DOWNLOADING )
         LiveStorage_FileShare_AbortOperation(0, FILESHARE_LOCATION_USERSTORAGE);
     if ( s_state != SCREENSHOT_CREATED )
         s_state = SCREENSHOT_IDLE;
+#endif
 }
 
 void __cdecl UI_ScreenshotDecompressCallback(void *data)
 {
+#ifdef KISAK_SCREENSHOT
     const char *v1; // eax
     const char *v2; // eax
     int v3; // [esp+0h] [ebp-1Ch]
@@ -109,10 +120,12 @@ void __cdecl UI_ScreenshotDecompressCallback(void *data)
             v2);
     }
     Z_VirtualFree(*(void **)data, 23);
+#endif
 }
 
 void __cdecl UI_ScreenshotUpdate(int localClientNum, int contextIndex)
 {
+#ifdef KISAK_SCREENSHOT
     if ( Sys_IsMainThread() )
     {
         switch ( s_state )
@@ -155,10 +168,12 @@ void __cdecl UI_ScreenshotUpdate(int localClientNum, int contextIndex)
                 break;
         }
     }
+#endif
 }
 
 char __cdecl UI_ScreenshotDecompress(int localClientNum, int contextIndex)
 {
+#ifdef KISAK_SCREENSHOT
     uiInfo_s *Info; // eax
     ScreenshotDecompressParams Params; // [esp+0h] [ebp-14h] BYREF
     void *jpeg; // [esp+10h] [ebp-4h]
@@ -178,10 +193,14 @@ char __cdecl UI_ScreenshotDecompress(int localClientNum, int contextIndex)
     Info = UI_UIContext_GetInfo(contextIndex);
     UI_AnimateItem(localClientNum, &Info->uiDC, "menu_screenshot", "*", "expand", 500);
     return 1;
+#else
+    return 0;
+#endif
 }
 
 void __cdecl UI_ScreenshotHandleInput(int localClientNum)
 {
+#ifdef KISAK_SCREENSHOT
     float v1; // xmm0_4
     float v2; // xmm0_4
     float v3; // [esp+8h] [ebp-18h]
@@ -229,10 +248,12 @@ void __cdecl UI_ScreenshotHandleInput(int localClientNum)
             v3 = 0.0f;
         s_screenshotZoom = v3;
     }
+#endif
 }
 
 void __cdecl UI_ScreenshotDownload(int localClientNum, int context, unsigned __int64 fileID, unsigned int fileSize)
 {
+#ifdef KISAK_SCREENSHOT
     int ControllerIndex; // eax
     fileShareReadFileInfo fileInfo; // [esp+0h] [ebp-30h] BYREF
 
@@ -262,10 +283,12 @@ void __cdecl UI_ScreenshotDownload(int localClientNum, int context, unsigned __i
     fileInfo.failureCallback = UI_Screenshot_Failure;
     ControllerIndex = Com_LocalClient_GetControllerIndex(localClientNum);
     s_downloadTask = LiveStorage_FileShare_ReadFile(ControllerIndex, &fileInfo);
+#endif
 }
 
 void __cdecl UI_ScreenshotDraw(int localClientNum, int contextIndex, const rectDef_s *rect, const float *color)
 {
+#ifdef KISAK_SCREENSHOT
     float v4; // [esp+28h] [ebp-40h]
     float v5; // [esp+2Ch] [ebp-3Ch]
     float v6; // [esp+34h] [ebp-34h]
@@ -335,10 +358,12 @@ void __cdecl UI_ScreenshotDraw(int localClientNum, int contextIndex, const rectD
             color,
             s_image);
     }
+#endif
 }
 
 void __cdecl UI_ScreenshotInit()
 {
+#ifdef KISAK_SCREENSHOT
     if ( !s_inited )
     {
         Cmd_AddCommandInternal("screenshotDownload", UI_ScreenshotDownload_f, &UI_ScreenshotDownload_f_VAR);
@@ -346,10 +371,12 @@ void __cdecl UI_ScreenshotInit()
         Cmd_AddCommandInternal("screenshotZoom", UI_ScreenshotZoom_f, &UI_ScreenshotZoom_f_VAR);
     }
     s_inited = 1;
+#endif
 }
 
 void __cdecl UI_ScreenshotDownload_f()
 {
+#ifdef KISAK_SCREENSHOT
     const char *v0; // eax
     const char *v1; // eax
     int UIContextIndex; // eax
@@ -362,17 +389,21 @@ void __cdecl UI_ScreenshotDownload_f()
     v3 = I_atoi64(v1);
     UIContextIndex = Com_ControllerIndex_GetUIContextIndex(0);
     UI_ScreenshotDownload(0, UIContextIndex, v3, v4);
+#endif
 }
 
 void __cdecl UI_ScreenshotAbortDownload_f()
 {
+#ifdef KISAK_SCREENSHOT
     LiveStorage_FileShare_AbortOperation(0, FILESHARE_LOCATION_USERSTORAGE);
     if ( s_state != SCREENSHOT_CREATED )
         s_state = SCREENSHOT_IDLE;
+#endif
 }
 
 void __cdecl UI_ScreenshotZoom_f()
 {
+#ifdef KISAK_SCREENSHOT
     const char *v0; // eax
     float v1; // [esp+0h] [ebp-1Ch]
     float v2; // [esp+4h] [ebp-18h]
@@ -393,5 +424,6 @@ void __cdecl UI_ScreenshotZoom_f()
             v1 = 0.0f;
         s_screenshotZoom = v1;
     }
+#endif
 }
 

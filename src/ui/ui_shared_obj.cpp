@@ -1,4 +1,348 @@
 #include "ui_shared_obj.h"
+#include <universal/com_files.h>
+#include <universal/q_parse.h>
+#include "ui_utils.h"
+#include "l_precomp.h"
+#include <universal/eval.h>
+#include <client_mp/cl_scrn_mp.h>
+#include <qcommon/dobj_management.h>
+#include <game_mp/g_main_mp.h>
+
+#include <cctype>
+
+template <typename T, int HASH_SIZE, int HASH_SEED>
+struct KeywordHashEntry
+{
+    const char *keyword;
+    int(__cdecl *func)(T *def, int handle);
+
+    // --------------------------------------------------------
+    // Hash core (seeded runtime version)
+    // --------------------------------------------------------
+    static int KeySeed(const char *keyword, int hashCount, int seed)
+    {
+        int hash = 0;
+
+        for (int i = 0; keyword[i]; ++i)
+            hash += (i + seed) * std::tolower((unsigned char)keyword[i]);
+
+        hash += (hash >> 8);
+
+        return hash % hashCount;
+    }
+
+    // --------------------------------------------------------
+    // Compile-time specialized hash (fast path)
+    // Uses power-of-two mask instead of %
+    // --------------------------------------------------------
+    static int Key(const char *keyword)
+    {
+        int hash = 0;
+
+        for (int i = 0; keyword[i]; ++i)
+            hash += (i + HASH_SEED) * std::tolower((unsigned char)keyword[i]);
+
+        hash += (hash >> 8);
+
+        return hash & (HASH_SIZE - 1);
+    }
+
+    // --------------------------------------------------------
+    // Lookup
+    // --------------------------------------------------------
+    static const KeywordHashEntry *
+        Find(const KeywordHashEntry **table, const char *keyword)
+    {
+        const KeywordHashEntry *entry = table[Key(keyword)];
+
+        if (!entry)
+            return nullptr;
+
+        if (I_stricmp(entry->keyword, keyword) != 0)
+            return nullptr;
+
+        return entry;
+    }
+
+    // --------------------------------------------------------
+    // Add (asserts on collision)
+    // --------------------------------------------------------
+    static void Add(
+        const KeywordHashEntry **table,
+        const KeywordHashEntry *entry)
+    {
+        int hash = Key(entry->keyword);
+
+        if (table[hash])
+        {
+            if (!Assert_MyHandler(
+                "ui_shared_obj.cpp",
+                1211,
+                0,
+                "%s",
+                "table[hash] == NULL"))
+            {
+                __debugbreak();
+            }
+        }
+
+        table[hash] = entry;
+    }
+
+    // --------------------------------------------------------
+    // Validate seed (no collisions allowed)
+    // --------------------------------------------------------
+    static bool IsValidSeed(
+        const KeywordHashEntry *array,
+        int count,
+        int seed)
+    {
+        unsigned char used[HASH_SIZE];
+        std::memset(used, 0, sizeof(used));
+
+        for (int i = 0; i < count; ++i)
+        {
+            int hash = KeySeed(array[i].keyword, HASH_SIZE, seed);
+
+            if (used[hash])
+                return false;
+
+            used[hash] = 1;
+        }
+
+        return true;
+    }
+
+    // --------------------------------------------------------
+    // Brute force seed picker
+    // --------------------------------------------------------
+    static int PickSeed(
+        const KeywordHashEntry *array,
+        int count)
+    {
+        for (int seed = 0;; ++seed)
+        {
+            if (IsValidSeed(array, count, seed))
+                return seed;
+
+            if (seed == 0x10000)
+            {
+                if (!Assert_MyHandler(
+                    "ui_shared_obj.cpp",
+                    1189,
+                    0,
+                    "seed != 65536\n\t%i, %i",
+                    0x10000,
+                    0x10000))
+                {
+                    __debugbreak();
+                }
+            }
+        }
+    }
+
+    // --------------------------------------------------------
+    // Validate compile-time seed
+    // --------------------------------------------------------
+    static void Validate(
+        const KeywordHashEntry *array,
+        int count)
+    {
+        if (!IsValidSeed(array, count, HASH_SEED))
+        {
+            int picked = PickSeed(array, count);
+
+            if (!Assert_MyHandler(
+                "ui_shared_obj.cpp",
+                1201,
+                0,
+                "%s\n\t(KeywordHash_PickSeed( array, count )) = %i",
+                "(KeywordHash_IsValidSeed( array, count, HASH_SEED ))",
+                picked))
+            {
+                __debugbreak();
+            }
+        }
+    }
+};
+
+
+
+const KeywordHashEntry<itemDef_s, 1024, 6> itemParseKeywords[91] =
+{
+  { "name", &ItemParse_name },
+  { "text", &ItemParse_text },
+  { "textfile", &ItemParse_textfile },
+  { "textsavegame", &ItemParse_textsavegame },
+  { "textcinematicsubtitle", &ItemParse_textcinematicsubtitle },
+  { "group", &ItemParse_group },
+  { "rect", &ItemParse_rect },
+  { "origin", &ItemParse_origin },
+  { "style", &ItemParse_style },
+  { "decoration", &ItemParse_decoration },
+  { "notselectable", &ItemParse_notselectable },
+  { "noscrollbars", &ItemParse_noScrollBars },
+  { "modal", &ItemParse_modal },
+  { "frame", &ItemParse_frame },
+  { "noBlinkingHighlight", &ItemParse_noBlinkingHighlight },
+  { "usepaging", &ItemParse_usePaging },
+  { "autowrapped", &ItemParse_autowrapped },
+  { "horizontalscroll", &ItemParse_horizontalscroll },
+  { "type", &ItemParse_type },
+  { "elementwidth", &ItemParse_elementwidth },
+  { "elementheight", &ItemParse_elementheight },
+  { "feeder", &ItemParse_special },
+  { "elementtype", &ItemParse_elementtype },
+  { "columns", &ItemParse_columns },
+  { "userarea", &ItemParse_userarea },
+  { "menuarea", &ItemParse_menuarea },
+  { "menuItemsDef", &ItemParse_menuItemsDef },
+  { "border", &ItemParse_border },
+  { "bordersize", &ItemParse_bordersize },
+  { "visible", &ItemParse_visible },
+  { "visibilityBits", &ItemParse_visiblityBits },
+  { "ownerdraw", &ItemParse_ownerdraw },
+  { "align", &ItemParse_align },
+  { "textalign", &ItemParse_textalign },
+  { "textalignx", &ItemParse_textalignx },
+  { "textaligny", &ItemParse_textaligny },
+  { "textscale", &ItemParse_textscale },
+  { "textstyle", &ItemParse_textstyle },
+  { "textfont", &ItemParse_textfont },
+  { "backcolor", &ItemParse_backcolor },
+  { "forecolor", &ItemParse_forecolor },
+  { "bordercolor", &ItemParse_bordercolor },
+  { "outlinecolor", &ItemParse_outlinecolor },
+  { "rotation", &ItemParse_rotation },
+  { "background", &ItemParse_background },
+  { "onFocus", &ItemParse_onFocus },
+  { "leaveFocus", &ItemParse_leaveFocus },
+  { "mouseEnter", &ItemParse_mouseEnter },
+  { "mouseExit", &ItemParse_mouseExit },
+  { "mouseEnterText", &ItemParse_mouseEnterText },
+  { "mouseExitText", &ItemParse_mouseExitText },
+  { "action", &ItemParse_action },
+  { "accept", &ItemParse_accept },
+  { "special", &ItemParse_special },
+  { "dvar", &ItemParse_dvar },
+  { "maxChars", &ItemParse_maxChars },
+  { "maxCharsGotoNext", &Item_Parse_maxCharsGotoNext },
+  { "maxPaintChars", &ItemParse_maxPaintChars },
+  { "focusSound", &ItemParse_focusSound },
+  { "dvarFloat", &ItemParse_dvarFloat },
+  { "dvarStrList", &ItemParse_dvarStrList },
+  { "dvarFloatList", &ItemParse_dvarFloatList },
+  { "dvarEnumList", &ItemParse_dvarEnumList },
+  { "actionOnEnterPressOnly", &ItemParse_actionOnEnterPressOnly },
+  { "ownerdrawFlag", &ItemParse_ownerdrawFlag },
+  { "enableDvar", &ItemParse_enableDvar },
+  { "dvarTest", &ItemParse_dvarTest },
+  { "disableDvar", &ItemParse_disableDvar },
+  { "showDvar", &ItemParse_showDvar },
+  { "hideDvar", &ItemParse_hideDvar },
+  { "focusDvar", &ItemParse_focusDvar },
+  { "doubleclick", &ItemParse_doubleClick },
+  { "rightclick", &ItemParse_rightClick },
+  { "execKey", &ItemParse_execKey },
+  { "execKeyInt", &ItemParse_execKeyInt },
+  { "onEvent", &ItemParse_onEvent },
+  { "exp", &ItemParse_execExp },
+  { "gamemsgwindowindex", &ItemParse_gameMsgWindowIndex },
+  { "gamemsgwindowmode", &ItemParse_gameMsgWindowMode },
+  { "selectBorder", &ItemParse_selectBorder },
+  { "elementHighlightColor", &ItemParse_elementHighlightColor },
+  { "elementBackgroundColor", &ItemParse_elementBackgroundColor },
+  { "disablecolor", &ItemParse_disableColor },
+  { "focusColor", &ItemParse_focusColor },
+  { "selectIcon", &ItemParse_selectIcon },
+  { "backgroundItemListbox", &ItemParse_backgroundItemListbox },
+  { "highlightTexture", &ItemParse_highlightTexture },
+  { "onListboxSelectionChange", &ItemParse_onListboxSelectionChange },
+  { "ui3dWindowId", &ItemParse_ui3dWindowId },
+  { "state", &ItemParse_state },
+  { "onEnter", &ItemParse_onEnter }
+};
+
+const KeywordHashEntry<menuDef_t, 1024, 128> menuParseKeywords[50] =
+{
+  { "name", &MenuParse_name },
+  { "fullscreen", &MenuParse_fullscreen },
+  { "rect", &MenuParse_rect },
+  { "style", (int(*)(menuDef_t*, int))&ItemParse_style},
+  { "visible", &MenuParse_visible },
+  { "visibilityBits", &MenuParse_visiblityBits },
+  { "onOpen", &MenuParse_onOpen },
+  { "onFocus", &MenuParse_onFocus },
+  { "leaveFocus", &MenuParse_leaveFocus },
+  { "onClose", &MenuParse_onClose },
+  { "onESC", &MenuParse_onESC },
+  { "border", &MenuParse_border },
+  { "borderSize", &MenuParse_borderSize },
+  { "backcolor", &MenuParse_backcolor },
+  { "forecolor", &MenuParse_forecolor },
+  { "bordercolor", &MenuParse_bordercolor },
+  { "focuscolor", &MenuParse_focuscolor },
+  { "disablecolor", &MenuParse_disablecolor },
+  { "outlinecolor", &MenuParse_outlinecolor },
+  { "background", &MenuParse_background },
+  { "ownerdraw", &MenuParse_ownerdraw },
+  { "ownerdrawFlag", (int(*)(menuDef_t *, int)) &ItemParse_ownerdrawFlag },
+  { "outOfBoundsClick", &MenuParse_outOfBounds },
+  { "soundLoop", &MenuParse_soundLoop },
+  { "itemDef", &MenuParse_itemDef },
+  { "exp", &MenuParse_execExp },
+  { "popup", &MenuParse_popup },
+  { "fadeClamp", &MenuParse_fadeClamp },
+  { "fadeCycle", &MenuParse_fadeCycle },
+  { "fadeAmount", &MenuParse_fadeAmount },
+  { "fadeInAmount", &MenuParse_fadeInAmount },
+  { "execKey", &MenuParse_execKey },
+  { "execKeyInt", &MenuParse_execKeyInt },
+  { "blurWorld", &MenuParse_blurWorld },
+  { "legacySplitScreenScale", &MenuParse_legacySplitScreenScale },
+  { "hiddenDuringScope", &MenuParse_hiddenDuringScope },
+  { "hiddenDuringFlashbang", &MenuParse_hiddenDuringFlashbang },
+  { "hiddenDuringUI", &MenuParse_hiddenDuringUI },
+  { "allowedBinding", &MenuParse_allowedBinding },
+  { "allowSignIn", &MenuParse_allowSignIn },
+  { "ui3dWindowId", &MenuParse_ui3dWindowId },
+  { "priority", &MenuParse_priority },
+  { "openSlideSpeed", &MenuParse_openSlideSpeed },
+  { "closeSlideSpeed", &MenuParse_closeSlideSpeed },
+  { "openSlideDirection", &MenuParse_openSlideDirection },
+  { "closeSlideDirection", &MenuParse_closeSlideDirection },
+  { "openFadingTime", &MenuParse_openFadingTime },
+  { "closeFadingTime", &MenuParse_closeFadingTime },
+  { "control", &MenuParse_control },
+  { "frame", (int(*)(menuDef_t *, int)) &ItemParse_frame }
+};
+
+
+
+conditionStack_t g_conditionStack;
+int g_constructUniqueID;
+nestingCounts_t g_nestingCounts;
+int g_blockUniqueID;
+
+const KeywordHashEntry<menuDef_t, 1024, 128> *menuParseKeywordHash[1024];
+const KeywordHashEntry<itemDef_s, 1024, 6> *itemParseKeywordHash[1024];
+
+using ItemKeyword = KeywordHashEntry<itemDef_s, 1024, 6>;
+using MenuKeyword = KeywordHashEntry<menuDef_t, 1024, 128>;
+
+struct// $CD64A558AFC89A5F4974E935559855BB // sizeof=0x141C
+{                                       // XREF: .data:g_load_0/r
+    loadAssets_t loadAssets;            // XREF: Asset_Parse+100/o
+                                        // Asset_Parse+13E/o ...
+    MenuList menuList;                  // XREF: UI_LoadMenu_LoadObj+17/w
+                                        // UI_LoadMenu_LoadObj:loc_77E012/o ...
+    itemDef_s *items[512];              // XREF: Menu_Init+7C/o
+                                        // Menu_PostParse+5A/o
+    animParamsDef_t *animStates[256];   // XREF: Item_Init+72/o
+                                        // Item_PostParse+6B/o ...
+    menuDef_t *menus[512];              // XREF: UI_LoadMenu_LoadObj+17/o
+                                        // UI_LoadMenus_LoadObj+1A/o
+} g_load_0;
 
 void __cdecl Menus_FreeAllMemory(UiContext *dc)
 {
@@ -270,12 +614,12 @@ int __cdecl PC_String_Parse(int handle, const char **out)
     return 1;
 }
 
-int    MenuParse_fullscreen@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_fullscreen(menuDef_t *menu, int handle)
 {
-    return PC_Int_Parse(a1, handle, &menu->fullScreen);
+    return PC_Int_Parse(handle, &menu->fullScreen);
 }
 
-int    PC_Int_Parse@<eax>(long double a1@<esi:edi>, int handle, int *i)
+int    PC_Int_Parse(int handle, int *i)
 {
     pc_token_s token; // [esp+0h] [ebp-418h] BYREF
     int negative; // [esp+414h] [ebp-4h]
@@ -283,7 +627,7 @@ int    PC_Int_Parse@<eax>(long double a1@<esi:edi>, int handle, int *i)
     if ( !PC_ReadTokenHandle(handle, &token) )
         return 0;
     if ( token.string[0] == 40 )
-        return PC_Int_Expression_Parse(a1, handle, i);
+        return PC_Int_Expression_Parse(handle, i);
     negative = 0;
     if ( token.string[0] == 45 )
     {
@@ -300,12 +644,13 @@ int    PC_Int_Parse@<eax>(long double a1@<esi:edi>, int handle, int *i)
     }
     else
     {
-        PC_SourceError(handle, "expected integer but found %s\n", token.string);
+        PC_SourceError(handle, (char*)"expected integer but found %s\n", token.string);
         return 0;
     }
 }
 
-void PC_SourceError(int handle, char *format, ...)
+char string_1[4096];
+void PC_SourceError(int handle, const char *format, ...)
 {
     char filename[132]; // [esp+0h] [ebp-90h] BYREF
     char *argptr; // [esp+88h] [ebp-8h]
@@ -321,7 +666,7 @@ void PC_SourceError(int handle, char *format, ...)
     Com_PrintError(13, "Menu load error: %s, line %d: %s\n", filename, line, string_1);
 }
 
-int    PC_Int_Expression_Parse@<eax>(long double a1@<esi:edi>, int handle, int *i)
+int    PC_Int_Expression_Parse(int handle, int *i)
 {
     EvalValue result; // [esp+0h] [ebp-5468h] BYREF
     EvalValue v5; // [esp+10h] [ebp-5458h]
@@ -346,18 +691,18 @@ int    PC_Int_Expression_Parse@<eax>(long double a1@<esi:edi>, int handle, int *
         }
         if ( !Eval_OperatorForToken(pc_token.string, &op) )
         {
-            PC_SourceError(handle, "expected operator but found %s\n", pc_token.string);
+            PC_SourceError(handle, (char*)"expected operator but found %s\n", pc_token.string);
             return 0;
         }
         if ( op == EVAL_OP_RPAREN )
             break;
         if ( op == EVAL_OP_LPAREN && ++v9 > 16 )
         {
-            PC_SourceError(handle, "too much recursive macro expansion\n");
+            PC_SourceError(handle, (char *)"too much recursive macro expansion\n");
             return 0;
         }
 LABEL_16:
-        Eval_PushOperator(a1, &eval, op);
+        Eval_PushOperator(&eval, op);
     }
     if ( v9 )
     {
@@ -367,10 +712,10 @@ LABEL_16:
     if ( Eval_AnyMissingOperands(&eval) )
     {
 LABEL_6:
-        PC_SourceError(handle, "error evaluating expression\n");
+        PC_SourceError(handle, (char *)"error evaluating expression\n");
         return 0;
     }
-    v5 = *Eval_Solve(a1, &result, &eval);
+    v5 = *Eval_Solve(&result, &eval);
     v7 = v5;
     if ( v5.type != EVAL_VALUE_INT
         && !Assert_MyHandler(
@@ -386,23 +731,23 @@ LABEL_6:
     return 1;
 }
 
-int    MenuParse_rect@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_rect(menuDef_t *menu, int handle)
 {
     int result; // eax
 
-    result = PC_Rect_Parse(a1, handle, &menu->window.rect);
+    result = PC_Rect_Parse(handle, &menu->window.rect);
     menu->initialRectInfo = menu->window.rect;
     return result;
 }
 
-int    PC_Rect_Parse@<eax>(long double a1@<esi:edi>, int handle, rectDef_s *r)
+int    PC_Rect_Parse(int handle, rectDef_s *r)
 {
     int refPoint; // [esp+8h] [ebp-4h] BYREF
 
-    if ( !PC_Float_Parse(a1, handle, &r->x)
-        || !PC_Float_Parse(a1, handle, &r->y)
-        || !PC_Float_Parse(a1, handle, &r->w)
-        || !PC_Float_Parse(a1, handle, &r->h) )
+    if ( !PC_Float_Parse(handle, &r->x)
+        || !PC_Float_Parse(handle, &r->y)
+        || !PC_Float_Parse(handle, &r->w)
+        || !PC_Float_Parse(handle, &r->h) )
     {
         return 0;
     }
@@ -422,7 +767,7 @@ int    PC_Rect_Parse@<eax>(long double a1@<esi:edi>, int handle, rectDef_s *r)
         }
         else
         {
-            PC_SourceError(handle, "invalid horizontal reference point\n");
+            PC_SourceError(handle, (char *)"invalid horizontal reference point\n");
         }
     }
     if ( PC_Flag_ParseOptional(handle, &refPoint) && refPoint )
@@ -437,13 +782,13 @@ int    PC_Rect_Parse@<eax>(long double a1@<esi:edi>, int handle, rectDef_s *r)
         }
         else
         {
-            PC_SourceError(handle, "invalid vertical reference point\n");
+            PC_SourceError(handle, (char *)"invalid vertical reference point\n");
         }
     }
     return 1;
 }
 
-int    PC_Float_Parse@<eax>(long double a1@<esi:edi>, int handle, float *f)
+int    PC_Float_Parse(int handle, float *f)
 {
     pc_token_s token; // [esp+0h] [ebp-418h] BYREF
     int negative; // [esp+414h] [ebp-4h]
@@ -451,7 +796,7 @@ int    PC_Float_Parse@<eax>(long double a1@<esi:edi>, int handle, float *f)
     if ( !PC_ReadTokenHandle(handle, &token) )
         return 0;
     if ( token.string[0] == 40 )
-        return PC_Float_Expression_Parse(a1, handle, f);
+        return PC_Float_Expression_Parse(handle, f);
     negative = 0;
     if ( token.string[0] == 45 )
     {
@@ -461,20 +806,23 @@ int    PC_Float_Parse@<eax>(long double a1@<esi:edi>, int handle, float *f)
     }
     if ( token.type == 3 )
     {
-        if ( negative )
-            *(unsigned int *)f = LODWORD(token.floatvalue) ^ _mask__NegFloat_;
+        if (negative)
+        {
+            //*(unsigned int *)f = LODWORD(token.floatvalue) ^ _mask__NegFloat_;
+            *f = -(token.floatvalue);
+        }
         else
             *f = token.floatvalue;
         return 1;
     }
     else
     {
-        PC_SourceError(handle, "expected float but found %s\n", token.string);
+        PC_SourceError(handle, (char *)"expected float but found %s\n", token.string);
         return 0;
     }
 }
 
-int    PC_Float_Expression_Parse@<eax>(long double a1@<esi:edi>, int handle, float *f)
+int    PC_Float_Expression_Parse(int handle, float *f)
 {
     float d; // xmm0_4
     EvalValue result; // [esp+8h] [ebp-5468h] BYREF
@@ -511,7 +859,7 @@ int    PC_Float_Expression_Parse@<eax>(long double a1@<esi:edi>, int handle, flo
             return 0;
         }
 LABEL_16:
-        Eval_PushOperator(a1, &eval, op);
+        Eval_PushOperator(&eval, op);
     }
     if ( v10 )
     {
@@ -524,7 +872,7 @@ LABEL_6:
         PC_SourceError(handle, "error evaluating expression\n");
         return 0;
     }
-    v6 = *Eval_Solve(a1, &result, &eval);
+    v6 = *Eval_Solve(&result, &eval);
     v8 = v6;
     if ( v6.type )
     {
@@ -559,11 +907,11 @@ int __cdecl PC_Flag_ParseOptional(int handle, int *i)
     }
 }
 
-int    PC_Byte_Parse@<eax>(long double a1@<esi:edi>, int handle, unsigned __int8 *b)
+int    PC_Byte_Parse(int handle, unsigned __int8 *b)
 {
     int i; // [esp+0h] [ebp-4h] BYREF
 
-    if ( !PC_Int_Parse(a1, handle, &i) )
+    if ( !PC_Int_Parse(handle, &i) )
         return 0;
     if ( (unsigned int)i < 0x100 )
     {
@@ -720,6 +1068,7 @@ int __cdecl MenuParse_onFocus(menuDef_t *menu, int handle)
     menu->onEvent = eventHandler;
     return PC_EventScript_Parse(handle, &eventHandler->eventScript);
 }
+
 
 int __cdecl PC_EventScript_Parse(int handle, GenericEventScript **baseScript)
 {
@@ -999,64 +1348,64 @@ int __cdecl MenuParse_execExp(menuDef_t *menu, int handle)
     return 0;
 }
 
-int    MenuParse_border@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_border(menuDef_t *menu, int handle)
 {
-    return PC_Byte_Parse(a1, handle, &menu->window.border);
+    return PC_Byte_Parse(handle, &menu->window.border);
 }
 
-int    MenuParse_borderSize@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_borderSize(menuDef_t *menu, int handle)
 {
-    return PC_Float_Parse(a1, handle, &menu->window.borderSize);
+    return PC_Float_Parse(handle, &menu->window.borderSize);
 }
 
-int    MenuParse_backcolor@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_backcolor(menuDef_t *menu, int handle)
 {
-    return PC_Color_Parse(a1, handle, (float (*)[4])menu->window.backColor);
+    return PC_Color_Parse(handle, (float (*)[4])menu->window.backColor);
 }
 
-int    PC_Color_Parse@<eax>(long double a1@<esi:edi>, int handle, float (*c)[4])
+int    PC_Color_Parse(int handle, float (*c)[4])
 {
     float f; // [esp+0h] [ebp-8h] BYREF
     int i; // [esp+4h] [ebp-4h]
 
     for ( i = 0; i < 4; ++i )
     {
-        if ( !PC_Float_Parse(a1, handle, &f) )
+        if ( !PC_Float_Parse(handle, &f) )
             return 0;
         (*c)[i] = f;
     }
     return 1;
 }
 
-int    MenuParse_forecolor@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_forecolor(menuDef_t *menu, int handle)
 {
     int flags; // [esp+0h] [ebp-4h]
 
-    if ( !PC_Color_Parse(a1, handle, (float (*)[4])menu->window.foreColor) )
+    if ( !PC_Color_Parse(handle, (float (*)[4])menu->window.foreColor) )
         return 0;
     flags = Window_GetDynamicFlags(0, &menu->window);
     Window_SetDynamicFlags(0, &menu->window, flags | 0x10000);
     return 1;
 }
 
-int    MenuParse_bordercolor@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_bordercolor(menuDef_t *menu, int handle)
 {
-    return PC_Color_Parse(a1, handle, (float (*)[4])menu->window.borderColor);
+    return PC_Color_Parse(handle, (float (*)[4])menu->window.borderColor);
 }
 
-int    MenuParse_focuscolor@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_focuscolor(menuDef_t *menu, int handle)
 {
-    return PC_Color_Parse(a1, handle, (float (*)[4])menu->focusColor);
+    return PC_Color_Parse(handle, (float (*)[4])menu->focusColor);
 }
 
-int    MenuParse_disablecolor@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_disablecolor(menuDef_t *menu, int handle)
 {
-    return PC_Color_Parse(a1, handle, (float (*)[4])menu->disableColor);
+    return PC_Color_Parse(handle, (float (*)[4])menu->disableColor);
 }
 
-int    MenuParse_outlinecolor@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_outlinecolor(menuDef_t *menu, int handle)
 {
-    return PC_Color_Parse(a1, handle, (float (*)[4])menu->window.outlineColor);
+    return PC_Color_Parse(handle, (float (*)[4])menu->window.outlineColor);
 }
 
 int __cdecl MenuParse_background(menuDef_t *menu, int handle)
@@ -1072,30 +1421,30 @@ int __cdecl MenuParse_background(menuDef_t *menu, int handle)
     return 1;
 }
 
-int    ItemParse_ownerdrawFlag@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_ownerdrawFlag(itemDef_s *item, int handle)
 {
     int i; // [esp+0h] [ebp-4h] BYREF
 
-    if ( !PC_Int_Parse(a1, handle, &i) )
+    if ( !PC_Int_Parse(handle, &i) )
         return 0;
     item->window.ownerDrawFlags |= i;
     return 1;
 }
 
-int    MenuParse_ownerdraw@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_ownerdraw(menuDef_t *menu, int handle)
 {
-    return PC_Int_Parse(a1, handle, &menu->window.ownerDraw);
+    return PC_Int_Parse(handle, &menu->window.ownerDraw);
 }
 
-int __cdecl MenuParse_popup(menuDef_t *menu)
+int __cdecl MenuParse_popup(menuDef_t *menu, int handle)
 {
-    Window_SetStaticFlags(&menu->window, (unsigned int)&cls.rankedServers[711].game[35] | menu->window.staticFlags);
+    Window_SetStaticFlags(&menu->window, menu->window.staticFlags | 0x1000000);
     return 1;
 }
 
-int __cdecl MenuParse_outOfBounds(menuDef_t *menu)
+int __cdecl MenuParse_outOfBounds(menuDef_t *menu, int handle)
 {
-    Window_SetStaticFlags(&menu->window, (unsigned int)&cls.wagerServers[5331].basictraining | menu->window.staticFlags);
+    Window_SetStaticFlags(&menu->window, menu->window.staticFlags | 0x2000000);
     return 1;
 }
 
@@ -1110,24 +1459,24 @@ int __cdecl MenuParse_soundLoop(menuDef_t *menu, int handle)
     return 1;
 }
 
-int    MenuParse_fadeClamp@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_fadeClamp(menuDef_t *menu, int handle)
 {
-    return PC_Float_Parse(a1, handle, &menu->fadeClamp);
+    return PC_Float_Parse(handle, &menu->fadeClamp);
 }
 
-int    MenuParse_fadeAmount@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_fadeAmount(menuDef_t *menu, int handle)
 {
-    return PC_Float_Parse(a1, handle, &menu->fadeAmount);
+    return PC_Float_Parse(handle, &menu->fadeAmount);
 }
 
-int    MenuParse_fadeInAmount@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_fadeInAmount(menuDef_t *menu, int handle)
 {
-    return PC_Float_Parse(a1, handle, &menu->fadeInAmount);
+    return PC_Float_Parse(handle, &menu->fadeInAmount);
 }
 
-int    MenuParse_fadeCycle@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_fadeCycle(menuDef_t *menu, int handle)
 {
-    return PC_Int_Parse(a1, handle, &menu->fadeCycle);
+    return PC_Int_Parse(handle, &menu->fadeCycle);
 }
 
 int __cdecl MenuParse_itemDef(menuDef_t *menu, int handle)
@@ -1136,7 +1485,7 @@ int __cdecl MenuParse_itemDef(menuDef_t *menu, int handle)
 
     if ( menu->itemCount >= 512 )
     {
-        Com_Error(ERR_DROP, &byte_CFE67C, menu->window.name, 512);
+        Com_Error(ERR_DROP, "too many itemDefs for menu %s. MAX is %i", menu->window.name, 512);
     }
     else
     {
@@ -1202,7 +1551,9 @@ int __cdecl Item_Parse(int handle, itemDef_s *item)
                     return 1;
             }
             while ( token.string[0] == 59 );
-            key = KeywordHash_Find_itemDef_s_1024_6_(itemParseKeywordHash, token.string);
+            //key = KeywordHash_Find_itemDef_s_1024_6_(itemParseKeywordHash, token.string);
+
+            key = ItemKeyword::Find(itemParseKeywordHash, token.string);
             if ( key )
                 break;
             PC_SourceError(handle, "unknown menu item keyword %s", token.string);
@@ -1275,7 +1626,7 @@ void __cdecl Item_ValidateTypeData(itemDef_s *item, int handle)
                 item->typeData.textDef = (textDef_s *)UI_Alloc(0x44u, 4);
                 item->typeData.textDef->textTypeData.focusItemDef = (focusItemDef_s *)UI_Alloc(0x18u, 4);
                 item->typeData.textDef->textTypeData.focusItemDef->focusTypeData.listBox = (listBoxDef_s *)UI_Alloc(0x24u, 4);
-                item->typeData.textDef->textscale = 0.5f5000001;
+                item->typeData.textDef->textscale = 0.55f;
                 if ( item->type == 5
                     || item->type == 13
                     || item->type == 7
@@ -1297,18 +1648,18 @@ void __cdecl Item_ValidateTypeData(itemDef_s *item, int handle)
                 item->typeData.textDef = (textDef_s *)UI_Alloc(0x44u, 4);
                 item->typeData.textDef->textTypeData.focusItemDef = (focusItemDef_s *)UI_Alloc(0x18u, 4);
                 item->typeData.textDef->textTypeData.focusItemDef->focusTypeData.listBox = (listBoxDef_s *)UI_Alloc(4u, 4);
-                item->typeData.textDef->textscale = 0.5f5000001;
+                item->typeData.textDef->textscale = 0.55f;
                 break;
             case 0xA:
                 item->typeData.textDef = (textDef_s *)UI_Alloc(0x44u, 4);
                 item->typeData.textDef->textTypeData.focusItemDef = (focusItemDef_s *)UI_Alloc(0x18u, 4);
                 item->typeData.textDef->textTypeData.focusItemDef->focusTypeData.listBox = (listBoxDef_s *)UI_Alloc(0x18Cu, 4);
-                item->typeData.textDef->textscale = 0.5f5000001;
+                item->typeData.textDef->textscale = 0.55f;
                 break;
             case 2:
             case 6:
                 item->typeData.textDef = (textDef_s *)UI_Alloc(0x10u, 4);
-                textDef = item->typeData.textDef;
+                textDef = (unsigned int*)item->typeData.textDef;
                 *textDef = 0;
                 textDef[1] = 0;
                 textDef[2] = 0;
@@ -1317,13 +1668,13 @@ void __cdecl Item_ValidateTypeData(itemDef_s *item, int handle)
             case 1:
             case 0x12:
                 item->typeData.textDef = (textDef_s *)UI_Alloc(0x44u, 4);
-                item->typeData.textDef->textscale = 0.5f5000001;
+                item->typeData.textDef->textscale = 0.55f;
                 break;
             case 3:
             case 0x14:
                 item->typeData.textDef = (textDef_s *)UI_Alloc(0x44u, 4);
                 item->typeData.textDef->textTypeData.focusItemDef = (focusItemDef_s *)UI_Alloc(0x18u, 4);
-                item->typeData.textDef->textscale = 0.5f5000001;
+                item->typeData.textDef->textscale = 0.55f;
                 break;
             case 0x15:
             case 0x13:
@@ -1333,12 +1684,12 @@ void __cdecl Item_ValidateTypeData(itemDef_s *item, int handle)
                 item->typeData.textDef = (textDef_s *)UI_Alloc(0x44u, 4);
                 item->typeData.textDef->textTypeData.focusItemDef = (focusItemDef_s *)UI_Alloc(0x18u, 4);
                 item->typeData.textDef->textTypeData.focusItemDef->focusTypeData.listBox = (listBoxDef_s *)UI_Alloc(0x29Cu, 4);
-                item->typeData.textDef->textscale = 0.5f5000001;
+                item->typeData.textDef->textscale = 0.55f;
                 break;
             case 0xF:
                 item->typeData.textDef = (textDef_s *)UI_Alloc(0x44u, 4);
                 item->typeData.textDef->textTypeData.focusItemDef = (focusItemDef_s *)UI_Alloc(8u, 4);
-                item->typeData.textDef->textscale = 0.5f5000001;
+                item->typeData.textDef->textscale = 0.55f;
                 break;
         }
     }
@@ -1372,12 +1723,12 @@ int __cdecl PC_Char_Parse(int handle, char *out)
     return 1;
 }
 
-int    MenuParse_execKeyInt@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_execKeyInt(menuDef_t *menu, int handle)
 {
     int keyname; // [esp+0h] [ebp-8h] BYREF
     ItemKeyHandler *handler; // [esp+4h] [ebp-4h]
 
-    if ( !PC_Int_Parse(a1, handle, &keyname) )
+    if ( !PC_Int_Parse(handle, &keyname) )
         return 0;
     handler = (ItemKeyHandler *)UI_Alloc(0xCu, 4);
     handler->key = keyname;
@@ -1388,11 +1739,11 @@ int    MenuParse_execKeyInt@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int
     return 1;
 }
 
-int    MenuParse_blurWorld@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_blurWorld(menuDef_t *menu, int handle)
 {
     if ( !menu && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_shared_obj.cpp", 1946, 0, "%s", "menu") )
         __debugbreak();
-    if ( !PC_Float_Parse(a1, handle, &menu->blurRadius) )
+    if ( !PC_Float_Parse(handle, &menu->blurRadius) )
         return 0;
     if ( menu->blurRadius >= 0.0 )
         return 1;
@@ -1437,29 +1788,32 @@ int __cdecl MenuParse_allowedBinding(menuDef_t *menu, int handle)
 
 int __cdecl MenuParse_allowSignIn(menuDef_t *menu, int handle)
 {
+    __debugbreak();
+#if 0 // KISAKTODO:
     return SetItemStaticFlag(menu, handle, (int)&g_hunk_track[370327].name[64]);
+#endif
 }
 
-int    MenuParse_ui3dWindowId@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_ui3dWindowId(menuDef_t *menu, int handle)
 {
-    return PC_Int_Parse(a1, handle, &menu->ui3dWindowId);
+    return PC_Int_Parse(handle, &menu->ui3dWindowId);
 }
 
-int    MenuParse_priority@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_priority(menuDef_t *menu, int handle)
 {
     int v; // [esp+0h] [ebp-4h] BYREF
 
-    if ( !PC_Int_Parse(a1, handle, &v) )
+    if ( !PC_Int_Parse(handle, &v) )
         return 0;
     menu->priority = v;
     return 1;
 }
 
-int    MenuParse_openSlideSpeed@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_openSlideSpeed(menuDef_t *menu, int handle)
 {
     int v; // [esp+0h] [ebp-4h] BYREF
 
-    if ( !PC_Int_Parse(a1, handle, &v) )
+    if ( !PC_Int_Parse(handle, &v) )
         return 0;
     if ( v > 0 )
     {
@@ -1473,11 +1827,11 @@ int    MenuParse_openSlideSpeed@<eax>(long double a1@<esi:edi>, menuDef_t *menu,
     }
 }
 
-int    MenuParse_closeSlideSpeed@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_closeSlideSpeed(menuDef_t *menu, int handle)
 {
     int v; // [esp+0h] [ebp-4h] BYREF
 
-    if ( !PC_Int_Parse(a1, handle, &v) )
+    if ( !PC_Int_Parse(handle, &v) )
         return 0;
     if ( v > 0 )
     {
@@ -1491,11 +1845,11 @@ int    MenuParse_closeSlideSpeed@<eax>(long double a1@<esi:edi>, menuDef_t *menu
     }
 }
 
-int    MenuParse_openSlideDirection@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_openSlideDirection(menuDef_t *menu, int handle)
 {
     int v; // [esp+0h] [ebp-4h] BYREF
 
-    if ( !PC_Int_Parse(a1, handle, &v) )
+    if ( !PC_Int_Parse(handle, &v) )
         return 0;
     if ( (unsigned int)v < 4 )
     {
@@ -1509,11 +1863,11 @@ int    MenuParse_openSlideDirection@<eax>(long double a1@<esi:edi>, menuDef_t *m
     }
 }
 
-int    MenuParse_closeSlideDirection@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_closeSlideDirection(menuDef_t *menu, int handle)
 {
     int v; // [esp+0h] [ebp-4h] BYREF
 
-    if ( !PC_Int_Parse(a1, handle, &v) )
+    if ( !PC_Int_Parse(handle, &v) )
         return 0;
     if ( (unsigned int)v < 4 )
     {
@@ -1527,11 +1881,11 @@ int    MenuParse_closeSlideDirection@<eax>(long double a1@<esi:edi>, menuDef_t *
     }
 }
 
-int    MenuParse_openFadingTime@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_openFadingTime(menuDef_t *menu, int handle)
 {
     int v; // [esp+0h] [ebp-4h] BYREF
 
-    if ( !PC_Int_Parse(a1, handle, &v) )
+    if ( !PC_Int_Parse(handle, &v) )
         return 0;
     if ( v > 0 )
     {
@@ -1545,11 +1899,11 @@ int    MenuParse_openFadingTime@<eax>(long double a1@<esi:edi>, menuDef_t *menu,
     }
 }
 
-int    MenuParse_closeFadingTime@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_closeFadingTime(menuDef_t *menu, int handle)
 {
     int v; // [esp+0h] [ebp-4h] BYREF
 
-    if ( !PC_Int_Parse(a1, handle, &v) )
+    if ( !PC_Int_Parse(handle, &v) )
         return 0;
     if ( v > 0 )
     {
@@ -1563,25 +1917,25 @@ int    MenuParse_closeFadingTime@<eax>(long double a1@<esi:edi>, menuDef_t *menu
     }
 }
 
-int    MenuParse_control@<eax>(long double a1@<esi:edi>, menuDef_t *menu, int handle)
+int    MenuParse_control(menuDef_t *menu, int handle)
 {
-    return PC_Int_Parse(a1, handle, &menu->control);
+    return PC_Int_Parse(handle, &menu->control);
 }
 
-int    ItemParse_frame@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_frame(itemDef_s *item, int handle)
 {
-    return WindowParse_frame(a1, &item->window, handle);
+    return WindowParse_frame(&item->window, handle);
 }
 
-int    WindowParse_frame@<eax>(long double a1@<esi:edi>, windowDef_t *window, int handle)
+int    WindowParse_frame(windowDef_t *window, int handle)
 {
     int bits; // [esp+0h] [ebp-4h] BYREF
 
     window->frameTexSize = 0.5f;
     window->frameSize = 0.0f;
-    if ( !PC_Float_Parse(a1, handle, &window->frameSize) )
+    if ( !PC_Float_Parse(handle, &window->frameSize) )
         return 0;
-    if ( !PC_Float_Parse(a1, handle, &window->frameTexSize) )
+    if ( !PC_Float_Parse(handle, &window->frameTexSize) )
         return 0;
     while ( PC_Flag_ParseOptional(handle, &bits) )
     {
@@ -1599,14 +1953,28 @@ int    WindowParse_frame@<eax>(long double a1@<esi:edi>, windowDef_t *window, in
 
 void __cdecl Menu_SetupKeywordHash()
 {
-    unsigned int i; // [esp+0h] [ebp-4h]
+    //unsigned int i; // [esp+0h] [ebp-4h]
+    //
+    //KeywordHash_Validate_menuDef_t_1024_128_(menuParseKeywords, 50);
+    //memset((unsigned __int8 *)menuParseKeywordHash, 0, sizeof(menuParseKeywordHash));
+    //for ( i = 0; i < 0x32; ++i )
+    //    KeywordHash_Add_menuDef_t_1024_128_(
+    //        menuParseKeywordHash,
+    //        (const KeywordHashEntry<menuDef_t,1024,128> *)(8 * i + 13621960));
 
-    KeywordHash_Validate_menuDef_t_1024_128_(menuParseKeywords, 50);
-    memset((unsigned __int8 *)menuParseKeywordHash, 0, sizeof(menuParseKeywordHash));
-    for ( i = 0; i < 0x32; ++i )
-        KeywordHash_Add_menuDef_t_1024_128_(
+
+    constexpr unsigned int COUNT = 50;
+
+    MenuKeyword::Validate(menuParseKeywords, COUNT);
+
+    memset(menuParseKeywordHash, 0, sizeof(menuParseKeywordHash));
+
+    for (unsigned int i = 0; i < COUNT; ++i)
+    {
+        MenuKeyword::Add(
             menuParseKeywordHash,
-            (const KeywordHashEntry<menuDef_t,1024,128> *)(8 * i + 13621960));
+            &menuParseKeywords[i]);
+    }
 }
 
 int __cdecl ItemParse_name(itemDef_s *item, int handle)
@@ -1647,6 +2015,7 @@ int __cdecl ItemParse_textfile(itemDef_s *item, int handle)
     return 1;
 }
 
+char menuBuf1[4096];
 char *__cdecl UI_FileText(char *fileName)
 {
     unsigned int len; // [esp+4h] [ebp-8h]
@@ -1670,7 +2039,7 @@ char *__cdecl UI_FileText(char *fileName)
     }
 }
 
-int __cdecl ItemParse_textsavegame(itemDef_s *item)
+int __cdecl ItemParse_textsavegame(itemDef_s *item, int handle)
 {
     textDef_s *TextDef; // eax
 
@@ -1680,7 +2049,7 @@ int __cdecl ItemParse_textsavegame(itemDef_s *item)
     return 1;
 }
 
-int __cdecl ItemParse_textcinematicsubtitle(itemDef_s *item)
+int __cdecl ItemParse_textcinematicsubtitle(itemDef_s *item, int handle)
 {
     textDef_s *TextDef; // eax
 
@@ -1695,31 +2064,31 @@ int __cdecl ItemParse_group(itemDef_s *item, int handle)
     return PC_String_Parse(handle, &item->window.group);
 }
 
-int    ItemParse_rect@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_rect(itemDef_s *item, int handle)
 {
-    return PC_Rect_Parse(a1, handle, &item->window.rectClient);
+    return PC_Rect_Parse(handle, &item->window.rectClient);
 }
 
-int    ItemParse_origin@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_origin(itemDef_s *item, int handle)
 {
     int x; // [esp+0h] [ebp-8h] BYREF
     int y; // [esp+4h] [ebp-4h] BYREF
 
-    if ( !PC_Int_Parse(a1, handle, &x) )
+    if ( !PC_Int_Parse(handle, &x) )
         return 0;
-    if ( !PC_Int_Parse(a1, handle, &y) )
+    if ( !PC_Int_Parse(handle, &y) )
         return 0;
     item->window.rectClient.x = (float)x + item->window.rectClient.x;
     item->window.rectClient.y = (float)y + item->window.rectClient.y;
     return 1;
 }
 
-int    ItemParse_style@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_style(itemDef_s *item, int handle)
 {
-    return PC_Byte_Parse(a1, handle, &item->window.style);
+    return PC_Byte_Parse(handle, &item->window.style);
 }
 
-int __cdecl ItemParse_decoration(itemDef_s *item)
+int __cdecl ItemParse_decoration(itemDef_s *item, int handle)
 {
     Window_SetStaticFlags(&item->window, item->window.staticFlags | 0x100000);
     return 1;
@@ -1777,53 +2146,53 @@ int __cdecl ItemParse_usePaging(itemDef_s *item, int handle)
     return 1;
 }
 
-int __cdecl ItemParse_autowrapped(itemDef_s *item)
+int __cdecl ItemParse_autowrapped(itemDef_s *item, int handle)
 {
     Window_SetStaticFlags(&item->window, 0x800000 | item->window.staticFlags);
     return 1;
 }
 
-int __cdecl ItemParse_horizontalscroll(itemDef_s *item)
+int __cdecl ItemParse_horizontalscroll(itemDef_s *item, int handle)
 {
     Window_SetStaticFlags(&item->window, item->window.staticFlags | 0x200000);
     return 1;
 }
 
-int    ItemParse_type@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_type(itemDef_s *item, int handle)
 {
-    if ( !PC_Int_Parse(a1, handle, &item->type) )
+    if ( !PC_Int_Parse(handle, &item->type) )
         return 0;
     Item_ValidateTypeData(item, handle);
     return 1;
 }
 
-bool    ItemParse_elementwidth@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int ItemParse_elementwidth(itemDef_s *item, int handle)
 {
     listBoxDef_s *listPtr; // [esp+0h] [ebp-4h]
 
     Item_ValidateTypeData(item, handle);
     listPtr = Item_GetListBoxDef(item);
-    return listPtr && PC_Float_Parse(a1, handle, &listPtr->elementWidth) != 0;
+    return listPtr && PC_Float_Parse(handle, &listPtr->elementWidth) != 0;
 }
 
-bool    ItemParse_elementheight@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int ItemParse_elementheight(itemDef_s *item, int handle)
 {
     listBoxDef_s *listPtr; // [esp+0h] [ebp-4h]
 
     Item_ValidateTypeData(item, handle);
     listPtr = Item_GetListBoxDef(item);
-    return listPtr && PC_Float_Parse(a1, handle, &listPtr->elementHeight) != 0;
+    return listPtr && PC_Float_Parse(handle, &listPtr->elementHeight) != 0;
 }
 
-bool    ItemParse_special@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int ItemParse_special(itemDef_s *item, int handle)
 {
     listBoxDef_s *listPtr; // [esp+0h] [ebp-4h]
 
     listPtr = Item_GetListBoxDef(item);
-    return PC_Float_Parse(a1, handle, &listPtr->special) != 0;
+    return PC_Float_Parse(handle, &listPtr->special) != 0;
 }
 
-int    ItemParse_elementtype@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_elementtype(itemDef_s *item, int handle)
 {
     listBoxDef_s *listPtr; // [esp+0h] [ebp-8h]
     int i; // [esp+4h] [ebp-4h]
@@ -1835,18 +2204,18 @@ int    ItemParse_elementtype@<eax>(long double a1@<esi:edi>, itemDef_s *item, in
     listPtr = Item_GetListBoxDef(item);
     if ( !listPtr )
         return 0;
-    PC_Int_Parse(a1, handle, &listPtr->columnInfo[0].elementStyle);
+    PC_Int_Parse(handle, &listPtr->columnInfo[0].elementStyle);
     for ( i = 1; i < 16; ++i )
         listPtr->columnInfo[i].elementStyle = listPtr->columnInfo[0].elementStyle;
     for ( ia = 1; ia < listPtr->numColumns; ++ia )
     {
         listPtr->columnInfo[ia].elementStyle = 0;
-        PC_Int_Parse(a1, handle, &listPtr->columnInfo[ia].elementStyle);
+        PC_Int_Parse(handle, &listPtr->columnInfo[ia].elementStyle);
     }
     return 1;
 }
 
-int    ItemParse_columns@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_columns(itemDef_s *item, int handle)
 {
     int pos; // [esp+0h] [ebp-1Ch] BYREF
     int width; // [esp+4h] [ebp-18h] BYREF
@@ -1862,14 +2231,14 @@ int    ItemParse_columns@<eax>(long double a1@<esi:edi>, itemDef_s *item, int ha
     listPtr = Item_GetListBoxDef(item);
     if ( !listPtr )
         return 0;
-    if ( !PC_Int_Parse(a1, handle, &num) )
+    if ( !PC_Int_Parse(handle, &num) )
         return 0;
     if ( num > 16 )
         num = 16;
     listPtr->numColumns = num;
     for ( i = 0; i < num; ++i )
     {
-        if ( !PC_Int_Parse(a1, handle, &pos) || !PC_Int_Parse(a1, handle, &width) || !PC_Int_Parse(a1, handle, &maxChars) )
+        if ( !PC_Int_Parse(handle, &pos) || !PC_Int_Parse(handle, &width) || !PC_Int_Parse(handle, &maxChars) )
             return 0;
         listPtr->columnInfo[i].rect.x = (float)pos;
         listPtr->columnInfo[i].rect.w = (float)width;
@@ -1911,7 +2280,7 @@ int __cdecl PC_Int_ParseLine(int handle, int *i)
     }
 }
 
-int    ItemParse_menuItemsDef@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_menuItemsDef(itemDef_s *item, int handle)
 {
     unsigned __int8 *v4; // eax
     int j; // [esp+10h] [ebp-D8h]
@@ -1932,7 +2301,7 @@ int    ItemParse_menuItemsDef@<eax>(long double a1@<esi:edi>, itemDef_s *item, i
                 && !I_stricmp(nextKey, "{")
                 && PC_String_Parse(handle, &nextKey)
                 && !I_stricmp(nextKey, "maxRows")
-                && PC_Int_Parse(a1, handle, &listPtr->maxRows) )
+                && PC_Int_Parse(handle, &listPtr->maxRows) )
             {
                 listPtr->rowCount = 0;
                 listPtr->numColumns = 0;
@@ -1941,7 +2310,7 @@ int    ItemParse_menuItemsDef@<eax>(long double a1@<esi:edi>, itemDef_s *item, i
                     return 1;
                 while ( !I_stricmp(nextKey, "menuColDef") && cellCount < 16 )
                 {
-                    if ( !ItemParse_menuColDef(a1, listPtr, handle, tempCells, cellCount) )
+                    if ( !ItemParse_menuColDef(listPtr, handle, tempCells, cellCount) )
                     {
                         Com_PrintError(13, "menuItemDef Error: Failed parsing menuColDef\n");
                         return 0;
@@ -1995,8 +2364,7 @@ int    ItemParse_menuItemsDef@<eax>(long double a1@<esi:edi>, itemDef_s *item, i
     }
 }
 
-int    ItemParse_menuColDef@<eax>(
-                long double a1@<esi:edi>,
+int    ItemParse_menuColDef(
                 listBoxDef_s *listPtr,
                 int handle,
                 MenuCell *cells,
@@ -2018,19 +2386,19 @@ int    ItemParse_menuColDef@<eax>(
         Com_PrintError(13, "menuColDef Error: Expected '{'", nextKey);
         return 0;
     }
-    else if ( !PC_String_Parse(handle, &nextKey) || I_stricmp(nextKey, "type") || PC_Int_Parse(a1, handle, &colType) )
+    else if ( !PC_String_Parse(handle, &nextKey) || I_stricmp(nextKey, "type") || PC_Int_Parse(handle, &colType) )
     {
         if ( (!colType || colType == 2 || colType == 3 || colType == 5 || colType == 1 || colType == 4)
             && PC_String_Parse(handle, &nextKey)
             && !I_stricmp(nextKey, "rect")
-            && !PC_Rect_Parse(a1, handle, &rect) )
+            && !PC_Rect_Parse(handle, &rect) )
         {
             Com_PrintError(13, "menuColDef Error: Expected 'rect'\n");
             return 0;
         }
         else if ( !PC_String_Parse(handle, &nextKey)
                      || I_stricmp(nextKey, "maxChars")
-                     || PC_Int_Parse(a1, handle, &maxChars) )
+                     || PC_Int_Parse(handle, &maxChars) )
         {
             if ( PC_String_Parse(handle, &nextKey) && !I_stricmp(nextKey, "}") )
             {
@@ -2069,7 +2437,7 @@ int    ItemParse_menuColDef@<eax>(
     }
 }
 
-int    ItemParse_menuarea@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_menuarea(itemDef_s *item, int handle)
 {
     int j; // [esp+1Ch] [ebp-14h]
     int k; // [esp+20h] [ebp-10h]
@@ -2083,7 +2451,7 @@ int    ItemParse_menuarea@<eax>(long double a1@<esi:edi>, itemDef_s *item, int h
     listPtr = Item_GetListBoxDef(item);
     if ( !listPtr )
         return 0;
-    if ( PC_Int_Parse(a1, handle, &listPtr->maxRows) && PC_Int_Parse(a1, handle, &listPtr->numColumns) )
+    if ( PC_Int_Parse(handle, &listPtr->maxRows) && PC_Int_Parse(handle, &listPtr->numColumns) )
     {
         listPtr->rowCount = 0;
         listPtr->rows = (MenuRow *)UI_Alloc(24 * listPtr->maxRows, 4);
@@ -2091,11 +2459,11 @@ int    ItemParse_menuarea@<eax>(long double a1@<esi:edi>, itemDef_s *item, int h
             listPtr->rows[i].cells = (MenuCell *)UI_Alloc(12 * listPtr->numColumns, 4);
         for ( k = 0; k < listPtr->numColumns; ++k )
         {
-            if ( !PC_Float_Parse(a1, handle, &listPtr->columnInfo[k].rect.x)
-                || !PC_Float_Parse(a1, handle, &listPtr->columnInfo[k].rect.y)
-                || !PC_Float_Parse(a1, handle, &listPtr->columnInfo[k].rect.w)
-                || !PC_Float_Parse(a1, handle, &listPtr->columnInfo[k].rect.h)
-                || !PC_Int_Parse(a1, handle, &listPtr->columnInfo[k].maxChars)
+            if ( !PC_Float_Parse(handle, &listPtr->columnInfo[k].rect.x)
+                || !PC_Float_Parse(handle, &listPtr->columnInfo[k].rect.y)
+                || !PC_Float_Parse(handle, &listPtr->columnInfo[k].rect.w)
+                || !PC_Float_Parse(handle, &listPtr->columnInfo[k].rect.h)
+                || !PC_Int_Parse(handle, &listPtr->columnInfo[k].maxChars)
                 || !PC_Int_ParseLine(handle, &listPtr->columnInfo[k].rect.horzAlign)
                 || !PC_Int_ParseLine(handle, &listPtr->columnInfo[k].rect.vertAlign)
                 || !PC_Int_ParseLine(handle, &colType) )
@@ -2105,7 +2473,7 @@ int    ItemParse_menuarea@<eax>(long double a1@<esi:edi>, itemDef_s *item, int h
             for ( j = 0; j < listPtr->maxRows; ++j )
             {
                 listPtr->rows[j].cells[k].maxChars = listPtr->columnInfo[k].maxChars;
-                HIDWORD(a1) = 12 * k;
+                //HIDWORD(a1) = 12 * k;
                 listPtr->rows[j].cells[k].stringValue = (char *)UI_Alloc(listPtr->columnInfo[k].maxChars, 4);
                 listPtr->rows[j].cells[k].type = colType;
             }
@@ -2114,7 +2482,7 @@ int    ItemParse_menuarea@<eax>(long double a1@<esi:edi>, itemDef_s *item, int h
     return 1;
 }
 
-int    ItemParse_userarea@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_userarea(itemDef_s *item, int handle)
 {
     int vertAlign; // [esp+0h] [ebp-28h] BYREF
     int horzAlign; // [esp+4h] [ebp-24h] BYREF
@@ -2133,18 +2501,18 @@ int    ItemParse_userarea@<eax>(long double a1@<esi:edi>, itemDef_s *item, int h
     listPtr = Item_GetListBoxDef(item);
     if ( !listPtr )
         return 0;
-    if ( !PC_Int_Parse(a1, handle, &num) )
+    if ( !PC_Int_Parse(handle, &num) )
         return 0;
     if ( num > 16 )
         num = 16;
     listPtr->numColumns = num;
     for ( i = 0; i < num; ++i )
     {
-        if ( !PC_Float_Parse(a1, handle, &x)
-            || !PC_Float_Parse(a1, handle, &y)
-            || !PC_Float_Parse(a1, handle, &w)
-            || !PC_Float_Parse(a1, handle, &h)
-            || !PC_Int_Parse(a1, handle, &maxChars) )
+        if ( !PC_Float_Parse(handle, &x)
+            || !PC_Float_Parse(handle, &y)
+            || !PC_Float_Parse(handle, &w)
+            || !PC_Float_Parse(handle, &h)
+            || !PC_Int_Parse(handle, &maxChars) )
         {
             return 0;
         }
@@ -2165,14 +2533,14 @@ int    ItemParse_userarea@<eax>(long double a1@<esi:edi>, itemDef_s *item, int h
     return 1;
 }
 
-bool    ItemParse_border@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int ItemParse_border(itemDef_s *item, int handle)
 {
-    return PC_Byte_Parse(a1, handle, &item->window.border) != 0;
+    return PC_Byte_Parse(handle, &item->window.border) != 0;
 }
 
-bool    ItemParse_bordersize@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int ItemParse_bordersize(itemDef_s *item, int handle)
 {
-    return PC_Float_Parse(a1, handle, &item->window.borderSize) != 0;
+    return PC_Float_Parse(handle, &item->window.borderSize) != 0;
 }
 
 int __cdecl ItemParse_visible(itemDef_s *item, int handle)
@@ -2308,27 +2676,27 @@ LABEL_39:
     }
 }
 
-bool    ItemParse_ownerdraw@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int ItemParse_ownerdraw(itemDef_s *item, int handle)
 {
     if ( !Item_IsOwnerDrawDefType(item) )
         PC_SourceError(handle, "ownerdraw does not have a type set\n");
-    return PC_Int_Parse(a1, handle, &item->window.ownerDraw) != 0;
+    return PC_Int_Parse(handle, &item->window.ownerDraw) != 0;
 }
 
-bool    ItemParse_align@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int ItemParse_align(itemDef_s *item, int handle)
 {
     textDef_s *textDefPtr; // [esp+0h] [ebp-4h]
 
     textDefPtr = Item_GetTextDef(item);
-    return PC_Int_Parse(a1, handle, &textDefPtr->alignment) != 0;
+    return PC_Int_Parse(handle, &textDefPtr->alignment) != 0;
 }
 
-int    ItemParse_textalign@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_textalign(itemDef_s *item, int handle)
 {
     textDef_s *textDefPtr; // [esp+0h] [ebp-4h]
 
     textDefPtr = Item_GetTextDef(item);
-    if ( !PC_Int_Parse(a1, handle, &textDefPtr->textAlignMode) )
+    if ( !PC_Int_Parse(handle, &textDefPtr->textAlignMode) )
         return 0;
     if ( ItemParse_IsValidTextAlignment(textDefPtr->textAlignMode) )
         return 1;
@@ -2341,66 +2709,66 @@ bool __cdecl ItemParse_IsValidTextAlignment(unsigned int textAlignMode)
     return textAlignMode < 0x10 && (textAlignMode & 3) != 3;
 }
 
-bool    ItemParse_textalignx@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int ItemParse_textalignx(itemDef_s *item, int handle)
 {
     textDef_s *textDefPtr; // [esp+0h] [ebp-4h]
 
     textDefPtr = Item_GetTextDef(item);
-    return PC_Float_Parse(a1, handle, &textDefPtr->textalignx) != 0;
+    return PC_Float_Parse(handle, &textDefPtr->textalignx) != 0;
 }
 
-bool    ItemParse_textaligny@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int ItemParse_textaligny(itemDef_s *item, int handle)
 {
     textDef_s *textDefPtr; // [esp+0h] [ebp-4h]
 
     textDefPtr = Item_GetTextDef(item);
-    return PC_Float_Parse(a1, handle, &textDefPtr->textaligny) != 0;
+    return PC_Float_Parse(handle, &textDefPtr->textaligny) != 0;
 }
 
-bool    ItemParse_textscale@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int ItemParse_textscale(itemDef_s *item, int handle)
 {
     textDef_s *textDefPtr; // [esp+0h] [ebp-4h]
 
     textDefPtr = Item_GetTextDef(item);
-    return PC_Float_Parse(a1, handle, &textDefPtr->textscale) != 0;
+    return PC_Float_Parse(handle, &textDefPtr->textscale) != 0;
 }
 
-bool    ItemParse_textstyle@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int ItemParse_textstyle(itemDef_s *item, int handle)
 {
     textDef_s *textDefPtr; // [esp+0h] [ebp-4h]
 
     textDefPtr = Item_GetTextDef(item);
-    return PC_Int_Parse(a1, handle, &textDefPtr->textStyle) != 0;
+    return PC_Int_Parse(handle, &textDefPtr->textStyle) != 0;
 }
 
-bool    ItemParse_rotation@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int ItemParse_rotation(itemDef_s *item, int handle)
 {
-    return PC_Float_Parse(a1, handle, &item->window.rotation) != 0;
+    return PC_Float_Parse(handle, &item->window.rotation) != 0;
 }
 
-bool    ItemParse_textfont@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int ItemParse_textfont(itemDef_s *item, int handle)
 {
     textDef_s *textDefPtr; // [esp+0h] [ebp-4h]
 
     textDefPtr = Item_GetTextDef(item);
-    return PC_Int_Parse(a1, handle, &textDefPtr->fontEnum) != 0;
+    return PC_Int_Parse(handle, &textDefPtr->fontEnum) != 0;
 }
 
-int    ItemParse_backcolor@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_backcolor(itemDef_s *item, int handle)
 {
     float f; // [esp+0h] [ebp-8h] BYREF
     int i; // [esp+4h] [ebp-4h]
 
     for ( i = 0; i < 4; ++i )
     {
-        if ( !PC_Float_Parse(a1, handle, &f) )
+        if ( !PC_Float_Parse(handle, &f) )
             return 0;
         item->window.backColor[i] = f;
     }
     return 1;
 }
 
-int    ItemParse_forecolor@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_forecolor(itemDef_s *item, int handle)
 {
     float f; // [esp+0h] [ebp-Ch] BYREF
     int i; // [esp+4h] [ebp-8h]
@@ -2408,7 +2776,7 @@ int    ItemParse_forecolor@<eax>(long double a1@<esi:edi>, itemDef_s *item, int 
 
     for ( i = 0; i < 4; ++i )
     {
-        if ( !PC_Float_Parse(a1, handle, &f) )
+        if ( !PC_Float_Parse(handle, &f) )
             return 0;
         item->window.foreColor[i] = f;
         flags = Window_GetDynamicFlags(0, &item->window);
@@ -2417,29 +2785,29 @@ int    ItemParse_forecolor@<eax>(long double a1@<esi:edi>, itemDef_s *item, int 
     return 1;
 }
 
-int    ItemParse_bordercolor@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_bordercolor(itemDef_s *item, int handle)
 {
     float f; // [esp+0h] [ebp-8h] BYREF
     int i; // [esp+4h] [ebp-4h]
 
     for ( i = 0; i < 4; ++i )
     {
-        if ( !PC_Float_Parse(a1, handle, &f) )
+        if ( !PC_Float_Parse(handle, &f) )
             return 0;
         item->window.borderColor[i] = f;
     }
     return 1;
 }
 
-int __cdecl ItemParse_modal(itemDef_s *item)
+int __cdecl ItemParse_modal(itemDef_s *item, int handle)
 {
     item->window.modal = 1;
     return 1;
 }
 
-bool    ItemParse_outlinecolor@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int ItemParse_outlinecolor(itemDef_s *item, int handle)
 {
-    return PC_Color_Parse(a1, handle, (float (*)[4])item->window.outlineColor) != 0;
+    return PC_Color_Parse(handle, (float (*)[4])item->window.outlineColor) != 0;
 }
 
 int __cdecl ItemParse_background(itemDef_s *item, int handle)
@@ -2520,7 +2888,7 @@ int __cdecl ItemParse_leaveFocus(itemDef_s *item, int handle)
     return PC_EventScript_Parse(handle, &eventHandler->eventScript);
 }
 
-bool __cdecl ItemParse_mouseEnter(itemDef_s *item, int handle)
+int __cdecl ItemParse_mouseEnter(itemDef_s *item, int handle)
 {
     focusItemDef_s *focusPtr; // [esp+0h] [ebp-4h]
 
@@ -2570,7 +2938,7 @@ LABEL_16:
     return 0;
 }
 
-bool __cdecl ItemParse_mouseExit(itemDef_s *item, int handle)
+int __cdecl ItemParse_mouseExit(itemDef_s *item, int handle)
 {
     focusItemDef_s *focusPtr; // [esp+0h] [ebp-4h]
 
@@ -2578,7 +2946,7 @@ bool __cdecl ItemParse_mouseExit(itemDef_s *item, int handle)
     return PC_Script_Parse(handle, &focusPtr->mouseExit) != 0;
 }
 
-bool __cdecl ItemParse_mouseEnterText(itemDef_s *item, int handle)
+int __cdecl ItemParse_mouseEnterText(itemDef_s *item, int handle)
 {
     focusItemDef_s *focusPtr; // [esp+0h] [ebp-4h]
 
@@ -2586,7 +2954,7 @@ bool __cdecl ItemParse_mouseEnterText(itemDef_s *item, int handle)
     return PC_Script_Parse(handle, &focusPtr->mouseEnterText) != 0;
 }
 
-bool __cdecl ItemParse_mouseExitText(itemDef_s *item, int handle)
+int __cdecl ItemParse_mouseExitText(itemDef_s *item, int handle)
 {
     focusItemDef_s *focusPtr; // [esp+0h] [ebp-4h]
 
@@ -2616,7 +2984,7 @@ int __cdecl ItemParse_accept(itemDef_s *item, int handle)
     return PC_EventScript_Parse(handle, &eventHandler->eventScript);
 }
 
-bool __cdecl ItemParse_dvarTest(itemDef_s *item, int handle)
+int __cdecl ItemParse_dvarTest(itemDef_s *item, int handle)
 {
     return PC_String_Parse(handle, &item->dvarTest) != 0;
 }
@@ -2643,7 +3011,7 @@ int __cdecl ItemParse_dvar(itemDef_s *item, int handle)
     return 1;
 }
 
-int    ItemParse_maxChars@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_maxChars(itemDef_s *item, int handle)
 {
     editFieldDef_s *editPtr; // [esp+0h] [ebp-8h]
     int maxChars; // [esp+4h] [ebp-4h] BYREF
@@ -2651,7 +3019,7 @@ int    ItemParse_maxChars@<eax>(long double a1@<esi:edi>, itemDef_s *item, int h
     Item_ValidateTypeData(item, handle);
     if ( !item->typeData.textDef )
         return 0;
-    if ( !PC_Int_Parse(a1, handle, &maxChars) )
+    if ( !PC_Int_Parse(handle, &maxChars) )
         return 0;
     editPtr = Item_GetEditFieldDef(item);
     if ( !editPtr )
@@ -2674,7 +3042,7 @@ int __cdecl Item_Parse_maxCharsGotoNext(itemDef_s *item, int handle)
     return 1;
 }
 
-int    ItemParse_maxPaintChars@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_maxPaintChars(itemDef_s *item, int handle)
 {
     editFieldDef_s *editPtr; // [esp+0h] [ebp-8h]
     int maxChars; // [esp+4h] [ebp-4h] BYREF
@@ -2682,7 +3050,7 @@ int    ItemParse_maxPaintChars@<eax>(long double a1@<esi:edi>, itemDef_s *item, 
     Item_ValidateTypeData(item, handle);
     if ( !item->typeData.textDef )
         return 0;
-    if ( !PC_Int_Parse(a1, handle, &maxChars) )
+    if ( !PC_Int_Parse(handle, &maxChars) )
         return 0;
     editPtr = Item_GetEditFieldDef(item);
     if ( !editPtr )
@@ -2691,7 +3059,7 @@ int    ItemParse_maxPaintChars@<eax>(long double a1@<esi:edi>, itemDef_s *item, 
     return 1;
 }
 
-bool    ItemParse_dvarFloat@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int ItemParse_dvarFloat(itemDef_s *item, int handle)
 {
     editFieldDef_s *editPtr; // [esp+0h] [ebp-4h]
 
@@ -2702,9 +3070,9 @@ bool    ItemParse_dvarFloat@<eax>(long double a1@<esi:edi>, itemDef_s *item, int
     if ( !editPtr )
         return 0;
     return PC_String_Parse(handle, &item->dvar)
-            && PC_Float_Parse(a1, handle, &editPtr->defVal)
-            && PC_Float_Parse(a1, handle, &editPtr->minVal)
-            && PC_Float_Parse(a1, handle, &editPtr->maxVal);
+            && PC_Float_Parse(handle, &editPtr->defVal)
+            && PC_Float_Parse(handle, &editPtr->minVal)
+            && PC_Float_Parse(handle, &editPtr->maxVal);
 }
 
 int __cdecl ItemParse_dvarStrList(itemDef_s *item, int handle)
@@ -2760,7 +3128,7 @@ int __cdecl ItemParse_dvarStrList(itemDef_s *item, int handle)
     return 0;
 }
 
-int    ItemParse_dvarFloatList@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_dvarFloatList(itemDef_s *item, int handle)
 {
     multiDef_s *multiPtr; // [esp+0h] [ebp-41Ch]
     pc_token_s token; // [esp+4h] [ebp-418h] BYREF
@@ -2797,7 +3165,7 @@ int    ItemParse_dvarFloatList@<eax>(long double a1@<esi:edi>, itemDef_s *item, 
         }
         while ( token.string[0] == 44 || token.string[0] == 59 );
         multiPtr->dvarList[multiPtr->count] = String_Alloc(token.string);
-        if ( !PC_Float_Parse(a1, handle, &multiPtr->dvarValue[multiPtr->count]) )
+        if ( !PC_Float_Parse(handle, &multiPtr->dvarValue[multiPtr->count]) )
             return 0;
         ++multiPtr->count;
     }
@@ -2878,7 +3246,7 @@ int __cdecl ItemParse_focusDvar(itemDef_s *item, int handle)
     return 1;
 }
 
-bool __cdecl ItemParse_onEvent(itemDef_s *item, int handle)
+int __cdecl ItemParse_onEvent(itemDef_s *item, int handle)
 {
     GenericEventHandler *eventHandler; // [esp+0h] [ebp-4h]
 
@@ -2910,13 +3278,13 @@ int __cdecl ItemParse_execKey(itemDef_s *item, int handle)
     return 1;
 }
 
-int    ItemParse_execKeyInt@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_execKeyInt(itemDef_s *item, int handle)
 {
     focusItemDef_s *focusPtr; // [esp+0h] [ebp-Ch]
     int keyname; // [esp+4h] [ebp-8h] BYREF
     ItemKeyHandler *handler; // [esp+8h] [ebp-4h]
 
-    if ( !PC_Int_Parse(a1, handle, &keyname) )
+    if ( !PC_Int_Parse(handle, &keyname) )
         return 0;
     focusPtr = Item_GetFocusItemDef(item);
     handler = (ItemKeyHandler *)UI_Alloc(0xCu, 4);
@@ -3034,76 +3402,76 @@ int __cdecl ItemParse_execExp(itemDef_s *item, int handle)
     return 0;
 }
 
-int    ItemParse_gameMsgWindowIndex@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_gameMsgWindowIndex(itemDef_s *item, int handle)
 {
     if ( !item && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_shared_obj.cpp", 3922, 0, "%s", "item") )
         __debugbreak();
-    return PC_Int_Parse(a1, handle, (int *)item->typeData.textDef->textTypeData.focusItemDef);
+    return PC_Int_Parse(handle, (int *)item->typeData.textDef->textTypeData.focusItemDef);
 }
 
-int    ItemParse_gameMsgWindowMode@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_gameMsgWindowMode(itemDef_s *item, int handle)
 {
     if ( !item && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_shared_obj.cpp", 3929, 0, "%s", "item") )
         __debugbreak();
-    return PC_Int_Parse(a1, handle, (int *)&item->typeData.textDef->textTypeData.focusItemDef->mouseExitText);
+    return PC_Int_Parse(handle, (int *)&item->typeData.textDef->textTypeData.focusItemDef->mouseExitText);
 }
 
-int    ItemParse_selectBorder@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_selectBorder(itemDef_s *item, int handle)
 {
     listBoxDef_s *listPtr; // [esp+0h] [ebp-4h]
 
     Item_ValidateTypeData(item, handle);
     listPtr = Item_GetListBoxDef(item);
     if ( listPtr )
-        return PC_Color_Parse(a1, handle, (float (*)[4])listPtr->selectBorder);
+        return PC_Color_Parse(handle, (float (*)[4])listPtr->selectBorder);
     else
         return 0;
 }
 
-int    ItemParse_elementHighlightColor@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_elementHighlightColor(itemDef_s *item, int handle)
 {
     listBoxDef_s *listPtr; // [esp+0h] [ebp-4h]
 
     Item_ValidateTypeData(item, handle);
     listPtr = Item_GetListBoxDef(item);
     if ( listPtr )
-        return PC_Color_Parse(a1, handle, (float (*)[4])listPtr->elementHighlightColor);
+        return PC_Color_Parse(handle, (float (*)[4])listPtr->elementHighlightColor);
     else
         return 0;
 }
 
-int    ItemParse_elementBackgroundColor@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_elementBackgroundColor(itemDef_s *item, int handle)
 {
     listBoxDef_s *listPtr; // [esp+0h] [ebp-4h]
 
     Item_ValidateTypeData(item, handle);
     listPtr = Item_GetListBoxDef(item);
     if ( listPtr )
-        return PC_Color_Parse(a1, handle, (float (*)[4])listPtr->elementBackgroundColor);
+        return PC_Color_Parse(handle, (float (*)[4])listPtr->elementBackgroundColor);
     else
         return 0;
 }
 
-int    ItemParse_disableColor@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_disableColor(itemDef_s *item, int handle)
 {
     listBoxDef_s *listPtr; // [esp+0h] [ebp-4h]
 
     Item_ValidateTypeData(item, handle);
     listPtr = Item_GetListBoxDef(item);
     if ( listPtr )
-        return PC_Color_Parse(a1, handle, (float (*)[4])listPtr->disableColor);
+        return PC_Color_Parse(handle, (float (*)[4])listPtr->disableColor);
     else
         return 0;
 }
 
-int    ItemParse_focusColor@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_focusColor(itemDef_s *item, int handle)
 {
     listBoxDef_s *listPtr; // [esp+0h] [ebp-4h]
 
     Item_ValidateTypeData(item, handle);
     listPtr = Item_GetListBoxDef(item);
     if ( listPtr )
-        return PC_Color_Parse(a1, handle, (float (*)[4])listPtr->focusColor);
+        return PC_Color_Parse(handle, (float (*)[4])listPtr->focusColor);
     else
         return 0;
 }
@@ -3173,9 +3541,9 @@ int __cdecl ItemParse_onListboxSelectionChange(itemDef_s *item, int handle)
     return PC_EventScript_Parse(handle, &eventHandler->eventScript);
 }
 
-int    ItemParse_ui3dWindowId@<eax>(long double a1@<esi:edi>, itemDef_s *item, int handle)
+int    ItemParse_ui3dWindowId(itemDef_s *item, int handle)
 {
-    return PC_Int_Parse(a1, handle, &item->ui3dWindowId);
+    return PC_Int_Parse(handle, &item->ui3dWindowId);
 }
 
 int __cdecl ItemParse_state(itemDef_s *item, int handle)
@@ -3190,7 +3558,7 @@ int __cdecl ItemParse_state(itemDef_s *item, int handle)
         item->animInfo->animStates = g_load_0.animStates;
         *item->animInfo->animStates = (animParamsDef_t *)UI_Alloc(0x6Cu, 4);
         Item_PropertiesToAnimState(item, *item->animInfo->animStates);
-        **(unsigned int **)item->animInfo->animStates = String_Alloc("Default");
+        **(unsigned int **)item->animInfo->animStates = (unsigned int)String_Alloc("Default");
         ++item->animInfo->animStateCount;
     }
     animParams = (animParamsDef_t *)UI_Alloc(0x6Cu, 4);
@@ -3208,14 +3576,25 @@ int __cdecl ItemParse_state(itemDef_s *item, int handle)
 
 void __cdecl Item_SetupKeywordHash()
 {
-    unsigned int i; // [esp+0h] [ebp-4h]
+    //unsigned int i; // [esp+0h] [ebp-4h]
+    //
+    //KeywordHash_Validate_itemDef_s_1024_6_(itemParseKeywords, 91);
+    //memset((unsigned __int8 *)itemParseKeywordHash, 0, sizeof(itemParseKeywordHash));
+    //for ( i = 0; i < 0x5B; ++i )
+    //    KeywordHash_Add_itemDef_s_1024_6_(
+    //        itemParseKeywordHash,
+    //        (const KeywordHashEntry<itemDef_s,1024,6> *)(8 * i + 13622360));
+    //
+    ItemKeyword::Validate(itemParseKeywords, 91);
 
-    KeywordHash_Validate_itemDef_s_1024_6_(itemParseKeywords, 91);
-    memset((unsigned __int8 *)itemParseKeywordHash, 0, sizeof(itemParseKeywordHash));
-    for ( i = 0; i < 0x5B; ++i )
-        KeywordHash_Add_itemDef_s_1024_6_(
+    memset(itemParseKeywordHash, 0, sizeof(itemParseKeywordHash));
+
+    for (unsigned int i = 0; i < 91; ++i)
+    {
+        ItemKeyword::Add(
             itemParseKeywordHash,
-            (const KeywordHashEntry<itemDef_s,1024,6> *)(8 * i + 13622360));
+            &itemParseKeywords[i]);
+    }
 }
 
 MenuList *__cdecl UI_LoadMenu(const char *menuFile, int imageTrack)
@@ -3226,20 +3605,20 @@ MenuList *__cdecl UI_LoadMenu(const char *menuFile, int imageTrack)
         return (MenuList *)((int (__cdecl *)(const char *, int))UI_LoadMenu_LoadObj)(menuFile, imageTrack);
 }
 
-MenuList * UI_LoadMenu_LoadObj@<eax>(long double a1@<esi:edi>, char *menuFile, int imageTrack)
+MenuList * UI_LoadMenu_LoadObj(char *menuFile, int imageTrack)
 {
     memset((unsigned __int8 *)&g_load_0, 0, sizeof(g_load_0));
     g_load_0.menuList.menus = g_load_0.menus;
-    if ( !UI_ParseMenuInternal(a1, menuFile, imageTrack) )
+    if ( !UI_ParseMenuInternal(menuFile, imageTrack) )
     {
         Com_PrintWarning(13, "WARNING: menu file not found: %s\n", menuFile);
-        if ( !UI_ParseMenuInternal(a1, "ui/default.menu", imageTrack) )
-            Com_Error(ERR_DROP, &byte_CFED38);
+        if ( !UI_ParseMenuInternal((char*)"ui/default.menu", imageTrack) )
+            Com_Error(ERR_DROP, "default.menu file not found. This is a default menu that you should have.");
     }
     return &g_load_0.menuList;
 }
 
-char    UI_ParseMenuInternal@<al>(long double a1@<esi:edi>, char *menuFile, int imageTrack)
+char    UI_ParseMenuInternal(char *menuFile, int imageTrack)
 {
     int handle; // [esp+0h] [ebp-424h]
     const char *builtinDefines[2]; // [esp+4h] [ebp-420h] BYREF
@@ -3269,7 +3648,7 @@ char    UI_ParseMenuInternal@<al>(long double a1@<esi:edi>, char *menuFile, int 
                         break;
                     }
                 }
-                else if ( !Asset_Parse(a1, handle) )
+                else if ( !Asset_Parse(handle) )
                 {
                     break;
                 }
@@ -3285,7 +3664,7 @@ char    UI_ParseMenuInternal@<al>(long double a1@<esi:edi>, char *menuFile, int 
     }
 }
 
-int    Asset_Parse@<eax>(long double a1@<esi:edi>, int handle)
+int    Asset_Parse(int handle)
 {
     pc_token_s token; // [esp+0h] [ebp-418h] BYREF
 
@@ -3313,17 +3692,17 @@ int    Asset_Parse@<eax>(long double a1@<esi:edi>, int handle)
                             return 1;
                         if ( I_stricmp(token.string, "fadeClamp") )
                             break;
-                        if ( !PC_Float_Parse(a1, handle, &g_load_0.loadAssets.fadeClamp) )
+                        if ( !PC_Float_Parse(handle, &g_load_0.loadAssets.fadeClamp) )
                             return 0;
                     }
                     if ( I_stricmp(token.string, "fadeCycle") )
                         break;
-                    if ( !PC_Int_Parse(a1, handle, &g_load_0.loadAssets.fadeCycle) )
+                    if ( !PC_Int_Parse(handle, &g_load_0.loadAssets.fadeCycle) )
                         return 0;
                 }
                 if ( I_stricmp(token.string, "fadeAmount") )
                     break;
-                if ( !PC_Float_Parse(a1, handle, &g_load_0.loadAssets.fadeAmount) )
+                if ( !PC_Float_Parse(handle, &g_load_0.loadAssets.fadeAmount) )
                     return 0;
             }
             if ( !I_stricmp(token.string, "fadeInAmount") )
@@ -3334,7 +3713,7 @@ int    Asset_Parse@<eax>(long double a1@<esi:edi>, int handle)
                 token.string);
         }
     }
-    while ( PC_Float_Parse(a1, handle, &g_load_0.loadAssets.fadeInAmount) );
+    while ( PC_Float_Parse(handle, &g_load_0.loadAssets.fadeInAmount) );
     return 0;
 }
 
@@ -3350,7 +3729,7 @@ char __cdecl Menu_New(int handle, int imageTrack)
         {
             Menu_PostParse(menu);
             if ( g_load_0.menuList.menuCount >= 512 )
-                Com_Error(ERR_DROP, &byte_CFEEBC);
+                Com_Error(ERR_DROP, "Menu_New: EXE_ERR_OUT_OF_MEMORY");
             g_load_0.menuList.menus[g_load_0.menuList.menuCount++] = menu;
             return 1;
         }
@@ -3418,7 +3797,8 @@ int __cdecl Menu_Parse(int handle, menuDef_t *menu)
                     return 1;
             }
             while ( token.string[0] == 59 );
-            key = KeywordHash_Find_menuDef_t_1024_128_(menuParseKeywordHash, token.string);
+            //key = KeywordHash_Find_menuDef_t_1024_128_(menuParseKeywordHash, token.string);
+            key = MenuKeyword::Find(menuParseKeywordHash, token.string);
             if ( key )
                 break;
             PC_SourceError(handle, "unknown menu keyword %s", token.string);
@@ -3457,7 +3837,8 @@ MenuList *__cdecl UI_LoadMenus(const char *menuFile, int imageTrack)
     return (MenuList *)((int (__cdecl *)(const char *, int))UI_LoadMenus_LoadObj)(menuFile, imageTrack);
 }
 
-MenuList * UI_LoadMenus_LoadObj@<eax>(long double a1@<esi:edi>, char *menuFile, int imageTrack)
+char menuBuf[32768];
+MenuList * UI_LoadMenus_LoadObj(char *menuFile, int imageTrack)
 {
     int len; // [esp+0h] [ebp-10h]
     int f; // [esp+4h] [ebp-Ch] BYREF
@@ -3470,14 +3851,14 @@ MenuList * UI_LoadMenus_LoadObj@<eax>(long double a1@<esi:edi>, char *menuFile, 
     if ( !f )
     {
         Com_Printf(13, "^3WARNING: menu file not found: %s\n", menuFile);
-        len = FS_FOpenFileByMode("ui/default.menu", &f, FS_READ);
+        len = FS_FOpenFileByMode((char*)"ui/default.menu", &f, FS_READ);
         if ( !f )
-            Com_Error(ERR_DROP, &byte_CFED38);
+            Com_Error(ERR_DROP, "default.menu file not found. This is a default menu that you should have.");
     }
     if ( len >= 0x8000 )
     {
         FS_FCloseFile(f);
-        Com_Error(ERR_DROP, &byte_CFEF54, menuFile, len, 0x8000);
+        Com_Error(ERR_DROP, "^1menu file too large: %s is %i, max allowed is %i", menuFile, len, 0x8000);
     }
     FS_Read((unsigned __int8 *)menuBuf, len, f);
     menuBuf[len] = 0;
@@ -3491,12 +3872,12 @@ MenuList * UI_LoadMenus_LoadObj@<eax>(long double a1@<esi:edi>, char *menuFile, 
              && *token
              && *token != 125
              && I_stricmp(token, "}")
-             && (I_stricmp(token, "loadmenu") || Load_Menu(a1, &p, imageTrack)) );
+             && (I_stricmp(token, "loadmenu") || Load_Menu(&p, imageTrack)) );
     Com_EndParseSession();
     return &g_load_0.menuList;
 }
 
-int    Load_Menu@<eax>(long double a1@<esi:edi>, const char **p, int imageTrack)
+int    Load_Menu(const char **p, int imageTrack)
 {
     parseInfo_t *token; // [esp+0h] [ebp-4h]
 
@@ -3509,14 +3890,14 @@ int    Load_Menu@<eax>(long double a1@<esi:edi>, const char **p, int imageTrack)
             return 1;
         if ( !token || !token->token[0] )
             break;
-        UI_ParseMenuInternal(a1, token->token, imageTrack);
+        UI_ParseMenuInternal(token->token, imageTrack);
     }
     return 0;
 }
 
 MenuList *__cdecl UI_LoadMenus_FastFile(const char *menuFile)
 {
-    return DB_FindXAssetHeader(ASSET_TYPE_MENULIST, menuFile, 1, -1).menuList;
+    return DB_FindXAssetHeader(ASSET_TYPE_MENULIST, (char*)menuFile, 1, -1).menuList;
 }
 
 int __cdecl KeywordHash_KeySeed(const char *keyword, int hashCount, int seed)

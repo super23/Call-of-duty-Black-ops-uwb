@@ -1,8 +1,10 @@
 #pragma once
+#include "l_script.h"
+#include "ui_shared.h"
 
 void __cdecl PrintSourceStack(const script_s *scriptstack);
-void SourceError(source_s *source, char *str, ...);
-void SourceWarning(source_s *source, char *str, ...);
+void SourceError(source_s *source, const char *str, ...);
+void SourceWarning(source_s *source, const char *str, ...);
 void __cdecl PC_PushScript(source_s *source, script_s *script);
 token_s *__cdecl PC_CopyToken(token_s *token);
 void __cdecl PC_FreeToken(token_s *token);
@@ -65,6 +67,10 @@ int __cdecl PC_DollarDirective_evalfloat(source_s *source);
 int __cdecl PC_ReadDollarDirective(source_s *source);
 int __cdecl PC_ReadToken(source_s *source, token_s *token);
 int __cdecl PC_CheckTokenString(source_s *source, char *string);
+inline int __cdecl PC_CheckTokenString(source_s *source, const char *string)
+{
+    return PC_CheckTokenString(source, (char *)string);
+}
 void __cdecl PC_UnreadLastToken(source_s *source);
 void __cdecl PC_UnreadToken(source_s *source, token_s *token);
 source_s *__cdecl LoadSourceFile(char *filename);

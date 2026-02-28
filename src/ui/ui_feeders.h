@@ -3,7 +3,7 @@
 #include "ui_shared.h"
 #include <ui_mp/ui_gametype_variants_mp.h>
 
-const char *__cdecl UI_FeederCount(int localClientNum, int contextIndex, float feederID, listBoxDef_s *listPtr);
+int __cdecl UI_FeederCount(int localClientNum, int contextIndex, float feederID, listBoxDef_s *listPtr);
 void __cdecl UI_BuildPlayerList(int localClientNum);
 _CustomClassDescription *__cdecl UI_FeederItemText(
                 int localClientNum,

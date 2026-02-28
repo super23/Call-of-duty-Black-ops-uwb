@@ -22,7 +22,37 @@
 #include "ui_friends.h"
 #include <client/cl_main.h>
 #include <cgame/cg_camera.h>
+#include <client/client.h>
+#include <client/splitscreen.h>
+#include "ui_localvars.h"
+#include "ui_shared_obj.h"
+#include <client_mp/cl_ui_pc_mp.h>
+#include <live/live_leaderboard.h>
+#include <client_mp/cl_main_pc_mp.h>
+#include "ui_feeders.h"
+#include <live/live_groups_dw.h>
+#include <game_mp/ui_gameinfo_mp.h>
+#include <client_mp/cl_input_mp.h>
+#include <win32/win_voice.h>
+#include <client/cl_voice.h>
+#include <cgame_mp/cg_consolecmds_mp.h>
+#include <cgame_mp/cg_newDraw_mp.h>
+#include <qcommon/com_profilemapload.h>
+#include "ui_emblem.h"
+#include "ui_playlists.h"
+#include <qcommon/com_gamemodes.h>
+#include <client_mp/cl_ui_mp.h>
+#include <live/live_clans.h>
+#include <live/live_stats.h>
+#include <client/cl_rank.h>
+#include <live/live_ticker.h>
+#include <database/db_file_load.h>
+#include <sound/snd_driver_xaudio2.h>
+#include <game_mp/g_main_mp.h>
+#include <live/live_win.h>
 
+const dvar_t *ui_netGameType;
+const dvar_t *uiscript_debug;
 const dvar_t *ui_animSpeedScale;
 const dvar_t *ui_customModeIndex;
 const dvar_t *ui_customModeName;
@@ -991,12 +1021,12 @@ void __cdecl UI_UpdateDisplayServers(int localClientNum, uiInfo_s *uiInfo)
     int serverCount; // [esp+0h] [ebp-4h]
 
     serverCount = LAN_GetServerCount(ui_netSource->current.integer);
-    if ( *(unsigned int *)&sharedUiInfo.gap0[81132] != serverCount )
+    if (sharedUiInfo.serverStatus.serverCount != serverCount)
     {
-        *(unsigned int *)&sharedUiInfo.gap0[81132] = serverCount;
-        if ( *(unsigned int *)&sharedUiInfo.gap0[81128] )
+        sharedUiInfo.serverStatus.serverCount = serverCount;
+        if (sharedUiInfo.serverStatus.numDisplayServers)
         {
-            *(unsigned int *)&sharedUiInfo.gap0[1124] = -1;
+            sharedUiInfo.serverStatus.currentServer = -1;
             UI_BuildServerDisplayList(localClientNum, uiInfo, 1);
         }
     }
@@ -1021,33 +1051,33 @@ int __cdecl UI_GetClientNumForPlayerListNum(int playerListIndex)
 void __cdecl UI_RunMenuScript(int localClientNum, int contextIndex, __int64 args)
 {
     int ControllerIndex; // eax
-    const char *v4; // eax
+    char *v5; // eax
     const char *String; // eax
-    const char *v6; // eax
-    const char *v7; // eax
-    const char *v8; // eax
+    char *v7; // eax
+    char *v8; // eax
     char *v9; // eax
     char *v10; // eax
+    char *v11; // eax
     unsigned int CountByType; // esi
-    unsigned int v12; // esi
-    char *v13; // eax
+    unsigned int v13; // esi
     char *v14; // eax
-    const char *v15; // eax
-    const char *v16; // eax
+    char *v15; // eax
+    char *v16; // eax
     char *v17; // eax
-    int v18; // eax
+    char *v18; // eax
+    int v19; // eax
     int Int; // eax
     unsigned int ClientNumForPlayerListNum; // eax
     const char *feederID_4; // [esp+4h] [ebp-1D44h]
     unsigned int feederID_4a; // [esp+4h] [ebp-1D44h]
     int feederID_4b; // [esp+4h] [ebp-1D44h]
-    const char *v24; // [esp+8h] [ebp-1D40h]
-    char v25[128]; // [esp+10h] [ebp-1D38h] BYREF
-    char v26[256]; // [esp+90h] [ebp-1CB8h] BYREF
-    char v27[128]; // [esp+190h] [ebp-1BB8h] BYREF
+    const char *v25; // [esp+8h] [ebp-1D40h]
+    char v26[128]; // [esp+10h] [ebp-1D38h] BYREF
+    char v27[256]; // [esp+90h] [ebp-1CB8h] BYREF
+    char v28[128]; // [esp+190h] [ebp-1BB8h] BYREF
     char menuName[128]; // [esp+210h] [ebp-1B38h] BYREF
     char testValue[256]; // [esp+290h] [ebp-1AB8h] BYREF
-    char v30[132]; // [esp+390h] [ebp-19B8h] BYREF
+    char v31[132]; // [esp+390h] [ebp-19B8h] BYREF
     int status; // [esp+414h] [ebp-1934h] BYREF
     char name[1024]; // [esp+418h] [ebp-1930h] BYREF
     unsigned __int64 xuid; // [esp+818h] [ebp-1530h] BYREF
@@ -1056,121 +1086,121 @@ void __cdecl UI_RunMenuScript(int localClientNum, int contextIndex, __int64 args
     int i; // [esp+C24h] [ebp-1124h] BYREF
     char dest[268]; // [esp+C28h] [ebp-1120h] BYREF
     char dvarName[1024]; // [esp+D38h] [ebp-1010h] BYREF
-    char v39[1024]; // [esp+1138h] [ebp-C10h] BYREF
-    char v40[1028]; // [esp+1538h] [ebp-810h] BYREF
+    char v40[1024]; // [esp+1138h] [ebp-C10h] BYREF
+    char v41[1028]; // [esp+1538h] [ebp-810h] BYREF
     UiContext *dc; // [esp+193Ch] [ebp-40Ch]
     char out[1028]; // [esp+1940h] [ebp-408h] BYREF
 
-    if ( String_Parse((const char **)args, out, 1024) )
+    if (String_Parse((const char **)args, out, 1024))
     {
         dc = (UiContext *)UI_UIContext_GetInfo(contextIndex);
-        if ( !I_stricmp(out, "Quit") )
+        if (!I_stricmp(out, "Quit"))
         {
             ControllerIndex = Com_LocalClient_GetControllerIndex(localClientNum);
-            Cmd_ExecuteSingleCommand(localClientNum, ControllerIndex, aQuit_1);
+            Cmd_ExecuteSingleCommand(localClientNum, ControllerIndex, (char*)"quit");
             return;
         }
-        if ( I_stricmp(out, "openurl") )
+        if (I_stricmp(out, "openurl"))
         {
-            if ( !I_stricmp(out, "iviteOrDeleteFriend")
+            if (!I_stricmp(out, "iviteOrDeleteFriend")
                 || !I_stricmp(out, "sendRequestFriend")
                 || !I_stricmp(out, "deleteFriendPopup")
-                || !I_stricmp(out, "deleteFriend") )
+                || !I_stricmp(out, "deleteFriend"))
             {
                 goto LABEL_25;
             }
-            if ( !I_stricmp(out, "acceptFriend") )
+            if (!I_stricmp(out, "acceptFriend"))
             {
                 UI_AcceptFriend();
                 return;
             }
-            if ( !I_stricmp(out, "declineFriend") )
+            if (!I_stricmp(out, "declineFriend"))
             {
                 UI_DeclineFriend();
                 return;
             }
-            if ( !I_stricmp(out, "acceptAllFriend") || !I_stricmp(out, "declineAllFriend") || !I_stricmp(out, "inviteFriend") )
+            if (!I_stricmp(out, "acceptAllFriend") || !I_stricmp(out, "declineAllFriend") || !I_stricmp(out, "inviteFriend"))
                 goto LABEL_25;
-            if ( !I_stricmp(out, "acceptInvite") )
+            if (!I_stricmp(out, "acceptInvite"))
             {
                 UI_AcceptInvite();
                 return;
             }
-            if ( I_stricmp(out, "clearInvites") )
+            if (I_stricmp(out, "clearInvites"))
             {
-                if ( I_stricmp(out, "loadArenas") )
+                if (I_stricmp(out, "loadArenas"))
                 {
-                    if ( I_stricmp(out, "LoadMods") )
+                    if (I_stricmp(out, "LoadMods"))
                     {
-                        if ( I_stricmp(out, "voteTypeMap") )
+                        if (I_stricmp(out, "voteTypeMap"))
                         {
-                            if ( I_stricmp(out, "voteTypeMapDVar") )
+                            if (I_stricmp(out, "voteTypeMapDVar"))
                             {
-                                if ( I_stricmp(out, "voteMap") )
+                                if (I_stricmp(out, "voteMap"))
                                 {
-                                    if ( I_stricmp(out, "voteGame") )
+                                    if (I_stricmp(out, "voteGame"))
                                     {
-                                        if ( I_stricmp(out, "RefreshServers") )
+                                        if (I_stricmp(out, "RefreshServers"))
                                         {
-                                            if ( I_stricmp(out, "RefreshFilter") )
+                                            if (I_stricmp(out, "RefreshFilter"))
                                             {
-                                                if ( I_stricmp(out, "RunMod") )
+                                                if (I_stricmp(out, "RunMod"))
                                                 {
-                                                    if ( I_stricmp(out, "UpdateNetSource") )
+                                                    if (I_stricmp(out, "UpdateNetSource"))
                                                     {
-                                                        if ( I_stricmp(out, "closeJoin") )
+                                                        if (I_stricmp(out, "closeJoin"))
                                                         {
-                                                            if ( I_stricmp(out, "StopRefresh") )
+                                                            if (I_stricmp(out, "StopRefresh"))
                                                             {
-                                                                if ( I_stricmp(out, "ServerStatus") )
+                                                                if (I_stricmp(out, "ServerStatus"))
                                                                 {
-                                                                    if ( I_stricmp(out, "ServerStatusScoreBoard") )
+                                                                    if (I_stricmp(out, "ServerStatusScoreBoard"))
                                                                     {
-                                                                        if ( I_stricmp(out, "UpdateFilter") )
+                                                                        if (I_stricmp(out, "UpdateFilter"))
                                                                         {
-                                                                            if ( I_stricmp(out, "Controls") )
+                                                                            if (I_stricmp(out, "Controls"))
                                                                             {
-                                                                                if ( I_stricmp(out, "Leave") )
+                                                                                if (I_stricmp(out, "Leave"))
                                                                                 {
-                                                                                    if ( I_stricmp(out, "ServerSort") )
+                                                                                    if (I_stricmp(out, "ServerSort"))
                                                                                     {
-                                                                                        if ( I_stricmp(out, "closeingame") )
+                                                                                        if (I_stricmp(out, "closeingame"))
                                                                                         {
-                                                                                            if ( I_stricmp(out, "voteKick") )
+                                                                                            if (I_stricmp(out, "voteKick"))
                                                                                             {
-                                                                                                if ( I_stricmp(out, "voteTempBan") )
+                                                                                                if (I_stricmp(out, "voteTempBan"))
                                                                                                 {
-                                                                                                    if ( I_stricmp(out, "addFavorite") )
+                                                                                                    if (I_stricmp(out, "addFavorite"))
                                                                                                     {
-                                                                                                        if ( I_stricmp(out, "deleteFavorite") )
+                                                                                                        if (I_stricmp(out, "deleteFavorite"))
                                                                                                         {
-                                                                                                            if ( I_stricmp(out, "update") )
+                                                                                                            if (I_stricmp(out, "update"))
                                                                                                             {
-                                                                                                                if ( I_stricmp(out, "setPbClStatus") )
+                                                                                                                if (I_stricmp(out, "setPbClStatus"))
                                                                                                                 {
-                                                                                                                    if ( I_stricmp(out, "startSingleplayer") )
+                                                                                                                    if (I_stricmp(out, "startSingleplayer"))
                                                                                                                     {
-                                                                                                                        if ( I_stricmp(out, "getLanguage") )
+                                                                                                                        if (I_stricmp(out, "getLanguage"))
                                                                                                                         {
-                                                                                                                            if ( I_stricmp(out, "verifyLanguage") )
+                                                                                                                            if (I_stricmp(out, "verifyLanguage"))
                                                                                                                             {
-                                                                                                                                if ( I_stricmp(out, "updateLanguage") )
+                                                                                                                                if (I_stricmp(out, "updateLanguage"))
                                                                                                                                 {
-                                                                                                                                    if ( I_stricmp(out, "mutePlayer") )
+                                                                                                                                    if (I_stricmp(out, "mutePlayer"))
                                                                                                                                     {
-                                                                                                                                        if ( I_stricmp(out, "openMenuOnDvar")
-                                                                                                                                            && I_stricmp(out, "openMenuOnDvarNot") )
+                                                                                                                                        if (I_stricmp(out, "openMenuOnDvar")
+                                                                                                                                            && I_stricmp(out, "openMenuOnDvarNot"))
                                                                                                                                         {
-                                                                                                                                            if ( I_stricmp(out, "closeMenuOnDvar")
-                                                                                                                                                && I_stricmp(out, "closeMenuOnDvarNot") )
+                                                                                                                                            if (I_stricmp(out, "closeMenuOnDvar")
+                                                                                                                                                && I_stricmp(out, "closeMenuOnDvarNot"))
                                                                                                                                             {
-                                                                                                                                                if ( I_stricmp(out, "setRecommended") )
+                                                                                                                                                if (I_stricmp(out, "setRecommended"))
                                                                                                                                                 {
-                                                                                                                                                    if ( I_stricmp(out, "clearLoadErrorsSummary") )
+                                                                                                                                                    if (I_stricmp(out, "clearLoadErrorsSummary"))
                                                                                                                                                     {
-                                                                                                                                                        if ( I_stricmp(out, "RefreshLeaderboards") )
+                                                                                                                                                        if (I_stricmp(out, "RefreshLeaderboards"))
                                                                                                                                                         {
-                                                                                                                                                            if ( I_stricmp(out, "ViewGamerCard") )
+                                                                                                                                                            if (I_stricmp(out, "ViewGamerCard"))
                                                                                                                                                                 UI_Project_RunMenuScript(
                                                                                                                                                                     localClientNum,
                                                                                                                                                                     contextIndex,
@@ -1195,46 +1225,46 @@ void __cdecl UI_RunMenuScript(int localClientNum, int contextIndex, __int64 args
                                                                                                                                                     Com_SetRecommended(localClientNum, 1);
                                                                                                                                                 }
                                                                                                                                             }
-                                                                                                                                            else if ( UI_GetOpenOrCloseMenuOnDvarArgs(
-                                                                                                                                                                    (const char **)args,
-                                                                                                                                                                    out,
-                                                                                                                                                                    v27,
-                                                                                                                                                                    128,
-                                                                                                                                                                    v26,
-                                                                                                                                                                    256,
-                                                                                                                                                                    v25,
-                                                                                                                                                                    128) )
+                                                                                                                                            else if (UI_GetOpenOrCloseMenuOnDvarArgs(
+                                                                                                                                                (const char **)args,
+                                                                                                                                                out,
+                                                                                                                                                v28,
+                                                                                                                                                128,
+                                                                                                                                                v27,
+                                                                                                                                                256,
+                                                                                                                                                v26,
+                                                                                                                                                128))
                                                                                                                                             {
                                                                                                                                                 UI_CloseMenuOnDvar(
                                                                                                                                                     localClientNum,
                                                                                                                                                     (uiInfo_s *)dc,
                                                                                                                                                     out,
-                                                                                                                                                    v25,
-                                                                                                                                                    v27,
-                                                                                                                                                    v26);
+                                                                                                                                                    v26,
+                                                                                                                                                    v28,
+                                                                                                                                                    v27);
                                                                                                                                             }
                                                                                                                                         }
-                                                                                                                                        else if ( UI_GetOpenOrCloseMenuOnDvarArgs(
-                                                                                                                                                                (const char **)args,
-                                                                                                                                                                out,
-                                                                                                                                                                v30,
-                                                                                                                                                                128,
-                                                                                                                                                                testValue,
-                                                                                                                                                                256,
-                                                                                                                                                                menuName,
-                                                                                                                                                                128) )
+                                                                                                                                        else if (UI_GetOpenOrCloseMenuOnDvarArgs(
+                                                                                                                                            (const char **)args,
+                                                                                                                                            out,
+                                                                                                                                            v31,
+                                                                                                                                            128,
+                                                                                                                                            testValue,
+                                                                                                                                            256,
+                                                                                                                                            menuName,
+                                                                                                                                            128))
                                                                                                                                         {
                                                                                                                                             UI_OpenMenuOnDvar(
                                                                                                                                                 localClientNum,
                                                                                                                                                 (uiInfo_s *)dc,
                                                                                                                                                 out,
                                                                                                                                                 menuName,
-                                                                                                                                                v30,
+                                                                                                                                                v31,
                                                                                                                                                 testValue);
                                                                                                                                         }
                                                                                                                                     }
-                                                                                                                                    else if ( dc[1].bias >= 0.0
-                                                                                                                                                 && SLODWORD(dc[1].bias) < *(int *)sharedUiInfo.gap58 )
+                                                                                                                                    else if (dc[1].bias >= 0.0
+                                                                                                                                        && SLODWORD(dc[1].bias) < sharedUiInfo.playerCount)
                                                                                                                                     {
                                                                                                                                         ClientNumForPlayerListNum = UI_GetClientNumForPlayerListNum(LODWORD(dc[1].bias));
                                                                                                                                         CL_MutePlayer(
@@ -1257,8 +1287,8 @@ void __cdecl UI_RunMenuScript(int localClientNum, int contextIndex, __int64 args
                                                                                                                         }
                                                                                                                         else
                                                                                                                         {
-                                                                                                                            v18 = Dvar_GetInt("loc_language");
-                                                                                                                            Dvar_SetIntByName("ui_language", v18);
+                                                                                                                            v19 = Dvar_GetInt("loc_language");
+                                                                                                                            Dvar_SetIntByName("ui_language", v19);
                                                                                                                             UI_VerifyLanguage();
                                                                                                                         }
                                                                                                                     }
@@ -1267,56 +1297,56 @@ void __cdecl UI_RunMenuScript(int localClientNum, int contextIndex, __int64 args
                                                                                                                         Cbuf_AddText(localClientNum, "startSingleplayer\n");
                                                                                                                     }
                                                                                                                 }
-                                                                                                                else if ( Int_Parse((const char **)args, &status) )
+                                                                                                                else if (Int_Parse((const char **)args, &status))
                                                                                                                 {
                                                                                                                     CLUI_SetPbClStatus(status);
                                                                                                                 }
                                                                                                             }
-                                                                                                            else if ( String_Parse((const char **)args, name, 1024) )
+                                                                                                            else if (String_Parse((const char **)args, name, 1024))
                                                                                                             {
                                                                                                                 UI_Update(name);
                                                                                                             }
                                                                                                         }
-                                                                                                        else if ( ui_netSource->current.integer == 3
-                                                                                                                     && *(int *)&sharedUiInfo.gap0[1124] >= 0
-                                                                                                                     && *(int *)&sharedUiInfo.gap0[1124] < *(int *)&sharedUiInfo.gap0[81128] )
+                                                                                                        else if (ui_netSource->current.integer == 3
+                                                                                                            && sharedUiInfo.serverStatus.currentServer >= 0
+                                                                                                            && sharedUiInfo.serverStatus.currentServer < sharedUiInfo.serverStatus.numDisplayServers)
                                                                                                         {
                                                                                                             UI_UpdateDisplayServers(localClientNum, (uiInfo_s *)dc);
                                                                                                             UI_RemoveServerFromFavoritesList();
                                                                                                         }
                                                                                                     }
-                                                                                                    else if ( ui_netSource->current.integer != 3
-                                                                                                                 && *(int *)&sharedUiInfo.gap0[1124] >= 0
-                                                                                                                 && *(int *)&sharedUiInfo.gap0[1124] < *(int *)&sharedUiInfo.gap0[81128] )
+                                                                                                    else if (ui_netSource->current.integer != 3
+                                                                                                        && sharedUiInfo.serverStatus.currentServer >= 0
+                                                                                                        && sharedUiInfo.serverStatus.currentServer < sharedUiInfo.serverStatus.numDisplayServers)
                                                                                                     {
                                                                                                         LAN_GetServerInfo(
                                                                                                             ui_netSource->current.integer,
-                                                                                                            *(unsigned int *)&sharedUiInfo.gap0[4
-                                                                                                                                                                    * *(unsigned int *)&sharedUiInfo.gap0[1124]
-                                                                                                                                                                    + 1128],
+                                                                                                            *(_DWORD *)&sharedUiInfo.serverStatusAddress[4
+                                                                                                            * sharedUiInfo.serverStatus.currentServer
+                                                                                                            - 81328],
                                                                                                             buf,
                                                                                                             1024);
-                                                                                                        v17 = Info_ValueForKey(buf, "dwuserid");
-                                                                                                        StringToXUID(v17, &xuid);
+                                                                                                        v18 = Info_ValueForKey(buf, "dwuserid");
+                                                                                                        StringToXUID(v18, &xuid);
                                                                                                         UI_AddServerToFavoritesList(xuid);
                                                                                                     }
                                                                                                 }
-                                                                                                else if ( dc[1].bias >= 0.0
-                                                                                                             && SLODWORD(dc[1].bias) < *(int *)sharedUiInfo.gap58 )
+                                                                                                else if (dc[1].bias >= 0.0
+                                                                                                    && SLODWORD(dc[1].bias) < sharedUiInfo.playerCount)
                                                                                                 {
-                                                                                                    v16 = va(
-                                                                                                                    "callvote tempBanUser \"%s\"\n",
-                                                                                                                    &sharedUiInfo.gap58[32 * LODWORD(dc[1].bias) + 4]);
-                                                                                                    Cbuf_AddText(localClientNum, v16);
+                                                                                                    v17 = va(
+                                                                                                        "callvote tempBanUser \"%s\"\n",
+                                                                                                        sharedUiInfo.playerNames[LODWORD(dc[1].bias)]);
+                                                                                                    Cbuf_AddText(localClientNum, v17);
                                                                                                 }
                                                                                             }
-                                                                                            else if ( dc[1].bias >= 0.0
-                                                                                                         && SLODWORD(dc[1].bias) < *(int *)sharedUiInfo.gap58 )
+                                                                                            else if (dc[1].bias >= 0.0
+                                                                                                && SLODWORD(dc[1].bias) < sharedUiInfo.playerCount)
                                                                                             {
-                                                                                                v15 = va(
-                                                                                                                "callvote kick \"%s\"\n",
-                                                                                                                &sharedUiInfo.gap58[32 * LODWORD(dc[1].bias) + 4]);
-                                                                                                Cbuf_AddText(localClientNum, v15);
+                                                                                                v16 = va(
+                                                                                                    "callvote kick \"%s\"\n",
+                                                                                                    sharedUiInfo.playerNames[LODWORD(dc[1].bias)]);
+                                                                                                Cbuf_AddText(localClientNum, v16);
                                                                                             }
                                                                                         }
                                                                                         else
@@ -1327,10 +1357,10 @@ void __cdecl UI_RunMenuScript(int localClientNum, int contextIndex, __int64 args
                                                                                             Menus_CloseAll(localClientNum, dc);
                                                                                         }
                                                                                     }
-                                                                                    else if ( Int_Parse((const char **)args, &column) )
+                                                                                    else if (Int_Parse((const char **)args, &column))
                                                                                     {
-                                                                                        if ( column == *(unsigned int *)&sharedUiInfo.gap0[1108] )
-                                                                                            *(unsigned int *)&sharedUiInfo.gap0[1112] = *(unsigned int *)&sharedUiInfo.gap0[1112] == 0;
+                                                                                        if (column == sharedUiInfo.serverStatus.sortKey)
+                                                                                            sharedUiInfo.serverStatus.sortDir = sharedUiInfo.serverStatus.sortDir == 0;
                                                                                         UI_ServersSort((unsigned int)column | 0x100000000LL);
                                                                                     }
                                                                                 }
@@ -1359,13 +1389,15 @@ void __cdecl UI_RunMenuScript(int localClientNum, int contextIndex, __int64 args
                                                                     else
                                                                     {
                                                                         UI_UpdateDisplayServers(localClientNum, (uiInfo_s *)&uiInfoArray);
-                                                                        if ( *(int *)&sharedUiInfo.gap0[1124] >= 0
-                                                                            && *(int *)&sharedUiInfo.gap0[1124] < *(int *)&sharedUiInfo.gap0[81128] )
+                                                                        if (sharedUiInfo.serverStatus.currentServer >= 0
+                                                                            && sharedUiInfo.serverStatus.currentServer < sharedUiInfo.serverStatus.numDisplayServers)
                                                                         {
                                                                             LAN_GetServerSecurityId(
                                                                                 ui_netSource->current.integer,
-                                                                                *(unsigned int *)&sharedUiInfo.gap0[4 * *(unsigned int *)&sharedUiInfo.gap0[1124] + 1128],
-                                                                                (bdSecurityID *)&sharedUiInfo.serverStatusInfo.lines[2][4],
+                                                                                *(_DWORD *)&sharedUiInfo.serverStatusAddress[4
+                                                                                * sharedUiInfo.serverStatus.currentServer
+                                                                                - 81328],
+                                                                                (bdSecurityID *)sharedUiInfo.serverStatusSecurityID,
                                                                                 8);
                                                                             UI_BuildServerStatusScoreBoard(localClientNum, (uiInfo_s *)&uiInfoArray, 1);
                                                                         }
@@ -1373,15 +1405,17 @@ void __cdecl UI_RunMenuScript(int localClientNum, int contextIndex, __int64 args
                                                                 }
                                                                 else
                                                                 {
-                                                                    Dvar_SetBool((dvar_s *)ui_browserShowInfo, 0);
+                                                                    Dvar_SetBool((dvar_s*)ui_browserShowInfo, 0);
                                                                     UI_UpdateDisplayServers(localClientNum, (uiInfo_s *)&uiInfoArray);
-                                                                    if ( *(int *)&sharedUiInfo.gap0[1124] >= 0
-                                                                        && *(int *)&sharedUiInfo.gap0[1124] < *(int *)&sharedUiInfo.gap0[81128] )
+                                                                    if (sharedUiInfo.serverStatus.currentServer >= 0
+                                                                        && sharedUiInfo.serverStatus.currentServer < sharedUiInfo.serverStatus.numDisplayServers)
                                                                     {
                                                                         LAN_GetServerSecurityId(
                                                                             ui_netSource->current.integer,
-                                                                            *(unsigned int *)&sharedUiInfo.gap0[4 * *(unsigned int *)&sharedUiInfo.gap0[1124] + 1128],
-                                                                            (bdSecurityID *)&sharedUiInfo.serverStatusInfo.lines[2][4],
+                                                                            *(_DWORD *)&sharedUiInfo.serverStatusAddress[4
+                                                                            * sharedUiInfo.serverStatus.currentServer
+                                                                            - 81328],
+                                                                            (bdSecurityID *)sharedUiInfo.serverStatusSecurityID,
                                                                             8);
                                                                         UI_BuildServerStatus(localClientNum, (uiInfo_s *)&uiInfoArray, 1);
                                                                     }
@@ -1390,17 +1424,17 @@ void __cdecl UI_RunMenuScript(int localClientNum, int contextIndex, __int64 args
                                                             else
                                                             {
                                                                 UI_StopServerRefresh();
-                                                                *(unsigned int *)&sharedUiInfo.gap0[81140] = 0;
-                                                                *(unsigned int *)sharedUiInfo.pendingServerStatus.server[1].adrstr = 0;
+                                                                sharedUiInfo.serverStatus.nextDisplayRefresh = 0;
+                                                                sharedUiInfo.nextServerStatusRefresh = 0;
                                                                 dc[1].localVars.table[65].name = 0;
                                                             }
                                                         }
-                                                        else if ( *(unsigned int *)&sharedUiInfo.gap0[1120] )
+                                                        else if (sharedUiInfo.serverStatus.refreshActive)
                                                         {
                                                             UI_StopServerRefresh();
-                                                            *(unsigned int *)&sharedUiInfo.gap0[81140] = 0;
-                                                            *(unsigned int *)sharedUiInfo.pendingServerStatus.server[1].adrstr = 0;
-                                                            *(unsigned int *)&sharedUiInfo.pendingServerStatus.server[1].adrstr[4] = 0;
+                                                            sharedUiInfo.serverStatus.nextDisplayRefresh = 0;
+                                                            sharedUiInfo.nextServerStatusRefresh = 0;
+                                                            sharedUiInfo.nextServerStatusScoreBoardRefresh = 0;
                                                             dc[1].localVars.table[65].name = 0;
                                                             UI_BuildServerDisplayList(localClientNum, (uiInfo_s *)dc, 1);
                                                         }
@@ -1410,33 +1444,33 @@ void __cdecl UI_RunMenuScript(int localClientNum, int contextIndex, __int64 args
                                                             Menus_OpenByName(localClientNum, dc, "main");
                                                         }
                                                     }
-                                                    else if ( Int_Parse((const char **)args, &i) )
+                                                    else if (Int_Parse((const char **)args, &i))
                                                     {
                                                         UI_NetSource_UpdateDisplayList(i);
                                                     }
                                                 }
                                                 else
                                                 {
-                                                    if ( sharedUiInfo.modCount >= 0x40u
+                                                    if (sharedUiInfo.modIndex >= 0x40u
                                                         && !Assert_MyHandler(
-                                                                    "C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_main.cpp",
-                                                                    1719,
-                                                                    0,
-                                                                    "sharedUiInfo.itemIndex doesn't index MAX_MODS\n\t%i not in [0, %i)",
-                                                                    sharedUiInfo.modCount,
-                                                                    64) )
+                                                            "C:\\projects_pc\\cod\\codsrc\\src\\ui\\ui_main.cpp",
+                                                            1719,
+                                                            0,
+                                                            "sharedUiInfo.modIndex doesn't index MAX_MODS\n\t%i not in [0, %i)",
+                                                            sharedUiInfo.modIndex,
+                                                            64))
                                                     {
                                                         __debugbreak();
                                                     }
-                                                    if ( sharedUiInfo.serverHardwareIconList[2 * sharedUiInfo.modCount + 9] )
+                                                    if (sharedUiInfo.modList[sharedUiInfo.modIndex].modName)
                                                     {
                                                         Com_sprintf(
                                                             dest,
                                                             0x104u,
                                                             "%s/%s",
                                                             "mods",
-                                                            (const char *)sharedUiInfo.serverHardwareIconList[2 * sharedUiInfo.modCount + 9]);
-                                                        if ( useFastFile->current.enabled )
+                                                            sharedUiInfo.modList[sharedUiInfo.modIndex].modName);
+                                                        if (useFastFile->current.enabled)
                                                             DB_SyncXAssets();
                                                         Dvar_SetStringByName("fs_game", dest);
                                                         Cbuf_AddText(localClientNum, "vid_restart\n");
@@ -1453,55 +1487,55 @@ void __cdecl UI_RunMenuScript(int localClientNum, int contextIndex, __int64 args
                                         {
                                             UI_StartServerRefresh(localClientNum, contextIndex, 1);
                                             UI_BuildServerDisplayList(localClientNum, (uiInfo_s *)dc, 1);
-                                            feederID_4a = LiveGroups_GetCount("online/mp");
-                                            v9 = UI_SafeTranslateString("PLATFORM_PLAYERS_ONLINE");
-                                            v10 = UI_ReplaceConversionInt(v9, feederID_4a);
-                                            Dvar_SetString((dvar_s *)ui_browserPlayerCount, v10);
+                                            feederID_4a = LiveGroups_GetCount((char*)"online/mp");
+                                            v10 = UI_SafeTranslateString("PLATFORM_PLAYERS_ONLINE");
+                                            v11 = UI_ReplaceConversionInt(v10, feederID_4a);
+                                            Dvar_SetString((dvar_s*)ui_browserPlayerCount, v11);
                                             CountByType = LiveGroups_GetCountByType(SERVER_GROUP_RANKED);
-                                            v12 = LiveGroups_GetCountByType(SERVER_GROUP_UNRANKED) + CountByType;
-                                            feederID_4b = LiveGroups_GetCountByType(SERVER_GROUP_WAGER) + v12;
-                                            v13 = UI_SafeTranslateString("PLATFORM_ALL_SERVERS");
-                                            v14 = UI_ReplaceConversionInt(v13, feederID_4b);
-                                            Dvar_SetString((dvar_s *)ui_browserDedicatedServerCount, v14);
+                                            v13 = LiveGroups_GetCountByType(SERVER_GROUP_UNRANKED) + CountByType;
+                                            feederID_4b = LiveGroups_GetCountByType(SERVER_GROUP_WAGER) + v13;
+                                            v14 = UI_SafeTranslateString("PLATFORM_ALL_SERVERS");
+                                            v15 = UI_ReplaceConversionInt(v14, feederID_4b);
+                                            Dvar_SetString((dvar_s*)ui_browserDedicatedServerCount, v15);
                                         }
                                     }
                                     else
                                     {
-                                        v8 = va(
-                                                     "callvote g_gametype %s\n",
-                                                     (const char *)&sharedUiInfo.playerClientNums[29 * ui_netGameType->current.integer + 32]);
-                                        Cbuf_AddText(localClientNum, v8);
+                                        v9 = va(
+                                            "callvote g_gametype %s\n",
+                                            sharedUiInfo.gameTypes[ui_netGameType->current.integer].gameType);
+                                        Cbuf_AddText(localClientNum, v9);
                                     }
                                 }
-                                else if ( ui_currentNetMap->current.integer >= 0
-                                             && ui_currentNetMap->current.integer < sharedUiInfo.mapCount )
+                                else if (ui_currentNetMap->current.integer >= 0
+                                    && ui_currentNetMap->current.integer < sharedUiInfo.mapCount)
                                 {
-                                    v7 = va("callvote map %s\n", &sharedUiInfo.mapList[ui_currentNetMap->current.integer].mapName[28]);
-                                    Cbuf_AddText(localClientNum, v7);
+                                    v8 = va("callvote map %s\n", sharedUiInfo.mapList[ui_currentNetMap->current.integer].mapLoadName);
+                                    Cbuf_AddText(localClientNum, v8);
                                 }
                             }
-                            else if ( String_Parse((const char **)args, v39, 1024)
-                                         && String_Parse((const char **)args, dvarName, 1024) )
+                            else if (String_Parse((const char **)args, v40, 1024)
+                                && String_Parse((const char **)args, dvarName, 1024))
                             {
                                 feederID_4 = Dvar_GetString(dvarName);
-                                String = Dvar_GetString(v39);
-                                v6 = va("callvote typemap %s %s\n", String, feederID_4);
-                                Cbuf_AddText(localClientNum, v6);
+                                String = Dvar_GetString(v40);
+                                v7 = va("callvote typemap %s %s\n", String, feederID_4);
+                                Cbuf_AddText(localClientNum, v7);
                             }
                         }
                         else
                         {
-                            v4 = va(
-                                         "callvote typemap %s %s\n",
-                                         (const char *)&sharedUiInfo.playerClientNums[29 * ui_netGameType->current.integer + 32],
-                                         &sharedUiInfo.mapList[ui_currentNetMap->current.integer].mapName[28]);
-                            Cbuf_AddText(localClientNum, v4);
+                            v5 = va(
+                                "callvote typemap %s %s\n",
+                                sharedUiInfo.gameTypes[ui_netGameType->current.integer].gameType,
+                                sharedUiInfo.mapList[ui_currentNetMap->current.integer].mapLoadName);
+                            Cbuf_AddText(localClientNum, v5);
                         }
                     }
                     else
                     {
                         UI_LoadMods();
-                        sharedUiInfo.modCount = 0;
+                        sharedUiInfo.modIndex = 0;
                     }
                 }
                 else
@@ -1515,17 +1549,18 @@ void __cdecl UI_RunMenuScript(int localClientNum, int contextIndex, __int64 args
             }
             else
             {
-LABEL_25:
-                //BLOPS_NULLSUB();
+            LABEL_25:
+                ;
+                //BG_EvalVehicleName();
             }
         }
-        else if ( String_Parse((const char **)args, v40, 1024) )
+        else if (String_Parse((const char **)args, v41, 1024))
         {
             Com_PrintError(13, "Fixme krassi: openurl\n ");
         }
         else
         {
-            Com_PrintError(13, "openurl invalid argument %s\n ", v24);
+            Com_PrintError(13, "openurl invalid argument %s\n ", v25);
         }
     }
 }
@@ -1736,6 +1771,7 @@ double __cdecl UI_GetBlurRadius(int localClientNum)
     return uiInfo->uiDC.blurRadiusOut;
 }
 
+char errorString[1024];
 char *__cdecl UI_SafeTranslateString(const char *reference)
 {
     char v2; // [esp+3h] [ebp-11h]
@@ -1750,7 +1786,7 @@ char *__cdecl UI_SafeTranslateString(const char *reference)
     }
     else
     {
-        translation = SEH_StringEd_GetString(reference);
+        translation = SEH_StringEd_GetString((char*)reference);
     }
     if ( !translation )
     {
@@ -1853,7 +1889,7 @@ void __cdecl UI_ReplaceConversions(
                 char *outputString,
                 int outputStringSize)
 {
-    int v4; // eax
+    char *v4; // eax
     signed int v5; // [esp+0h] [ebp-38h]
     int argIndex; // [esp+24h] [ebp-14h]
     int argStringIndex; // [esp+28h] [ebp-10h]
@@ -1884,7 +1920,8 @@ void __cdecl UI_ReplaceConversions(
             }
             if ( sourceString )
             {
-                strstr((unsigned __int8 *)sourceString, AMPERSAND_2X);
+                //strstr((unsigned __int8 *)sourceString, AMPERSAND_2X);
+                v4 = strstr(sourceString, "&&");
                 if ( v4 )
                 {
                     if ( !arguments
@@ -1924,7 +1961,7 @@ void __cdecl UI_ReplaceConversions(
                                 index = 0;
                                 while ( index < sourceStringLength )
                                 {
-                                    if ( !strncmp(&sourceString[index], AMPERSAND_2X, 2u) && isdigit(sourceString[index + 2]) )
+                                    if ( !strncmp(&sourceString[index], "&&", 2u) && isdigit(sourceString[index + 2]))
                                     {
                                         argIndex = sourceString[index + 2] - 49;
                                         if ( (argIndex < 0 || argIndex >= arguments->argCount)
@@ -2028,7 +2065,7 @@ bool __cdecl Menu_IsMenuOpenAndVisible(int localClientNum, const char *menuName)
     if ( !menu )
         return 0;
     if ( Menus_MenuIsInStack(&uiInfo->uiDC, menu) )
-        return Menu_IsVisible((GenericEventHandler *)&savedregs, localClientNum, &uiInfo->uiDC, menu) != 0;
+        return Menu_IsVisible(localClientNum, &uiInfo->uiDC, menu) != 0;
     return 0;
 }
 
@@ -2086,8 +2123,8 @@ void __cdecl UI_CloseInGameMenu(int localClientNum)
 void __cdecl UI_UpdatePendingPings(uiInfo_s *uiInfo)
 {
     LAN_ResetPings(ui_netSource->current.integer);
-    *(unsigned int *)&sharedUiInfo.gap0[1120] = 1;
-    *(unsigned int *)&sharedUiInfo.gap0[1100] = uiInfo->uiDC.realTime + 1000;
+    sharedUiInfo.serverStatus.refreshActive = 1;
+    sharedUiInfo.serverStatus.refreshtime = uiInfo->uiDC.realTime + 1000;
 }
 
 int __cdecl UI_CheckExecKey(int localClientNum, int key)
@@ -2115,47 +2152,47 @@ int __cdecl UI_CheckExecKey(int localClientNum, int key)
 int __cdecl UI_OwnerDrawWidth(int ownerDraw, Font_s *font, float scale)
 {
     const char *NetSources; // eax
-    const char *v4; // eax
+    char *v5; // eax
     const char **ServerFilter; // eax
-    const char *v6; // eax
-    const char *v7; // eax
+    char *v7; // eax
+    char *v8; // eax
     int filter; // [esp+8h] [ebp-Ch] BYREF
     const char *s; // [esp+10h] [ebp-4h]
 
     s = 0;
-    switch ( ownerDraw )
+    switch (ownerDraw)
     {
-        case 206:
-            s = &sharedUiInfo.gameTypes[ui_netGameTypeName->current.integer].gameType[8];
-            break;
-        case 220:
-            if ( ui_netSource->current.integer > sharedUiInfo.gameTypeMapCount[31] )
-                Dvar_SetInt((dvar_s *)ui_netSource, 0);
-            NetSources = UI_GetNetSources(ui_netSource->current.unsignedInt);
-            v4 = va(aExeNetsource, NetSources);
-            s = SEH_LocalizeTextMessage(v4, "net source", LOCMSG_SAFE);
-            break;
-        case 222:
-            if ( (unsigned int)ui_serverFilterType >= 2 )
-                ui_serverFilterType = 0;
-            ServerFilter = UI_GetServerFilter((const char **)&filter, ui_serverFilterType);
-            v6 = va(aExeServerfilte, *ServerFilter);
-            s = SEH_LocalizeTextMessage(v6, "server filter", LOCMSG_SAFE);
-            break;
-        case 247:
-            v7 = va("ui_lastServerRefresh_%i", ui_netSource->current.integer);
-            s = Dvar_GetVariantString(v7);
-            break;
-        case 250:
-            if ( Display_KeyBindPending() )
-                s = UI_SafeTranslateString("EXE_KEYWAIT");
-            else
-                s = UI_SafeTranslateString("EXE_KEYCHANGE");
-            break;
-        default:
-            break;
+    case 206:
+        s = sharedUiInfo.gameTypes[ui_netGameTypeName->current.integer].gameTypeName;
+        break;
+    case 220:
+        if (ui_netSource->current.integer > sharedUiInfo.numJoinGameTypes)
+            Dvar_SetInt((dvar_s*)ui_netSource, 0);
+        NetSources = UI_GetNetSources(ui_netSource->current.unsignedInt);
+        v5 = va("EXE_NETSOURCE %s", NetSources);
+        s = SEH_LocalizeTextMessage(v5, "net source", LOCMSG_SAFE);
+        break;
+    case 222:
+        if ((unsigned int)ui_serverFilterType >= 2)
+            ui_serverFilterType = 0;
+        ServerFilter = UI_GetServerFilter((const char **)&filter, ui_serverFilterType);
+        v7 = va("EXE_SERVERFILTER %s", *ServerFilter);
+        s = SEH_LocalizeTextMessage(v7, "server filter", LOCMSG_SAFE);
+        break;
+    case 247:
+        v8 = va("ui_lastServerRefresh_%i", ui_netSource->current.integer);
+        s = Dvar_GetVariantString(v8);
+        break;
+    case 250:
+        if (Display_KeyBindPending())
+            s = UI_SafeTranslateString("EXE_KEYWAIT");
+        else
+            s = UI_SafeTranslateString("EXE_KEYCHANGE");
+        break;
+    default:
+        break;
     }
-    if ( s )
+    if (s)
         return UI_TextWidth(s, 0, font, scale);
     else
         return 0;
@@ -2384,7 +2421,7 @@ void __cdecl UI_OwnerDraw(
             UI_DrawEmblemIconThumbnail(contextIndex, &rect, color);
             break;
         case 350:
-            UI_DrawEmblemColors(contextIndex, &rect, color);
+            UI_DrawEmblemColors(contextIndex, &rect);
             break;
         case 352:
             UI_DrawPlayerEmblem(localClientNum, contextIndex, item, &rect, color);
@@ -2966,7 +3003,7 @@ void __cdecl UI_DrawPlaylistDescription(
     partyMemberCount = 1;
     Prestige = LiveStats_GetPrestige(localControllerIndex);
     Xp = LiveStats_GetXp(localControllerIndex);
-    lockState = Playlist_IsLocked(localControllerIndex, playlistId, Xp, Prestige, 0, 1);
+    lockState = (PlaylistLockState)Playlist_IsLocked(localControllerIndex, playlistId, Xp, Prestige, 0, 1);
     switch ( lockState )
     {
         case PLS_UNLOCKED:
@@ -3237,7 +3274,7 @@ void __cdecl UI_InitOnceForAllClients()
     UI_InitUIInfos();
     if ( useFastFile->current.enabled )
         DB_ResetZoneSize(0);
-    if ( !G_ExitAfterConnectPaths() && !useFastFile->current.enabled )
+    //if ( !G_ExitAfterConnectPaths() && !useFastFile->current.enabled )
         //BLOPS_NULLSUB();
     String_Init();
     UI_RegisterDvars();
@@ -3364,8 +3401,8 @@ void UI_RegisterDvars()
                                                          "Time in milliseconds before a server status request times out");
     ui_buildLocation = _Dvar_RegisterVec2(
                                              "ui_buildLocation",
-                                             COERCE_UNSIGNED_INT(16.0),
-                                             COERCE_UNSIGNED_INT(0.0),
+                                             (16.0),
+                                             (0.0),
                                              -10000.0,
                                              10000.0,
                                              0,
@@ -3476,10 +3513,10 @@ void UI_RegisterDvars()
                                                          "Shows cinematics timestamp on subtitle UI elements.");
     ui_connectScreenTextGlowColor = _Dvar_RegisterVec4(
                                                                         "ui_connectScreenTextGlowColor",
-                                                                        COERCE_UNSIGNED_INT(0.0),
-                                                                        COERCE_UNSIGNED_INT(0.0),
-                                                                        COERCE_UNSIGNED_INT(0.0),
-                                                                        COERCE_UNSIGNED_INT(1.0),
+                                                                        (0.0),
+                                                                        (0.0),
+                                                                        (0.0),
+                                                                        (1.0),
                                                                         0.0,
                                                                         1.0,
                                                                         0,
@@ -3604,6 +3641,7 @@ char __cdecl UI_KeyEvent_AutoJoinButtonPressed(int localClientNum, UiContext *dc
     return 0;
 }
 
+int bypassKeyClear;
 void __cdecl UI_KeyEvent(int localClientNum, int key, int down)
 {
     connstate_t connstate; // [esp+0h] [ebp-Ch]
@@ -3624,7 +3662,7 @@ void __cdecl UI_KeyEvent(int localClientNum, int key, int down)
         if ( UI_KeyEvent_AutoJoinButtonPressed(localClientNum, &uiInfo->uiDC, menu, key, down) )
             Live_AcceptLastInvite_f();
         if ( Key_IsCatcherActive(localClientNum, 336) )
-            Menu_HandleKey((int)&savedregs, localClientNum, &uiInfo->uiDC, menu, key, down);
+            Menu_HandleKey(localClientNum, &uiInfo->uiDC, menu, key, down);
         if ( !Menu_GetFocused(&uiInfo->uiDC) )
         {
 LABEL_24:
@@ -3803,7 +3841,7 @@ void __cdecl UI_DrawMapLevelshot(int localClientNum)
         if ( g_showLoadingScreenMenu )
         {
             if ( useFastFile->current.enabled )
-                menua = DB_FindXAssetHeader(ASSET_TYPE_MENU, "connect", 1, -1).menu;
+                menua = DB_FindXAssetHeader(ASSET_TYPE_MENU, (char*)"connect", 1, -1).menu;
             else
                 menua = Menus_FindByName(&uiInfo->uiDC, "connect");
         }
@@ -3818,7 +3856,6 @@ void __cdecl UI_DrawMapLevelshot(int localClientNum)
             uiInfo->uiDC.blurRadiusOut = 0.0f;
             Window_SetDynamicFlags(contextIndex, &menua->window, 16388);
             Menu_Paint(
-                (GenericEventHandler *)&savedregs,
                 localClientNum,
                 &uiInfo->uiDC,
                 0,

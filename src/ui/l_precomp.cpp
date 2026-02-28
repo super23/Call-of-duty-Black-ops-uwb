@@ -1,4 +1,58 @@
 #include "l_precomp.h"
+#include <qcommon/common.h>
+#include "l_memory.h"
+#include <time.h>
+
+struct directive_s // sizeof=0x8
+{                                       // XREF: .rdata:directives/r
+    const char *name;                         // XREF: PC_ReadDirective(source_s *)+92/r
+    int (__cdecl *func)(source_s *);    // XREF: PC_ReadDirective(source_s *)+141/r
+};
+
+const directive_s directives[15] =
+{
+  { "if", &PC_Directive_if },
+  { "ifdef", &PC_Directive_ifdef },
+  { "ifndef", &PC_Directive_ifndef },
+  { "elif", &PC_Directive_elif },
+  { "else", &PC_Directive_else },
+  { "endif", &PC_Directive_endif },
+  { "include", &PC_Directive_include },
+  { "define", &PC_Directive_define },
+  { "undef", &PC_Directive_undef },
+  { "line", &PC_Directive_line },
+  { "error", &PC_Directive_error },
+  { "pragma", &PC_Directive_pragma },
+  { "eval", &PC_Directive_eval },
+  { "evalfloat", &PC_Directive_evalfloat },
+  { NULL, NULL }
+};
+
+directive_s dollardirectives[20] =
+{
+  { "evalint", &PC_DollarDirective_evalint },
+  { "evalfloat", &PC_DollarDirective_evalfloat },
+  { NULL, NULL },
+  { NULL, NULL },
+  { NULL, NULL },
+  { NULL, NULL },
+  { NULL, NULL },
+  { NULL, NULL },
+  { NULL, NULL },
+  { NULL, NULL },
+  { NULL, NULL },
+  { NULL, NULL },
+  { NULL, NULL },
+  { NULL, NULL },
+  { NULL, NULL },
+  { NULL, NULL },
+  { NULL, NULL },
+  { NULL, NULL },
+  { NULL, NULL },
+  { NULL, NULL }
+};
+
+source_s *sourceFiles[64];
 
 void __cdecl PrintSourceStack(const script_s *scriptstack)
 {
@@ -8,7 +62,7 @@ void __cdecl PrintSourceStack(const script_s *scriptstack)
         Com_PrintWarning(24, "    From file %s, line %d\n", scriptstacka->filename, scriptstacka->line);
 }
 
-void SourceError(source_s *source, char *str, ...)
+void SourceError(source_s *source, const char *str, ...)
 {
     char text[1028]; // [esp+4h] [ebp-408h] BYREF
     va_list va; // [esp+41Ch] [ebp+10h] BYREF
@@ -19,7 +73,7 @@ void SourceError(source_s *source, char *str, ...)
     PrintSourceStack(source->scriptstack);
 }
 
-void SourceWarning(source_s *source, char *str, ...)
+void SourceWarning(source_s *source, const char *str, ...)
 {
     char text[1028]; // [esp+4h] [ebp-408h] BYREF
     va_list va; // [esp+41Ch] [ebp+10h] BYREF
@@ -43,7 +97,7 @@ void __cdecl PC_PushScript(source_s *source, script_s *script)
     {
         if ( !I_stricmp(s->filename, script->filename) )
         {
-            SourceError(source, "%s recursively included", script->filename);
+            SourceError(source, (char*)"%s recursively included", script->filename);
             return;
         }
     }
@@ -51,6 +105,7 @@ void __cdecl PC_PushScript(source_s *source, script_s *script)
     source->scriptstack = script;
 }
 
+int numtokens;
 token_s *__cdecl PC_CopyToken(token_s *token)
 {
     unsigned int *t; // [esp+8h] [ebp-4h]
@@ -91,7 +146,7 @@ int __cdecl PC_ReadSourceToken(source_s *source, token_s *token)
         {
             while ( source->indentstack && source->indentstack->script == source->scriptstack )
             {
-                SourceWarning(source, "missing #endif");
+                SourceWarning(source, (char*)"missing #endif");
                 PC_PopIndent(source, &type, &skip);
             }
         }
@@ -906,7 +961,7 @@ define_s *__cdecl PC_DefineFromString(char *string)
 
     script = LoadScriptMemory(string, strlen(string), "*extern");
     memset((unsigned __int8 *)&src, 0, sizeof(src));
-    strncpy((unsigned __int8 *)&src, "*extern", 0x40u);
+    strncpy((char *)&src, "*extern", 0x40u);
     src.scriptstack = script;
     src.definehash = (define_s **)GetClearedMemory(0x1000u);
     res = PC_Directive_define(&src);
@@ -999,6 +1054,7 @@ define_s *__cdecl PC_CopyDefine(source_s *source, define_s *define)
     return (define_s *)newdefine;
 }
 
+define_s *globaldefines;
 void __cdecl PC_AddGlobalDefinesToSource(source_s *source)
 {
     define_s *newdefine; // [esp+0h] [ebp-8h]
@@ -1774,7 +1830,7 @@ int __cdecl PC_Directive_elif(source_s *source)
         if ( PC_Evaluate(source, &value, 0, 1) )
         {
             if ( skip == SKIP_YES )
-                skip = value == 0;
+                skip = (parseSkip_t)(value == 0);
             else
                 skip = SKIP_ALL_ELIFS;
             PC_PushIndent(source, 4, skip);
@@ -1966,7 +2022,7 @@ int __cdecl PC_Directive_evalfloat(source_s *source)
 {
     float v2; // xmm0_4
     token_s token; // [esp+Ch] [ebp-440h] BYREF
-    double value; // [esp+444h] [ebp-8h] BYREF
+    long double value; // [esp+444h] [ebp-8h] BYREF
 
     if ( !PC_Evaluate(source, 0, &value, 0) )
         return 0;
@@ -2069,16 +2125,16 @@ int __cdecl PC_ReadDollarDirective(source_s *source)
     token_s token; // [esp+14h] [ebp-438h] BYREF
     int i; // [esp+448h] [ebp-4h]
 
-    if ( PC_ReadSourceToken(source, &token) )
+    if (PC_ReadSourceToken(source, &token))
     {
-        if ( token.linescrossed <= 0 )
+        if (token.linescrossed <= 0)
         {
-            if ( token.type == 4 )
+            if (token.type == 4)
             {
-                for ( i = 0; dollardirectives[i].name; ++i )
+                for (i = 0; dollardirectives[i].name; ++i)
                 {
-                    if ( !strcmp(dollardirectives[i].name, token.string) )
-                        return (*(&off_E02494 + 2 * i))(source);
+                    if (!strcmp(dollardirectives[i].name, token.string))
+                        return dollardirectives[i].func(source);
                 }
             }
             PC_UnreadSourceToken(source, &token);
@@ -2190,8 +2246,8 @@ source_s *__cdecl LoadSourceFile(char *filename)
         return 0;
     script->next = 0;
     source = (source_s *)GetMemory(0x4D0u);
-    memset((unsigned __int8 *)source, 0, sizeof(source_s));
-    strncpy((unsigned __int8 *)source, (unsigned __int8 *)filename, 0x40u);
+    memset(source, 0, sizeof(source_s));
+    strncpy((char*)source, filename, 0x40u);
     source->scriptstack = script;
     source->tokens = 0;
     source->defines = 0;
