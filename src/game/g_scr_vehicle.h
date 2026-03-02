@@ -552,3 +552,5 @@ void __cdecl G_VehSetClientSideGunOverheating(gentity_s *const ent, unsigned int
 
 extern int bg_numVehicleInfos;
 extern vehicle_info_t bg_vehicleInfos[32];
+
+extern unsigned __int16 *s_wheelTags[6];

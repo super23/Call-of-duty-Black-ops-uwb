@@ -1,16 +1,19 @@
 #include "nitrous_vehicle_constraint.h"
+#include <cgame/cg_drawtools.h>
+#include <universal/com_math_anglevectors.h>
+#include <physics/physics_system.h>
 
 void    path_constraint_update(rigid_body_constraint_custom_path *vpc, gentity_s *veh)
 {
     float v3[9]; // [esp+58h] [ebp-38h] BYREF
     phys_mat44 *p_m_path_mat; // [esp+7Ch] [ebp-14h]
     scr_vehicle_s *scr_vehicle; // [esp+80h] [ebp-10h]
-    int v6; // [esp+84h] [ebp-Ch]
-    void *v7; // [esp+88h] [ebp-8h]
-    void *retaddr; // [esp+90h] [ebp+0h]
-
-    v6 = a1;
-    v7 = retaddr;
+    //int v6; // [esp+84h] [ebp-Ch]
+    //void *v7; // [esp+88h] [ebp-8h]
+    //void *retaddr; // [esp+90h] [ebp+0h]
+    //
+    //v6 = a1;
+    //v7 = retaddr;
     if ( vpc && veh && veh->scr_vehicle && veh->scr_vehicle->nitrousVehicle )
     {
         scr_vehicle = veh->scr_vehicle;
@@ -55,7 +58,7 @@ void    path_constraint_update(rigid_body_constraint_custom_path *vpc, gentity_s
     }
 }
 
-rigid_body_constraint_custom_path * path_constraint_create@<eax>(int a1@<ebp>, gentity_s *veh)
+rigid_body_constraint_custom_path * path_constraint_create(gentity_s *veh)
 {
     float v3[9]; // [esp-50h] [ebp-68h] BYREF
     phys_mat44 *p_m_path_mat; // [esp-2Ch] [ebp-44h]
@@ -64,17 +67,17 @@ rigid_body_constraint_custom_path * path_constraint_create@<eax>(int a1@<ebp>, g
     float v7; // [esp-20h] [ebp-38h]
     float v8; // [esp-1Ch] [ebp-34h]
     rigid_body_constraint_custom_path *v9; // [esp-Ch] [ebp-24h]
-    user_rigid_body *user_rigid_body; // [esp-8h] [ebp-20h]
+    user_rigid_body *user_rb; // [esp-8h] [ebp-20h]
     environment_rigid_body *b1; // [esp-4h] [ebp-1Ch]
     rigid_body_constraint_custom_path *rbc_custom_path; // [esp+0h] [ebp-18h]
     user_rigid_body *urb; // [esp+4h] [ebp-14h]
     rigid_body *rb; // [esp+8h] [ebp-10h]
-    int v15; // [esp+Ch] [ebp-Ch]
-    void *v16; // [esp+10h] [ebp-8h]
-    void *retaddr; // [esp+18h] [ebp+0h]
-
-    v15 = a1;
-    v16 = retaddr;
+    //int v15; // [esp+Ch] [ebp-Ch]
+    //void *v16; // [esp+10h] [ebp-8h]
+    //void *retaddr; // [esp+18h] [ebp+0h]
+    //
+    //v15 = a1;
+    //v16 = retaddr;
     if ( !veh
         && _tlAssert(
                  "C:\\projects_pc\\cod\\codsrc\\src\\vehicle\\nitrous_vehicle_constraint.cpp",
@@ -124,9 +127,10 @@ rigid_body_constraint_custom_path * path_constraint_create@<eax>(int a1@<ebp>, g
     }
     rbc_custom_path = (rigid_body_constraint_custom_path *)veh->scr_vehicle->nitrousVehicle->m_phys_user_data;
     b1 = (environment_rigid_body *)rbc_custom_path->b1;
-    user_rigid_body = phys_sys::create_user_rigid_body(0);
-    user_rigid_body::set(user_rigid_body, 0);
-    v9 = phys_sys::create_rbc_custom_path(b1, (environment_rigid_body *)user_rigid_body, 0);
+    user_rb = phys_sys::create_user_rigid_body(0);
+    //user_rigid_body::set(user_rb, 0);
+    user_rb->set(0);
+    v9 = phys_sys::create_rbc_custom_path(b1, (environment_rigid_body *)user_rb, 0);
     if ( !v9
         && _tlAssert(
                  "C:\\projects_pc\\cod\\codsrc\\src\\vehicle\\nitrous_vehicle_constraint.cpp",
@@ -147,8 +151,9 @@ rigid_body_constraint_custom_path * path_constraint_create@<eax>(int a1@<ebp>, g
     AnglesToAxis(veh->r.currentAngles, (float (*)[3])v3);
     Phys_AxisToNitrousMat((float (*)[3])v3, p_m_path_mat);
     Phys_Vec3ToNitrousVec(veh->r.currentOrigin, &p_m_path_mat->w);
-    v9->m_urb = user_rigid_body;
-    user_rigid_body::set(v9->m_urb, &v9->m_path_mat);
+    v9->m_urb = user_rb;
+    //user_rb::set(v9->m_urb, &v9->m_path_mat);
+    v9->m_urb->set(&v9->m_path_mat);
     return v9;
 }
 

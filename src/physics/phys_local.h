@@ -135,6 +135,15 @@ struct phys_vec3 // sizeof=0x10
         return x >= v.x && y >= v.y && z >= v.z;
     }
 
+    inline phys_vec3 operator*(const float mul)
+    {
+        phys_vec3 r;
+        r.x = x * mul;
+        r.y = y * mul;
+        r.z = z * mul;
+        return r;
+    }
+
     inline phys_vec3 operator+(const phys_vec3 &other)
     {
         phys_vec3 r;

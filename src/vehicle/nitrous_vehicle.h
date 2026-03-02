@@ -368,11 +368,17 @@ struct NitrousVehicle // sizeof=0x440
         int curTime,
         bool isDriver);
 
+
+    // nitrous_vehicle_effects
+    void _update_wheel_effect_states(float delta_t);
+    double debug_render_wheel_effects(int wheel);
+    void debug_render_effects();
+
     WheelState m_wheel_state[4];
     phys_mat44 m_wheel_orig_relpo[6];
     int m_wheel_damage[6];
     int m_wheel_surf_types[6];
-    const VehicleParameter *m_parameter;
+    VehicleParameter *m_parameter;
     float m_throttle;
     float m_brake;
     float m_hand_brake;
