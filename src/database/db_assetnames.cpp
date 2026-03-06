@@ -121,7 +121,7 @@ void(__cdecl *DB_XAssetSetNameHandler[43])(XAssetHeader *, const char *) =
   &DB_DDLSetname,
   &DB_DDLSetname,
   &DB_DDLSetname,
-  &DB_ImageSetName,
+  (void(*)(XAssetHeader*, const char*))&DB_ImageSetName,
   &DB_DDLSetname,
   NULL,
   &DB_DDLSetname,

@@ -1,5 +1,7 @@
 #pragma once
 
+struct XBlock;
+
 void __cdecl DB_AllocXBlocks(
                 unsigned int *blockSize,
                 const char *filename,

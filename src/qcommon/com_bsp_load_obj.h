@@ -115,10 +115,7 @@ struct DiskBurnableSample // sizeof=0x1
     unsigned __int8 state;
 };
 
-struct ComBurnableSample // sizeof=0x1
-{
-    unsigned __int8 state;
-};
+struct ComBurnableSample;
 
 struct DiskPrimaryLight_Version16 // sizeof=0x60
 {

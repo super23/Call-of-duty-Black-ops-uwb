@@ -24,6 +24,18 @@
 #include <gfx_d3d/r_staticmodelcache.h>
 #include <qcommon/dobj_management.h>
 #include <EffectsCore/fx_update.h>
+#include <gfx_d3d/r_extracam.h>
+#include <sound/snd_bank.h>
+#include <physics/physconstraints_load_obj.h>
+#include "db_load.h"
+#include <qcommon/cm_load_obj.h>
+#include <stringed/stringed_hooks.h>
+#include <glass/glass.h>
+#include <cgame/cg_effects_load_obj.h>
+#include <gfx_d3d/r_image.h>
+#include <game/g_bsp.h>
+#include <qcommon/com_bsp.h>
+
 
 #define POOLSIZE_XMODELPIECES      64
 #define POOLSIZE_PHYSPRESET        64
@@ -169,6 +181,9 @@ XAssetHeader __cdecl node_pos(void *pool)
     return (XAssetHeader)pool;
 }
 
+void __cdecl DB_FreeXAssetHeader_EmblemSet_(XAssetPoolEntry<EmblemSet> **pool, XAssetHeader header);
+XAssetHeader __cdecl DB_AllocXAsset_EmblemSet_(void *arg);
+
 XAssetHeader(__cdecl *DB_AllocXAssetHeaderHandler[43])(void *) =
 {
   DB_AllocXAsset_EmblemSet_,
@@ -299,6 +314,7 @@ static void FREE_NULLSUB(void *, XAssetHeader)
 
 }
 
+
 // casting all cuz it's easier
 void(__cdecl *DB_FreeXAssetHeaderHandler[43])(void *, XAssetHeader) =
 {
@@ -394,7 +410,10 @@ const char *g_defaultAssetName[43] =
   ""
 };
 
-static void CLONE_NULLSUB(const XAssetHeader, XAssetHeader, DBCloneMethod);
+static void CLONE_NULLSUB(const XAssetHeader, XAssetHeader, DBCloneMethod)
+{
+
+}
 
 void(__cdecl *DB_DynamicCloneXAssetHandler[43])(const XAssetHeader, XAssetHeader, DBCloneMethod) =
 {
@@ -1633,34 +1652,44 @@ void DB_EndReorderZone()
     }
 }
 
-char __cdecl DB_CompareReorderEntries(const DBReorderAssetEntry *e0, const DBReorderAssetEntry *e1)
+char __cdecl DB_CompareReorderEntries(const DBReorderAssetEntry &e0, const DBReorderAssetEntry &e1)
 {
-    int comparison; // [esp+0h] [ebp-4h]
+    int comparison;
 
-    if ( e0->sequence != e1->sequence )
-        return e0->sequence < e1->sequence;
-    if ( e0->type == 43 )
+    if (e0.sequence != e1.sequence)
+        return e0.sequence < e1.sequence;
+
+    if (e0.type == 43)
     {
-        if ( e1->type != 43 )
-            return 1;
-        comparison = _stricmp(e0->typeString, e1->typeString);
-        if ( comparison )
+        if (e1.type != 43)
+            return true;
+
+        comparison = _stricmp(e0.typeString, e1.typeString);
+        if (comparison)
             return comparison < 0;
-        return _stricmp(e0->assetName, e1->assetName) < 0;
+
+        return _stricmp(e0.assetName, e1.assetName) < 0;
     }
-    if ( e1->type == 43 )
-        return 0;
-    if ( e0->type == e1->type )
-        return _stricmp(e0->assetName, e1->assetName) < 0;
-    if ( e0->sequence != -1 )
-        return e0->type < e1->type;
-    if ( e0->type == 9 )
-        return 1;
-    if ( e1->type == 9 )
-        return 0;
-    if ( e0->type == 23 )
-        return 1;
-    return e1->type != 23 && e0->type < e1->type;
+
+    if (e1.type == 43)
+        return false;
+
+    if (e0.type == e1.type)
+        return _stricmp(e0.assetName, e1.assetName) < 0;
+
+    if (e0.sequence != -1)
+        return e0.type < e1.type;
+
+    if (e0.type == 9)
+        return true;
+
+    if (e1.type == 9)
+        return false;
+
+    if (e0.type == 23)
+        return true;
+
+    return e1.type != 23 && e0.type < e1.type;
 }
 
 void DB_SetReorderIncludeSequence()
@@ -3927,7 +3956,7 @@ void __cdecl DB_AddReorderAsset(const char *typeString, const char *assetName)
         ;
     if ( type == 24 )
     {
-        if ( strnicmp(assetName, "mp/", 3u)
+        if ( I_strnicmp(assetName, "mp/", 3u)
             && !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\database\\db_registry.cpp",
                         2350,
@@ -4873,7 +4902,8 @@ char *__cdecl DB_ReferencedFFChecksums()
             {
                 if ( g_zoneNameList[0] )
                     I_strncat(g_zoneNameList, 2080, " ");
-                itoa(g_zoneNames[i].fileSize, zoneSizeStr, 0xAu);
+                //itoa(g_zoneNames[i].fileSize, zoneSizeStr, 0xAu);
+                I_itoa(g_zoneNames[i].fileSize, zoneSizeStr, 0xAu);
                 I_strncat(g_zoneNameList, 2080, zoneSizeStr);
             }
         }

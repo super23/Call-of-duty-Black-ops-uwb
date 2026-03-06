@@ -3,6 +3,7 @@
 #include "db_registry.h"
 #include <universal/physicalmemory.h>
 #include <universal/com_memory.h>
+#include <qcommon/common.h>
 
 const char *g_block_mem_name[7] =
 {

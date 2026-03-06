@@ -93,6 +93,10 @@ union XAssetEntryPoolEntry // sizeof=0x10
 {                                       // XREF: DB_Init+AB/w
     XAssetEntry entry;
     XAssetEntryPoolEntry *next;
+
+    XAssetEntryPoolEntry()
+    {
+    }
 };
 
 struct XBlock // sizeof=0x8
@@ -150,6 +154,9 @@ struct SndBank;
 struct SndPatch;
 struct ComWorld;
 struct GameWorldSp;
+struct GameWorldMp;
+struct MapEnts;
+struct clipMap_t;
 
 void __cdecl DB_InitSingleton(void *pool, int size);
 void __cdecl Load_PhysPresetAsset(XAssetHeader *physPreset);
@@ -226,7 +233,7 @@ void __cdecl Load_GlassesAsset(XAssetHeader *glasses);
 void __cdecl Mark_GlassesAsset(Glasses *glasses);
 void __cdecl Load_EmblemSetAsset(XAssetHeader *emblemSet);
 void __cdecl Mark_EmblemSetAsset(EmblemSet *emblemSet);
-XAssetHeader __cdecl DB_AllocMaterial(XAssetHeader *pool);
+XAssetHeader __cdecl DB_AllocMaterial(void *pool);
 void __cdecl DB_FreeMaterial(XAssetPoolEntry<EmblemSet> **pool, XAssetHeader header);
 void __cdecl DB_RemoveGfxImage(XAssetHeader header);
 void __cdecl DB_FreeGfxImage(XAssetPoolEntry<EmblemSet> **pool, XAssetHeader header);
@@ -259,7 +266,7 @@ void __cdecl DB_RegisteredReorderAsset(int type, const char *assetName, XAssetEn
 void __cdecl Sys_LockWrite(FastCriticalSection *critSect);
 void __cdecl Sys_UnlockWrite(FastCriticalSection *critSect);
 void DB_EndReorderZone();
-char __cdecl DB_CompareReorderEntries(const DBReorderAssetEntry *e0, const DBReorderAssetEntry *e1);
+char __cdecl DB_CompareReorderEntries(const DBReorderAssetEntry &e0, const DBReorderAssetEntry &e1);
 void DB_SetReorderIncludeSequence();
 char __cdecl DB_RegisterAllReorderAssetsOfType(int type, XAssetEntry *assetEntry);
 void __cdecl DB_Sleep(unsigned int msec);
