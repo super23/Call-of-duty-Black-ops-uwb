@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Windows.h>
+
 enum ThreadOwner : __int32
 {                                       // XREF: ?Sys_SuspendDiscReads@@YAXW4ThreadOwner@@@Z/r
     THREAD_OWNER_NONE       = 0x0,

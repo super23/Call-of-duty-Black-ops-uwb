@@ -1070,7 +1070,7 @@ void __cdecl Scr_EvalPrimitiveExpression(
         break;
     case 0xB:
         value->type = VAR_INTEGER;
-        value->u.intValue = -*(_DWORD *)(expr.stringValue + 4);
+        value->u.intValue = -*(int *)(expr.stringValue + 4);
         break;
     case 0xC:
         value->type = VAR_FLOAT;
@@ -1449,7 +1449,7 @@ void __cdecl Scr_GetValue(scriptInstance_t inst, unsigned int index, VariableVal
     }
     else
     {
-        v3 = &gScrVmPub[inst].top[-index];
+        v3 = &gScrVmPub[inst].top[-(int)index];
         type = v3->type;
         value->u.intValue = v3->u.intValue;
         value->type = type;

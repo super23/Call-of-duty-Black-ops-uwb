@@ -4,6 +4,7 @@
 #include "cscr_evaluate.h"
 #include <universal/com_memory.h>
 #include "cscr_vm.h"
+#include "cscr_compiler.h"
 
 HunkUser *g_allocNodeUser[2];
 
@@ -370,7 +371,8 @@ sval_u __cdecl debugger_node4(
 
 sval_u __cdecl debugger_prepend_node(scriptInstance_t inst, sval_u val1, sval_u val2)
 {
-    *(unsigned int *)val2.stringValue = *(unsigned int *)&debugger_node2(inst, 0, val1, *val2.node) + 4;
+    //*(unsigned int *)val2.stringValue = *(unsigned int *)&debugger_node2(inst, 0, val1, *val2.node) + 4;
+    *(_DWORD *)val2.type = debugger_node2(inst, ENUM_NOP, val1, (sval_u)val2.node->type).type + 4;
     return val2;
 }
 

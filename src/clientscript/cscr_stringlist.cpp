@@ -742,7 +742,7 @@ unsigned int __cdecl SL_GetStringOfSize(
     memcpy((unsigned __int8 *)refStrb->str, (unsigned __int8 *)str, len);
     //refStrb->0 = ($119B815E6C15BED54461C272BD343858)(((unsigned __int8)user << 16) | *(unsigned int *)&refStrb->0 & 0xFF00FFFF);
     refStrb->data = ((unsigned __int8)user << 16) | refStrb->data & 0xFF00FFFF;
-    iassert(refStr->user == user);
+    iassert(refStrb->user == user);
     //if ( (unsigned __int8)BYTE2(*(unsigned int *)&refStrb->0) != user
     //    && !Assert_MyHandler(
     //                "C:\\projects_pc\\cod\\codsrc\\src\\clientscript\\cscr_stringlist.cpp",

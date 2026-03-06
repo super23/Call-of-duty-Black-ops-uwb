@@ -47,16 +47,16 @@ const char *EXPR_OPERAND_NAME =
 
 const ExpressionOperatorData g_ExprOperatorList[10] =
 {
-  { 2, "+", false, EqualTypeSameResult, OP_ADD_VALUES },
-  { 2, "-", false, EqualTypeSameResult, OP_SUBTRACT_2_FROM_1 },
-  { 2, "*", false, EqualTypeAllowScalar, OP_MULTIPLY_VALUES },
-  { 2, "/", false, EqualTypeAllowScalar, OP_DIVIDE_2_FROM_1 },
-  { 0, "(", false, NULL, MAX_NUM_OPCODES },
-  { 0, ")", false, NULL, MAX_NUM_OPCODES },
-  { 2, "vec2", true, FloatsToVec, OP_CONSTRUCT_VEC2 },
-  { 3, "vec3", true, FloatsToVec, OP_CONSTRUCT_VEC3 },
-  { 2, "dot", true, VecsToFloat, OP_DOT_PRODUCT },
-  { 2, "cross", true, Vec3ToVec3, OP_CROSS_PRODUCT }
+  { 2, "+", false, EqualTypeSameResult, XExpr::MathOpcodes::OP_ADD_VALUES },
+  { 2, "-", false, EqualTypeSameResult, XExpr::MathOpcodes::OP_SUBTRACT_2_FROM_1 },
+  { 2, "*", false, EqualTypeAllowScalar, XExpr::MathOpcodes::OP_MULTIPLY_VALUES },
+  { 2, "/", false, EqualTypeAllowScalar, XExpr::MathOpcodes::OP_DIVIDE_2_FROM_1 },
+  { 0, "(", false, NULL, XExpr::MathOpcodes::MAX_NUM_OPCODES },
+  { 0, ")", false, NULL, XExpr::MathOpcodes::MAX_NUM_OPCODES },
+  { 2, "vec2", true, FloatsToVec, XExpr::MathOpcodes::OP_CONSTRUCT_VEC2 },
+  { 3, "vec3", true, FloatsToVec, XExpr::MathOpcodes::OP_CONSTRUCT_VEC3 },
+  { 2, "dot", true, VecsToFloat, XExpr::MathOpcodes::OP_DOT_PRODUCT },
+  { 2, "cross", true, Vec3ToVec3, XExpr::MathOpcodes::OP_CROSS_PRODUCT }
 };
 
 
@@ -67,7 +67,7 @@ struct StandardParams // sizeof=0x8
 };
 
 StandardParams g_stdParamList[1] =
-{ { "currTimeSec", NUMBER } };
+{ { "currTimeSec", XExpr::MathTypes::NUMBER } };
 
 
 using namespace XExpr;

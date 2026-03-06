@@ -20,12 +20,7 @@ struct SaveSourceBufferInfo // sizeof=0x8
     int len;
 };
 
-struct Scr_SourcePos_t // sizeof=0xC
-{                                       // XREF: scrDebuggerGlob_t/r
-    unsigned int bufferIndex;           // XREF: Scr_ResumeBreakpoints+1D/w
-    int lineNum;                        // XREF: Scr_SetTempBreakpoint+86/r
-    unsigned int sourcePos;             // XREF: Scr_GetCodePos(scriptInstance_t,char const *,uint,char *,int)+96/r
-};
+struct Scr_SourcePos_t;
 
 struct __declspec(align(4)) SourceBufferInfo // sizeof=0x18
 {

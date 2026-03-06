@@ -997,7 +997,7 @@ void __cdecl Scr_NotifyNum_Internal(
         __debugbreak();
     }
     Scr_ClearOutParams(inst);
-    startTop = &gScrVmPub[inst].top[-paramcount];
+    startTop = &gScrVmPub[inst].top[-(int)paramcount];
     paramcounta = gScrVmPub[inst].inparamcount - paramcount;
     id = FindEntityId(inst, entnum, classnum, clientNum);
     if (id)
@@ -2052,7 +2052,7 @@ unsigned int __cdecl VM_Execute(scriptInstance_t inst, unsigned int localId, cha
         __debugbreak();
     }
     Scr_ClearOutParams(inst);
-    startTop = &gScrVmPub[inst].top[-paramcount];
+    startTop = &gScrVmPub[inst].top[-(int)paramcount];
     paramcounta = gScrVmPub[inst].inparamcount - paramcount;
     if (gScrVmPub[inst].function_count >= 30)
     {
@@ -2908,7 +2908,7 @@ VariableUnion __cdecl Scr_GetInt(unsigned int index, scriptInstance_t inst)
 
     if (index < gScrVmPub[inst].outparamcount)
     {
-        value = &gScrVmPub[inst].top[-index];
+        value = &gScrVmPub[inst].top[-(int)index];
         if (value->type == 6)
             return value->u;
         gScrVarPub[inst].error_index = index + 1;
@@ -2927,7 +2927,7 @@ scr_anim_s __cdecl Scr_GetAnim(unsigned int index, XAnimTree_s *tree, scriptInst
 
     if (index < gScrVmPub[inst].outparamcount)
     {
-        value = &gScrVmPub[inst].top[-index];
+        value = &gScrVmPub[inst].top[-(int)index];
         if (value->type == 11)
             return (scr_anim_s)value->u.intValue;
         gScrVarPub[inst].error_message = va("type %s is not an anim", var_typename[value->type]);
@@ -2988,7 +2988,7 @@ scr_animtree_t __cdecl Scr_GetAnimTree(unsigned int index, unsigned int user, sc
 
     if (index < gScrVmPub[inst].outparamcount)
     {
-        value = &gScrVmPub[inst].top[-index];
+        value = &gScrVmPub[inst].top[-(int)index];
         if (value->type == 6)
         {
             i = value->u.intValue;
@@ -3018,7 +3018,7 @@ double __cdecl Scr_GetFloat(unsigned int index, scriptInstance_t inst)
 
     if (index < gScrVmPub[inst].outparamcount)
     {
-        value = &gScrVmPub[inst].top[-index];
+        value = &gScrVmPub[inst].top[-(int)index];
         if (value->type == 5)
             return value->u.floatValue;
         if (value->type == 6)
@@ -3039,7 +3039,7 @@ VariableUnion __cdecl Scr_GetConstString(unsigned int index, scriptInstance_t in
 
     if (index >= gScrVmPub[inst].outparamcount)
         goto LABEL_8;
-    value = &gScrVmPub[inst].top[-index];
+    value = &gScrVmPub[inst].top[-(int)index];
     if (!Scr_CastString(inst, value))
     {
         gScrVarPub[inst].error_index = index + 1;
@@ -3075,7 +3075,7 @@ VariableUnion __cdecl Scr_GetConstLowercaseString(unsigned int index, scriptInst
 
     if (index >= gScrVmPub[inst].outparamcount)
         goto LABEL_14;
-    value = &gScrVmPub[inst].top[-index];
+    value = &gScrVmPub[inst].top[-(int)index];
     if (!Scr_CastString(inst, value))
     {
         gScrVarPub[inst].error_index = index + 1;
@@ -3130,7 +3130,7 @@ char *__cdecl Scr_GetString(unsigned int index, scriptInstance_t inst)
 
 VariableUnion __cdecl Scr_GetConstStringIncludeNull(unsigned int index, scriptInstance_t inst)
 {
-    if (index >= gScrVmPub[inst].outparamcount || gScrVmPub[inst].top[-index].type)
+    if (index >= gScrVmPub[inst].outparamcount || gScrVmPub[inst].top[-(int)index].type)
         return Scr_GetConstString(index, inst);
     return 0;
 }
@@ -3148,7 +3148,7 @@ char *__cdecl Scr_GetDebugString(unsigned int index, scriptInstance_t inst)
     }
     else
     {
-        value = &gScrVmPub[inst].top[-index];
+        value = &gScrVmPub[inst].top[-(int)index];
         Scr_CastDebugString(inst, value);
         if (value->type != 2
             && !Assert_MyHandler(
@@ -3172,7 +3172,7 @@ VariableUnion __cdecl Scr_GetConstIString(unsigned int index, scriptInstance_t i
 
     if (index < gScrVmPub[inst].outparamcount)
     {
-        value = &gScrVmPub[inst].top[-index];
+        value = &gScrVmPub[inst].top[-(int)index];
         if (value->type == 3)
             return value->u;
         gScrVarPub[inst].error_index = index + 1;
@@ -3201,7 +3201,7 @@ void __cdecl Scr_GetVector(unsigned int index, float *vectorValue, scriptInstanc
 
     if (index < gScrVmPub[inst].outparamcount)
     {
-        value = &gScrVmPub[inst].top[-index];
+        value = &gScrVmPub[inst].top[-(int)index];
         if (value->type == 4)
         {
             intValue = (float *)value->u.intValue;
@@ -3226,7 +3226,7 @@ unsigned int __cdecl Scr_GetFunc(unsigned int index, scriptInstance_t inst)
 
     if (index >= gScrVmPub[inst].outparamcount)
         goto LABEL_8;
-    value = &gScrVmPub[inst].top[-index];
+    value = &gScrVmPub[inst].top[-(int)index];
     if (value->type != 9)
     {
         gScrVarPub[inst].error_index = index + 1;
@@ -3264,7 +3264,7 @@ scr_entref_t __cdecl Scr_GetEntityRef(unsigned int index, scriptInstance_t inst)
 
     if (index < gScrVmPub[inst].outparamcount)
     {
-        value = &gScrVmPub[inst].top[-index];
+        value = &gScrVmPub[inst].top[-(int)index];
         if (value->type == 1)
         {
             id = value->u.intValue;
@@ -3294,7 +3294,7 @@ VariableUnion __cdecl Scr_GetObject(unsigned int index, scriptInstance_t inst)
 
     if (index < gScrVmPub[inst].outparamcount)
     {
-        value = &gScrVmPub[inst].top[-index];
+        value = &gScrVmPub[inst].top[-(int)index];
         if (value->type == 1)
             return value->u;
         gScrVarPub[inst].error_index = index + 1;
@@ -3311,7 +3311,7 @@ int __cdecl Scr_GetType(unsigned int index, scriptInstance_t inst)
     const char *v3; // eax
 
     if (index < gScrVmPub[inst].outparamcount)
-        return gScrVmPub[inst].top[-index].type;
+        return gScrVmPub[inst].top[-(int)index].type;
     v3 = va("parameter %d does not exist", index + 1);
     Scr_Error(inst, v3, 0);
     return 0;
@@ -3322,7 +3322,7 @@ const char *__cdecl Scr_GetTypeName(unsigned int index, scriptInstance_t inst)
     const char *v3; // eax
 
     if (index < gScrVmPub[inst].outparamcount)
-        return var_typename[gScrVmPub[inst].top[-index].type];
+        return var_typename[gScrVmPub[inst].top[-(int)index].type];
     v3 = va("parameter %d does not exist", index + 1);
     Scr_Error(inst, v3, 0);
     return 0;
@@ -3335,9 +3335,9 @@ unsigned int __cdecl Scr_GetPointerType(unsigned int index, scriptInstance_t ins
 
     if (index < gScrVmPub[inst].outparamcount)
     {
-        if (gScrVmPub[inst].top[-index].type == 1)
-            return GetObjectType(inst, gScrVmPub[inst].top[-index].u.stringValue);
-        v3 = va("type %s is not an object", var_typename[gScrVmPub[inst].top[-index].type]);
+        if (gScrVmPub[inst].top[-(int)index].type == 1)
+            return GetObjectType(inst, gScrVmPub[inst].top[-(int)index].u.stringValue);
+        v3 = va("type %s is not an object", var_typename[gScrVmPub[inst].top[-(int)index].type]);
         Scr_Error(inst, v3, 0);
     }
     v4 = va("parameter %d does not exist", index + 1);
@@ -3860,7 +3860,7 @@ VariableValue __cdecl GetEntityFieldValue(
     {
         __debugbreak();
     }
-    if (&gScrVmPub[inst].top[-gScrVmPub[inst].inparamcount] != (VariableValue *)(8232 * inst + 168191936)
+    if (&gScrVmPub[inst].top[-(int)gScrVmPub[inst].inparamcount] != (VariableValue *)(8232 * inst + 168191936)
         && !Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\clientscript\\cscr_vm.cpp",
             5725,
@@ -6733,7 +6733,7 @@ unsigned int __cdecl VM_Execute_0(scriptInstance_t inst)
                     gScrVmPub[inst].function_frame->fs.startTop = localFs.startTop;
                     localFs.pos = Scr_ReadCodePos(inst, &gScrVmPub[inst].function_frame->fs.pos);
                     PrimDrawSurfInt = R_ReadPrimDrawSurfInt((GfxReadCmdBuf *)gScrVmPub[inst].function_frame);
-                    localFs.startTop = &localFs.top[-PrimDrawSurfInt];
+                    localFs.startTop = &localFs.top[-(int)PrimDrawSurfInt];
                     goto thread_call;
                 }
                 gScrVarPub[inst].error_index = 1;
@@ -6753,7 +6753,7 @@ unsigned int __cdecl VM_Execute_0(scriptInstance_t inst)
                         gScrVmPub[inst].function_frame->fs.startTop = localFs.startTop;
                         localFs.pos = tempCodePos;
                         v25 = R_ReadPrimDrawSurfInt((GfxReadCmdBuf *)gScrVmPub[inst].function_frame);
-                        localFs.startTop = &localFs.top[-v25];
+                        localFs.startTop = &localFs.top[-(int)v25];
                         goto thread_call;
                     }
                     gScrVarPub[inst].error_index = 1;
@@ -6774,7 +6774,7 @@ unsigned int __cdecl VM_Execute_0(scriptInstance_t inst)
                         gScrVmPub[inst].function_frame->fs.startTop = localFs.startTop;
                         localFs.pos = Scr_ReadCodePos(inst, &gScrVmPub[inst].function_frame->fs.pos);
                         v27 = R_ReadPrimDrawSurfInt((GfxReadCmdBuf *)gScrVmPub[inst].function_frame);
-                        localFs.startTop = &localFs.top[-v27];
+                        localFs.startTop = &localFs.top[-(int)v27];
                         goto thread_call;
                     }
                     gScrVarPub[inst].error_index = 1;
@@ -6819,7 +6819,7 @@ unsigned int __cdecl VM_Execute_0(scriptInstance_t inst)
             gScrVmPub[inst].function_frame->fs.startTop = localFs.startTop;
             localFs.pos = tempCodePos;
             v28 = R_ReadPrimDrawSurfInt((GfxReadCmdBuf *)gScrVmPub[inst].function_frame);
-            localFs.startTop = &localFs.top[-v28];
+            localFs.startTop = &localFs.top[-(int)v28];
         thread_call:
             gScrVmPub[inst].function_frame->fs.top = localFs.startTop;
             gScrVmPub[inst].function_frame->topType = localFs.startTop->type;

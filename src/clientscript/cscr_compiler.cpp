@@ -958,16 +958,17 @@ char __cdecl EvalPrimitiveExpression(scriptInstance_t inst, sval_u expr, Variabl
 
     switch ( *(_BYTE *)expr.stringValue )
     {
-        case 9:
+        case ENUM_integer:
             EvalInteger(*(unsigned int *)(expr.stringValue + 4), *(sval_u *)(expr.stringValue + 8), constValue);
             result = 1;
             break;
-        case 0xA:
+        case ENUM_float:
             EvalFloat(*(float *)(expr.stringValue + 4), *(sval_u *)(expr.stringValue + 8), constValue);
             result = 1;
             break;
-        case 0xB:
-            EvalInteger(-*(unsigned int *)(expr.stringValue + 4), *(sval_u *)(expr.stringValue + 8), constValue);
+        case ENUM_minus_integer:
+            //EvalInteger(-*(unsigned int *)(expr.stringValue + 4), *(sval_u *)(expr.stringValue + 8), constValue);
+            EvalInteger(-expr.node[1].intValue, expr.node[2], constValue);
             result = 1;
             break;
         case 0xC:

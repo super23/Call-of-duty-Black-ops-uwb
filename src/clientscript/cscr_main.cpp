@@ -15,6 +15,7 @@
 #include <qcommon/common.h>
 #include "cscr_parsetree.h"
 #include "cscr_yacc.h"
+#include <game/sentient_fields.h>
 
 #undef GetObject
 

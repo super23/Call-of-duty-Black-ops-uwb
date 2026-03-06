@@ -15,6 +15,7 @@ struct socketpool_t // sizeof=0x10
 
 struct netadr_t;
 struct sockaddr;
+struct msg_t;
 
 
 void __cdecl NET_Sleep(unsigned int msec);

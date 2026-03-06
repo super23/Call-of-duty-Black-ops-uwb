@@ -79,4 +79,4 @@ sval_u __cdecl debugger_buffer(
 sval_u __cdecl debugger_string(scriptInstance_t inst, unsigned __int8 type, char *s);
 
 
-extern debugger_sval_s *g_debugExprHead = 0;
+extern debugger_sval_s *g_debugExprHead;

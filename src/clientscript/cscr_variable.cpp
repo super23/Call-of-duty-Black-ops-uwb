@@ -13,6 +13,7 @@
 #include <universal/com_files.h>
 #include "cscr_tempmemory.h"
 #include <universal/q_parse.h>
+#include <database/db_registry.h>
 
 
 
