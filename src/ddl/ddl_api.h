@@ -125,10 +125,10 @@ int __cdecl DDL_SetString(const ddlState_t *searchState, const char *value, char
 int __cdecl DDL_SetValue(const ddlState_t *searchState, const char *value, char *buffer);
 void __cdecl DDL_SetUserFlag(char *buffer, int flagIndex, bool state);
 unsigned int __cdecl DDL_ReadIntValueInternal(ddlMemberDef_t *member, int absoluteOffset, char *buffer);
-unsigned int __cdecl DDL_ReadInt64ValueInternal(ddlMemberDef_t *member, int absoluteOffset, char *buffer);
+unsigned __int64 __cdecl DDL_ReadInt64ValueInternal(ddlMemberDef_t *member, int absoluteOffset, char *buffer);
 char *__cdecl DDL_ReadStringValueInternal(ddlMemberDef_t *member, int absoluteOffset, char *buffer);
 int __cdecl DDL_ReadValueInternal(ddlMemberDef_t *member, int absoluteOffset, ddlResult_t *result, char *buffer);
-unsigned int __cdecl DDL_GetInt64(const ddlState_t *searchState, char *buffer);
+unsigned __int64 __cdecl DDL_GetInt64(const ddlState_t *searchState, char *buffer);
 unsigned int __cdecl DDL_GetInt(const ddlState_t *searchState, char *buffer);
 char *__cdecl DDL_GetString(const ddlState_t *searchState, char *buffer);
 int __cdecl DDL_GetValue(const ddlState_t *searchState, ddlResult_t *result, char *buffer);

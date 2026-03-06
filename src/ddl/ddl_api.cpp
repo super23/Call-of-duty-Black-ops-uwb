@@ -594,22 +594,22 @@ unsigned int __cdecl DDL_ReadIntValueInternal(ddlMemberDef_t *member, int absolu
         return 0;
 }
 
-unsigned int __cdecl DDL_ReadInt64ValueInternal(ddlMemberDef_t *member, int absoluteOffset, char *buffer)
+unsigned __int64 __cdecl DDL_ReadInt64ValueInternal(ddlMemberDef_t *member, int absoluteOffset, char *buffer)
 {
+    unsigned __int64 result; // rax
     unsigned int low; // [esp+4h] [ebp-10h] BYREF
     unsigned int high; // [esp+8h] [ebp-Ch] BYREF
     unsigned __int64 value; // [esp+Ch] [ebp-8h]
 
     value = 0;
-    if ( DDL_Buffer_ReadBits(buffer, absoluteOffset, member->size / member->arraySize / 2, &low)
-        && DDL_Buffer_ReadBits(buffer, absoluteOffset + 32, member->size / member->arraySize / 2, &high) )
-    {
-        return low;
-    }
-    else
+    if (!DDL_Buffer_ReadBits(buffer, absoluteOffset, member->size / member->arraySize / 2, &low)
+        || !DDL_Buffer_ReadBits(buffer, absoluteOffset + 32, member->size / member->arraySize / 2, &high))
     {
         return value;
     }
+    result = (unsigned __int64)high << 32;
+    LODWORD(result) = low;
+    return result;
 }
 
 unsigned __int8 stringResult[68];
@@ -641,34 +641,32 @@ char *__cdecl DDL_ReadStringValueInternal(ddlMemberDef_t *member, int absoluteOf
 int __cdecl DDL_ReadValueInternal(ddlMemberDef_t *member, int absoluteOffset, ddlResult_t *result, char *buffer)
 {
     int v4; // eax
-    int v5; // edx
     char *StringValueInternal; // eax
 
-    if ( member )
+    if (member)
     {
-        if ( DDL_Converter_IsLeaf(member) )
+        if (DDL_Converter_IsLeaf(member))
         {
-            switch ( member->type )
+            switch (member->type)
             {
-                case 0:
-                case 1:
-                case 2:
-                    result->intValue = DDL_ReadIntValueInternal(member, absoluteOffset, buffer);
-                    v4 = 1;
-                    break;
-                case 3:
-                    result->intValue = DDL_ReadInt64ValueInternal(member, absoluteOffset, buffer);
-                    *(unsigned int *)&result->stringValue[4] = v5;
-                    v4 = 1;
-                    break;
-                case 5:
-                    StringValueInternal = DDL_ReadStringValueInternal(member, absoluteOffset, buffer);
-                    I_strncpyz((char *)result, StringValueInternal, 64);
-                    v4 = 1;
-                    break;
-                default:
-                    v4 = 0;
-                    break;
+            case 0:
+            case 1:
+            case 2:
+                result->intValue = DDL_ReadIntValueInternal(member, absoluteOffset, buffer);
+                v4 = 1;
+                break;
+            case 3:
+                result->int64Value = DDL_ReadInt64ValueInternal(member, absoluteOffset, buffer);
+                v4 = 1;
+                break;
+            case 5:
+                StringValueInternal = DDL_ReadStringValueInternal(member, absoluteOffset, buffer);
+                I_strncpyz((char *)result, StringValueInternal, 64);
+                v4 = 1;
+                break;
+            default:
+                v4 = 0;
+                break;
             }
         }
         else
@@ -685,7 +683,7 @@ int __cdecl DDL_ReadValueInternal(ddlMemberDef_t *member, int absoluteOffset, dd
     return v4;
 }
 
-unsigned int __cdecl DDL_GetInt64(const ddlState_t *searchState, char *buffer)
+unsigned __int64 __cdecl DDL_GetInt64(const ddlState_t *searchState, char *buffer)
 {
     if ( !searchState->member
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\ddl\\ddl_api.cpp", 1444, 0, "%s", "searchState->member") )
