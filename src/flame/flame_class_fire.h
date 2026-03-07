@@ -1,5 +1,7 @@
 #pragma once
 
+#include "flame_system.h"
+
 struct flameFire_t // sizeof=0x64
 {
     flameGeneric_s gen;

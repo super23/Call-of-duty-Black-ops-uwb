@@ -3,6 +3,12 @@
 #include <tl/jobqueue/jobqueue_all.h>
 #include <gfx_d3d/r_material.h>
 #include <gfx_d3d/r_marks.h>
+#include <gfx_d3d/fxprimitives.h>
+
+
+struct FxElemDef;
+struct FxSpatialFrame;
+struct FxCamera;
 
 struct __declspec(align(4)) FxMark // sizeof=0x5C
 {                                       // XREF: FxMarksSystem/r
@@ -226,7 +232,6 @@ void __cdecl FX_CopyMarkPoints(
                 unsigned int dstGroupHandle,
                 int pointCount);
 unsigned __int16 __cdecl FX_FindModelHead(FxMarksSystem *marksSystem, unsigned __int16 modelIndex, int type);
-bool __cdecl FX_CompareMarkTris(const FxMarkTri *tri0, const FxMarkTri *tri1);
 int __cdecl FX_MarkContextsCompare(const GfxMarkContext *context0, const GfxMarkContext *context1);
 int __cdecl fx_add_markCallback(jqBatch *batch);
 void __cdecl FX_MarkEntDetachAll(unsigned int localClientNum, unsigned int entnum);

@@ -19,6 +19,8 @@ struct FxSystemBuffers // sizeof=0x62480
     unsigned __int8 padBuffer[80];
 };
 
+struct HunkUser;
+
 int __cdecl FX_AllocateClientMemory_SizeRequired(int maxLocalClients);
 void __cdecl FX_AllocateClientMemory(HunkUser *hunk, int maxLocalClients);
 void __cdecl FX_FreeClientMemory(HunkUser *hunk);

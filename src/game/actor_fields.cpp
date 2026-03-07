@@ -9,6 +9,8 @@
 #include <game_mp/g_cmds_mp.h>
 #include <game_mp/g_main_mp.h>
 #include <game_mp/g_spawn_mp.h>
+#include <flame/flame_system.h>
+#include <bgame/bg_weapons_def.h>
 
 void __cdecl AIFIELD_NULLSUB(actor_s *pSelf, const actor_fields_s *pField)
 {

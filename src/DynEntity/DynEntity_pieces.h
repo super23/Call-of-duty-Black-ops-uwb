@@ -1,5 +1,7 @@
 #pragma once
 
+#include <universal/dvar.h>
+
 struct XModel;
 struct XModelPieces;
 struct PhysPreset;

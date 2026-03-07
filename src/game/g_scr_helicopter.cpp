@@ -4,6 +4,7 @@
 #include <game_mp/g_utils_mp.h>
 #include <cgame/cg_scr_main.h>
 #include <qcommon/dobj_management.h>
+#include <bgame/bg_weapons_def.h>
 
 const BuiltinMethodDef s_methods[27] =
 {

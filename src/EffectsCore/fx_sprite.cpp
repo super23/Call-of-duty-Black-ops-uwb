@@ -1,5 +1,7 @@
 #include "fx_sprite.h"
 #include <gfx_d3d/r_drawsurf.h>
+#include <xanim/xanim.h>
+#include <gfx_d3d/r_scene.h>
 
 FxSpriteInfo g_spriteInfo;
 FxSprite g_sprites[1664]; // way bigger than cod4

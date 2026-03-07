@@ -166,55 +166,55 @@ void __cdecl Scr_Target_SetTurretAquire()
 
 void __cdecl Scr_Target_Set()
 {
-    const char *v0; // eax
-    const char *v1; // eax
-    const char *v2; // eax
-    const char *v3; // eax
-    const char *v4; // eax
-    int v5; // [esp+0h] [ebp-414h]
-    int v6; // [esp+4h] [ebp-410h]
+    char *v1; // eax
+    char *v2; // eax
+    char *v3; // eax
+    char *v4; // eax
+    char *v5; // eax
+    float *v6; // [esp+0h] [ebp-414h]
+    float *offset; // [esp+4h] [ebp-410h]
     unsigned int targetIndex; // [esp+8h] [ebp-40Ch]
     char configString[1024]; // [esp+Ch] [ebp-408h] BYREF
     gentity_s *ent; // [esp+410h] [ebp-4h]
 
-    if ( !Scr_GetNumParam(SCRIPTINSTANCE_SERVER) )
+    if (!Scr_GetNumParam(SCRIPTINSTANCE_SERVER))
         Scr_Error("Too few arguments\n", 0);
     ent = Scr_GetEntity(0);
-    for ( targetIndex = 0; targetIndex < 0x20 && targGlob.targets[targetIndex].ent != ent; ++targetIndex )
+    for (targetIndex = 0; targetIndex < 0x20 && targGlob.targets[targetIndex].ent != ent; ++targetIndex)
         ;
-    if ( targetIndex == 32 )
+    if (targetIndex == 32)
     {
-        if ( targGlob.targetCount >= 0x20 )
+        if (targGlob.targetCount >= 0x20)
             Scr_Error("Maximum number of targets exceeded", 0);
-        for ( targetIndex = 0; targetIndex < 0x20 && targGlob.targets[targetIndex].ent; ++targetIndex )
+        for (targetIndex = 0; targetIndex < 0x20 && targGlob.targets[targetIndex].ent; ++targetIndex)
             ;
-        if ( targetIndex >= 0x20
+        if (targetIndex >= 0x20
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_targets.cpp",
-                        301,
-                        0,
-                        "targetIndex doesn't index MAX_TARGETS\n\t%i not in [0, %i)",
-                        targetIndex,
-                        32) )
+                "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_targets.cpp",
+                301,
+                0,
+                "targetIndex doesn't index MAX_TARGETS\n\t%i not in [0, %i)",
+                targetIndex,
+                32))
         {
             __debugbreak();
         }
         targGlob.targets[targetIndex].ent = ent;
-        ent->flags |= (unsigned int)&cls.rankedServers[711].game[35];
+        ent->flags |= 0x1000000u;
         targGlob.targets[targetIndex].materialIndex = -1;
         targGlob.targets[targetIndex].offscreenMaterialIndex = -1;
-        v6 = 28 * targetIndex + 66290436;
-        targGlob.targets[targetIndex].offset[0] = 0.0f;
-        *(unsigned int *)(v6 + 4) = 0;
-        *(unsigned int *)(v6 + 8) = 0;
+        offset = targGlob.targets[targetIndex].offset;
+        *offset = 0.0f;
+        offset[1] = 0.0f;
+        offset[2] = 0.0f;
         ++targGlob.targetCount;
     }
-    if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) <= 1 )
+    if ((unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) <= 1)
     {
-        v5 = 28 * targetIndex + 66290436;
-        targGlob.targets[targetIndex].offset[0] = 0.0f;
-        *(unsigned int *)(v5 + 4) = 0;
-        *(unsigned int *)(v5 + 8) = 0;
+        v6 = targGlob.targets[targetIndex].offset;
+        *v6 = 0.0f;
+        v6[1] = 0.0f;
+        v6[2] = 0.0f;
     }
     else
     {
@@ -222,20 +222,20 @@ void __cdecl Scr_Target_Set()
     }
     targGlob.targets[targetIndex].flags &= ~4u;
     configString[0] = 0;
-    v0 = va("%i", ent->s.number);
-    Info_SetValueForKey(configString, "ent", v0);
-    v1 = va(
-                 "%i %i %i",
-                 (int)targGlob.targets[targetIndex].offset[0],
-                 (int)targGlob.targets[targetIndex].offset[1],
-                 (int)targGlob.targets[targetIndex].offset[2]);
-    Info_SetValueForKey(configString, "offs", v1);
-    v2 = va("%i", targGlob.targets[targetIndex].materialIndex);
-    Info_SetValueForKey(configString, "mat", v2);
-    v3 = va("%i", targGlob.targets[targetIndex].offscreenMaterialIndex);
-    Info_SetValueForKey(configString, "offmat", v3);
-    v4 = va("%i", targGlob.targets[targetIndex].flags);
-    Info_SetValueForKey(configString, "flags", v4);
+    v1 = va("%i", ent->s.number);
+    Info_SetValueForKey(configString, "ent", v1);
+    v2 = va(
+        "%i %i %i",
+        (int)targGlob.targets[targetIndex].offset[0],
+        (int)targGlob.targets[targetIndex].offset[1],
+        (int)targGlob.targets[targetIndex].offset[2]);
+    Info_SetValueForKey(configString, "offs", v2);
+    v3 = va("%i", targGlob.targets[targetIndex].materialIndex);
+    Info_SetValueForKey(configString, "mat", v3);
+    v4 = va("%i", targGlob.targets[targetIndex].offscreenMaterialIndex);
+    Info_SetValueForKey(configString, "offmat", v4);
+    v5 = va("%i", targGlob.targets[targetIndex].flags);
+    Info_SetValueForKey(configString, "flags", v5);
     SV_SetConfigstring(targetIndex + 387, configString);
 }
 

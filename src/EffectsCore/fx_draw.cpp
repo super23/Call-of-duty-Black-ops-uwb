@@ -5,11 +5,14 @@
 #include "fx_archive.h"
 #include <gfx_d3d/r_drawsurf.h>
 #include <gfx_d3d/r_dvars.h>
+#include <gfx_d3d/r_rendercmds.h>
 #include "fx_system.h"
 #include "fx_sprite.h"
 #include "fx_beam.h"
 #include "fx_postlight.h"
 #include <glass/glass_client.h>
+#include <xanim/xanim.h>
+#include <gfx_d3d/r_scene.h>
 
 void(__cdecl *const s_drawElemHandler[10])(FxDrawState *) =
 {

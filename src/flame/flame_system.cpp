@@ -1031,7 +1031,6 @@ flameSource_t flameSources[64];
 flameSource_t sv_flameSources[64];
 
 flameRender_s flameVarList[16];
-flameVarDef_t flameVars[128];
 int numFlameVars;
 
 const int bg_iNumFlameTableFields = 119;

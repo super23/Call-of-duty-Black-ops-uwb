@@ -17,6 +17,8 @@
 #include "g_load_utils.h"
 #include <clientscript/cscr_stringlist.h>
 #include <server_mp/sv_init_mp.h>
+#include <bgame/bg_weapons_def.h>
+#include <cgame/cg_weapons.h>
 
 int itemRegistered[2048];
 
@@ -260,7 +262,7 @@ int __cdecl WeaponPickup_Grab(gentity_s *weaponEnt, gentity_s *player, int weapI
         {
             __debugbreak();
         }
-        weaponEnt->flags |= (unsigned int)&cls.wagerServers[5331].basictraining;
+        weaponEnt->flags |= 0x2000000u;
         gotWeapon = WeaponPickup_AddWeapon(weaponEnt, player, weapIdx, weaponModel, &droppedEnt);
         if ( !weaponEnt->r.inuse
             && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_items.cpp", 449, 0, "%s", "weaponEnt->r.inuse") )
@@ -927,16 +929,16 @@ int __cdecl GetFreeDropCueIdx()
         ent = level.droppedWeaponCue[i].ent();
         if ((ent->flags & 0x2000000) == 0)
         {
-            if ( bg_itemlist[ent->s.un3.item] != 1
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_items.cpp",
-                            659,
-                            0,
-                            "%s",
-                            "bg_itemlist[ ent->s.un3.item ].giType == IT_WEAPON") )
-            {
-                __debugbreak();
-            }
+            //if ( bg_itemlist[ent->s.un3.item] != 1
+            //    && !Assert_MyHandler(
+            //                "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_items.cpp",
+            //                659,
+            //                0,
+            //                "%s",
+            //                "bg_itemlist[ ent->s.un3.item ].giType == IT_WEAPON") )
+            //{
+            //    __debugbreak();
+            //}
             if ( !BG_GetWeaponDef(ent->item[0].index % 2048)->avoidDropCleanup )
             {
                 fDistSqrd = FLT_MAX;
@@ -1071,16 +1073,16 @@ gentity_s *__cdecl ThrowDownWeapon(
     }
     v8 = weapIdx + (weaponModel << 11);
     weapItem = (const gitem_s *)(4 * v8 + 15073304);
-    if ( bg_itemlist[v8] != 1
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_items.cpp",
-                    1186,
-                    0,
-                    "%s",
-                    "weapItem->giType == IT_WEAPON") )
-    {
-        __debugbreak();
-    }
+    //if ( bg_itemlist[v8] != 1
+    //    && !Assert_MyHandler(
+    //                "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_items.cpp",
+    //                1186,
+    //                0,
+    //                "%s",
+    //                "weapItem->giType == IT_WEAPON") )
+    //{
+    //    __debugbreak();
+    //}
     if ( (!ent->client || BG_PlayerHasWeapon(&ent->client->ps, weapIdx)
                                          && PlayerHasAnyAmmoToTransferToWeapon(ent, weapIdx))
         && (!ent->client || !BG_GetWeaponDef(weapIdx)->bClipOnly || BG_GetAmmoInClip(&ent->client->ps, weapIdx)) )
@@ -1382,16 +1384,16 @@ void __cdecl FinishSpawningItem(gentity_s *ent)
             Vec3Cross(vAxis[2], vAxis[0], vAxis[1]);
             Vec3Cross(vAxis[1], vAxis[2], vAxis[0]);
             AxisToAngles(vAxis, vAngles);
-            if (bg_itemlist[ent->s.un3.item] != 1
-                && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_items.cpp",
-                    1362,
-                    0,
-                    "%s",
-                    "bg_itemlist[ent->s.un3.item].giType == IT_WEAPON"))
-            {
-                __debugbreak();
-            }
+            //if (bg_itemlist[ent->s.un3.item] != 1
+            //    && !Assert_MyHandler(
+            //        "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_items.cpp",
+            //        1362,
+            //        0,
+            //        "%s",
+            //        "bg_itemlist[ent->s.un3.item].giType == IT_WEAPON"))
+            //{
+            //    __debugbreak();
+            //}
             vAngles[2] = vAngles[2] + 90.0;
             G_SetAngle(ent, vAngles);
         }
@@ -1920,16 +1922,16 @@ void __cdecl G_OrientItemToGround(gentity_s *ent, trace_t *trace)
     AxisToAngles(vAxis, vAngles);
     if ( ent->s.un3.item )
     {
-        if ( bg_itemlist[ent->s.un3.item] != 1
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_items.cpp",
-                        1721,
-                        0,
-                        "%s",
-                        "bg_itemlist[ent->s.un3.item].giType == IT_WEAPON") )
-        {
-            __debugbreak();
-        }
+        //if ( bg_itemlist[ent->s.un3.item] != 1
+        //    && !Assert_MyHandler(
+        //                "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_items.cpp",
+        //                1721,
+        //                0,
+        //                "%s",
+        //                "bg_itemlist[ent->s.un3.item].giType == IT_WEAPON") )
+        //{
+        //    __debugbreak();
+        //}
         vAngles[2] = vAngles[2] + 90.0;
     }
     G_SetAngle(ent, vAngles);

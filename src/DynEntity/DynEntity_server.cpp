@@ -233,14 +233,27 @@ void __cdecl DynEntSv_LinkBrush(unsigned __int16 dynEntId)
         __debugbreak();
     }
     CM_ModelBounds(dynEntDef->brushModel, absMins, absMaxs);
-    *(_QWORD *)bounds[0].v = *(_QWORD *)absMins;
-    *(_QWORD *)&bounds[0].unitVec[2].packed = __PAIR64__(vars0, LODWORD(absMins[2]));
-    *(_QWORD *)bounds[1].v = *(_QWORD *)absMaxs;
-    *(_QWORD *)&bounds[1].unitVec[2].packed = __PAIR64__((unsigned int)dynEntDef, LODWORD(absMaxs[2]));
+
+    //*(_QWORD *)bounds[0].v = *(_QWORD *)absMins;
+    //*(_QWORD *)&bounds[0].unitVec[2].packed = __PAIR64__(vars0, LODWORD(absMins[2]));
+
+    bounds[0].v[0] = absMins[0];
+    bounds[0].v[1] = absMins[1];
+    bounds[0].v[2] = absMins[2];
+
+    bounds[1].v[0] = absMaxs[0];
+    bounds[1].v[1] = absMaxs[1];
+    bounds[1].v[2] = absMaxs[2];
+
+    //*(_QWORD *)bounds[1].v = *(_QWORD *)absMaxs;
+    //*(_QWORD *)&bounds[1].unitVec[2].packed = __PAIR64__((unsigned int)dynEntDef, LODWORD(absMaxs[2]));
+
     UnitQuatToAxis(dynEntDef->pose.quat, axis);
+
     v10 = dynEntDef->pose.origin[0];
     v11 = dynEntDef->pose.origin[1];
     v12 = dynEntDef->pose.origin[2];
+
     if ( axis[0][0] >= 0.0 )
         v9 = 0;
     else
@@ -277,6 +290,7 @@ void __cdecl DynEntSv_LinkBrush(unsigned __int16 dynEntId)
         v1 = 0;
     else
         v1 = -1;
+
     *(float *)&rotatedBounds = (float)(COERCE_FLOAT(bounds[1].u[2] & v3 | bounds[0].u[2] & ~v3) * axis[2][0])
                                                      + (float)((float)(COERCE_FLOAT(bounds[1].u[1] & v6 | bounds[0].u[1] & ~v6) * axis[1][0])
                                                                      + (float)((float)(COERCE_FLOAT(bounds[1].u[0] & v9 | bounds[0].u[0] & ~v9)
@@ -994,9 +1008,9 @@ void __cdecl DynEntSv_RadiusDamage(
     }
 }
 
-bool __cdecl DynEntCl_CompareDynEntsForExplosion(const DynEntSortStruct *ent1, const DynEntSortStruct *ent2)
+bool __cdecl DynEntCl_CompareDynEntsForExplosion(const DynEntSortStruct &ent1, const DynEntSortStruct &ent2)
 {
-    return ent2->distSq > ent1->distSq;
+    return ent2.distSq > ent1.distSq;
 }
 
 unsigned int __cdecl DynEntSv_GetClosestEntities(
@@ -1040,7 +1054,7 @@ unsigned int __cdecl DynEntSv_GetClosestEntities(
         //    (int)(8 * unsignedInt_low) >> 3,
         //    (bool(__cdecl *)(const MaterialMemory *, const MaterialMemory *))DynEntCl_CompareDynEntsForExplosion);
 
-        std::sort(v8, &v8[unsignedInt_low], DynEntCl_CompareDynEntsForExplosion);
+        std::sort(&v8[0], &v8[unsignedInt_low], DynEntCl_CompareDynEntsForExplosion);
         unsignedInt_low = LOWORD(dynEnt_explodeMaxEnts->current.unsignedInt);
         if (unsignedInt_low != dynEnt_explodeMaxEnts->current.integer
             && !Assert_MyHandler(

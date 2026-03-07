@@ -395,7 +395,7 @@ int __cdecl Actor_Dog_IsEnemyInAttackRange(actor_s *self, sentient_s *enemy, int
             actorMaxs,
             enemyPos,
             enemy->ent->s.number,
-            (int)&cls.recentServers[7734].game[12],
+            0x2820011,
             &context);
         if ( trace.hitType == TRACE_HITTYPE_ENTITY && trace.hitId == enemy->ent->s.number )
             return 1;

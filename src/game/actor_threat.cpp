@@ -10,6 +10,7 @@
 #include <client_mp/cl_cgame_mp.h>
 #include "actor_pain.h"
 #include "g_debug.h"
+#include <flame/flame_system.h>
 
 threat_bias_t g_threatBias;
 int g_skipDebugString;
@@ -362,6 +363,7 @@ LABEL_77:
     Sentient_SetEnemy(self->sentient, pScariestEnemy, 1);
     //if ( g_DXDeviceThread == GetCurrentThreadId() )
 LABEL_98:
+    ;
         //D3DPERF_EndEvent();
 }
 

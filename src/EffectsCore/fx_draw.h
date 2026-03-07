@@ -95,6 +95,8 @@ struct FxTrailSegmentDrawState // sizeof=0x3C
                                         // FX_DrawTrail+468/w
 };
 
+struct GfxPackedVertex;
+
 int __cdecl FX_RegionForReflect(const FxReflectParams *reflect);
 void __cdecl FX_GetNullReflection(FxReflectParams *params);
 void __cdecl FX_GetReflection(bool on, float height, FxReflectParams *params);

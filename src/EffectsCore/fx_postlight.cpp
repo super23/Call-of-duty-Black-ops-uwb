@@ -1,5 +1,6 @@
 #include "fx_postlight.h"
 #include <gfx_d3d/r_drawsurf.h>
+#include <xanim/xanim.h>
 
 FxPostLightInfo g_postLightInfo;
 

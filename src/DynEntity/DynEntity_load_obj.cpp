@@ -154,12 +154,8 @@ void __cdecl DynEnt_LoadEntities()
     DynEntityCreateParams *p_dest; // [esp+A8h] [ebp-31A48h]
     char *v33; // [esp+ACh] [ebp-31A44h]
     float v34; // [esp+BCh] [ebp-31A34h]
-    float p1; // [esp+C0h] [ebp-31A30h] BYREF
-    float v36; // [esp+C4h] [ebp-31A2Ch]
-    float v37; // [esp+C8h] [ebp-31A28h]
-    float p0; // [esp+CCh] [ebp-31A24h] BYREF
-    float v39; // [esp+D0h] [ebp-31A20h]
-    float v40; // [esp+D4h] [ebp-31A1Ch]
+    float p1[3]; // [esp+C0h] [ebp-31A30h] BYREF
+    float p0[3]; // [esp+CCh] [ebp-31A24h] BYREF
     PhysConstraint *constraint; // [esp+D8h] [ebp-31A18h]
     int jj; // [esp+DCh] [ebp-31A14h]
     int ii; // [esp+E0h] [ebp-31A10h]
@@ -587,9 +583,11 @@ void __cdecl DynEnt_LoadEntities()
         {
             if ( constraint->distance == 0.0 )
             {
-                GetAttachPointsInWorldSpace(constraint, &p0, &p1);
-                v34 = (float)((float)((float)(p0 - p1) * (float)(p0 - p1)) + (float)((float)(v39 - v36) * (float)(v39 - v36)))
-                        + (float)((float)(v40 - v37) * (float)(v40 - v37));
+                GetAttachPointsInWorldSpace(constraint, p0, p1);
+                //v34 = (float)((float)((float)(p0 - p1) * (float)(p0 - p1)) + (float)((float)(v39 - v36) * (float)(v39 - v36))) + (float)((float)(v40 - v37) * (float)(v40 - v37));
+                v34 = (float)((float)((float)(p0[0] - p1[0]) * (float)(p0[0] - p1[0]))
+                    + (float)((float)(p0[1] - p1[1]) * (float)(p0[1] - p1[1])))
+                    + (float)((float)(p0[2] - p1[2]) * (float)(p0[2] - p1[2]));
                 if ( v34 <= 0.0099999998 )
                     constraint->distance = 100.0f;
                 else

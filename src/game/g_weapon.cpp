@@ -22,6 +22,8 @@
 #include "g_debug.h"
 #include <bgame/bg_weapons_ammo.h>
 #include <server_mp/sv_main_mp.h>
+#include <bgame/bg_weapons_def.h>
+#include <flame/flame_system.h>
 
 const float traceOffsets[9][2] =
 {
@@ -321,7 +323,6 @@ gentity_s *__cdecl Weapon_Melee(gentity_s *ent, weaponParms *wp, float range, fl
     return traceEnt;
 }
 
-static const float directionTweak = 0.25;
 gentity_s *__cdecl Weapon_Melee_internal(gentity_s *ent, weaponParms *wp, float range, float width, float height)
 {
     bool IsBayonetWeapon; // al

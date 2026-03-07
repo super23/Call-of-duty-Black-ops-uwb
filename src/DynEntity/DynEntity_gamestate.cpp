@@ -6,6 +6,7 @@
 #include <win32/win_common.h>
 #include <qcommon/common.h>
 #include <client/splitscreen.h>
+#include <physics/phys_main.h>
 
 void __cdecl DynEnt_WriteGameState(msg_t *msg)
 {

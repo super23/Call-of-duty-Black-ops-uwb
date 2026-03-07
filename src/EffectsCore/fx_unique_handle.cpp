@@ -1,6 +1,7 @@
 #include "fx_unique_handle.h"
 #include "fx_system.h"
 #include "fx_archive.h"
+#include <win32/win_common.h>
 
 FxEffectContainer *__cdecl UniqueHandleToEffect(int localClientNum, unsigned int h)
 {

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "flame_system.h"
+
 struct flameSmoke_t // sizeof=0x74
 {                                       // XREF: flameSmokeArray_t/r
     flameGeneric_s gen;

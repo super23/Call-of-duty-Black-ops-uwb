@@ -1,6 +1,10 @@
 #pragma once
 
+#include <universal/com_math.h>
+
 struct FxCmd;
+struct trace_t;
+struct refdef_s;
 
 enum FxUpdateResult : __int32
 {                                       // XREF: FX_UpdateEffectPartialForClass/r

@@ -309,16 +309,6 @@ struct CodeConstantSource // sizeof=0x14
     int arrayStride;
 };
 
-struct __declspec(align(4)) ShaderIndexRange // sizeof=0xC
-{                                       // XREF: ShaderArgumentDest/r
-    unsigned int first;                 // XREF: Material_ParseShaderArguments+354/w
-    unsigned int count;                 // XREF: Material_ParseShaderArguments+35A/w
-    bool isImplicit;                    // XREF: Material_ParseShaderArguments+364/w
-    // padding byte
-    // padding byte
-    // padding byte
-};
-
 struct ShaderArgumentDest // sizeof=0x10
 {
     ShaderIndexRange indexRange;

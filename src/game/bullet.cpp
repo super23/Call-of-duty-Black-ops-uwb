@@ -17,6 +17,8 @@
 #include <glass/glass_server.h>
 #include "actor_events.h"
 #include <bgame/bg_perks.h>
+#include <cgame/cg_weapons.h>
+#include <cgame_mp/cg_local_mp.h>
 
 unsigned __int8 scr_playerdamage_boneindex = 254u;
 
@@ -501,21 +503,9 @@ char __cdecl Bullet_Trace(
     weapDef = weapVariantDef->weapDef;
     Com_Memset((unsigned int *)br, 0, 80);
     if ( weapDef->bRifleBullet )
-        G_LocationalTraceAllowChildren(
-            &br->trace,
-            bp->start,
-            bp->end,
-            bp->ignoreEntIndex,
-            (int)&cls.recentServers[7543].countrycode[1],
-            riflePriorityMap);
+        G_LocationalTraceAllowChildren(&br->trace, bp->start, bp->end, bp->ignoreEntIndex, 0x280E833, riflePriorityMap);
     else
-        G_LocationalTraceAllowChildren(
-            &br->trace,
-            bp->start,
-            bp->end,
-            bp->ignoreEntIndex,
-            (int)&cls.recentServers[7543].countrycode[1],
-            bulletPriorityMap);
+        G_LocationalTraceAllowChildren(&br->trace, bp->start, bp->end, bp->ignoreEntIndex, 0x280E833, bulletPriorityMap);
     if ( br->trace.hitType == TRACE_HITTYPE_NONE && (br->trace.sflags & 4) == 0 )
         return 0;
     hitEntId = Trace_GetEntityHitId(&br->trace);
@@ -1072,9 +1062,9 @@ void __cdecl Bullet_FirePenetrate(
                 //revBr.trace.normal.vec.u[0] ^= _mask__NegFloat_;
                 //revBr.trace.normal.vec.u[1] ^= _mask__NegFloat_;
                 //revBr.trace.normal.vec.u[2] ^= _mask__NegFloat_;
-                revBr.trace.normal.vec.u[0] = -revBr.trace.normal.vec.u[0];
-                revBr.trace.normal.vec.u[1] = -revBr.trace.normal.vec.u[1];
-                revBr.trace.normal.vec.u[2] = -revBr.trace.normal.vec.u[2];
+                revBr.trace.normal.vec.v[0] = -revBr.trace.normal.vec.v[0];
+                revBr.trace.normal.vec.v[1] = -revBr.trace.normal.vec.v[1];
+                revBr.trace.normal.vec.v[2] = -revBr.trace.normal.vec.v[2];
                 if ( traceHit )
                     BG_AdvanceTrace(&revBp, &revBr, 0.0099999998);
                 revTraceHit = Bullet_Trace(&revBp, weapVariantDef, attacker, &revBr, revBr.depthSurfaceType);

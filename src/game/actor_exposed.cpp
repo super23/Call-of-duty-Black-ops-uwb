@@ -7,6 +7,7 @@
 #include "actor_navigation.h"
 #include "actor_orientation.h"
 #include "actor_events.h"
+#include <cgame_mp/cg_local_mp.h>
 
 void __fastcall Actor_Exposed_FindReacquireNode(actor_s *self)
 {

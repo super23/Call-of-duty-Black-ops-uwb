@@ -1,5 +1,6 @@
 #pragma once
-#include "actor.h"
+
+struct actor_s;
 
 enum ai_orient_mode_t : __int32
 {                                       // XREF: ai_orient_t/r

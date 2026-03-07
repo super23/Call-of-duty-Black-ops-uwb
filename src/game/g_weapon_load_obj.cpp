@@ -4,6 +4,7 @@
 #include <universal/com_memory.h>
 #include <universal/com_files.h>
 #include <universal/q_parse.h>
+#include <qcommon/common.h>
 
 const char *accuracyDirName[3] = { "aivsai", "aivsplayer", NULL };
 

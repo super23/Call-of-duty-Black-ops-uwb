@@ -18,6 +18,10 @@
 #include <xanim/dobj_utils.h>
 #include <clientscript/cscr_vm.h>
 #include "g_load_utils.h"
+#include <bgame/bg_weapons_def.h>
+#include <game_mp/g_combat_mp.h>
+#include <xanim/xanim.h>
+#include <sound/snd_bank.h>
 
 const dvar_t *turret_KillstreakTargetTime;
 const dvar_t *turret_SentryTargetTime;
@@ -421,15 +425,7 @@ void __cdecl G_PlayerTurretPositionAndBlend(gentity_s *ent, gentity_s *pTurretEn
                 end[2] = client->ps.origin[2];
                 start[2] = start[2] + ent->client->ps.viewHeightCurrent;
                 end[2] = end[2] - 100.0;
-                G_TraceCapsule(
-                    &trace,
-                    start,
-                    vec3_origin,
-                    vec3_origin,
-                    end,
-                    ent->s.number,
-                    (int)&cls.recentServers[7647].hostName[20],
-                    &context);
+                G_TraceCapsule(&trace, start, vec3_origin, vec3_origin, end, ent->s.number, 0x2818011, &context);
                 if ( trace.fraction < 1.0 && !trace.allsolid && !trace.startsolid )
                 {
                     Vec3Lerp(start, end, trace.fraction, endpos);

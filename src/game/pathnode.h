@@ -406,7 +406,7 @@ void __cdecl Scr_GetNode();
 void __cdecl Scr_GetNodeArray();
 void __cdecl Scr_GetAllNodes();
 pathnode_t *__cdecl Scr_GetPathnode(unsigned int index, scriptInstance_t inst);
-bool __cdecl Path_CompareNodesIncreasing(const pathsort_t *ps1, const pathsort_t *ps2);
+bool __cdecl Path_CompareNodesIncreasing(const pathsort_t &ps1, const pathsort_t &ps2);
 unsigned int __cdecl Path_ConvertNodeToIndex(const pathnode_t *node);
 pathnode_t *__cdecl Path_ConvertIndexToNode(unsigned int index);
 void __cdecl Path_Init(int restart);

@@ -642,13 +642,13 @@ uint16 FX_PoolToHandle_Generic(FxPool<ITEM_TYPE, ITEM_TYPE2> *poolArray, ITEM_TY
 {
     static_assert((LIMIT * ITEM_TYPE::HANDLE_SCALE) <= 0xFFFF, "do not support huge pools at the moment");
 
-    vassert(item && item >= &poolArray[0].item && item < &poolArray[LIMIT].item, "%p %p", poolArray, item);
+    //vassert(item && item >= &poolArray[0].item && item < &poolArray[LIMIT].item, "%p %p", poolArray, item);
     return ((char *)item - (char *)poolArray) / ITEM_TYPE::HANDLE_SCALE;
 }
 
 template<typename ITEM_TYPE, typename ITEM_TYPE2, size_t LIMIT>
 FxPool<ITEM_TYPE, ITEM_TYPE2> *FX_PoolFromHandle_Generic(FxPool<ITEM_TYPE, ITEM_TYPE2> *poolArray, uint handle)
 {
-    vassert(handle < (LIMIT * sizeof(ITEM_TYPE) / ITEM_TYPE::HANDLE_SCALE) && handle % (sizeof(ITEM_TYPE) / ITEM_TYPE::HANDLE_SCALE) == 0, "%p %u", poolArray, handle);
+    //vassert(handle < (LIMIT * sizeof(ITEM_TYPE) / ITEM_TYPE::HANDLE_SCALE) && handle % (sizeof(ITEM_TYPE) / ITEM_TYPE::HANDLE_SCALE) == 0, "%p %u", poolArray, handle);
     return (FxPool<ITEM_TYPE, ITEM_TYPE2> *)((char *)poolArray + (handle * ITEM_TYPE::HANDLE_SCALE));
 }

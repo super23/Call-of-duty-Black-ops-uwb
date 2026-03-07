@@ -25,6 +25,7 @@
 
 #include <universal/q_shared.h>
 #include <bgame/bg_wind.h>
+#include <cgame_mp/cg_local_mp.h>
 
 
 bool __cdecl FX_IsDemoPlaying()
@@ -1469,48 +1470,54 @@ void __cdecl FX_IntegrateVelocity(const FxUpdateElem *update, float t0, float t1
         *(float *)&v10 = ceil(endPoint);
         endIndex = (int)*(float *)&v10 - 1;
         endLerp = endPoint - (float)endIndex;
-        if (startIndex > endIndex)
-        {
-            v7 = va("%i > %i for %g to %g on %i intervals", startIndex, endIndex, t0, t1, intervalCount);
-            if (!Assert_MyHandler(
-                "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_update.cpp",
-                853,
-                1,
-                "%s\n\t%s",
-                "startIndex <= endIndex",
-                v7))
-                __debugbreak();
-        }
-        if (startIndex < 0 || startIndex >= intervalCount)
-        {
-            v8 = va("%i for %g on %i intervals", startIndex, t0, intervalCount);
-            if (!Assert_MyHandler(
-                "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_update.cpp",
-                854,
-                1,
-                "%s\n\t(va( \"%i for %g on %i intervals\", startIndex, t0, intervalCount )) = %i",
-                "(startIndex >= 0 && startIndex < intervalCount)",
-                v8,
-                v10,
-                v11,
-                v12))
-                __debugbreak();
-        }
-        if (endIndex < 0 || endIndex >= intervalCount)
-        {
-            v9 = va("%i for %g on %i intervals", endIndex, t1, intervalCount);
-            if (!Assert_MyHandler(
-                "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_update.cpp",
-                855,
-                1,
-                "%s\n\t(va( \"%i for %g on %i intervals\", endIndex, t1, intervalCount )) = %i",
-                "(endIndex >= 0 && endIndex < intervalCount)",
-                v9,
-                v10,
-                v11,
-                v12))
-                __debugbreak();
-        }
+
+        iassert(startIndex <= endIndex);
+        //if (startIndex > endIndex)
+        //{
+        //    v7 = va("%i > %i for %g to %g on %i intervals", startIndex, endIndex, t0, t1, intervalCount);
+        //    if (!Assert_MyHandler(
+        //        "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_update.cpp",
+        //        853,
+        //        1,
+        //        "%s\n\t%s",
+        //        "startIndex <= endIndex",
+        //        v7))
+        //        __debugbreak();
+        //}
+
+        iassert(startIndex >= 0 && startIndex < intervalCount);
+        //if (startIndex < 0 || startIndex >= intervalCount)
+        //{
+        //    v8 = va("%i for %g on %i intervals", startIndex, t0, intervalCount);
+        //    if (!Assert_MyHandler(
+        //        "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_update.cpp",
+        //        854,
+        //        1,
+        //        "%s\n\t(va( \"%i for %g on %i intervals\", startIndex, t0, intervalCount )) = %i",
+        //        "(startIndex >= 0 && startIndex < intervalCount)",
+        //        v8,
+        //        v10,
+        //        v11,
+        //        v12))
+        //        __debugbreak();
+        //}
+
+        iassert(endIndex >= 0 && endIndex < intervalCount);
+        //if (endIndex < 0 || endIndex >= intervalCount)
+        //{
+        //    v9 = va("%i for %g on %i intervals", endIndex, t1, intervalCount);
+        //    if (!Assert_MyHandler(
+        //        "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_update.cpp",
+        //        855,
+        //        1,
+        //        "%s\n\t(va( \"%i for %g on %i intervals\", endIndex, t1, intervalCount )) = %i",
+        //        "(endIndex >= 0 && endIndex < intervalCount)",
+        //        v9,
+        //        v10,
+        //        v11,
+        //        v12))
+        //        __debugbreak();
+        //}
         if (startIndex == endIndex)
             FX_IntegrateVelocityInSegment(
                 elemDef->flags,

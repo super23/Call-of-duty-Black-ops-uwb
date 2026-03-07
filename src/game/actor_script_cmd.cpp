@@ -988,6 +988,7 @@ void __cdecl ActorCmd_MayMoveFromPointToPoint(scr_entref_t entref)
     //if ( g_DXDeviceThread == GetCurrentThreadId() )
 LABEL_11:
         //D3DPERF_EndEvent();
+    ;
 }
 
 void __cdecl ActorCmd_Teleport(scr_entref_t entref)
@@ -2393,8 +2394,8 @@ void __cdecl ActorCmd_finishActorDamage(scr_entref_t entref)
     int dflags; // [esp+50h] [ebp-18h]
     gentity_s *inflictor; // [esp+54h] [ebp-14h]
     hitLocation_t hitLoc; // [esp+58h] [ebp-10h]
-    void (__cdecl *die)(gentity_s *, gentity_s *, gentity_s *, int, int, const int, const float *, const hitLocation_t, int); // [esp+5Ch] [ebp-Ch]
-    void (__cdecl *pain)(gentity_s *, gentity_s *, int, const float *, const int, const float *, const hitLocation_t, const int); // [esp+60h] [ebp-8h]
+    void(__cdecl * die)(gentity_s *, gentity_s *, gentity_s *, int, int, const int, const float *, const hitLocation_t, int); // [esp+5Ch] [ebp-Ch]
+    void(__cdecl * pain)(gentity_s *, gentity_s *, int, const float *, const int, const float *, const hitLocation_t, const int); // [esp+60h] [ebp-8h]
     const float *point; // [esp+64h] [ebp-4h]
 
     self = Actor_Get(entref);
@@ -2404,22 +2405,22 @@ void __cdecl ActorCmd_finishActorDamage(scr_entref_t entref)
     point = 0;
     tempBulletHitEntity = 0;
     damage = Scr_GetInt(2u, SCRIPTINSTANCE_SERVER).intValue;
-    if ( damage > 0 )
+    if (damage > 0)
     {
-        if ( Scr_GetType(0, SCRIPTINSTANCE_SERVER) && Scr_GetPointerType(0, SCRIPTINSTANCE_SERVER) == 19 )
+        if (Scr_GetType(0, SCRIPTINSTANCE_SERVER) && Scr_GetPointerType(0, SCRIPTINSTANCE_SERVER) == 19)
             inflictor = Scr_GetEntity(0);
-        if ( Scr_GetType(1u, SCRIPTINSTANCE_SERVER) && Scr_GetPointerType(1u, SCRIPTINSTANCE_SERVER) == 19 )
+        if (Scr_GetType(1u, SCRIPTINSTANCE_SERVER) && Scr_GetPointerType(1u, SCRIPTINSTANCE_SERVER) == 19)
             attacker = Scr_GetEntity(1u);
         dflags = Scr_GetInt(3u, SCRIPTINSTANCE_SERVER).intValue;
         mod = (meansOfDeath_t)G_MeansOfDeathFromScriptParam(4u);
         String = Scr_GetString(5u, SCRIPTINSTANCE_SERVER);
         iWeapon = G_GetWeaponIndexForName(String);
-        if ( Scr_GetType(6u, SCRIPTINSTANCE_SERVER) )
+        if (Scr_GetType(6u, SCRIPTINSTANCE_SERVER))
         {
             Scr_GetVector(6u, vPoint, SCRIPTINSTANCE_SERVER);
             point = vPoint;
         }
-        if ( Scr_GetType(7u, SCRIPTINSTANCE_SERVER) )
+        if (Scr_GetType(7u, SCRIPTINSTANCE_SERVER))
         {
             Scr_GetVector(7u, vDir, SCRIPTINSTANCE_SERVER);
             dir = vDir;
@@ -2427,15 +2428,15 @@ void __cdecl ActorCmd_finishActorDamage(scr_entref_t entref)
         floatValue = (unsigned __int16)Scr_GetConstString(8u, SCRIPTINSTANCE_SERVER).floatValue;
         hitLoc = (hitLocation_t)G_GetHitLocationIndexFromString(floatValue);
         psTimeOffset = Scr_GetInt(9u, SCRIPTINSTANCE_SERVER).intValue;
-        if ( self->Physics.bIsAlive )
+        if (self->Physics.bIsAlive)
         {
-            if ( dir )
+            if (dir)
                 Vec3NormalizeTo(dir, localdir);
             else
                 memset(localdir, 0, sizeof(localdir));
-            if ( (self->ent->flags & 1) == 0 )
+            if ((self->ent->flags & 1) == 0)
             {
-                if ( iWeapon && BG_GetWeaponDef(iWeapon)->weapType == WEAPTYPE_BULLET && IsBulletImpactMOD(mod) )
+                if (iWeapon && BG_GetWeaponDef(iWeapon)->weapType == WEAPTYPE_BULLET && IsBulletImpactMOD(mod))
                 {
                     tempBulletHitEntity = G_TempEntity(vPoint, 51);
                     AssignToSmallerType<unsigned short>(&tempBulletHitEntity->s.weapon, iWeapon);
@@ -2445,9 +2446,9 @@ void __cdecl ActorCmd_finishActorDamage(scr_entref_t entref)
                     tempBulletHitEntity->s.surfType = 7;
                     AssignToSmallerType<short>(&tempBulletHitEntity->s.otherEntityNum, attacker->s.number);
                 }
-                if ( (self->ent->flags & 2) != 0 && self->ent->health - damage <= 0 )
+                if ((self->ent->flags & 2) != 0 && self->ent->health - damage <= 0)
                     damage = self->ent->health - 1;
-                if ( g_debugDamage->current.enabled )
+                if (g_debugDamage->current.enabled)
                     Com_Printf(15, "target:%i health:%i damage:%i\n", self->ent->s.number, self->ent->health, damage);
                 self->ent->health -= damage;
                 Scr_AddEntity(attacker, SCRIPTINSTANCE_SERVER);
@@ -2471,10 +2472,11 @@ void __cdecl ActorCmd_finishActorDamage(scr_entref_t entref)
                     if (die)
                         die(self->ent, inflictor, attacker, damage, mod, iWeapon, localdir, hitLoc, psTimeOffset);
                 }
-        }
-        else
-        {
-            Scr_Error("Trying to do damage to a actor that is already dead", 0);
+            }
+            else
+            {
+                Scr_Error("Trying to do damage to a actor that is already dead", 0);
+            }
         }
     }
 }

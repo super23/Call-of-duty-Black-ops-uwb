@@ -19,6 +19,7 @@
 #include <gfx_d3d/r_drawsurf.h>
 #include <xanim/xmodel_utils.h>
 #include "fx_update_util.h"
+#include <gfx_d3d/r_scene.h>
 
 volatile unsigned int fx_add_markLimit = 1;
 jqModule fx_add_markModule;
@@ -508,6 +509,7 @@ void __cdecl FX_ImpactMark(
     {
 LABEL_4:
         //D3DPERF_EndEvent();
+        ;
     }
 }
 
@@ -803,6 +805,17 @@ void __cdecl FX_ImpactMark_Generate_Callback(
         isSeeThruDecal);
 }
 
+bool __cdecl FX_CompareMarkTris(const FxMarkTri &tri0, const FxMarkTri &tri1)
+{
+    int contextCompareResult; // [esp+10h] [ebp-4h]
+
+    contextCompareResult = FX_MarkContextsCompare(&tri0.context, &tri1.context);
+    if (contextCompareResult)
+        return contextCompareResult > 0;
+    else
+        return tri0.indices[0] < (int)tri1.indices[0];
+}
+
 void __cdecl FX_AllocAndConstructMark(
                 unsigned int localClientNum,
                 int triCount,
@@ -842,7 +855,7 @@ void __cdecl FX_AllocAndConstructMark(
         //    12 * triCount / 12,
         //    FX_CompareMarkTris);
 
-        std::sort(&markTris[0], &markTris[triCount], FX_CompareMarkTris);
+        std::sort(markTris, markTris + triCount, FX_CompareMarkTris);
 
         Sys_EnterCriticalSection(CRITSECT_ALLOC_MARK);
         if (_InterlockedIncrement(&g_markThread[localClientNum]) != 1
@@ -1361,17 +1374,6 @@ unsigned __int16 __cdecl FX_FindModelHead(FxMarksSystem *marksSystem, unsigned _
         }
     }
     return -1;
-}
-
-bool __cdecl FX_CompareMarkTris(const FxMarkTri *tri0, const FxMarkTri *tri1)
-{
-    int contextCompareResult; // [esp+10h] [ebp-4h]
-
-    contextCompareResult = FX_MarkContextsCompare(&tri0->context, &tri1->context);
-    if ( contextCompareResult )
-        return contextCompareResult > 0;
-    else
-        return tri0->indices[0] < (int)tri1->indices[0];
 }
 
 int __cdecl FX_MarkContextsCompare(const GfxMarkContext *context0, const GfxMarkContext *context1)

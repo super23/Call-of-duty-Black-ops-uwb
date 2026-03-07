@@ -2473,6 +2473,7 @@ void __cdecl DynEntCl_EntityImpactEvent(
     }
     //if ( g_DXDeviceThread == GetCurrentThreadId() )
 LABEL_3:
+    ;
         //D3DPERF_EndEvent();
 }
 
@@ -2949,6 +2950,16 @@ void __cdecl DynEntCl_ExplosionEvent(
     }
 }
 
+//bool __cdecl DynEntCl_CompareDynEntsForExplosion(const DynEntSortStruct &ent1, const DynEntSortStruct &ent2)
+//{
+//    return ent2.distSq > ent1.distSq;
+//}
+
+bool CompareMaterialMemory(const MaterialMemory &one, const MaterialMemory &two)
+{
+    return (uintptr_t)one.material > (uintptr_t)two.material;
+}
+
 unsigned int __cdecl DynEntCl_GetClosestEntities(
                 DynEntityCollType drawType,
                 float *radiusMins,
@@ -3001,7 +3012,8 @@ unsigned int __cdecl DynEntCl_GetClosestEntities(
         //    (int)(8 * unsignedInt_low) >> 3,
         //    (bool (__cdecl *)(const MaterialMemory *, const MaterialMemory *))DynEntCl_CompareDynEntsForExplosion);
 
-        std::sort(v9, &v9[unsignedInt_low], DynEntCl_CompareDynEntsForExplosion);
+        //std::sort(&v9[0], &v9[unsignedInt_low], DynEntCl_CompareDynEntsForExplosion);
+        std::sort(&v9[0], &v9[unsignedInt_low], CompareMaterialMemory);
 
         unsignedInt_low = LOWORD(dynEnt_explodeMaxEnts->current.unsignedInt);
         if ( unsignedInt_low != dynEnt_explodeMaxEnts->current.integer
@@ -3018,11 +3030,6 @@ unsigned int __cdecl DynEntCl_GetClosestEntities(
             hitEnts[i] = v9[i].memory;
     }
     return unsignedInt_low;
-}
-
-bool __cdecl DynEntCl_CompareDynEntsForExplosion(const DynEntSortStruct *ent1, const DynEntSortStruct *ent2)
-{
-    return ent2->distSq > ent1->distSq;
 }
 
 void __cdecl DynEntCl_DestroyEvent(

@@ -26,6 +26,7 @@
 #include <qcommon/dobj_management.h>
 #include "turret.h"
 #include "g_targets.h"
+#include <bgame/bg_weapons_def.h>
 
 static float rollRadius = 5.0f;
 float rollFrac_0 = 0.5f;
@@ -1235,7 +1236,7 @@ void __cdecl G_RunMissileInternal(gentity_s *ent)
                 clipMask = ent->clipmask | 0x20;
                 G_MissileTrace(&tr, ent->r.currentOrigin, origin, passEntNum, clipMask, ent->s.weapon);
             }
-            if ( (char *)((unsigned int)&bg_vehicleInfos[11].rotorTailStartFx[20] & tr.sflags) == &cls.rankedServers[11866].game[59] )
+            if ((tr.sflags & 0x3F00000) == 0x1400000)
             {
                 Vec3Lerp(ent->r.currentOrigin, origin, tr.fraction, endpos);
                 RunMissile_CreateWaterSplash(ent, endpos, &tr);
@@ -1248,7 +1249,7 @@ void __cdecl G_RunMissileInternal(gentity_s *ent)
             ent->r.currentOrigin[0] = endpos[0];
             ent->r.currentOrigin[1] = endpos[1];
             ent->r.currentOrigin[2] = endpos[2];
-            if ( ((unsigned int)&cls.rankedServers[711].game[35] & ent->s.lerp.eFlags) != 0 )
+            if ((ent->s.lerp.eFlags & 0x1000000) != 0)
             {
                 if ( weapDef->stickiness == WEAPSTICKINESS_ALL
                     || (weapDef->stickiness == WEAPSTICKINESS_GROUND || weapDef->stickiness == WEAPSTICKINESS_GROUND_WITH_YAW)
@@ -1528,9 +1529,9 @@ void    MissileImpact(gentity_s *ent, trace_t *trace, float *dir, float *endpos)
     float waterHeight; // [esp+DCh] [ebp-B0h]
     float preBounceVelocity[4]; // [esp+E0h] [ebp-ACh] BYREF
     gentity_s *v68; // [esp+F0h] [ebp-9Ch]
-    float v69; // [esp+F4h] [ebp-98h] BYREF
-    float v70; // [esp+F8h] [ebp-94h]
-    float v71; // [esp+FCh] [ebp-90h]
+    float v69[3]; // [esp+F4h] [ebp-98h] BYREF
+    //float v70; // [esp+F8h] [ebp-94h]
+    //float v71; // [esp+FCh] [ebp-90h]
     hitLocation_t hitLocation; // [esp+100h] [ebp-8Ch]
     hitLocation_t partGroup; // [esp+104h] [ebp-88h]
     int methodOfDeath; // [esp+108h] [ebp-84h]
@@ -1640,12 +1641,12 @@ void    MissileImpact(gentity_s *ent, trace_t *trace, float *dir, float *endpos)
         }
         if (other->takedamage && damage > 0)
         {
-            BG_EvaluateTrajectoryDelta(&ent->s.lerp.pos, level.time, &v69);
-            if ((float)((float)((float)(v69 * v69) + (float)(v70 * v70)) + (float)(v71 * v71)) < 0.001)
+            BG_EvaluateTrajectoryDelta(&ent->s.lerp.pos, level.time, v69);
+            if ((float)((float)((float)(v69[0] * v69[0]) + (float)(v69[1] * v69[1])) + (float)(v69[2] * v69[2])) < 0.001)
             {
-                v69 = 0.0f;
-                v70 = 0.0f;
-                v71 = 1.0f;
+                v69[0] = 0.0f;
+                v69[1] = 0.0f;
+                v69[2] = 1.0f;
             }
             //if (EntHandle::isDefined(&ent->r.ownerNum))
             if (ent->r.ownerNum.isDefined())
@@ -1659,7 +1660,7 @@ void    MissileImpact(gentity_s *ent, trace_t *trace, float *dir, float *endpos)
                 other,
                 ent,
                 v68,
-                &v69,
+                v69,
                 ent->r.currentOrigin,
                 damage,
                 0,
@@ -2316,7 +2317,7 @@ bool    BounceMissile(gentity_s *ent, trace_t *trace)
         g_entities[ent->s.groundEntityNum].flags |= 0x100000u;
     }
     doRolling = 0;
-    if (((unsigned int)&cls.rankedServers[711].game[35] & ent->s.lerp.eFlags) == 0)
+    if ((ent->s.lerp.eFlags & 0x1000000) == 0)
         goto LABEL_103;
     isDud = ent->s.lerp.u.turret.ownerNum != 0;
     doRolling = GrenadeBounceVelocity(
@@ -3149,7 +3150,7 @@ bool __cdecl isBounceProjectile(gentity_s *ent)
         __debugbreak();
     }
     weapDef = BG_GetWeaponDef(ent->s.weapon);
-    return ((unsigned int)&cls.rankedServers[711].game[35] & ent->s.lerp.eFlags) != 0
+    return (ent->s.lerp.eFlags & 0x1000000) != 0
             || weapDef->stickiness != WEAPSTICKINESS_ALL && weapDef->stickiness != WEAPSTICKINESS_FLESH;
 }
 
@@ -3971,13 +3972,7 @@ void __cdecl GuidedMissileSteering(gentity_s *ent)
                 targetPos[1] = targetPos[1] + origin[1];
                 targetPos[2] = targetPos[2] + origin[2];
                 memset(&tr, 0, 16);
-                G_LocationalTraceAllowChildren(
-                    &tr,
-                    origin,
-                    targetPos,
-                    v3->s.number,
-                    (int)&cls.recentServers[7543].countrycode[1],
-                    0);
+                G_LocationalTraceAllowChildren(&tr, origin, targetPos, v3->s.number, 0x280E833, 0);
                 if ( tr.fraction < 1.0 )
                     Vec3Lerp(origin, targetPos, tr.fraction, targetPos);
             }
@@ -4630,11 +4625,11 @@ char JavelinClimbExceededAngle(gentity_s *ent, const float *targetPos)
     float toTarget[3]; // [esp+Ch] [ebp-20h] BYREF
     float value; // [esp+18h] [ebp-14h]
     float currentHorzDir[2]; // [esp+1Ch] [ebp-10h]
-    float limit; // [esp+24h] [ebp-8h]
-    float retaddr; // [esp+2Ch] [ebp+0h]
+    //float limit; // [esp+24h] [ebp-8h]
+    //float retaddr; // [esp+2Ch] [ebp+0h]
 
     //currentHorzDir[1] = a1;
-    limit = retaddr;
+    //limit = retaddr;
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_missile.cpp", 2743, 0, "%s", "ent") )
         __debugbreak();
     if ( ent->s.eType != 4
@@ -4953,7 +4948,7 @@ LABEL_36:
                     return 0;
                 }
                 if ( !allowBounce
-                    || ((unsigned int)&cls.rankedServers[711].game[35] & ent->s.lerp.eFlags) == 0
+                    || (ent->s.lerp.eFlags & 0x1000000) == 0
                     || (PredictBounceMissile(ent, &pos, &tr, time, time + (int)(float)(50.0 * tr.fraction) - 50, org, endpos),
                             pos.trTime = time,
                             !pos.trType) )
@@ -4980,7 +4975,7 @@ LABEL_36:
         __debugbreak();
     }
     memcpy(ent, &backupEnt, sizeof(gentity_s));
-    if ( allowBounce && ((unsigned int)&cls.rankedServers[711].game[35] & ent->s.lerp.eFlags) != 0 )
+    if (allowBounce && (ent->s.lerp.eFlags & 0x1000000) != 0)
         return ent->nextthink;
     else
         return time;
@@ -5045,7 +5040,7 @@ void __cdecl PredictBounceMissile(
     {
         __debugbreak();
     }
-    if ( ((unsigned int)&cls.rankedServers[711].game[35] & ent->s.lerp.eFlags) == 0 )
+    if ((ent->s.lerp.eFlags & 0x1000000) == 0)
         goto LABEL_27;
     bounceFactor = Abs(velocity);
     if ( bounceFactor > 0.0 && dot <= 0.0 )
@@ -5120,7 +5115,7 @@ void __cdecl G_InitGrenadeEntity(gentity_s *parent, gentity_s *grenade)
     if ( !weapDef && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_missile.cpp", 4109, 0, "%s", "weapDef") )
         __debugbreak();
     grenade->s.eType = 4;
-    grenade->s.lerp.eFlags = (int)&cls.rankedServers[711].game[35];
+    grenade->s.lerp.eFlags = 0x1000000;
     grenade->s.lerp.u.actor.actorNum = level.time;
     fusetime = weapDef->aiFuseTime;
     if ( parent && parent->client )
@@ -5169,9 +5164,9 @@ void __cdecl G_InitGrenadeEntity(gentity_s *parent, gentity_s *grenade)
             grenade->parent.setEnt(0);
         }
     }
-    grenade->clipmask = (int)&cls.recentServers[7544].adr.port + 3;
+    grenade->clipmask = 0x280E893;
     if ( weapDef->plantable )
-        grenade->clipmask |= (unsigned int)&cls.recentServers[7647].hostName[20];
+        grenade->clipmask |= 0x2818011u;
     if ( weapDef->stickiness == WEAPSTICKINESS_GROUND_WITH_YAW )
         grenade->clipmask &= ~0x2000000u;
     grenade->handler = 10;
@@ -5482,7 +5477,7 @@ gentity_s *__cdecl G_FireRocket(
         bolt->r.ownerNum.setEnt(parent);
         bolt->parent.setEnt(parent);
     }
-    bolt->clipmask = (int)&cls.recentServers[7544].adr.port + 3;
+    bolt->clipmask = 0x280E893;
     bolt->handler = 12;
     InitRocketTimer(bolt, weapDef);
     bolt->item[1].ammoCount = 0;
@@ -5506,7 +5501,7 @@ gentity_s *__cdecl G_FireRocket(
     else
         bolt->missile.team = (team_t)parent->team;
     if ( weapDef->bForceBounce )
-        bolt->s.lerp.eFlags = (int)&cls.rankedServers[711].game[35];
+        bolt->s.lerp.eFlags = 0x1000000;
     ownerIndex = 0;
     if ( parent->client )
         ownerIndex = parent->client - level.clients;
@@ -5790,7 +5785,7 @@ gentity_s *__cdecl G_DropBomb(
     }
     bolt->r.ownerNum.setEnt(parent);
     bolt->parent.setEnt(parent);
-    bolt->clipmask = (int)&cls.recentServers[7544].adr.port + 3;
+    bolt->clipmask = 0x280E893;
     bolt->handler = 12;
     InitRocketTimer(bolt, weapDef);
     if ( targetOffset )

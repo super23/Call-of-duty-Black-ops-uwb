@@ -3,6 +3,8 @@
 #include <clientscript/cscr_variable.h>
 #include <bgame/bg_local.h>
 
+struct WeaponComponentList;
+
 void __cdecl PlayerCmd_setBlockWeaponPickup(scr_entref_t entref);
 int __cdecl BG_PlayerWeaponSetBlockPickupWeapon(playerState_s *ps, unsigned int weaponIndex, bool blockPickupWeapon);
 void __cdecl PlayerCmd_giveWeapon(scr_entref_t entref);

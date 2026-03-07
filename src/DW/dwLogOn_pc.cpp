@@ -1,3 +1,4 @@
+#ifdef KISAK_DW
 #include "dwLogOn_pc.h"
 #include <universal/dvar.h>
 #include <universal/assertive.h>
@@ -724,3 +725,4 @@ bool __cdecl isOfficialRentedServer(int licensetype)
     return licensetype == 2;
 }
 
+#endif

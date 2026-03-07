@@ -4,8 +4,6 @@
 #include <game_mp/actor_mp.h>
 #include "bullet.h"
 
-const int ACTOR_TEAMMOVE_WAIT_TIME = 500;
-
 const float g_actorAssumedSpeed[1] = { 300.0 };
 
 
@@ -132,6 +130,7 @@ LABEL_18:
     //if ( g_DXDeviceThread == GetCurrentThreadId() )
 LABEL_33:
         //D3DPERF_EndEvent();
+    ;
 }
 
 ai_teammove_t __fastcall Actor_GetTeamMoveStatus(actor_s *self, bool bUseInterval, bool bAllowGoalPileUp)
@@ -607,7 +606,7 @@ char __cdecl Actor_TeamMoveShouldTryDodgeSentient(
     {
         if ( context_other->fPosDeltaLengthSqrd >= context->fDodgePosDeltaLengthSqrd )
             return 0;
-        if ( ((unsigned int)&cls.wagerServers[5331].basictraining & self->Physics.iTraceMask) == 0 )
+        if ((self->Physics.iTraceMask & 0x2000000) == 0)
             return 0;
         if ( Actor_IsEnemy(self, other) )
             return 1;

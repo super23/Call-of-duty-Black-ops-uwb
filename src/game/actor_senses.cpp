@@ -79,20 +79,20 @@ char __fastcall Actor_SightTrace(actor_s *self, const float *start, const float 
         foliageIgnorePos[0] = (float)(value * foliageIgnorePos[0]) + *start;
         foliageIgnorePos[1] = (float)(value * foliageIgnorePos[1]) + start[1];
         foliageIgnorePos[2] = (float)(value * foliageIgnorePos[2]) + start[2];
-        context.mask = (int)&cls.recentServers[7489].hostName[22];
+        context.mask = 0x2809803;
         SV_SightTracePoint(&hitNum, foliageIgnorePos, end, &context);
         if ( !hitNum )
         {
-            context.mask = (int)&cls.recentServers[7489].hostName[20];
+            context.mask = 0x2809801;
             SV_SightTracePoint(&hitNum, start, foliageIgnorePos, &context);
         }
     }
     else
     {
         if ( ai_foliageIngoreDist->current.value * ai_foliageIngoreDist->current.value <= Vec3DistanceSq(start, end) )
-            context.mask = (int)&cls.recentServers[7489].hostName[22];
+            context.mask = 0x2809803;
         else
-            context.mask = (int)&cls.recentServers[7489].hostName[20];
+            context.mask = 0x2809801;
         SV_SightTracePoint(&hitNum, start, end, &context);
     }
     if ( hitNum )

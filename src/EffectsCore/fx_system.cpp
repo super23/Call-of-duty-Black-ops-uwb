@@ -16,6 +16,9 @@
 #include "fx_wind.h"
 #include <cgame/cg_sound.h>
 #include <sound/snd_public_async.h>
+#include <gfx_d3d/rb_light.h>
+#include <cgame_mp/cg_main_mp.h>
+#include <bgame/bg_wind.h>
 
 FxSystemContainer *fx_systemPool;
 FxSystemBuffers *fx_systemBufferPool;

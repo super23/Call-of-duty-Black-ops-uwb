@@ -37,6 +37,15 @@
 #include <game_mp/g_combat_mp.h>
 #include "g_load_utils.h"
 #include <cgame/cg_scr_main.h>
+#include <sound/snd_bank.h>
+
+
+struct VehiclePhysicsBackup // sizeof=0x204
+{                                       // XREF: .data:s_backup/r
+    vehicle_pathpos_t pathPos;
+    vehicle_physic_t phys;              // XREF: VEH_BackupPosition+F3/o
+};
+VehiclePhysicsBackup s_backup;
 
 void __cdecl METHODS_NULLSUB(scr_entref_t entref)
 {
@@ -579,7 +588,6 @@ cspField_t s_vehicleFields[] =
   { "nitrous_boat_vertical_fric", 7628, 7 }
 };
 
-const __int16 s_numVehicleFields = 345;
 static_assert(s_numVehicleFields == arr_cnt(s_vehicleFields));
 
 
@@ -614,22 +622,6 @@ const float s_correctSolidDeltas[26][3] =
   { 1.0, 1.0, -1.0 },
   { -1.0, 1.0, -1.0 }
 };
-
-const unsigned __int16 *s_seatTags[11] =
-{
-  &scr_const.tag_driver,
-  &scr_const.tag_gunner1,
-  &scr_const.tag_gunner2,
-  &scr_const.tag_gunner3,
-  &scr_const.tag_gunner4,
-  &scr_const.tag_passenger1,
-  &scr_const.tag_passenger2,
-  &scr_const.tag_passenger3,
-  &scr_const.tag_passenger4,
-  &scr_const.tag_passenger5,
-  &scr_const.tag_passenger6,
-};
-
 
 
 scr_vehicle_s s_vehicles[16];
@@ -8586,41 +8578,35 @@ void __cdecl VEH_DebugPlaneOnCurve(gentity_s *ent)
 
 void __cdecl VEH_UpdatePlaneRoll(gentity_s *ent)
 {
-    float v1; // xmm0_8
-    long double v2; // [esp+4h] [ebp-14h]
-    vehicle_physic_t *phys; // [esp+8h] [ebp-10h]
+    float v2; // xmm0_4
     scr_vehicle_s *veh; // [esp+10h] [ebp-8h]
 
-    if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 5699, 0, "%s", "ent") )
+    if (!ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 5699, 0, "%s", "ent"))
         __debugbreak();
-    if ( !ent->scr_vehicle
+    if (!ent->scr_vehicle
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp",
-                    5700,
-                    0,
-                    "%s",
-                    "ent->scr_vehicle") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp",
+            5700,
+            0,
+            "%s",
+            "ent->scr_vehicle"))
     {
         __debugbreak();
     }
     veh = ent->scr_vehicle;
-    if ( BG_GetVehicleInfo(veh->infoIdx)->type != 3 )
+    if (BG_GetVehicleInfo(veh->infoIdx)->type != 3)
         Com_Error(ERR_DROP, "Vehicle type has to be plane to set Roll. ");
-    if ( (veh->flags & 2) == 0
-        || veh->moveState != VEH_MOVESTATE_PLANE_ONCURVE && veh->moveState != VEH_MOVESTATE_PLANE_FREE )
+    if ((veh->flags & 2) == 0
+        || veh->moveState != VEH_MOVESTATE_PLANE_ONCURVE && veh->moveState != VEH_MOVESTATE_PLANE_FREE)
     {
-        Com_Error(ERR_DROP, "Can not set roll on non moving plane.");
+        Com_Error(ERR_DROP, "Can not set roll on non moving plane. ");
     }
     veh->currentRollTime = veh->currentRollTime + 0.050000001;
-    v1 = (float)((float)((float)(90.0 * veh->currentRollTime) / veh->goalRollTime) * 0.017453292);
-    //HIDWORD(v2) = &veh->phys;
-    //__libm_sse2_sin(v2);
-    //*(float *)&v1 = v1;
-    v1 = sin(v1);
-    //phys->angles[2] = veh->goalRoll * *(float *)&v1;
-    phys->angles[2] = veh->goalRoll * v1;
-    phys->angles[2] = AngleNormalize360(phys->angles[2]);
-    if ( veh->currentRollTime >= veh->goalRollTime )
+    //v2 = __libm_sse2_sin((float)((float)((float)(90.0 * veh->currentRollTime) / veh->goalRollTime) * 0.017453292));
+    v2 = sin((float)((float)((float)(90.0 * veh->currentRollTime) / veh->goalRollTime) * 0.017453292));
+    veh->phys.angles[2] = veh->goalRoll * v2;
+    veh->phys.angles[2] = AngleNormalize360(veh->phys.angles[2]);
+    if (veh->currentRollTime >= veh->goalRollTime)
         veh->hasGoalRoll = 0.0f;
 }
 
@@ -8657,13 +8643,6 @@ void __cdecl VEH_UpdatePlaneFree(gentity_s *ent)
     phys->origin[1] = phys->origin[1] + dir[1];
     phys->origin[2] = phys->origin[2] + dir[2];
 }
-
-struct VehiclePhysicsBackup // sizeof=0x204
-{                                       // XREF: .data:s_backup/r
-    vehicle_pathpos_t pathPos;
-    vehicle_physic_t phys;              // XREF: VEH_BackupPosition+F3/o
-};
-VehiclePhysicsBackup s_backup;
 
 void __cdecl VEH_UpdateChopperPathDrive(gentity_s *ent)
 {

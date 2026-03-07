@@ -9,6 +9,8 @@
 #include <bgame/bg_misc.h>
 #include <server/sv_game.h>
 #include <cgame/cg_scr_main.h>
+#include <bgame/bg_weapons_def.h>
+#include <stringed/stringed_hooks.h>
 
 const game_hudelem_field_t fields_0[28] =
 {
@@ -216,9 +218,6 @@ const char *g_he_alignx[3] =
 
 const char *g_he_aligny[3] =
 { "top", "middle", "bottom" };
-
-const char *g_he_textstyle[3] =
-{ "normal", "shadowed", "shadowedmore" };
 
 const char *g_he_horzalign[11] =
 {

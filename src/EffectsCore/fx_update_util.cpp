@@ -3,6 +3,8 @@
 #include <gfx_d3d/fxprimitives.h>
 #include "fx_random.h"
 #include "fx_system.h"
+#include <win32/win_common.h>
+#include <qcommon/common.h>
 
 void __cdecl FX_OffsetSpawnOrigin(
     const FxSpatialFrame *effectFrame,
@@ -467,14 +469,14 @@ void FX_GetVelocityAtTime(
     velocity[1] = baseVel[1];
     velocity[2] = baseVel[2];
     velocityScale = 1000.0f;
-    if (((unsigned int)&cls.wagerServers[5331].basictraining & elemDef->flags) != 0)
+    if ((elemDef->flags & 0x2000000) != 0)
     {
         FX_GetVelocityAtTimeInFrame(&samples->world, &samples[1].world, rangeLerp, weight, velocityWorld);
         *velocity = (float)(velocityScale * velocityWorld[0]) + *velocity;
         velocity[1] = (float)(velocityScale * velocityWorld[1]) + velocity[1];
         velocity[2] = (float)(velocityScale * velocityWorld[2]) + velocity[2];
     }
-    if (((unsigned int)&cls.rankedServers[711].game[35] & elemDef->flags) != 0)
+    if ((elemDef->flags & 0x1000000) != 0)
     {
         FX_GetVelocityAtTimeInFrame(&samples->local, &samples[1].local, rangeLerp, weight, velocityLocal);
         FX_OrientationDirToWorldDir(orient, velocityLocal, velocityWorld);

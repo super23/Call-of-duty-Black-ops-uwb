@@ -405,7 +405,7 @@ constexpr float actorMins[3] = { -15.0, -15.0, 0.0 };
 constexpr float actorMaxs[3] = { 15.0, 15.0, 48.0 };
 
 constexpr float meleeAttackOffsets[4][2] = { { 1.0, 0.0 }, { 0.0, 1.0 }, { -1.0, 0.0 }, { 0.0, -1.0 } };
-constexpr float ACTOR_EYE_OFFSET = 64.0f;
+//constexpr float ACTOR_EYE_OFFSET = 64.0f; // in actor_mp.h
 
 
 extern const unsigned __int16 *g_AISpeciesNames[1];

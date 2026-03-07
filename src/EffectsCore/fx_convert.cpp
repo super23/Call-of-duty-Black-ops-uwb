@@ -1,6 +1,7 @@
 #include "fx_convert.h"
 #include <gfx_d3d/r_material_load_obj.h>
 #include "FxCurve.h"
+#include <qcommon/common.h>
 
 float4 NATIVE_VERTEX_PERM = { { 3.972236e-34, 0.0, 0.0, 0.0 } };
 
@@ -1089,20 +1090,8 @@ void __cdecl FX_SampleVelocity(FxElemDef *elemDef, const FxEditorElemDef *edElem
     velScale[1][2] = v2 * edElemDef->velScale[1][2];
     velStateStride = 2;
     velStateRange = (FxElemVelStateSample*)elemDef->velSamples;
-    FX_SampleVelocityInFrame(
-        elemDef,
-        velScale,
-        &velStateRange->local,
-        2,
-        (int)&cls.rankedServers[711].game[35],
-        edElemDef);
-    FX_SampleVelocityInFrame(
-        elemDef,
-        velScale,
-        &velStateRange->world,
-        velStateStride,
-        (int)&cls.wagerServers[5331].basictraining,
-        edElemDef);
+    FX_SampleVelocityInFrame(elemDef, velScale, &velStateRange->local, 2, 0x1000000, edElemDef);
+    FX_SampleVelocityInFrame(elemDef, velScale, &velStateRange->world, velStateStride, 0x2000000, edElemDef);
 }
 
 void __cdecl FX_SampleVelocityInFrame(
@@ -1129,12 +1118,8 @@ void __cdecl FX_SampleVelocityInFrame(
     FxElemVelStateInFrame *velStatePrev; // [esp+80h] [ebp-8h]
     bool useVelocity[4]; // [esp+84h] [ebp-4h]
 
-    useVelocity[0] = (edElemDef->editorFlags & 0x800) == (useGraphBit != (unsigned int)&cls.wagerServers[5331].basictraining
-                                                                                                            ? 0
-                                                                                                            : 0x800);
-    useVelocity[1] = (edElemDef->editorFlags & 0x1000) == (useGraphBit != (unsigned int)&cls.wagerServers[5331].basictraining
-                                                                                                             ? 0
-                                                                                                             : 0x1000);
+    useVelocity[0] = (edElemDef->editorFlags & 0x800) == (useGraphBit != 0x2000000 ? 0 : 0x800);
+    useVelocity[1] = (edElemDef->editorFlags & 0x1000) == (useGraphBit != 0x2000000 ? 0 : 0x1000);
     v7 = useVelocity[0] && (edElemDef->editorFlags & 0x100) != 0;
     useVelocityRand[0] = v7;
     v6 = useVelocity[1] && (edElemDef->editorFlags & 0x200) != 0;

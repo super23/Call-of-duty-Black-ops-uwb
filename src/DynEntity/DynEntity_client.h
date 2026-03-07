@@ -6,6 +6,7 @@
 #include "DynEntity_server.h"
 #include "DynEntity_coll.h"
 #include <physics/phys_broad_phase.h>
+#include <qcommon/common.h>
 
 enum PhysWorld : __int32
 {                                       // XREF: ?DynEnt_DestroyPhysics@@YAXW4PhysWorld@@PBUDynEntityDef@@PAUDynEntityClient@@@Z/r
@@ -204,7 +205,6 @@ unsigned int __cdecl DynEntCl_GetClosestEntities(
                 float *origin,
                 unsigned __int16 *hitEnts,
                 bool isCylinder);
-bool __cdecl DynEntCl_CompareDynEntsForExplosion(const DynEntSortStruct *ent1, const DynEntSortStruct *ent2);
 void __cdecl DynEntCl_DestroyEvent(
                 int localClientNum,
                 unsigned __int16 dynEntId,

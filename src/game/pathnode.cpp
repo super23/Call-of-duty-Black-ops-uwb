@@ -22,6 +22,7 @@
 #include <game_mp/actor_mp.h>
 #include <qcommon/dobj_management.h>
 #include <server/sv_game.h>
+#include "g_bsp.h"
 
 node_field_t fields_3[12] =
 {
@@ -951,18 +952,18 @@ pathnode_t *__cdecl Scr_GetPathnode(unsigned int index, scriptInstance_t inst)
     }
 }
 
-bool __cdecl Path_CompareNodesIncreasing(const pathsort_t *ps1, const pathsort_t *ps2)
+bool __cdecl Path_CompareNodesIncreasing(const pathsort_t &ps1, const pathsort_t &ps2)
 {
-    if ( ps1->node->dynamic.wLinkCount )
+    if ( ps1.node->dynamic.wLinkCount )
     {
-        if ( !ps2->node->dynamic.wLinkCount )
+        if ( !ps2.node->dynamic.wLinkCount )
             return 1;
     }
-    else if ( ps2->node->dynamic.wLinkCount )
+    else if ( ps2.node->dynamic.wLinkCount )
     {
         return 0;
     }
-    return ps2->metric > ps1->metric;
+    return ps2.metric > ps1.metric;
 }
 
 unsigned int __cdecl Path_ConvertNodeToIndex(const pathnode_t *node)
@@ -3389,164 +3390,167 @@ void __cdecl Path_DisconnectPath(gentity_s *ent, pathnode_t *node, pathlink_s *l
 
 void    Path_UpdateArcBadPlaceCount(badplace_arc_t *arc, int teamflags, int delta)
 {
-    double v4; // xmm0_8
-    long double v5; // [esp+Ch] [ebp-11Ch]
-    float v6; // [esp+14h] [ebp-114h]
-    float v7; // [esp+1Ch] [ebp-10Ch]
-    float v8; // [esp+24h] [ebp-104h]
-    float v9; // [esp+2Ch] [ebp-FCh]
-    float v10; // [esp+34h] [ebp-F4h]
-    float fDistNode0; // [esp+38h] [ebp-F0h]
-    float v12; // [esp+3Ch] [ebp-ECh]
-    float fHeight1; // [esp+40h] [ebp-E8h]
-    float t1; // [esp+44h] [ebp-E4h]
-    float fHeight0; // [esp+48h] [ebp-E0h]
-    float fSqrtDisc; // [esp+50h] [ebp-D8h]
-    float fDiscriminant; // [esp+54h] [ebp-D4h]
-    float fC; // [esp+58h] [ebp-D0h]
-    float fA; // [esp+5Ch] [ebp-CCh]
-    float fB; // [esp+60h] [ebp-C8h]
-    float v21; // [esp+80h] [ebp-A8h]
-    float fOtherDeltaSqrd; // [esp+84h] [ebp-A4h]
-    pathnode_t *vOtherDelta_4; // [esp+8Ch] [ebp-9Ch]
-    pathlink_s *vOtherDelta_8; // [esp+90h] [ebp-98h]
+    float v4; // xmm0_4
+    float fDistOther1; // [esp+14h] [ebp-114h]
+    float fDistOther0; // [esp+1Ch] [ebp-10Ch]
+    float fDistNode1; // [esp+24h] [ebp-104h]
+    float fDistNode0; // [esp+2Ch] [ebp-FCh]
+    float fHeight1; // [esp+34h] [ebp-F4h]
+    float t1; // [esp+38h] [ebp-F0h]
+    float fHeight0; // [esp+3Ch] [ebp-ECh]
+    float t0; // [esp+40h] [ebp-E8h]
+    float fSqrtDisc; // [esp+44h] [ebp-E4h]
+    float fDiscriminant; // [esp+48h] [ebp-E0h]
+    float fA; // [esp+50h] [ebp-D8h]
+    float fB; // [esp+54h] [ebp-D4h]
+    float vLineDelta; // [esp+58h] [ebp-D0h]
+    float vLineDelta_4; // [esp+5Ch] [ebp-CCh]
+    float vLineDelta_8; // [esp+60h] [ebp-C8h]
+    float vOtherDelta_4; // [esp+80h] [ebp-A8h]
+    float vOtherDelta_8; // [esp+84h] [ebp-A4h]
+    pathnode_t *otherNode; // [esp+8Ch] [ebp-9Ch]
+    pathlink_s *link; // [esp+90h] [ebp-98h]
     unsigned int j; // [esp+94h] [ebp-94h]
-    float otherNode; // [esp+98h] [ebp-90h]
-    float v27; // [esp+ACh] [ebp-7Ch]
-    float v28; // [esp+B0h] [ebp-78h]
-    float fPosHeightSqrd; // [esp+B4h] [ebp-74h]
-    float fPosDeltaSqrd; // [esp+B8h] [ebp-70h]
-    pathnode_t *vPosDelta_4; // [esp+C0h] [ebp-68h]
-    unsigned int vPosDelta_8; // [esp+C4h] [ebp-64h]
-    float v33; // [esp+C8h] [ebp-60h]
-    float node; // [esp+CCh] [ebp-5Ch]
-    float i; // [esp+D0h] [ebp-58h]
-    float fMaxHeightSqrd; // [esp+D4h] [ebp-54h]
-    float fMaxRadiusSqrd; // [esp+D8h] [ebp-50h]
-    float fHeightSqrd; // [esp+DCh] [ebp-4Ch]
-    float centroid[3]; // [esp+E4h] [ebp-44h] BYREF
-    float scale; // [esp+F0h] [ebp-38h]
-    float forward[3]; // [esp+F8h] [ebp-30h]
-    int bArcLessThan180; // [esp+104h] [ebp-24h] BYREF
-    float v43; // [esp+108h] [ebp-20h]
-    float angle; // [esp+10Ch] [ebp-1Ch]
-    float side1[3]; // [esp+110h] [ebp-18h] BYREF
-    float side0[3]; // [esp+11Ch] [ebp-Ch]
-    //float retaddr; // [esp+128h] [ebp+0h]
+    float fCentroidDeltaSqrd; // [esp+98h] [ebp-90h]
+    float fPosDeltaSqrd; // [esp+ACh] [ebp-7Ch]
+    float vPosDelta; // [esp+B0h] [ebp-78h]
+    float vPosDelta_4; // [esp+B4h] [ebp-74h]
+    float vPosDelta_8; // [esp+B8h] [ebp-70h]
+    pathnode_t *node; // [esp+C0h] [ebp-68h]
+    unsigned int i; // [esp+C4h] [ebp-64h]
+    float fMaxHeightSqrd; // [esp+C8h] [ebp-60h]
+    float fMaxRadiusSqrd; // [esp+CCh] [ebp-5Ch]
+    float fHeightSqrd; // [esp+D0h] [ebp-58h]
+    float fRadiusSqrd; // [esp+D4h] [ebp-54h]
+    float centroid; // [esp+D8h] [ebp-50h]
+    float centroid_4; // [esp+DCh] [ebp-4Ch]
+    float scale; // [esp+E4h] [ebp-44h]
+    float forward[3]; // [esp+ECh] [ebp-3Ch] BYREF
+    int bArcLessThan180; // [esp+F8h] [ebp-30h]
+    BOOL v41; // [esp+FCh] [ebp-2Ch]
+    float angle; // [esp+100h] [ebp-28h]
+    float side1[3]; // [esp+104h] [ebp-24h] BYREF
+    float side0[3]; // [esp+110h] [ebp-18h] BYREF
+    //_UNKNOWN *v45; // [esp+11Ch] [ebp-Ch]
+    //badplace_arc_t *arca; // [esp+120h] [ebp-8h]
+    //int teamflagsa; // [esp+124h] [ebp-4h] BYREF
+    //int deltaa; // [esp+128h] [ebp+0h]
     //
-    //side0[0] = a1;
-    //side0[1] = retaddr;
-    YawVectors(arc->angle0, 0, side1);
-    YawVectors(arc->angle1, 0, (float *)&bArcLessThan180);
-    side1[0] = -side1[0];
-    side1[1] = -side1[1];
-    side1[2] = -side1[2];
+    //v45 = a1;
+    //arca = (badplace_arc_t *)deltaa;
+    YawVectors(arc->angle0, 0, side0);
+    YawVectors(arc->angle1, 0, side1);
+    //LODWORD(side0[0]) ^= _mask__NegFloat_;
+    //LODWORD(side0[1]) ^= _mask__NegFloat_;
+    //LODWORD(side0[2]) ^= _mask__NegFloat_;
+    side0[0] = -side0[0];
+    side0[1] = -side0[1];
+    side0[2] = -side0[2];
+    side0[2] = (float)(side0[0] * arc->origin[0]) + (float)(side0[1] * arc->origin[1]);
     side1[2] = (float)(side1[0] * arc->origin[0]) + (float)(side1[1] * arc->origin[1]);
-    angle = (float)(*(float *)&bArcLessThan180 * arc->origin[0]) + (float)(v43 * arc->origin[1]);
-    forward[2] = arc->angle1 - arc->angle0;
-    if ( forward[2] < 0.0 )
-        forward[2] = forward[2] + 360.0;
-    LODWORD(forward[1]) = forward[2] < 180.0;
-    forward[0] = forward[1];
-    YawVectors((float)(forward[2] * 0.5) + arc->angle0, &centroid[2], 0);
-    v4 = (float)(forward[2] * 0.0087266462);
-    //__libm_sse2_sin(v5);
-    //*(float *)&v4 = v4;
-    v4 = sin(v4);
-    centroid[0] = (float)((float)(*(float *)&v4 / forward[2]) * 76.394371) * arc->radius;
-    fMaxRadiusSqrd = (float)(centroid[0] * centroid[2]) + arc->origin[0];
-    fHeightSqrd = (float)(centroid[0] * scale) + arc->origin[1];
-    fMaxHeightSqrd = arc->radius * arc->radius;
-    i = arc->halfheight * arc->halfheight;
-    node = (float)(arc->radius + 256.0) * (float)(arc->radius + 256.0);
-    v33 = (float)(arc->halfheight + 128.0) * (float)(arc->halfheight + 128.0);
-    for ( vPosDelta_8 = 0; vPosDelta_8 < g_path.actualNodeCount; ++vPosDelta_8 )
+    angle = arc->angle1 - arc->angle0;
+    if (angle < 0.0)
+        angle = angle + 360.0;
+    v41 = angle < 180.0;
+    bArcLessThan180 = v41;
+    YawVectors((float)(angle * 0.5) + arc->angle0, forward, 0);
+    //v4 = __libm_sse2_sin((float)(angle * 0.0087266462));
+    v4 = sin((float)(angle * 0.0087266462));
+    scale = (float)((float)(v4 / angle) * 76.394371) * arc->radius;
+    centroid = (float)(scale * forward[0]) + arc->origin[0];
+    centroid_4 = (float)(scale * forward[1]) + arc->origin[1];
+    fRadiusSqrd = arc->radius * arc->radius;
+    fHeightSqrd = arc->halfheight * arc->halfheight;
+    fMaxRadiusSqrd = (float)(arc->radius + 256.0) * (float)(arc->radius + 256.0);
+    fMaxHeightSqrd = (float)(arc->halfheight + 128.0) * (float)(arc->halfheight + 128.0);
+    for (i = 0; i < g_path.actualNodeCount; ++i)
     {
-        vPosDelta_4 = &gameWorldCurrent->path.nodes[vPosDelta_8];
-        v28 = vPosDelta_4->constant.vOrigin[0] - arc->origin[0];
-        fPosHeightSqrd = vPosDelta_4->constant.vOrigin[1] - arc->origin[1];
-        fPosDeltaSqrd = vPosDelta_4->constant.vOrigin[2] - arc->origin[2];
-        v27 = (float)(v28 * v28) + (float)(fPosHeightSqrd * fPosHeightSqrd);
-        if ( v27 < node && (float)(fPosDeltaSqrd * fPosDeltaSqrd) < v33 )
+        node = &gameWorldCurrent->path.nodes[i];
+        vPosDelta = node->constant.vOrigin[0] - arc->origin[0];
+        vPosDelta_4 = node->constant.vOrigin[1] - arc->origin[1];
+        vPosDelta_8 = node->constant.vOrigin[2] - arc->origin[2];
+        fPosDeltaSqrd = (float)(vPosDelta * vPosDelta) + (float)(vPosDelta_4 * vPosDelta_4);
+        if (fPosDeltaSqrd < fMaxRadiusSqrd && (float)(vPosDelta_8 * vPosDelta_8) < fMaxHeightSqrd)
         {
-            otherNode = (float)((float)(fMaxRadiusSqrd - vPosDelta_4->constant.vOrigin[0])
-                                                * (float)(fMaxRadiusSqrd - vPosDelta_4->constant.vOrigin[0]))
-                                + (float)((float)(fHeightSqrd - vPosDelta_4->constant.vOrigin[1])
-                                                * (float)(fHeightSqrd - vPosDelta_4->constant.vOrigin[1]));
-            for ( j = 0; j < vPosDelta_4->constant.totalLinkCount; ++j )
+            fCentroidDeltaSqrd = (float)((float)(centroid - node->constant.vOrigin[0])
+                * (float)(centroid - node->constant.vOrigin[0]))
+                + (float)((float)(centroid_4 - node->constant.vOrigin[1])
+                    * (float)(centroid_4 - node->constant.vOrigin[1]));
+            for (j = 0; j < node->constant.totalLinkCount; ++j)
             {
-                vOtherDelta_8 = &vPosDelta_4->constant.Links[j];
-                vOtherDelta_4 = &gameWorldCurrent->path.nodes[vOtherDelta_8->nodeNum];
-                fOtherDeltaSqrd = vOtherDelta_4->constant.vOrigin[2] - arc->origin[2];
-                if ( (float)((float)((float)(fMaxRadiusSqrd - vOtherDelta_4->constant.vOrigin[0])
-                                                     * (float)(fMaxRadiusSqrd - vOtherDelta_4->constant.vOrigin[0]))
-                                     + (float)((float)(fHeightSqrd - vOtherDelta_4->constant.vOrigin[1])
-                                                     * (float)(fHeightSqrd - vOtherDelta_4->constant.vOrigin[1]))) <= otherNode )
+                link = &node->constant.Links[j];
+                otherNode = &gameWorldCurrent->path.nodes[link->nodeNum];
+                vOtherDelta_8 = otherNode->constant.vOrigin[2] - arc->origin[2];
+                if ((float)((float)((float)(centroid - otherNode->constant.vOrigin[0])
+                    * (float)(centroid - otherNode->constant.vOrigin[0]))
+                    + (float)((float)(centroid_4 - otherNode->constant.vOrigin[1])
+                        * (float)(centroid_4 - otherNode->constant.vOrigin[1]))) <= fCentroidDeltaSqrd)
                 {
-                    if ( fPosDeltaSqrd < arc->halfheight )
+                    if (vPosDelta_8 < arc->halfheight)
                     {
-                        if ( (-(arc->halfheight)) >= fPosDeltaSqrd && (-(arc->halfheight)) >= fOtherDeltaSqrd )
+                        //if (COERCE_FLOAT(LODWORD(arc->halfheight) ^ _mask__NegFloat_) >= vPosDelta_8 && COERCE_FLOAT(LODWORD(arc->halfheight) ^ _mask__NegFloat_) >= vOtherDelta_8)
+                        if ((-(arc->halfheight)) >= vPosDelta_8 && (-(arc->halfheight)) >= vOtherDelta_8)
                         {
                             continue;
                         }
                     }
-                    else if ( fOtherDeltaSqrd >= arc->halfheight )
+                    else if (vOtherDelta_8 >= arc->halfheight)
                     {
                         continue;
                     }
-                    if ( v27 <= fMaxHeightSqrd )
+                    if (fPosDeltaSqrd <= fRadiusSqrd)
                         goto LABEL_27;
-                    v21 = vOtherDelta_4->constant.vOrigin[1] - arc->origin[1];
-                    if ( (float)((float)((float)(vOtherDelta_4->constant.vOrigin[0] - arc->origin[0])
-                                                         * (float)(vOtherDelta_4->constant.vOrigin[0] - arc->origin[0]))
-                                         + (float)(v21 * v21)) <= fMaxHeightSqrd )
+                    vOtherDelta_4 = otherNode->constant.vOrigin[1] - arc->origin[1];
+                    if ((float)((float)((float)(otherNode->constant.vOrigin[0] - arc->origin[0])
+                        * (float)(otherNode->constant.vOrigin[0] - arc->origin[0]))
+                        + (float)(vOtherDelta_4 * vOtherDelta_4)) <= fRadiusSqrd)
                         goto LABEL_27;
-                    fC = vOtherDelta_4->constant.vOrigin[0] - vPosDelta_4->constant.vOrigin[0];
-                    fA = vOtherDelta_4->constant.vOrigin[1] - vPosDelta_4->constant.vOrigin[1];
-                    fB = vOtherDelta_4->constant.vOrigin[2] - vPosDelta_4->constant.vOrigin[2];
-                    //LODWORD(fDiscriminant) = COERCE_UNSIGNED_INT((float)(fC * v28) + (float)(fA * fPosHeightSqrd)) ^ _mask__NegFloat_;
-                    (fDiscriminant) = -((float)(fC * v28) + (float)(fA * fPosHeightSqrd));
-                    if ( fDiscriminant > 0.0 )
+                    vLineDelta = otherNode->constant.vOrigin[0] - node->constant.vOrigin[0];
+                    vLineDelta_4 = otherNode->constant.vOrigin[1] - node->constant.vOrigin[1];
+                    vLineDelta_8 = otherNode->constant.vOrigin[2] - node->constant.vOrigin[2];
+                    //LODWORD(fB) = COERCE_UNSIGNED_INT((float)(vLineDelta * vPosDelta) + (float)(vLineDelta_4 * vPosDelta_4)) ^ _mask__NegFloat_;
+                    (fB) = -((float)(vLineDelta * vPosDelta) + (float)(vLineDelta_4 * vPosDelta_4));
+                    if (fB > 0.0)
                     {
-                        fSqrtDisc = (float)(fC * fC) + (float)(fA * fA);
-                        fHeight0 = (float)(fDiscriminant * fDiscriminant) - (float)(fSqrtDisc * (float)(v27 - fMaxHeightSqrd));
-                        if ( fHeight0 > 0.0 )
+                        fA = (float)(vLineDelta * vLineDelta) + (float)(vLineDelta_4 * vLineDelta_4);
+                        fDiscriminant = (float)(fB * fB) - (float)(fA * (float)(fPosDeltaSqrd - fRadiusSqrd));
+                        if (fDiscriminant > 0.0)
                         {
-                            t1 = sqrtf(fHeight0);
-                            fHeight1 = (float)(fDiscriminant - t1) / fSqrtDisc;
-                            if ( fHeight1 < 1.0 )
+                            fSqrtDisc = sqrtf(fDiscriminant);
+                            t0 = (float)(fB - fSqrtDisc) / fA;
+                            if (t0 < 1.0)
                             {
-                                v12 = (float)(fB * fHeight1) + fPosDeltaSqrd;
-                                if ( (float)(v12 * v12) <= i
-                                    || (fDistNode0 = (float)(fDiscriminant + t1) / fSqrtDisc, fDistNode0 < 1.0)
-                                    && ((v10 = (float)(fB * fDistNode0) + fPosDeltaSqrd, (float)(v10 * v10) <= i)
-                                     || (float)(v12 * v10) < 0.0) )
+                                fHeight0 = (float)(vLineDelta_8 * t0) + vPosDelta_8;
+                                if ((float)(fHeight0 * fHeight0) <= fHeightSqrd
+                                    || (t1 = (float)(fB + fSqrtDisc) / fA, t1 < 1.0)
+                                    && ((fHeight1 = (float)(vLineDelta_8 * t1) + vPosDelta_8, (float)(fHeight1 * fHeight1) <= fHeightSqrd)
+                                        || (float)(fHeight0 * fHeight1) < 0.0))
                                 {
-LABEL_27:
-                                    if ( arc->angle0 == 0.0 && arc->angle1 == 360.0 )
+                                LABEL_27:
+                                    if (arc->angle0 == 0.0 && arc->angle1 == 360.0)
                                         goto LABEL_38;
-                                    v9 = (float)((float)(vPosDelta_4->constant.vOrigin[0] * side1[0])
-                                                         + (float)(vPosDelta_4->constant.vOrigin[1] * side1[1]))
-                                         - side1[2];
-                                    v8 = (float)((float)(vPosDelta_4->constant.vOrigin[0] * *(float *)&bArcLessThan180)
-                                                         + (float)(vPosDelta_4->constant.vOrigin[1] * v43))
-                                         - angle;
-                                    v7 = (float)((float)(vOtherDelta_4->constant.vOrigin[0] * side1[0])
-                                                         + (float)(vOtherDelta_4->constant.vOrigin[1] * side1[1]))
-                                         - side1[2];
-                                    v6 = (float)((float)(vOtherDelta_4->constant.vOrigin[0] * *(float *)&bArcLessThan180)
-                                                         + (float)(vOtherDelta_4->constant.vOrigin[1] * v43))
-                                         - angle;
-                                    if ( LODWORD(forward[0]) )
+                                    fDistNode0 = (float)((float)(node->constant.vOrigin[0] * side0[0])
+                                        + (float)(node->constant.vOrigin[1] * side0[1]))
+                                        - side0[2];
+                                    fDistNode1 = (float)((float)(node->constant.vOrigin[0] * side1[0])
+                                        + (float)(node->constant.vOrigin[1] * side1[1]))
+                                        - side1[2];
+                                    fDistOther0 = (float)((float)(otherNode->constant.vOrigin[0] * side0[0])
+                                        + (float)(otherNode->constant.vOrigin[1] * side0[1]))
+                                        - side0[2];
+                                    fDistOther1 = (float)((float)(otherNode->constant.vOrigin[0] * side1[0])
+                                        + (float)(otherNode->constant.vOrigin[1] * side1[1]))
+                                        - side1[2];
+                                    if (bArcLessThan180)
                                     {
-                                        if ( (v9 >= 0.0 || v7 >= 0.0) && (v8 >= 0.0 || v6 >= 0.0) )
+                                        if ((fDistNode0 >= 0.0 || fDistOther0 >= 0.0) && (fDistNode1 >= 0.0 || fDistOther1 >= 0.0))
                                         {
-LABEL_38:
-                                            Path_UpdateBadPlaceCountForLink(vOtherDelta_8, teamflags, delta);
+                                        LABEL_38:
+                                            Path_UpdateBadPlaceCountForLink(link, teamflags, delta);
                                             continue;
                                         }
                                     }
-                                    else if ( v9 >= 0.0 || v7 >= 0.0 || v8 >= 0.0 || v6 >= 0.0 )
+                                    else if (fDistNode0 >= 0.0 || fDistOther0 >= 0.0 || fDistNode1 >= 0.0 || fDistOther1 >= 0.0)
                                     {
                                         goto LABEL_38;
                                     }

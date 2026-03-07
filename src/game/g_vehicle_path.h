@@ -1,6 +1,7 @@
 #pragma once
 #include <qcommon/common.h>
 #include <qcommon/radiant_remote.h>
+#include "sentient_fields.h"
 
 struct vehicle_spline_node_t // sizeof=0x14
 {                                       // XREF: $D7144489F720B3BEDA1018D511D72833/r

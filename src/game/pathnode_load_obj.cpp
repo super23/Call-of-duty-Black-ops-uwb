@@ -7,6 +7,7 @@
 #include <game_mp/g_main_mp.h>
 #include <bgame/bg_misc.h>
 #include <server/sv_game.h>
+#include "g_bsp.h"
 
 const float nodeAttackOffset[21] =
 {

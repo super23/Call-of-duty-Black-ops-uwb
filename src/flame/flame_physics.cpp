@@ -226,7 +226,8 @@ void __cdecl Flame_Phys_Collision(
             close_characters_count,
             close_triggers,
             close_triggers_count);
-        sv_flame_proftimer.value += *(_QWORD *)&tlPcGetTick() - sv_flame_proftimer.stamp;
+        //sv_flame_proftimer.value += *(_QWORD *)&tlPcGetTick() - sv_flame_proftimer.stamp;
+        sv_flame_proftimer.value += tlPcGetTick().QuadPart - sv_flame_proftimer.stamp;
     }
     else
     {
@@ -246,7 +247,8 @@ void __cdecl Flame_Phys_Collision(
             entsCount,
             close_characters,
             close_characters_count);
-        cl_flame_proftimer.value += *(_QWORD *)&tlPcGetTick() - cl_flame_proftimer.stamp;
+        //cl_flame_proftimer.value += *(_QWORD *)&tlPcGetTick() - cl_flame_proftimer.stamp;
+        cl_flame_proftimer.value += tlPcGetTick().QuadPart - cl_flame_proftimer.stamp;
     }
 }
 
