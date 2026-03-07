@@ -2122,9 +2122,9 @@ void __cdecl CM_CheckForTraps(gentity_s *ent)
     float origin[3]; // [esp+30h] [ebp-10C0h] BYREF
     DObj *obj; // [esp+3Ch] [ebp-10B4h]
     unsigned int model; // [esp+40h] [ebp-10B0h]
-    float tvel; // [esp+44h] [ebp-10ACh] BYREF
-    float v7; // [esp+48h] [ebp-10A8h]
-    float v8; // [esp+4Ch] [ebp-10A4h]
+    float tvel[3]; // [esp+44h] [ebp-10ACh] BYREF
+    //float v7; // [esp+48h] [ebp-10A8h]
+    //float v8; // [esp+4Ch] [ebp-10A4h]
     float avel[3]; // [esp+50h] [ebp-10A0h] BYREF
     gentity_s *enta; // [esp+5Ch] [ebp-1094h]
     int i; // [esp+60h] [ebp-1090h]
@@ -2170,8 +2170,8 @@ void __cdecl CM_CheckForTraps(gentity_s *ent)
         enta = &g_entities[entityList[i]];
         if ( enta->physObjId )
         {
-            Phys_ObjGetVelocities(enta->physObjId, &tvel, avel);
-            if ( (float)((float)((float)(tvel * tvel) + (float)(v7 * v7)) + (float)(v8 * v8)) > (float)(thresh_0 * thresh_0) )
+            Phys_ObjGetVelocities(enta->physObjId, tvel, avel);
+            if ( (float)((float)((float)(tvel[0] * tvel[0]) + (float)(tvel[1]* tvel[1])) + (float)(tvel[2] * tvel[2])) > (float)(thresh_0 * thresh_0))
             {
                 obj = Com_GetServerDObj(enta->s.number);
                 if ( obj )
@@ -2185,9 +2185,9 @@ void __cdecl CM_CheckForTraps(gentity_s *ent)
                 {
                     model = SV_ClipHandleForEntity(enta);
                 }
-                origin[0] = (float)(scale_1 * tvel) + enta->r.currentOrigin[0];
-                origin[1] = (float)(scale_1 * v7) + enta->r.currentOrigin[1];
-                origin[2] = (float)(scale_1 * v8) + enta->r.currentOrigin[2];
+                origin[0] = (float)(scale_1 * tvel[0]) + enta->r.currentOrigin[0];
+                origin[1] = (float)(scale_1 * tvel[1]) + enta->r.currentOrigin[1];
+                origin[2] = (float)(scale_1 * tvel[2]) + enta->r.currentOrigin[2];
                 CM_TransformedBoxTraceExternal(&results, &start, end, aiMins, aiMaxs, model, -1, origin, enta->r.currentAngles);
                 if ( results.startsolid )
                 {

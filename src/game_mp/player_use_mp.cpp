@@ -13,6 +13,13 @@
 #include <algorithm>
 #include "g_utils_mp.h"
 #include <game/actor_script_cmd.h>
+#include <bgame/bg_weapons_def.h>
+
+
+bool __cdecl compare_use(const useList_t &a, const useList_t &b)
+{
+    return b.score > a.score;
+}
 
 static const float turretScanRadiusSq = 16384.0;
 char __cdecl Player_IsPlayerUsingTurretNearby(gentity_s *ent)
@@ -338,6 +345,8 @@ void __cdecl Player_ActivateDoubleTapCmd(gentity_s *ent)
     }
 }
 
+int Player_GetUseList(gentity_s *ent, useList_t *useList, int prevHintEntIndex);
+
 void __cdecl Player_UpdateCursorHints(gentity_s *ent)
 {
     int v2; // [esp+14h] [ebp-202Ch]
@@ -394,7 +403,7 @@ void __cdecl Player_UpdateCursorHints(gentity_s *ent)
                 && (ent->client->flags & 4) == 0
                 && (ent->client->flags & 8) == 0 )
             {
-                v8 = Player_GetUseList(ent, (MaterialMemory *)useList, ps->cursorHintEntIndex);
+                v8 = Player_GetUseList(ent, useList, ps->cursorHintEntIndex);
                 if ( v8 )
                 {
                     item = 0;
@@ -529,251 +538,247 @@ LABEL_39:
     }
 }
 
-int __cdecl Player_GetUseList(gentity_s *ent, MaterialMemory *useList, int prevHintEntIndex)
+int Player_GetUseList(gentity_s *ent, useList_t *useList, int prevHintEntIndex)
 {
     int eType; // [esp+0h] [ebp-13A4h]
     int integer; // [esp+10h] [ebp-1394h]
-    float v6; // [esp+14h] [ebp-1390h]
+    float v7; // [esp+14h] [ebp-1390h]
     float value; // [esp+18h] [ebp-138Ch]
-    float v8; // [esp+280h] [ebp-1124h]
-    float v9; // [esp+284h] [ebp-1120h]
-    float v10[3]; // [esp+2A0h] [ebp-1104h] BYREF
-    int v11; // [esp+2ACh] [ebp-10F8h]
-    float v12[3]; // [esp+2B0h] [ebp-10F4h] BYREF
-    float v13; // [esp+2BCh] [ebp-10E8h]
-    int v14; // [esp+2C0h] [ebp-10E4h]
-    float v15; // [esp+2C4h] [ebp-10E0h]
+    float v9; // [esp+280h] [ebp-1124h]
+    float v10; // [esp+284h] [ebp-1120h]
+    float v11[3]; // [esp+2A0h] [ebp-1104h] BYREF
+    BOOL v12; // [esp+2ACh] [ebp-10F8h]
+    float v13[3]; // [esp+2B0h] [ebp-10F4h] BYREF
+    float v14; // [esp+2BCh] [ebp-10E8h]
+    BOOL v15; // [esp+2C0h] [ebp-10E4h]
+    float v16; // [esp+2C4h] [ebp-10E0h]
     gentity_s *ent1; // [esp+2C8h] [ebp-10DCh]
-    float v17; // [esp+2CCh] [ebp-10D8h]
+    float v18; // [esp+2CCh] [ebp-10D8h]
     float v; // [esp+2D0h] [ebp-10D4h] BYREF
-    float v19; // [esp+2D4h] [ebp-10D0h]
-    float v20; // [esp+2D8h] [ebp-10CCh]
+    float v20; // [esp+2D4h] [ebp-10D0h]
+    float v21; // [esp+2D8h] [ebp-10CCh]
     int entityList[1025]; // [esp+2DCh] [ebp-10C8h] BYREF
     int hitNum; // [esp+12E0h] [ebp-C4h] BYREF
-    col_context_t context; // [esp+12E4h] [ebp-C0h] BYREF
-    float origin; // [esp+130Ch] [ebp-98h] BYREF
-    float v25; // [esp+1310h] [ebp-94h]
-    float v26; // [esp+1314h] [ebp-90h]
-    float v27; // [esp+1318h] [ebp-8Ch] BYREF
-    float v28; // [esp+131Ch] [ebp-88h]
-    float v29; // [esp+1320h] [ebp-84h]
-    float fl_256; // [esp+1324h] [ebp-80h]
+    float origin[3]; // [esp+130Ch] [ebp-98h] BYREF
+    //float v26; // [esp+1310h] [ebp-94h]
+    //float v27; // [esp+1314h] [ebp-90h]
+    float v28; // [esp+1318h] [ebp-8Ch] BYREF
+    float v29; // [esp+131Ch] [ebp-88h]
+    float v30; // [esp+1320h] [ebp-84h]
+    float v31; // [esp+1324h] [ebp-80h]
     float mins[3]; // [esp+1328h] [ebp-7Ch] BYREF
-    float v32; // [esp+1334h] [ebp-70h]
-    float v33; // [esp+1338h] [ebp-6Ch]
-    float v34; // [esp+133Ch] [ebp-68h]
-    float v35; // [esp+1340h] [ebp-64h]
-    int v36; // [esp+1344h] [ebp-60h]
-    float v37; // [esp+1348h] [ebp-5Ch]
+    float v33; // [esp+1334h] [ebp-70h]
+    float v34; // [esp+1338h] [ebp-6Ch]
+    float v35; // [esp+133Ch] [ebp-68h]
+    float v36; // [esp+1340h] [ebp-64h]
+    int v37; // [esp+1344h] [ebp-60h]
+    float v38; // [esp+1348h] [ebp-5Ch]
     gentity_s *gEnt; // [esp+134Ch] [ebp-58h]
     float forward[3]; // [esp+1350h] [ebp-54h] BYREF
-    float v40; // [esp+135Ch] [ebp-48h]
-    int v41; // [esp+1360h] [ebp-44h]
-    int v42; // [esp+1364h] [ebp-40h]
+    float v41; // [esp+135Ch] [ebp-48h]
+    int v42; // [esp+1360h] [ebp-44h]
+    int v43; // [esp+1364h] [ebp-40h]
     float maxs[3]; // [esp+1368h] [ebp-3Ch] BYREF
     float pos; // [esp+1374h] [ebp-30h] BYREF
-    float v45; // [esp+1378h] [ebp-2Ch]
-    float v46; // [esp+137Ch] [ebp-28h]
-    int v47; // [esp+1380h] [ebp-24h]
-    int v48; // [esp+1384h] [ebp-20h]
+    float v46; // [esp+1378h] [ebp-2Ch]
+    float v47; // [esp+137Ch] [ebp-28h]
+    int v48; // [esp+1380h] [ebp-24h]
+    int v49; // [esp+1384h] [ebp-20h]
     int i; // [esp+1388h] [ebp-1Ch]
     playerState_s *ps; // [esp+138Ch] [ebp-18h]
     team_t team; // [esp+1390h] [ebp-14h]
-    float fl_0_76; // [esp+1394h] [ebp-10h]
-    float v53; // [esp+1398h] [ebp-Ch] BYREF
-    float v54; // [esp+139Ch] [ebp-8h]
-    float v55; // [esp+13A0h] [ebp-4h]
+    float v53; // [esp+1394h] [ebp-10h]
+    float v54; // [esp+1398h] [ebp-Ch] BYREF
+    float v55; // [esp+139Ch] [ebp-8h]
+    float v56; // [esp+13A0h] [ebp-4h]
     gentity_s *ent2; // [esp+13ACh] [ebp+8h]
 
-    fl_256 = 256.0f;
-    fl_0_76 = 0.75999999f;
-    v47 = 0;
-    if ( (float)(192.0 - player_throwbackOuterRadius->current.value) < 0.0 )
+    v31 = 256.0f;
+    v53 = 0.75999999f;
+    v48 = 0;
+    if ((float)(192.0 - player_throwbackOuterRadius->current.value) < 0.0)
         value = player_throwbackOuterRadius->current.value;
     else
         value = 192.0f;
-    v33 = value;
-    if ( (float)(value - player_MGUseRadius->current.value) < 0.0 )
-        v6 = player_MGUseRadius->current.value;
+    v34 = value;
+    if ((float)(value - player_MGUseRadius->current.value) < 0.0)
+        v7 = player_MGUseRadius->current.value;
     else
-        v6 = v33;
-    v33 = v6;
-    if ( (float)(v6 - player_useRadius->current.value) < 0.0 )
+        v7 = v34;
+    v34 = v7;
+    if ((float)(v7 - player_useRadius->current.value) < 0.0)
         integer = player_useRadius->current.integer;
     else
-        integer = LODWORD(v33);
-    v33 = *(float *)&integer;
+        integer = LODWORD(v34);
     v34 = *(float *)&integer;
-    v35 = 96.0f;
+    v35 = *(float *)&integer;
+    v36 = 96.0f;
     ps = &ent->client->ps;
-    v36 = 0;
-    G_GetPlayerViewOrigin(ps, &origin);
+    v37 = 0;
+    G_GetPlayerViewOrigin(ps, origin);
     BG_GetPlayerViewDirection(ps, forward, 0, 0);
-
-    v53 = ps->origin[0] + -15.0;
-    v54 = ps->origin[1] + -15.0;
-    v55 = ps->origin[2] + 0.0;
-
-    v27 = ps->origin[0] + 15.0;
-    v28 = ps->origin[1] + 15.0;
-    v29 = ps->origin[2] + 70.0;
-
-    mins[0] = origin - v33;
-    mins[1] = v25 - v34;
-    mins[2] = v26 - v35;
-    maxs[0] = origin + v33;
-    maxs[1] = v25 + v34;
-    maxs[2] = v26 + v35;
-    v48 = CM_AreaEntities(mins, maxs, entityList, 1024, 0x200000);
-    v41 = 0;
-    for ( i = 0; i < v48; ++i )
+    v54 = ps->origin[0] + -15.0;
+    v55 = ps->origin[1] + -15.0;
+    v56 = ps->origin[2] + 0.0;
+    v28 = ps->origin[0] + 15.0;
+    v29 = ps->origin[1] + 15.0;
+    v30 = ps->origin[2] + 70.0;
+    mins[0] = origin[0] - v34;
+    mins[1] = origin[1] - v35;
+    mins[2] = origin[2] - v36;
+    maxs[0] = origin[0] + v34;
+    maxs[1] = origin[1] + v35;
+    maxs[2] = origin[2] + v36;
+    v49 = CM_AreaEntities(mins, maxs, entityList, 1024, 0x200000);
+    v42 = 0;
+    for (i = 0; i < v49; ++i)
     {
         gEnt = &g_entities[entityList[i]];
-        if ( ent != gEnt && (gEnt->s.eType == 3 || (gEnt->r.contents & 0x200000) != 0) )
+        if (ent != gEnt && (gEnt->s.eType == 3 || (gEnt->r.contents & 0x200000) != 0))
         {
-            if ( gEnt->classname == scr_const.trigger_use_touch )
+            if (gEnt->classname == scr_const.trigger_use_touch)
             {
-                if ( gEnt->r.absmin[0] <= v27
-                    && v53 <= gEnt->r.absmax[0]
-                    && gEnt->r.absmin[1] <= v28
-                    && v54 <= gEnt->r.absmax[1]
-                    && gEnt->r.absmin[2] <= v29
-                    && v55 <= gEnt->r.absmax[2] )
+                if (gEnt->r.absmin[0] <= v28
+                    && v54 <= gEnt->r.absmax[0]
+                    && gEnt->r.absmin[1] <= v29
+                    && v55 <= gEnt->r.absmax[1]
+                    && gEnt->r.absmin[2] <= v30
+                    && v56 <= gEnt->r.absmax[2])
                 {
-                    if ( SV_EntityContact(&v53, &v27, gEnt) )
+                    if (SV_EntityContact(&v54, &v28, gEnt))
                     {
-                        *(float *)&useList[v41].memory = -256.0f;
-                        useList[v41++].material = (Material *)gEnt;
+                        useList[v42].score = -256.0f;
+                        useList[v42++].ent = gEnt;
                     }
                 }
             }
             else
             {
-                if ( gEnt->s.eType != 4 )
+                if (gEnt->s.eType != 4)
                     goto LABEL_42;
-                if ( ps->waterlevel < 3 && BG_GetWeaponDef(gEnt->s.weapon)->bThrowBack && !gEnt->s.lerp.u.turret.ownerNum )
+                if (ps->waterlevel < 3 && BG_GetWeaponDef(gEnt->s.weapon)->bThrowBack && !gEnt->s.lerp.u.turret.ownerNum)
                 {
-                    if ( gEnt->parent.isDefined() )
+                    if (gEnt->parent.isDefined())
                     {
+                        //ent1 = EntHandle::ent(&gEnt->parent);
                         ent1 = gEnt->parent.ent();
-                        v14 = OnSameTeam(ent1, ent);
-                        if ( (!v14
-                             || ent->client->sess.cs.team == TEAM_FREE
-                             || ent1->s.clientNum == ent->s.clientNum
-                             || BG_GetFriendlyFireStatus())
-                            && !gEnt->tagInfo )
+                        v15 = OnSameTeam(ent1, ent);
+                        if ((!v15
+                            || ent->client->sess.cs.team == TEAM_FREE
+                            || ent1->s.clientNum == ent->s.clientNum
+                            || BG_GetFriendlyFireStatus())
+                            && !gEnt->tagInfo)
                         {
-                            v15 = gEnt->r.currentOrigin[2] - ent->r.currentOrigin[2];
-                            if ( prevHintEntIndex == gEnt->s.number )
+                            v16 = gEnt->r.currentOrigin[2] - ent->r.currentOrigin[2];
+                            if (prevHintEntIndex == gEnt->s.number)
                                 goto LABEL_41;
-                            v13 = player_throwbackInnerRadius->current.value;
-                            if ( (ps->perks[1] & 0x10) != 0 )
-                                v13 = perk_throwbackInnerRadius->current.value;
-                            v8 = ent->r.currentOrigin[0] - gEnt->r.currentOrigin[0];
-                            v9 = ent->r.currentOrigin[1] - gEnt->r.currentOrigin[1];
-                            if ( (float)((float)(v8 * v8) + (float)(v9 * v9)) <= (float)(v13 * v13) )
+                            v14 = player_throwbackInnerRadius->current.value;
+                            if ((ps->perks[1] & 0x10) != 0)
+                                v14 = perk_throwbackInnerRadius->current.value;
+                            v9 = ent->r.currentOrigin[0] - gEnt->r.currentOrigin[0];
+                            v10 = ent->r.currentOrigin[1] - gEnt->r.currentOrigin[1];
+                            if ((float)((float)(v9 * v9) + (float)(v10 * v10)) <= (float)(v14 * v14))
                             {
-LABEL_41:
-                                if ( (float)((float)((float)(gEnt->s.lerp.pos.trDelta[0] * gEnt->s.lerp.pos.trDelta[0])
-                                                                     + (float)(gEnt->s.lerp.pos.trDelta[1] * gEnt->s.lerp.pos.trDelta[1]))
-                                                     + (float)(gEnt->s.lerp.pos.trDelta[2] * gEnt->s.lerp.pos.trDelta[2])) <= (float)(bg_maxGrenadeIndicatorSpeed->current.value * bg_maxGrenadeIndicatorSpeed->current.value) )
+                            LABEL_41:
+                                if ((float)((float)((float)(gEnt->s.lerp.pos.trDelta[0] * gEnt->s.lerp.pos.trDelta[0])
+                                    + (float)(gEnt->s.lerp.pos.trDelta[1] * gEnt->s.lerp.pos.trDelta[1]))
+                                    + (float)(gEnt->s.lerp.pos.trDelta[2] * gEnt->s.lerp.pos.trDelta[2])) <= (float)(bg_maxGrenadeIndicatorSpeed->current.value * bg_maxGrenadeIndicatorSpeed->current.value))
                                 {
-LABEL_42:
+                                LABEL_42:
                                     eType = gEnt->s.eType;
-                                    switch ( eType )
+                                    switch (eType)
                                     {
-                                        case 4:
-                                            v37 = player_throwbackOuterRadius->current.value;
-                                            break;
-                                        case 11:
-                                            v37 = player_MGUseRadius->current.value;
-                                            break;
-                                        case 14:
-                                            v37 = vehicle_useRadius->current.value;
-                                            break;
-                                        default:
-                                            v37 = player_useRadius->current.value;
-                                            break;
+                                    case 4:
+                                        v38 = player_throwbackOuterRadius->current.value;
+                                        break;
+                                    case 11:
+                                        v38 = player_MGUseRadius->current.value;
+                                        break;
+                                    case 14:
+                                        v38 = vehicle_useRadius->current.value;
+                                        break;
+                                    default:
+                                        v38 = player_useRadius->current.value;
+                                        break;
                                     }
                                     pos = gEnt->r.absmin[0] + gEnt->r.absmax[0];
-                                    v45 = gEnt->r.absmin[1] + gEnt->r.absmax[1];
-                                    v46 = gEnt->r.absmin[2] + gEnt->r.absmax[2];
+                                    v46 = gEnt->r.absmin[1] + gEnt->r.absmax[1];
+                                    v47 = gEnt->r.absmin[2] + gEnt->r.absmax[2];
                                     pos = 0.5 * pos;
-                                    v45 = 0.5 * v45;
                                     v46 = 0.5 * v46;
-                                    v = pos - origin;
-                                    v19 = v45 - v25;
-                                    v20 = v46 - v26;
-                                    v32 = Vec3Normalize(&v);
-                                    if ( v32 <= v37 )
+                                    v47 = 0.5 * v47;
+                                    v = pos - origin[0];
+                                    v20 = v46 - origin[1];
+                                    v21 = v47 - origin[2];
+                                    v33 = Vec3Normalize(&v);
+                                    if (v33 <= v38)
                                     {
-                                        if ( (v17 = (float)((float)(v * forward[0]) + (float)(v19 * forward[1])) + (float)(v20 * forward[2]),
-                                                    gEnt->classname != scr_const.trigger_use)
+                                        if ((v18 = (float)((float)(v * forward[0]) + (float)(v20 * forward[1])) + (float)(v21 * forward[2]),
+                                            gEnt->classname != scr_const.trigger_use)
                                             && gEnt->classname != scr_const.trigger_radius
                                             && gEnt->classname != scr_const.trigger_radius_use
                                             || !gEnt->trigger.requireLookAt
-                                            || fl_0_76 <= v17 )
+                                            || v53 <= v18)
                                         {
-                                            if ( gEnt->classname != scr_const.trigger_radius
-                                                && gEnt->classname != scr_const.trigger_radius_use )
+                                            if (gEnt->classname != scr_const.trigger_radius
+                                                && gEnt->classname != scr_const.trigger_radius_use)
                                             {
                                                 goto LABEL_61;
                                             }
                                             team = level_bgs.clientinfo[ent->client->ps.clientNum].team;
-                                            if ( gEnt->team != 255 && gEnt->team == team )
+                                            if (gEnt->team != 255 && gEnt->team == team)
                                             {
-                                                v11 = 0;
-                                                v10[0] = gEnt->r.currentOrigin[0] + gEnt->r.mins[0];
-                                                v10[1] = gEnt->r.currentOrigin[1] + gEnt->r.mins[1];
-                                                v10[2] = gEnt->r.currentOrigin[2] + gEnt->r.mins[2];
-                                                v12[0] = gEnt->r.currentOrigin[0] + gEnt->r.maxs[0];
-                                                v12[1] = gEnt->r.currentOrigin[1] + gEnt->r.maxs[1];
-                                                v12[2] = gEnt->r.currentOrigin[2] + gEnt->r.maxs[2];
-                                                ExpandBoundsToWidth(v10, v12);
-                                                v11 = SV_EntityContact(v10, v12, ent);
-                                                if ( v11 )
+                                                v12 = 0;
+                                                v11[0] = gEnt->r.currentOrigin[0] + gEnt->r.mins[0];
+                                                v11[1] = gEnt->r.currentOrigin[1] + gEnt->r.mins[1];
+                                                v11[2] = gEnt->r.currentOrigin[2] + gEnt->r.mins[2];
+                                                v13[0] = gEnt->r.currentOrigin[0] + gEnt->r.maxs[0];
+                                                v13[1] = gEnt->r.currentOrigin[1] + gEnt->r.maxs[1];
+                                                v13[2] = gEnt->r.currentOrigin[2] + gEnt->r.maxs[2];
+                                                ExpandBoundsToWidth(v11, v13);
+                                                v12 = SV_EntityContact(v11, v13, ent);
+                                                if (v12)
                                                 {
-LABEL_61:
-                                                    v40 = 1.0 - (float)((float)(v17 + 1.0) * 0.5);
-                                                    *(float *)&useList[v41].memory = v40 * fl_256;
-                                                    if ( (gEnt->flags & 0x200) != 0 )
+                                                LABEL_61:
+                                                    v41 = 1.0 - (float)((float)(v18 + 1.0) * 0.5);
+                                                    useList[v42].score = v41 * v31;
+                                                    if ((gEnt->flags & 0x200) != 0)
                                                     {
-                                                        *(float *)&useList[v41].memory = *(float *)&useList[v41].memory
-                                                                                                                     - (float)(fl_256 * 0.55000001);
+                                                        useList[v42].score = useList[v42].score - (float)(v31 * 0.55000001);
                                                     }
                                                     else
                                                     {
-                                                        if ( gEnt->s.eType == 4 )
-                                                            *(float *)&useList[v41].memory = *(float *)&useList[v41].memory - (float)(fl_256 * 2.0);
-                                                        if ( gEnt->s.eType == 14 )
-                                                            *(float *)&useList[v41].memory = *(float *)&useList[v41].memory - (float)(fl_256 * 2.0);
-                                                        if ( gEnt->classname == scr_const.trigger_radius
-                                                            || gEnt->classname == scr_const.trigger_radius_use && gEnt->s.un3.item > 0 )
+                                                        if (gEnt->s.eType == 4)
+                                                            useList[v42].score = useList[v42].score - (float)(v31 * 2.0);
+                                                        if (gEnt->s.eType == 14)
+                                                            useList[v42].score = useList[v42].score - (float)(v31 * 2.0);
+                                                        if (gEnt->classname == scr_const.trigger_radius
+                                                            || gEnt->classname == scr_const.trigger_radius_use && gEnt->s.un3.item > 0)
                                                         {
-                                                            *(float *)&useList[v41].memory = *(float *)&useList[v41].memory - (float)(fl_256 * 1.5);
+                                                            useList[v42].score = useList[v42].score - (float)(v31 * 1.5);
                                                         }
-                                                        if ( gEnt->classname == scr_const.trigger_use || gEnt->classname == scr_const.trigger_radius )
-                                                            *(float *)&useList[v41].memory = *(float *)&useList[v41].memory - fl_256;
-                                                        if ( gEnt->s.eType == 6 )
-                                                            *(float *)&useList[v41].memory = *(float *)&useList[v41].memory - (float)(fl_256 * 0.75);
+                                                        if (gEnt->classname == scr_const.trigger_use || gEnt->classname == scr_const.trigger_radius)
+                                                            useList[v42].score = useList[v42].score - v31;
+                                                        if (gEnt->s.eType == 6)
+                                                            useList[v42].score = useList[v42].score - (float)(v31 * 0.75);
                                                     }
-                                                    if ( gEnt->s.eType == 11 )
+                                                    if (gEnt->s.eType == 11)
                                                     {
-                                                        if ( G_IsTurretUsable(gEnt, ent) )
-                                                            *(float *)&useList[v41].memory = *(float *)&useList[v41].memory - (float)(fl_256 * 0.5);
+                                                        if (G_IsTurretUsable(gEnt, ent))
+                                                            useList[v42].score = useList[v42].score - (float)(v31 * 0.5);
                                                         else
-                                                            *(float *)&useList[v41].memory = *(float *)&useList[v41].memory + 10000.0;
+                                                            useList[v42].score = useList[v42].score + 10000.0;
                                                     }
-                                                    if ( gEnt->s.eType == 3
+                                                    if (gEnt->s.eType == 3
                                                         && (!BG_CanItemBeGrabbed(&gEnt->s, &ent->client->ps, 0)
-                                                         || BG_PlayerWeaponBlockPickupWeapon(&ent->client->ps, ent->client->ps.weapon)) )
+                                                            || BG_PlayerWeaponBlockPickupWeapon(&ent->client->ps, ent->client->ps.weapon)))
                                                     {
-                                                        *(float *)&useList[v41].memory = *(float *)&useList[v41].memory + 10000.0;
-                                                        ++v47;
+                                                        useList[v42].score = useList[v42].score + 10000.0;
+                                                        ++v48;
                                                     }
-                                                    useList[v41].material = (Material *)gEnt;
-                                                    *(float *)&useList[v41].memory = *(float *)&useList[v41].memory + v32;
-                                                    ++v41;
+                                                    useList[v42].ent = gEnt;
+                                                    useList[v42].score = useList[v42].score + v33;
+                                                    ++v42;
                                                 }
                                             }
                                         }
@@ -786,56 +791,56 @@ LABEL_61:
             }
         }
     }
+    //std::_Sort<RagdollSortStruct *, int, bool(__cdecl *)(RagdollSortStruct const &, RagdollSortStruct const &)>(
+    //    (MaterialMemory *)useList,
+    //    (MaterialMemory *)&useList[v42],
+    //    (8 * v42) >> 3,
+    //    (bool(__cdecl *)(const MaterialMemory *, const MaterialMemory *))compare_use);
 
-    //std::_Sort<RagdollSortStruct *,int,bool (__cdecl *)(RagdollSortStruct const &,RagdollSortStruct const &)>(
-    //    useList,
-    //    &useList[v41],
-    //    (8 * v41) >> 3,
-    //    (bool (__cdecl *)(const MaterialMemory *, const MaterialMemory *))compare_use);
+    std::sort(useList, useList + v42, compare_use);
 
-    std::sort(&useList[0], &useList[v41], compare_use);
+    v42 -= v48;
+    v43 = 0;
+    col_context_t context(17); // [esp+12E4h] [ebp-C0h] BYREF
 
-    v41 -= v47;
-    v42 = 0;
     //col_context_t::col_context_t(&context, 17);
     context.passEntityNum0 = ps->clientNum;
     context.passEntityNum1 = ps->clientNum;
     hitNum = -1;
-    for ( i = 0; i < v41; ++i )
+    for (i = 0; i < v42; ++i)
     {
-        ent2 = (gentity_s *)useList[i].material;
-        if ( ent2->classname != scr_const.trigger_use_touch && ent2->classname != scr_const.trigger_radius )
+        ent2 = useList[i].ent;
+        if (ent2->classname != scr_const.trigger_use_touch && ent2->classname != scr_const.trigger_radius)
         {
             pos = ent2->r.absmin[0] + ent2->r.absmax[0];
-            v45 = ent2->r.absmin[1] + ent2->r.absmax[1];
-            v46 = ent2->r.absmin[2] + ent2->r.absmax[2];
+            v46 = ent2->r.absmin[1] + ent2->r.absmax[1];
+            v47 = ent2->r.absmin[2] + ent2->r.absmax[2];
             pos = 0.5 * pos;
-            v45 = 0.5 * v45;
             v46 = 0.5 * v46;
-            if ( ent2->s.eType == 14 )
-                v46 = (float)(ent2->r.maxs[2] * 0.5) + v46;
-            if ( ent2->s.eType == 11 )
+            v47 = 0.5 * v47;
+            if (ent2->s.eType == 14)
+                v47 = (float)(ent2->r.maxs[2] * 0.5) + v47;
+            if (ent2->s.eType == 11)
                 G_DObjGetWorldTagPos(ent2, scr_const.tag_aim, &pos);
-            if ( ent2->classname != scr_const.trigger_radius_use || ent2->s.otherEntityNum == 1023 )
+            if (ent2->classname != scr_const.trigger_radius_use || ent2->s.otherEntityNum == 1023)
                 context.passEntityNum1 = ent2->s.number;
             else
                 context.passEntityNum1 = ent2->s.otherEntityNum;
-            if ( !SV_SightTracePoint(&hitNum, &origin, &pos, &context) )
+            if (!SV_SightTracePoint(&hitNum, origin, &pos, &context))
             {
-                *(float *)&useList[i].memory = *(float *)&useList[i].memory + 10000.0;
-                ++v42;
+                useList[i].score = useList[i].score + 10000.0;
+                ++v43;
             }
         }
     }
-    //std::_Sort<RagdollSortStruct *,int,bool (__cdecl *)(RagdollSortStruct const &,RagdollSortStruct const &)>(
-    //    useList,
-    //    &useList[v41],
-    //    (8 * v41) >> 3,
-    //    (bool (__cdecl *)(const MaterialMemory *, const MaterialMemory *))compare_use);
+    //std::_Sort<RagdollSortStruct *, int, bool(__cdecl *)(RagdollSortStruct const &, RagdollSortStruct const &)>(
+    //    (MaterialMemory *)useList,
+    //    (MaterialMemory *)&useList[v42],
+    //    (8 * v42) >> 3,
+    //    (bool(__cdecl *)(const MaterialMemory *, const MaterialMemory *))compare_use);
 
-    std::sort(&useList[0], &useList[v41], compare_use);
-
-    return v41 - v42;
+    std::sort(useList, useList + v42, compare_use);
+    return v42 - v43;
 }
 
 bool __cdecl BG_PlayerWeaponBlockPickupWeapon(const playerState_s *ps, unsigned int weaponIndex)
@@ -846,11 +851,6 @@ bool __cdecl BG_PlayerWeaponBlockPickupWeapon(const playerState_s *ps, unsigned 
         __debugbreak();
     heldWeapon = BG_GetHeldWeaponConst(ps, weaponIndex);
     return heldWeapon && heldWeapon->blockWeaponPickup;
-}
-
-bool __cdecl compare_use(const useList_t *a, const useList_t *b)
-{
-    return b->score > a->score;
 }
 
 int __cdecl Player_GetItemCursorHint(const gclient_s *client, const gentity_s *traceEnt)

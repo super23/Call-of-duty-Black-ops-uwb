@@ -16,6 +16,7 @@
 #include <game/g_weapon.h>
 #include <game/g_client_fields.h>
 #include <cgame/cg_hudelem.h>
+#include <bgame/bg_weapons_def.h>
 
 struct ent_field_t // sizeof=0x14
 {                                       // XREF: .rdata:fields_1/r

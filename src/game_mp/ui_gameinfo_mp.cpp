@@ -2,6 +2,8 @@
 #include <universal/q_parse.h>
 #include <ui/ui_utils.h>
 #include <universal/com_files.h>
+#include <qcommon/common.h>
+#include <universal/com_stringtable.h>
 
 char *ui_arenaInfos[128];
 int ui_numArenas;

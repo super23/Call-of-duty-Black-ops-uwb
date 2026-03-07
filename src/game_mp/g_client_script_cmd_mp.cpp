@@ -41,6 +41,7 @@
 #include <game/g_targets.h>
 #include <turret/turret_placement.h>
 #include <cgame/cg_scr_main.h>
+#include <sound/snd_bank.h>
 
 void __cdecl METHOD_NULLSUB(scr_entref_t entref)
 {

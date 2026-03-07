@@ -2,6 +2,7 @@
 #include <bgame/bg_public.h>
 #include <clientscript/cscr_variable.h>
 #include <bgame/bg_local.h>
+#include <game/actor.h>
 
 struct WeaponComponentList;
 

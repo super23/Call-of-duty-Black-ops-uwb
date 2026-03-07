@@ -26,6 +26,7 @@
 #include "g_spawn_mp.h"
 #include <bgame/bg_misc.h>
 #include <sound/snd_utils.h>
+#include <stringed/stringed_hooks.h>
 
 const char *origErrorMsg = "localized string";
 
@@ -1522,7 +1523,7 @@ void __cdecl G_TraceBulletPathForVehTurret(gentity_s *ent, DObjTrace_s *trace, i
     entAxis[3][2] = ent->r.currentOrigin[2];
     MatrixTransposeTransformVector43(start, entAxis, localStart);
     MatrixTransposeTransformVector43(end, entAxis, localEnd);
-    contentmask = (int)&cls.recentServers[7543].countrycode[1];
+    contentmask = 0x280E833;
     obj = Com_GetServerDObj(ent->s.number);
     DObjGeomTracelinePartBits(obj, contentmask, partBits);
     G_DObjCalcPose(ent, partBits);
@@ -1771,7 +1772,7 @@ void __cdecl G_FreeEntityRefs(gentity_s *ed)
     }
     if ( (0x800000 & ed->flags) != 0 )
         Missile_FreeAttractorRefs(ed);
-    if ( ((unsigned int)&cls.rankedServers[711].game[35] & ed->flags) != 0 )
+    if ((ed->flags & 0x1000000) != 0)
         Targ_Remove(ed);
 }
 

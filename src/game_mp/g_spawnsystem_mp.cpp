@@ -56,30 +56,66 @@ int g_lastPointPlayer[3];
 int g_sortAxis;
 int g_debugHighlightedSpawnPoint;
 
+
+struct compare_spawnpoint_sort
+{
+    bool operator()(const SpawnPoint &a, const SpawnPoint &b) const
+    {
+        return a.orderNum < b.orderNum;
+    }
+};
+
 void __cdecl SpawnSystem_SortPoints()
 {
-    std::sort(&g_spawnPoints[0], &g_spawnPoints[g_spawnPointCount], NULL);
+    //std::sort(&g_spawnPoints[0], &g_spawnPoints[g_spawnPointCount], NULL);
     //std::_Sort<SpawnPoint *,int,compare_spawnpoint_sort>(
     //    g_spawnPoints,
     //    &g_spawnPoints[g_spawnPointCount],
     //    52 * g_spawnPointCount / 52,
     //    0);
+
+    std::sort(
+        g_spawnPoints,
+        g_spawnPoints + g_spawnPointCount,
+        compare_spawnpoint_sort()
+    );
 }
+
+struct compare_spawnpoint_score_sort
+{
+    int team;
+
+    compare_spawnpoint_score_sort(int t) : team(t) {}
+
+    bool operator()(int a, int b) const
+    {
+        return g_spawnPoints[a].weight[team] > g_spawnPoints[b].weight[team];
+    }
+};
 
 void __cdecl SpawnSystem_SortPointsForTeamByScore(int team)
 {
-    int *_Last; // [esp+E8h] [ebp-Ch]
+    //int *_Last; // [esp+E8h] [ebp-Ch]
+    //
+    //_Last = &g_sortedTeamSpawnPoints[team].spawnPointsByIndex[g_sortedTeamSpawnPoints[team].count];
+    ////std::_Sort<int *, int, compare_spawnpoint_score_sort>(
+    ////    g_sortedTeamSpawnPoints[team].spawnPointsByIndex,
+    ////    _Last,
+    ////    ((char *)_Last - (char *)&g_sortedTeamSpawnPoints[team]) >> 2,
+    ////    (compare_spawnpoint_score_sort)team);
+    //
+    //std::sort(g_sortedTeamSpawnPoints[team].spawnPointsByIndex, 
+    //    &g_sortedTeamSpawnPoints[team].spawnPointsByIndex[g_sortedTeamSpawnPoints[team].count],
+    //    team);
 
-    _Last = &g_sortedTeamSpawnPoints[team].spawnPointsByIndex[g_sortedTeamSpawnPoints[team].count];
-    //std::_Sort<int *, int, compare_spawnpoint_score_sort>(
-    //    g_sortedTeamSpawnPoints[team].spawnPointsByIndex,
-    //    _Last,
-    //    ((char *)_Last - (char *)&g_sortedTeamSpawnPoints[team]) >> 2,
-    //    (compare_spawnpoint_score_sort)team);
+    int *first = g_sortedTeamSpawnPoints[team].spawnPointsByIndex;
+    int *last = first + g_sortedTeamSpawnPoints[team].count;
 
-    std::sort(g_sortedTeamSpawnPoints[team].spawnPointsByIndex, 
-        &g_sortedTeamSpawnPoints[team].spawnPointsByIndex[g_sortedTeamSpawnPoints[team].count],
-        team);
+    std::sort(
+        first,
+        last,
+        compare_spawnpoint_score_sort(team)
+    );
 }
 
 void __cdecl SpawnSystem_Init()
@@ -1249,18 +1285,37 @@ void __cdecl SpawnSystem_Update()
     SpawnSystem_DebugRender();
 }
 
+struct compare_spawninfluencer_sort
+{
+    bool operator()(const SpawnInfluencer *a, const SpawnInfluencer *b) const
+    {
+        return a->expireTime < b->expireTime;
+    }
+};
+
 void SpawnSystem_SortInfluencers()
 {
+    //if (g_lastInfluencerSortTime < level.time)
+    //{
+    //    g_lastInfluencerSortTime = level.time;
+    //    //std::_Sort<SpawnInfluencer **, int, compare_spawninfluencer_sort>(
+    //    //    g_sortedSpawnInfluencers,
+    //    //    &g_sortedSpawnInfluencers[g_sortedSpawnInfluencerCount],
+    //    //    (4 * g_sortedSpawnInfluencerCount) >> 2,
+    //    //    0);
+    //
+    //    std::sort(&g_sortedSpawnInfluencers[0], &g_sortedSpawnInfluencers[g_sortedSpawnInfluencerCount], 0);
+    //}
+
     if (g_lastInfluencerSortTime < level.time)
     {
         g_lastInfluencerSortTime = level.time;
-        //std::_Sort<SpawnInfluencer **, int, compare_spawninfluencer_sort>(
-        //    g_sortedSpawnInfluencers,
-        //    &g_sortedSpawnInfluencers[g_sortedSpawnInfluencerCount],
-        //    (4 * g_sortedSpawnInfluencerCount) >> 2,
-        //    0);
 
-        std::sort(&g_sortedSpawnInfluencers[0], &g_sortedSpawnInfluencers[g_sortedSpawnInfluencerCount], 0);
+        std::sort(
+            g_sortedSpawnInfluencers,
+            g_sortedSpawnInfluencers + g_sortedSpawnInfluencerCount,
+            compare_spawninfluencer_sort()
+        );
     }
 }
 

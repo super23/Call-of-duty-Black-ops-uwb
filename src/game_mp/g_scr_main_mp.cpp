@@ -67,6 +67,10 @@
 #include <win32/win_shared.h>
 #include <qcommon/cm_load.h>
 #include <game/g_targets.h>
+#include <stringed/stringed_hooks.h>
+#include <gfx_d3d/r_dpvs.h>
+#include <sound/snd_bank.h>
+#include <gfx_d3d/r_primarylights.h>
 
 scr_data_t g_scr_data;
 
@@ -3313,6 +3317,7 @@ void __cdecl ScrCmd_PlaySoundToTeam(scr_entref_t entref)
     }
     //if ( g_DXDeviceThread == GetCurrentThreadId() )
 LABEL_21:
+    ;
         //D3DPERF_EndEvent();
 }
 
@@ -9972,6 +9977,7 @@ void __cdecl GScr_ShellShock(scr_entref_t entref)
     }
     //if ( g_DXDeviceThread == GetCurrentThreadId() )
 LABEL_18:
+    ;
         //D3DPERF_EndEvent();
 }
 
@@ -14167,6 +14173,7 @@ void __cdecl GScr_AddSphereInfluencer()
     }
     //if ( GetCurrentThreadId() == g_DXDeviceThread )
 LABEL_29:
+    ;
         //D3DPERF_EndEvent();
 }
 
@@ -16944,7 +16951,8 @@ int Scr_ParseGameTypeList_LoadObj()
             }
             dest = g_scr_data.gametype.list[v11].pszScript;
             I_strncpyz(dest, src, 64);
-            strlwr(dest);
+            //strlwr(dest);
+            _strlwr(dest);
             qpath = va("maps/mp/gametypes/%s.txt", src);
             len = FS_FOpenFileByMode(qpath, &f, FS_READ);
             if ( len > 0 && len < 1024 )
