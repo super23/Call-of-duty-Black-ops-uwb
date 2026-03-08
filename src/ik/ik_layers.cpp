@@ -2,6 +2,7 @@
 #include "ik_import.h"
 #include "ik_math.h"
 #include <universal/com_math_anglevectors.h>
+#include <demo/demo_common.h>
 
 // IK's are like onions. Onions have layers!
 
@@ -1131,6 +1132,7 @@ void    IK_Layer_ApplyFootIK(
                 IKJointVars *jointVars,
                 float (*childMat)[4])
 {
+#if 0
     IKBoneNames childBone; // [esp-134h] [ebp-204h]
     float v6[5]; // [esp-130h] [ebp-200h] BYREF
     float v7[4]; // [esp-11Ch] [ebp-1ECh] BYREF
@@ -1386,6 +1388,166 @@ void    IK_Layer_ApplyFootIK(
             }
         }
     }
+#else // aislop
+bool flip = (jointBones->parentBone == IKBONE_RTHIGH);
+
+    if (!ikState->bJointVarsValid)
+        return;
+
+    if (ikState->ikBoneToObjBone[jointBones->childBone] == 161)
+        return;
+
+    if (!IK_IsCalcBone(ikState, jointBones->childBone))
+        return;
+
+    if (flip)
+        IK_FlipHack(childMat);
+
+    float parentIKMat[4][4];
+    float jointIKMat[4][4];
+    float childIKMat[4][4];
+
+    // solve the leg
+    ikSolveLegJoint(
+        ikState,
+        jointBones,
+        jointVars,
+        childMat[3],
+        parentIKMat,
+        jointIKMat,
+        flip);
+
+    // get base bone matrix
+    float baseMat[4][4];
+    ikCalcBoneModelMatrix(
+        ikState,
+        jointBones->baseBone,
+        (*ikState->matArrayPostIK)[0],
+        baseMat);
+
+    //
+    // ----- PARENT BONE -----
+    //
+
+    float* parentOut = ikState->matArrayPostIK[jointBones->parentBone][0];
+
+    // orientation
+    parentOut[0]  = parentIKMat[0][0];
+    parentOut[1]  = parentIKMat[0][1];
+    parentOut[2]  = parentIKMat[0][2];
+    parentOut[3]  = 0.0f;
+
+    parentOut[4]  = parentIKMat[1][0];
+    parentOut[5]  = parentIKMat[1][1];
+    parentOut[6]  = parentIKMat[1][2];
+    parentOut[7]  = 0.0f;
+
+    parentOut[8]  = parentIKMat[2][0];
+    parentOut[9]  = parentIKMat[2][1];
+    parentOut[10] = parentIKMat[2][2];
+    parentOut[11] = 0.0f;
+
+    // translation
+    float parentDelta[3];
+    parentDelta[0] = parentIKMat[3][0] - baseMat[3][0];
+    parentDelta[1] = parentIKMat[3][1] - baseMat[3][1];
+    parentDelta[2] = parentIKMat[3][2] - baseMat[3][2];
+
+    ikMatrixTransformVector34(parentDelta, parentIKMat, parentOut + 12);
+
+    parentOut[15] = 1.0f;
+
+    ikNormalizedMatrixAssert_func(
+        ikState->matArrayPostIK[jointBones->parentBone]);
+
+    //
+    // mark modified
+    //
+
+    ikState->bHasActiveLayers = true;
+
+    if (ikState->cacheActive)
+    {
+        memset(ikState->matArrayCache, 0, 0x5C0);
+        ikState->cacheActive = false;
+    }
+
+    if (jointBones->parentBone != IKBONE_NONE)
+        ikState->modifiedIKBones |= (1 << jointBones->parentBone);
+
+    //
+    // ----- JOINT BONE -----
+    //
+
+    float* jointOut = ikState->matArrayPostIK[jointBones->jointBone][0];
+
+    memcpy(jointOut, jointIKMat, sizeof(float) * 12);
+
+    float jointDelta[3];
+    jointDelta[0] = jointIKMat[3][0] - parentIKMat[3][0];
+    jointDelta[1] = jointIKMat[3][1] - parentIKMat[3][1];
+    jointDelta[2] = jointIKMat[3][2] - parentIKMat[3][2];
+
+    ikMatrixTransformVector34(jointDelta, jointIKMat, jointOut + 12);
+
+    jointOut[15] = 1.0f;
+
+    ikNormalizedMatrixAssert_func(
+        ikState->matArrayPostIK[jointBones->jointBone]);
+
+    if (jointBones->jointBone != IKBONE_NONE)
+        ikState->modifiedIKBones |= (1 << jointBones->jointBone);
+
+    //
+    // distance safety checks
+    //
+
+    if (Vec3Distance(parentIKMat[3], jointIKMat[3]) >= jointVars->UpperLength + 1.0f)
+    {
+        Assert_MyHandler(
+            "ik_layers.cpp",
+            728,
+            0,
+            "%s",
+            "Vec3Distance( parentIKMat[3], jointIKMat[3] ) < jointVars->UpperLength + 1.f");
+    }
+
+    if (Vec3Distance(childMat[3], jointIKMat[3]) >= jointVars->LowerLength + 5.0f)
+    {
+        Assert_MyHandler(
+            "ik_layers.cpp",
+            729,
+            0,
+            "%s",
+            "Vec3Distance( childMat[3], jointIKMat[3] ) < jointVars->LowerLength + 5.f");
+    }
+
+    //
+    // ----- CHILD BONE -----
+    //
+
+    if (flip)
+        IK_FlipHack(childMat);
+
+    float* childOut = ikState->matArrayPostIK[jointBones->childBone][0];
+
+    float delta[3];
+    delta[0] = childMat[3][0] - jointIKMat[3][0];
+    delta[1] = childMat[3][1] - jointIKMat[3][1];
+    delta[2] = childMat[3][2] - jointIKMat[3][2];
+
+    memcpy(childOut, childMat, sizeof(float) * 12);
+
+    ikMatrixTransformVector34(delta, childMat, childOut + 12);
+
+    childOut[15] = 1.0f;
+
+    ikNormalizedMatrixAssert_func(
+        ikState->matArrayPostIK[jointBones->childBone]);
+
+    if (jointBones->childBone != IKBONE_NONE)
+        ikState->modifiedIKBones |= (1 << jointBones->childBone);
+#endif
 }
 
 // local variable allocation has failed, the output may be wrong!
@@ -2525,9 +2687,9 @@ void    IK_Layer_PlayerPitch(IKState *ikState, bool preControllers)
     __int64 v140; // [esp+2C0h] [ebp-234h]
     __int64 v141; // [esp+2C8h] [ebp-22Ch] BYREF
     __int64 v142; // [esp+2D0h] [ebp-224h]
-    float v143; // [esp+2D8h] [ebp-21Ch] BYREF
-    float v144; // [esp+2DCh] [ebp-218h]
-    float v145; // [esp+2E0h] [ebp-214h]
+    float v143[3]; // [esp+2D8h] [ebp-21Ch] BYREF
+    //float v144; // [esp+2DCh] [ebp-218h]
+    //float v145; // [esp+2E0h] [ebp-214h]
     float v146; // [esp+2E4h] [ebp-210h]
     float v147[16]; // [esp+2E8h] [ebp-20Ch] BYREF
     float *v148; // [esp+334h] [ebp-1C0h]
@@ -2797,7 +2959,7 @@ void    IK_Layer_PlayerPitch(IKState *ikState, bool preControllers)
                 v136[0] = v148[12] - headMat[3][0];
                 v136[1] = v148[13] - headMat[3][1];
                 v136[2] = v148[14] - headMat[3][2];
-                ikMatrixTransformVector34(v136, (const float (*)[4])v147, &v143);
+                ikMatrixTransformVector34(v136, (const float (*)[4])v147, v143);
                 v146 = 1.0f;
                 headAndNeckPitchScale = 0.3f;
                 neckPitchFrac = 0.7f;
@@ -2823,10 +2985,10 @@ void    IK_Layer_PlayerPitch(IKState *ikState, bool preControllers)
                 v117 = &v141;
                 v123 = v141;
                 v124 = v142;
-                v116 = &v143;
-                v125 = v143;
-                v126 = v144;
-                v127 = v145;
+                v116 = v143;
+                v125 = v143[0];
+                v126 = v143[1];
+                v127 = v143[2];
                 v128 = v146;
                 v115 = headMat[0];
                 v107 = *(_QWORD *)&headMat[0][0];
@@ -2880,17 +3042,17 @@ void    IK_Layer_PlayerPitch(IKState *ikState, bool preControllers)
                 v99 = (float)((float)((float)(*(float *)&v141 * headMat[0][3]) + (float)(*((float *)&v141 + 1) * headMat[1][3]))
                     + (float)(*(float *)&v142 * headMat[2][3]))
                     + (float)(*((float *)&v142 + 1) * headMat[3][3]);
-                v100 = (float)((float)((float)(v143 * headMat[0][0]) + (float)(v144 * headMat[1][0]))
-                    + (float)(v145 * headMat[2][0]))
+                v100 = (float)((float)((float)(v143[0] * headMat[0][0]) + (float)(v143[1] * headMat[1][0]))
+                    + (float)(v143[2] * headMat[2][0]))
                     + (float)(v146 * headMat[3][0]);
-                v101 = (float)((float)((float)(v143 * headMat[0][1]) + (float)(v144 * headMat[1][1]))
-                    + (float)(v145 * headMat[2][1]))
+                v101 = (float)((float)((float)(v143[0] * headMat[0][1]) + (float)(v143[1] * headMat[1][1]))
+                    + (float)(v143[2] * headMat[2][1]))
                     + (float)(v146 * headMat[3][1]);
-                v102 = (float)((float)((float)(v143 * headMat[0][2]) + (float)(v144 * headMat[1][2]))
-                    + (float)(v145 * headMat[2][2]))
+                v102 = (float)((float)((float)(v143[0] * headMat[0][2]) + (float)(v143[1] * headMat[1][2]))
+                    + (float)(v143[2] * headMat[2][2]))
                     + (float)(v146 * headMat[3][2]);
-                v103 = (float)((float)((float)(v143 * headMat[0][3]) + (float)(v144 * headMat[1][3]))
-                    + (float)(v145 * headMat[2][3]))
+                v103 = (float)((float)((float)(v143[0] * headMat[0][3]) + (float)(v143[1] * headMat[1][3]))
+                    + (float)(v143[2] * headMat[2][3]))
                     + (float)(v146 * headMat[3][3]);
                 //v90[0] = ikState->handMats[1];
                 *(_QWORD *)&ikState->handMats[1][0][0] = *(_QWORD *)&v90[1];

@@ -2,6 +2,8 @@
 #include "ik.h"
 #include <bgame/bg_weapons.h>
 
+struct DObjAnimMat;
+
 void __cdecl IKImport_InitVars(IKSystem *ikSystem);
 bool __cdecl IKImport_GetVar_IK_Enable();
 bool __cdecl IKImport_GetVar_IK_Pelvis_Test();
