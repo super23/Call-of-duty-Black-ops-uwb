@@ -9,7 +9,7 @@ int __cdecl DB_AuthLoad_InflateInit(z_stream_s *stream, bool isSecure)
     {
         __debugbreak();
     }
-    return inflateInit_(stream, "1.2.3", 52);
+    return inflateInit_(stream, "1.2.3", sizeof(z_stream_s));
 }
 
 void __cdecl DB_AuthLoad_InflateEnd(z_stream_s *stream)

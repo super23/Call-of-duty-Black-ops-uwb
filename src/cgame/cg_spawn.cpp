@@ -351,7 +351,7 @@ char __cdecl CG_SetTriggerBrushModel(int localClientNum, centity_s *ent)
     *(_QWORD *)&ent->pose.general.mins[2] = *(_QWORD *)&mins[8];
     *(_QWORD *)&ent->pose.general.maxs[1] = *(_QWORD *)&mins[16];
     ent->pose.fx.triggerTime = CM_ContentsOfModel(ent->nextState.index.brushmodel);
-    ent->nextState.solid = (int)&cls.rankedServers[711].game[34];
+    ent->nextState.solid = 0xFFFFFF;
     return 1;
 }
 

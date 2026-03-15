@@ -1023,8 +1023,6 @@ cachedSnapshot_t *__cdecl SV_GetCachedSnapshot(int *pArchiveTime)
 cachedSnapshot_t *__cdecl SV_GetCachedSnapshotInternal(int archivedFrame, int depth, bool expectedToSucceed)
 {
     int v4; // edx
-    int v5; // eax
-    int v6; // eax
     int v7; // eax
     int v8; // eax
     int v9; // eax
@@ -1101,8 +1099,8 @@ cachedSnapshot_t *__cdecl SV_GetCachedSnapshotInternal(int archivedFrame, int de
         }
     }
     v4 = frame->start % 0x1000000;
-    partSize = (int)&cls.rankedServers[711].game[-v4 + 35];
-    if (frame->size > (int)&cls.rankedServers[711].game[-v4 + 35])
+    partSize = 0x1000000 - v4;
+    if (frame->size > 0x1000000 - v4)
         MSG_InitReadOnlySplit(
             &msg,
             &svs.archivedSnapshotBuffer[v4],
@@ -1259,10 +1257,8 @@ cachedSnapshot_t *__cdecl SV_GetCachedSnapshotInternal(int archivedFrame, int de
         cachedFrame->num_clients = 0;
         cachedFrame->first_client = svs.nextCachedSnapshotClients;
         cachedFrame->usesDelta = 1;
-        v5 = MSG_ReadLong(&msg);
-        cachedFrame->time = v5;
-        v6 = MSG_ReadLong(&msg);
-        cachedFrame->physicsTime = v6;
+        cachedFrame->time = MSG_ReadLong(&msg);
+        cachedFrame->physicsTime = MSG_ReadLong(&msg);
         MSG_ClearLastReferencedEntity(&msg);
         MSG_ReadDeltaMatchState(
             &msg,
@@ -1482,7 +1478,7 @@ bool __cdecl SV_FrameIsStillInArchivedSnapshotBuffer(int frameStart)
         __debugbreak();
     }
     bufferStart = svs.nextArchivedSnapshotBuffer - (unsigned int)&cls.rankedServers[711].game[35];
-    if ( svs.nextArchivedSnapshotBuffer - (int)&cls.rankedServers[711].game[35] < 0 )
+    if ( svs.nextArchivedSnapshotBuffer - 0x1000000 < 0 )
         return frameStart < svs.nextArchivedSnapshotBuffer || frameStart >= bufferStart + 671088640;
     return frameStart >= bufferStart && frameStart < svs.nextArchivedSnapshotBuffer;
 }
@@ -1605,8 +1601,8 @@ bool __cdecl SV_HasCachedSnapshotInternal(int archivedFrame, int callDepth)
         }
     }
     v3 = frame->start % 0x1000000;
-    partSize = (int)&cls.rankedServers[711].game[-v3 + 35];
-    if ( frame->size > (int)&cls.rankedServers[711].game[-v3 + 35] )
+    partSize = 0x1000000 - v3;
+    if (frame->size > 0x1000000 - v3)
         MSG_InitReadOnlySplit(
             &msg,
             &svs.archivedSnapshotBuffer[v3],

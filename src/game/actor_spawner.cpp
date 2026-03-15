@@ -42,7 +42,7 @@ int __cdecl SpotWouldTelefrag(gentity_s *spot)
     maxs[0] = spot->r.currentOrigin[0] + 15.0;
     maxs[1] = spot->r.currentOrigin[1] + 15.0;
     maxs[2] = spot->r.currentOrigin[2] + 70.0;
-    v6 = CM_AreaEntities(mins, maxs, entityList, 1024, (int)&cls.wagerServers[5418].city[54]);
+    v6 = CM_AreaEntities(mins, maxs, entityList, 1024, 0x2008000);
     for ( i = 0; i < v6; ++i )
     {
         v4 = &g_entities[entityList[i]];

@@ -262,7 +262,7 @@ unsigned int __cdecl SND_CommandPump()
     unsigned int count; // [esp+8h] [ebp-8h]
     const snd_command *cmd; // [esp+Ch] [ebp-4h]
 
-    //PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "SND_CommandPump");
+    //PIXBeginNamedEvent(0xFFFFFF, "SND_CommandPump");
     if ( !g_snd.command_init
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",

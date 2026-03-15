@@ -818,7 +818,7 @@ void __cdecl G_SetClientContents(gentity_s *pEnt)
     }
     else
     {
-        pEnt->r.contents = (int)&cls.wagerServers[5331].basictraining;
+        pEnt->r.contents = 0x2000000;
     }
 }
 

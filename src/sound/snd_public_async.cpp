@@ -1178,7 +1178,7 @@ void __cdecl SND_EntStateFrame()
     snd_ent_state *state; // [esp+28h] [ebp-8h]
     unsigned int i; // [esp+2Ch] [ebp-4h]
 
-    //PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "SND_EntStateFrame");
+    //PIXBeginNamedEvent(0xFFFFFF, "SND_EntStateFrame");
     for ( i = 0; i < 0x600; ++i )
     {
         state = g_snd.entStateIndex[i];

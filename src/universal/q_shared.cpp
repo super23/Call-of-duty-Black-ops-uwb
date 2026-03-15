@@ -14,7 +14,7 @@
 
 struct va_info_t
 {
-    char va_string[2][1024];
+    char va_string[4][1024]; // see va(), the modulo is 4
     int index;
 };
 

@@ -500,17 +500,16 @@ void Com_PrintError(int channel, const char *fmt, ...)
 
 void Com_PrintWarning(int channel, const char *fmt, ...)
 {
-    char dest; // [esp+14h] [ebp-1008h] BYREF
-    char v3[4095]; // [esp+15h] [ebp-1007h] BYREF
-    int v4; // [esp+1018h] [ebp-4h]
+    char dest[4096]; // [esp+14h] [ebp-1008h] BYREF
+    int v3; // [esp+1018h] [ebp-4h]
     va_list va; // [esp+102Ch] [ebp+10h] BYREF
 
     va_start(va, fmt);
-    I_strncpyz(&dest, "^3", 4096);
-    v4 = &v3[strlen(&dest)] - v3;
-    _vsnprintf(&v3[v4 - 1], 4096 - v4, fmt, va);
-    v3[4094] = 0;
-    Com_PrintMessage(channel, &dest, 2);
+    I_strncpyz(dest, "^3", 4096);
+    v3 = &dest[strlen(dest) + 1] - &dest[1];
+    _vsnprintf(&dest[v3], 4096 - v3, fmt, va);
+    dest[4095] = 0;
+    Com_PrintMessage(channel, dest, 2);
 }
 
 void __cdecl Com_Shutdown(const char *finalmsg)
@@ -1177,8 +1176,8 @@ int __cdecl Com_ConfigureChecksum(const char *csv, int filesize)
 
 char __cdecl Com_SetRecommendedCpu(int localClientNum, const SysInfo *info, char **text)
 {
-    char dvarValues[32]; // [esp+14h] [ebp-14D8h] BYREF
-    char dvarNames[32]; // [esp+814h] [ebp-CD8h] BYREF
+    char dvarValues[64][32]{ 0 }; // [esp+14h] [ebp-14D8h] BYREF
+    char dvarNames[64][32]{ 0 }; // [esp+814h] [ebp-CD8h] BYREF
     int dvarCount; // [esp+1018h] [ebp-4D4h]
     double v7[76]; // [esp+101Ch] [ebp-4D0h] BYREF
     char v8; // [esp+1282h] [ebp-26Ah]
@@ -1195,7 +1194,7 @@ char __cdecl Com_SetRecommendedCpu(int localClientNum, const SysInfo *info, char
         s0 = (char *)Com_Parse((const char **)text);
         if ( !text )
             break;
-        if ( *s0 && *s0 != 35 )
+        if ( *s0 && *s0 != '#')
         {
             if ( !I_stricmp(s0, "gpu") )
             {
@@ -1309,8 +1308,8 @@ void __cdecl Com_SetConfigureDvars(int dvarCount, const char (*dvarNames)[32], c
 
 char __cdecl Com_SetRecommendedGpu(const SysInfo *info, char **text)
 {
-    char dvarValues[32]; // [esp+0h] [ebp-1010h] BYREF
-    char dvarNames[32]; // [esp+800h] [ebp-810h] BYREF
+    char dvarValues[64][32]; // [esp+0h] [ebp-1010h] BYREF
+    char dvarNames[64][32]; // [esp+800h] [ebp-810h] BYREF
     int dvarCount; // [esp+1004h] [ebp-Ch]
     char v6; // [esp+100Bh] [ebp-5h]
     char *s0; // [esp+100Ch] [ebp-4h]
@@ -1701,15 +1700,11 @@ void __cdecl Com_Init_Try_Block_Function(char *commandLine)
     char *BuildVersion; // eax
     int ControllerIndex; // eax
     int v3; // eax
-    const char *BuildDisplayName; // eax
     void *v5; // ecx
     unsigned int v6; // eax
     const char *max; // [esp+8h] [ebp-5Ch]
-    const char *maxa; // [esp+8h] [ebp-5Ch]
-    char *v9; // [esp+Ch] [ebp-58h]
     LARGE_INTEGER PerformanceCount; // [esp+18h] [ebp-4Ch] BYREF
     int localClientNum; // [esp+58h] [ebp-Ch]
-    char *s; // [esp+5Ch] [ebp-8h]
     int initStartTime; // [esp+60h] [ebp-4h]
 
     max = Com_GetBuildName();
@@ -1767,7 +1762,9 @@ void __cdecl Com_Init_Try_Block_Function(char *commandLine)
     Com_StartupVariable(0);
     if ( !useFastFile->current.enabled )
         SEH_UpdateLanguageInfo();
+
     CL_InitDedicated();
+
     Com_InitHunkMemory();
     Hunk_UserStartup();
     dvar_modifiedFlags &= ~1u;
@@ -1802,12 +1799,8 @@ void __cdecl Com_Init_Try_Block_Function(char *commandLine)
     Cmd_AddCommandInternal("savekeys", Com_SaveKeys_f, &Com_SaveKeys_f_VAR);
     Cmd_AddCommandInternal("restorekeys", Com_RestoreKeys_f, &Com_RestoreKeys_f_VAR);
     Cmd_AddCommandInternal("writedefaults", Com_WriteDefaults_f, &Com_WriteDefaults_f_VAR);
-    v9 = Com_GetBuildVersion();
-    maxa = Com_GetBuildName();
-    BuildDisplayName = Com_GetBuildDisplayName();
-    s = va("%s %s build %s %s", BuildDisplayName, maxa, v9, "win-x86");
     version = _Dvar_RegisterString("version", (char *)"", 0x40u, "Game version");
-    Dvar_SetString((dvar_s *)version, s);
+    Dvar_SetString((dvar_s *)version, va("%s %s build %s %s", Com_GetBuildDisplayName(), Com_GetBuildName(), Com_GetBuildVersion(), "win-x86"));
     shortversion = _Dvar_RegisterString("shortversion", "7", 0x44u, "Short game version");
     Sys_Init();
     QueryPerformanceCounter(&PerformanceCount);
@@ -2443,7 +2436,7 @@ void __cdecl Com_UnloadFrontEnd()
     {
         shutdown = 0;
         DB_ReleaseXAssets();
-        if ( DB_IsZoneTypeLoaded((int)&cls.rankedServers[711].game[35]) && cls.rendererStarted )
+        if ( DB_IsZoneTypeLoaded(0x1000000) && cls.rendererStarted )
         {
             CL_ShutdownWorld();
             shutdown = 1;

@@ -1384,7 +1384,7 @@ char __cdecl Bot_PathValid(const gentity_s *bot, const path_t *path)
                 bot->r.maxs,
                 vEnd,
                 bot->s.number,
-                (int)&cls.rankedServers[711].game[35],
+                0x1000000,
                 &context);
             if ( ((unsigned int)&cls.rankedServers[711].game[35] & trace.cflags) != 0 )
             {

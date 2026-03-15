@@ -1631,7 +1631,7 @@ unsigned int __cdecl SND_ContinueLoopingSound(
 {
     signed int i; // [esp+40h] [ebp-4h]
 
-    //PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "SND_ContinueLoopingSound");
+    //PIXBeginNamedEvent(0xFFFFFF, "SND_ContinueLoopingSound");
     for ( i = 0; i < 74; ++i )
     {
         if ( g_snd.voiceAliasHash[i]
@@ -2306,7 +2306,7 @@ void __cdecl SNDL_Update()
 
     if ( SND_Active() )
     {
-        //PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "SNDL_Update");
+        //PIXBeginNamedEvent(0xFFFFFF, "SNDL_Update");
         //PIXBeginNamedEvent(-1, "time update");
         v0 = Sys_Milliseconds();
         frametime = v0 - g_snd.time;

@@ -5192,7 +5192,7 @@ void __cdecl RB_ExecuteRenderCommandsLoop(const void *cmds, int *ui3dTextureWind
             {
                 __debugbreak();
             }
-            //PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], gfxRenderCommandNames[header->id]);
+            //PIXBeginNamedEvent(0xFFFFFF, gfxRenderCommandNames[header->id]);
             RB_RenderCommandTable[header->id](&execState);
             //if (GetCurrentThreadId() == g_DXDeviceThread)
             //    D3DPERF_EndEvent();

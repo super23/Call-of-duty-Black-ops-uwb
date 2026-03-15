@@ -20,6 +20,7 @@ struct snd_radverb // sizeof=0x60
     float lateSize;
     float diffusion;
 };
+static_assert(sizeof(snd_radverb) == 96);
 
 struct snd_rv_params
 {

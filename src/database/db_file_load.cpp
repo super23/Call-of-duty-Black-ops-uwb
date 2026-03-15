@@ -173,32 +173,16 @@ void __cdecl DB_LoadXFileSetSize(int size)
 void __cdecl DB_LoadXFileData(unsigned __int8 *pos, int size)
 {
     const char *v2; // eax
-    int avail_out; // [esp+4h] [ebp-1Ch]
+    int lastAvailOutSize; // [esp+4h] [ebp-1Ch]
     signed int deflateRemainingFileSize; // [esp+8h] [ebp-18h]
     unsigned int bytesToCopy; // [esp+10h] [ebp-10h]
     unsigned int err; // [esp+18h] [ebp-8h]
 
-    if ( !size
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\database\\db_file_load.cpp", 1452, 0, "%s", "size") )
-    {
-        __debugbreak();
-    }
-    if ( !g_load.f
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\database\\db_file_load.cpp", 1454, 0, "%s", "g_load.f") )
-    {
-        __debugbreak();
-    }
-    if ( g_load.stream.avail_out
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\database\\db_file_load.cpp",
-                    1455,
-                    0,
-                    "%s",
-                    "!g_load.stream.avail_out") )
-    {
-        __debugbreak();
-    }
-LABEL_10:
+    iassert(size);
+    iassert(g_load.f);
+    iassert(!g_load.stream.avail_out);
+
+RESTART:
     if ( size > 0 )
     {
         if ( size + g_load.deflateBufferPos > 0x8000 )
@@ -232,17 +216,20 @@ LABEL_10:
             g_load.deflateBufferPos = 0x8000 - deflateRemainingFileSize;
             g_load.stream.next_out = &g_load.deflateBuffer[0x8000 - deflateRemainingFileSize];
             if ( deflateRemainingFileSize < size )
-                avail_out = g_load.stream.avail_out;
+                lastAvailOutSize = g_load.stream.avail_out;
             else
-                avail_out = size;
-            size -= avail_out;
+                lastAvailOutSize = size;
+            size -= lastAvailOutSize;
             g_load.deflateRemainingFileSize -= g_load.stream.avail_out;
+
+
             while ( 1 )
             {
                 if ( g_load.stream.avail_in )
                 {
                     err = DB_AuthLoad_Inflate(&g_load.stream, 2);
-                    if ( err >= 2 )
+                    //if ( err >= 2 )
+                    if (err != Z_OK && err != Z_STREAM_END)
                     {
                         //BLOPS_NULLSUB();
                         DB_CancelLoadXFile();
@@ -267,10 +254,12 @@ LABEL_10:
                         if ( g_load.stream.next_in == g_load.compressBufferEnd )
                             g_load.stream.next_in = g_load.compressBufferStart;
                     }
+
                     _mm_prefetch((const char *)g_load.stream.next_in + 512, 1);
+
                     if ( !g_load.stream.avail_out )
                     {
-                        if ( avail_out > 0x8000
+                        if ( lastAvailOutSize > 0x8000
                             && !Assert_MyHandler(
                                         "C:\\projects_pc\\cod\\codsrc\\src\\database\\db_file_load.cpp",
                                         1558,
@@ -280,14 +269,15 @@ LABEL_10:
                         {
                             __debugbreak();
                         }
-                        if ( avail_out == 1 )
+                        if ( lastAvailOutSize == 1 )
                             *pos = g_load.deflateBuffer[g_load.deflateBufferPos];
                         else
-                            memcpy(pos, &g_load.deflateBuffer[g_load.deflateBufferPos], avail_out);
-                        g_load.deflateBufferPos += avail_out;
-                        pos += avail_out;
-                        goto LABEL_10;
+                            memcpy(pos, &g_load.deflateBuffer[g_load.deflateBufferPos], lastAvailOutSize);
+                        g_load.deflateBufferPos += lastAvailOutSize;
+                        pos += lastAvailOutSize;
+                        goto RESTART;
                     }
+
                     if ( err )
                     {
                         v2 = va("Invalid fast file '%s' (%d != Z_OK)", g_load.filename, err);

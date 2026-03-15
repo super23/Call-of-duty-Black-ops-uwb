@@ -1151,42 +1151,42 @@ void __cdecl Load_XBoneInfoArray(bool atStreamStart, int count)
 
 void __cdecl Load_snd_curveArray(bool atStreamStart, int count)
 {
-    Load_Stream(atStreamStart, (unsigned __int8 *)varsnd_curve, 100 * count);
+    Load_Stream(atStreamStart, (unsigned __int8 *)varsnd_curve, sizeof(snd_curve) * count);
 }
 
 void __cdecl Load_snd_groupArray(bool atStreamStart, int count)
 {
-    Load_Stream(atStreamStart, (unsigned __int8 *)varsnd_group, 80 * count);
+    Load_Stream(atStreamStart, (unsigned __int8 *)varsnd_group, sizeof(snd_group) * count);
 }
 
 void __cdecl Load_snd_radverbArray(bool atStreamStart, int count)
 {
-    Load_Stream(atStreamStart, (unsigned __int8 *)varsnd_radverb, 96 * count);
+    Load_Stream(atStreamStart, (unsigned __int8 *)varsnd_radverb, sizeof(snd_radverb) * count);
 }
 
 void __cdecl Load_snd_masterArray(bool atStreamStart, int count)
 {
-    Load_Stream(atStreamStart, (unsigned __int8 *)varsnd_master, 176 * count);
+    Load_Stream(atStreamStart, (unsigned __int8 *)varsnd_master, sizeof(snd_master) * count);
 }
 
 void __cdecl Load_snd_panArray(bool atStreamStart, int count)
 {
-    Load_Stream(atStreamStart, (unsigned __int8 *)varsnd_pan, 60 * count);
+    Load_Stream(atStreamStart, (unsigned __int8 *)varsnd_pan, sizeof(snd_pan) * count);
 }
 
 void __cdecl Load_snd_snapshot_groupArray(bool atStreamStart, int count)
 {
-    Load_Stream(atStreamStart, (unsigned __int8 *)varsnd_snapshot_group, 32 * count);
+    Load_Stream(atStreamStart, (unsigned __int8 *)varsnd_snapshot_group, sizeof(snd_snapshot_group) * count);
 }
 
 void __cdecl Load_snd_snapshotArray(bool atStreamStart, int count)
 {
-    Load_Stream(atStreamStart, (unsigned __int8 *)varsnd_snapshot, 348 * count);
+    Load_Stream(atStreamStart, (unsigned __int8 *)varsnd_snapshot, sizeof(snd_snapshot) * count);
 }
 
 void __cdecl Load_snd_contextArray(bool atStreamStart, int count)
 {
-    Load_Stream(atStreamStart, (unsigned __int8 *)varsnd_context, 40 * count);
+    Load_Stream(atStreamStart, (unsigned __int8 *)varsnd_context, sizeof(snd_context) * count);
 }
 
 void __cdecl Load_SndDriverGlobals(bool atStreamStart)
@@ -1253,7 +1253,7 @@ void __cdecl Load_SndDriverGlobalsPtr(bool atStreamStart)
             else
                 inserted = 0;
             Load_SndDriverGlobals(1);
-            Load_SndDriverGlobalsAsset((XAssetHeader *)varSndDriverGlobalsPtr);
+            Load_SndDriverGlobalsAsset(varSndDriverGlobalsPtr);
             if ( inserted )
                 *inserted = *varSndDriverGlobalsPtr;
         }
@@ -7465,7 +7465,7 @@ void __cdecl Load_StringTableCellArray(bool atStreamStart, int count)
 
 void __cdecl Load_StringTable(bool atStreamStart)
 {
-    Load_Stream(atStreamStart, (unsigned __int8 *)varStringTable, 20);
+    Load_Stream(atStreamStart, (unsigned __int8 *)varStringTable, sizeof(StringTable));
     DB_PushStreamPos(4u);
     varXString = &varStringTable->name;
     Load_XString(0);

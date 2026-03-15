@@ -4044,7 +4044,7 @@ int __cdecl Phys_GetMaskFromDVar()
             result = 0x280E833;
             break;
         case 7u:
-            result = (int)&cls.rankedServers[711].game[35];
+            result = 0x1000000;
             break;
         case 8u:
             result = 0x280EC93;

@@ -825,7 +825,7 @@ void __cdecl SV_AllocateClientMemory(HunkUser *hunk, int maxLocalClients, int ma
     memset((unsigned __int8 *)svs.archivedSnapshotFrames, 0, 0x2580u);
     svs.archivedSnapshotBuffer = (unsigned __int8 *)Hunk_UserAlloc(
                                                                                                         hunk,
-                                                                                                        (int)&cls.rankedServers[711].game[35],
+                                                                                                        0x1000000,
                                                                                                         4,
                                                                                                         "svs.archivedSnapshotBuffer");
     memset(svs.archivedSnapshotBuffer, 0, (unsigned int)&cls.rankedServers[711].game[35]);

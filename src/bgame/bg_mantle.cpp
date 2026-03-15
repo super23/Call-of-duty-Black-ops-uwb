@@ -966,7 +966,7 @@ char    Mantle_FindMantleSurface(pmove_t *pm, pml_t *pml, trace_t *trace, float 
     v9 = (float)(traceDir[0] * start[2]) + ps->origin[0];
     dot = (float)(traceDir[0] * v14) + ps->origin[1];
     len = (float)(traceDir[0] * v15) + ps->origin[2];
-    PM_trace(pm, trace, &end[1], &v20, &traceDir[2], &v9, ps->clientNum, (int)&cls.rankedServers[711].game[35]);
+    PM_trace(pm, trace, &end[1], &v20, &traceDir[2], &v9, ps->clientNum, 0x1000000);
     if ( trace->startsolid || trace->allsolid )
     {
         Mantle_DebugPrint("Mantle Failed: Mantle brush is too thick");

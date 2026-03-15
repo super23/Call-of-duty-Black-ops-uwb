@@ -99,6 +99,7 @@ void __cdecl FixWindowsDesktop()
 
 int __cdecl Assert_DoStackTrace(char *msg, int nIgnore, int type, int *context)
 {
+#if 0 // KISAKTODO
     int result; // eax
     int *v5; // ecx
     int *reg_ebp; // [esp+8h] [ebp-Ch]
@@ -128,6 +129,9 @@ int __cdecl Assert_DoStackTrace(char *msg, int nIgnore, int type, int *context)
     result = LoadMapFiles(msg);
     g_inStackTrace = 0;
     return result;
+#else
+    return 0;
+#endif
 }
 
 int __cdecl LoadMapFiles(char *msg)

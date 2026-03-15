@@ -439,7 +439,7 @@ struct// $73C9AB3B505E60D629E435B147795978 // sizeof=0x8011C
 
 unsigned __int8 g_fileBuf[524288];
 
-unsigned __int16 db_hashTable[32768];
+unsigned __int16 db_hashTable[0x8000/*32768*/];
 XAssetEntryPoolEntry g_assetEntryPool[32768];
 XZoneName g_zoneNames[33];
 
@@ -741,10 +741,18 @@ void __cdecl Load_MenuAsset(XAssetHeader *menu)
     XAssetHeader header; // [esp+4h] [ebp-8h]
     int i; // [esp+8h] [ebp-4h]
 
-    header.xmodelPieces = menu->xmodelPieces;
-    menu->xmodelPieces = DB_AddXAsset(ASSET_TYPE_MENU, (XAssetHeader)menu->xmodelPieces).xmodelPieces;
-    for ( i = 0; i < (int)header.xmodelPieces[14].pieces; ++i )
-        *(XAssetHeader *)(*((unsigned int *)&header.xmodelPieces[32].pieces->model + i) + 196) = (XAssetHeader)menu->xmodelPieces;
+    //header.xmodelPieces = menu->xmodelPieces;
+    //menu->xmodelPieces = DB_AddXAsset(ASSET_TYPE_MENU, (XAssetHeader)menu->xmodelPieces).xmodelPieces;
+
+    //for ( i = 0; i < (int)header.xmodelPieces[14].pieces; ++i )
+    //    *(XAssetHeader *)(*((unsigned int *)&header.xmodelPieces[32].pieces->model + i) + 196) = (XAssetHeader)menu->xmodelPieces;
+
+    header.menu = menu->menu;
+    menu->menu = DB_AddXAsset(ASSET_TYPE_MENU, *menu).menu;
+
+    for (i = 0; i < header.menu->itemCount; ++i)
+        header.menu->items[i]->parent = menu->menu;
+
 }
 
 void __cdecl Mark_MenuAsset(menuDef_t *menu)
@@ -807,11 +815,11 @@ void __cdecl Mark_WeaponVariantDefAsset(WeaponVariantDef *weapon)
     DB_GetXAsset(ASSET_TYPE_WEAPON, (XAssetHeader)weapon);
 }
 
-void __cdecl Load_SndDriverGlobalsAsset(XAssetHeader *sndDriverGlobals)
+void __cdecl Load_SndDriverGlobalsAsset(SndDriverGlobals **sndDriverGlobals)
 {
-    sndDriverGlobals->xmodelPieces = DB_AddXAsset(
-                                                                         ASSET_TYPE_SNDDRIVER_GLOBALS,
-                                                                         (XAssetHeader)sndDriverGlobals->xmodelPieces).xmodelPieces;
+    XAssetHeader header;
+    header.sndDriverGlobals = *sndDriverGlobals;
+    *sndDriverGlobals = DB_AddXAsset(ASSET_TYPE_SNDDRIVER_GLOBALS, header).sndDriverGlobals;
 }
 
 void __cdecl Mark_SndDriverGlobalsAsset(SndDriverGlobals *sndDriverGlobals)
@@ -1074,19 +1082,21 @@ void __cdecl DB_FreeXAssetHeader(XAssetType type)
     ((void (__cdecl *)())DB_FreeXAssetHeaderHandler[type])();
 }
 
-XAssetType __cdecl DB_HashForName(const char *name, XAssetType type)
+unsigned int __cdecl DB_HashForName(const char *name, XAssetType type)
 {
-    int c; // [esp+8h] [ebp-4h]
+    unsigned int hash = type;
 
-    while ( *name )
+    while (*name)
     {
-        c = tolower(*name);
-        if ( c == '\\' )
+        int c = tolower(*name++);
+
+        if (c == '\\')
             c = '/';
-        type = (XAssetType)((type << 16) + c + (type << 6) - type);
-        ++name;
+
+        hash = (hash << 16) + (hash << 6) + c - hash;
     }
-    return type;
+
+    return hash;
 }
 
 void __cdecl DB_LogMissingAsset(XAssetType type, const char *name)
@@ -1202,25 +1212,33 @@ XAssetHeader __cdecl DB_FindXAssetDefaultHeaderInternal(XAssetType type)
 
 const char *__cdecl DB_FindXAssetNameFromHash(XAssetType type, unsigned int hash)
 {
-    unsigned int assetEntryIndex; // [esp+0h] [ebp-Ch]
+    //unsigned int assetEntryIndex; // [esp+0h] [ebp-Ch]
     const char *name; // [esp+4h] [ebp-8h]
     XAssetEntryPoolEntry *assetEntry; // [esp+8h] [ebp-4h]
 
+    uint16_t assetEntryIndex = db_hashTable[hash % 0x8000];
+
     Sys_EnterCriticalSection(CRITSECT_DBHASH);
-    for ( assetEntryIndex = db_hashTable[hash % 0x8000]; assetEntryIndex; assetEntryIndex = assetEntry->entry.nextHash )
+
+    while (assetEntryIndex)
     {
         assetEntry = &g_assetEntryPool[assetEntryIndex];
-        if ( assetEntry->entry.asset.type == type )
+
+        if (assetEntry->entry.asset.type == type)
         {
             name = DB_GetXAssetName(&assetEntry->entry.asset);
-            if ( DB_HashForName(name, type) == hash )
+            if (DB_HashForName(name, type) == hash)
             {
                 Sys_LeaveCriticalSection(CRITSECT_DBHASH);
                 return name;
             }
         }
+
+        assetEntryIndex = assetEntry->entry.nextHash;
     }
+        
     Sys_LeaveCriticalSection(CRITSECT_DBHASH);
+
     return 0;
 }
 
@@ -1716,7 +1734,7 @@ XAssetEntry *__cdecl DB_CreateDefaultEntry(XAssetType type, const char *name)
     const char *v5; // eax
     const char *v6; // eax
     const char *XAssetName; // [esp-8h] [ebp-20h]
-    XAssetType hash; // [esp+8h] [ebp-10h]
+    unsigned int hash; // [esp+8h] [ebp-10h]
     XAsset asset; // [esp+Ch] [ebp-Ch] BYREF
     XAssetEntry *newEntry; // [esp+14h] [ebp-4h]
 
@@ -1889,13 +1907,13 @@ bool __cdecl DB_GetInitializing()
 bool __cdecl DB_IsXAssetDefault(XAssetType type, const char *name)
 {
     const char *XAssetName; // eax
-    XAssetType hash; // [esp+0h] [ebp-Ch]
+    unsigned int hash; // [esp+0h] [ebp-Ch]
     unsigned int assetEntryIndex; // [esp+4h] [ebp-8h]
     XAssetEntryPoolEntry *assetEntry; // [esp+8h] [ebp-4h]
 
     hash = DB_HashForName(name, type);
     Sys_EnterCriticalSection(CRITSECT_DBHASH);
-    for ( assetEntryIndex = db_hashTable[hash % 0x8000u]; assetEntryIndex; assetEntryIndex = assetEntry->entry.nextHash )
+    for ( assetEntryIndex = db_hashTable[hash % 0x8000]; assetEntryIndex; assetEntryIndex = assetEntry->entry.nextHash )
     {
         assetEntry = &g_assetEntryPool[assetEntryIndex];
         if ( assetEntry->entry.asset.type == type )
@@ -2595,26 +2613,12 @@ char __cdecl DB_DynamicCloneXAsset(XAssetHeader from, XAssetHeader to, XAssetTyp
 
 void __cdecl DB_SwapXAsset(XAsset *from, XAsset *to)
 {
-    void *v2; // esp
-    int v3; // [esp+0h] [ebp-14h] BYREF
     XAsset asset; // [esp+8h] [ebp-Ch] BYREF
-    unsigned int size; // [esp+10h] [ebp-4h]
 
-    if ( from->type != to->type
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\database\\db_registry.cpp",
-                    3086,
-                    0,
-                    "%s",
-                    "from->type == to->type") )
-    {
-        __debugbreak();
-    }
+    iassert(from->type == to->type);
     DB_DynamicCloneXAsset(from->header, to->header, to->type, DB_CLONE_SWAP);
-    size = DB_GetXAssetTypeSize(from->type);
-    v2 = alloca(size);
-    v3 = (int)&v3;
-    asset.header.xmodelPieces = (XModelPieces *)&v3;
+    unsigned int size = DB_GetXAssetTypeSize(from->type);
+    asset.header.data = alloca(size);
     asset.type = from->type;
     DB_CloneXAssetInternal(to, &asset);
     DB_CloneXAssetInternal(from, to);
@@ -2971,22 +2975,9 @@ void __cdecl DB_LoadXAssets(XZoneInfo *zoneInfo, unsigned int zoneCount, int syn
     int i; // [esp+320h] [ebp-8h]
     int zoneFreeFlags; // [esp+324h] [ebp-4h]
 
-    if ( !Sys_IsMainThread()
-        && !Sys_IsRenderThread()
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\database\\db_registry.cpp",
-                    4639,
-                    0,
-                    "%s",
-                    "Sys_IsMainThread() || Sys_IsRenderThread()") )
-    {
-        __debugbreak();
-    }
-    if ( !zoneCount
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\database\\db_registry.cpp", 4643, 0, "%s", "zoneCount") )
-    {
-        __debugbreak();
-    }
+    iassert(Sys_IsMainThread() || Sys_IsRenderThread());
+    iassert(zoneCount);
+
     if ( !g_zoneInited )
     {
         g_zoneInited = 1;
@@ -2996,16 +2987,16 @@ void __cdecl DB_LoadXAssets(XZoneInfo *zoneInfo, unsigned int zoneCount, int syn
         Cmd_AddCommandInternal("listassetpool", DB_ListAssetPool_f, &DB_ListAssetPool_f_VAR);
         Cmd_AddCommandInternal("dumpmateriallist", DB_DumpMaterialList_f, &DB_DumpMaterialList_f_VAR);
     }
+
     if ( sync )
         R_StreamPushSyncDisable();
+
     unloadedZone = 0;
     DB_SyncXAssets();
     v3 = g_archiveBuf;
-    if ( g_archiveBuf
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\database\\db_registry.cpp", 4677, 0, "%s", "!g_archiveBuf") )
-    {
-        __debugbreak();
-    }
+
+    iassert(!g_archiveBuf);
+
     for ( j = 0; j < zoneCount; ++j )
     {
         if ( (zoneInfo[j].allocFlags & 0x40000000) == 0 )
@@ -3071,17 +3062,19 @@ void __cdecl DB_LoadXAssets(XZoneInfo *zoneInfo, unsigned int zoneCount, int syn
             DB_UnloadXAssetsMemoryForZone(zoneInfo[j].freeFlags, 2);
             DB_UnloadXAssetsMemoryForZone(zoneInfo[j].freeFlags, 0x400000);
             DB_UnloadXAssetsMemoryForZone(zoneInfo[j].freeFlags, 0x200000);
-            DB_UnloadXAssetsMemoryForZone(zoneInfo[j].freeFlags, (int)&cls.rankedServers[711].game[35]);
+            DB_UnloadXAssetsMemoryForZone(zoneInfo[j].freeFlags, 0x1000000);
             DB_UnloadXAssetsMemoryForZone(zoneInfo[j].freeFlags, 0x800000);
             DB_UnloadXAssetsMemoryForZone(zoneInfo[j].freeFlags, 0x4000000);
-            DB_UnloadXAssetsMemoryForZone(zoneInfo[j].freeFlags, (int)&cls.wagerServers[5331].basictraining);
+            DB_UnloadXAssetsMemoryForZone(zoneInfo[j].freeFlags, 0x2000000);
             DB_UnloadXAssetsMemoryForZone(zoneInfo[j].freeFlags, 0x10000000);
         }
         Sys_LeaveCriticalSection(CRITSECT_DBHASH);
         DB_UnarchiveAssets();
     }
+
     if ( sync )
         DB_ArchiveAssets();
+
     maxZones = 10;
     if ( 2 * zoneCount >= 0xA
         && !Assert_MyHandler(
@@ -4981,7 +4974,7 @@ void __cdecl DB_LoadGraphicsAssetsForPC()
     zoneInfo[0].allocFlags = 1;
     zoneInfo[0].freeFlags = 0x80000000;
     zoneCount = 1;
-    DB_LoadXAssets(zoneInfo, 1u, 0);
+    DB_LoadXAssets(zoneInfo, zoneCount, 0);
     DB_SyncXAssets();
     zoneInfo[0].name = "dev_mp";
     zoneInfo[0].allocFlags = 4;
