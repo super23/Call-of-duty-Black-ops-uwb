@@ -16,7 +16,6 @@ const dvar_t *sd_xa2_can_switch_device;
 const dvar_t *sd_xa2_device_guid;
 const dvar_t *sd_xa2_device_name;
 
-unsigned int g_xaudio27;
 SoundState g_sd;
 char sd_xa2_device_names[16][256];
 const char *sd_xa2_devices_value_list[16];
@@ -25,6 +24,7 @@ int sd_xa2_device_indices[16];
 _GUID sd_deviceGUIDs[16];
 char sd_xa2_device_guids[16][256];
 
+unsigned int g_xaudio27 = 1;
 const int sd_max_num_devices = 16;
 
 bool __cdecl SD_Xaudio2CanInit()

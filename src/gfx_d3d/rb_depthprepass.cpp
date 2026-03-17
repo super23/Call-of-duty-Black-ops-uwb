@@ -81,7 +81,7 @@ void __cdecl R_DepthPrepassCallback(const GfxViewInfo *userData, GfxCmdBufContex
         context.source->input.consts[75][1] = 0.0f;
         context.source->input.consts[75][2] = 0.0f;
         context.source->input.consts[75][3] = 1.0f;
-        R_DirtyCodeConstant(context.source, 0x4Bu);
+        R_DirtyCodeConstant(context.source, CONST_SRC_CODE_DEPTH_FROM_CLIP);
     }
     else
     {

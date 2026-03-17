@@ -125,7 +125,7 @@ int __cdecl RB_ApplyShaderConstantSet(GfxCmdBufSourceState *gfxSourceState, cons
             {
                 __debugbreak();
             }
-            updatedConstants |= R_UpdateCodeConstantFromVec4(gfxSourceState, constantSource, (float*)scs->value[i]);
+            updatedConstants |= R_UpdateCodeConstantFromVec4(gfxSourceState, (CodeConstant)constantSource, (float*)scs->value[i]);
         }
     }
     return updatedConstants;

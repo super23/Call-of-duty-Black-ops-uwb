@@ -102,7 +102,7 @@ void    R_DrawSpotShadowMapArray(const GfxViewInfo *viewInfo, GfxCmdBuf *cmdBuf)
         R_SetRenderTargetSize(&state, spotShadow->renderTargetId);
         R_UpdateCodeConstant(
             &state,
-            0x14u,
+            CONST_SRC_CODE_SHADOWMAP_POLYGON_OFFSET,
             sm_polygonOffsetBias->current.value * 0.25,
             sm_polygonOffsetScale->current.value,
             0.0,
@@ -184,7 +184,7 @@ void __cdecl RB_SetSpotShadowOverlayScaleAndBias(const GfxSpotShadow *spotShadow
     if (gfxMetrics.shadowmapBuildTechType == 3)
         R_UpdateCodeConstant(
             &gfxCmdBufSourceState,
-            0x24u,
+            CONST_SRC_CODE_FILTER_TAP_0,
             1.0 / (float)((float)(zFar - zNear) * (float)(farDepth - nearDepth)),
             (-(1.0 / (float)((float)(zFar - zNear) * (float)(farDepth - nearDepth))))
             * (float)((float)((float)(zFar - zNear) * nearDepth) + zNear),
@@ -193,7 +193,7 @@ void __cdecl RB_SetSpotShadowOverlayScaleAndBias(const GfxSpotShadow *spotShadow
     else
         R_UpdateCodeConstant(
             &gfxCmdBufSourceState,
-            0x24u,
+            CONST_SRC_CODE_FILTER_TAP_0,
             1.0 / (float)(farDepth - nearDepth),
             (-(1.0 / (float)(farDepth - nearDepth))) * nearDepth,
             zNear,

@@ -76,7 +76,7 @@ unsigned int __cdecl RB_CalcSunSpriteSamples()
       v1);
   }
   R_ClearScreenInternal(gfxCmdBufState.prim.device, 2u, colorWhite, 1.0, 0, 0);
-  R_SetCodeConstantFromVec4(&gfxCmdBufSourceState, 0x37u, (float*)colorWhite);
+  R_SetCodeConstantFromVec4(&gfxCmdBufSourceState, CONST_SRC_CODE_MATERIAL_COLOR, (float*)colorWhite);
   R_AssertDXDeviceOwnership();
   if ( r_logFile && r_logFile->current.integer )
     RB_LogPrint("occlusionQuery->Issue( (1 << 1) )\n");

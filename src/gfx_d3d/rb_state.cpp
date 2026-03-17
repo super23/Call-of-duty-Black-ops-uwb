@@ -10,200 +10,48 @@
 GfxCmdBufState gfxCmdBufState;
 GfxCmdBufInput gfxCmdBufInput;
 GfxCmdBufSourceState gfxCmdBufSourceState;
-GfxCmdBufContext gfxCmdBufContext;
+
+GfxCmdBufContext gfxCmdBufContext=
+{ &gfxCmdBufSourceState, &gfxCmdBufState };
+
 
 void __cdecl RB_SetInitialState()
 {
   memset((unsigned __int8 *)&gfxCmdBufInput, 0, sizeof(gfxCmdBufInput));
   R_InitCmdBufSourceState(&gfxCmdBufSourceState, &gfxCmdBufInput, 0);
   gfxCmdBufState.prim.device = dx.device;
+
   R_SetInitialContextState(dx.device);
   R_SetTexFilter();
   R_InitCmdBufState(&gfxCmdBufState);
   RB_InitSceneViewport();
-  if ( !gfxRenderTargets[2].surface.color
-    && !Assert_MyHandler(
-          "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_state.cpp",
-          81,
-          0,
-          "%s",
-          "gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.color") )
+
+  iassert(gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.color);
+  if (!g_allocateMinimalResources)
   {
-    __debugbreak();
+      iassert(gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.depthStencil);
   }
-  if ( !g_allocateMinimalResources
-    && !gfxRenderTargets[2].surface.depthStencil
-    && !Assert_MyHandler(
-          "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_state.cpp",
-          83,
-          0,
-          "%s",
-          "gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.depthStencil") )
-  {
-    __debugbreak();
-  }
-  if ( !gfxRenderTargets[2].width
-    && !Assert_MyHandler(
-          "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_state.cpp",
-          91,
-          0,
-          "%s",
-          "gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].width") )
-  {
-    __debugbreak();
-  }
-  if ( !gfxRenderTargets[2].height
-    && !Assert_MyHandler(
-          "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_state.cpp",
-          92,
-          0,
-          "%s",
-          "gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].height") )
-  {
-    __debugbreak();
-  }
-  if ( gfxCmdBufSourceState.renderTargetWidth
-    && !Assert_MyHandler(
-          "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_state.cpp",
-          94,
-          1,
-          "%s",
-          "gfxCmdBufSourceState.renderTargetWidth == 0") )
-  {
-    __debugbreak();
-  }
-  if ( gfxCmdBufSourceState.renderTargetHeight
-    && !Assert_MyHandler(
-          "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_state.cpp",
-          95,
-          1,
-          "%s",
-          "gfxCmdBufSourceState.renderTargetHeight == 0") )
-  {
-    __debugbreak();
-  }
-  if ( gfxCmdBufSourceState.viewportBehavior
-    && !Assert_MyHandler(
-          "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_state.cpp",
-          96,
-          1,
-          "%s",
-          "gfxCmdBufSourceState.viewportBehavior == 0") )
-  {
-    __debugbreak();
-  }
+
+  iassert(gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].width);
+  iassert(gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].height);
+  iassert(gfxCmdBufSourceState.renderTargetWidth == 0);
+  iassert(gfxCmdBufSourceState.renderTargetHeight == 0);
+  iassert(gfxCmdBufSourceState.viewportBehavior == 0);
+
   R_SetRenderTargetSize(&gfxCmdBufSourceState, 2u);
   R_SetRenderTarget(gfxCmdBufContext, 2u);
-  if ( gfxCmdBufState.prim.indexBuffer
-    && !Assert_MyHandler(
-          "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_state.cpp",
-          104,
-          1,
-          "%s",
-          "gfxCmdBufState.prim.indexBuffer == NULL") )
-  {
-    __debugbreak();
-  }
-  if ( gfxCmdBufState.prim.streams[0].vb
-    && !Assert_MyHandler(
-          "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_state.cpp",
-          105,
-          1,
-          "%s",
-          "gfxCmdBufState.prim.streams[0].vb == NULL") )
-  {
-    __debugbreak();
-  }
-  if ( gfxCmdBufState.prim.streams[0].offset
-    && !Assert_MyHandler(
-          "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_state.cpp",
-          106,
-          1,
-          "%s",
-          "gfxCmdBufState.prim.streams[0].offset == 0") )
-  {
-    __debugbreak();
-  }
-  if ( gfxCmdBufState.prim.streams[0].stride
-    && !Assert_MyHandler(
-          "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_state.cpp",
-          107,
-          1,
-          "%s",
-          "gfxCmdBufState.prim.streams[0].stride == 0") )
-  {
-    __debugbreak();
-  }
-  if ( gfxCmdBufState.prim.streams[1].vb
-    && !Assert_MyHandler(
-          "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_state.cpp",
-          108,
-          1,
-          "%s",
-          "gfxCmdBufState.prim.streams[1].vb == NULL") )
-  {
-    __debugbreak();
-  }
-  if ( gfxCmdBufState.prim.streams[1].offset
-    && !Assert_MyHandler(
-          "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_state.cpp",
-          109,
-          1,
-          "%s",
-          "gfxCmdBufState.prim.streams[1].offset == 0") )
-  {
-    __debugbreak();
-  }
-  if ( gfxCmdBufState.prim.streams[1].stride
-    && !Assert_MyHandler(
-          "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_state.cpp",
-          110,
-          1,
-          "%s",
-          "gfxCmdBufState.prim.streams[1].stride == 0") )
-  {
-    __debugbreak();
-  }
-  if ( gfxCmdBufState.vertexShader
-    && !Assert_MyHandler(
-          "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_state.cpp",
-          114,
-          1,
-          "%s",
-          "gfxCmdBufState.vertexShader == NULL") )
-  {
-    __debugbreak();
-  }
-  if ( gfxCmdBufState.material
-    && !Assert_MyHandler(
-          "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_state.cpp",
-          116,
-          1,
-          "%s",
-          "gfxCmdBufState.material == NULL") )
-  {
-    __debugbreak();
-  }
-  if ( gfxCmdBufState.technique
-    && !Assert_MyHandler(
-          "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_state.cpp",
-          117,
-          1,
-          "%s",
-          "gfxCmdBufState.technique == NULL") )
-  {
-    __debugbreak();
-  }
-  if ( gfxCmdBufState.alphaRef )
-  {
-    if ( !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_state.cpp",
-            120,
-            1,
-            "%s",
-            "gfxCmdBufState.alphaRef == 0") )
-      __debugbreak();
-  }
+
+  iassert(gfxCmdBufState.prim.indexBuffer == NULL);
+  iassert(gfxCmdBufState.prim.streams[0].vb == NULL);
+  iassert(gfxCmdBufState.prim.streams[0].offset == 0);
+  iassert(gfxCmdBufState.prim.streams[0].stride == 0);
+  iassert(gfxCmdBufState.prim.streams[1].vb == NULL);
+  iassert(gfxCmdBufState.prim.streams[1].offset == 0);
+  iassert(gfxCmdBufState.prim.streams[1].stride == 0);
+  iassert(gfxCmdBufState.vertexShader == NULL);
+  iassert(gfxCmdBufState.material == NULL);
+  iassert(gfxCmdBufState.technique == NULL);
+  iassert(gfxCmdBufState.alphaRef == 0);
 }
 
 void __cdecl RB_UnbindAllImages()
@@ -223,10 +71,10 @@ void __cdecl RB_UnbindAllImages()
 
 void __cdecl RB_InitSceneViewport()
 {
-    gfxCmdBufSourceState.viewportBehavior = GFX_USE_VIEWPORT_FOR_VIEW;
-    gfxCmdBufSourceState.renderTargetWidth = 0;
-    gfxCmdBufSourceState.renderTargetHeight = vidConfig.displayWidth;
-    *(unsigned int *)&gfxCmdBufSourceState.viewportIsDirty = vidConfig.displayHeight;
+    gfxCmdBufSourceState.sceneViewport.x = 0;
+    gfxCmdBufSourceState.sceneViewport.y = 0;
+    gfxCmdBufSourceState.sceneViewport.width = vidConfig.displayWidth;
+    gfxCmdBufSourceState.sceneViewport.height = vidConfig.displayHeight;
 }
 
 void __cdecl RB_BindDefaultImages()

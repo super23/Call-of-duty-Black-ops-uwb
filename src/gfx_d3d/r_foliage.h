@@ -1,6 +1,7 @@
 #pragma once
 #include "r_bsp.h"
 #include "rb_state.h"
+#include "r_state.h"
 #include "r_rendercmds.h"
 #include <tl/jobqueue/jobqueue_all.h>
 
@@ -192,8 +193,8 @@ void __cdecl DrawDebugAxis(const float *pos);
 void __cdecl AddInstantForce(const GrassForce *force);
 void __cdecl R_FoliageNotifyVehiclePosition(int localClientNum, const float *vehiclePos);
 void __cdecl R_FoliageSetDefaultShaderConstants(GfxCmdBufSourceState *source);
-void __cdecl R_SetCodeConstantFromVec4(GfxCmdBufSourceState *source, unsigned int constant, float *value);
-void __cdecl R_DirtyCodeConstant(GfxCmdBufSourceState *source, unsigned int constant);
+void __cdecl R_SetCodeConstantFromVec4(GfxCmdBufSourceState *source, CodeConstant constant, float *value);
+void __cdecl R_DirtyCodeConstant(GfxCmdBufSourceState *source, CodeConstant constant);
 void __cdecl R_DynSModelInitGfxState(DynSModelGfxState *dynData);
 int __cdecl dyn_smodel_drawstateCallback(jqBatch *batch);
 void __cdecl R_CalcVisDynSModelDrawState(
@@ -218,13 +219,13 @@ void __cdecl R_FoliageSetStaticModelShaderConstants(
                 const DynSModelGfxState *smodelState);
 int __cdecl R_UpdateCodeConstant(
                 GfxCmdBufSourceState *source,
-                unsigned int constant,
+                CodeConstant constant,
                 float x,
                 float y,
                 float z,
                 float w);
-void __cdecl R_SetCodeConstant(GfxCmdBufSourceState *source, unsigned int constant, float x, float y, float z, float w);
-int __cdecl R_UpdateCodeConstantFromVec4(GfxCmdBufSourceState *source, unsigned int constant, float *value);
+void __cdecl R_SetCodeConstant(GfxCmdBufSourceState *source, CodeConstant constant, float x, float y, float z, float w);
+int __cdecl R_UpdateCodeConstantFromVec4(GfxCmdBufSourceState *source, CodeConstant constant, float *value);
 void __cdecl R_GetGrassParmShaderConstant(float curSquashAmt, float *out);
 void __cdecl R_DynSModelGetCounts(unsigned int *numDynSModelInMap, unsigned int *maxNumDynSModel);
 

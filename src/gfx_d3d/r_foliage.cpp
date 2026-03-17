@@ -5,6 +5,7 @@
 #include <universal/com_workercmds.h>
 #include "r_warn.h"
 #include "r_shade.h"
+#include "r_state.h"
 
 unsigned int g_fullySquashedModelBits[64];
 ModelHashTable<ActiveModelNode, 63, 128> g_activeModelsHash;
@@ -707,50 +708,32 @@ void __cdecl R_FoliageSetDefaultShaderConstants(GfxCmdBufSourceState *source)
     parms[1] = 0.0f;
     parms[2] = 1.0f;
     parms[3] = 1.0f;
-    R_SetCodeConstantFromVec4(source, 0x51u, parms);
+    R_SetCodeConstantFromVec4(source, CONST_SRC_CODE_GRASS_PARMS, parms);
+
     memset(zero, 0, sizeof(zero));
-    R_SetCodeConstantFromVec4(source, 0x52u, zero);
-    R_SetCodeConstantFromVec4(source, 0x53u, zero);
-    R_SetCodeConstantFromVec4(source, 0x54u, zero);
+    R_SetCodeConstantFromVec4(source, CONST_SRC_CODE_GRASS_FORCE0, zero);
+    R_SetCodeConstantFromVec4(source, CONST_SRC_CODE_GRASS_FORCE1, zero);
+    R_SetCodeConstantFromVec4(source, CONST_SRC_CODE_GRASS_WIND_FORCE0, zero);
 }
 
-void __cdecl R_SetCodeConstantFromVec4(GfxCmdBufSourceState *source, unsigned int constant, float *value)
+void __cdecl R_SetCodeConstantFromVec4(GfxCmdBufSourceState *source, CodeConstant constant, float *value)
 {
-    float *v3; // [esp+0h] [ebp-4h]
+    bcassert(constant, CONST_SRC_CODE_COUNT_FLOAT4);
 
-    if ( constant >= 0xC5
-        && !Assert_MyHandler(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.h",
-                    1763,
-                    0,
-                    "constant doesn't index CONST_SRC_CODE_COUNT_FLOAT4\n\t%i not in [0, %i)",
-                    constant,
-                    197) )
-    {
-        __debugbreak();
-    }
-    v3 = source->input.consts[constant];
-    *v3 = *value;
-    v3[1] = value[1];
-    v3[2] = value[2];
-    v3[3] = value[3];
-    R_DirtyCodeConstant(source, constant);
+    R_SetCodeConstant(source,
+        constant,
+        value[0],
+        value[1],
+        value[2],
+        value[3]
+    );
 }
 
-void __cdecl R_DirtyCodeConstant(GfxCmdBufSourceState *source, unsigned int constant)
+void __cdecl R_DirtyCodeConstant(GfxCmdBufSourceState *source, CodeConstant constant)
 {
-    if ( constant >= 0xE5
-        && !Assert_MyHandler(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.h",
-                    1677,
-                    0,
-                    "constant doesn't index ARRAY_COUNT( source->constVersions )\n\t%i not in [0, %i)",
-                    constant,
-                    229) )
-    {
-        __debugbreak();
-    }
-    ++source->constVersions[constant + 24];
+    bcassert(constant, ARRAY_COUNT(source->constVersions));
+
+    ++source->constVersions[constant];
 }
 
 void __cdecl R_DynSModelInitGfxState(DynSModelGfxState *dynData)
@@ -1285,15 +1268,15 @@ void __cdecl R_FoliageSetStaticModelShaderConstants(
             value[1] = 0.0f;
             value[2] = 1.0f;
             value[3] = 1.0f;
-            updated = R_UpdateCodeConstantFromVec4(context->source, 0x51u, value);
+            updated = R_UpdateCodeConstantFromVec4(context->source, CONST_SRC_CODE_GRASS_PARMS, value);
             updatedConstant |= updated;
-            v16 = R_UpdateCodeConstantFromVec4(context->source, 0x52u, zero);
+            v16 = R_UpdateCodeConstantFromVec4(context->source, CONST_SRC_CODE_GRASS_FORCE0, zero);
             updatedConstant |= v16;
-            v17 = R_UpdateCodeConstantFromVec4(context->source, 0x53u, zero);
+            v17 = R_UpdateCodeConstantFromVec4(context->source, CONST_SRC_CODE_GRASS_FORCE1, zero);
             updatedConstant |= v17;
-            v18 = R_UpdateCodeConstantFromVec4(context->source, 0x54u, zero);
+            v18 = R_UpdateCodeConstantFromVec4(context->source, CONST_SRC_CODE_GRASS_WIND_FORCE0, zero);
             updatedConstant |= v18;
-            v19 = R_UpdateCodeConstantFromVec4(context->source, 0x76u, zero);
+            v19 = R_UpdateCodeConstantFromVec4(context->source, CONST_SRC_CODE_CHARACTER_CHARRED_AMOUNT, zero);
             updatedConstant |= v19;
         }
         else
@@ -1346,15 +1329,15 @@ void __cdecl R_FoliageSetStaticModelShaderConstants(
             constBlock.windForce0[1] = v20;
             constBlock.windForce0[2] = windForceStrength;
             constBlock.windForce0[3] = 0.0f;
-            v10 = R_UpdateCodeConstantFromVec4(context->source, 0x51u, constBlock.grassParms);
+            v10 = R_UpdateCodeConstantFromVec4(context->source, CONST_SRC_CODE_GRASS_PARMS, constBlock.grassParms);
             updatedConstant |= v10;
-            v11 = R_UpdateCodeConstantFromVec4(context->source, 0x52u, constBlock.grassForce0);
+            v11 = R_UpdateCodeConstantFromVec4(context->source, CONST_SRC_CODE_GRASS_FORCE0, constBlock.grassForce0);
             updatedConstant |= v11;
-            v12 = R_UpdateCodeConstantFromVec4(context->source, 0x53u, constBlock.grassForce1);
+            v12 = R_UpdateCodeConstantFromVec4(context->source, CONST_SRC_CODE_GRASS_FORCE1, constBlock.grassForce1);
             updatedConstant |= v12;
-            v13 = R_UpdateCodeConstantFromVec4(context->source, 0x54u, constBlock.windForce0);
+            v13 = R_UpdateCodeConstantFromVec4(context->source, CONST_SRC_CODE_GRASS_WIND_FORCE0, constBlock.windForce0);
             updatedConstant |= v13;
-            v14 = R_UpdateCodeConstant(context->source, 0x76u, drawState->squash / 0.5, 0.0, 0.0, 0.0);
+            v14 = R_UpdateCodeConstant(context->source, CONST_SRC_CODE_CHARACTER_CHARRED_AMOUNT, drawState->squash / 0.5, 0.0, 0.0, 0.0);
             updatedConstant |= v14;
         }
         if ( updatedConstant )
@@ -1367,15 +1350,15 @@ void __cdecl R_FoliageSetStaticModelShaderConstants(
         defaultGrassParm[1] = 0.0f;
         defaultGrassParm[2] = 1.0f;
         defaultGrassParm[3] = 1.0f;
-        v4 = R_UpdateCodeConstantFromVec4(context->source, 0x51u, defaultGrassParm);
+        v4 = R_UpdateCodeConstantFromVec4(context->source, CONST_SRC_CODE_GRASS_PARMS, defaultGrassParm);
         v27 |= v4;
-        v5 = R_UpdateCodeConstantFromVec4(context->source, 0x52u, zero);
+        v5 = R_UpdateCodeConstantFromVec4(context->source, CONST_SRC_CODE_GRASS_FORCE0, zero);
         v27 |= v5;
-        v6 = R_UpdateCodeConstantFromVec4(context->source, 0x53u, zero);
+        v6 = R_UpdateCodeConstantFromVec4(context->source, CONST_SRC_CODE_GRASS_FORCE1, zero);
         v27 |= v6;
-        v7 = R_UpdateCodeConstantFromVec4(context->source, 0x54u, zero);
+        v7 = R_UpdateCodeConstantFromVec4(context->source, CONST_SRC_CODE_GRASS_WIND_FORCE0, zero);
         v27 |= v7;
-        v8 = R_UpdateCodeConstantFromVec4(context->source, 0x76u, zero);
+        v8 = R_UpdateCodeConstantFromVec4(context->source, CONST_SRC_CODE_CHARACTER_CHARRED_AMOUNT, zero);
         v27 |= v8;
         if ( v27 )
             R_SetupPassVertexShaderArgs(*context);
@@ -1384,7 +1367,7 @@ void __cdecl R_FoliageSetStaticModelShaderConstants(
 
 int __cdecl R_UpdateCodeConstant(
                 GfxCmdBufSourceState *source,
-                unsigned int constant,
+                CodeConstant constant,
                 float x,
                 float y,
                 float z,
@@ -1401,30 +1384,19 @@ int __cdecl R_UpdateCodeConstant(
     return 1;
 }
 
-void __cdecl R_SetCodeConstant(GfxCmdBufSourceState *source, unsigned int constant, float x, float y, float z, float w)
+void __cdecl R_SetCodeConstant(GfxCmdBufSourceState *source, CodeConstant constant, float x, float y, float z, float w)
 {
-    float *v6; // [esp+0h] [ebp-4h]
+    bcassert(constant, CONST_SRC_CODE_COUNT_FLOAT4);
 
-    if ( constant >= 0xC5
-        && !Assert_MyHandler(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.h",
-                    1755,
-                    0,
-                    "constant doesn't index CONST_SRC_CODE_COUNT_FLOAT4\n\t%i not in [0, %i)",
-                    constant,
-                    197) )
-    {
-        __debugbreak();
-    }
-    v6 = source->input.consts[constant];
-    *v6 = x;
-    v6[1] = y;
-    v6[2] = z;
-    v6[3] = w;
+    source->input.consts[constant][0] = x;
+    source->input.consts[constant][1] = y;
+    source->input.consts[constant][2] = z;
+    source->input.consts[constant][3] = w;
+
     R_DirtyCodeConstant(source, constant);
 }
 
-int __cdecl R_UpdateCodeConstantFromVec4(GfxCmdBufSourceState *source, unsigned int constant, float *value)
+int __cdecl R_UpdateCodeConstantFromVec4(GfxCmdBufSourceState *source, CodeConstant constant, float *value)
 {
     if ( source->input.consts[constant][0] == *value
         && source->input.consts[constant][1] == value[1]

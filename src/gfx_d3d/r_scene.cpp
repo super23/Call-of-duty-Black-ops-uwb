@@ -2140,9 +2140,9 @@ void __cdecl R_SetSunConstants(GfxCmdBufInput *input)
     {
         __debugbreak();
     }
-    R_SetInputCodeConstantFromVec4(input, 0x32u, (float*)sun->dir);
-    R_SetInputCodeConstant(input, 0x33u, sun->diffuseColor[0], sun->diffuseColor[1], sun->diffuseColor[2], 1.0);
-    R_SetInputCodeConstant(input, 0x34u, sun->specularColor[0], sun->specularColor[1], sun->specularColor[2], 1.0);
+    R_SetInputCodeConstantFromVec4(input, CONST_SRC_CODE_SUN_POSITION, (float*)sun->dir);
+    R_SetInputCodeConstant(input, CONST_SRC_CODE_SUN_DIFFUSE, sun->diffuseColor[0], sun->diffuseColor[1], sun->diffuseColor[2], 1.0);
+    R_SetInputCodeConstant(input, CONST_SRC_CODE_SUN_SPECULAR, sun->specularColor[0], sun->specularColor[1], sun->specularColor[2], 1.0);
 }
 
 void __cdecl R_SetInputCodeConstant(GfxCmdBufInput *input, unsigned int constant, float x, float y, float z, float w)

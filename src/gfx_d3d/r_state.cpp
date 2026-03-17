@@ -343,23 +343,23 @@ void __cdecl R_SetInitialContextState(IDirect3DDevice9 *device)
 
 void __cdecl R_ChangeDepthHackNearClip(GfxCmdBufSourceState *source, float depthHackFlags)
 {
-    if ( !source && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp", 965, 0, "%s", "source") )
-        __debugbreak();
-    if ( LODWORD(depthHackFlags) != LODWORD(source->sceneDef.floatTime) )
+    iassert(source);
+
+    if (depthHackFlags != source->depthHackFlags)
     {
         R_DepthHackNearClipChanged(source);
-        source->sceneDef.floatTime = depthHackFlags;
+        source->depthHackFlags = depthHackFlags;
     }
 }
 
 void __cdecl R_DepthHackNearClipChanged(GfxCmdBufSourceState *source)
 {
-    ++HIWORD(source->depthHackFlags);
-    ++HIWORD(source->skinnedPlacement.base.quat[0]);
-    ++LOWORD(source->skinnedPlacement.base.quat[1]);
+    ++source->matrixVersions[2];
+    ++source->matrixVersions[4];
+    ++source->matrixVersions[5];
     //LODWORD(source->input.consts[75][3]) ^= _mask__NegFloat_;
-    source->input.consts[75][3] = -source->input.consts[75][3];
-    ++source->constVersions[99];
+    (source->input.consts[75][3]) = -(source->input.consts[75][3]);
+    ++source->constVersions[75];
 }
 
 void __cdecl R_ChangeObjectPlacement(GfxCmdBufSourceState *source, const GfxScaledPlacement *placement)
@@ -369,65 +369,65 @@ void __cdecl R_ChangeObjectPlacement(GfxCmdBufSourceState *source, const GfxScal
 
 void __cdecl R_ChangeObjectPlacement_Core(GfxCmdBufSourceState *source, const GfxScaledPlacement *placement)
 {
-    double v2; // st7
-    const char *v3; // eax
-    double v4; // st7
-    const char *v5; // eax
-    double v6; // st7
-    const char *v7; // eax
+    double v3; // st7
+    char *v4; // eax
+    double v5; // st7
+    char *v6; // eax
+    double v7; // st7
+    char *v8; // eax
     GfxCmdBufSourceState *matrix; // [esp+40h] [ebp-34h]
     float origin[3]; // [esp+44h] [ebp-30h] BYREF
     float axis[3][3]; // [esp+50h] [ebp-24h] BYREF
 
-    if ( !placement
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp", 980, 0, "%s", "placement") )
+    if (!placement
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp", 980, 0, "%s", "placement"))
     {
         __debugbreak();
     }
     UnitQuatToAxis(placement->base.quat, axis);
-    if ( !Vec3IsNormalized(axis[0]) )
+    if (!Vec3IsNormalized(axis[0]))
     {
-        v2 = Abs(axis[0]);
-        v3 = va("(%g %g %g) len %g", axis[0][0], axis[0][1], axis[0][2], v2);
-        if ( !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                        983,
-                        0,
-                        "%s\n\t%s",
-                        "Vec3IsNormalized( axis[0] )",
-                        v3) )
+        v3 = Abs(axis[0]);
+        v4 = va("(%g %g %g) len %g", axis[0][0], axis[0][1], axis[0][2], v3);
+        if (!Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
+            983,
+            0,
+            "%s\n\t%s",
+            "Vec3IsNormalized( axis[0] )",
+            v4))
             __debugbreak();
     }
-    if ( !Vec3IsNormalized(axis[1]) )
+    if (!Vec3IsNormalized(axis[1]))
     {
-        v4 = Abs(axis[1]);
-        v5 = va("(%g %g %g) len %g", axis[1][0], axis[1][1], axis[1][2], v4);
-        if ( !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                        984,
-                        0,
-                        "%s\n\t%s",
-                        "Vec3IsNormalized( axis[1] )",
-                        v5) )
+        v5 = Abs(axis[1]);
+        v6 = va("(%g %g %g) len %g", axis[1][0], axis[1][1], axis[1][2], v5);
+        if (!Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
+            984,
+            0,
+            "%s\n\t%s",
+            "Vec3IsNormalized( axis[1] )",
+            v6))
             __debugbreak();
     }
-    if ( !Vec3IsNormalized(axis[2]) )
+    if (!Vec3IsNormalized(axis[2]))
     {
-        v6 = Abs(axis[2]);
-        v7 = va("(%g %g %g) len %g", axis[2][0], axis[2][1], axis[2][2], v6);
-        if ( !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                        985,
-                        0,
-                        "%s\n\t%s",
-                        "Vec3IsNormalized( axis[2] )",
-                        v7) )
+        v7 = Abs(axis[2]);
+        v8 = va("(%g %g %g) len %g", axis[2][0], axis[2][1], axis[2][2], v7);
+        if (!Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
+            985,
+            0,
+            "%s\n\t%s",
+            "Vec3IsNormalized( axis[2] )",
+            v8))
             __debugbreak();
     }
     matrix = R_GetActiveWorldMatrix(source);
-    origin[0] = placement->base.origin[0] - source->skinnedPlacement.base.origin[0];
-    origin[1] = placement->base.origin[1] - source->skinnedPlacement.base.origin[1];
-    origin[2] = placement->base.origin[2] - source->skinnedPlacement.base.origin[2];
+    origin[0] = placement->base.origin[0] - source->eyeOffset[0];
+    origin[1] = placement->base.origin[1] - source->eyeOffset[1];
+    origin[2] = placement->base.origin[2] - source->eyeOffset[2];
     ikMatrixSet44((float (*)[4])matrix, origin, axis, placement->scale);
 }
 
@@ -437,9 +437,9 @@ void __cdecl R_ChangeObjectPlacementRemote(GfxCmdBufSourceState *source, const G
 }
 
 GfxCmdBufSourceState *__cdecl R_GetCodeMatrix(
-                GfxCmdBufSourceState *source,
-                unsigned int sourceIndex,
-                unsigned int firstRow)
+    GfxCmdBufSourceState *source,
+    unsigned int sourceIndex,
+    unsigned int firstRow)
 {
     unsigned int baseIndex; // [esp+10Ch] [ebp-18h]
     unsigned int transposeIndex; // [esp+110h] [ebp-14h]
@@ -447,101 +447,105 @@ GfxCmdBufSourceState *__cdecl R_GetCodeMatrix(
     unsigned int inverseIndex; // [esp+11Ch] [ebp-8h]
     unsigned int matrixVersion; // [esp+120h] [ebp-4h]
 
-    if ( !*((_WORD *)&source->viewParms3D + ((sourceIndex - 197) >> 2) + 1)
+    if (!source->matrixVersions[(sourceIndex - 197) >> 2]
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                    1281,
-                    0,
-                    "%s\n\t(sourceIndex) = %i",
-                    "(source->matrixVersions[(((sourceIndex) - CONST_SRC_FIRST_CODE_MATRIX) >> 2)])",
-                    sourceIndex) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
+            1281,
+            0,
+            "%s\n\t(sourceIndex) = %i",
+            "(source->matrixVersions[(((sourceIndex) - CONST_SRC_FIRST_CODE_MATRIX) >> 2)])",
+            sourceIndex))
     {
         __debugbreak();
     }
-    if ( firstRow > 3
+    if (firstRow > 3
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                    1283,
-                    0,
-                    "firstRow not in [0, 3]\n\t%i not in [%i, %i]",
-                    firstRow,
-                    0,
-                    3) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
+            1283,
+            0,
+            "firstRow not in [0, 3]\n\t%i not in [%i, %i]",
+            firstRow,
+            0,
+            3))
     {
         __debugbreak();
     }
-    matrixVersion = *((unsigned __int16 *)&source->viewParms3D + ((sourceIndex - 197) >> 2) + 1);
+    matrixVersion = source->matrixVersions[(sourceIndex - 197) >> 2];
     matrixIndex = sourceIndex - 197;
-    if ( source->constVersions[sourceIndex + 24] == matrixVersion )
+    if (source->constVersions[sourceIndex] == matrixVersion)
         return (GfxCmdBufSourceState *)((char *)source + 64 * matrixIndex + 16 * firstRow);
     baseIndex = matrixIndex & 0xFFFFFFFC;
-    if ( source->constVersions[(matrixIndex & 0xFFFFFFFC) + 221] != matrixVersion )
+    if (source->constVersions[(matrixIndex & 0xFFFFFFFC) + 197] != matrixVersion)
     {
         R_DeriveCodeMatrix(source, &source->matrices, baseIndex);
-        if ( matrixIndex == baseIndex )
+        if (matrixIndex == baseIndex)
             return (GfxCmdBufSourceState *)((char *)source + 64 * matrixIndex + 16 * firstRow);
-        if ( source->constVersions[sourceIndex + 24] == matrixVersion
+        if (source->constVersions[sourceIndex] == matrixVersion
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                        1297,
-                        0,
-                        "%s\n\t(sourceIndex) = %i",
-                        "(source->constVersions[sourceIndex] != matrixVersion)",
-                        sourceIndex) )
+                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
+                1297,
+                0,
+                "%s\n\t(sourceIndex) = %i",
+                "(source->constVersions[sourceIndex] != matrixVersion)",
+                sourceIndex))
         {
             __debugbreak();
         }
     }
-    source->constVersions[sourceIndex + 24] = matrixVersion;
+    source->constVersions[sourceIndex] = matrixVersion;
     transposeIndex = matrixIndex ^ 2;
-    if ( source->constVersions[(matrixIndex ^ 2) + 221] == matrixVersion )
+    if (source->constVersions[(matrixIndex ^ 2) + 197] == matrixVersion)
     {
-        MatrixTranspose44(source->matrices.matrix[transposeIndex].m, source->matrices.matrix[matrixIndex].m);
+        MatrixTranspose44(
+            *(mat4x4*)&source->matrices.matrix[transposeIndex],
+            *(mat4x4*)&source->matrices.matrix[matrixIndex]);
         return (GfxCmdBufSourceState *)((char *)source + 64 * matrixIndex + 16 * firstRow);
     }
     else
     {
         inverseIndex = matrixIndex ^ 1;
-        if ( source->constVersions[(matrixIndex ^ 1) + 221] == matrixVersion )
+        if (source->constVersions[(matrixIndex ^ 1) + 197] == matrixVersion)
         {
-            MatrixInverse44(source->matrices.matrix[inverseIndex].m, source->matrices.matrix[matrixIndex].m);
+            MatrixInverse44(
+                *(mat4x4*)&source->matrices.matrix[inverseIndex],
+                *(mat4x4*)&source->matrices.matrix[matrixIndex]);
             return (GfxCmdBufSourceState *)((char *)source + 64 * matrixIndex + 16 * firstRow);
         }
         else
         {
-            if ( matrixIndex != (baseIndex | 3)
+            if (matrixIndex != (baseIndex | 3)
                 && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                            1316,
-                            0,
-                            "%s",
-                            "matrixIndex == (baseIndex | CONST_SRC_MATRIX_INVERSE_BIT | CONST_SRC_MATRIX_TRANSPOSE_BIT)") )
+                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
+                    1316,
+                    0,
+                    "%s",
+                    "matrixIndex == (baseIndex | CONST_SRC_MATRIX_INVERSE_BIT | CONST_SRC_MATRIX_TRANSPOSE_BIT)"))
             {
                 __debugbreak();
             }
-            if ( transposeIndex != (baseIndex | 1)
+            if (transposeIndex != (baseIndex | 1)
                 && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                            1317,
-                            0,
-                            "%s",
-                            "transposeIndex == (baseIndex | CONST_SRC_MATRIX_INVERSE_BIT)") )
+                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
+                    1317,
+                    0,
+                    "%s",
+                    "transposeIndex == (baseIndex | CONST_SRC_MATRIX_INVERSE_BIT)"))
             {
                 __debugbreak();
             }
-            if ( inverseIndex != (baseIndex | 2)
+            if (inverseIndex != (baseIndex | 2)
                 && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                            1318,
-                            0,
-                            "%s",
-                            "inverseIndex == (baseIndex | CONST_SRC_MATRIX_TRANSPOSE_BIT)") )
+                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
+                    1318,
+                    0,
+                    "%s",
+                    "inverseIndex == (baseIndex | CONST_SRC_MATRIX_TRANSPOSE_BIT)"))
             {
                 __debugbreak();
             }
-            MatrixTranspose44(source->matrices.matrix[baseIndex].m, source->matrices.matrix[inverseIndex].m);
-            source->constVersions[inverseIndex + 221] = matrixVersion;
-            MatrixInverse44(source->matrices.matrix[inverseIndex].m, source->matrices.matrix[matrixIndex].m);
+            MatrixTranspose44(*(mat4x4*)&source->matrices.matrix[baseIndex], *(mat4x4 *)&source->matrices.matrix[inverseIndex]);
+            source->constVersions[inverseIndex + 197] = matrixVersion;
+            MatrixInverse44(*(mat4x4*)&source->matrices.matrix[inverseIndex], *(mat4x4*)&source->matrices.matrix[matrixIndex]);
             return (GfxCmdBufSourceState *)((char *)source + 64 * matrixIndex + 16 * firstRow);
         }
     }
@@ -585,12 +589,9 @@ void __cdecl R_DeriveCodeMatrix(GfxCmdBufSourceState *source, GfxCodeMatrices *a
 
 void __cdecl R_DeriveViewMatrix(GfxCmdBufSourceState *source)
 {
-    memcpy(&source->matrices.matrix[4], source->viewParms.viewMatrix.m[3], sizeof(source->matrices.matrix[4]));
-    MatrixTransformVector44(
-        source->skinnedPlacement.base.origin,
-        source->matrices.matrix[4].m,
-        source->matrices.matrix[4].m[3]);
-    source->constVersions[225] = source->depthHackFlags;
+    memcpy(&source->matrices.matrix[4], &source->viewParms, sizeof(source->matrices.matrix[4]));
+    MatrixTransformVector44(source->eyeOffset, source->matrices.matrix[4].m, source->matrices.matrix[4].m[3]);
+    source->constVersions[201] = source->matrixVersions[1];
 }
 
 // local variable allocation has failed, the output may be wrong!
@@ -599,23 +600,28 @@ void    R_DeriveWorldViewMatrix(GfxCmdBufSourceState *source)
     GfxMatrix world; // [esp+4h] [ebp-5Ch] BYREF
     float *world_60; // [esp+4Ch] [ebp-14h]
     GfxViewParms *p_viewParms; // [esp+50h] [ebp-10h]
-    //int v5; // [esp+54h] [ebp-Ch]
     //GfxCodeMatrices *activeMatrices; // [esp+58h] [ebp-8h]
-    const GfxViewParms *viewParms; // [esp+5Ch] [ebp-4h] BYREF
-    GfxCodeMatrices *retaddr; // [esp+60h] [ebp+0h]
-
-    //v5 = a1;
+    //GfxCodeMatrices *retaddr; // [esp+60h] [ebp+0h]
+    //
     //activeMatrices = retaddr;
     p_viewParms = &source->viewParms;
     world_60 = (float *)source;
-    //iassert(R_IsMatrixConstantUpToDate(source, CONST_SRC_CODE_WORLD_MATRIX));
-
+    if (source->constVersions[197] != source->matrixVersions[0]
+        && !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
+            1047,
+            0,
+            "%s",
+            "R_IsMatrixConstantUpToDate( source, CONST_SRC_CODE_WORLD_MATRIX )"))
+    {
+        __debugbreak();
+    }
     memcpy(&world, world_60, sizeof(world));
     world.m[3][0] = world.m[3][0] + source->eyeOffset[0];
     world.m[3][1] = world.m[3][1] + source->eyeOffset[1];
     world.m[3][2] = world.m[3][2] + source->eyeOffset[2];
     MatrixMultiply44(world.m, p_viewParms->viewMatrix.m, (float (*)[4])(world_60 + 48));
-    source->constVersions[209] = source->matrixVersions[6];
+    source->constVersions[209] = source->matrixVersions[3];
 }
 
 void __cdecl R_DeriveProjectionMatrix(GfxCmdBufSourceState *source)
@@ -624,19 +630,19 @@ void __cdecl R_DeriveProjectionMatrix(GfxCmdBufSourceState *source)
     int j; // [esp+Ch] [ebp-14h]
     float inv; // [esp+10h] [ebp-10h]
 
-    memcpy(&source->matrices.matrix[8], source->viewParms.projectionMatrix.m[3], sizeof(source->matrices.matrix[8]));
-    if ( LODWORD(source->sceneDef.floatTime) == 2 )
-        source->matrices.matrix[8].m[3][2] = source->shadowLookupMatrix.m[2][1];
-    if ( source->matrices.matrix[8].m[2][3] != 0.0 && source->matrices.matrix[8].m[2][3] != 1.0 )
+    memcpy(&source->matrices.matrix[8], &source->viewParms.projectionMatrix, sizeof(source->matrices.matrix[8]));
+    if (source->depthHackFlags == 2)
+        source->matrices.matrix[8].m[3][2] = source->viewParms.depthHackNearClip;
+    if (source->matrices.matrix[8].m[2][3] != 0.0 && source->matrices.matrix[8].m[2][3] != 1.0)
     {
         inv = 1.0 / source->matrices.matrix[8].m[2][3];
-        for ( j = 0; j < 4; ++j )
+        for (j = 0; j < 4; ++j)
         {
-            for ( i = 0; i < 4; ++i )
+            for (i = 0; i < 4; ++i)
                 source->matrices.matrix[8].m[i][j] = source->matrices.matrix[8].m[i][j] * inv;
         }
     }
-    source->matrixVersions[3] = HIWORD(source->depthHackFlags);
+    source->constVersions[205] = source->matrixVersions[2];
 }
 
 void __cdecl R_DeriveViewProjectionMatrix(GfxCmdBufSourceState *source)
@@ -644,60 +650,66 @@ void __cdecl R_DeriveViewProjectionMatrix(GfxCmdBufSourceState *source)
     GfxMatrix *viewProj; // [esp+20h] [ebp-10h]
 
     viewProj = &source->matrices.matrix[16];
-    if ( LODWORD(source->sceneDef.floatTime) == 2 )
+    if (source->depthHackFlags == 2)
     {
-        if ( source->matrixVersions[3] != HIWORD(source->depthHackFlags) )
+        if (source->constVersions[205] != source->matrixVersions[2])
             R_DeriveProjectionMatrix(source);
-        MatrixMultiply44((const float (*)[4])source->viewParms.viewMatrix.m[3], source->matrices.matrix[8].m, viewProj->m);
+        MatrixMultiply44(source->viewParms.viewMatrix.m, source->matrices.matrix[8].m, viewProj->m);
     }
     else
     {
-        memcpy(viewProj, source->viewParms.viewProjectionMatrix.m[3], sizeof(GfxMatrix));
+        memcpy(viewProj, &source->viewParms.viewProjectionMatrix, sizeof(GfxMatrix));
     }
-    MatrixTransformVector44(
-        source->skinnedPlacement.base.origin,
-        source->matrices.matrix[16].m,
-        source->matrices.matrix[16].m[3]);
-    source->matrixVersions[11] = HIWORD(source->skinnedPlacement.base.quat[0]);
+    MatrixTransformVector44(source->eyeOffset, source->matrices.matrix[16].m, source->matrices.matrix[16].m[3]);
+    source->constVersions[213] = source->matrixVersions[4];
 }
 
 // local variable allocation has failed, the output may be wrong!
 void    R_DeriveWorldViewProjectionMatrix(GfxCmdBufSourceState *source)
 {
-    float *mat20; // [esp-8h] [ebp-60h]
-    GfxMatrix mat;
-    GfxViewParms *p_viewParms; // [esp+48h] [ebp-10h]
-    int v6; // [esp+4Ch] [ebp-Ch]
-    GfxCodeMatrices *activeMatrices; // [esp+50h] [ebp-8h]
-    GfxCodeMatrices *retaddr; // [esp+58h] [ebp+0h]
-
-    //activeMatrices = retaddr;
-    p_viewParms = &source->viewParms;
-
-    //iassert(R_IsMatrixConstantUpToDate(source, CONST_SRC_CODE_WORLD_MATRIX));
-
-    memcpy(&mat, (float *)source, sizeof(GfxMatrix));
-    mat20 = (float *)&source->matrices.matrix[20];
-
+    GfxMatrix *v2; // [esp-8h] [ebp-60h]
+    GfxMatrix world; // [esp-4h] [ebp-5Ch] BYREF
+    GfxCodeMatrices *worldViewProj; // [esp+44h] [ebp-14h]
+    const GfxViewParms *viewParms; // [esp+48h] [ebp-10h]
+    //GfxCmdBufSourceState *activeMatrices; // [esp+50h] [ebp-8h]
+    //int vars0; // [esp+58h] [ebp+0h]
+    //
+    //activeMatrices = (GfxCmdBufSourceState *)vars0;
+    viewParms = &source->viewParms;
+    worldViewProj = &source->matrices;
+    if (source->constVersions[197] != source->matrixVersions[0]
+        && !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
+            1128,
+            0,
+            "%s",
+            "R_IsMatrixConstantUpToDate( source, CONST_SRC_CODE_WORLD_MATRIX )"))
+    {
+        __debugbreak();
+    }
+    memcpy(&world, worldViewProj, sizeof(world));
+    v2 = &worldViewProj->matrix[20];
     if (source->depthHackFlags == 2)
     {
-        if (source->constVersions[213] != source->matrixVersions[7])
+        if (source->constVersions[213] != source->matrixVersions[4])
             R_DeriveViewProjectionMatrix(source);
-        MatrixMultiply44(mat.m, source->matrices.matrix[16].m, *(mat4x4 *)mat20);
+        MatrixMultiply44(world.m, worldViewProj->matrix[16].m, v2->m);
     }
     else
     {
-        Vec3Add(mat.m[3], source->eyeOffset, mat.m[3]);
-        MatrixMultiply44(mat.m, p_viewParms->viewProjectionMatrix.m, *(mat4x4 *)mat20);
+        world.m[3][0] = world.m[3][0] + source->eyeOffset[0];
+        world.m[3][1] = world.m[3][1] + source->eyeOffset[1];
+        world.m[3][2] = world.m[3][2] + source->eyeOffset[2];
+        MatrixMultiply44(world.m, viewParms->viewProjectionMatrix.m, v2->m);
     }
-    source->constVersions[217] = source->matrixVersions[8];
+    source->constVersions[217] = source->matrixVersions[5];
 }
 
 void __cdecl R_DeriveShadowLookupMatrix(GfxCmdBufSourceState *source)
 {
     memcpy(&source->matrices.matrix[24], &source->shadowLookupMatrix, sizeof(source->matrices.matrix[24]));
     MatrixTransformVector44(source->eyeOffset, source->matrices.matrix[24].m, source->matrices.matrix[24].m[3]);
-    source->constVersions[221] = source->matrixVersions[9];
+    source->constVersions[221] = source->matrixVersions[6];
 }
 
 // local variable allocation has failed, the output may be wrong!
@@ -732,7 +744,7 @@ void    R_GenerateWorldOutdoorLookupMatrix(GfxCmdBufSourceState *source, float (
 
     Vec4Add(&(*outMatrix)[12], worldOffset, &(*outMatrix)[12]);
 
-    source->constVersions[225] = source->matrixVersions[10];
+    source->constVersions[225] = source->matrixVersions[7];
 }
 
 const GfxImage *__cdecl R_GetTextureFromCode(
@@ -740,32 +752,32 @@ const GfxImage *__cdecl R_GetTextureFromCode(
                 unsigned int codeTexture,
                 unsigned __int8 *samplerState)
 {
-    const char *v3; // eax
+    char *v4; // eax
 
-    if ( codeTexture >= 0x2B
+    if (codeTexture >= 0x2B
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                    1330,
-                    0,
-                    "codeTexture doesn't index TEXTURE_SRC_CODE_COUNT\n\t%i not in [0, %i)",
-                    codeTexture,
-                    43) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
+            1330,
+            0,
+            "codeTexture doesn't index TEXTURE_SRC_CODE_COUNT\n\t%i not in [0, %i)",
+            codeTexture,
+            43))
     {
         __debugbreak();
     }
-    if ( !source && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp", 1331, 0, "%s", "source") )
+    if (!source && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp", 1331, 0, "%s", "source"))
         __debugbreak();
     *samplerState = source->input.codeImageSamplerStates[codeTexture];
-    if ( (*samplerState & 7) == 0 )
+    if ((*samplerState & 7) == 0)
     {
-        v3 = va("R_GetTextureFromCode %d, %d", codeTexture, *samplerState);
-        if ( !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                        1334,
-                        0,
-                        "%s\n\t%s",
-                        "*samplerState & SAMPLER_FILTER_MASK",
-                        v3) )
+        v4 = va("R_GetTextureFromCode %d, %d", codeTexture, *samplerState);
+        if (!Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
+            1334,
+            0,
+            "%s\n\t%s",
+            "*samplerState & SAMPLER_FILTER_MASK",
+            v4))
             __debugbreak();
     }
     return source->input.codeImages[codeTexture];
@@ -2654,97 +2666,97 @@ void __cdecl R_GetViewport(GfxCmdBufSourceState *source, GfxViewport *outViewpor
     int v2; // [esp+0h] [ebp-10h]
     int v3; // [esp+4h] [ebp-Ch]
 
-    if ( !source && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp", 2503, 0, "%s", "source") )
+    if (!source && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp", 2503, 0, "%s", "source"))
         __debugbreak();
-    if ( LODWORD(source[1].matrices.matrix[0].m[1][3]) == 1 )
+    if (source->viewportBehavior == GFX_USE_VIEWPORT_FULL)
     {
-        if ( SLODWORD(source[1].matrices.matrix[0].m[2][0]) <= 0
+        if (source->renderTargetWidth <= 0
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                        2507,
-                        0,
-                        "%s\n\t(source->renderTargetWidth) = %i",
-                        "(source->renderTargetWidth > 0)",
-                        source[1].matrices.matrix[0].m[2][0]) )
+                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
+                2507,
+                0,
+                "%s\n\t(source->renderTargetWidth) = %i",
+                "(source->renderTargetWidth > 0)",
+                source->renderTargetWidth))
         {
             __debugbreak();
         }
-        if ( SLODWORD(source[1].matrices.matrix[0].m[2][1]) <= 0
+        if (source->renderTargetHeight <= 0
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                        2508,
-                        0,
-                        "%s\n\t(source->renderTargetHeight) = %i",
-                        "(source->renderTargetHeight > 0)",
-                        source[1].matrices.matrix[0].m[2][1]) )
+                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
+                2508,
+                0,
+                "%s\n\t(source->renderTargetHeight) = %i",
+                "(source->renderTargetHeight > 0)",
+                source->renderTargetHeight))
         {
             __debugbreak();
         }
         outViewport->x = 0;
         outViewport->y = 0;
-        outViewport->width = LODWORD(source[1].matrices.matrix[0].m[2][0]);
-        outViewport->height = LODWORD(source[1].matrices.matrix[0].m[2][1]);
+        outViewport->width = source->renderTargetWidth;
+        outViewport->height = source->renderTargetHeight;
     }
     else
     {
-        if ( source->renderTargetHeight <= 0
+        if (source->sceneViewport.width <= 0
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                        2517,
-                        0,
-                        "%s\n\t(source->sceneViewport.width) = %i",
-                        "(source->sceneViewport.width > 0)",
-                        source->renderTargetHeight) )
+                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
+                2517,
+                0,
+                "%s\n\t(source->sceneViewport.width) = %i",
+                "(source->sceneViewport.width > 0)",
+                source->sceneViewport.width))
         {
             __debugbreak();
         }
-        if ( *(int *)&source->viewportIsDirty <= 0
+        if (source->sceneViewport.height <= 0
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                        2518,
-                        0,
-                        "%s\n\t(source->sceneViewport.height) = %i",
-                        "(source->sceneViewport.height > 0)",
-                        *(unsigned int *)&source->viewportIsDirty) )
+                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
+                2518,
+                0,
+                "%s\n\t(source->sceneViewport.height) = %i",
+                "(source->sceneViewport.height > 0)",
+                source->sceneViewport.height))
         {
             __debugbreak();
         }
-        *outViewport = *(GfxViewport *)&source->viewportBehavior;
-        if ( outViewport->width <= 0
+        *outViewport = source->sceneViewport;
+        if (outViewport->width <= 0
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                        2521,
-                        0,
-                        "%s\n\t(outViewport->width) = %i",
-                        "(outViewport->width > 0)",
-                        outViewport->width) )
+                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
+                2521,
+                0,
+                "%s\n\t(outViewport->width) = %i",
+                "(outViewport->width > 0)",
+                outViewport->width))
         {
             __debugbreak();
         }
-        if ( outViewport->height <= 0
+        if (outViewport->height <= 0
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                        2522,
-                        0,
-                        "%s\n\t(outViewport->height) = %i",
-                        "(outViewport->height > 0)",
-                        outViewport->height) )
+                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
+                2522,
+                0,
+                "%s\n\t(outViewport->height) = %i",
+                "(outViewport->height > 0)",
+                outViewport->height))
         {
             __debugbreak();
         }
     }
-    if ( source->scissorViewport.width != 2 && r_scaleViewport->current.value != 1.0 )
+    if (source->viewMode != VIEW_MODE_2D && r_scaleViewport->current.value != 1.0)
     {
         outViewport->x += (int)(float)((float)((float)outViewport->width * (float)(1.0 - r_scaleViewport->current.value))
-                                                                 * 0.5);
+            * 0.5);
         outViewport->y += (int)(float)((float)((float)outViewport->height * (float)(1.0 - r_scaleViewport->current.value))
-                                                                 * 0.5);
-        if ( (int)(float)((float)outViewport->width * r_scaleViewport->current.value) > 1 )
+            * 0.5);
+        if ((int)(float)((float)outViewport->width * r_scaleViewport->current.value) > 1)
             v3 = (int)(float)((float)outViewport->width * r_scaleViewport->current.value);
         else
             v3 = 1;
         outViewport->width = v3;
-        if ( (int)(float)((float)outViewport->height * r_scaleViewport->current.value) > 1 )
+        if ((int)(float)((float)outViewport->height * r_scaleViewport->current.value) > 1)
             v2 = (int)(float)((float)outViewport->height * r_scaleViewport->current.value);
         else
             v2 = 1;
@@ -2817,75 +2829,40 @@ void __cdecl R_SetViewport(GfxCmdBufState *state, const GfxViewport *viewport)
 
 void __cdecl R_SetViewportStruct(GfxCmdBufSourceState *source, const GfxViewport *viewport)
 {
-    *(GfxViewport *)&source->viewportBehavior = *viewport;
-    if ( source->renderTargetHeight <= 0
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                    2579,
-                    0,
-                    "%s",
-                    "source->sceneViewport.width > 0") )
-    {
-        __debugbreak();
-    }
-    if ( *(int *)&source->viewportIsDirty <= 0
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                    2580,
-                    0,
-                    "%s",
-                    "source->sceneViewport.height > 0") )
-    {
-        __debugbreak();
-    }
-    source->scissorViewport.width = 0;
-    LOBYTE(source[1].matrices.matrix[0].m[2][2]) = 1;
+    source->sceneViewport = *viewport;
+    iassert(source->sceneViewport.width > 0);
+    iassert(source->sceneViewport.height > 0);
+
+    source->viewMode = VIEW_MODE_NONE;
+    source->viewportIsDirty = 1;
 }
 
 void __cdecl R_SetScissorStruct(GfxCmdBufSourceState *source, const GfxViewport *scissor)
 {
-    if ( scissor->width <= 0
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                    2588,
-                    0,
-                    "%s\n\t(scissor->width) = %i",
-                    "(scissor->width > 0)",
-                    scissor->width) )
-    {
-        __debugbreak();
-    }
-    if ( scissor->height <= 0
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                    2589,
-                    0,
-                    "%s\n\t(scissor->height) = %i",
-                    "(scissor->height > 0)",
-                    scissor->height) )
-    {
-        __debugbreak();
-    }
-    *(GfxViewport *)&source->shadowableLightIndex = *scissor;
-    source->shadowableLightIndex += source->viewportBehavior;
-    LODWORD(source[1].matrices.matrix[0].m[0][0]) += source->renderTargetWidth;
-    BYTE1(source[1].matrices.matrix[0].m[2][2]) = 1;
-    LOBYTE(source[1].matrices.matrix[0].m[2][2]) = 1;
+    iassert(scissor->width > 0);
+    iassert(scissor->height > 0);
+
+    source->scissorViewport = *scissor;
+    source->scissorViewport.x += source->sceneViewport.x;
+    source->scissorViewport.y += source->sceneViewport.y;
+    source->scissorEnabled = 1;
+    source->viewportIsDirty = 1;
 }
 
 void __cdecl R_ClearScissorStruct(GfxCmdBufSourceState *source)
 {
-    BYTE1(source[1].matrices.matrix[0].m[2][2]) = 0;
-    LOBYTE(source[1].matrices.matrix[0].m[2][2]) = 1;
+    source->scissorEnabled = 0;
+    source->viewportIsDirty = 1;
 }
 
 char __cdecl R_GetScissor(GfxCmdBufSourceState *source, GfxViewport *outScissor)
 {
-    if ( !source && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp", 2609, 0, "%s", "source") )
-        __debugbreak();
-    if ( !BYTE1(source[1].matrices.matrix[0].m[2][2]) )
+    iassert(source);
+
+    if (!source->scissorEnabled)
         return 0;
-    *outScissor = *(GfxViewport *)&source->shadowableLightIndex;
+
+    *outScissor = source->scissorViewport;
     return 1;
 }
 
@@ -2989,44 +2966,63 @@ void __cdecl R_SetViewportValues(GfxCmdBufSourceState *source, int x, int y, int
     R_SetViewportStruct(source, &viewport);
 }
 
+float renderTargetHeight; // [esp+1Ch] [ebp-40h]
+unsigned int lookupScale; // [esp+34h] [ebp-28h]
+float lookupScale_4; // [esp+38h] [ebp-24h]
+__int64 invWidth; // [esp+3Ch] [ebp-20h]
+__int64 lookupOffset; // [esp+54h] [ebp-8h]
+
+
+
 void R_UpdateViewport(GfxCmdBufSourceState *source, GfxViewport *viewport)
 {
-    float renderTargetHeight; // [esp+1Ch] [ebp-40h]
-    unsigned int lookupScale; // [esp+34h] [ebp-28h]
-    float lookupScale_4; // [esp+38h] [ebp-24h]
-    __int64 invWidth; // [esp+3Ch] [ebp-20h]
-    __int64 lookupOffset; // [esp+54h] [ebp-8h]
+    // (kcod4)
+    float lookupScale[2];
+    float invWidth;
+    float invHeight;
+    float lookupOffset[2];
 
-    iassert(source);
-    iassert(source->viewMode != VIEW_MODE_NONE);
-    iassert(source->renderTargetWidth > 0);
-    iassert(source->renderTargetHeight > 0);
+    iassert( source );
+    iassert( source->viewMode != VIEW_MODE_NONE );
 
     source->viewportIsDirty = 0;
 
-    *(float *)&invWidth = 1.0 / (float)source->renderTargetWidth;
-    *((float *)&invWidth + 1) = 1.0 / (float)source->renderTargetHeight;
-    *(float *)&lookupScale = 0.5 * (float)((float)viewport->width * *(float *)&invWidth);
-    lookupScale_4 = 0.5 * (float)((float)viewport->height * *((float *)&invWidth + 1));
-    *(float *)&lookupOffset = (float)(0.5 * *(float *)&invWidth)
-        + (float)(*(float *)&lookupScale + (float)((float)viewport->x * *(float *)&invWidth));
-    *((float *)&lookupOffset + 1) = (float)(0.5 * *((float *)&invWidth + 1))
-        + (float)(lookupScale_4 + (float)((float)viewport->y * *((float *)&invWidth + 1)));
-    renderTargetHeight = (float)source->renderTargetHeight;
-    source->input.consts[21][0] = (float)source->renderTargetWidth;
-    source->input.consts[21][1] = renderTargetHeight;
-    *(_QWORD *)&source->input.consts[21][2] = invWidth;
-    R_DirtyCodeConstant(source, 0x15u);
-    //*(_QWORD *)&source->input.consts[72][0] = __PAIR64__(LODWORD(lookupScale_4) ^ (unsigned int)_mask__NegFloat_,lookupScale);
-    source->input.consts[72][0] = lookupScale;
-    source->input.consts[72][1] = -lookupScale_4;
-    source->input.consts[72][2] = 0.0f;
-    source->input.consts[72][3] = 1.0f;
-    R_DirtyCodeConstant(source, 0x48u);
-    *(_QWORD *)&source->input.consts[73][0] = lookupOffset;
-    source->input.consts[73][2] = 0.0f;
-    source->input.consts[73][3] = 0.0f;
-    R_DirtyCodeConstant(source, 0x49u);
+    iassert(source->renderTargetWidth > 0);
+    iassert(source->renderTargetHeight > 0);
+
+    invWidth = 1.0 / (double)source->renderTargetWidth;
+    invHeight = 1.0 / (double)source->renderTargetHeight;
+
+    lookupScale[0] = 0.5 * invWidth * (double)viewport->width;
+    lookupScale[1] = 0.5 * invHeight * (double)viewport->height;
+
+    lookupOffset[0] = lookupScale[0] + (invWidth * (double)viewport->x);
+    lookupOffset[1] = lookupScale[1] + (invHeight * (double)viewport->y);
+
+    lookupOffset[0] += invWidth * 0.5;
+    lookupOffset[1] += invHeight * 0.5;
+
+    R_SetCodeConstant(source,
+        CONST_SRC_CODE_RENDER_TARGET_SIZE,
+        (float)source->renderTargetWidth,
+        (float)source->renderTargetHeight,
+        invWidth,
+        invHeight
+    );
+    R_SetCodeConstant(source,
+        CONST_SRC_CODE_CLIP_SPACE_LOOKUP_SCALE,
+        lookupScale[0],
+        -lookupScale[1],
+        0.0,
+        1.0
+    );
+    R_SetCodeConstant(source,
+        CONST_SRC_CODE_CLIP_SPACE_LOOKUP_OFFSET,
+        lookupOffset[0],
+        lookupOffset[1],
+        0.0,
+        0.0
+    );
 }
 
 void __cdecl R_DisableSampler(GfxCmdBufState *state, unsigned int samplerIndex)
@@ -3074,10 +3070,10 @@ void __cdecl UpdateVPosToWorld(GfxCmdBufSourceState *source)
     const float (*invViewM44)[4]; // [esp+5Ch] [ebp-14h]
     float vposy_to_world[4]; // [esp+60h] [ebp-10h] BYREF
 
-    if ( source->scissorViewport.width == 1 )
+    if (source->viewMode == VIEW_MODE_3D)
     {
-        invWidth = 1.0 / (float)SLODWORD(source[1].matrices.matrix[0].m[2][0]);
-        invHeight = 1.0 / (float)SLODWORD(source[1].matrices.matrix[0].m[2][1]);
+        invWidth = 1.0 / (float)source->renderTargetWidth;
+        invHeight = 1.0 / (float)source->renderTargetHeight;
         projM44 = (const float (*)[4])R_GetCodeMatrix(source, 0xCDu, 0);
         invViewM44 = (const float (*)[4])R_GetCodeMatrix(source, 0xCBu, 0);
         v3 = (float)(-2.0 * invWidth) / (*projM44)[0];
@@ -3096,9 +3092,9 @@ void __cdecl UpdateVPosToWorld(GfxCmdBufSourceState *source)
         scale1[2] = -1.0f;
         scale1[3] = 0.0f;
         MatrixTransformVector44(scale1, invViewM44, vpos1_to_world);
-        R_SetCodeConstantFromVec4(source, 0x16u, vposx_to_world);
-        R_SetCodeConstantFromVec4(source, 0x17u, vposy_to_world);
-        R_SetCodeConstantFromVec4(source, 0x18u, vpos1_to_world);
+        R_SetCodeConstantFromVec4(source, CONST_SRC_VPOSX_TO_WORLD, vposx_to_world);
+        R_SetCodeConstantFromVec4(source, CONST_SRC_VPOSY_TO_WORLD, vposy_to_world);
+        R_SetCodeConstantFromVec4(source, CONST_SRC_VPOS1_TO_WORLD, vpos1_to_world);
     }
 }
 

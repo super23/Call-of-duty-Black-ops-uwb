@@ -2,7 +2,9 @@
 #include "snd.h"
 #include "snd_radverb.h"
 
-
+#define SND_TABLE_COUNT 9
+#define SND_MAX_PATCHES 8
+#define SND_MAX_BANKS 32
 
 struct SndIndexEntry // sizeof=0x4
 {

@@ -2450,7 +2450,7 @@ void __cdecl Load_MaterialTechniqueSetPtr(bool atStreamStart)
 
 void __cdecl Load_Material(bool atStreamStart)
 {
-    Load_Stream(atStreamStart, (unsigned __int8 *)varMaterial, 192);
+    Load_Stream(atStreamStart, (unsigned __int8 *)varMaterial, sizeof(Material));
     DB_PushStreamPos(4u);
     varMaterialInfo = &varMaterial->info;
     Load_MaterialInfo(0);
@@ -8864,12 +8864,12 @@ void __cdecl Mark_GfxWorldPtr()
 
 void __cdecl Load_GlyphArray(bool atStreamStart, int count)
 {
-    Load_Stream(atStreamStart, (unsigned __int8 *)varGlyph, 24 * count);
+    Load_Stream(atStreamStart, (unsigned __int8 *)varGlyph, sizeof(Glyph) * count);
 }
 
 void __cdecl Load_Font(bool atStreamStart)
 {
-    Load_Stream(atStreamStart, (unsigned __int8 *)varFont, 24);
+    Load_Stream(atStreamStart, (unsigned __int8 *)varFont, sizeof(Font_s));
     DB_PushStreamPos(4u);
     varXString = &varFont->fontName;
     Load_XString(0);

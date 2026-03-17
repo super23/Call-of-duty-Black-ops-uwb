@@ -392,21 +392,6 @@ const snd_csv_entry_t *SND_TABLE_METADATA[9] =
   SND_MASTER_FIELDS
 };
 
-unsigned int SND_METADATA_FIELD_COUNT[9] = { 53u, 6u, 18u, 8u, 1u, 73u, 9u, 17u, 37u };
-
-const char *SND_TABLE_NAMES[9] =
-{
-  "alias",
-  "group",
-  "curve",
-  "pan",
-  "snapshot_group",
-  "snapshot",
-  "context",
-  "radverb",
-  "master"
-};
-
 void __cdecl SND_ParseInit(
                 unsigned int groupCount,
                 const snd_group *groups,

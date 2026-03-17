@@ -150,7 +150,7 @@ void __cdecl R_PixelCost_SetConstant(GfxCmdBufSourceState *source, int cost)
         weights[2] = 0.0f;
         weights[3] = 0.0039607841f;
     }
-    R_SetCodeConstantFromVec4(source, 0x22u, weights);
+    R_SetCodeConstantFromVec4(source, CONST_SRC_CODE_PIXEL_COST_FRACS, weights);
 }
 
 int __cdecl RB_PixelCost_GetCostForRecordIndex(int recordIndex)

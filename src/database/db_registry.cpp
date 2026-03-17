@@ -1186,11 +1186,11 @@ void __cdecl DB_LoadDelayedImages()
 {
     unsigned int copyIter; // [esp+0h] [ebp-4h]
 
-    DB_EnumXAssets(ASSET_TYPE_IMAGE, (void (__cdecl *)(XAssetHeader, void *))R_DelayLoadImage, 0, 0);
+    DB_EnumXAssets(ASSET_TYPE_IMAGE, R_DelayLoadImage, 0, 0);
     for ( copyIter = 0; copyIter < g_copyInfoCount; ++copyIter )
     {
         if ( g_copyInfo[copyIter]->asset.type == ASSET_TYPE_IMAGE )
-            R_DelayLoadImage(g_copyInfo[copyIter]->asset.header);
+            R_DelayLoadImage(g_copyInfo[copyIter]->asset.header, 0);
     }
 }
 

@@ -2,29 +2,30 @@
 
 struct Glyph // sizeof=0x18
 {
-        unsigned __int16 letter;
-        char x0;
-        char y0;
-        unsigned __int8 dx;
-        unsigned __int8 pixelWidth;
-        unsigned __int8 pixelHeight;
-        // padding byte
-        float s0;
-        float t0;
-        float s1;
-        float t1;
+    unsigned __int16 letter;
+    char x0;
+    char y0;
+    unsigned __int8 dx;
+    unsigned __int8 pixelWidth;
+    unsigned __int8 pixelHeight;
+    // padding byte
+    float s0;
+    float t0;
+    float s1;
+    float t1;
 };
+static_assert(sizeof(Glyph) == 24);
 
 struct Font_s // sizeof=0x18
-{                                                                             // XREF: XAssetPoolEntry<Font_s>/r
-                                                                                // Font/r
-        const char *fontName;
-        int pixelHeight;
-        int glyphCount;
-        struct Material *material;
-        struct Material *glowMaterial;
-        Glyph *glyphs;
+{                                       // XREF: XAssetPoolEntry<Font_s>/r
+    const char *fontName;
+    int pixelHeight;
+    int glyphCount;
+    struct Material *material;
+    struct Material *glowMaterial;
+    Glyph *glyphs;
 };
+static_assert(sizeof(Font_s) == 24);
 
 const Glyph *__cdecl R_GetCharacterGlyph(Font_s *font, unsigned int letter);
 unsigned int __cdecl R_FontGetRandomLetter(Font_s *font, int seed);

@@ -342,13 +342,10 @@ void __cdecl R_InitCmdBufSamplerState(GfxCmdBufState *state)
     unsigned int samplerIndex; // [esp+8h] [ebp-Ch]
     unsigned int forceSamplerState; // [esp+10h] [ebp-4h]
 
-    if ( !state
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state_utils.cpp", 208, 0, "%s", "state") )
-    {
-        __debugbreak();
-    }
-    forceSamplerState = R_DecodeSamplerState(1u);
-    for ( samplerIndex = 0; samplerIndex < 0x10; ++samplerIndex )
+    iassert(state);
+
+    forceSamplerState = R_DecodeSamplerState(1);
+    for (samplerIndex = 0; samplerIndex < 0x10; ++samplerIndex)
     {
         R_HW_ForceSamplerState(state->prim.device, samplerIndex, forceSamplerState);
         state->refSamplerState[samplerIndex] = 1;
@@ -364,11 +361,11 @@ GfxCmdBufSourceState *__cdecl R_GetActiveWorldMatrix(GfxCmdBufSourceState *sourc
 
 void __cdecl R_WorldMatrixChanged(GfxCmdBufSourceState *source)
 {
-    ++HIWORD(source->viewParms3D);
-    ++LOWORD(source->skinnedPlacement.base.quat[0]);
-    ++LOWORD(source->skinnedPlacement.base.quat[1]);
-    ++LOWORD(source->skinnedPlacement.base.quat[2]);
-    source->constVersions[221] = HIWORD(source->viewParms3D);
+    ++source->matrixVersions[0];
+    ++source->matrixVersions[3];
+    ++source->matrixVersions[5];
+    ++source->matrixVersions[7];
+    source->constVersions[197] = source->matrixVersions[0];
 }
 
 void __cdecl R_Set2D(GfxCmdBufSourceState *source)
@@ -378,12 +375,14 @@ void __cdecl R_Set2D(GfxCmdBufSourceState *source)
     if ( source->scissorViewport.width != 2 )
     {
         //PIXBeginNamedEvent(-1, "R_Set2D");
-        source->scissorViewport.width = 2;
-        LOBYTE(source[1].matrices.matrix[0].m[2][2]) = 1;
-        source->skinnedPlacement.base.origin[0] = 0.0f;
-        source->skinnedPlacement.base.origin[1] = 0.0f;
-        source->skinnedPlacement.base.origin[2] = 0.0f;
-        source->skinnedPlacement.scale = 1.0f;
+        source->viewMode = VIEW_MODE_2D;
+        source->viewportIsDirty = 1;
+        source->eyeOffset[0] = 0.0f;
+        source->eyeOffset[1] = 0.0f;
+        source->eyeOffset[2] = 0.0f;
+        source->eyeOffset[3] = 1.0f;
+        R_GetViewport(source, &viewport);
+        R_CmdBufSet2D(source, &viewport);
         R_GetViewport(source, &viewport);
         R_CmdBufSet2D(source, &viewport);
         //if ( g_DXDeviceThread == GetCurrentThreadId() )
@@ -394,56 +393,6 @@ void __cdecl R_Set2D(GfxCmdBufSourceState *source)
 // local variable allocation has failed, the output may be wrong!
 void    R_CmdBufSet2D(GfxCmdBufSourceState *source, GfxViewport *viewport)
 {
-    //_BYTE v3[140]; // [esp-8h] [ebp-9Ch] OVERLAPPED BYREF
-    //float v4; // [esp+84h] [ebp-10h]
-    //GfxViewParms *viewParms; // [esp+88h] [ebp-Ch]
-    //float invHeight; // [esp+8Ch] [ebp-8h]
-    //float retaddr; // [esp+94h] [ebp+0h]
-    //
-    //viewParms = a1;
-    //invHeight = retaddr;
-    //if ( viewport->width <= 0
-    //    && !Assert_MyHandler(
-    //                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state_utils.cpp",
-    //                271,
-    //                0,
-    //                "%s\n\t(viewport->width) = %i",
-    //                "(viewport->width > 0)",
-    //                viewport->width) )
-    //{
-    //    __debugbreak();
-    //}
-    //if ( viewport->height <= 0
-    //    && !Assert_MyHandler(
-    //                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state_utils.cpp",
-    //                272,
-    //                0,
-    //                "%s\n\t(viewport->height) = %i",
-    //                "(viewport->height > 0)",
-    //                viewport->height) )
-    //{
-    //    __debugbreak();
-    //}
-    //v4 = 1.0 / (float)viewport->width;
-    //*(float *)&v3[136] = 1.0 / (float)viewport->height;
-    //*(unsigned int *)&v3[132] = source->viewParms.viewMatrix.m[3];
-    //memset(&v3[64], 0, 0x40u);
-    //*(float *)&v3[64] = 2.0 * v4;
-    //*(float *)&v3[84] = -2.0 * *(float *)&v3[136];
-    //*(float *)&v3[112] = -1.0 - v4;
-    //*(float *)&v3[116] = *(float *)&v3[136] + 1.0;
-    //*(float *)&v3[120] = 1.0f;
-    //*(float *)&v3[124] = 1.0f;
-    //R_MatrixIdentity44((float (*)[4])v3);
-    //R_MatrixIdentity44(*(float (**)[4])&v3[132]);
-    //memcpy((void *)(*(unsigned int *)&v3[132] + 64), &v3[64], 0x40u);
-    //memcpy((void *)(*(unsigned int *)&v3[132] + 128), &v3[64], 0x40u);
-    //memset((unsigned __int8 *)(*(unsigned int *)&v3[132] + 192), 0, 0x40u);
-    //++LOWORD(source->depthHackFlags);
-    //++HIWORD(source->depthHackFlags);
-    //++HIWORD(source->skinnedPlacement.base.quat[0]);
-    //memcpy(R_GetActiveWorldMatrix(source), v3, 0x40u);
-
     // kcod4
     GfxViewParms *v2; // ebp
     float v3[16]; // [esp-8h] [ebp-9Ch] BYREF
@@ -481,159 +430,118 @@ void    R_CmdBufSet2D(GfxCmdBufSourceState *source, GfxViewport *viewport)
     ++source->matrixVersions[1];
     ++source->matrixVersions[2];
     ++source->matrixVersions[4];
+
     memcpy(R_GetActiveWorldMatrix(source), v3, 0x40u);
 }
 
 void __cdecl R_MatrixIdentity44(float (*out)[4])
 {
-    if ( !out && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state_utils.cpp", 25, 0, "%s", "out") )
-        __debugbreak();
+    iassert(out);
     memcpy(out, g_identityMatrix44, 0x40u);
 }
 
 void __cdecl R_CmdBufSet3D(GfxCmdBufSourceState *source)
 {
-    GfxCmdBufSourceState *worldMatrix; // [esp+Ch] [ebp-4h]
+  GfxCmdBufSourceState *worldMatrix; // [esp+Ch] [ebp-4h]
 
-    ++LOWORD(source->depthHackFlags);
-    ++HIWORD(source->depthHackFlags);
-    ++HIWORD(source->skinnedPlacement.base.quat[0]);
-    worldMatrix = R_GetActiveWorldMatrix(source);
-    R_MatrixIdentity44((float (*)[4])worldMatrix);
-    worldMatrix->matrices.matrix[0].m[3][0] = worldMatrix->matrices.matrix[0].m[3][0]
-                                                                                    - source->skinnedPlacement.base.origin[0];
-    worldMatrix->matrices.matrix[0].m[3][1] = worldMatrix->matrices.matrix[0].m[3][1]
-                                                                                    - source->skinnedPlacement.base.origin[1];
-    worldMatrix->matrices.matrix[0].m[3][2] = worldMatrix->matrices.matrix[0].m[3][2]
-                                                                                    - source->skinnedPlacement.base.origin[2];
+  ++source->matrixVersions[1];
+  ++source->matrixVersions[2];
+  ++source->matrixVersions[4];
+  worldMatrix = R_GetActiveWorldMatrix(source);
+  R_MatrixIdentity44((float (*)[4])worldMatrix);
+  worldMatrix->matrices.matrix[0].m[3][0] = worldMatrix->matrices.matrix[0].m[3][0] - source->eyeOffset[0];
+  worldMatrix->matrices.matrix[0].m[3][1] = worldMatrix->matrices.matrix[0].m[3][1] - source->eyeOffset[1];
+  worldMatrix->matrices.matrix[0].m[3][2] = worldMatrix->matrices.matrix[0].m[3][2] - source->eyeOffset[2];
 }
 
 void __cdecl R_Set3D(GfxCmdBufSourceState *source)
 {
-    if ( !source->sceneDef.time
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state_utils.cpp",
-                    358,
-                    0,
-                    "%s",
-                    "source->viewParms3D") )
-    {
-        __debugbreak();
-    }
-    if ( source->scissorViewport.width != 1 )
+    iassert(source->viewParms3D);
+
+    if (source->viewMode != VIEW_MODE_3D)
     {
         //PIXBeginNamedEvent(-1, "R_Set3D");
-        source->scissorViewport.width = 1;
-        memcpy(source->viewParms.viewMatrix.m[3], (const void *)source->sceneDef.time, 0x140u);
-        if ( source->viewParms.zFar == 0.0 )
+        source->viewMode = VIEW_MODE_3D;
+        memcpy(&source->viewParms, source->viewParms3D, sizeof(source->viewParms));
+        if (source->viewParms.origin[3] == 0.0)
         {
-            source->skinnedPlacement.base.origin[0] = 0.0f;
-            source->skinnedPlacement.base.origin[1] = 0.0f;
-            source->skinnedPlacement.base.origin[2] = 0.0f;
+            source->eyeOffset[0] = 0.0f;
+            source->eyeOffset[1] = 0.0f;
+            source->eyeOffset[2] = 0.0f;
         }
         else
         {
-            source->skinnedPlacement.base.origin[0] = source->viewParms.axis[2][2];
-            source->skinnedPlacement.base.origin[1] = source->viewParms.depthHackNearClip;
-            source->skinnedPlacement.base.origin[2] = source->viewParms.zNear;
+            source->eyeOffset[0] = source->viewParms.origin[0];
+            source->eyeOffset[1] = source->viewParms.origin[1];
+            source->eyeOffset[2] = source->viewParms.origin[2];
         }
-        source->skinnedPlacement.scale = 1.0f;
+        source->eyeOffset[3] = 1.0f;
         R_CmdBufSet3D(source);
         UpdateVPosToWorld(source);
-        //if ( g_DXDeviceThread == GetCurrentThreadId() )
-            //D3DPERF_EndEvent();
+        //if (g_DXDeviceThread == GetCurrentThreadId())
+        //    D3DPERF_EndEvent();
     }
 }
 
 void __cdecl R_BeginView(GfxCmdBufSourceState *source, const GfxSceneDef *sceneDef, const GfxViewParms *viewParms)
 {
-    *(GfxSceneDef *)&source->scissorViewport.height = *sceneDef;
-    source->sceneDef.time = (int)viewParms;
-    *(float *)&source->sceneViewport.y = sceneDef->viewOffset[0];
-    *(float *)&source->sceneViewport.width = sceneDef->viewOffset[1];
-    *(float *)&source->sceneViewport.height = sceneDef->viewOffset[2];
-    source->scissorViewport.width = 0;
+    source->sceneDef = *sceneDef;
+    source->viewParms3D = viewParms;
+    source->skinnedPlacement.base.origin[0] = sceneDef->viewOffset[0];
+    source->skinnedPlacement.base.origin[1] = sceneDef->viewOffset[1];
+    source->skinnedPlacement.base.origin[2] = sceneDef->viewOffset[2];
+    source->viewMode = VIEW_MODE_NONE;
     R_Set3D(source);
-    source[1].matrices.matrix[0].m[0][3] = 0.0f;
-    source[1].matrices.matrix[0].m[1][0] = 0.0f;
-    source[1].matrices.matrix[0].m[1][1] = 0.0f;
-    source[1].matrices.matrix[0].m[1][2] = 0.0f;
-    R_SetGameTime(source, source->materialTime);
+    source->materialTime = 0.0f;
+    source->destructibleBurnAmount = 0.0f;
+    source->destructibleFadeAmount = 0.0f;
+    source->wetness = 0.0f;
+    R_SetGameTime(source, source->sceneDef.floatTime);
     R_DeriveNearPlaneConstantsForView(source);
 }
 
-// KISAKTODO: cleanup
 void __cdecl R_DeriveNearPlaneConstantsForView(GfxCmdBufSourceState *source)
 {
-    __int64 v1; // [esp+Ch] [ebp-4Ch]
-    __int64 v2; // [esp+1Ch] [ebp-3Ch]
-    __int64 v3; // [esp+2Ch] [ebp-2Ch]
-    float scale; // [esp+54h] [ebp-4h]
-    float scalea; // [esp+54h] [ebp-4h]
+    const GfxViewParms *viewParms = &source->viewParms;
+    const GfxMatrix *mtx = &viewParms->inverseViewProjectionMatrix;
 
-    //if ((float)(0.0000099999997 * source->viewParms.inverseViewProjectionMatrix.m[3][3]) <= COERCE_FLOAT(
-    //    LODWORD(source->viewParms.inverseViewProjectionMatrix.m[0][3])
-    //    & _mask__AbsFloat_)
-    //    && !Assert_MyHandler(
-    //        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state_utils.cpp",
-    //        406,
-    //        0,
-    //        "%s\n\t(mtx->m[0][3]) = %g",
-    //        "(I_fabs( mtx->m[0][3] ) < 1.0e-5f * mtx->m[3][3])",
-    //        source->viewParms.inverseViewProjectionMatrix.m[0][3]))
-    //{
-    //    __debugbreak();
-    //}
-    //if ((float)(0.0000099999997 * source->viewParms.inverseViewProjectionMatrix.m[3][3]) <= COERCE_FLOAT(
-    //    LODWORD(source->viewParms.inverseViewProjectionMatrix.m[1][3])
-    //    & _mask__AbsFloat_)
-    //    && !Assert_MyHandler(
-    //        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state_utils.cpp",
-    //        407,
-    //        0,
-    //        "%s\n\t(mtx->m[1][3]) = %g",
-    //        "(I_fabs( mtx->m[1][3] ) < 1.0e-5f * mtx->m[3][3])",
-    //        source->viewParms.inverseViewProjectionMatrix.m[1][3]))
-    //{
-    //    __debugbreak();
-    //}
-    //if (source->viewParms.inverseViewProjectionMatrix.m[3][3] == 0.0
-    //    && !Assert_MyHandler(
-    //        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state_utils.cpp",
-    //        408,
-    //        0,
-    //        "%s",
-    //        "mtx->m[3][3] != 0"))
-    //{
-    //    __debugbreak();
-    //}
-    scale = 1.0 / source->viewParms.inverseViewProjectionMatrix.m[3][3];
-    *(float *)&v3 = (float)(scale * source->viewParms.inverseViewProjectionMatrix.m[3][1]) - source->viewParms.origin[1];
-    *((float *)&v3 + 1) = (float)(scale * source->viewParms.inverseViewProjectionMatrix.m[3][2])
-        - source->viewParms.origin[2];
-    source->input.consts[16][0] = (float)(scale * source->viewParms.inverseViewProjectionMatrix.m[3][0])
-        - source->viewParms.origin[0];
-    *(_QWORD *)&source->input.consts[16][1] = v3;
-    source->input.consts[16][3] = 0.0f;
-    R_DirtyCodeConstant(source, 0x10u);
-    scalea = scale + scale;
-    *(float *)&v2 = scalea * source->viewParms.inverseViewProjectionMatrix.m[0][1];
-    *((float *)&v2 + 1) = scalea * source->viewParms.inverseViewProjectionMatrix.m[0][2];
-    source->input.consts[17][0] = scalea * source->viewParms.inverseViewProjectionMatrix.m[0][0];
-    *(_QWORD *)&source->input.consts[17][1] = v2;
-    source->input.consts[17][3] = 0.0f;
-    R_DirtyCodeConstant(source, 0x11u);
-    v1 = (-(scalea)) * source->viewParms.inverseViewProjectionMatrix.m[1][1];
-    *((float *)&v1 + 1) = (-(scalea)) * source->viewParms.inverseViewProjectionMatrix.m[1][2];
-    source->input.consts[18][0] = (-(scalea)) * source->viewParms.inverseViewProjectionMatrix.m[1][0];
-    *(_QWORD *)&source->input.consts[18][1] = v1;
-    source->input.consts[18][3] = 0.0f;
-    R_DirtyCodeConstant(source, 0x12u);
+    iassert(fabs(mtx->m[0][3]) < 1.0e-5f * mtx->m[3][3]);
+    iassert(fabs(mtx->m[1][3]) < 1.0e-5f * mtx->m[3][3]);
+    iassert(mtx->m[3][3] != 0);
+
+    float scale = 1.0 / source->viewParms.inverseViewProjectionMatrix.m[3][3];
+
+    R_SetCodeConstant(source,
+        CONST_SRC_CODE_NEARPLANE_ORG,
+    (scale * source->viewParms.inverseViewProjectionMatrix.m[3][0]) - source->viewParms.origin[0],
+    (scale * source->viewParms.inverseViewProjectionMatrix.m[3][1]) - source->viewParms.origin[1],
+    (scale * source->viewParms.inverseViewProjectionMatrix.m[3][2]) - source->viewParms.origin[2],
+    0.0f
+    );
+
+    float scale2 = scale + scale;
+
+    R_SetCodeConstant(
+        source,
+        CONST_SRC_CODE_NEARPLANE_DX,
+        scale2 * source->viewParms.inverseViewProjectionMatrix.m[0][0],
+        scale2 * source->viewParms.inverseViewProjectionMatrix.m[0][1],
+        scale2 * source->viewParms.inverseViewProjectionMatrix.m[0][2],
+        0.0f
+        );
+    R_SetCodeConstant(
+        source,
+        CONST_SRC_CODE_NEARPLANE_DY,
+        -scale2 * source->viewParms.inverseViewProjectionMatrix.m[1][0],
+        -scale2 * source->viewParms.inverseViewProjectionMatrix.m[1][1],
+        -scale2 * source->viewParms.inverseViewProjectionMatrix.m[1][2],
+        0.0f
+    );
 }
 
 void __cdecl R_SetShadowLookupMatrix(GfxCmdBufSourceState *source, const GfxMatrix *matrix)
 {
-    ++HIWORD(source->skinnedPlacement.base.quat[1]);
-    memcpy(source->shadowLookupMatrix.m[3], matrix, 0x40u);
+    ++source->matrixVersions[6];
+    memcpy(&source->shadowLookupMatrix, matrix, sizeof(source->shadowLookupMatrix));
 }
 

@@ -906,16 +906,8 @@ void R_InitGraphicsApi()
 {
     GfxWindowParms wndParms; // [esp+4h] [ebp-28h] BYREF
 
-    if ( (dx.device != 0) != (dx.d3d9 != 0)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_init.cpp",
-                    2780,
-                    0,
-                    "%s",
-                    "(dx.device != NULL) == (dx.d3d9 != NULL)") )
-    {
-        __debugbreak();
-    }
+    iassert((dx.device != NULL) == (dx.d3d9 != NULL));
+
     if ( dx.device )
     {
         R_InitSystems();
@@ -1303,6 +1295,7 @@ struct GfxEnumMonitors // sizeof=0x8
     int monitorIndex;                   // XREF: R_ChooseMonitor+23/w
     HMONITOR__ *foundMonitor;           // XREF: R_ChooseMonitor+26/w
 };
+
 HMONITOR__ *__cdecl R_ChooseMonitor()
 {
     POINT pt; // [esp+0h] [ebp-10h]
@@ -1338,9 +1331,11 @@ char __cdecl R_CreateGameWindow(GfxWindowParms *wndParms)
 {
     if ( !R_CreateWindow(wndParms) )
         return 0;
+
     if ( !R_InitHardware(wndParms) )
         return 0;
-    dx.windowCount = 0;
+
+    dx.targetWindowIndex = 0;
     ShowWindow(wndParms->hwnd, 5);
     return 1;
 }
@@ -1433,31 +1428,13 @@ void R_InitGamma()
 
 void __cdecl R_FinishAttachingToWindow(const GfxWindowParms *wndParms)
 {
-    if ( dx.windows[0].hwnd
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_init.cpp",
-                    1255,
-                    0,
-                    "%s\n\t(dx.windowCount) = %i",
-                    "(dx.windowCount >= 0 && dx.windowCount < (( 1/(((((0) ? (0x7fffffff) : (-0x7fffffff)) * (((0)&~1) == 0)))/(0x7"
-                    "fffffff)) == 1) ? 5 : 1))",
-                    dx.windows[0].hwnd) )
-    {
-        __debugbreak();
-    }
-    if ( !dx.windows[(int)dx.windows[0].hwnd].width
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_init.cpp",
-                    1256,
-                    0,
-                    "%s",
-                    "dx.windows[dx.windowCount].swapChain") )
-    {
-        __debugbreak();
-    }
-    dx.windows[(int)dx.windows[0].hwnd].swapChain = (IDirect3DSwapChain9 *)wndParms->hwnd;
-    dx.windows[(int)dx.windows[0].hwnd].height = wndParms->displayWidth;
-    dx.windows[(int)dx.windows[0].hwnd++ + 1].hwnd = (HWND__ *)wndParms->displayHeight;
+    iassert((dx.windowCount >= 0 && dx.windowCount < ((1 / (((((0) ? (0x7fffffff) : (-0x7fffffff)) * (((0) & ~1) == 0))) / (0x7fffffff)) == 1) ? 5 : 1)));
+    iassert(dx.windows[dx.windowCount].swapChain);
+
+    dx.windows[dx.windowCount].hwnd = wndParms->hwnd;
+    dx.windows[dx.windowCount].width = wndParms->displayWidth;
+    dx.windows[dx.windowCount].height = wndParms->displayHeight;
+    dx.windowCount++;
 }
 
 char __cdecl R_CreateForInitOrReset()

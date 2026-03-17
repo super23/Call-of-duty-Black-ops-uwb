@@ -40,7 +40,7 @@ char __cdecl _Image_LoadFromFileWithReader(
                 GfxImage *image,
                 bool loadHighmip,
                 int (__cdecl *OpenFileRead)(const char *, int *));
-char __cdecl Image_LoadFromFile(GfxImage *image, bool loadHighmip);
+bool __cdecl Image_LoadFromFile(GfxImage *image, bool loadHighmip);
 char __cdecl Image_LoadFromFileWithReader(
                 GfxImage *image,
                 bool loadHighmip,

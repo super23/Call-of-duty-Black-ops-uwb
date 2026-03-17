@@ -60,4 +60,3 @@ void __cdecl SND_AliasGetFileName(const snd_alias_t *alias, char *filename, int 
 
 
 extern const snd_csv_entry_t *SND_TABLE_METADATA[9];
-extern unsigned int SND_METADATA_FIELD_COUNT[9];

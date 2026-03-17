@@ -5,6 +5,8 @@
 #include <universal/fft.h>
 #include "r_gfx.h"
 
+#define STREAM_SRC_COUNT 10
+
 enum surfaceType_t : __int32
 {                                       // XREF: ?R_AddXModelSurfacesCamera@@YAXPIAUXModelDrawInfo@@PIBUXModel@@QAMIIIHHQAPIATGfxDrawSurf@@3III@Z/r
                                         // R_GetXSurface/r ...

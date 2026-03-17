@@ -783,7 +783,7 @@ void R_ToggleSmpFrame()
     frontEndDataOut->dynSModelClientViewArray = g_dynSModelClientView[s_smpFrame];
     if ( !rg.viewInfoCount )
         R_ToggleModelLightingFrame();
-    frontEndDataOut->dynamicBufferCurrentFrame = (volatile unsigned int *)(4 * gfxBuf.dynamicBufferFrame + 185017624);
+    frontEndDataOut->dynamicBufferCurrentFrame = &gfxBuf.dynamicBufferCurrentFrame[gfxBuf.dynamicBufferFrame];
     frontEndDataOut->skinnedCacheVb = &gfxBuf.skinnedCacheVbPool[gfxBuf.dynamicBufferFrame];
     gfxBuf.preTessIndexBuffer = &gfxBuf.preTessIndexBufferPool[gfxBuf.preTessBufferFrame];
     frontEndDataOut->preTessIb = &gfxBuf.preTessIndexBufferPool[gfxBuf.preTessBufferFrame];
@@ -1840,9 +1840,10 @@ void __cdecl R_AddCmdSetCustomConstant(unsigned int type, const float *vec)
     GfxCmdSetCustomConstant *cmd; // [esp+4h] [ebp-4h]
 
     cmd = (GfxCmdSetCustomConstant *)R_GetCommandBuffer(RC_SET_CUSTOM_CONSTANT, 24);
-    if ( !cmd && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_rendercmds.cpp", 2405, 0, "%s", "cmd") )
-        __debugbreak();
-    cmd->type = type;
+
+    iassert(cmd);
+
+    cmd->type = (CodeConstant)type;
     cmd->vec[0] = *vec;
     cmd->vec[1] = vec[1];
     cmd->vec[2] = vec[2];

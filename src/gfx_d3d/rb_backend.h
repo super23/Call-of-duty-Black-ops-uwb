@@ -10,6 +10,8 @@
 #include <nvapi/nvapi.h>
 #include "r_shader_constant_set.h"
 
+#define SAMPLER_FILTER_MASK 7
+
 //enum $93E05B02D75CB8D5BD679C8A761DAE10 : __int32
 enum ThreadContext_t : __int32 // not a real enum name
 {
@@ -282,10 +284,12 @@ struct GfxCmdSetMaterialColor // sizeof=0x14
     float color[4];
 };
 
+enum CodeConstant : __int32;
 struct GfxCmdSetCustomConstant // sizeof=0x18
 {
     GfxCmdHeader header;
-    unsigned int type;
+    //unsigned int type;
+    CodeConstant type;
     float vec[4];
 };
 

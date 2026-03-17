@@ -19,7 +19,7 @@
 #include <qcommon/common.h>
 #include "r_rendercmds.h"
 
-const stream_source_info_t s_streamSourceInfo[18][10] =
+const stream_source_info_t s_streamSourceInfo[18][STREAM_SRC_COUNT] =
 {
   {
     { 0u, 0u, 3u },
@@ -238,6 +238,31 @@ const stream_source_info_t s_streamSourceInfo[18][10] =
     { 255u, 0u, 0u }
   }
 };
+
+const stream_dest_info_t s_streamDestInfo[20] =
+{
+  { 0u, 0u },
+  { 3u, 0u },
+  { 10u, 0u },
+  { 10u, 1u },
+  { 12u, 0u },
+  { 5u, 0u },
+  { 5u, 1u },
+  { 5u, 2u },
+  { 5u, 3u },
+  { 5u, 4u },
+  { 5u, 5u },
+  { 5u, 6u },
+  { 5u, 7u },
+  { 5u, 8u },
+  { 5u, 9u },
+  { 5u, 10u },
+  { 5u, 11u },
+  { 5u, 12u },
+  { 5u, 13u },
+  { 1u, 0u }
+};
+
 
 const PerMapMaterialTable s_permapMaterials[3] =
 {
@@ -570,52 +595,52 @@ IDirect3DVertexDeclaration9 *__cdecl Material_BuildVertexDecl(
     const stream_dest_info_t *destInfo; // [esp+824h] [ebp-8h]
     int elemIndex; // [esp+828h] [ebp-4h]
 
-    decl = 0;
+    decl = NULL;
+
     declEnd.Stream = 255;
     declEnd.Offset = 0;
     declEnd.Type = 17;
     declEnd.Method = 0;
     declEnd.Usage = 0;
     declEnd.UsageIndex = 0;
+
     elemIndex = 0;
+
     while ( streamCount )
     {
-        if ( routingData->source >= 0xAu
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_material.cpp",
-                        918,
-                        0,
-                        "routingData->source doesn't index STREAM_SRC_COUNT\n\t%i not in [0, %i)",
-                        routingData->source,
-                        10) )
-        {
-            __debugbreak();
-        }
+        bcassert(routingData->source, STREAM_SRC_COUNT);
+
         sourceInfo = &sourceTable[routingData->source];
+
         if ( sourceInfo->Stream == 255 )
             return 0;
-        destInfo = (const stream_dest_info_t *)(2 * routingData->dest + 14064748);
-        for ( elemIndexInsert = elemIndex;
-                    elemIndexInsert > 0 && *(&declEnd.Stream + 4 * elemIndexInsert) > (int)sourceInfo->Stream;
-                    --elemIndexInsert )
+        
+        destInfo = &s_streamDestInfo[routingData->dest];
+
+        bcassert(routingData->dest, ARRAY_COUNT(s_streamDestInfo)); // LWSS ADD
+        const stream_dest_info_t *destInfo = &s_streamDestInfo[routingData->dest];
+
+        for (elemIndexInsert = elemIndex;
+            elemIndexInsert > 0 && elemTable[elemIndexInsert - 1].Stream > sourceInfo->Stream;
+            --elemIndexInsert)
         {
-            v4 = *((unsigned int *)&declEnd.Type + 2 * elemIndexInsert);
-            *(unsigned int *)&elemTable[elemIndexInsert].Stream = *((unsigned int *)&declEnd.Stream + 2 * elemIndexInsert);
-            *(unsigned int *)&elemTable[elemIndexInsert].Type = v4;
+            elemTable[elemIndexInsert] = elemTable[elemIndexInsert - 1];
         }
+
         elemTable[elemIndexInsert].Stream = sourceInfo->Stream;
         elemTable[elemIndexInsert].Offset = sourceInfo->Offset;
         elemTable[elemIndexInsert].Type = sourceInfo->Type;
         elemTable[elemIndexInsert].Method = 0;
         elemTable[elemIndexInsert].Usage = destInfo->Usage;
         elemTable[elemIndexInsert].UsageIndex = destInfo->UsageIndex;
-        ++elemIndex;
-        ++routingData;
-        --streamCount;
+
+        elemIndex++;
+        routingData++;
+        streamCount--;
     }
-    v5 = elemIndex;
-    *(unsigned int *)&elemTable[elemIndex].Stream = *(unsigned int *)&declEnd.Stream;
-    *(unsigned int *)&elemTable[v5].Type = *(unsigned int *)&declEnd.Type;
+
+    elemTable[elemIndex] = declEnd;
+
     if ( dx.device )
     {
         if ( Sys_IsRenderThread() )
@@ -647,8 +672,8 @@ IDirect3DVertexDeclaration9 *__cdecl Material_BuildVertexDecl(
             RB_Resource_CreateVertexDeclaration(elemTable, &decl);
             RB_Resource_Flush();
         }
-        if ( !decl && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_material.cpp", 956, 0, "%s", "decl") )
-            __debugbreak();
+
+        iassert(decl);
     }
     return decl;
 }

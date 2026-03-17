@@ -7,7 +7,7 @@
 #include <qcommon/common.h>
 #include "snd_db.h"
 
-SndBank *g_snd_banks[32];
+SndBank *g_snd_banks[SND_MAX_BANKS];
 unsigned int g_snd_bankCount;
 SndPatch *g_snd_patches[8];
 unsigned int g_snd_patchCount;
@@ -25,7 +25,20 @@ void *(__cdecl *const SND_FIND_ROW[9])(unsigned int) =
   (void*(*)(unsigned int))SND_FindRowMaster
 };
 
+const char *SND_TABLE_NAMES[9] =
+{
+  "alias",
+  "group",
+  "curve",
+  "pan",
+  "snapshot_group",
+  "snapshot",
+  "context",
+  "radverb",
+  "master"
+};
 
+unsigned int SND_METADATA_FIELD_COUNT[9] = { 53u, 6u, 18u, 8u, 1u, 73u, 9u, 17u, 37u };
 
 
 
@@ -122,6 +135,7 @@ char __cdecl SND_FindInIndex(unsigned int key, const SndBank *bank, snd_alias_li
 
     if ( !bank->aliasCount )
         return 0;
+
     for ( idx = key % bank->aliasCount; idx != 0xFFFF; idx = bank->aliasIndex[idx].next )
     {
         if ( bank->aliasIndex[idx].value == 0xFFFF
@@ -150,23 +164,12 @@ void __cdecl SND_RemoveBank(SndBank *bank)
     bool found; // [esp+7h] [ebp-1h]
 
     Sys_EnterCriticalSection(CRITSECT_SOUND_BANK);
-    if ( !g_snd_bankCount
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_bank.cpp", 144, 0, "%s", "g_snd_bankCount") )
-    {
-        __debugbreak();
-    }
-    if ( g_snd_bankCount > 0x20
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_bank.cpp",
-                    145,
-                    0,
-                    "%s",
-                    "g_snd_bankCount <= SND_MAX_BANKS") )
-    {
-        __debugbreak();
-    }
+
+    iassert(g_snd_bankCount);
+    iassert(g_snd_bankCount <= SND_MAX_BANKS);
+
     found = 0;
-    for ( i = 0; i < 0x20; ++i )
+    for ( i = 0; i < SND_MAX_BANKS; ++i )
     {
         if ( found || g_snd_banks[i] != bank )
         {
@@ -191,18 +194,10 @@ void __cdecl SND_RemoveBank(SndBank *bank)
 void __cdecl SND_AddPatch(SndPatch *patch)
 {
     Sys_EnterCriticalSection(CRITSECT_SOUND_BANK);
-    if ( !patch && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_bank.cpp", 172, 0, "%s", "patch") )
-        __debugbreak();
-    if ( g_snd_patchCount > 8
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_bank.cpp",
-                    173,
-                    0,
-                    "%s",
-                    "g_snd_patchCount <= SND_MAX_PATCHES") )
-    {
-        __debugbreak();
-    }
+
+    iassert(patch);
+    iassert(g_snd_patchCount <= SND_MAX_PATCHES);
+
     if ( !g_snd_patchCount )
     {
         g_snd_patches[0] = 0;
@@ -214,6 +209,7 @@ void __cdecl SND_AddPatch(SndPatch *patch)
         g_snd_patches[6] = 0;
         g_snd_patches[7] = 0;
     }
+
     g_snd_patches[g_snd_patchCount++] = patch;
     Sys_LeaveCriticalSection(CRITSECT_SOUND_BANK);
 }
@@ -246,7 +242,7 @@ void __cdecl SND_RemovePatch(SndPatch *patch)
         {
             if ( found )
             {
-                g_snd_banks[i + 31] = (SndBank *)g_snd_patches[i];
+                g_snd_patches[i - 1] = g_snd_patches[i];
                 g_snd_patches[i] = 0;
             }
         }
@@ -317,22 +313,18 @@ snd_alias_list_t *__cdecl SND_FindAlias(const char *name)
 
     if ( !SND_Active() )
         return 0;
+
     if ( !name || !*name )
         return 0;
+
     hash = SND_HashName(name);
     list = SND_FindAliasFromId(hash);
+
     if ( !list || !list->count )
         return 0;
-    if ( I_stricmp(name, list->name) )
-    {
-        if ( !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_bank.cpp",
-                        324,
-                        0,
-                        "%s",
-                        "!I_stricmp(name,list->name)") )
-            __debugbreak();
-    }
+
+    iassert(!I_stricmp(name, list->name));
+
     return list;
 }
 
@@ -526,17 +518,9 @@ snd_master *__cdecl SND_FindRowMaster(unsigned int id)
 
 void *__cdecl SND_FindAsset(unsigned int table, unsigned int id)
 {
-    if ( table >= 9
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_bank.cpp",
-                    578,
-                    0,
-                    "%s",
-                    "table < SND_TABLE_COUNT") )
-    {
-        __debugbreak();
-    }
-    if ( table >= 9 )
+    iassert(table < SND_TABLE_COUNT);
+
+    if ( table >= SND_TABLE_COUNT )
         return 0;
     else
         return SND_FIND_ROW[table](id);
@@ -610,73 +594,48 @@ void __cdecl SND_PatchApply(const SndPatch *patch)
     unsigned int fieldCount; // [esp+1Ch] [ebp-Ch]
     unsigned int id; // [esp+20h] [ebp-8h]
     unsigned int i; // [esp+24h] [ebp-4h]
-    unsigned int ia; // [esp+24h] [ebp-4h]
 
-    for ( i = 0; i < patch->elementCount; i = ia + 1 )
+    for ( i = 0; i < patch->elementCount; i++)
     {
         table = HIWORD(patch->elements[i]);
-        fieldCount = (unsigned __int16)patch->elements[i];
-        if ( table >= 9
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_bank.cpp",
-                        665,
-                        0,
-                        "%s",
-                        "table < SND_TABLE_COUNT") )
-        {
-            __debugbreak();
-        }
-        ia = i + 1;
-        if ( ia >= patch->elementCount
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_bank.cpp",
-                        669,
-                        0,
-                        "%s",
-                        "i<patch->elementCount") )
-        {
-            __debugbreak();
-        }
-        if ( ia >= patch->elementCount )
+        fieldCount = LOWORD(patch->elements[i]);
+
+        iassert(table < SND_TABLE_COUNT);
+
+        i++;
+        iassert(i < patch->elementCount);
+
+        if ( i >= patch->elementCount )
             break;
-        id = patch->elements[ia];
+
+        id = patch->elements[i];
+
         for ( f = 0; f < fieldCount; ++f )
         {
-            if ( ++ia >= patch->elementCount
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_bank.cpp",
-                            681,
-                            0,
-                            "%s",
-                            "i<patch->elementCount") )
-            {
-                __debugbreak();
-            }
-            if ( ia >= patch->elementCount )
+            i++;
+            iassert(i < patch->elementCount);
+            if ( i >= patch->elementCount )
                 break;
-            field = HIWORD(patch->elements[ia]);
-            value = (unsigned __int16)patch->elements[ia];
-            if ( !SND_METADATA_FIELD_COUNT[table]
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_bank.cpp",
-                            690,
-                            0,
-                            "%s",
-                            "SND_METADATA_FIELD_COUNT[table]") )
-            {
-                __debugbreak();
-            }
+
+            field = HIWORD(patch->elements[i]);
+            value = LOWORD(patch->elements[i]);
+
+            iassert(SND_METADATA_FIELD_COUNT[table]);
+
             if ( table < 9 && field < SND_METADATA_FIELD_COUNT[table] )
             {
                 asset = (char *)SND_FindAsset(table, id);
-                if ( table )
+
+                snd_alias_list_t *list = (snd_alias_list_t *)asset;
+                //if ( table )
+                if ( table || !list ) // LWSS: this version of the if() is seen in retail MP exe. The 1st soundbank (table 0) is loaded as all ZERO except the name? 
                 {
                     SND_PatchValue(table, asset, field, value);
                 }
                 else
                 {
-                    for ( a = 0; a < *((unsigned int *)asset + 3); ++a )
-                        SND_PatchValue(0, (char *)(*((unsigned int *)asset + 2) + 84 * a), field, value);
+                    for (a = 0; a < list->count; ++a)
+                        SND_PatchValue(0, (char *)&list->head[a], field, value);
                 }
             }
         }

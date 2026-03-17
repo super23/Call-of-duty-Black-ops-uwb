@@ -833,12 +833,12 @@ char __cdecl _Image_LoadFromFileWithReader(
     }
 }
 
-char __cdecl Image_LoadFromFile(GfxImage *image, bool loadHighmip)
+bool __cdecl Image_LoadFromFile(GfxImage *image, bool loadHighmip)
 {
-    char ret; // [esp+3h] [ebp-1h]
+    bool ret; // [esp+3h] [ebp-1h]
 
     Sys_LockWrite(&s_imageLoadLock);
-    ret = Image_LoadFromFileWithReader(image, loadHighmip, (int (__cdecl *)(const char *, int *))FS_FOpenFileRead);
+    ret = Image_LoadFromFileWithReader(image, loadHighmip, FS_FOpenFileRead);
     Sys_UnlockWrite(&s_imageLoadLock);
     return ret;
 }
@@ -850,6 +850,8 @@ char __cdecl Image_LoadFromFileWithReader(
 {
     if ( Sys_IsRenderThread() )
         return _Image_LoadFromFileWithReader(image, loadHighmip, OpenFileRead);
+
+    iassert(image->category == 3/*IMG_CATEGORY_LOAD_FROM_FILE*/);
     callbackParams.image = image;
     callbackParams.loadHighmip = loadHighmip;
     callbackParams.OpenFileRead = OpenFileRead;

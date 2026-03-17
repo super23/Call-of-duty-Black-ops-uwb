@@ -230,9 +230,9 @@ void __cdecl R_DrawStaticModelDrawSurfPlacement(
     axis[2][2] = v8;
     scale = smodelDrawInst->placement.scale;
     matrix = R_GetActiveWorldMatrix(source);
-    origin[0] = smodelDrawInst->placement.origin[0] - source->skinnedPlacement.base.origin[0];
-    origin[1] = smodelDrawInst->placement.origin[1] - source->skinnedPlacement.base.origin[1];
-    origin[2] = smodelDrawInst->placement.origin[2] - source->skinnedPlacement.base.origin[2];
+    origin[0] = smodelDrawInst->placement.origin[0] - source->eyeOffset[0];
+    origin[1] = smodelDrawInst->placement.origin[1] - source->eyeOffset[1];
+    origin[2] = smodelDrawInst->placement.origin[2] - source->eyeOffset[2];
     ikMatrixSet44((float (*)[4])matrix, origin, axis, scale);
 }
 

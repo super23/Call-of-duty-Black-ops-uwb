@@ -443,7 +443,7 @@ int __cdecl R_SetMaterial(GfxCmdBufContext context, GfxDrawSurf drawSurf, unsign
         context.source->input.consts[33][1] = fadeVal;
         context.source->input.consts[33][2] = fadeVal;
         context.source->input.consts[33][3] = fadeVal;
-        R_DirtyCodeConstant(context.source, 0x21u);
+        R_DirtyCodeConstant(context.source, CONST_SRC_CODE_ALPHA_FADE);
     }
     RB_ApplyShaderConstantSet(context.source, &drawSurf);
     if ( ((drawSurf.packed >> 51) & 0xF) == 0 && (material->info.gameFlags & 8) != 0 )
@@ -499,17 +499,17 @@ int __cdecl R_TrySetMaterialWithFunc(
 
 void __cdecl R_SetGameTime(GfxCmdBufSourceState *source, float gameTime)
 {
-    __int64 v2; // [esp+Ch] [ebp-20h]
-    float v3; // [esp+14h] [ebp-18h]
     float gameTimeVec[4]; // [esp+1Ch] [ebp-10h] BYREF
 
     R_CalcGameTimeVec(gameTime, gameTimeVec);
-    v2 = *(_QWORD *)&gameTimeVec[1];
-    v3 = gameTimeVec[3];
-    source->input.consts[32][0] = gameTimeVec[0];
-    *(_QWORD *)&source->input.consts[32][1] = v2;
-    source->input.consts[32][3] = v3;
-    R_DirtyCodeConstant(source, 0x20u);
+
+    R_SetCodeConstant(source,
+        CONST_SRC_CODE_GAMETIME,
+        gameTimeVec[0],
+        gameTimeVec[1],
+        gameTimeVec[2],
+        gameTimeVec[3]
+        );
 }
 
 int __cdecl R_UpdateMaterialTime(
@@ -519,13 +519,13 @@ int __cdecl R_UpdateMaterialTime(
                 float fade,
                 float wetness)
 {
-    source[1].matrices.matrix[0].m[1][0] = burn;
-    source[1].matrices.matrix[0].m[1][1] = fade;
-    source[1].matrices.matrix[0].m[1][2] = wetness;
-    if ( materialTime == source[1].matrices.matrix[0].m[0][3] )
+    source->destructibleBurnAmount = burn;
+    source->destructibleFadeAmount = fade;
+    source->wetness = wetness;
+    if (materialTime == source->materialTime)
         return 0;
-    source[1].matrices.matrix[0].m[0][3] = materialTime;
-    R_SetGameTime(source, source->materialTime - materialTime);
+    source->materialTime = materialTime;
+    R_SetGameTime(source, source->sceneDef.floatTime - materialTime);
     return 1;
 }
 

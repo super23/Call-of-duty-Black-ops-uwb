@@ -538,14 +538,14 @@ void __cdecl R_SetWaterSimulationConstants(GfxCmdBufSourceState *state, float in
     if ( state->input.data->viewInfo->isRenderingFullScreen && data.enabled )
         R_UpdateCodeConstant(
             state,
-            0x50u,
+            CONST_SRC_CODE_WATER_PARMS,
             0.0,
             interp,
             data.localSurfaceDistance,
             1.0 / (float)((float)((float)(222.72 * data.speedScale) * config.gridScale) / 2.0));
     else
-        R_UpdateCodeConstant(state, 0x50u, 0.0, interp, data.localSurfaceDistance, 100000.0);
-    R_UpdateCodeConstant(state, 0x74u, r_watersim_scroll->current.value, r_watersim_scroll->current.vector[1], 0.0, 0.0);
+        R_UpdateCodeConstant(state, CONST_SRC_CODE_WATER_PARMS, 0.0, interp, data.localSurfaceDistance, 100000.0);
+    R_UpdateCodeConstant(state, CONST_SRC_CODE_WATER_SCROLL, r_watersim_scroll->current.value, r_watersim_scroll->current.vector[1], 0.0, 0.0);
 }
 
 #if 0

@@ -93,14 +93,14 @@ void __cdecl R_SetWindShaderConstants(GfxCmdBufSourceState *source)
     wind4[1] = backendWind.windDirection[1];
     wind4[2] = backendWind.windDirection[2];
     wind4[3] = backendWind.speed;
-    R_UpdateCodeConstantFromVec4(source, 0x4Fu, wind4);
+    R_UpdateCodeConstantFromVec4(source, CONST_SRC_CODE_WIND_DIRECTION, wind4);
     for ( idx = 0; idx < 0x10; ++idx )
     {
         springConstant[0] = backendWind.windSpringAngle[idx];
         springConstant[1] = backendWind.windRustleAngle[idx][0];
         springConstant[2] = backendWind.windRustleAngle[idx][1];
         springConstant[3] = backendWind.windRustleAngle[idx][2];
-        R_UpdateCodeConstantFromVec4(source, idx + 98, springConstant);
+        R_UpdateCodeConstantFromVec4(source, (CodeConstant)(idx + CONST_SRC_CODE_VARIANT_WIND_SPRING_0), springConstant);
     }
 }
 
@@ -127,12 +127,12 @@ void __cdecl RB_SetCustomWindConstants(GfxCmdBufSourceState *source, float *draw
     wind4[1] = backendWind.customWind.location[1] - eyeOffset_4;
     wind4[2] = backendWind.customWind.location[2] - eyeOffset_8;
     wind4[3] = backendWind.customWind.radius;
-    R_UpdateCodeConstantFromVec4(source, 0xC0u, wind4);
+    R_UpdateCodeConstantFromVec4(source, CONST_SRC_CODE_CUSTOMWIND_CENTER, wind4);
     wind4[0] = backendWind.customWind.rustleAngle[0];
     wind4[1] = backendWind.customWind.rustleAngle[1];
     wind4[2] = backendWind.customWind.rustleAngle[2];
     wind4[3] = 0.0f;
-    R_UpdateCodeConstantFromVec4(source, 0xC1u, wind4);
+    R_UpdateCodeConstantFromVec4(source, CONST_SRC_CODE_CUSTOMWIND_SPRING, wind4);
 }
 
 void __cdecl R_SetLocalWind(const float *position, float radius, const float *rustleAngle)

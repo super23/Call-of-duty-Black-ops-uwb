@@ -158,7 +158,7 @@ int __cdecl FS_FOpenTextFileWrite(char *filename);
 int __cdecl FS_FOpenFileAppend(char *filename);
 int __cdecl FS_FilenameCompare(const char *s1, const char *s2);
 bool __cdecl FS_PureIgnoreFiles(const char *filename);
-unsigned int __cdecl FS_FOpenFileRead(const char *filename, int *file);
+int __cdecl FS_FOpenFileRead(const char *filename, int *file);
 unsigned int __cdecl FS_FOpenFileReadCurrentThread(const char *filename, int *file);
 unsigned int __cdecl FS_FOpenFileReadForThread(const char *filename, int *file, FsThread thread);
 char __cdecl FS_SanitizeFilename(const char *filename, char *sanitizedName, int sanitizedNameSize);

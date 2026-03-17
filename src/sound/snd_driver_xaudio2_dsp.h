@@ -12,7 +12,7 @@ struct SDXA2Effect : CXAPOBase // sizeof=0x3C80
     unsigned int frameRate;
     unsigned int frameCount;
     unsigned int channelCount;
-    float interleave[3840];             // XREF: .rdata:stru_D50258/o
+    __declspec(align(32)) float interleave[3840];             // XREF: .rdata:stru_D50258/o
 
     SDXA2Effect(XAPO_REGISTRATION_PROPERTIES *props);
     ~SDXA2Effect();

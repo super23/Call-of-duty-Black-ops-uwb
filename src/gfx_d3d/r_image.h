@@ -4,6 +4,17 @@
 struct GfxImage;
 union GfxTexture;
 
+enum MapType : __int32
+{                                       // ...
+    MAPTYPE_NONE = 0x0,
+    MAPTYPE_INVALID1 = 0x1,
+    MAPTYPE_INVALID2 = 0x2,
+    MAPTYPE_2D = 0x3,
+    MAPTYPE_3D = 0x4,
+    MAPTYPE_CUBE = 0x5,
+    MAPTYPE_COUNT = 0x6,
+};
+
 struct ImageList // sizeof=0x4004
 {                                       // XREF: ?R_SumOfUsedImages@@YAXPAUImage_MemUsage@@@Z/r
                                         // ?R_ImageList_Output@@YAXXZ/r ...
@@ -65,7 +76,7 @@ void __cdecl Image_SetupRenderTarget(
                 unsigned __int16 height,
                 _D3DFORMAT imageFormat);
 void __cdecl Image_PicmipForSemantic(unsigned __int8 semantic, Picmip *picmip);
-void __cdecl R_DelayLoadImage(XAssetHeader header);
+void __cdecl R_DelayLoadImage(XAssetHeader header, void *data);
 char __cdecl Image_AssignDefaultTexture(GfxImage *image);
 char __cdecl R_DuplicateTexture(GfxImage *dstImage, const GfxImage *srcImage);
 void __cdecl Load_Texture(GfxTexture *remoteLoadDef, GfxImage *image);

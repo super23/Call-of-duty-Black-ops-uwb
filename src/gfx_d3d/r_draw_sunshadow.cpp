@@ -26,8 +26,8 @@ void    R_DrawSunShadowMap(
 
     R_UpdateCodeConstant(
         &state,
-        20,
-        (float)(sm_polygonOffsetBias->current.value * 0.25) * x,
+        CONST_SRC_CODE_SHADOWMAP_POLYGON_OFFSET,
+        (sm_polygonOffsetBias->current.value * 0.25) * x,
         sm_polygonOffsetScale->current.value,
         0.0,
         0.0);

@@ -270,35 +270,20 @@ void __cdecl R_TessCodeMeshList_AddCodeMeshArgs(
 
     argOffset = codeMesh->argOffset;
     argCount = codeMesh->argCount;
-    for ( argIndex = 0; argIndex != argCount; ++argIndex )
+
+    for (argIndex = 0; argIndex != argCount; ++argIndex)
     {
         constantId = argIndex + 76;
-        if ( argIndex + 76 > 0x4D
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_tess.cpp",
-                        243,
-                        0,
-                        "%s\n\t(constantId) = %i",
-                        "(constantId <= CONST_SRC_CODE_CODE_MESH_ARG_LAST)",
-                        constantId) )
-        {
-            __debugbreak();
-        }
+
+        iassert(constantId <= CONST_SRC_CODE_CODE_MESH_ARG_LAST);
+
         argGlobalIndex = argOffset + argIndex;
-        if ( argOffset + argIndex >= data->codeMeshArgsCount
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_tess.cpp",
-                        246,
-                        0,
-                        "%s\n\t(argGlobalIndex) = %i",
-                        "(argGlobalIndex < static_cast< uint >( data->codeMeshArgsCount ))",
-                        argGlobalIndex) )
-        {
-            __debugbreak();
-        }
+
+        iassert(argGlobalIndex < static_cast<uint>(data->codeMeshArgsCount));
+
         R_SetCodeConstant(
             source,
-            constantId,
+            (CodeConstant)constantId,
             data->codeMeshArgs[argGlobalIndex][0],
             data->codeMeshArgs[argGlobalIndex][1],
             data->codeMeshArgs[argGlobalIndex][2],
@@ -665,7 +650,7 @@ unsigned int __cdecl R_TessMarkMeshList(const GfxDrawSurfListArgs *listArgs, Gfx
                 context.source->input.consts[120][1] = curNormal_4;
                 context.source->input.consts[120][2] = curNormal_8;
                 context.source->input.consts[120][3] = v11;
-                R_DirtyCodeConstant(context.source, 0x78u);
+                R_DirtyCodeConstant(context.source, CONST_SRC_CODE_MARKS_HIT_NORMAL);
             }
             if ( markTypea == 64 )
             {
@@ -773,7 +758,7 @@ unsigned int __cdecl R_TessMarkMeshList(const GfxDrawSurfListArgs *listArgs, Gfx
                     context.source->input.consts[120][1] = newNormal_4;
                     context.source->input.consts[120][2] = newNormal_8;
                     context.source->input.consts[120][3] = v10;
-                    R_DirtyCodeConstant(context.source, 0x78u);
+                    R_DirtyCodeConstant(context.source, CONST_SRC_CODE_MARKS_HIT_NORMAL);
                 }
                 indices = (unsigned __int8 *)markMesha->indices;
             }
@@ -919,22 +904,22 @@ unsigned int __cdecl R_TessParticleCloudList(const GfxDrawSurfListArgs *listArgs
 
 void __cdecl R_SetParticleCloudConstants(GfxCmdBufSourceState *source, const GfxParticleCloud *cloud)
 {
-    float v3; // [esp+24h] [ebp-7Ch]
+    float v4; // [esp+24h] [ebp-7Ch]
     float scaledWorldUp[3]; // [esp+4Ch] [ebp-54h] BYREF
     float viewUp[3]; // [esp+58h] [ebp-48h] BYREF
     float viewAxis[2][2]; // [esp+64h] [ebp-3Ch] BYREF
-    _QWORD particleCloudMatrix[2]; // [esp+74h] [ebp-2Ch] BYREF
+    float particleCloudMatrix[4]; // [esp+74h] [ebp-2Ch] BYREF
     float particleColor[4]; // [esp+84h] [ebp-1Ch] BYREF
     float worldUp[3]; // [esp+94h] [ebp-Ch] BYREF
 
-    if ( !cloud && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_tess.cpp", 1187, 0, "%s", "cloud") )
-        __debugbreak();
-    if ( cloud->radius[0] == cloud->radius[1]
-        || VecNCompareCustomEpsilon(cloud->placement.base.origin, cloud->endpos, 0.001, 3) )
+    iassert(cloud);
+
+    if (cloud->radius[0] == cloud->radius[1] || VecNCompareCustomEpsilon(cloud->placement.base.origin, cloud->endpos, 0.001, 3))
     {
         viewAxis[0][0] = cloud->radius[0];
         viewAxis[0][1] = 0.0f;
-        *(_QWORD *)&viewAxis[1][0] = __PAIR64__(LODWORD(cloud->radius[1]), 0);
+        viewAxis[1][0] = 0.0f;
+        viewAxis[1][1] = cloud->radius[1];
     }
     else
     {
@@ -942,18 +927,21 @@ void __cdecl R_SetParticleCloudConstants(GfxCmdBufSourceState *source, const Gfx
         worldUp[1] = cloud->endpos[1] - cloud->placement.base.origin[1];
         worldUp[2] = cloud->endpos[2] - cloud->placement.base.origin[2];
         Vec3Normalize(worldUp);
-        v3 = cloud->radius[1];
-        scaledWorldUp[0] = v3 * worldUp[0];
-        scaledWorldUp[1] = v3 * worldUp[1];
-        scaledWorldUp[2] = v3 * worldUp[2];
+        v4 = cloud->radius[1];
+        scaledWorldUp[0] = v4 * worldUp[0];
+        scaledWorldUp[1] = v4 * worldUp[1];
+        scaledWorldUp[2] = v4 * worldUp[2];
         RB_Vec3DirWorldToView(source, scaledWorldUp, viewUp);
         RB_CreateParticleCloud2dAxis(cloud, viewUp, viewAxis);
     }
-    particleCloudMatrix[0] = *(_QWORD *)&viewAxis[0][0];
-    particleCloudMatrix[1] = *(_QWORD *)&viewAxis[1][0];
-    R_SetCodeConstantFromVec4(source, 0x4Au, (float *)particleCloudMatrix);
+    particleCloudMatrix[0] = viewAxis[0][0];
+    particleCloudMatrix[1] = viewAxis[0][1];
+    particleCloudMatrix[2] = viewAxis[1][0];
+    particleCloudMatrix[3] = viewAxis[1][1];
+
+    R_SetCodeConstantFromVec4(source, CONST_SRC_CODE_PARTICLE_CLOUD_MATRIX, particleCloudMatrix);
     Byte4UnpackVertexColor((const unsigned __int8 *)&cloud->color, particleColor);
-    R_SetCodeConstantFromVec4(source, 0x1Fu, particleColor);
+    R_SetCodeConstantFromVec4(source, CONST_SRC_CODE_PARTICLE_CLOUD_COLOR, particleColor);
 }
 
 void __cdecl Byte4UnpackVertexColor(const unsigned __int8 *from, float *to)
@@ -966,31 +954,21 @@ void __cdecl Byte4UnpackVertexColor(const unsigned __int8 *from, float *to)
 
 void __cdecl RB_Vec3DirWorldToView(const GfxCmdBufSourceState *source, const float *worldDir, float *viewDir)
 {
-    float v3; // [esp+Ch] [ebp-48h]
-    float v4; // [esp+1Ch] [ebp-38h]
-    float v5; // [esp+28h] [ebp-2Ch]
     float viewAxis[3][3]; // [esp+30h] [ebp-24h] BYREF
 
-    if ( source->scissorViewport.width != 1
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_tess.cpp",
-                    1130,
-                    0,
-                    "%s\n\t(source->viewMode) = %i",
-                    "(source->viewMode == VIEW_MODE_3D)",
-                    source->scissorViewport.width) )
-    {
-        __debugbreak();
-    }
-    v5 = source->viewParms.viewMatrix.m[3][2];
-    *(_QWORD *)&viewAxis[0][0] = *(_QWORD *)&source->viewParms.viewMatrix.m[3][0];
-    viewAxis[0][2] = v5;
-    v4 = source->viewParms.projectionMatrix.m[0][2];
-    *(_QWORD *)&viewAxis[1][0] = *(_QWORD *)&source->viewParms.projectionMatrix.m[0][0];
-    viewAxis[1][2] = v4;
-    v3 = source->viewParms.projectionMatrix.m[1][2];
-    *(_QWORD *)&viewAxis[2][0] = *(_QWORD *)&source->viewParms.projectionMatrix.m[1][0];
-    viewAxis[2][2] = v3;
+    iassert(source->viewMode == VIEW_MODE_3D);
+
+    viewAxis[0][0] = source->viewParms.viewMatrix.m[0][0];
+    viewAxis[0][1] = source->viewParms.viewMatrix.m[0][1];
+    viewAxis[0][2] = source->viewParms.viewMatrix.m[0][2];
+
+    viewAxis[1][0] = source->viewParms.viewMatrix.m[1][0];
+    viewAxis[1][1] = source->viewParms.viewMatrix.m[1][1];
+    viewAxis[1][2] = source->viewParms.viewMatrix.m[1][2];
+
+    viewAxis[2][0] = source->viewParms.viewMatrix.m[2][0];
+    viewAxis[2][1] = source->viewParms.viewMatrix.m[2][1];
+    viewAxis[2][2] = source->viewParms.viewMatrix.m[2][2];
     Vec3RotateTranspose(worldDir, viewAxis, viewDir);
 }
 
@@ -1245,7 +1223,7 @@ unsigned int __cdecl R_TessXModelSkinnedDrawSurfList(
         commonSource->objectPlacement = remotePlacement;
         R_ChangeObjectPlacementRemote(commonSource, remotePlacement);
     }
-    updatedFade = R_UpdateCodeConstant(commonSource, 0x75u, 1.0, 1.0, 1.0, 1.0);
+    updatedFade = R_UpdateCodeConstant(commonSource, CONST_SRC_CODE_CROSSFADE_PARMS, 1.0, 1.0, 1.0, 1.0);
     RB_TrackImmediatePrims(&context.state->prim, GFX_PRIM_STATS_XMODELSKINNED);
     drawSurfIndex = 0;
     if (info->cameraView)
@@ -1278,7 +1256,7 @@ unsigned int __cdecl R_TessXModelSkinnedDrawSurfList(
         {
             updatedBurnFadeConstant = R_UpdateCodeConstant(
                 commonSource,
-                0x72u,
+                CONST_SRC_CODE_DESTRUCTIBLE_PARMS,
                 curDestructibleBurnAmount,
                 r_burnedDestructibleColor->current.value,
                 curDestructibleFadeAmount,
@@ -1296,7 +1274,7 @@ unsigned int __cdecl R_TessXModelSkinnedDrawSurfList(
                 z = 0.0f;
             else
                 z = 1.0f;
-            updated = R_UpdateCodeConstant(commonSource, 0x76u, curDestructibleBurnAmount, y, z, 0.0);
+            updated = R_UpdateCodeConstant(commonSource, CONST_SRC_CODE_CHARACTER_CHARRED_AMOUNT, curDestructibleBurnAmount, y, z, 0.0);
             updatedBurnFadeConstant |= updated;
         }
         v3 = R_UpdateMaterialTime(
@@ -1530,7 +1508,7 @@ unsigned int __cdecl R_TessXModelRigidDrawSurfList(
     drawSurfList = &info->drawSurfs[listArgs->firstDrawSurfIndex];
     drawSurf.fields = drawSurfList->fields;
     commonSource->objectPlacement = &s_manualObjectPlacement;
-    updatedFade = R_UpdateCodeConstant(commonSource, 0x75u, 1.0, 1.0, 1.0, 1.0);
+    updatedFade = R_UpdateCodeConstant(commonSource, CONST_SRC_CODE_CROSSFADE_PARMS, 1.0, 1.0, 1.0, 1.0);
     RB_TrackImmediatePrims(&context.state->prim, GFX_PRIM_STATS_XMODELRIGID);
     if (!context.state->prim.primStats
         && !Assert_MyHandler(
@@ -1576,12 +1554,12 @@ unsigned int __cdecl R_TessXModelRigidDrawSurfList(
         {
             updatedBurnFadeConstant = R_UpdateCodeConstant(
                 commonSource,
-                0x72u,
+                CONST_SRC_CODE_DESTRUCTIBLE_PARMS,
                 curDestructibleBurnAmount,
                 r_burnedDestructibleColor->current.value,
                 curDestructibleFadeAmount,
                 0.0);
-            updated = R_UpdateCodeConstant(commonSource, 0x76u, curDestructibleBurnAmount, 0.0, 0.0, 0.0);
+            updated = R_UpdateCodeConstant(commonSource, CONST_SRC_CODE_CHARACTER_CHARRED_AMOUNT, curDestructibleBurnAmount, 0.0, 0.0, 0.0);
             updatedBurnFadeConstant |= updated;
         }
         v4 = R_UpdateMaterialTime(
@@ -2258,27 +2236,27 @@ void __cdecl R_SetTerrainScorchTextures(GfxCmdBufSourceState *source, const Mate
     unsigned int layer; // [esp+10h] [ebp-14h]
     unsigned int layeredSurfTypes; // [esp+20h] [ebp-4h]
 
-    if ( g_worldDraw->terrainScorchImages[0] )
+    if (g_worldDraw->terrainScorchImages[0])
         whiteImage = g_worldDraw->terrainScorchImages[0];
     else
         whiteImage = rgp.whiteImage;
     layeredSurfTypes = material->info.layeredSurfaceTypes;
-    for ( layer = 0; layer < layeredSurfTypes >> 29; ++layer )
+    for (layer = 0; layer < layeredSurfTypes >> 29; ++layer)
     {
         layerSurfType = (layeredSurfTypes >> (6 * layer)) & 0x3F;
-        if ( layerSurfType >= 0x1F
+        if (layerSurfType >= 0x1F
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_tess.cpp",
-                        2717,
-                        0,
-                        "layerSurfType doesn't index ARRAY_COUNT(g_worldDraw->terrainScorchImages)\n\t%i not in [0, %i)",
-                        layerSurfType,
-                        31) )
+                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_tess.cpp",
+                2717,
+                0,
+                "layerSurfType doesn't index ARRAY_COUNT(g_worldDraw->terrainScorchImages)\n\t%i not in [0, %i)",
+                layerSurfType,
+                31))
         {
             __debugbreak();
         }
         scorchedImage = g_worldDraw->terrainScorchImages[layerSurfType];
-        if ( !scorchedImage )
+        if (!scorchedImage)
             scorchedImage = whiteImage;
         R_SetCodeImageTexture(source, layer + 29, scorchedImage);
     }
@@ -2464,7 +2442,7 @@ unsigned int __cdecl R_TessBModel(const GfxDrawSurfListArgs *listArgs, GfxCmdBuf
                 fade = bmodelSurf->bmodelFadeAmt;
                 updatedConstant = R_UpdateCodeConstant(
                     commonSource,
-                    0x72u,
+                    CONST_SRC_CODE_DESTRUCTIBLE_PARMS,
                     burn,
                     r_burnedDestructibleColor->current.value,
                     fade,

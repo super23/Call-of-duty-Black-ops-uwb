@@ -42,7 +42,7 @@ void __cdecl RB_Resource_CreateTexture(
     {
         __debugbreak();
     }
-    action->action = 1;
+    action->action = ACTION_CREATE_TEXTURE;
     action->resource = image;
     action->data = imageBuffer;
     action->p1 = mipCount;
@@ -82,7 +82,7 @@ void __cdecl RB_Resource_Release(IUnknown *resource)
     {
         __debugbreak();
     }
-    action->action = 2;
+    action->action = ACTION_RELEASE;
     action->resource = resource;
     RB_Resource_Unlock();
     if ( semaphore )
@@ -102,7 +102,7 @@ void __cdecl RB_Resource_ReloadTexture(GfxImage *image, void *data)
     {
         __debugbreak();
     }
-    action->action = 4;
+    action->action = ACTION_RELOADTEXTURE;
     action->resource = image;
     action->data = data;
     RB_Resource_Unlock();
@@ -123,7 +123,7 @@ void __cdecl RB_Resource_Callback(void (__cdecl *callback)())
     {
         __debugbreak();
     }
-    action->action = 5;
+    action->action = ACTION_CALLBACK;
     action->resource = callback;
     RB_Resource_Unlock();
     if ( semaphore )
@@ -143,7 +143,7 @@ void __cdecl RB_Resource_CallbackParam(void (__cdecl *callback)(void *), void *d
     {
         __debugbreak();
     }
-    action->action = 6;
+    action->action = ACTION_CALLBACKPARAM;
     action->resource = callback;
     action->data = data;
     RB_Resource_Unlock();
@@ -166,7 +166,7 @@ void __cdecl RB_Resource_CreateVertexDeclaration(
     {
         __debugbreak();
     }
-    action->action = 7;
+    action->action = ACTION_CREATEVERTEXDECL;
     action->resource = declaration;
     action->data = elements;
     RB_Resource_Unlock();
@@ -187,7 +187,7 @@ void __cdecl RB_Resource_CreateVertexShader(unsigned int *function, IDirect3DVer
     {
         __debugbreak();
     }
-    action->action = 8;
+    action->action = ACTION_CREATEVERTEXSHADER;
     action->resource = shader;
     action->data = function;
     RB_Resource_Unlock();
@@ -208,7 +208,7 @@ void __cdecl RB_Resource_CreatePixelShader(unsigned int *function, IDirect3DPixe
     {
         __debugbreak();
     }
-    action->action = 9;
+    action->action = ACTION_CREATEPIXELSHADER;
     action->resource = shader;
     action->data = function;
     RB_Resource_Unlock();
@@ -229,7 +229,7 @@ void __cdecl RB_Resource_LoadVertexBuffer(IDirect3DVertexBuffer9 **vb, void *buf
     {
         __debugbreak();
     }
-    action->action = 10;
+    action->action = ACTION_LOADVERTEXBUFFER;
     action->resource = vb;
     action->data = bufferData;
     action->p1 = sizeInBytes;
@@ -265,9 +265,8 @@ void __cdecl RB_Resource_Update(int msec)
     }
 }
 
-unsigned __int8 *RB_Resource_Update_Internal()
+void RB_Resource_Update_Internal()
 {
-    unsigned __int8 *result; // eax
     unsigned int v1; // [esp+0h] [ebp-C0h]
     unsigned int v2; // [esp+4h] [ebp-BCh]
     unsigned int v3; // [esp+8h] [ebp-B8h]
@@ -299,36 +298,26 @@ unsigned __int8 *RB_Resource_Update_Internal()
         action = &resourceActions[resourceIndex];
         switch ( action->action )
         {
-            case 1:
+            case ACTION_CREATE_TEXTURE:
                 image = (GfxImage *)action->resource;
                 data = (unsigned __int8 *)action->data;
                 mipCount = action->p1;
                 imageFormat = (_D3DFORMAT)(action->p2);
                 flags = action->p3;
                 mapType = image->mapType;
-                if ( mapType == 3 )
+                if ( mapType == MAPTYPE_2D)
                 {
                     Image_Create2DTexture_PC(image, image->width, image->height, mipCount, flags, imageFormat);
                     faceCount = 1;
                 }
-                else if ( mapType == 4 )
+                else if ( mapType == MAPTYPE_3D)
                 {
                     Image_Create3DTexture_PC(image, image->width, image->height, image->depth, mipCount, flags, imageFormat);
                     faceCount = 1;
                 }
                 else
                 {
-                    if ( image->mapType != 5
-                        && !Assert_MyHandler(
-                                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_resource.cpp",
-                                    297,
-                                    0,
-                                    "%s\n\t(image->mapType) = %i",
-                                    "(image->mapType == MAPTYPE_CUBE)",
-                                    image->mapType) )
-                    {
-                        __debugbreak();
-                    }
+                    iassert(image->mapType == MAPTYPE_CUBE);
                     Image_CreateCubeTexture_PC(image, image->width, mipCount, imageFormat);
                     faceCount = 6;
                 }
@@ -362,17 +351,17 @@ unsigned __int8 *RB_Resource_Update_Internal()
                     Z_VirtualFree(action->data, 20);
                 }
                 goto LABEL_2;
-            case 2:
+            case ACTION_RELEASE:
                 (*(void (__thiscall **)(void *, void *))(*(unsigned int *)action->resource + 8))(action->resource, action->resource);
                 goto LABEL_2;
-            case 3:
+            case ACTION_LOADTEXTURE:
                 Image_LoadFromData(
                     (GfxImage *)action->resource,
                     (GfxImageFileHeader *)action->data,
                     (unsigned __int8 *)action->data + 48);
                 Z_VirtualFree(action->data, 20);
                 goto LABEL_2;
-            case 4:
+            case ACTION_RELOADTEXTURE:
                 resource = (GfxImage *)action->resource;
                 v12 = (GfxImageFileHeader *)action->data;
                 Image_Release(resource);
@@ -389,23 +378,23 @@ unsigned __int8 *RB_Resource_Update_Internal()
                 Image_LoadFromData(resource, v12, (unsigned __int8 *)&v12[1]);
                 Z_VirtualFree(action->data, 20);
                 goto LABEL_2;
-            case 5:
+            case ACTION_CALLBACK:
                 ((void (*)(void))action->resource)();
                 goto LABEL_2;
-            case 6:
+            case ACTION_CALLBACKPARAM:
                 ((void (__cdecl *)(void *))action->resource)(action->data);
                 goto LABEL_2;
-            case 7:
+            case ACTION_CREATEVERTEXDECL:
                 dx.device->CreateVertexDeclaration(
                     (const _D3DVERTEXELEMENT9 *)action->data,
                     (IDirect3DVertexDeclaration9 **)action->resource);
                 goto LABEL_2;
-            case 8:
+            case ACTION_CREATEVERTEXSHADER:
                 dx.device->CreateVertexShader(
                     (const DWORD *)action->data,
                     (IDirect3DVertexShader9 **)action->resource);
                 goto LABEL_2;
-            case 9:
+            case ACTION_CREATEPIXELSHADER:
                 //((void (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, void *, void *))dx.device->CreatePixelShader)(
                 //    dx.device,
                 //    dx.device,
@@ -413,29 +402,19 @@ unsigned __int8 *RB_Resource_Update_Internal()
                 //    action->resource);
                 dx.device->CreatePixelShader((const DWORD*)action->data, (IDirect3DPixelShader9 **)action->resource);
                 goto LABEL_2;
-            case 0xA:
+            case ACTION_LOADVERTEXBUFFER:
                 Load_VertexBuffer((IDirect3DVertexBuffer9 **)action->resource, (unsigned __int8 *)action->data, action->p1);
                 goto LABEL_2;
-            case 0xB:
+            case ACTION_LOADINDEXBUFFER:
                 ib = (IDirect3DIndexBuffer9 **)action->resource;
                 src = action->data;
                 rawIndexBytes = action->p1;
                 indexBytes = (rawIndexBytes + 31) & 0xFFFFFFE0;
-                if ( indexBytes > 0x200000
-                    && !Assert_MyHandler(
-                                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_resource.cpp",
-                                422,
-                                0,
-                                "%s",
-                                "indexBytes <= MATERIAL_MAX_INDEX_BUFFER_SIZE") )
-                {
-                    __debugbreak();
-                }
-                result = (unsigned __int8 *)R_AllocStaticIndexBuffer(ib, indexBytes);
-                indexBuffer = result;
-                if ( !result )
-                    return result;
-                Com_Memcpy(result, src, rawIndexBytes);
+                iassert(indexBytes <= MATERIAL_MAX_INDEX_BUFFER_SIZE);
+                indexBuffer = (unsigned __int8 *)R_AllocStaticIndexBuffer(ib, indexBytes);
+                if (!indexBuffer)
+                    return;
+                Com_Memcpy(indexBuffer, src, rawIndexBytes);
                 memset(&indexBuffer[rawIndexBytes], 0, indexBytes - rawIndexBytes);
                 R_FinishStaticIndexBuffer(*ib);
 LABEL_2:
@@ -449,14 +428,15 @@ LABEL_2:
     Sys_SetResourcesFlushedEvent();
     numResourceActions = 0;
     RB_Resource_Unlock();
-    result = (unsigned __int8 *)GetCurrentThreadId();
+
+    //result = (unsigned __int8 *)GetCurrentThreadId();
     //if ( result == (unsigned __int8 *)g_DXDeviceThread )
     //{
     //    result = 0;
     //    if ( !HIDWORD(g_DXDeviceThread) )
     //        return (unsigned __int8 *)//D3DPERF_EndEvent();
     //}
-    return result;
+    //return result;
 }
 
 void __cdecl RB_Resource_Flush()

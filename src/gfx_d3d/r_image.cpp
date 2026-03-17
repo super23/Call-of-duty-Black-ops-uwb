@@ -696,19 +696,23 @@ $LN7_167:
     }
 }
 
-void __cdecl R_DelayLoadImage(XAssetHeader header)
+void __cdecl R_DelayLoadImage(XAssetHeader header, void *data)
 {
     const char *externalDataSize; // [esp+4h] [ebp-4h]
 
-    if ( HIBYTE(header.xmodelPieces->numpieces) )
+    GfxImage *image = header.image;
+
+
+    if (image->delayLoadPixels)
     {
-        //HIBYTE(header.xmodelPieces->numpieces) = 0;
-        (header.xmodelPieces->numpieces) = 0;
-        externalDataSize = header.xmodelPieces[1].name;
-        header.xmodelPieces[1].name = 0;
-        header.xmodelPieces[1].numpieces = 0;
-        if ( r_loadForRenderer->current.enabled && !Image_LoadFromFile(header.image, 0) )
-            Image_AssignDefaultTexture(header.image);
+        iassert(image->category == 3);
+
+        image->delayLoadPixels = 0;
+        externalDataSize = (const char *)image->cardMemory.platform[0];
+        image->cardMemory.platform[0] = 0;
+        image->cardMemory.platform[1] = 0;
+        if (r_loadForRenderer->current.enabled && !Image_LoadFromFile(image, 0))
+            Image_AssignDefaultTexture(image);
         DB_LoadedExternalData((unsigned int)externalDataSize);
     }
 }
@@ -1599,17 +1603,6 @@ bool __cdecl imagecompare(GfxImage *image1, GfxImage *image2)
         return image1->cardMemory.platform[0] < image2->cardMemory.platform[0];
     return 1;
 }
-
-enum MapType : __int32
-{                                       // ...
-    MAPTYPE_NONE = 0x0,
-    MAPTYPE_INVALID1 = 0x1,
-    MAPTYPE_INVALID2 = 0x2,
-    MAPTYPE_2D = 0x3,
-    MAPTYPE_3D = 0x4,
-    MAPTYPE_CUBE = 0x5,
-    MAPTYPE_COUNT = 0x6,
-};
 
 _D3DFORMAT __cdecl R_ImagePixelFormat(GfxImage *image)
 {

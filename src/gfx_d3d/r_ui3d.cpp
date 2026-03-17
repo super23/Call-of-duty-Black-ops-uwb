@@ -341,7 +341,7 @@ void __cdecl RB_UI3D_SetShaderConstants(GfxCmdBufSourceState *source, const GfxU
     if ( rbUI3D )
     {
         for ( i = 0; i < 6; ++i )
-            R_SetCodeConstantFromVec4(source, i + 173, (float*)rbUI3D->uvSetup[i]);
+            R_SetCodeConstantFromVec4(source, (CodeConstant)(i + 173), (float*)rbUI3D->uvSetup[i]);
     }
     else
     {
@@ -350,7 +350,7 @@ void __cdecl RB_UI3D_SetShaderConstants(GfxCmdBufSourceState *source, const GfxU
         uvsetup[2] = 0.01f;
         uvsetup[3] = 0.01f;
         for ( j = 0; j < 6; ++j )
-            R_SetCodeConstantFromVec4(source, j + 173, uvsetup);
+            R_SetCodeConstantFromVec4(source, (CodeConstant)(j + 173), uvsetup);
     }
 }
 

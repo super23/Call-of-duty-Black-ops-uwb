@@ -172,7 +172,7 @@ int RB_SetSunShadowOverlayScaleAndBias()
   RB_GetShadowOverlayDepthBounds(&nearDepth, &farDepth);
   return R_UpdateCodeConstant(
            &gfxCmdBufSourceState,
-           0x24u,
+           CONST_SRC_CODE_FILTER_TAP_0,
            1.0 / (float)(farDepth - nearDepth),
            //COERCE_FLOAT(COERCE_UNSIGNED_INT(1.0 / (float)(farDepth - nearDepth)) ^ _mask__NegFloat_) * nearDepth,
            (-(1.0 / (float)(farDepth - nearDepth))) * nearDepth,

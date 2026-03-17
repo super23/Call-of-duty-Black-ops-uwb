@@ -100,19 +100,21 @@ void    R_DrawEmissive(const GfxViewInfo *viewInfo, GfxCmdBuf *cmdBuf)
 
 void __cdecl R_DrawEmissiveCallback(char *userData, GfxCmdBufContext context)
 {
-    ////PIXBeginNamedEvent(-1, "R_DrawEmissiveCallback");
-    R_UpdateCodeConstant(context.source, 0x5Eu, 0.0, 0.0, 1.0, 1.0);
-    ////PIXBeginNamedEvent(-1, "emissive");
-    R_DrawSurfs(context, 0, (const GfxDrawSurfListInfo *)(userData + 9072));
-    ////if ( GetCurrentThreadId() == g_DXDeviceThread )
-        ////D3DPERF_EndEvent();
-    R_ShowTris(context, (const GfxDrawSurfListInfo *)(userData + 8752));
-    R_ShowTris(context, (const GfxDrawSurfListInfo *)(userData + 8992));
-    R_ShowTris(context, (const GfxDrawSurfListInfo *)(userData + 9072));
-    if ( (*((unsigned int *)userData + 3464) & 7) == 0 )
+    GfxViewInfo *viewInfo = (GfxViewInfo *)userData;
+
+    //PIXBeginNamedEvent(-1, "R_DrawEmissiveCallback");
+    R_UpdateCodeConstant(context.source, CONST_SRC_CODE_FRAMEBUFFER_READ, 0.0, 0.0, 1.0, 1.0);
+    //PIXBeginNamedEvent(-1, "emissive");
+    R_DrawSurfs(context, 0, &viewInfo->drawList[4]);
+    //if (GetCurrentThreadId() == g_DXDeviceThread)
+    //    D3DPERF_EndEvent();
+    R_ShowTris(context, viewInfo->drawList);
+    R_ShowTris(context, &viewInfo->drawList[3]);
+    R_ShowTris(context, &viewInfo->drawList[4]);
+    if ((viewInfo->sceneComposition.renderingMode & 7) == 0)
         R_HW_DisableScissor(context.state->prim.device);
-    ////if ( g_DXDeviceThread == GetCurrentThreadId() )
-        ////D3DPERF_EndEvent();
+    //if (g_DXDeviceThread == GetCurrentThreadId())
+    //    D3DPERF_EndEvent();
 }
 
 void __cdecl R_HW_DisableScissor(IDirect3DDevice9 *device)
@@ -470,32 +472,32 @@ void R_DrawFullbrightOrDebugShader(
     R_SetWindShaderConstants(&v9);
 
     memset(v9.input.consts[114], 0, sizeof(v9.input.consts[114]));
-    R_DirtyCodeConstant(&v9, 114);
+    R_DirtyCodeConstant(&v9, CONST_SRC_CODE_DESTRUCTIBLE_PARMS);
 
 
     v9.input.consts[115][0] = CloudArea[0] - viewInfo->cullViewInfo.viewParms.origin[0];
     v9.input.consts[115][1] = CloudArea[1] - viewInfo->cullViewInfo.viewParms.origin[1];
     v9.input.consts[115][2] = CloudArea[2];
     v9.input.consts[115][3] = CloudArea[3];
-    R_DirtyCodeConstant(&v9, 115);
+    R_DirtyCodeConstant(&v9, CONST_SRC_CODE_CLOUD_WORLD_AREA);
 
     v9.input.consts[44][0] = 1.0f;
     v9.input.consts[44][1] = 0.0f;
     v9.input.consts[44][2] = 0.0f;
     v9.input.consts[44][3] = 0.0f;
-    R_DirtyCodeConstant(&v9, 44);
+    R_DirtyCodeConstant(&v9, CONST_SRC_CODE_COLOR_MATRIX_R);
 
     v9.input.consts[45][0] = 0.0f;
     v9.input.consts[45][1] = 1.0f;
     v9.input.consts[45][2] = 0.0f;
     v9.input.consts[45][3] = 0.0f;
-    R_DirtyCodeConstant(&v9, 45);
+    R_DirtyCodeConstant(&v9, CONST_SRC_CODE_COLOR_MATRIX_G);
 
     v9.input.consts[46][0] = 0.0f;
     v9.input.consts[46][1] = 0.0f;
     v9.input.consts[46][2] = 1.0f;
     v9.input.consts[46][3] = 0.0f;
-    R_DirtyCodeConstant(&v9, 46);
+    R_DirtyCodeConstant(&v9, CONST_SRC_CODE_COLOR_MATRIX_B);
 
     R_DrawCall(callback, viewInfo, &v9, viewInfo, info, &viewInfo->cullViewInfo.viewParms, cmdBuf, 0);
 }
@@ -874,7 +876,7 @@ void    R_DrawLights(const GfxViewInfo *viewInfo, GfxCmdBuf *cmdBuf)
     R_SetWindShaderConstants(&v6);
     //memset(&v6.gap0[1824], 0, 16);
     memset(v6.input.consts[114], 0, sizeof(v6.input.consts[114]));
-    R_DirtyCodeConstant(&v6, 114);
+    R_DirtyCodeConstant(&v6, CONST_SRC_CODE_DESTRUCTIBLE_PARMS);
     v6.input.consts[68][0] = r_skyTransition->current.value;
     v6.input.consts[68][1] = 0.0f;
     v6.input.consts[68][2] = r_treeScale->current.value;
@@ -885,7 +887,7 @@ void    R_DrawLights(const GfxViewInfo *viewInfo, GfxCmdBuf *cmdBuf)
     //*(_QWORD *)&v6.gap0[1092] = __PAIR64__(v5, 0);
     //LODWORD(v6.input.consts[68][3]) = integer;
 
-    R_DirtyCodeConstant(&v6, 68);
+    R_DirtyCodeConstant(&v6, CONST_SRC_CODE_SKY_TRANSITION);
     R_DrawPointLitSurfs(&v6, viewInfo, cmdBuf);
 }
 
@@ -933,13 +935,13 @@ void __cdecl R_DrawPointLitSurfs(GfxCmdBufSourceState *source, const GfxViewInfo
     float w; // [esp+164h] [ebp-4h]
     int savedregs; // [esp+168h] [ebp+0h] BYREF
 
-    if ( !viewInfo
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_draw3d.cpp", 4872, 0, "%s", "viewInfo") )
+    if (!viewInfo
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_draw3d.cpp", 4872, 0, "%s", "viewInfo"))
     {
         __debugbreak();
     }
     pointLightCount = viewInfo->pointLightCount;
-    if ( pointLightCount )
+    if (pointLightCount)
     {
         R_ConvertColorToBytes(colorWhite, (unsigned __int8 *)&color);
         data = source->input.data;
@@ -948,7 +950,7 @@ void __cdecl R_DrawPointLitSurfs(GfxCmdBufSourceState *source, const GfxViewInfo
         args.triCount = 2;
         viewParms = &viewInfo->cullViewInfo.viewParms;
         info.viewInfo = viewInfo;
-        for ( partitionIndex = 0; partitionIndex < pointLightCount; ++partitionIndex )
+        for (partitionIndex = 0; partitionIndex < pointLightCount; ++partitionIndex)
         {
             pointLightPartition = &viewInfo->pointLightPartitions[partitionIndex];
             light = &pointLightPartition->light;
@@ -962,15 +964,15 @@ void __cdecl R_DrawPointLitSurfs(GfxCmdBufSourceState *source, const GfxViewInfo
             offset[1] = pointLightPartition->light.origin[1] - viewParms->origin[1];
             offset[2] = pointLightPartition->light.origin[2] - viewParms->origin[2];
             offsetDistSq = (float)((float)(offset[0] * offset[0]) + (float)(offset[1] * offset[1]))
-                                     + (float)(offset[2] * offset[2]);
+                + (float)(offset[2] * offset[2]);
             tangentDistSq = offsetDistSq - (float)(pointLightPartition->light.radius * pointLightPartition->light.radius);
-            if ( tangentDistSq > 1.0 )
+            if (tangentDistSq > 1.0)
             {
                 tangentDist = sqrtf(tangentDistSq);
                 perpDist = offsetDistSq / tangentDist;
                 sign = 1.0f;
                 planeIndex = 0;
-                while ( planeIndex < 4 )
+                while (planeIndex < 4)
                 {
                     axis = planeIndex >> 1;
                     perp[0] = sign * viewParms->axis[2 - (planeIndex >> 1)][0];
@@ -978,11 +980,8 @@ void __cdecl R_DrawPointLitSurfs(GfxCmdBufSourceState *source, const GfxViewInfo
                     perp[2] = sign * viewParms->axis[2 - (planeIndex >> 1)][2];
                     Vec3Cross(perp, offset, perpDir);
                     Vec3Normalize(perpDir);
-                    //edgeGoalPoint[0] = (float)(COERCE_FLOAT(LODWORD(perpDist) ^ _mask__NegFloat_) * perpDir[0]) + viewParms->origin[0];
                     edgeGoalPoint[0] = (float)((-(perpDist)) * perpDir[0]) + viewParms->origin[0];
-                    //edgeGoalPoint[1] = (float)(COERCE_FLOAT(LODWORD(perpDist) ^ _mask__NegFloat_) * perpDir[1]) + viewParms->origin[1];
                     edgeGoalPoint[1] = (float)((-(perpDist)) * perpDir[1]) + viewParms->origin[1];
-                    //edgeGoalPoint[2] = (float)(COERCE_FLOAT(LODWORD(perpDist) ^ _mask__NegFloat_) * perpDir[2]) + viewParms->origin[2];
                     edgeGoalPoint[2] = (float)((-(perpDist)) * perpDir[2]) + viewParms->origin[2];
                     edgeDir[0] = edgeGoalPoint[0] - light->origin[0];
                     edgeDir[1] = edgeGoalPoint[1] - light->origin[1];
@@ -992,26 +991,26 @@ void __cdecl R_DrawPointLitSurfs(GfxCmdBufSourceState *source, const GfxViewInfo
                     edgePoint = (float)(radius * edgeDir[0]) + light->origin[0];
                     edgePoint_4 = (float)(radius * edgeDir[1]) + light->origin[1];
                     edgePoint_8 = (float)(radius * edgeDir[2]) + light->origin[2];
-                    if ( (float)((float)((float)((float)(viewInfo->frustumPlanes[planeIndex][0] * edgePoint)
-                                                                         + (float)(viewInfo->frustumPlanes[planeIndex][1] * edgePoint_4))
-                                                         + (float)(viewInfo->frustumPlanes[planeIndex][2] * edgePoint_8))
-                                         + viewInfo->frustumPlanes[planeIndex][3]) > 0.0 )
+                    if ((float)((float)((float)((float)(viewInfo->frustumPlanes[planeIndex][0] * edgePoint)
+                        + (float)(viewInfo->frustumPlanes[planeIndex][1] * edgePoint_4))
+                        + (float)(viewInfo->frustumPlanes[planeIndex][2] * edgePoint_8))
+                        + viewInfo->frustumPlanes[planeIndex][3]) > 0.0)
                     {
                         w = (float)((float)((float)(edgePoint * viewParms->viewProjectionMatrix.m[0][3])
-                                                            + (float)(edgePoint_4 * viewParms->viewProjectionMatrix.m[1][3]))
-                                            + (float)(edgePoint_8 * viewParms->viewProjectionMatrix.m[2][3]))
+                            + (float)(edgePoint_4 * viewParms->viewProjectionMatrix.m[1][3]))
+                            + (float)(edgePoint_8 * viewParms->viewProjectionMatrix.m[2][3]))
                             + viewParms->viewProjectionMatrix.m[3][3];
-                        if ( w > 0.0 )
+                        if (w > 0.0)
                         {
                             planeDist = (float)((float)((float)(edgePoint * viewParms->viewProjectionMatrix.m[0][axis])
-                                                                                + (float)(edgePoint_4 * viewParms->viewProjectionMatrix.m[1][axis]))
-                                                                + (float)(edgePoint_8 * viewParms->viewProjectionMatrix.m[2][axis]))
-                                                + viewParms->viewProjectionMatrix.m[3][axis];
-                            if ( (float)((float)(planeDist / w) - 1.0) < 0.0 )
+                                + (float)(edgePoint_4 * viewParms->viewProjectionMatrix.m[1][axis]))
+                                + (float)(edgePoint_8 * viewParms->viewProjectionMatrix.m[2][axis]))
+                                + viewParms->viewProjectionMatrix.m[3][axis];
+                            if ((float)((float)(planeDist / w) - 1.0) < 0.0)
                                 v8 = planeDist / w;
                             else
                                 v8 = 1.0f;
-                            if ( (float)(-1.0 - (float)(planeDist / w)) < 0.0 )
+                            if ((float)(-1.0 - (float)(planeDist / w)) < 0.0)
                                 v7 = v8;
                             else
                                 v7 = -1.0f;
@@ -1041,7 +1040,7 @@ void __cdecl R_DrawPointLitSurfs(GfxCmdBufSourceState *source, const GfxViewInfo
             info.y += viewInfo->cullViewInfo.sceneViewport.y;
             R_SetQuadMeshData(info.clearQuadMesh, x, y, width, height, 0.0, 0.0, 1.0, 1.0, 0xFFFFFFFF);
             R_DrawCall(
-                (void (__cdecl *)(const void *, GfxCmdBufSourceState *, GfxCmdBufState *, GfxCmdBufSourceState *, GfxCmdBufState *))R_DrawPointLitSurfsCallback,
+                (void(__cdecl *)(const void *, GfxCmdBufSourceState *, GfxCmdBufState *, GfxCmdBufSourceState *, GfxCmdBufState *))R_DrawPointLitSurfsCallback,
                 &info,
                 source,
                 viewInfo,
@@ -1255,17 +1254,17 @@ void RB_ShowFbColorDebug_Feedback()
   gfxCmdBufSourceState.input.consts[44][1] = 0.0f;
   gfxCmdBufSourceState.input.consts[44][2] = 0.0f;
   gfxCmdBufSourceState.input.consts[44][3] = 0.0f;
-  R_DirtyCodeConstant(&gfxCmdBufSourceState, 0x2Cu);
+  R_DirtyCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_COLOR_MATRIX_R);
   gfxCmdBufSourceState.input.consts[45][0] = 0.0f;
   gfxCmdBufSourceState.input.consts[45][1] = 0.0f;
   gfxCmdBufSourceState.input.consts[45][2] = 0.0f;
   gfxCmdBufSourceState.input.consts[45][3] = 0.0f;
-  R_DirtyCodeConstant(&gfxCmdBufSourceState, 0x2Du);
+  R_DirtyCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_COLOR_MATRIX_G);
   gfxCmdBufSourceState.input.consts[46][0] = 0.0f;
   gfxCmdBufSourceState.input.consts[46][1] = 0.0f;
   gfxCmdBufSourceState.input.consts[46][2] = 0.0f;
   gfxCmdBufSourceState.input.consts[46][3] = 0.0f;
-  R_DirtyCodeConstant(&gfxCmdBufSourceState, 0x2Eu);
+  R_DirtyCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_COLOR_MATRIX_B);
   RB_DrawStretchPic(
     rgp.colorChannelMixerMaterial,
     quarterScreenWidth,
@@ -1283,17 +1282,17 @@ void RB_ShowFbColorDebug_Feedback()
   gfxCmdBufSourceState.input.consts[44][1] = 0.0f;
   gfxCmdBufSourceState.input.consts[44][2] = 0.0f;
   gfxCmdBufSourceState.input.consts[44][3] = 0.0f;
-  R_DirtyCodeConstant(&gfxCmdBufSourceState, 0x2Cu);
+  R_DirtyCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_COLOR_MATRIX_R);
   gfxCmdBufSourceState.input.consts[45][0] = 0.0f;
   gfxCmdBufSourceState.input.consts[45][1] = 1.0f;
   gfxCmdBufSourceState.input.consts[45][2] = 0.0f;
   gfxCmdBufSourceState.input.consts[45][3] = 0.0f;
-  R_DirtyCodeConstant(&gfxCmdBufSourceState, 0x2Du);
+  R_DirtyCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_COLOR_MATRIX_G);
   gfxCmdBufSourceState.input.consts[46][0] = 0.0f;
   gfxCmdBufSourceState.input.consts[46][1] = 0.0f;
   gfxCmdBufSourceState.input.consts[46][2] = 0.0f;
   gfxCmdBufSourceState.input.consts[46][3] = 0.0f;
-  R_DirtyCodeConstant(&gfxCmdBufSourceState, 0x2Eu);
+  R_DirtyCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_COLOR_MATRIX_B);
   RB_DrawStretchPic(
     rgp.colorChannelMixerMaterial,
     halfScreenWidth,
@@ -1308,11 +1307,11 @@ void RB_ShowFbColorDebug_Feedback()
     GFX_PRIM_STATS_CODE);
   RB_EndTessSurface();
   Vec4Set(gfxCmdBufSourceState.input.consts[44], 0.0, 0.0, 0.0, 0.0);
-  R_DirtyCodeConstant(&gfxCmdBufSourceState, 0x2Cu);
+  R_DirtyCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_COLOR_MATRIX_R);
   Vec4Set(gfxCmdBufSourceState.input.consts[45], 0.0, 0.0, 0.0, 0.0);
-  R_DirtyCodeConstant(&gfxCmdBufSourceState, 0x2Du);
+  R_DirtyCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_COLOR_MATRIX_G);
   Vec4Set(gfxCmdBufSourceState.input.consts[46], 0.0, 0.0, 1.0, 0.0);
-  R_DirtyCodeConstant(&gfxCmdBufSourceState, 0x2Eu);
+  R_DirtyCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_COLOR_MATRIX_B);
   RB_DrawStretchPic(
     rgp.colorChannelMixerMaterial,
     quarterScreenWidth,
@@ -1326,9 +1325,9 @@ void RB_ShowFbColorDebug_Feedback()
     0xFFFFFFFF,
     GFX_PRIM_STATS_CODE);
   RB_EndTessSurface();
-  R_SetCodeConstant(&gfxCmdBufSourceState, 0x2Cu, 0.0, 0.0, 0.0, 1.0);
-  R_SetCodeConstant(&gfxCmdBufSourceState, 0x2Du, 0.0, 0.0, 0.0, 1.0);
-  R_SetCodeConstant(&gfxCmdBufSourceState, 0x2Eu, 0.0, 0.0, 0.0, 1.0);
+  R_SetCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_COLOR_MATRIX_R, 0.0, 0.0, 0.0, 1.0);
+  R_SetCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_COLOR_MATRIX_G, 0.0, 0.0, 0.0, 1.0);
+  R_SetCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_COLOR_MATRIX_B, 0.0, 0.0, 0.0, 1.0);
   RB_DrawStretchPic(
     rgp.colorChannelMixerMaterial,
     halfScreenWidth,
@@ -1591,19 +1590,9 @@ void RB_StandardDrawCommandsCommon()
 
 void __cdecl R_SetCodeImageTexture(GfxCmdBufSourceState *source, unsigned int codeTexture, const GfxImage *image)
 {
-    if ( !source && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.h", 1859, 0, "%s", "source") )
-        __debugbreak();
-    if ( codeTexture >= 0x2B
-        && !Assert_MyHandler(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.h",
-                    1860,
-                    0,
-                    "codeTexture doesn't index TEXTURE_SRC_CODE_COUNT\n\t%i not in [0, %i)",
-                    codeTexture,
-                    43) )
-    {
-        __debugbreak();
-    }
+    iassert(source);
+    bcassert(codeTexture, TEXTURE_SRC_CODE_COUNT);
+
     source->input.codeImages[codeTexture] = image;
     source->input.codeImageRenderTargetControl[codeTexture].packed = 0;
 }
@@ -1636,12 +1625,12 @@ void __cdecl RB_StandardRenderCommands(GfxViewInfo *viewInfo)
   gfxCmdBufSourceState.input.consts[170][1] = 0.0f;
   gfxCmdBufSourceState.input.consts[170][2] = 0.0f;
   gfxCmdBufSourceState.input.consts[170][3] = 0.0f;
-  R_DirtyCodeConstant(&gfxCmdBufSourceState, 0xAAu);
+  R_DirtyCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_CINEMATIC_BLUR_BOX);
   gfxCmdBufSourceState.input.consts[171][0] = 0.0f;
   gfxCmdBufSourceState.input.consts[171][1] = 0.0f;
   gfxCmdBufSourceState.input.consts[171][2] = 0.0f;
   gfxCmdBufSourceState.input.consts[171][3] = 0.0f;
-  R_DirtyCodeConstant(&gfxCmdBufSourceState, 0xABu);
+  R_DirtyCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_CINEMATIC_BLUR_BOX2);
   if ( viewInfo->cmds )
   {
     RB_SetUI3DSamplerAndConstants(&gfxCmdBufSourceState, &viewInfo->rbUI3D);

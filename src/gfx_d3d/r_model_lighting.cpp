@@ -9,6 +9,7 @@
 #include <universal/com_memory.h>
 #include "r_image_load_common.h"
 #include "r_primarylights.h"
+#include "r_foliage.h"
 
 struct $ACD36BF6C142509D89D5FAE1478EBC2D // sizeof=0x64
 {                                       // XREF: .data:modelLightGlob/r
@@ -710,7 +711,7 @@ void __cdecl R_SetModelGroundLighting(unsigned int entryIndex, const unsigned __
 void __cdecl R_SetStaticModelLightingCoordsForSource(unsigned int smodelIndex, GfxCmdBufSourceState *source)
 {
     R_SetStaticModelLightingCoords(smodelIndex, source->input.consts[78]);
-    ++source->constVersions[102];
+    ++source->constVersions[78];
 }
 
 void __cdecl R_SetStaticModelLightingCoords(unsigned int smodelIndex, float *out)
@@ -856,11 +857,13 @@ void __cdecl R_SetupDynamicModelLighting(GfxCmdBufInput *input)
 
 void __cdecl R_SetupCachedStaticModelLighting(GfxCmdBufSourceState *source)
 {
-    source->input.consts[78][0] = 0.0f;
-    source->input.consts[78][1] = 0.0f;
-    source->input.consts[78][2] = 0.5f;
-    source->input.consts[78][3] = 1.0f;
-    ++source->constVersions[102];
+    R_SetCodeConstant(source,
+        CONST_SRC_CODE_BASE_LIGHTING_COORDS,
+        0.0f,
+        0.0f,
+        0.5f,
+        1.0f
+        );
 }
 
 void __cdecl R_InitModelLightingGlobals()
@@ -1036,6 +1039,6 @@ void __cdecl R_InitStaticModelLighting()
 void __cdecl R_SetModelLightingCoordsForSource(unsigned __int16 handle, GfxCmdBufSourceState *source)
 {
     R_SetModelLightingCoords(handle, source->input.consts[78]);
-    ++source->constVersions[102];
+    ++source->constVersions[78];
 }
 

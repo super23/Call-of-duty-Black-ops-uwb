@@ -625,7 +625,11 @@ void __cdecl R_RegisterDvars()
                                 1,
                                 0,
                                 "GPU synchronization type (used to improve mouse responsiveness)");
+#ifdef KISAK_MULTI_GPU
     r_multiGpu = _Dvar_RegisterBool("r_multiGpu", 1, 1u, "Use multiple GPUs");
+#else
+    r_multiGpu = _Dvar_RegisterBool("r_multiGpu", 0, 1u, "Use multiple GPUs");
+#endif
     r_skinCache = _Dvar_RegisterBool("r_skinCache", 1, 0, "Enable cache for vertices of animated models");
     r_fastSkin = _Dvar_RegisterBool("r_fastSkin", 0, 1u, "Enable fast model skinning");
     r_smc_enable = _Dvar_RegisterBool("r_smc_enable", 1, 0, "Enable static model cache");

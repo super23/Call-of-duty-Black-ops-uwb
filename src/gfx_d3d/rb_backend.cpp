@@ -440,30 +440,25 @@ void __cdecl RB_DrawStretchPic(
 {
     unsigned __int16 vertCount; // [esp+14h] [ebp-4h]
 
-    if ( gfxCmdBufSourceState.scissorViewport.width != 2
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_backend.cpp",
-                    605,
-                    0,
-                    "%s",
-                    "gfxCmdBufSourceState.viewMode == VIEW_MODE_2D") )
-    {
-        __debugbreak();
-    }
+    iassert(gfxCmdBufSourceState.viewMode == VIEW_MODE_2D);
+
     RB_SetTessTechnique(material, 4u);
     R_TrackPrims(&gfxCmdBufState.prim, statsTarget);
     RB_CheckTessOverflow(4, 6);
+
     vertCount = tess.vertexCount;
-    tess.indices[tess.indexCount] = LOWORD(tess.vertexCount) + 3;
+    tess.indices[tess.indexCount] = vertCount + 3;
     tess.indices[tess.indexCount + 1] = vertCount;
     tess.indices[tess.indexCount + 2] = vertCount + 2;
     tess.indices[tess.indexCount + 3] = vertCount + 2;
     tess.indices[tess.indexCount + 4] = vertCount;
     tess.indices[tess.indexCount + 5] = vertCount + 1;
+
     R_SetVertex2d(&tess.verts[tess.vertexCount], x, y, s0, t0, color);
     R_SetVertex2d(&tess.verts[tess.vertexCount + 1], x + w, y, s1, t0, color);
     R_SetVertex2d(&tess.verts[tess.vertexCount + 2], x + w, y + h, s1, t1, color);
     R_SetVertex2d(&tess.verts[tess.vertexCount + 3], x, y + h, s0, t1, color);
+
     tess.vertexCount += 4;
     tess.indexCount += 6;
 }
@@ -615,7 +610,7 @@ void __cdecl RB_FullScreenColoredFilter(const Material *material, unsigned int c
 
 void __cdecl RB_FullScreenFilter(const Material *material)
 {
-  R_UpdateCodeConstant(&gfxCmdBufSourceState, 0x5Du, 0.0, 0.0, 1.0, 1.0);
+  R_UpdateCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_VIEWPORT_DIMENSIONS, 0.0, 0.0, 1.0, 1.0);
   RB_FullScreenColoredFilter(material, 0xFFFFFFFF);
 }
 
@@ -658,7 +653,7 @@ void __cdecl RB_SplitScreenFilter(const Material *material, const GfxViewInfo *v
   RB_SplitScreenTexCoords(x, y, w, h, &s0, &t0, &s1, &t1);
   _s1 = 1.0 / (float)(s1 - s0);
   _t1 = 1.0 / (float)(t1 - t0);
-  R_UpdateCodeConstant(&gfxCmdBufSourceState, 0x5Du, s0, t0, _s1, _t1);
+  R_UpdateCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_VIEWPORT_DIMENSIONS, s0, t0, _s1, _t1);
   RB_DrawStretchPic(material, 0.0, 0.0, w, h, s0, t0, s1, t1, color, GFX_PRIM_STATS_CODE);
   RB_EndTessSurface();
 }
@@ -993,31 +988,9 @@ void __cdecl R_SetCodeImageSamplerState(
                 unsigned int codeTexture,
                 unsigned __int8 samplerState)
 {
-    const char *v3; // eax
+    bcassert(codeTexture, TEXTURE_SRC_CODE_COUNT);
+    iassert(samplerState & SAMPLER_FILTER_MASK);
 
-    if ( codeTexture >= 0x2B
-        && !Assert_MyHandler(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.h",
-                    1841,
-                    0,
-                    "codeTexture doesn't index TEXTURE_SRC_CODE_COUNT\n\t%i not in [0, %i)",
-                    codeTexture,
-                    43) )
-    {
-        __debugbreak();
-    }
-    if ( (samplerState & 7) == 0 )
-    {
-        v3 = va("R_SetCodeImageSamplerState %d %d", codeTexture, samplerState);
-        if ( !Assert_MyHandler(
-                        "c:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.h",
-                        1842,
-                        0,
-                        "%s\n\t%s",
-                        "samplerState & SAMPLER_FILTER_MASK",
-                        v3) )
-            __debugbreak();
-    }
     source->input.codeImageSamplerStates[codeTexture] = samplerState;
 }
 
@@ -1393,7 +1366,7 @@ void __cdecl RB_DrawEmblemLayer(GfxRenderCommandExecState *execState)
   RB_SetTessTechnique(cmd->material, 4u);
   R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, cmd->image);
   R_SetCodeImageSamplerState(&gfxCmdBufSourceState, 0x22u, 0x62u);
-  R_UpdateCodeConstant(&gfxCmdBufSourceState, 0xC4u, (float)cmd->colorIdx, cmd->smoothSize, cmd->outlineSize, 0.0);
+  R_UpdateCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_EMBLEM_LUT_SELECTOR, (float)cmd->colorIdx, cmd->smoothSize, cmd->outlineSize, 0.0);
   R_TrackPrims(&gfxCmdBufState.prim, GFX_PRIM_STATS_CODE);
   RB_CheckTessOverflow(4, 6);
   vertCount = tess.vertexCount;
@@ -1687,7 +1660,7 @@ void __cdecl RB_SetEyeOffsetConstant(GfxCmdBufSourceState *source, const float *
         eyeOffset[2] = drawSurfListViewOrigin[2];
         eyeOffset[3] = drawSurfListViewOrigin[3];
     }
-    R_UpdateCodeConstantFromVec4(source, 0xBFu, eyeOffset);
+    R_UpdateCodeConstantFromVec4(source, CONST_SRC_CODE_EYEOFFSET, eyeOffset);
 }
 
 void __cdecl R_DrawSurfs(GfxCmdBufContext context, GfxCmdBufState *prepassState, const GfxDrawSurfListInfo *info)
@@ -1748,22 +1721,22 @@ void __cdecl R_DrawSurfs(GfxCmdBufContext context, GfxCmdBufState *prepassState,
     context.source->input.consts[114][1] = 0.0f;
     context.source->input.consts[114][2] = 0.0f;
     context.source->input.consts[114][3] = 0.0f;
-    R_DirtyCodeConstant(context.source, 0x72u);
+    R_DirtyCodeConstant(context.source, CONST_SRC_CODE_DESTRUCTIBLE_PARMS);
     context.source->input.consts[118][0] = 0.0f;
     context.source->input.consts[118][1] = 0.0f;
     context.source->input.consts[118][2] = 0.0f;
     context.source->input.consts[118][3] = 0.0f;
-    R_DirtyCodeConstant(context.source, 0x76u);
+    R_DirtyCodeConstant(context.source, CONST_SRC_CODE_CHARACTER_CHARRED_AMOUNT);
     context.source->input.consts[117][0] = 1.0f;
     context.source->input.consts[117][1] = 1.0f;
     context.source->input.consts[117][2] = 1.0f;
     context.source->input.consts[117][3] = 1.0f;
-    R_DirtyCodeConstant(context.source, 0x75u);
+    R_DirtyCodeConstant(context.source, CONST_SRC_CODE_CROSSFADE_PARMS);
     context.source->input.consts[179][0] = 0.0f;
     context.source->input.consts[179][1] = 0.0f;
     context.source->input.consts[179][2] = 0.0f;
     context.source->input.consts[179][3] = 0.0f;
-    R_DirtyCodeConstant(context.source, 0xB3u);
+    R_DirtyCodeConstant(context.source, CONST_SRC_CODE_CHARACTER_DISSOLVE_COLOR);
     R_FoliageSetDefaultShaderConstants(context.source);
     v3 = r_swrk_override_characterDissolveColor->current.vector[1];
     v4 = r_swrk_override_characterDissolveColor->current.vector[2];
@@ -1772,7 +1745,7 @@ void __cdecl R_DrawSurfs(GfxCmdBufContext context, GfxCmdBufState *prepassState,
     context.source->input.consts[179][1] = v3;
     context.source->input.consts[179][2] = v4;
     context.source->input.consts[179][3] = v5;
-    R_DirtyCodeConstant(context.source, 0xB3u);
+    R_DirtyCodeConstant(context.source, CONST_SRC_CODE_CHARACTER_DISSOLVE_COLOR);
     localUI3DBackend = 0;
     if ( info->viewInfo )
         localUI3DBackend = (GfxUI3DBackend*)&info->viewInfo->rbUI3D;
@@ -2528,7 +2501,7 @@ void __cdecl RB_SetMaterialColorCmd(GfxRenderCommandExecState *execState)
   cmd = (const GfxCmdSetMaterialColor *)execState->cmd;
   if ( tess.indexCount )
     RB_EndTessSurface();
-  R_SetCodeConstantFromVec4(&gfxCmdBufSourceState, 0x37u, (float*)cmd->color);
+  R_SetCodeConstantFromVec4(&gfxCmdBufSourceState, CONST_SRC_CODE_MATERIAL_COLOR, (float*)cmd->color);
   execState->cmd = (char *)execState->cmd + *(unsigned __int16 *)execState->cmd;
 }
 
@@ -4958,34 +4931,21 @@ void RB_SwapBuffers()
     tagMSG msg; // [esp+3Ch] [ebp-20h] BYREF
     int desiredShow; // [esp+58h] [ebp-4h]
 
-    if ( (dx.windowCount < 0 || dx.windowCount >= (int)dx.windows[0].hwnd)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_backend.cpp",
-                    5192,
-                    0,
-                    "%s\n\t(dx.targetWindowIndex) = %i",
-                    "(dx.targetWindowIndex >= 0 && dx.targetWindowIndex < dx.windowCount)",
-                    dx.windowCount) )
-    {
-        __debugbreak();
-    }
-    if ( rg.renderHiResShot || dx.resizeWindow )
+    iassert(dx.targetWindowIndex >= 0 && dx.targetWindowIndex < dx.windowCount);
+
+    if (rg.renderHiResShot || dx.resizeWindow)
         hr = 0;
     else
-        hr = (*(int (__stdcall **)(int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int))(*(unsigned int *)dx.windows[dx.windowCount].width
-                                                                                                                                                     + 12))(
-                     dx.windows[dx.windowCount].width,
-                     0,
-                     0,
-                     0,
-                     0,
-                     0);
+        hr = dx.windows[dx.targetWindowIndex].swapChain->Present(0, 0, 0, 0, 0);
+
     mjpeg_draw();
+
     if ( dx.resizeWindow )
     {
         R_ResizeWindow();
         hr = -2005530520;
     }
+
     if ( hr == -2005530520 )
     {
         Sys_ClearD3DDeviceOKEvent();
@@ -5000,6 +4960,7 @@ void RB_SwapBuffers()
             }
         }
     }
+
     desiredShow = g_showCursor - 1;
     for ( actualShow = ShowCursor(g_showCursor); actualShow != desiredShow; actualShow = ShowCursor(actualShow < desiredShow) )
         ;
@@ -5331,12 +5292,12 @@ void __cdecl RB_CallExecuteRenderCommands()
     gfxCmdBufSourceState.input.consts[170][1] = 0.0f;
     gfxCmdBufSourceState.input.consts[170][2] = 0.0f;
     gfxCmdBufSourceState.input.consts[170][3] = 0.0f;
-    R_DirtyCodeConstant(&gfxCmdBufSourceState, 0xAAu);
+    R_DirtyCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_CINEMATIC_BLUR_BOX);
     gfxCmdBufSourceState.input.consts[171][0] = 0.0f;
     gfxCmdBufSourceState.input.consts[171][1] = 0.0f;
     gfxCmdBufSourceState.input.consts[171][2] = 0.0f;
     gfxCmdBufSourceState.input.consts[171][3] = 0.0f;
-    R_DirtyCodeConstant(&gfxCmdBufSourceState, 0xABu);
+    R_DirtyCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_CINEMATIC_BLUR_BOX2);
     if ( rgp.heatMapImage )
       R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x2Au, rgp.heatMapImage);
     else

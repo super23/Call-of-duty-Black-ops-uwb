@@ -729,7 +729,7 @@ bool __cdecl FS_PureIgnoreFiles(const char *filename)
     return !I_stricmp(extension, "cfg") || I_stricmp(extension, ".dm_NETWORK_PROTOCOL_VERSION") == 0;
 }
 
-unsigned int __cdecl FS_FOpenFileRead(const char *filename, int *file)
+int __cdecl FS_FOpenFileRead(const char *filename, int *file)
 {
     com_fileAccessed = 1;
     return FS_FOpenFileReadCurrentThread(filename, file);
