@@ -126,18 +126,9 @@ void __cdecl DObjGetSurfaceData(const DObj *obj, const float *origin, float scal
 
     if ( !obj && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\xanim\\dobj_utils.cpp", 220, 0, "%s", "obj") )
         __debugbreak();
-    if ( ((*(unsigned int *)origin & 0x7F800000) == 0x7F800000
-         || ((unsigned int)origin[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)origin[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\xanim\\dobj_utils.cpp",
-                    221,
-                    0,
-                    "%s",
-                    "!IS_NAN((origin)[0]) && !IS_NAN((origin)[1]) && !IS_NAN((origin)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(origin);
+
     modelCount = DObjGetNumModels(obj);
     if ( modelCount > 32
         && !Assert_MyHandler(
@@ -151,16 +142,10 @@ void __cdecl DObjGetSurfaceData(const DObj *obj, const float *origin, float scal
     }
     BaseLodDist = R_GetBaseLodDist(origin);
     baseDist = I_fres(scale) * BaseLodDist;
-    if ( (LODWORD(scale) & 0x7F800000) == 0x7F800000
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\xanim\\dobj_utils.cpp", 228, 0, "%s", "!IS_NAN(scale)") )
-    {
-        __debugbreak();
-    }
-    if ( (LODWORD(baseDist) & 0x7F800000) == 0x7F800000
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\xanim\\dobj_utils.cpp", 229, 0, "%s", "!IS_NAN(baseDist)") )
-    {
-        __debugbreak();
-    }
+
+    iassert(!IS_NAN(scale));
+    iassert(!IS_NAN(baseDist));
+    
     for ( modelIndex = 0; modelIndex < modelCount; ++modelIndex )
     {
         model = DObjGetModel(obj, modelIndex);

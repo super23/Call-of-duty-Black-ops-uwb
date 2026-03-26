@@ -403,30 +403,10 @@ char __cdecl CL_GetPredictedOriginForServerTime(
             viewangles[2] = cl->clientArchive[index].viewangles[2];
             *bobCycle = cl->clientArchive[index].bobCycle;
             *movementDir = cl->clientArchive[index].movementDir;
-            if ( ((*(unsigned int *)predictedOrigin & 0x7F800000) == 0x7F800000
-                 || ((unsigned int)predictedOrigin[1] & 0x7F800000) == 0x7F800000
-                 || ((unsigned int)predictedOrigin[2] & 0x7F800000) == 0x7F800000)
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\client_mp\\cl_parse_mp.cpp",
-                            146,
-                            0,
-                            "%s",
-                            "!IS_NAN((predictedOrigin)[0]) && !IS_NAN((predictedOrigin)[1]) && !IS_NAN((predictedOrigin)[2])") )
-            {
-                __debugbreak();
-            }
-            if ( ((*(unsigned int *)predictedVelocity & 0x7F800000) == 0x7F800000
-                 || ((unsigned int)predictedVelocity[1] & 0x7F800000) == 0x7F800000
-                 || ((unsigned int)predictedVelocity[2] & 0x7F800000) == 0x7F800000)
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\client_mp\\cl_parse_mp.cpp",
-                            147,
-                            0,
-                            "%s",
-                            "!IS_NAN((predictedVelocity)[0]) && !IS_NAN((predictedVelocity)[1]) && !IS_NAN((predictedVelocity)[2])") )
-            {
-                __debugbreak();
-            }
+
+            nanassertvec3(predictedOrigin);
+            nanassertvec3(predictedVelocity);
+
             return 1;
         }
     }

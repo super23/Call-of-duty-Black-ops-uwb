@@ -1160,30 +1160,8 @@ void __cdecl HELI_CalcAccel(gentity_s *ent, char *move, float *bodyAccel, float 
         *rotAccel = (float)(frac * veh->jitter.jitterPos[0]) + *rotAccel;
         rotAccel[2] = (float)(frac * veh->jitter.jitterPos[2]) + rotAccel[2];
     }
-    if ( ((*(unsigned int *)bodyAccel & 0x7F800000) == 0x7F800000
-         || ((unsigned int)bodyAccel[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)bodyAccel[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_helicopter.cpp",
-                    447,
-                    0,
-                    "%s",
-                    "!IS_NAN((bodyAccel)[0]) && !IS_NAN((bodyAccel)[1]) && !IS_NAN((bodyAccel)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)rotAccel & 0x7F800000) == 0x7F800000
-         || ((unsigned int)rotAccel[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)rotAccel[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_helicopter.cpp",
-                    448,
-                    0,
-                    "%s",
-                    "!IS_NAN((rotAccel)[0]) && !IS_NAN((rotAccel)[1]) && !IS_NAN((rotAccel)[2])") )
-    {
-        __debugbreak();
-    }
+    nanassertvec3(bodyAccel);
+    nanassertvec3(rotAccel);
 }
 
 void __cdecl HELI_CmdScale(char *move, float *outFracs)

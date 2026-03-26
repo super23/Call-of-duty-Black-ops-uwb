@@ -1217,30 +1217,10 @@ LABEL_6:
         __debugbreak();
     }
     pos = (const unsigned __int8 *)(SL_ConvertToString(obj->duplicateParts, SCRIPTINSTANCE_SERVER) + 20);
-    if ( ((*(unsigned int *)start & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\xanim\\dobj.cpp",
-                    1780,
-                    0,
-                    "%s",
-                    "!IS_NAN((start)[0]) && !IS_NAN((start)[1]) && !IS_NAN((start)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)end & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\xanim\\dobj.cpp",
-                    1781,
-                    0,
-                    "%s",
-                    "!IS_NAN((end)[0]) && !IS_NAN((end)[1]) && !IS_NAN((end)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(start);
+    nanassertvec3(end);
+
     globalBoneIndex = 0;
     hitT = -1;
     traceHitT = -1;
@@ -1406,18 +1386,8 @@ LABEL_25:
                                     sign = -1.0f;
                                     for ( bounds = (float *)boneInfo; ; bounds += 3 )
                                     {
-                                        if ( ((*(unsigned int *)bounds & 0x7F800000) == 0x7F800000
-                                             || ((unsigned int)bounds[1] & 0x7F800000) == 0x7F800000
-                                             || ((unsigned int)bounds[2] & 0x7F800000) == 0x7F800000)
-                                            && !Assert_MyHandler(
-                                                        "C:\\projects_pc\\cod\\codsrc\\src\\xanim\\dobj.cpp",
-                                                        1905,
-                                                        0,
-                                                        "%s",
-                                                        "!IS_NAN((bounds)[0]) && !IS_NAN((bounds)[1]) && !IS_NAN((bounds)[2])") )
-                                        {
-                                            __debugbreak();
-                                        }
+                                        nanassertvec3(bounds);
+
                                         for ( t = 0; t < 3; ++t )
                                         {
                                             dist1 = (float)(localStart[t] - bounds[t]) * sign;

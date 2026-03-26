@@ -285,54 +285,12 @@ bool __cdecl Turret_PlaceTurret_UpdateFooting(
     {
         __debugbreak();
     }
-    if ( ((*(unsigned int *)outOrigin & 0x7F800000) == 0x7F800000
-         || ((unsigned int)outOrigin[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)outOrigin[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\turret\\turret_placement.cpp",
-                    142,
-                    0,
-                    "%s",
-                    "!IS_NAN((outOrigin)[0]) && !IS_NAN((outOrigin)[1]) && !IS_NAN((outOrigin)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((LODWORD((*outAxis)[0]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*outAxis)[1]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*outAxis)[2]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\turret\\turret_placement.cpp",
-                    143,
-                    0,
-                    "%s",
-                    "!IS_NAN((outAxis[0])[0]) && !IS_NAN((outAxis[0])[1]) && !IS_NAN((outAxis[0])[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((LODWORD((*outAxis)[3]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*outAxis)[4]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*outAxis)[5]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\turret\\turret_placement.cpp",
-                    144,
-                    0,
-                    "%s",
-                    "!IS_NAN((outAxis[1])[0]) && !IS_NAN((outAxis[1])[1]) && !IS_NAN((outAxis[1])[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((LODWORD((*outAxis)[6]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*outAxis)[7]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*outAxis)[8]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\turret\\turret_placement.cpp",
-                    145,
-                    0,
-                    "%s",
-                    "!IS_NAN((outAxis[2])[0]) && !IS_NAN((outAxis[2])[1]) && !IS_NAN((outAxis[2])[2])") )
-    {
-        __debugbreak();
-    }
+    nanassertvec3(outOrigin);
+
+    nanassertvec3(outAxis[0]);
+    nanassertvec3(outAxis[1]);
+    nanassertvec3(outAxis[2]);
+
     value = turret_placement_feet_offset->current.value;
     legPosition[0][0] = (float)(value * (*outAxis)[0]) + *outOrigin;
     legPosition[0][1] = (float)(value * (*outAxis)[1]) + outOrigin[1];

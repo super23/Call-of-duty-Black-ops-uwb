@@ -992,18 +992,8 @@ void __cdecl SND_UpdateVoicePosition(snd_voice_t *voice, const float *startPosit
 
     if ( startPosition )
     {
-        if ( ((*(unsigned int *)startPosition & 0x7F800000) == 0x7F800000
-             || ((unsigned int)startPosition[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)startPosition[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd.cpp",
-                        575,
-                        0,
-                        "%s",
-                        "!IS_NAN((startPosition)[0]) && !IS_NAN((startPosition)[1]) && !IS_NAN((startPosition)[2])") )
-        {
-            __debugbreak();
-        }
+        nanassertvec3(startPosition);
+        
         if ( !((voice->alias->flags & 2) >> 1) )
         {
             voice->entity_update = SND_ENTITY_UPDATE_NEVER;
@@ -1859,18 +1849,9 @@ unsigned int __cdecl SND_PlaySoundAlias(
 
     if ( !org && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd.cpp", 1441, 0, "%s", "org") )
         __debugbreak();
-    if ( ((*(unsigned int *)org & 0x7F800000) == 0x7F800000
-         || ((unsigned int)org[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)org[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd.cpp",
-                    1442,
-                    0,
-                    "%s",
-                    "!IS_NAN((org)[0]) && !IS_NAN((org)[1]) && !IS_NAN((org)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(org);
+    
     if ( (((unsigned int)sndEnt.handle >> 19) & 3) != 0
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd.cpp",

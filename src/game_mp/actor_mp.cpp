@@ -1971,18 +1971,9 @@ void __cdecl Actor_Pain(
     }
     if ( !vDir && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\actor_mp.cpp", 1777, 0, "%s", "vDir") )
         __debugbreak();
-    if ( ((*(unsigned int *)vDir & 0x7F800000) == 0x7F800000
-         || ((unsigned int)vDir[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)vDir[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\actor_mp.cpp",
-                    1778,
-                    0,
-                    "%s",
-                    "!IS_NAN((vDir)[0]) && !IS_NAN((vDir)[1]) && !IS_NAN((vDir)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(vDir);
+
     if ( actor->stateLevel >= 6
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\actor_mp.cpp",
@@ -2083,18 +2074,9 @@ void __cdecl Actor_Die(
     }
     if ( !vDir && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\actor_mp.cpp", 1850, 0, "%s", "vDir") )
         __debugbreak();
-    if ( ((*(unsigned int *)vDir & 0x7F800000) == 0x7F800000
-         || ((unsigned int)vDir[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)vDir[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\actor_mp.cpp",
-                    1851,
-                    0,
-                    "%s",
-                    "!IS_NAN((vDir)[0]) && !IS_NAN((vDir)[1]) && !IS_NAN((vDir)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(vDir);
+
     if ( !actor->ent
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\actor_mp.cpp", 1864, 0, "%s", "actor->ent") )
     {

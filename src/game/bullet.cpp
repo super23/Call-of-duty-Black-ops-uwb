@@ -182,69 +182,17 @@ void __cdecl Bullet_Endpos(int randSeed, float spread, float *end, float *dir, c
     {
         __debugbreak();
     }
-    if ( ((LODWORD(wp->muzzleTrace[0]) & 0x7F800000) == 0x7F800000
-         || (LODWORD(wp->muzzleTrace[1]) & 0x7F800000) == 0x7F800000
-         || (LODWORD(wp->muzzleTrace[2]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\bullet.cpp",
-                    127,
-                    0,
-                    "%s",
-                    "!IS_NAN((wp->muzzleTrace)[0]) && !IS_NAN((wp->muzzleTrace)[1]) && !IS_NAN((wp->muzzleTrace)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((LODWORD(wp->forward[0]) & 0x7F800000) == 0x7F800000
-         || (LODWORD(wp->forward[1]) & 0x7F800000) == 0x7F800000
-         || (LODWORD(wp->forward[2]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\bullet.cpp",
-                    128,
-                    0,
-                    "%s",
-                    "!IS_NAN((wp->forward)[0]) && !IS_NAN((wp->forward)[1]) && !IS_NAN((wp->forward)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((LODWORD(wp->right[0]) & 0x7F800000) == 0x7F800000
-         || (LODWORD(wp->right[1]) & 0x7F800000) == 0x7F800000
-         || (LODWORD(wp->right[2]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\bullet.cpp",
-                    129,
-                    0,
-                    "%s",
-                    "!IS_NAN((wp->right)[0]) && !IS_NAN((wp->right)[1]) && !IS_NAN((wp->right)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((LODWORD(wp->up[0]) & 0x7F800000) == 0x7F800000
-         || (LODWORD(wp->up[1]) & 0x7F800000) == 0x7F800000
-         || (LODWORD(wp->up[2]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\bullet.cpp",
-                    130,
-                    0,
-                    "%s",
-                    "!IS_NAN((wp->up)[0]) && !IS_NAN((wp->up)[1]) && !IS_NAN((wp->up)[2])") )
-    {
-        __debugbreak();
-    }
+    nanassertvec3(wp->muzzleTrace);
+    nanassertvec3(wp->forward);
+    nanassertvec3(wp->right);
+    nanassertvec3(wp->up);
+
     *end = (float)(maxRange * wp->forward[0]) + wp->muzzleTrace[0];
     end[1] = (float)(maxRange * wp->forward[1]) + wp->muzzleTrace[1];
     end[2] = (float)(maxRange * wp->forward[2]) + wp->muzzleTrace[2];
-    if ( ((*(unsigned int *)end & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\bullet.cpp",
-                    134,
-                    0,
-                    "%s",
-                    "!IS_NAN((end)[0]) && !IS_NAN((end)[1]) && !IS_NAN((end)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(end);
+
     v8 = right;
     *end = (float)(right * wp->right[0]) + *end;
     end[1] = (float)(v8 * wp->right[1]) + end[1];
@@ -253,36 +201,17 @@ void __cdecl Bullet_Endpos(int randSeed, float spread, float *end, float *dir, c
     *end = (float)(up * wp->up[0]) + *end;
     end[1] = (float)(v7 * wp->up[1]) + end[1];
     end[2] = (float)(v7 * wp->up[2]) + end[2];
-    if ( ((*(unsigned int *)end & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\bullet.cpp",
-                    139,
-                    0,
-                    "%s",
-                    "!IS_NAN((end)[0]) && !IS_NAN((end)[1]) && !IS_NAN((end)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(end);
+
     if ( dir )
     {
         *dir = *end - wp->muzzleTrace[0];
         dir[1] = end[1] - wp->muzzleTrace[1];
         dir[2] = end[2] - wp->muzzleTrace[2];
         Vec3Normalize(dir);
-        if ( ((*(unsigned int *)dir & 0x7F800000) == 0x7F800000
-             || ((unsigned int)dir[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)dir[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game\\bullet.cpp",
-                        146,
-                        0,
-                        "%s",
-                        "!IS_NAN((dir)[0]) && !IS_NAN((dir)[1]) && !IS_NAN((dir)[2])") )
-        {
-            __debugbreak();
-        }
+
+        nanassertvec3(dir);
     }
 }
 

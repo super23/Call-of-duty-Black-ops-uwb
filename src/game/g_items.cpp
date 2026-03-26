@@ -762,30 +762,10 @@ gentity_s *__cdecl LaunchItem(const gitem_s *item, float *origin, float *angles,
 
     if ( !item && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_items.cpp", 733, 0, "%s", "item") )
         __debugbreak();
-    if ( ((*(unsigned int *)origin & 0x7F800000) == 0x7F800000
-         || ((unsigned int)origin[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)origin[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_items.cpp",
-                    735,
-                    0,
-                    "%s",
-                    "!IS_NAN((origin)[0]) && !IS_NAN((origin)[1]) && !IS_NAN((origin)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)velocity & 0x7F800000) == 0x7F800000
-         || ((unsigned int)velocity[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)velocity[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_items.cpp",
-                    736,
-                    0,
-                    "%s",
-                    "!IS_NAN((velocity)[0]) && !IS_NAN((velocity)[1]) && !IS_NAN((velocity)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(origin);
+    nanassertvec3(velocity);
+
     itemIndex = ((char *)item - (char *)bg_itemlist) >> 2;
     dropped = G_Spawn();
     dropIdx = GetFreeDropCueIdx();

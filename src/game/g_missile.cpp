@@ -4962,18 +4962,9 @@ LABEL_36:
     *vLandPos = org[0];
     vLandPos[1] = org[1];
     vLandPos[2] = org[2];
-    if ( ((*(unsigned int *)vLandPos & 0x7F800000) == 0x7F800000
-         || ((unsigned int)vLandPos[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)vLandPos[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_missile.cpp",
-                    4084,
-                    0,
-                    "%s",
-                    "!IS_NAN((vLandPos)[0]) && !IS_NAN((vLandPos)[1]) && !IS_NAN((vLandPos)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(vLandPos);
+
     memcpy(ent, &backupEnt, sizeof(gentity_s));
     if (allowBounce && (ent->s.lerp.eFlags & 0x1000000) != 0)
         return ent->nextthink;

@@ -882,54 +882,11 @@ void __cdecl CG_TraceCapsule(
     {
         __debugbreak();
     }
-    if ( ((*(unsigned int *)mins & 0x7F800000) == 0x7F800000
-         || ((unsigned int)mins[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)mins[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp",
-                    864,
-                    0,
-                    "%s",
-                    "!IS_NAN((mins)[0]) && !IS_NAN((mins)[1]) && !IS_NAN((mins)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)maxs & 0x7F800000) == 0x7F800000
-         || ((unsigned int)maxs[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)maxs[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp",
-                    864,
-                    0,
-                    "%s",
-                    "!IS_NAN((maxs)[0]) && !IS_NAN((maxs)[1]) && !IS_NAN((maxs)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)start & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp",
-                    865,
-                    0,
-                    "%s",
-                    "!IS_NAN((start)[0]) && !IS_NAN((start)[1]) && !IS_NAN((start)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)end & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp",
-                    866,
-                    0,
-                    "%s",
-                    "!IS_NAN((end)[0]) && !IS_NAN((end)[1]) && !IS_NAN((end)[2])") )
-    {
-        __debugbreak();
-    }
+    nanassertvec3(mins);
+    nanassertvec3(maxs);
+    nanassertvec3(start);
+    nanassertvec3(end);
+
     CM_BoxTrace(results, start, end, mins, maxs, contentMask, context);
     if ( (LODWORD(results->fraction) & 0x7F800000) == 0x7F800000
         && !Assert_MyHandler(
@@ -1080,30 +1037,10 @@ void __cdecl CG_ClipMoveToEntities_r(
 
     if ( !clip && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp", 443, 0, "%s", "clip") )
         __debugbreak();
-    if ( ((*(unsigned int *)p1 & 0x7F800000) == 0x7F800000
-         || ((unsigned int)p1[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)p1[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp",
-                    444,
-                    0,
-                    "%s",
-                    "!IS_NAN((p1)[0]) && !IS_NAN((p1)[1]) && !IS_NAN((p1)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)p2 & 0x7F800000) == 0x7F800000
-         || ((unsigned int)p2[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)p2[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp",
-                    445,
-                    0,
-                    "%s",
-                    "!IS_NAN((p2)[0]) && !IS_NAN((p2)[1]) && !IS_NAN((p2)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(p1);
+    nanassertvec3(p2);
+
     if ( !results && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp", 446, 0, "%s", "results") )
         __debugbreak();
     if ( results->fraction > 1.0
@@ -1490,30 +1427,10 @@ void __cdecl CG_TracePoint(
     IgnoreEntParams ignoreEntParams; // [esp+A0h] [ebp-10h] BYREF
 
     //PIXBeginNamedEvent(-1, "CG_TracePoint");
-    if ( ((*(unsigned int *)start & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp",
-                    923,
-                    0,
-                    "%s",
-                    "!IS_NAN((start)[0]) && !IS_NAN((start)[1]) && !IS_NAN((start)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)end & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp",
-                    924,
-                    0,
-                    "%s",
-                    "!IS_NAN((end)[0]) && !IS_NAN((end)[1]) && !IS_NAN((end)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(start);
+    nanassertvec3(end);
+
     CM_BoxTrace(results, start, end, vec3_origin, vec3_origin, contentMask, context);
     if ( (LODWORD(results->fraction) & 0x7F800000) == 0x7F800000
         && !Assert_MyHandler(
@@ -1776,30 +1693,10 @@ int __cdecl CG_AreaEntities(const float *mins, const float *maxs, int *entityLis
     {
         __debugbreak();
     }
-    if ( ((*(unsigned int *)mins & 0x7F800000) == 0x7F800000
-         || ((unsigned int)mins[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)mins[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp",
-                    1097,
-                    0,
-                    "%s",
-                    "!IS_NAN((mins)[0]) && !IS_NAN((mins)[1]) && !IS_NAN((mins)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)maxs & 0x7F800000) == 0x7F800000
-         || ((unsigned int)maxs[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)maxs[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp",
-                    1097,
-                    0,
-                    "%s",
-                    "!IS_NAN((maxs)[0]) && !IS_NAN((maxs)[1]) && !IS_NAN((maxs)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(mins);
+    nanassertvec3(maxs);
+
     if ( maxEntities <= 0
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp",
@@ -1834,30 +1731,10 @@ bool __cdecl CG_SightTracePointInternal(int *hitNum, const float *start, const f
     traceWork_t tw; // [esp+48h] [ebp-E8h] BYREF
 
     //traceWork_t::traceWork_t(&tw);
-    if ( ((*(unsigned int *)start & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp",
-                    1123,
-                    0,
-                    "%s",
-                    "!IS_NAN((start)[0]) && !IS_NAN((start)[1]) && !IS_NAN((start)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)end & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp",
-                    1124,
-                    0,
-                    "%s",
-                    "!IS_NAN((end)[0]) && !IS_NAN((end)[1]) && !IS_NAN((end)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(start);
+    nanassertvec3(end);
+
     if ( !cm.numNodes
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_world.cpp", 1126, 0, "%s", "cm.numNodes") )
     {

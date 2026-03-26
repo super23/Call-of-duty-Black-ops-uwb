@@ -1579,42 +1579,10 @@ PhysObjUserData *__cdecl Phys_ObjCreate(
 {
     float axis[3][3]; // [esp+24h] [ebp-24h] BYREF
 
-    if ( ((*(unsigned int *)position & 0x7F800000) == 0x7F800000
-         || ((unsigned int)position[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)position[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp",
-                    964,
-                    0,
-                    "%s",
-                    "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)quat & 0x7F800000) == 0x7F800000
-         || ((unsigned int)quat[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)quat[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp",
-                    965,
-                    0,
-                    "%s",
-                    "!IS_NAN((quat)[0]) && !IS_NAN((quat)[1]) && !IS_NAN((quat)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)velocity & 0x7F800000) == 0x7F800000
-         || ((unsigned int)velocity[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)velocity[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp",
-                    966,
-                    0,
-                    "%s",
-                    "!IS_NAN((velocity)[0]) && !IS_NAN((velocity)[1]) && !IS_NAN((velocity)[2])") )
-    {
-        __debugbreak();
-    }
+    nanassertvec3(position);
+    nanassertvec3(quat);
+    nanassertvec3(velocity);
+
     if ( !physInited
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp", 968, 0, "%s", "physInited") )
     {
@@ -1648,30 +1616,9 @@ PhysObjUserData *__cdecl Phys_ObjCreateAxis(
     BodyState state; // [esp+24h] [ebp-90h] BYREF
     int savedregs; // [esp+B4h] [ebp+0h] BYREF
 
-    if ( ((*(unsigned int *)position & 0x7F800000) == 0x7F800000
-         || ((unsigned int)position[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)position[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp",
-                    928,
-                    0,
-                    "%s",
-                    "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)velocity & 0x7F800000) == 0x7F800000
-         || ((unsigned int)velocity[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)velocity[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp",
-                    929,
-                    0,
-                    "%s",
-                    "!IS_NAN((velocity)[0]) && !IS_NAN((velocity)[1]) && !IS_NAN((velocity)[2])") )
-    {
-        __debugbreak();
-    }
+    nanassertvec3(position);
+    nanassertvec3(velocity);
+
     if ( !physInited
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp", 931, 0, "%s", "physInited") )
     {

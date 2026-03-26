@@ -386,19 +386,11 @@ void __cdecl CG_GetSoundEntityOrientation(
         velocity_out[1] = 0.0f;
         velocity_out[2] = 0.0f;
     }
-    if ( velocity_out
-        && ((*(unsigned int *)velocity_out & 0x7F800000) == 0x7F800000
-         || ((unsigned int)velocity_out[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)velocity_out[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_sound.cpp",
-                    423,
-                    0,
-                    "%s",
-                    "!IS_NAN((velocity_out)[0]) && !IS_NAN((velocity_out)[1]) && !IS_NAN((velocity_out)[2])") )
+    if (velocity_out)
     {
-        __debugbreak();
+        nanassertvec3(velocity_out);
     }
+    
     CG_CopySoundEntityOrientation(0, *(_WORD *)&sndEnt.field & 0xFFF, origin_out, axis_out);
 }
 
@@ -421,54 +413,11 @@ void __cdecl CG_CopySoundEntityOrientation(int localClientNum, int entIndex, flo
     origin_out[1] = cent->pose.origin[1];
     origin_out[2] = cent->pose.origin[2];
     AnglesToAxis(cent->pose.angles, axis_out);
-    if ( ((*(unsigned int *)origin_out & 0x7F800000) == 0x7F800000
-         || ((unsigned int)origin_out[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)origin_out[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_sound.cpp",
-                    361,
-                    0,
-                    "%s",
-                    "!IS_NAN((origin_out)[0]) && !IS_NAN((origin_out)[1]) && !IS_NAN((origin_out)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((LODWORD((*axis_out)[0]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*axis_out)[1]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*axis_out)[2]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_sound.cpp",
-                    362,
-                    0,
-                    "%s",
-                    "!IS_NAN((axis_out[0])[0]) && !IS_NAN((axis_out[0])[1]) && !IS_NAN((axis_out[0])[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((LODWORD((*axis_out)[3]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*axis_out)[4]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*axis_out)[5]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_sound.cpp",
-                    363,
-                    0,
-                    "%s",
-                    "!IS_NAN((axis_out[1])[0]) && !IS_NAN((axis_out[1])[1]) && !IS_NAN((axis_out[1])[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((LODWORD((*axis_out)[6]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*axis_out)[7]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*axis_out)[8]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_sound.cpp",
-                    364,
-                    0,
-                    "%s",
-                    "!IS_NAN((axis_out[2])[0]) && !IS_NAN((axis_out[2])[1]) && !IS_NAN((axis_out[2])[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(origin_out);
+    nanassertvec3(axis_out[0]);
+    nanassertvec3(axis_out[1]);
+    nanassertvec3(axis_out[2]);
 }
 
 void __cdecl CG_StopSoundAlias(int localClientNum, int entityNum, unsigned int aliasName)

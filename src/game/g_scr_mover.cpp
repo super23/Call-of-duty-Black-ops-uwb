@@ -625,18 +625,9 @@ void __cdecl ScriptMover_GravityMove(gentity_s *mover, const float *velocity, fl
 
     if ( !mover && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_mover.cpp", 356, 0, "%s", "mover") )
         __debugbreak();
-    if ( ((*(unsigned int *)velocity & 0x7F800000) == 0x7F800000
-         || ((unsigned int)velocity[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)velocity[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_mover.cpp",
-                    357,
-                    0,
-                    "%s",
-                    "!IS_NAN((velocity)[0]) && !IS_NAN((velocity)[1]) && !IS_NAN((velocity)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(velocity);
+
     trajectory = &mover->s.lerp.pos;
     mover->s.lerp.pos.trTime = level.time;
     mover->s.lerp.pos.trDuration = (int)(float)(totalTime * 1000.0);

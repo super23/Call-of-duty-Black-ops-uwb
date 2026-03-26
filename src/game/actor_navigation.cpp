@@ -16,43 +16,16 @@ double __fastcall Path_GetPathDir(float *delta, const float *vFrom, const float 
 
     *delta = *vTo - *vFrom;
     delta[1] = vTo[1] - vFrom[1];
-    if ( (*(unsigned int *)delta & 0x7F800000) == 0x7F800000
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_navigation.cpp",
-                    68,
-                    0,
-                    "%s",
-                    "!IS_NAN(delta[0])") )
-    {
-        __debugbreak();
-    }
-    if ( ((unsigned int)delta[1] & 0x7F800000) == 0x7F800000
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_navigation.cpp",
-                    69,
-                    0,
-                    "%s",
-                    "!IS_NAN(delta[1])") )
-    {
-        __debugbreak();
-    }
-    if ( *delta == 0.0
-        && delta[1] == 0.0
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_navigation.cpp",
-                    70,
-                    0,
-                    "%s",
-                    "delta[0] || delta[1]") )
-    {
-        __debugbreak();
-    }
+    
+    iassert(!IS_NAN(delta[0]));
+    iassert(!IS_NAN(delta[1]));
+    
+    iassert(delta[0] || delta[1]);
+    
     fDist = Vec2Length(delta);
-    if ( fDist <= 0.0
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_navigation.cpp", 72, 0, "%s", "fDist > 0") )
-    {
-        __debugbreak();
-    }
+
+    iassert(fDist > 0);
+    
     *delta = (float)(1.0 / fDist) * *delta;
     delta[1] = (float)(1.0 / fDist) * delta[1];
     return fDist;

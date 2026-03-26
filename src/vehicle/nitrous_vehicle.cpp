@@ -366,30 +366,9 @@ PhysObjUserData *__cdecl Phys_ObjCreateNitrousVehicle(
     float axis[3][3]; // [esp+A4h] [ebp-24h] BYREF
     int savedregs; // [esp+C8h] [ebp+0h] BYREF
 
-    if ( ((*(unsigned int *)position & 0x7F800000) == 0x7F800000
-         || ((unsigned int)position[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)position[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\vehicle\\nitrous_vehicle.cpp",
-                    232,
-                    0,
-                    "%s",
-                    "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)velocity & 0x7F800000) == 0x7F800000
-         || ((unsigned int)velocity[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)velocity[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\vehicle\\nitrous_vehicle.cpp",
-                    233,
-                    0,
-                    "%s",
-                    "!IS_NAN((velocity)[0]) && !IS_NAN((velocity)[1]) && !IS_NAN((velocity)[2])") )
-    {
-        __debugbreak();
-    }
+    nanassertvec3(position);
+    nanassertvec3(velocity);
+
     if ( !physPreset
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\vehicle\\nitrous_vehicle.cpp", 235, 0, "%s", "physPreset") )
     {
@@ -3588,30 +3567,10 @@ void __thiscall NitrousVehicle::GetEntityPose(
             angles[2] = rbAngles[2];
         }
         Sys_LeaveCriticalSection(CRITSECT_PHYSICS_UPDATE);
-        if ( ((*(unsigned int *)origin & 0x7F800000) == 0x7F800000
-             || ((unsigned int)origin[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)origin[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\vehicle\\nitrous_vehicle.cpp",
-                        2369,
-                        0,
-                        "%s",
-                        "!IS_NAN((origin)[0]) && !IS_NAN((origin)[1]) && !IS_NAN((origin)[2])") )
-        {
-            __debugbreak();
-        }
-        if ( ((*(unsigned int *)angles & 0x7F800000) == 0x7F800000
-             || ((unsigned int)angles[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)angles[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\vehicle\\nitrous_vehicle.cpp",
-                        2370,
-                        0,
-                        "%s",
-                        "!IS_NAN((angles)[0]) && !IS_NAN((angles)[1]) && !IS_NAN((angles)[2])") )
-        {
-            __debugbreak();
-        }
+
+        nanassertvec3(origin);
+        nanassertvec3(angles);
+
     }
     else
     {

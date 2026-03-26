@@ -2036,18 +2036,8 @@ void __cdecl CG_Calc3rdPersonSpringDamp(
     *newPos = (float)((float)(forceMag * deltaTime) * disp[0]) + *currPos;
     newPos[1] = (float)((float)(forceMag * deltaTime) * disp[1]) + currPos[1];
     newPos[2] = (float)((float)(forceMag * deltaTime) * disp[2]) + currPos[2];
-    if ( ((*(unsigned int *)newPos & 0x7F800000) == 0x7F800000
-         || ((unsigned int)newPos[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)newPos[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_camera.cpp",
-                    2000,
-                    0,
-                    "%s",
-                    "!IS_NAN((newPos)[0]) && !IS_NAN((newPos)[1]) && !IS_NAN((newPos)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(newPos);
 }
 
 double __cdecl GetPitchOffsetRelativeToADirection(const float *angles, const float *direction)

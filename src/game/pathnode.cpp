@@ -354,27 +354,22 @@ void    node_droptofloor(pathnode_t *node)
     //v20[1] = (_UNKNOWN *)vars0;
     //memset(&trace, 0, 16);
     //col_context_t::col_context_t(&context);
-    //LODWORD(vOrigin[3]) = node + 20;
+    //LODWORD(vOrigin[3]) = node->constant.vOrigin;
     vOrigin[0] = node->constant.vOrigin[0];
     vOrigin[1] = node->constant.vOrigin[1];
     vOrigin[2] = node->constant.vOrigin[2];
-
     vEnd[0] = vOrigin[0];
     vEnd[1] = vOrigin[1];
     vEnd[2] = vOrigin[2] - 256.0;
-
     endpos[0] = vOrigin[0];
     endpos[1] = vOrigin[1];
     endpos[2] = vOrigin[2] + 1.0;
-
     dropMins[0] = actorMins[0];
     dropMins[1] = actorMins[1];
     dropMins[2] = actorMins[2];
-
     dropMaxs[0] = actorMaxs[0];
     dropMaxs[1] = actorMaxs[1];
     dropMaxs[2] = (float)(15.0 - -15.0) + 0.0;
-
     G_TraceCapsule(&trace, endpos, dropMins, dropMaxs, vEnd, 1023, 0x820011, &context);
     if (trace.startsolid || trace.allsolid)
         goto LABEL_3;
@@ -382,18 +377,18 @@ void    node_droptofloor(pathnode_t *node)
     {
         printf(
             "ERROR: Pathnode (%s) at (%g %g %g) is floating\n",
-            nodeStringTable[*(_DWORD *)node],
+            nodeStringTable[node->constant.type],
             vOrigin[0],
             vOrigin[1],
             vOrigin[2]);
         Com_PrintError(
             1,
             "ERROR: Pathnode (%s) at (%g %g %g) is floating\n",
-            nodeStringTable[*(_DWORD *)node],
+            nodeStringTable[node->constant.type],
             vOrigin[0],
             vOrigin[1],
             vOrigin[2]);
-        *(_DWORD *)node = 0;
+        node->constant.type = NODE_BADNODE;
     }
     else
     {
@@ -406,25 +401,25 @@ void    node_droptofloor(pathnode_t *node)
         LABEL_3:
             printf(
                 "ERROR: Pathnode (%s) at (%g %g %g) is in solid\n",
-                nodeStringTable[*(_DWORD *)node],
+                nodeStringTable[node->constant.type],
                 vOrigin[0],
                 vOrigin[1],
                 vOrigin[2]);
             Com_PrintError(
                 1,
                 "ERROR: Pathnode (%s) at (%g %g %g) is in solid\n",
-                nodeStringTable[*(_DWORD *)node],
+                nodeStringTable[node->constant.type],
                 vOrigin[0],
                 vOrigin[1],
                 vOrigin[2]);
-            *(_DWORD *)node = 0;
+            node->constant.type = NODE_BADNODE;
             return;
         }
-        v10 = (float *)(node + 20);
-        *(float *)(node + 20) = endpos[0];
+        v10 = node->constant.vOrigin;
+        node->constant.vOrigin[0] = endpos[0];
         v10[1] = endpos[1];
         v10[2] = endpos[2];
-        if ((*(_WORD *)(node + 4) & 0x100) != 0
+        if ((node->constant.spawnflags & 0x100) != 0
             && save_hitType == TRACE_HITTYPE_ENTITY
             && LOWORD(save_hitId) < 0x3FEu
             && enable_moving_paths->current.integer == 1)
@@ -436,7 +431,7 @@ void    node_droptofloor(pathnode_t *node)
                 AnglesToAxis(gent->r.currentAngles, (float (*)[3])v7);
                 Phys_AxisToNitrousMat((float (*)[3])v7, &gent_mat);
                 Phys_Vec3ToNitrousVec(gent->r.currentOrigin, &gent_mat.w);
-                Phys_Vec3ToNitrousVec((float *)(node + 20), &node_pos);
+                Phys_Vec3ToNitrousVec(node->constant.vOrigin, &node_pos);
                 v3 = phys_full_inv_multiply(&v4, &gent_mat, &node_pos);
                 node_pos.x = v3->x;
                 node_pos.y = v3->y;

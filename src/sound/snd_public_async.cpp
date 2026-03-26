@@ -109,32 +109,10 @@ void __cdecl SND_PlayInternal(
         {
             __debugbreak();
         }
-        if ( position
-            && ((*(unsigned int *)position & 0x7F800000) == 0x7F800000
-             || ((unsigned int)position[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)position[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                        95,
-                        0,
-                        "%s",
-                        "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])") )
-        {
-            __debugbreak();
-        }
-        if ( direction
-            && ((*(unsigned int *)direction & 0x7F800000) == 0x7F800000
-             || ((unsigned int)direction[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)direction[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                        99,
-                        0,
-                        "%s",
-                        "!IS_NAN((direction)[0]) && !IS_NAN((direction)[1]) && !IS_NAN((direction)[2])") )
-        {
-            __debugbreak();
-        }
+
+        nanassertvec3(position);
+        nanassertvec3(direction);
+
         if ( snd_assert_on_enqueue
             && snd_assert_on_enqueue->current.integer
             && *(_BYTE *)snd_assert_on_enqueue->current.integer
@@ -171,18 +149,8 @@ void __cdecl SND_PlayInternal(
             cmd->context.play.playback = playback;
             if ( position )
             {
-                if ( ((*(unsigned int *)position & 0x7F800000) == 0x7F800000
-                     || ((unsigned int)position[1] & 0x7F800000) == 0x7F800000
-                     || ((unsigned int)position[2] & 0x7F800000) == 0x7F800000)
-                    && !Assert_MyHandler(
-                                "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                                126,
-                                0,
-                                "%s",
-                                "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])") )
-                {
-                    __debugbreak();
-                }
+                nanassertvec3(position);
+
                 cmd->context.play.position[0] = *position;
                 cmd->context.play.position[1] = position[1];
                 cmd->context.play.position[2] = position[2];
@@ -195,18 +163,8 @@ void __cdecl SND_PlayInternal(
             }
             if ( direction )
             {
-                if ( ((*(unsigned int *)direction & 0x7F800000) == 0x7F800000
-                     || ((unsigned int)direction[1] & 0x7F800000) == 0x7F800000
-                     || ((unsigned int)direction[2] & 0x7F800000) == 0x7F800000)
-                    && !Assert_MyHandler(
-                                "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                                136,
-                                0,
-                                "%s",
-                                "!IS_NAN((direction)[0]) && !IS_NAN((direction)[1]) && !IS_NAN((direction)[2])") )
-                {
-                    __debugbreak();
-                }
+                nanassertvec3(direction);
+
                 cmd->context.play.direction[0] = *direction;
                 cmd->context.play.direction[1] = direction[1];
                 cmd->context.play.direction[2] = direction[2];
@@ -690,18 +648,8 @@ void __cdecl SND_PlayLoopAt(unsigned int id, const float *origin)
 
     if ( SND_Active() )
     {
-        if ( ((*(unsigned int *)origin & 0x7F800000) == 0x7F800000
-             || ((unsigned int)origin[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)origin[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                        697,
-                        0,
-                        "%s",
-                        "!IS_NAN((origin)[0]) && !IS_NAN((origin)[1]) && !IS_NAN((origin)[2])") )
-        {
-            __debugbreak();
-        }
+        nanassertvec3(origin);
+
         cmd = SND_GetNewCommand();
         if ( cmd )
         {
@@ -721,18 +669,8 @@ void __cdecl SND_StopLoopAt(unsigned int id, const float *origin)
 
     if ( SND_Active() )
     {
-        if ( ((*(unsigned int *)origin & 0x7F800000) == 0x7F800000
-             || ((unsigned int)origin[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)origin[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                        720,
-                        0,
-                        "%s",
-                        "!IS_NAN((origin)[0]) && !IS_NAN((origin)[1]) && !IS_NAN((origin)[2])") )
-        {
-            __debugbreak();
-        }
+        nanassertvec3(origin);
+
         cmd = SND_GetNewCommand();
         if ( cmd )
         {
@@ -752,30 +690,9 @@ void __cdecl SND_PlayLineAt(unsigned int id, const float *origin0, const float *
 
     if ( SND_Active() )
     {
-        if ( ((*(unsigned int *)origin0 & 0x7F800000) == 0x7F800000
-             || ((unsigned int)origin0[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)origin0[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                        743,
-                        0,
-                        "%s",
-                        "!IS_NAN((origin0)[0]) && !IS_NAN((origin0)[1]) && !IS_NAN((origin0)[2])") )
-        {
-            __debugbreak();
-        }
-        if ( ((*(unsigned int *)origin1 & 0x7F800000) == 0x7F800000
-             || ((unsigned int)origin1[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)origin1[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                        744,
-                        0,
-                        "%s",
-                        "!IS_NAN((origin1)[0]) && !IS_NAN((origin1)[1]) && !IS_NAN((origin1)[2])") )
-        {
-            __debugbreak();
-        }
+        nanassertvec3(origin0);
+        nanassertvec3(origin1);
+
         cmd = SND_GetNewCommand();
         if ( cmd )
         {
@@ -798,30 +715,9 @@ void __cdecl SND_StopLineAt(unsigned int id, const float *origin0, const float *
 
     if ( SND_Active() )
     {
-        if ( ((*(unsigned int *)origin0 & 0x7F800000) == 0x7F800000
-             || ((unsigned int)origin0[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)origin0[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                        767,
-                        0,
-                        "%s",
-                        "!IS_NAN((origin0)[0]) && !IS_NAN((origin0)[1]) && !IS_NAN((origin0)[2])") )
-        {
-            __debugbreak();
-        }
-        if ( ((*(unsigned int *)origin1 & 0x7F800000) == 0x7F800000
-             || ((unsigned int)origin1[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)origin1[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                        768,
-                        0,
-                        "%s",
-                        "!IS_NAN((origin1)[0]) && !IS_NAN((origin1)[1]) && !IS_NAN((origin1)[2])") )
-        {
-            __debugbreak();
-        }
+        nanassertvec3(origin0);
+        nanassertvec3(origin1);
+
         cmd = SND_GetNewCommand();
         if ( cmd )
         {
@@ -1050,66 +946,12 @@ void __cdecl SND_UpdateEntState(
     {
         __debugbreak();
     }
-    if ( ((*(unsigned int *)origin & 0x7F800000) == 0x7F800000
-         || ((unsigned int)origin[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)origin[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                    915,
-                    0,
-                    "%s",
-                    "!IS_NAN((origin)[0]) && !IS_NAN((origin)[1]) && !IS_NAN((origin)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)velocity & 0x7F800000) == 0x7F800000
-         || ((unsigned int)velocity[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)velocity[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                    916,
-                    0,
-                    "%s",
-                    "!IS_NAN((velocity)[0]) && !IS_NAN((velocity)[1]) && !IS_NAN((velocity)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((LODWORD((*orientation)[0]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*orientation)[1]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*orientation)[2]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                    917,
-                    0,
-                    "%s",
-                    "!IS_NAN((orientation[0])[0]) && !IS_NAN((orientation[0])[1]) && !IS_NAN((orientation[0])[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((LODWORD((*orientation)[3]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*orientation)[4]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*orientation)[5]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                    918,
-                    0,
-                    "%s",
-                    "!IS_NAN((orientation[1])[0]) && !IS_NAN((orientation[1])[1]) && !IS_NAN((orientation[1])[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((LODWORD((*orientation)[6]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*orientation)[7]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*orientation)[8]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                    919,
-                    0,
-                    "%s",
-                    "!IS_NAN((orientation[2])[0]) && !IS_NAN((orientation[2])[1]) && !IS_NAN((orientation[2])[2])") )
-    {
-        __debugbreak();
-    }
+    nanassertvec3(origin);
+    nanassertvec3(velocity);
+    nanassertvec3(orientation[0]);
+    nanassertvec3(orientation[1]);
+    nanassertvec3(orientation[2]);
+
     state = SND_FindEntState(handle, 1);
     if ( state )
     {

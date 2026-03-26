@@ -804,18 +804,9 @@ void __cdecl DestructibleExplosiveDamageEvent(
     if ( tent )
     {
         AssignToSmallerType<short>(&tent->s.otherEntityNum, self->s.number);
-        if ( ((*(unsigned int *)point & 0x7F800000) == 0x7F800000
-             || ((unsigned int)point[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)point[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\physics\\destructible.cpp",
-                        1025,
-                        0,
-                        "%s",
-                        "!IS_NAN((point)[0]) && !IS_NAN((point)[1]) && !IS_NAN((point)[2])") )
-        {
-            __debugbreak();
-        }
+
+        nanassertvec3(point);
+
         tent->s.lerp.pos.trBase[0] = *point;
         tent->s.lerp.pos.trBase[1] = point[1];
         tent->s.lerp.pos.trBase[2] = point[2];
@@ -845,18 +836,9 @@ void __cdecl DestructibleBulletDamageEvent(
     if ( tent )
     {
         AssignToSmallerType<short>(&tent->s.otherEntityNum, self->s.number);
-        if ( ((*(unsigned int *)point & 0x7F800000) == 0x7F800000
-             || ((unsigned int)point[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)point[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\physics\\destructible.cpp",
-                        1042,
-                        0,
-                        "%s",
-                        "!IS_NAN((point)[0]) && !IS_NAN((point)[1]) && !IS_NAN((point)[2])") )
-        {
-            __debugbreak();
-        }
+
+        nanassertvec3(point);
+
         tent->s.lerp.pos.trBase[0] = *point;
         tent->s.lerp.pos.trBase[1] = point[1];
         tent->s.lerp.pos.trBase[2] = point[2];
@@ -1443,30 +1425,10 @@ int __cdecl DestructibleDamage(
         if ( ddef->clientOnly )
             return 0;
         Destructible_SetDebugRender(destructible);
-        if ( ((*(unsigned int *)point & 0x7F800000) == 0x7F800000
-             || ((unsigned int)point[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)point[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\physics\\destructible.cpp",
-                        1572,
-                        0,
-                        "%s",
-                        "!IS_NAN((point)[0]) && !IS_NAN((point)[1]) && !IS_NAN((point)[2])") )
-        {
-            __debugbreak();
-        }
-        if ( ((*(unsigned int *)dir & 0x7F800000) == 0x7F800000
-             || ((unsigned int)dir[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)dir[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\physics\\destructible.cpp",
-                        1573,
-                        0,
-                        "%s",
-                        "!IS_NAN((dir)[0]) && !IS_NAN((dir)[1]) && !IS_NAN((dir)[2])") )
-        {
-            __debugbreak();
-        }
+
+        nanassertvec3(point);
+        nanassertvec3(dir);
+
         hitd[0] = *dir;
         hitd[1] = dir[1];
         hitd[2] = dir[2];

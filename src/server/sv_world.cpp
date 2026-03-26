@@ -999,30 +999,10 @@ void __cdecl SV_TracePoint(trace_t *results, const float *start, const float *en
     pointtrace_t clip; // [esp+58h] [ebp-48h] BYREF
 
     //PIXBeginNamedEvent(-1, "SV_TracePoint");
-    if ( ((*(unsigned int *)start & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_world.cpp",
-                    832,
-                    0,
-                    "%s",
-                    "!IS_NAN((start)[0]) && !IS_NAN((start)[1]) && !IS_NAN((start)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)end & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_world.cpp",
-                    833,
-                    0,
-                    "%s",
-                    "!IS_NAN((end)[0]) && !IS_NAN((end)[1]) && !IS_NAN((end)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(start);
+    nanassertvec3(end);
+
     CM_BoxTrace(results, start, end, vec3_origin, vec3_origin, context->mask, context);
     if ( (LODWORD(results->fraction) & 0x7F800000) == 0x7F800000
         && !Assert_MyHandler(
@@ -1344,54 +1324,11 @@ bool __cdecl SV_SightTraceCapsule(
     {
         __debugbreak();
     }
-    if ( ((*(unsigned int *)mins & 0x7F800000) == 0x7F800000
-         || ((unsigned int)mins[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)mins[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_world.cpp",
-                    941,
-                    0,
-                    "%s",
-                    "!IS_NAN((mins)[0]) && !IS_NAN((mins)[1]) && !IS_NAN((mins)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)maxs & 0x7F800000) == 0x7F800000
-         || ((unsigned int)maxs[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)maxs[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_world.cpp",
-                    941,
-                    0,
-                    "%s",
-                    "!IS_NAN((maxs)[0]) && !IS_NAN((maxs)[1]) && !IS_NAN((maxs)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)start & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_world.cpp",
-                    942,
-                    0,
-                    "%s",
-                    "!IS_NAN((start)[0]) && !IS_NAN((start)[1]) && !IS_NAN((start)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)end & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_world.cpp",
-                    943,
-                    0,
-                    "%s",
-                    "!IS_NAN((end)[0]) && !IS_NAN((end)[1]) && !IS_NAN((end)[2])") )
-    {
-        __debugbreak();
-    }
+    nanassertvec3(mins);
+    nanassertvec3(maxs);
+    nanassertvec3(start);
+    nanassertvec3(end);
+
     *hitNum = CM_BoxSightTrace(*hitNum, start, end, mins, maxs, 0, context->mask);
     if ( *hitNum )
     {
@@ -1455,30 +1392,10 @@ bool __cdecl SV_SightTracePoint(int *hitNum, const float *start, const float *en
     sightpointtrace_t clip; // [esp+3Ch] [ebp-30h] BYREF
 
     //PIXBeginNamedEvent(-1, "SV_SightTracePoint");
-    if ( ((*(unsigned int *)start & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_world.cpp",
-                    983,
-                    0,
-                    "%s",
-                    "!IS_NAN((start)[0]) && !IS_NAN((start)[1]) && !IS_NAN((start)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)end & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_world.cpp",
-                    984,
-                    0,
-                    "%s",
-                    "!IS_NAN((end)[0]) && !IS_NAN((end)[1]) && !IS_NAN((end)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(start);
+    nanassertvec3(end);
+
     *hitNum = CM_SightTracePoint(*hitNum, start, end, context);
     if ( *hitNum )
     {

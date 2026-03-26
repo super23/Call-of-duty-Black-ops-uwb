@@ -5506,18 +5506,9 @@ void __cdecl CG_BulletEndpos(
     *end = (float)(maxRange * *forwardDir) + *start;
     end[1] = (float)(maxRange * forwardDir[1]) + start[1];
     end[2] = (float)(maxRange * forwardDir[2]) + start[2];
-    if ( ((*(unsigned int *)end & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_weapons.cpp",
-                    3352,
-                    0,
-                    "%s",
-                    "!IS_NAN((end)[0]) && !IS_NAN((end)[1]) && !IS_NAN((end)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(end);
+
     v11 = right;
     *end = (float)(right * *rightDir) + *end;
     end[1] = (float)(v11 * rightDir[1]) + end[1];
@@ -5526,36 +5517,18 @@ void __cdecl CG_BulletEndpos(
     *end = (float)(up * *upDir) + *end;
     end[1] = (float)(v10 * upDir[1]) + end[1];
     end[2] = (float)(v10 * upDir[2]) + end[2];
-    if ( ((*(unsigned int *)end & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_weapons.cpp",
-                    3357,
-                    0,
-                    "%s",
-                    "!IS_NAN((end)[0]) && !IS_NAN((end)[1]) && !IS_NAN((end)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(end);
+
     if ( dir )
     {
         *dir = *end - *start;
         dir[1] = end[1] - start[1];
         dir[2] = end[2] - start[2];
         Vec3Normalize(dir);
-        if ( ((*(unsigned int *)dir & 0x7F800000) == 0x7F800000
-             || ((unsigned int)dir[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)dir[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_weapons.cpp",
-                        3364,
-                        0,
-                        "%s",
-                        "!IS_NAN((dir)[0]) && !IS_NAN((dir)[1]) && !IS_NAN((dir)[2])") )
-        {
-            __debugbreak();
-        }
+
+        nanassertvec3(dir);
+
     }
 }
 
@@ -5944,30 +5917,10 @@ void __cdecl CG_WeaponFireSingle(
     bool isAuto; // [esp+63h] [ebp-1h]
 
     //PIXBeginNamedEvent(-1, "CG_WeaponFireSingle");
-    if ( ((*(unsigned int *)origin & 0x7F800000) == 0x7F800000
-         || ((unsigned int)origin[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)origin[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_weapons.cpp",
-                    6694,
-                    0,
-                    "%s",
-                    "!IS_NAN((origin)[0]) && !IS_NAN((origin)[1]) && !IS_NAN((origin)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)direction & 0x7F800000) == 0x7F800000
-         || ((unsigned int)direction[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)direction[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_weapons.cpp",
-                    6695,
-                    0,
-                    "%s",
-                    "!IS_NAN((direction)[0]) && !IS_NAN((direction)[1]) && !IS_NAN((direction)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(origin);
+    nanassertvec3(direction);
+
     weaponDef = BG_GetWeaponDef(weapon);
     if ( weaponDef->fireType == WEAPON_FIRETYPE_MINIGUN )
     {
@@ -6099,30 +6052,9 @@ void __cdecl CG_WeaponFireFake(
     snd_weapon_shot shot; // [esp+18h] [ebp-38h] BYREF
     const WeaponDef *weaponDef; // [esp+4Ch] [ebp-4h]
 
-    if ( ((*(unsigned int *)origin & 0x7F800000) == 0x7F800000
-         || ((unsigned int)origin[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)origin[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_weapons.cpp",
-                    6748,
-                    0,
-                    "%s",
-                    "!IS_NAN((origin)[0]) && !IS_NAN((origin)[1]) && !IS_NAN((origin)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)direction & 0x7F800000) == 0x7F800000
-         || ((unsigned int)direction[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)direction[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_weapons.cpp",
-                    6749,
-                    0,
-                    "%s",
-                    "!IS_NAN((direction)[0]) && !IS_NAN((direction)[1]) && !IS_NAN((direction)[2])") )
-    {
-        __debugbreak();
-    }
+    nanassertvec3(origin);
+    nanassertvec3(direction);
+
     weaponDef = BG_GetWeaponDef(weapon);
     shot.localClientNum = localClientNum;
     shot.shooter = shooter;

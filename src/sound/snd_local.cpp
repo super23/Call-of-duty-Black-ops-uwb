@@ -44,18 +44,8 @@ int __cdecl SNDL_Play(
     list = SND_FindAliasFromId(aliasHash);
     if ( list )
     {
-        if ( ((*(unsigned int *)position & 0x7F800000) == 0x7F800000
-             || ((unsigned int)position[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)position[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp",
-                        63,
-                        0,
-                        "%s",
-                        "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])") )
-        {
-            __debugbreak();
-        }
+        nanassertvec3(position);
+        
         pId = SND_PlaySoundAlias(list, attenuation, entHandle, position, 0, fadeTimeMs, direction, playback, &ocache);
         if ( notify )
             SND_AddLengthNotify(pId, (const char *)(*(_WORD *)&entHandle.field & 0xFFF), SND_LENGTH_NOTIFY_SCRIPT);
@@ -215,54 +205,11 @@ void __cdecl SNDL_SetListener(
     {
         __debugbreak();
     }
-    if ( ((*(unsigned int *)origin & 0x7F800000) == 0x7F800000
-         || ((unsigned int)origin[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)origin[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp",
-                    219,
-                    0,
-                    "%s",
-                    "!IS_NAN((origin)[0]) && !IS_NAN((origin)[1]) && !IS_NAN((origin)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((LODWORD((*inAxis)[0]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*inAxis)[1]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*inAxis)[2]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp",
-                    220,
-                    0,
-                    "%s",
-                    "!IS_NAN((inAxis[0])[0]) && !IS_NAN((inAxis[0])[1]) && !IS_NAN((inAxis[0])[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((LODWORD((*inAxis)[3]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*inAxis)[4]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*inAxis)[5]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp",
-                    221,
-                    0,
-                    "%s",
-                    "!IS_NAN((inAxis[1])[0]) && !IS_NAN((inAxis[1])[1]) && !IS_NAN((inAxis[1])[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((LODWORD((*inAxis)[6]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*inAxis)[7]) & 0x7F800000) == 0x7F800000
-         || (LODWORD((*inAxis)[8]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp",
-                    222,
-                    0,
-                    "%s",
-                    "!IS_NAN((inAxis[2])[0]) && !IS_NAN((inAxis[2])[1]) && !IS_NAN((inAxis[2])[2])") )
-    {
-        __debugbreak();
-    }
+    nanassertvec3(origin);
+    nanassertvec3(inAxis[0]);
+    nanassertvec3(inAxis[1]);
+    nanassertvec3(inAxis[2]);
+
     AxisCopy(inAxis, axis);
     axis[0][2] = 0.0f;
     axis[1][2] = 0.0f;

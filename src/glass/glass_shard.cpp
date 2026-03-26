@@ -2945,30 +2945,8 @@ void __thiscall GlassShard::GetLocalBBox(float *mins, float *maxs)
     {
         __debugbreak();
     }
-    if ( ((*(unsigned int *)mins & 0x7F800000) == 0x7F800000
-         || ((unsigned int)mins[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)mins[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_shard.cpp",
-                    2159,
-                    0,
-                    "%s",
-                    "!IS_NAN((mins)[0]) && !IS_NAN((mins)[1]) && !IS_NAN((mins)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)maxs & 0x7F800000) == 0x7F800000
-         || ((unsigned int)maxs[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)maxs[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_shard.cpp",
-                    2159,
-                    0,
-                    "%s",
-                    "!IS_NAN((maxs)[0]) && !IS_NAN((maxs)[1]) && !IS_NAN((maxs)[2])") )
-    {
-        __debugbreak();
-    }
+    nanassertvec3(mins);
+    nanassertvec3(maxs);
 }
 
 void __thiscall GlassShard::UpdateBBox()

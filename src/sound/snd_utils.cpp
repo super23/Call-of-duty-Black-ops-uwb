@@ -498,42 +498,10 @@ void __cdecl SND_GetNearestPointOnSegment(
     float fraction; // [esp+48h] [ebp-8h]
     float segmentLengthSq; // [esp+4Ch] [ebp-4h]
 
-    if ( ((*(unsigned int *)P & 0x7F800000) == 0x7F800000
-         || ((unsigned int)P[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)P[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
-                    348,
-                    0,
-                    "%s",
-                    "!IS_NAN((P)[0]) && !IS_NAN((P)[1]) && !IS_NAN((P)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)segmentA & 0x7F800000) == 0x7F800000
-         || ((unsigned int)segmentA[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)segmentA[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
-                    349,
-                    0,
-                    "%s",
-                    "!IS_NAN((segmentA)[0]) && !IS_NAN((segmentA)[1]) && !IS_NAN((segmentA)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)segmentB & 0x7F800000) == 0x7F800000
-         || ((unsigned int)segmentB[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)segmentB[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
-                    350,
-                    0,
-                    "%s",
-                    "!IS_NAN((segmentB)[0]) && !IS_NAN((segmentB)[1]) && !IS_NAN((segmentB)[2])") )
-    {
-        __debugbreak();
-    }
+    nanassertvec3(P);
+    nanassertvec3(segmentA);
+    nanassertvec3(segmentB);
+
     *nearPoint = 0.0f;
     nearPoint[1] = 0.0f;
     nearPoint[2] = 0.0f;
@@ -567,18 +535,8 @@ void __cdecl SND_GetNearestPointOnSegment(
             nearPoint[1] = segmentA[1];
             nearPoint[2] = segmentA[2];
         }
-        if ( ((*(unsigned int *)nearPoint & 0x7F800000) == 0x7F800000
-             || ((unsigned int)nearPoint[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)nearPoint[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_utils.cpp",
-                        387,
-                        0,
-                        "%s",
-                        "!IS_NAN((nearPoint)[0]) && !IS_NAN((nearPoint)[1]) && !IS_NAN((nearPoint)[2])") )
-        {
-            __debugbreak();
-        }
+        nanassertvec3(nearPoint);
+
     }
     else
     {

@@ -168,40 +168,11 @@ char __cdecl CM_CreateStaticModel(cStaticModel_s *staticModel, char *name, float
 {
     XModel *model; // [esp+34h] [ebp-4h]
 
-    if ( ((*(unsigned int *)origin & 0x7F800000) == 0x7F800000
-         || ((unsigned int)origin[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)origin[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_staticmodel_load_obj.cpp",
-                    63,
-                    0,
-                    "%s",
-                    "!IS_NAN((origin)[0]) && !IS_NAN((origin)[1]) && !IS_NAN((origin)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)angles & 0x7F800000) == 0x7F800000
-         || ((unsigned int)angles[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)angles[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_staticmodel_load_obj.cpp",
-                    64,
-                    0,
-                    "%s",
-                    "!IS_NAN((angles)[0]) && !IS_NAN((angles)[1]) && !IS_NAN((angles)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( (LODWORD(scale) & 0x7F800000) == 0x7F800000
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_staticmodel_load_obj.cpp",
-                    65,
-                    0,
-                    "%s",
-                    "!IS_NAN(scale)") )
-    {
-        __debugbreak();
-    }
+    nanassertvec3(origin);
+    nanassertvec3(angles);
+
+    iassert(!IS_NAN(scale));
+    
     if ( !name || !*name )
         Com_Error(ERR_DROP, "Missing model name at %.0f %.0f %.0f", *origin, origin[1], origin[2]);
     if ( scale == 0.0 )
@@ -220,30 +191,9 @@ void __cdecl CM_InitStaticModel(cStaticModel_s *staticModel, float *origin, floa
 {
     float axis[3][3]; // [esp+64h] [ebp-24h] BYREF
 
-    if ( ((*(unsigned int *)origin & 0x7F800000) == 0x7F800000
-         || ((unsigned int)origin[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)origin[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_staticmodel_load_obj.cpp",
-                    20,
-                    0,
-                    "%s",
-                    "!IS_NAN((origin)[0]) && !IS_NAN((origin)[1]) && !IS_NAN((origin)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)angles & 0x7F800000) == 0x7F800000
-         || ((unsigned int)angles[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)angles[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_staticmodel_load_obj.cpp",
-                    21,
-                    0,
-                    "%s",
-                    "!IS_NAN((angles)[0]) && !IS_NAN((angles)[1]) && !IS_NAN((angles)[2])") )
-    {
-        __debugbreak();
-    }
+    nanassertvec3(origin);
+    nanassertvec3(angles);
+
     if ( (LODWORD(scale) & 0x7F800000) == 0x7F800000
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_staticmodel_load_obj.cpp",

@@ -1,6 +1,7 @@
 #include "CurveManager.h"
 #include <win32/win_common.h>
 #include "assertive.h"
+#include <universal/com_math.h>
 
 // really dont see much point to this class, guys
 
@@ -242,18 +243,8 @@ void __cdecl cCurveManager::GetPos(unsigned int curve, float t, float *p)
     }
     //cCurve::GetPos(&cCurveManager::mCurves[curve], t, p);
     mCurves[curve].GetPos(t, p);
-    if ( ((*(unsigned int *)p & 0x7F800000) == 0x7F800000
-         || ((unsigned int)p[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)p[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\CurveManager.cpp",
-                    281,
-                    0,
-                    "%s",
-                    "!IS_NAN((p)[0]) && !IS_NAN((p)[1]) && !IS_NAN((p)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(p);
 }
 
 double __cdecl cCurveManager::GetCurveLength(unsigned int curve)

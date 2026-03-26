@@ -34,18 +34,9 @@ int __cdecl intersect_extents_aabb(const TraceExtents *extents, const float *min
     sign = -1.0f;
     while ( 1 )
     {
-        if ( ((*(unsigned int *)mins & 0x7F800000) == 0x7F800000
-             || ((unsigned int)mins[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)mins[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_tracebox.cpp",
-                        52,
-                        0,
-                        "%s",
-                        "!IS_NAN((bounds)[0]) && !IS_NAN((bounds)[1]) && !IS_NAN((bounds)[2])") )
-        {
-            __debugbreak();
-        }
+        const float *bounds = mins;
+        nanassertvec3(bounds);
+
         for ( t = 0; t < 3; ++t )
         {
             dist1 = (float)(extents->start.vec.v[t] - mins[t]) * sign;
@@ -105,18 +96,10 @@ int __cdecl intersect_extents_aabb(
     sign = -1.0f;
     while ( 1 )
     {
-        if ( ((*(unsigned int *)mins & 0x7F800000) == 0x7F800000
-             || ((unsigned int)mins[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)mins[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_tracebox.cpp",
-                        103,
-                        0,
-                        "%s",
-                        "!IS_NAN((bounds)[0]) && !IS_NAN((bounds)[1]) && !IS_NAN((bounds)[2])") )
-        {
-            __debugbreak();
-        }
+
+        const float *bounds = mins;
+        nanassertvec3(bounds);
+
         for ( t = 0; t < 3; ++t )
         {
             dist1 = (float)(extents->start.vec.v[t] - mins[t]) * sign;

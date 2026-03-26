@@ -314,18 +314,9 @@ void __cdecl CM_Trace(
         __debugbreak();
     if ( !maxs && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp", 1501, 0, "%s", "maxs") )
         __debugbreak();
-    if ( ((*(unsigned int *)end & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp",
-                    1502,
-                    0,
-                    "%s",
-                    "!IS_NAN((end)[0]) && !IS_NAN((end)[1]) && !IS_NAN((end)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(end);
+
     cmod = CM_ClipHandleToModel(model);
     tw.contents = brushmask;
     for ( i = 0; i < 3; ++i )
@@ -1186,30 +1177,9 @@ void __cdecl CM_TraceThroughBrush(const traceWork_t *tw, const cbrush_t *brush, 
     index = 0;
     while ( 2 )
     {
-        if ( ((*(unsigned int *)bounds & 0x7F800000) == 0x7F800000
-             || ((unsigned int)bounds[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)bounds[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp",
-                        622,
-                        0,
-                        "%s",
-                        "!IS_NAN((bounds)[0]) && !IS_NAN((bounds)[1]) && !IS_NAN((bounds)[2])") )
-        {
-            __debugbreak();
-        }
-        if ( ((tw->radiusOffset.vec.u[0] & 0x7F800000) == 0x7F800000
-             || (tw->radiusOffset.vec.u[1] & 0x7F800000) == 0x7F800000
-             || (tw->radiusOffset.vec.u[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp",
-                        623,
-                        0,
-                        "%s",
-                        "!IS_NAN((tw->radiusOffset)[0]) && !IS_NAN((tw->radiusOffset)[1]) && !IS_NAN((tw->radiusOffset)[2])") )
-        {
-            __debugbreak();
-        }
+        nanassertvec3(bounds);
+        nanassertvec3(tw->radiusOffset.vec.v);
+
         for ( j = 0; j < 3; ++j )
         {
             d1 = (float)((float)(tw->extents.start.vec.v[j] - bounds[j]) * sign) - tw->radiusOffset.vec.v[j];
@@ -3714,30 +3684,9 @@ int __cdecl CM_TracePointDown(
         __debugbreak();
     if ( !end && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp", 2991, 0, "%s", "end") )
         __debugbreak();
-    if ( ((*(unsigned int *)start & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp",
-                    2992,
-                    0,
-                    "%s",
-                    "!IS_NAN((start)[0]) && !IS_NAN((start)[1]) && !IS_NAN((start)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)end & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp",
-                    2993,
-                    0,
-                    "%s",
-                    "!IS_NAN((end)[0]) && !IS_NAN((end)[1]) && !IS_NAN((end)[2])") )
-    {
-        __debugbreak();
-    }
+    nanassertvec3(start);
+    nanassertvec3(end);
+
     memset((unsigned __int8 *)&results, 0, sizeof(results));
     results.fraction = 1.0f;
     if ( !cm.numNodes
@@ -4306,30 +4255,9 @@ void __cdecl trace_sphere_through_brush(
     int i; // [esp+E8h] [ebp-10h]
     float neg_dir[3]; // [esp+ECh] [ebp-Ch]
 
-    if ( ((*(unsigned int *)c0 & 0x7F800000) == 0x7F800000
-         || ((unsigned int)c0[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)c0[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp",
-                    3371,
-                    0,
-                    "%s",
-                    "!IS_NAN((c0)[0]) && !IS_NAN((c0)[1]) && !IS_NAN((c0)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)dir & 0x7F800000) == 0x7F800000
-         || ((unsigned int)dir[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)dir[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp",
-                    3372,
-                    0,
-                    "%s",
-                    "!IS_NAN((dir)[0]) && !IS_NAN((dir)[1]) && !IS_NAN((dir)[2])") )
-    {
-        __debugbreak();
-    }
+    nanassertvec3(c0);
+    nanassertvec3(dir);
+
     c1[0] = *c0 + *dir;
     c1[1] = c0[1] + dir[1];
     c1[2] = c0[2] + dir[2];
@@ -4363,18 +4291,8 @@ void __cdecl trace_sphere_through_brush(
     index = 0;
     while ( 2 )
     {
-        if ( ((*(unsigned int *)bounds & 0x7F800000) == 0x7F800000
-             || ((unsigned int)bounds[1] & 0x7F800000) == 0x7F800000
-             || ((unsigned int)bounds[2] & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp",
-                        3406,
-                        0,
-                        "%s",
-                        "!IS_NAN((bounds)[0]) && !IS_NAN((bounds)[1]) && !IS_NAN((bounds)[2])") )
-        {
-            __debugbreak();
-        }
+        nanassertvec3(bounds);
+
         for ( j = 0; j < 3; ++j )
         {
             d1 = (float)((float)(c0[j] - bounds[j]) * sign) - r;
@@ -4871,42 +4789,11 @@ void __cdecl trace_point_vs_env(
     dir[0] = *end - *start;
     dir[1] = end[1] - start[1];
     dir[2] = end[2] - start[2];
-    if ( ((*(unsigned int *)start & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp",
-                    3694,
-                    0,
-                    "%s",
-                    "!IS_NAN((start)[0]) && !IS_NAN((start)[1]) && !IS_NAN((start)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)end & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp",
-                    3695,
-                    0,
-                    "%s",
-                    "!IS_NAN((end)[0]) && !IS_NAN((end)[1]) && !IS_NAN((end)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((LODWORD(dir[0]) & 0x7F800000) == 0x7F800000
-         || (LODWORD(dir[1]) & 0x7F800000) == 0x7F800000
-         || (LODWORD(dir[2]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp",
-                    3696,
-                    0,
-                    "%s",
-                    "!IS_NAN((dir)[0]) && !IS_NAN((dir)[1]) && !IS_NAN((dir)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(start);
+    nanassertvec3(end);
+    nanassertvec3(dir);
+
     memset((unsigned __int8 *)trace, 0, sizeof(trace_t));
     trace->fraction = 1.0f;
     trace->boneIndex = 254;
@@ -5092,42 +4979,11 @@ void __cdecl trace_sphere_vs_env(
     dir[0] = *end - *start;
     dir[1] = end[1] - start[1];
     dir[2] = end[2] - start[2];
-    if ( ((*(unsigned int *)start & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)start[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp",
-                    3811,
-                    0,
-                    "%s",
-                    "!IS_NAN((start)[0]) && !IS_NAN((start)[1]) && !IS_NAN((start)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((*(unsigned int *)end & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[1] & 0x7F800000) == 0x7F800000
-         || ((unsigned int)end[2] & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp",
-                    3812,
-                    0,
-                    "%s",
-                    "!IS_NAN((end)[0]) && !IS_NAN((end)[1]) && !IS_NAN((end)[2])") )
-    {
-        __debugbreak();
-    }
-    if ( ((LODWORD(dir[0]) & 0x7F800000) == 0x7F800000
-         || (LODWORD(dir[1]) & 0x7F800000) == 0x7F800000
-         || (LODWORD(dir[2]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp",
-                    3813,
-                    0,
-                    "%s",
-                    "!IS_NAN((dir)[0]) && !IS_NAN((dir)[1]) && !IS_NAN((dir)[2])") )
-    {
-        __debugbreak();
-    }
+
+    nanassertvec3(start);
+    nanassertvec3(end);
+    nanassertvec3(dir);
+
     trace->fraction = 1.0f;
     bHintFound = 0;
     if ( *index_hint > 0 )
