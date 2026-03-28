@@ -23,39 +23,39 @@ snd_command *__cdecl SND_GetNewCommand()
 {
     snd_command *cmd; // [esp+0h] [ebp-4h]
 
-    if ( !g_snd.command_init
+    if (!g_snd.command_init
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    84,
-                    0,
-                    "%s",
-                    "g_snd.command_init") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            84,
+            0,
+            "%s",
+            "g_snd.command_init"))
     {
         __debugbreak();
     }
     cmd = 0;
     Sys_EnterCriticalSection(CRITSECT_SOUND_COMMAND_ALLOC);
-    if ( g_snd.command_q_tail >= 0x400
+    if (g_snd.command_q_tail >= 0x400
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    90,
-                    0,
-                    "%s",
-                    "g_snd.command_q_tail < SND_COMMAND_Q_COUNT") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            90,
+            0,
+            "%s",
+            "g_snd.command_q_tail < SND_COMMAND_Q_COUNT"))
     {
         __debugbreak();
     }
-    if ( g_snd.command_q_head >= 0x400
+    if (g_snd.command_q_head >= 0x400
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    91,
-                    0,
-                    "%s",
-                    "g_snd.command_q_head < SND_COMMAND_Q_COUNT") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            91,
+            0,
+            "%s",
+            "g_snd.command_q_head < SND_COMMAND_Q_COUNT"))
     {
         __debugbreak();
     }
-    if ( g_snd.commands[g_snd.command_free].type )
+    if (g_snd.commands[g_snd.command_free].type)
     {
         Com_PrintError(
             9,
@@ -110,16 +110,16 @@ unsigned int __cdecl SND_CommandPush(snd_command *cmd)
     {
         __debugbreak();
     }
-    if ( (cmd < g_snd.commands || cmd >= (snd_command *)&g_snd.command_free)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    126,
-                    0,
-                    "%s",
-                    "cmd >= g_snd.commands && cmd < g_snd.commands+SND_COMMAND_Q_COUNT") )
-    {
-        __debugbreak();
-    }
+    //if ( (cmd < g_snd.commands || cmd >= (snd_command *)&g_snd.command_free)// KISAKTODO
+    //    && !Assert_MyHandler(
+    //                "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+    //                126,
+    //                0,
+    //                "%s",
+    //                "cmd >= g_snd.commands && cmd < g_snd.commands+SND_COMMAND_Q_COUNT") )
+    //{
+    //    __debugbreak();
+    //}
     if ( cmd->type == SND_COMMAND_NOP
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
@@ -202,53 +202,53 @@ const snd_command *__cdecl SND_CommandPeek()
 
 void __cdecl SND_CommandPop()
 {
-    if ( !g_snd.command_init
+    if (!g_snd.command_init
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    178,
-                    0,
-                    "%s",
-                    "g_snd.command_init") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            178,
+            0,
+            "%s",
+            "g_snd.command_init"))
     {
         __debugbreak();
     }
-    if ( g_snd.command_q_tail >= 0x400
+    if (g_snd.command_q_tail >= 0x400
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    180,
-                    0,
-                    "%s",
-                    "g_snd.command_q_tail < SND_COMMAND_Q_COUNT") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            180,
+            0,
+            "%s",
+            "g_snd.command_q_tail < SND_COMMAND_Q_COUNT"))
     {
         __debugbreak();
     }
-    if ( g_snd.command_q_head >= 0x400
+    if (g_snd.command_q_head >= 0x400
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    181,
-                    0,
-                    "%s",
-                    "g_snd.command_q_head < SND_COMMAND_Q_COUNT") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            181,
+            0,
+            "%s",
+            "g_snd.command_q_head < SND_COMMAND_Q_COUNT"))
     {
         __debugbreak();
     }
-    if ( g_snd.command_q_tail == g_snd.command_q_head
+    if (g_snd.command_q_tail == g_snd.command_q_head
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    182,
-                    0,
-                    "%s",
-                    "g_snd.command_q_tail != g_snd.command_q_head") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            182,
+            0,
+            "%s",
+            "g_snd.command_q_tail != g_snd.command_q_head"))
     {
         __debugbreak();
     }
-    if ( g_snd.command_q[g_snd.command_q_tail]->type == SND_COMMAND_NOP
+    if (g_snd.command_q[g_snd.command_q_tail]->type == SND_COMMAND_NOP
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    183,
-                    0,
-                    "%s",
-                    "g_snd.command_q[g_snd.command_q_tail]->type != SND_COMMAND_NOP") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            183,
+            0,
+            "%s",
+            "g_snd.command_q[g_snd.command_q_tail]->type != SND_COMMAND_NOP"))
     {
         __debugbreak();
     }
@@ -262,30 +262,30 @@ unsigned int __cdecl SND_CommandPump()
     unsigned int count; // [esp+8h] [ebp-8h]
     const snd_command *cmd; // [esp+Ch] [ebp-4h]
 
-    //PIXBeginNamedEvent(0xFFFFFF, "SND_CommandPump");
-    if ( !g_snd.command_init
+    //PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "SND_CommandPump");
+    if (!g_snd.command_init
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    456,
-                    0,
-                    "%s",
-                    "g_snd.command_init") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            456,
+            0,
+            "%s",
+            "g_snd.command_init"))
     {
         __debugbreak();
     }
     count = 0;
-    for ( cmd = SND_CommandPeek(); cmd; cmd = SND_CommandPeek() )
+    for (cmd = SND_CommandPeek(); cmd; cmd = SND_CommandPeek())
     {
         ++count;
-        if ( SND_GetProcessCommandFlag() )
+        if (SND_GetProcessCommandFlag())
         {
             SND_CommandProcess(cmd);
             g_snd.command_id_commit = cmd->id;
         }
         SND_CommandPop();
     }
-    //if ( GetCurrentThreadId() == g_DXDeviceThread )
-        //D3DPERF_EndEvent();
+    //if (GetCurrentThreadId() == g_DXDeviceThread)
+    //    D3DPERF_EndEvent();
     return count;
 }
 
@@ -528,39 +528,39 @@ snd_notify *__cdecl SND_GetNewNotify()
 {
     snd_notify *cmd; // [esp+0h] [ebp-4h]
 
-    if ( !g_snd.command_init
+    if (!g_snd.command_init
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    491,
-                    0,
-                    "%s",
-                    "g_snd.command_init") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            491,
+            0,
+            "%s",
+            "g_snd.command_init"))
     {
         __debugbreak();
     }
     cmd = 0;
     Sys_EnterCriticalSection(CRITSECT_SOUND_NOTIFY_ALLOC);
-    if ( g_snd.notify_q_tail >= 0x200
+    if (g_snd.notify_q_tail >= 0x200
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    497,
-                    0,
-                    "%s",
-                    "g_snd.notify_q_tail < SND_NOTIFY_Q_COUNT") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            497,
+            0,
+            "%s",
+            "g_snd.notify_q_tail < SND_NOTIFY_Q_COUNT"))
     {
         __debugbreak();
     }
-    if ( g_snd.notify_q_head >= 0x200
+    if (g_snd.notify_q_head >= 0x200
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    498,
-                    0,
-                    "%s",
-                    "g_snd.notify_q_head < SND_NOTIFY_Q_COUNT") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            498,
+            0,
+            "%s",
+            "g_snd.notify_q_head < SND_NOTIFY_Q_COUNT"))
     {
         __debugbreak();
     }
-    if ( g_snd.notifies[g_snd.notify_free].type )
+    if (g_snd.notifies[g_snd.notify_free].type)
     {
         Com_PrintError(9, "No notify space in sound queue.\n");
     }
@@ -581,89 +581,89 @@ int __cdecl SND_NextNotifyIndex(__int16 i)
 void __cdecl SND_NotifyPush(snd_notify *cmd)
 {
     //PIXBeginNamedEvent(-1, "SND_NotifyPush");
-    if ( !g_snd.command_init
+    if (!g_snd.command_init
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    577,
-                    0,
-                    "%s",
-                    "g_snd.command_init") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            577,
+            0,
+            "%s",
+            "g_snd.command_init"))
     {
         __debugbreak();
     }
     Sys_EnterCriticalSection(CRITSECT_SOUND_NOTIFY_PUSH);
-    if ( g_snd.notify_q_tail >= 0x200
+    if (g_snd.notify_q_tail >= 0x200
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    581,
-                    0,
-                    "%s",
-                    "g_snd.notify_q_tail <SND_NOTIFY_Q_COUNT") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            581,
+            0,
+            "%s",
+            "g_snd.notify_q_tail <SND_NOTIFY_Q_COUNT"))
     {
         __debugbreak();
     }
-    if ( g_snd.notify_q_head >= 0x200
+    if (g_snd.notify_q_head >= 0x200
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    582,
-                    0,
-                    "%s",
-                    "g_snd.notify_q_head <SND_NOTIFY_Q_COUNT") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            582,
+            0,
+            "%s",
+            "g_snd.notify_q_head <SND_NOTIFY_Q_COUNT"))
     {
         __debugbreak();
     }
-    if ( (cmd < g_snd.notifies || cmd >= (snd_notify *)&g_snd.notify_free)
+    //if ((cmd < g_snd.notifies || cmd >= (snd_notify *)&g_snd.notify_free) // KISAKTODO
+    //    && !Assert_MyHandler(
+    //        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+    //        583,
+    //        0,
+    //        "%s",
+    //        "cmd >= g_snd.notifies && cmd < g_snd.notifies+SND_NOTIFY_Q_COUNT"))
+    //{
+    //    __debugbreak();
+    //}
+    if (SND_NextNotifyIndex(g_snd.notify_q_head) == g_snd.notify_q_tail
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    583,
-                    0,
-                    "%s",
-                    "cmd >= g_snd.notifies && cmd < g_snd.notifies+SND_NOTIFY_Q_COUNT") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            584,
+            0,
+            "%s",
+            "SND_NextNotifyIndex(g_snd.notify_q_head) != g_snd.notify_q_tail"))
     {
         __debugbreak();
     }
-    if ( SND_NextNotifyIndex(g_snd.notify_q_head) == g_snd.notify_q_tail
+    if (cmd->type == SND_NOTIFY_NOP
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    584,
-                    0,
-                    "%s",
-                    "SND_NextNotifyIndex(g_snd.notify_q_head) != g_snd.notify_q_tail") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            585,
+            0,
+            "%s",
+            "cmd->type != SND_NOTIFY_NOP"))
     {
         __debugbreak();
     }
-    if ( cmd->type == SND_NOTIFY_NOP
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    585,
-                    0,
-                    "%s",
-                    "cmd->type != SND_NOTIFY_NOP") )
+    if (SND_NextNotifyIndex(g_snd.notify_q_head) != g_snd.notify_q_tail)
     {
-        __debugbreak();
-    }
-    if ( SND_NextNotifyIndex(g_snd.notify_q_head) != g_snd.notify_q_tail )
-    {
-        if ( g_snd.notify_q[g_snd.notify_q_head]
+        if (g_snd.notify_q[g_snd.notify_q_head]
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                        590,
-                        0,
-                        "%s",
-                        "g_snd.notify_q[g_snd.notify_q_head] == 0") )
+                "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+                590,
+                0,
+                "%s",
+                "g_snd.notify_q[g_snd.notify_q_head] == 0"))
         {
             __debugbreak();
         }
         g_snd.notify_q[g_snd.notify_q_head] = cmd;
         g_snd.notify_q_head = SND_NextNotifyIndex(g_snd.notify_q_head);
-        if ( g_snd.notify_q_head < g_snd.notify_q_tail )
+        if (g_snd.notify_q_head < g_snd.notify_q_tail)
             SND_LogNotifyQHWM(g_snd.notify_q_head + 512 - g_snd.notify_q_tail);
         else
             SND_LogNotifyQHWM(g_snd.notify_q_head - g_snd.notify_q_tail);
     }
     Sys_LeaveCriticalSection(CRITSECT_SOUND_NOTIFY_PUSH);
-    //if ( g_DXDeviceThread == GetCurrentThreadId() )
-        //D3DPERF_EndEvent();
+    //if (g_DXDeviceThread == GetCurrentThreadId())
+    //    D3DPERF_EndEvent();
 }
 
 const snd_notify *__cdecl SND_NotifyPeek()
@@ -706,43 +706,43 @@ const snd_notify *__cdecl SND_NotifyPeek()
 
 void __cdecl SND_NotifyPop()
 {
-    if ( g_snd.notify_q_tail >= 0x200
+    if (g_snd.notify_q_tail >= 0x200
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    630,
-                    0,
-                    "%s",
-                    "g_snd.notify_q_tail < SND_NOTIFY_Q_COUNT") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            630,
+            0,
+            "%s",
+            "g_snd.notify_q_tail < SND_NOTIFY_Q_COUNT"))
     {
         __debugbreak();
     }
-    if ( g_snd.notify_q_head >= 0x200
+    if (g_snd.notify_q_head >= 0x200
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    631,
-                    0,
-                    "%s",
-                    "g_snd.notify_q_head < SND_NOTIFY_Q_COUNT") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            631,
+            0,
+            "%s",
+            "g_snd.notify_q_head < SND_NOTIFY_Q_COUNT"))
     {
         __debugbreak();
     }
-    if ( g_snd.notify_q_tail == g_snd.notify_q_head
+    if (g_snd.notify_q_tail == g_snd.notify_q_head
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    632,
-                    0,
-                    "%s",
-                    "g_snd.notify_q_tail != g_snd.notify_q_head") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            632,
+            0,
+            "%s",
+            "g_snd.notify_q_tail != g_snd.notify_q_head"))
     {
         __debugbreak();
     }
-    if ( g_snd.notify_q[g_snd.notify_q_tail]->type == SND_NOTIFY_NOP
+    if (g_snd.notify_q[g_snd.notify_q_tail]->type == SND_NOTIFY_NOP
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
-                    633,
-                    0,
-                    "%s",
-                    "g_snd.notify_q[g_snd.notify_q_tail]->type != SND_NOTIFY_NOP") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async_q.cpp",
+            633,
+            0,
+            "%s",
+            "g_snd.notify_q[g_snd.notify_q_tail]->type != SND_NOTIFY_NOP"))
     {
         __debugbreak();
     }

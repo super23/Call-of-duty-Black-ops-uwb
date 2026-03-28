@@ -295,10 +295,15 @@ char *__cdecl LiveTicker_GetCurrentMessage(
         Dvar_GetInt("ticker_menu_context");
         Dvar_SetIntByName("ticker_menu_context", -1);
     }
+
+#ifdef KISAK_LIVE_SERVICE
     if ( com_wideScreen && com_wideScreen->current.enabled )
         xThreshold = tickerWidescreenWidth->current.integer;
     else
         xThreshold = tickerStandardWidth->current.integer;
+#else
+    xThreshold = 405; // widescreen (HACK, these dvars are null)
+#endif
     if ( s_isTickerInitialized && s_ticker.totalMessageCount >= 1 )
     {
         if ( s_ticker.isHeaderAnimating )

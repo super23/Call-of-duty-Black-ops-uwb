@@ -1298,7 +1298,11 @@ void __cdecl CG_RegisterDvars()
     cg_fs_debug = _Dvar_RegisterInt("fs_debug", 0, 0, 2, 0, "Output debugging information for the file system");
     cg_debugFace = _Dvar_RegisterBool("cg_debugFace", 0, 0x80u, "Turn on debug information for face");
     cg_dumpAnims = _Dvar_RegisterInt("cg_dumpAnims", -1, -1, 1535, 0x80u, "Output animation info for the given entity id");
+#ifdef _DEBUG // LWSS ADD
+    cg_developer = _Dvar_RegisterInt("developer", 1, 0, 2, 0, "Turn on Development systems");
+#else
     cg_developer = _Dvar_RegisterInt("developer", 0, 0, 2, 0, "Turn on Development systems");
+#endif
     cg_minicon = _Dvar_RegisterBool("con_minicon", 0, 1u, "Display the mini console on screen");
     cg_subtitles = _Dvar_RegisterBool("cg_subtitles", 1, 1u, "Show subtitles");
     cg_subtitleMinTime = _Dvar_RegisterFloat(

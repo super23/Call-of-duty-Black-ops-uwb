@@ -2578,7 +2578,11 @@ void __cdecl R_RegisterDvars()
                                              0,
                                              0x80u,
                                              "Set sun flare values from dvars rather than the level");
+#ifdef _DEBUG // LWSS ADD ( why are there 3 of these )
+    developer = _Dvar_RegisterInt("developer", 1, 0, 2, 0, "Enable development environment");
+#else
     developer = _Dvar_RegisterInt("developer", 0, 0, 2, 0, "Enable development environment");
+#endif
     sv_cheats = _Dvar_RegisterBool("sv_cheats", 1, 0x48u, "Allow server side cheats");
     com_statmon = _Dvar_RegisterBool("com_statmon", 0, 0, "Draw stats monitor");
     r_sse_skinning = _Dvar_RegisterBool("r_sse_skinning", 1, 0, "Use Streaming SIMD Extensions for skinning");

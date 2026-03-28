@@ -377,7 +377,7 @@ const snd_radverb *__cdecl SND_GetRadverb(unsigned int id)
     radverb = 0;
     for ( i = 0; i < g_snd_bankCount && !radverb; ++i )
     {
-        bank = (SndBank *)g_snd_banks[g_snd_bankCount - i - 1];
+        bank = g_snd_banks[g_snd_bankCount - i - 1];
         if ( bank )
         {
             for ( r = 0; r < bank->radverbCount; ++r )
@@ -407,7 +407,7 @@ const snd_snapshot *__cdecl SND_GetSnapshotById(unsigned int id)
     snapshot = 0;
     for ( i = 0; i < g_snd_bankCount && !snapshot; ++i )
     {
-        bank = (SndBank *)g_snd_banks[g_snd_bankCount - i - 1];
+        bank = g_snd_banks[g_snd_bankCount - i - 1];
         if ( bank )
         {
             for ( r = 0; r < bank->snapshotCount; ++r )

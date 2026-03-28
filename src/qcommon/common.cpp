@@ -316,7 +316,8 @@ bool __cdecl Com_IsMenuLevel(const char *name)
 {
     if ( !name )
         name = sv_mapname->current.string;
-    return !I_strnicmp(name, "menu_", 5) || I_strcmp(name, "ui") == 0;
+
+    return !I_strnicmp(name, "menu_", 5) || !I_strcmp(name, "ui") || !I_strcmp(name, "ui_mp");
 }
 
 void __cdecl Com_BeginRedirect(char *buffer, unsigned int buffersize, void (__cdecl *flush)(char *))
@@ -400,7 +401,7 @@ void __cdecl Com_PrintMessage(int channel, char *msg, int error)
                 
                 if (!IsDedicatedServer())
                 {
-                    //CL_ConsolePrint(0, channel, msg, 0, 0, error * 32);
+                    CL_ConsolePrint(0, channel, msg, 0, 0, error * 32);
                 }
             }
 
@@ -2145,7 +2146,11 @@ void Com_InitDvars()
                                             "Prevents threads from changing CPUs; improves profiling and may fix some bugs, but can hurt performance");
     CpuCount = Sys_GetCpuCount();
     sys_smp_allowed = _Dvar_RegisterBool("sys_smp_allowed", CpuCount > 1, 0x10u, "Allow multi-threading");
+#ifdef _DEBUG
+    com_developer = _Dvar_RegisterInt("developer", 1, 0, 2, 0, "Enable development options");
+#else 
     com_developer = _Dvar_RegisterInt("developer", 0, 0, 2, 0, "Enable development options");
+#endif
     com_developer_script = _Dvar_RegisterBool("developer_script", 0, 0, "Enable developer script comments");
     com_script_debugger_smoke_test = _Dvar_RegisterBool(
                                                                          "script_debugger_smoke_test",
@@ -2472,8 +2477,6 @@ void Com_LoadUiFastFile()
             DB_LoadXAssets(zoneInfo, zone, 0);
         }
 
-        zone = 0;
-
         CL_AllocatePerLocalClientMemory();
         RB_Resource_Callback(Com_InitUI3DCallback);
         RB_Resource_Flush();
@@ -2482,13 +2485,35 @@ void Com_LoadUiFastFile()
         ScreenPlacement *scrPlace = R_UI3D_ScrPlaceFromTextureWindow(0);
         ScrPlace_SetupUI3DForFullscreen(scrPlace, &scrPlaceFull);
 
+        zone = 0;
+#ifdef KISAK_DEDICATED
         zoneInfo[zone].name = "ui_mp";
         zoneInfo[zone].allocFlags = 0x4000000;
         zoneInfo[zone].freeFlags = 0;
         zone++;
+#else
+        //zoneInfo[zone].name = "patch_ui_mp";
+        //zoneInfo[zone].allocFlags = 0x4000000;
+        //zoneInfo[zone].freeFlags = 0;
+        //zone++;
+
+        zoneInfo[zone].name = "ui_mp";
+        //zoneInfo[zone].allocFlags = 0x2000000;
+        zoneInfo[zone].allocFlags = 0x4000000;//  0x2000000; (KISAKTODO: flag fix, this flag doesn't load for some reason)
+        zoneInfo[zone].freeFlags = 0;
+        zone++;
+
+        DB_LoadXAssets(zoneInfo, zone, 0);
+#endif
+
+        zone = 0;
 
         zoneInfo[zone].name = "ui_viewer_mp";
+#ifdef KISAK_DEDICATED
         zoneInfo[zone].allocFlags = 0x2000000;
+#else
+        zoneInfo[zone].allocFlags = 2048;
+#endif
         zoneInfo[zone].freeFlags = 0;
         zone++;
 

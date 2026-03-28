@@ -28,47 +28,43 @@ void __cdecl SND_DebugFini()
 
 void __cdecl SND_DebugDrawWorldSounds(int debugDrawStyle)
 {
-    char *v1; // eax
-    char *v2; // eax
+    const char *v2; // eax
+    const char *v3; // eax
     int closestId; // [esp+10h] [ebp-180Ch] BYREF
     int dst[1536]; // [esp+14h] [ebp-1808h] BYREF
     int idx; // [esp+1814h] [ebp-8h]
     float closestIdDotProd; // [esp+1818h] [ebp-4h] BYREF
 
-    if ( debugDrawStyle )
+    if (debugDrawStyle)
     {
         closestId = -1;
         closestIdDotProd = -2.0f;
         memset((unsigned __int8 *)dst, 0, sizeof(dst));
-        for ( idx = 0; idx < 74; ++idx )
+        for (idx = 0; idx < 74; ++idx)
         {
-            if ( g_snd.voiceAliasHash[idx] )
+            if (g_snd.voiceAliasHash[idx])
             {
-                if ( !g_snd.voiceAliasHash[118 * idx - 8708]
+                if (!g_snd.voice[idx].alias
                     && !Assert_MyHandler(
-                                "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_debug.cpp",
-                                199,
-                                0,
-                                "%s",
-                                "g_snd.voice[idx].alias") )
+                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_debug.cpp",
+                        199,
+                        0,
+                        "%s",
+                        "g_snd.voice[idx].alias"))
                 {
                     __debugbreak();
                 }
-                if ( (*(unsigned int *)(g_snd.voiceAliasHash[118 * idx - 8708] + 20) & 2u) >> 1 )
+                if ((g_snd.voice[idx].alias->flags & 2) >> 1)
                 {
-                    if ( !snd_solo_alias_substring->current.integer
+                    if (!snd_solo_alias_substring->current.integer
                         || !*(_BYTE *)snd_solo_alias_substring->current.integer
-                        || (v1 = strstr(
-                                    *(char**)g_snd.voiceAliasHash[118 * idx - 8708],
-                                    (char *)snd_solo_alias_substring->current.integer),
-                                v1) )
+                        || (v2 = strstr(g_snd.voice[idx].alias->name, snd_solo_alias_substring->current.string),
+                            v2))
                     {
-                        if ( !snd_mute_alias_substring->current.integer
+                        if (!snd_mute_alias_substring->current.integer
                             || !*(_BYTE *)snd_mute_alias_substring->current.integer
-                            || (v2 = strstr(
-                                        *(char **)g_snd.voiceAliasHash[118 * idx - 8708],
-                                        (char *)snd_mute_alias_substring->current.integer),
-                                    !v2) )
+                            || (v3 = strstr(g_snd.voice[idx].alias->name, snd_mute_alias_substring->current.string),
+                                !v3))
                         {
                             DebugDrawWorldSound3D(idx, debugDrawStyle, dst, &closestId, &closestIdDotProd);
                         }
@@ -76,7 +72,7 @@ void __cdecl SND_DebugDrawWorldSounds(int debugDrawStyle)
                 }
             }
         }
-        if ( closestId != -1 && closestIdDotProd >= 0.93000001 && debugDrawStyle == 1 )
+        if (closestId != -1 && closestIdDotProd >= 0.93000001 && debugDrawStyle == 1)
             DebugDrawWorldSound3D(closestId, 3, dst, 0, 0);
     }
 }
@@ -102,45 +98,45 @@ void __cdecl DebugDrawWorldSound3D(
     float origZ; // [esp+1A0h] [ebp-8h]
     const char *text; // [esp+1A4h] [ebp-4h]
 
-    if ( idx >= 0x4A
+    if (idx >= 0x4A
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_debug.cpp",
-                    74,
-                    0,
-                    "%s\n\t(idx) = %i",
-                    "(( idx >= 0 ) && ( idx < (64 + 10) ))",
-                    idx) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_debug.cpp",
+            74,
+            0,
+            "%s\n\t(idx) = %i",
+            "(( idx >= 0 ) && ( idx < (64 + 10) ))",
+            idx))
     {
         __debugbreak();
     }
-    voice = (snd_voice_t *)&g_snd.voiceAliasHash[118 * idx - 8732];
-    if ( !voice->alias
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_debug.cpp", 77, 0, "%s", "voice->alias") )
+    voice = &g_snd.voice[idx];
+    if (!voice->alias
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_debug.cpp", 77, 0, "%s", "voice->alias"))
     {
         __debugbreak();
     }
     entNum = voice->sndEnt.handle & 0xFFF;
-    if ( entNum > 1022 )
+    if (entNum > 1022)
         entNum = 1022;
     org[0] = voice->position[0];
     org[1] = voice->position[1];
     org[2] = voice->position[2];
     dist = voice->baseDistance;
     fontsize = FontSizeForDistance(dist);
-    if ( g_snd.pausetime )
+    if (g_snd.pausetime)
         time = g_snd.pausetime - voice->startTime;
     else
         time = g_snd.time - voice->startTime;
-    if ( debugDrawStyle != 3 )
+    if (debugDrawStyle != 3)
     {
-        listenerId = g_snd.voiceAliasHash[118 * idx - 8659];
-        if ( !closestId
-            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_debug.cpp", 102, 0, "%s", "closestId") )
+        listenerId = g_snd.voice[idx].closestListenerIndex;
+        if (!closestId
+            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_debug.cpp", 102, 0, "%s", "closestId"))
         {
             __debugbreak();
         }
-        if ( !closestIdDotProd
-            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_debug.cpp", 103, 0, "%s", "closestIdDotProd") )
+        if (!closestIdDotProd
+            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_debug.cpp", 103, 0, "%s", "closestIdDotProd"))
         {
             __debugbreak();
         }
@@ -149,65 +145,65 @@ void __cdecl DebugDrawWorldSound3D(
         sndDir[2] = org[2] - g_snd.listeners[listenerId].orient.origin[2];
         Vec3Normalize(sndDir);
         dot = (float)((float)(sndDir[0] * g_snd.listeners[listenerId].orient.axis[0][0])
-                                + (float)(sndDir[1] * g_snd.listeners[listenerId].orient.axis[0][1]))
-                + (float)(sndDir[2] * g_snd.listeners[listenerId].orient.axis[0][2]);
-        if ( dot > *closestIdDotProd )
+            + (float)(sndDir[1] * g_snd.listeners[listenerId].orient.axis[0][1]))
+            + (float)(sndDir[2] * g_snd.listeners[listenerId].orient.axis[0][2]);
+        if (dot > *closestIdDotProd)
         {
             *closestId = idx;
             *closestIdDotProd = dot;
         }
     }
     origZ = org[2];
-    if ( entNum == 1022 )
+    if (entNum == 1022)
         starColor = colorOrange;
     else
         starColor = colorMagenta;
-    switch ( debugDrawStyle )
+    switch (debugDrawStyle)
     {
-        case 1:
-            goto LABEL_29;
-        case 2:
-            CL_AddDebugString(org, colorWhiteFaded, fontsize, (char *)voice->alias->name, 1);
-LABEL_29:
+    case 1:
+        goto LABEL_29;
+    case 2:
+        CL_AddDebugString(org, colorWhiteFaded, fontsize, (char *)voice->alias->name, 1);
+    LABEL_29:
+        CL_AddDebugStarWithText(org, starColor, colorWhiteFaded, 0, fontsize, 1);
+        return;
+    case 3:
+        fontsize = fontsize * 0.85000002;
+        text = va("Details: %s %d", voice->alias->name, entNum);
+        if (offsets[entNum])
             CL_AddDebugStarWithText(org, starColor, colorWhiteFaded, 0, fontsize, 1);
-            return;
-        case 3:
-            fontsize = fontsize * 0.85000002;
-            text = va("Details: %s %d", voice->alias->name, entNum);
-            if ( offsets[entNum] )
-                CL_AddDebugStarWithText(org, starColor, colorWhiteFaded, 0, fontsize, 1);
-            else
-                CL_AddDebugStarWithText(org, starColor, colorWhiteFaded, (char *)text, fontsize, 1);
-            if ( !voice->alias->soundFile
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_debug.cpp",
-                            144,
-                            0,
-                            "%s",
-                            "voice->alias->soundFile") )
-            {
-                __debugbreak();
-            }
-            org[2] = org[2] - (float)(fontsize * 12.0);
-            strcpy(buffer, "File: ");
-            SND_AliasGetFileName(
-                voice->alias,
-                &buffer[&buffer[strlen(buffer) + 1] - &buffer[1]],
-                256 - (&buffer[strlen(buffer) + 1] - &buffer[1]));
-            CL_AddDebugString(org, colorWhiteFaded, fontsize, buffer, 1);
-            org[2] = org[2] - (float)(fontsize * 12.0);
-            if ( entNum == 1022 )
-                text = va("Owner: World");
-            else
-                text = va("Owner: entity #%i", voice->sndEnt.handle & 0xFFF);
-            CL_AddDebugString(org, colorWhiteFaded, fontsize, (char *)text, 1);
-            org[2] = org[2] - (float)(fontsize * 12.0);
-            text = va("Distance: %.0f / %.0f", dist, (float)voice->alias->distMax);
-            CL_AddDebugString(org, colorWhiteFaded, fontsize, (char *)text, 1);
-            org[2] = org[2] - (float)(fontsize * 12.0);
-            text = va("Time: %.3f", (float)((float)time / 1000.0));
-            CL_AddDebugString(org, colorWhiteFaded, fontsize, (char *)text, 1);
-            break;
+        else
+            CL_AddDebugStarWithText(org, starColor, colorWhiteFaded, (char *)text, fontsize, 1);
+        if (!voice->alias->soundFile
+            && !Assert_MyHandler(
+                "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_debug.cpp",
+                144,
+                0,
+                "%s",
+                "voice->alias->soundFile"))
+        {
+            __debugbreak();
+        }
+        org[2] = org[2] - (float)(fontsize * 12.0);
+        strcpy(buffer, "File: ");
+        SND_AliasGetFileName(
+            voice->alias,
+            &buffer[&buffer[strlen(buffer) + 1] - &buffer[1]],
+            256 - (&buffer[strlen(buffer) + 1] - &buffer[1]));
+        CL_AddDebugString(org, colorWhiteFaded, fontsize, buffer, 1);
+        org[2] = org[2] - (float)(fontsize * 12.0);
+        if (entNum == 1022)
+            text = va("Owner: World");
+        else
+            text = va("Owner: entity #%i", voice->sndEnt.handle & 0xFFF);
+        CL_AddDebugString(org, colorWhiteFaded, fontsize, (char *)text, 1);
+        org[2] = org[2] - (float)(fontsize * 12.0);
+        text = va("Distance: %.0f / %.0f", dist, (float)voice->alias->distMax);
+        CL_AddDebugString(org, colorWhiteFaded, fontsize, (char *)text, 1);
+        org[2] = org[2] - (float)(fontsize * 12.0);
+        text = va("Time: %.3f", (float)((float)time / 1000.0));
+        CL_AddDebugString(org, colorWhiteFaded, fontsize, (char *)text, 1);
+        break;
     }
 }
 
@@ -295,27 +291,27 @@ int __cdecl SND_GetSoundOverlay(snd_overlay_info *info, int start, int count)
     snd_voice_t *voice; // [esp+10h] [ebp-Ch]
     int i; // [esp+18h] [ebp-4h]
 
-    if ( count + start > 74
+    if (count + start > 74
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_debug.cpp",
-                    278,
-                    0,
-                    "%s",
-                    "start+count <= SND_MAX_VOICES") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_debug.cpp",
+            278,
+            0,
+            "%s",
+            "start+count <= SND_MAX_VOICES"))
     {
         __debugbreak();
     }
     memset((unsigned __int8 *)info, 0, 240 * count);
-    for ( i = 0; i < count; ++i )
+    for (i = 0; i < count; ++i)
     {
-        voice = (snd_voice_t *)&g_snd.voiceAliasHash[118 * start - 8732 + 118 * i];
+        voice = &g_snd.voice[start + i];
         info[i].channel = i;
         info[i].fGlobalPriority = -1.0f;
         info[i].pszSampleName[0] = 0;
-        if ( g_snd.voiceAliasHash[i + start] && SND_GroupGetAttenuation(voice->group) >= 0.0000152879 )
+        if (g_snd.voiceAliasHash[i + start] && SND_GroupGetAttenuation(voice->group) >= 0.0000152879)
         {
-            if ( !voice->alias
-                && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_debug.cpp", 301, 0, "%s", "voice->alias") )
+            if (!voice->alias
+                && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_debug.cpp", 301, 0, "%s", "voice->alias"))
             {
                 __debugbreak();
             }

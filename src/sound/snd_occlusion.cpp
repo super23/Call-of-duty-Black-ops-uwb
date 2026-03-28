@@ -553,36 +553,36 @@ void __cdecl SND_LosOcclusionCmd()
 
 void __cdecl SND_LosOcclusionUpdate()
 {
-    volatile unsigned int Target; // [esp+4h] [ebp-34h] BYREF
+    LONG Target; // [esp+4h] [ebp-34h] BYREF
     float *playback; // [esp+8h] [ebp-30h]
     float *position; // [esp+Ch] [ebp-2Ch]
-    snd_occlusion_trace_t *v3; // [esp+10h] [ebp-28h]
-    snd_listener *v4; // [esp+14h] [ebp-24h]
+    snd_occlusion_trace_t *v4; // [esp+10h] [ebp-28h]
+    snd_listener *v5; // [esp+14h] [ebp-24h]
     int li; // [esp+28h] [ebp-10h]
     snd_voice_t *voice; // [esp+2Ch] [ebp-Ch]
     unsigned int i; // [esp+30h] [ebp-8h]
     unsigned int updated; // [esp+34h] [ebp-4h]
 
-    if ( g_snd.lastTraceSequence == g_snd.traceSequence && Sys_TryEnterCriticalSection(CRITSEC_SOUND_OCCLUSION) )
+    if (g_snd.lastTraceSequence == g_snd.traceSequence && Sys_TryEnterCriticalSection(CRITSEC_SOUND_OCCLUSION))
     {
         SND_UpdateProximity();
         updated = 0;
-        for ( i = 0; i < 0x4A; ++i )
+        for (i = 0; i < 0x4A; ++i)
         {
-            voice = (snd_voice_t *)&g_snd.voiceAliasHash[118 * i - 8732];
-            if ( g_snd.voiceAliasHash[(int)(472 * i) / 472] && (voice->alias->flags & 2) >> 1 )
+            voice = &g_snd.voice[i];
+            if (g_snd.voiceAliasHash[(int)(472 * i) / 472] && (voice->alias->flags & 2) >> 1)
             {
-                if ( voice->firstPlaybackId == g_snd.occlusionTraces[i].id )
+                if (voice->firstPlaybackId == g_snd.occlusionTraces[i].id)
                     SND_FaderSetGoal(&voice->losOcclusion, g_snd.occlusionTraces[i].occlusion);
                 else
                     g_snd.occlusionTraces[i].cache = 0;
                 li = voice->closestListenerIndex;
                 g_snd.occlusionTraces[i].id = voice->firstPlaybackId;
-                v3 = &g_snd.occlusionTraces[i];
-                v4 = &g_snd.listeners[li];
-                v3->listener[0] = v4->orient.origin[0];
-                v3->listener[1] = v4->orient.origin[1];
-                v3->listener[2] = v4->orient.origin[2];
+                v4 = &g_snd.occlusionTraces[i];
+                v5 = &g_snd.listeners[li];
+                v4->listener[0] = v5->orient.origin[0];
+                v4->listener[1] = v5->orient.origin[1];
+                v4->listener[2] = v5->orient.origin[2];
                 playback = g_snd.occlusionTraces[i].playback;
                 position = voice->position;
                 *playback = voice->position[0];
@@ -597,7 +597,7 @@ void __cdecl SND_LosOcclusionUpdate()
                 g_snd.occlusionTraces[i].cache = 0;
             }
         }
-        if ( updated )
+        if (updated)
         {
             ++g_snd.traceSequence;
             Target = 0;
@@ -633,21 +633,21 @@ void __cdecl SND_LosOcclusionThreadMain()
 
 void __cdecl SND_LosOcclusionInit()
 {
-    volatile unsigned int Target; // [esp+0h] [ebp-8h] BYREF
+    LONG Target; // [esp+0h] [ebp-8h] BYREF
     unsigned int i; // [esp+4h] [ebp-4h]
 
     memset((unsigned __int8 *)g_snd.occlusionTraces, 0, sizeof(g_snd.occlusionTraces));
-    for ( i = 0; i < 0x4A; ++i )
+    for (i = 0; i < 0x4A; ++i)
         g_snd.occlusionTraces[i].id = -1;
     g_snd.occlusionRunning = 1;
     Target = 0;
     InterlockedExchange(&Target, 0);
-    Sys_SpawnOcclusion((void (__cdecl *)(unsigned int))SND_LosOcclusionThreadMain);
+    Sys_SpawnOcclusion((void(__cdecl *)(unsigned int))SND_LosOcclusionThreadMain);
 }
 
 void __cdecl SND_LosOcclusionFini()
 {
-    volatile unsigned int Target; // [esp+0h] [ebp-4h] BYREF
+    LONG Target; // [esp+0h] [ebp-4h] BYREF
 
     g_snd.occlusionRunning = 0;
     Target = 0;

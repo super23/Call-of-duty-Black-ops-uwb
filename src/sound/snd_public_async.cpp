@@ -110,8 +110,14 @@ void __cdecl SND_PlayInternal(
             __debugbreak();
         }
 
-        nanassertvec3(position);
-        nanassertvec3(direction);
+        if (position)
+        {
+            nanassertvec3(position);
+        }
+        if (direction)
+        {
+            nanassertvec3(direction);
+        }
 
         if ( snd_assert_on_enqueue
             && snd_assert_on_enqueue->current.integer
@@ -793,110 +799,110 @@ snd_ent_state *__cdecl SND_FindEntState(SndEntHandle handle, bool createNew)
     unsigned int i; // [esp+8h] [ebp-8h]
     snd_ent_state *state; // [esp+Ch] [ebp-4h]
 
-    if ( (*(_WORD *)&handle.field & 0xFFF) == 0xFFF
+    if ((*(_WORD *)&handle.field & 0xFFF) == 0xFFF
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                    842,
-                    0,
-                    "%s",
-                    "handle.field.entIndex != SND_ENT_NONE") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
+            842,
+            0,
+            "%s",
+            "handle.field.entIndex != SND_ENT_NONE"))
     {
         __debugbreak();
     }
-    if ( (((unsigned int)handle.handle >> 21) & 1) != 0
+    if ((((unsigned int)handle.handle >> 21) & 1) != 0
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                    843,
-                    0,
-                    "%s",
-                    "!handle.field.isStationary") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
+            843,
+            0,
+            "%s",
+            "!handle.field.isStationary"))
     {
         __debugbreak();
     }
-    if ( (*(_WORD *)&handle.field & 0xFFFu) >= 0x600
+    if ((*(_WORD *)&handle.field & 0xFFFu) >= 0x600
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                    844,
-                    0,
-                    "handle.field.entIndex doesn't index ARRAY_COUNT(g_snd.entStateIndex)\n\t%i not in [0, %i)",
-                    *(_WORD *)&handle.field & 0xFFF,
-                    1536) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
+            844,
+            0,
+            "handle.field.entIndex doesn't index ARRAY_COUNT(g_snd.entStateIndex)\n\t%i not in [0, %i)",
+            *(_WORD *)&handle.field & 0xFFF,
+            1536))
     {
         __debugbreak();
     }
-    if ( (((unsigned int)handle.handle >> 21) & 1) != 0
+    if ((((unsigned int)handle.handle >> 21) & 1) != 0
         || (*(_WORD *)&handle.field & 0xFFF) == 0xFFF
-        || (*(_WORD *)&handle.field & 0xFFF) == 0xFFE )
+        || (*(_WORD *)&handle.field & 0xFFF) == 0xFFE)
     {
         return 0;
     }
-    if ( (*(_WORD *)&handle.field & 0xFFFu) >= 0x600
+    if ((*(_WORD *)&handle.field & 0xFFFu) >= 0x600
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                    854,
-                    0,
-                    "handle.field.entIndex doesn't index MAX_LOCAL_CENTITIES\n\t%i not in [0, %i)",
-                    *(_WORD *)&handle.field & 0xFFF,
-                    1536) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
+            854,
+            0,
+            "handle.field.entIndex doesn't index MAX_LOCAL_CENTITIES\n\t%i not in [0, %i)",
+            *(_WORD *)&handle.field & 0xFFF,
+            1536))
     {
         __debugbreak();
     }
-    if ( (*(_WORD *)&handle.field & 0xFFFu) > 0x600 )
+    if ((*(_WORD *)&handle.field & 0xFFFu) > 0x600)
         Com_Error(ERR_DROP, "Invalid sound handle");
     state = g_snd.entStateIndex[*(_WORD *)&handle.field & 0xFFF];
-    for ( i = 0; state && handle.handle != state->handle.handle && i < 0x64; ++i )
+    for (i = 0; state && handle.handle != state->handle.handle && i < 0x64; ++i)
     {
-        if ( i >= 0x32
-            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp", 867, 0, "%s", "i<50") )
+        if (i >= 0x32
+            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp", 867, 0, "%s", "i<50"))
         {
             __debugbreak();
         }
-        if ( state == state->next
+        if (state == state->next
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                        868,
-                        0,
-                        "%s",
-                        "state != state->next") )
+                "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
+                868,
+                0,
+                "%s",
+                "state != state->next"))
         {
             __debugbreak();
         }
-        if ( (*(_WORD *)&handle.field & 0xFFF) != (state->handle.handle & 0xFFF)
+        if ((*(_WORD *)&handle.field & 0xFFF) != (state->handle.handle & 0xFFF)
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                        869,
-                        0,
-                        "%s",
-                        "handle.field.entIndex == state->handle.field.entIndex") )
+                "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
+                869,
+                0,
+                "%s",
+                "handle.field.entIndex == state->handle.field.entIndex"))
         {
             __debugbreak();
         }
-        if ( !state->lastUsed
+        if (!state->lastUsed
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                        870,
-                        0,
-                        "%s",
-                        "state->lastUsed") )
+                "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
+                870,
+                0,
+                "%s",
+                "state->lastUsed"))
         {
             __debugbreak();
         }
         state = state->next;
     }
-    if ( createNew && !state )
+    if (createNew && !state)
     {
-        for ( j = 0; j < 0x128; ++j )
+        for (j = 0; j < 0x128; ++j)
         {
-            if ( !g_snd.entStateIndex[18 * j - 5312] )
+            if (!g_snd.entState[j].lastUsed)
             {
                 state = &g_snd.entState[j];
-                if ( state == g_snd.entStateIndex[*(_WORD *)&handle.field & 0xFFF]
+                if (state == g_snd.entStateIndex[*(_WORD *)&handle.field & 0xFFF]
                     && !Assert_MyHandler(
-                                "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                                882,
-                                0,
-                                "%s",
-                                "state != g_snd.entStateIndex[handle.field.entIndex]") )
+                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
+                        882,
+                        0,
+                        "%s",
+                        "state != g_snd.entStateIndex[handle.field.entIndex]"))
                 {
                     __debugbreak();
                 }
@@ -907,20 +913,20 @@ snd_ent_state *__cdecl SND_FindEntState(SndEntHandle handle, bool createNew)
                 break;
             }
         }
-        if ( !state )
+        if (!state)
         {
             Com_Printf(9, "Out of ent state cache entries at time %d\n", g_snd.frame);
-            for ( k = 0; k < 0x128; ++k )
+            for (k = 0; k < 0x128; ++k)
                 Com_Printf(
                     9,
                     "%d - %x %d %d\n",
                     k,
                     g_snd.entState[k].handle.handle,
-                    g_snd.entStateIndex[18 * k - 5312],
-                    g_snd.entStateIndex[18 * k - 5311] - g_snd.entState);
+                    g_snd.entState[k].lastUsed,
+                    g_snd.entState[k].next - g_snd.entState);
         }
-        if ( !state
-            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp", 900, 0, "%s", "state") )
+        if (!state
+            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp", 900, 0, "%s", "state"))
         {
             __debugbreak();
         }
@@ -1012,7 +1018,7 @@ void __cdecl SND_EntStateFrame()
     unsigned int n; // [esp+8h] [ebp-28h]
     bool removed; // [esp+Fh] [ebp-21h]
     snd_ent_state **list; // [esp+10h] [ebp-20h]
-    snd_ent_state *v3; // [esp+14h] [ebp-1Ch]
+    snd_ent_state *v4; // [esp+14h] [ebp-1Ch]
     unsigned int m; // [esp+18h] [ebp-18h]
     snd_ent_state *EntState; // [esp+1Ch] [ebp-14h]
     unsigned int k; // [esp+20h] [ebp-10h]
@@ -1020,103 +1026,98 @@ void __cdecl SND_EntStateFrame()
     snd_ent_state *state; // [esp+28h] [ebp-8h]
     unsigned int i; // [esp+2Ch] [ebp-4h]
 
-    //PIXBeginNamedEvent(0xFFFFFF, "SND_EntStateFrame");
-    for ( i = 0; i < 0x600; ++i )
+    //PIXBeginNamedEvent((int)&cls.rankedServers[711].game[34], "SND_EntStateFrame");
+    for (i = 0; i < 0x600; ++i)
     {
         state = g_snd.entStateIndex[i];
-        for ( j = 0; state && j < 0x64; ++j )
+        for (j = 0; state && j < 0x64; ++j)
         {
-            if ( j >= 0x32
-                && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp", 979, 0, "%s", "j<50") )
+            if (j >= 0x32
+                && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp", 979, 0, "%s", "j<50"))
             {
                 __debugbreak();
             }
-            if ( i != (state->handle.handle & 0xFFF)
+            if (i != (state->handle.handle & 0xFFF)
                 && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                            980,
-                            0,
-                            "%s",
-                            "i == state->handle.field.entIndex") )
+                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
+                    980,
+                    0,
+                    "%s",
+                    "i == state->handle.field.entIndex"))
             {
                 __debugbreak();
             }
-            if ( state == state->next
+            if (state == state->next
                 && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                            981,
-                            0,
-                            "%s",
-                            "state != state->next") )
+                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
+                    981,
+                    0,
+                    "%s",
+                    "state != state->next"))
             {
                 __debugbreak();
             }
-            if ( !state->lastUsed
+            if (!state->lastUsed
                 && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                            982,
-                            0,
-                            "%s",
-                            "state->lastUsed") )
+                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
+                    982,
+                    0,
+                    "%s",
+                    "state->lastUsed"))
             {
                 __debugbreak();
             }
             state = state->next;
         }
     }
-    for ( k = 0; k < 74; ++k )
+    for (k = 0; k < 0x4A; ++k)
     {
-        if ( g_snd.voiceAliasHash[k] )
+        if (g_snd.voiceAliasHash[k])
         {
-            SndEntHandle ent = g_snd.voice[k].sndEnt;
-            //if ( ((g_snd.voiceAliasHash[118 * k - 8727] >> 21) & 1) == 0 && (g_snd.voiceAliasHash[118 * k - 8727] & 0xFFF) != 0xFFF )
-            if ( ((ent.handle >> 21) & 1) == 0 && (ent.handle & 0xFFF) != 0xFFF )
+            if ((((unsigned int)g_snd.voice[k].sndEnt.handle >> 21) & 1) == 0
+                && (g_snd.voice[k].sndEnt.handle & 0xFFF) != 0xFFF)
             {
-                //EntState = SND_FindEntState((SndEntHandle)g_snd.voiceAliasHash[118 * k - 8727], 0);
-                EntState = SND_FindEntState(ent, 0);
-                if ( EntState )
+                EntState = SND_FindEntState(g_snd.voice[k].sndEnt, 0);
+                if (EntState)
                 {
                     if (EntState->lastUsed != g_snd.frame)
-                    {
-                        //SND_EntStateRequest((SndEntHandle)g_snd.voiceAliasHash[118 * k - 8727]);
-                        SND_EntStateRequest(ent);
-                    }
+                        SND_EntStateRequest(g_snd.voice[k].sndEnt);
                     EntState->lastUsed = g_snd.frame;
                 }
             }
         }
     }
-    for ( m = 0; m < 0x128; ++m )
+    for (m = 0; m < 0x128; ++m)
     {
-        v3 = &g_snd.entState[m];
-        if ( v3->lastUsed && g_snd.frame - v3->lastUsed > 2 )
+        v4 = &g_snd.entState[m];
+        if (v4->lastUsed && g_snd.frame - v4->lastUsed > 2)
         {
-            if ( g_snd.frame < v3->lastUsed
+            if (g_snd.frame < v4->lastUsed
                 && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                            1014,
-                            0,
-                            "%s",
-                            "g_snd.frame >= state->lastUsed") )
+                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
+                    1014,
+                    0,
+                    "%s",
+                    "g_snd.frame >= state->lastUsed"))
             {
                 __debugbreak();
             }
-            if ( (v3->handle.handle & 0xFFFu) >= 0x600
+            if ((v4->handle.handle & 0xFFFu) >= 0x600
                 && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                            1015,
-                            0,
-                            "state->handle.field.entIndex doesn't index ARRAY_COUNT(g_snd.entStateIndex)\n\t%i not in [0, %i)",
-                            v3->handle.handle & 0xFFF,
-                            1536) )
+                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
+                    1015,
+                    0,
+                    "state->handle.field.entIndex doesn't index ARRAY_COUNT(g_snd.entStateIndex)\n\t%i not in [0, %i)",
+                    v4->handle.handle & 0xFFF,
+                    1536))
             {
                 __debugbreak();
             }
-            list = (snd_ent_state **)(4 * (v3->handle.handle & 0xFFF) + 168381908);
+            list = &g_snd.entStateIndex[v4->handle.handle & 0xFFF];
             removed = 0;
-            for ( n = 0; *list && n < 0x64; ++n )
+            for (n = 0; *list && n < 0x64; ++n)
             {
-                if ( *list == v3 )
+                if (*list == v4)
                 {
                     *list = (*list)->next;
                     removed = 1;
@@ -1124,17 +1125,17 @@ void __cdecl SND_EntStateFrame()
                 }
                 list = &(*list)->next;
             }
-            if ( !removed
-                && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp", 1033, 0, "%s", "removed") )
+            if (!removed
+                && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp", 1033, 0, "%s", "removed"))
             {
                 __debugbreak();
             }
-            v3->lastUsed = 0;
-            v3->next = 0;
+            v4->lastUsed = 0;
+            v4->next = 0;
         }
     }
-    //if ( GetCurrentThreadId() == g_DXDeviceThread )
-        //D3DPERF_EndEvent();
+    //if (GetCurrentThreadId() == g_DXDeviceThread)
+    //    D3DPERF_EndEvent();
 }
 
 void __cdecl SND_ResetEntState()
@@ -1142,9 +1143,9 @@ void __cdecl SND_ResetEntState()
     unsigned int j; // [esp+0h] [ebp-8h]
     unsigned int i; // [esp+4h] [ebp-4h]
 
-    for ( i = 0; i < 0x128; ++i )
-        g_snd.entStateIndex[18 * i - 5312] = 0;
-    for ( j = 0; j < 0x600; ++j )
+    for (i = 0; i < 0x128; ++i)
+        g_snd.entState[i].lastUsed = 0;
+    for (j = 0; j < 0x600; ++j)
         g_snd.entStateIndex[j] = 0;
 }
 
@@ -1222,9 +1223,9 @@ snd_playback *__cdecl SND_AllocatePlayback()
 
     playback = 0;
     Sys_EnterCriticalSection(CRITSECT_SOUND_PLAYBACK_ALLOC);
-    for ( i = 0; i < 0x94; ++i )
+    for (i = 0; i < 0x94; ++i)
     {
-        if ( g_snd.playbacks[i].id == -1 )
+        if (g_snd.playbacks[i].id == -1)
         {
             g_snd.playbacks[i].id = SND_AcquirePlaybackId();
             g_snd.playbacks[i].attenuation = 1.0f;
@@ -1235,7 +1236,7 @@ snd_playback *__cdecl SND_AllocatePlayback()
             break;
         }
     }
-    if ( !playback )
+    if (!playback)
         Com_PrintError(9, "ran out of playbacks\n");
     Sys_LeaveCriticalSection(CRITSECT_SOUND_PLAYBACK_ALLOC);
     return playback;
@@ -1243,16 +1244,16 @@ snd_playback *__cdecl SND_AllocatePlayback()
 
 void __cdecl SND_FreePlayback(snd_playback *playback)
 {
-    if ( playback )
+    if (playback)
     {
-        if ( (unsigned int)(playback - g_snd.playbacks) >= 0x94
+        if ((unsigned int)(playback - g_snd.playbacks) >= 0x94
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
-                        1193,
-                        0,
-                        "playback-g_snd.playbacks doesn't index SND_PLAYBACK_COUNT\n\t%i not in [0, %i)",
-                        playback - g_snd.playbacks,
-                        148) )
+                "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_public_async.cpp",
+                1193,
+                0,
+                "playback-g_snd.playbacks doesn't index SND_PLAYBACK_COUNT\n\t%i not in [0, %i)",
+                playback - g_snd.playbacks,
+                148))
         {
             __debugbreak();
         }

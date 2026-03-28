@@ -88,13 +88,13 @@ void __cdecl StopSoundAliasesOnEnt(SndEntHandle sndEnt, unsigned int name)
     snd_voice_t *voice; // [esp+0h] [ebp-8h]
     int i; // [esp+4h] [ebp-4h]
 
-    for ( i = 0; i < 74; ++i )
+    for (i = 0; i < 74; ++i)
     {
-        voice = (snd_voice_t *)&g_snd.voiceAliasHash[118 * i - 8732];
-        if ( g_snd.voiceAliasHash[i]
+        voice = &g_snd.voice[i];
+        if (g_snd.voiceAliasHash[i]
             && voice->sndEnt.handle == sndEnt.handle
             && ((voice->alias->flags & 1) != 0 || name || SND_IsAliasStopOnDeath(voice->alias))
-            && (!name || name == g_snd.voiceAliasHash[i]) )
+            && (!name || name == g_snd.voiceAliasHash[i]))
         {
             SND_StopVoice(i);
         }
@@ -115,7 +115,7 @@ void __cdecl SNDL_StopSoundsOnEnt(SndEntHandle sndEnt)
 
 void __cdecl SNDL_NotifyCinematicStart(float volume)
 {
-    if ( !g_snd.inCinematic && volume > 0.0000152879 )
+    if (!g_snd.inCinematic && volume > 0.0000152879)
     {
         g_snd.inCinematic = 1;
         g_snd.cinematicUpdate = 1;
@@ -125,7 +125,7 @@ void __cdecl SNDL_NotifyCinematicStart(float volume)
 
 void __cdecl SNDL_NotifyCinematicEnd()
 {
-    if ( g_snd.inCinematic )
+    if (g_snd.inCinematic)
     {
         g_snd.inCinematic = 0;
         g_snd.cinematicUpdate = 1;
@@ -135,44 +135,41 @@ void __cdecl SNDL_NotifyCinematicEnd()
 
 void __cdecl SNDL_DisconnectListener(int localClientNum)
 {
-    bool v1; // [esp+0h] [ebp-14h]
-    snd_listener *v2; // [esp+4h] [ebp-10h]
+    bool v2; // [esp+0h] [ebp-14h]
+    snd_listener *v3; // [esp+4h] [ebp-10h]
     int voiceIndex; // [esp+8h] [ebp-Ch]
     unsigned int i; // [esp+Ch] [ebp-8h]
     bool kill; // [esp+13h] [ebp-1h]
 
-    if ( localClientNum
+    if (localClientNum
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp",
-                    182,
-                    0,
-                    "localClientNum doesn't index MAX_LOCAL_CLIENTS\n\t%i not in [0, %i)",
-                    localClientNum,
-                    1) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp",
+            182,
+            0,
+            "localClientNum doesn't index MAX_LOCAL_CLIENTS\n\t%i not in [0, %i)",
+            localClientNum,
+            1))
     {
         __debugbreak();
     }
     memset((unsigned __int8 *)&g_snd.listeners[localClientNum], 0, sizeof(g_snd.listeners[localClientNum]));
     AxisClear(g_snd.listeners[localClientNum].orient.axis);
-    v2 = &g_snd.listeners[localClientNum];
-    v2->orient.origin[0] = 0.0f;
-    v2->orient.origin[1] = 0.0f;
-    v2->orient.origin[2] = 0.0f;
+    v3 = &g_snd.listeners[localClientNum];
+    v3->orient.origin[0] = 0.0f;
+    v3->orient.origin[1] = 0.0f;
+    v3->orient.origin[2] = 0.0f;
     kill = 1;
-    for ( i = 0; !i; i = 1 )
+    for (i = 0; !i; i = 1)
     {
-        v1 = kill && !g_snd.listeners[0].active;
-        kill = v1;
+        v2 = kill && !g_snd.listeners[0].active;
+        kill = v2;
     }
-    if ( kill )
+    if (kill)
     {
-        for ( voiceIndex = 0; voiceIndex < 74; ++voiceIndex )
+        for (voiceIndex = 0; voiceIndex < 74; ++voiceIndex)
         {
-            if ( g_snd.voiceAliasHash[voiceIndex]
-                && (*(unsigned int *)(g_snd.voiceAliasHash[118 * voiceIndex - 8708] + 20) & 2u) >> 1 )
-            {
+            if (g_snd.voiceAliasHash[voiceIndex] && (g_snd.voice[voiceIndex].alias->flags & 2) >> 1)
                 SND_StopVoice(voiceIndex);
-            }
         }
     }
 }
@@ -337,52 +334,52 @@ void __cdecl SNDL_SetEnvironmentEffects(
     snd_enveffect *effect; // [esp+0h] [ebp-8h]
     int i; // [esp+4h] [ebp-4h]
 
-    if ( SND_ActiveListenerCount() == 1 )
+    if (SND_ActiveListenerCount() == 1)
     {
-        if ( (priority <= 0 || priority >= 3)
+        if ((priority <= 0 || priority >= 3)
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp",
-                        318,
-                        0,
-                        "%s\n\t(priority) = %i",
-                        "(priority > SND_ENVEFFECTPRIO_NONE && priority < SND_ENVEFFECTPRIO_COUNT)",
-                        priority) )
+                "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp",
+                318,
+                0,
+                "%s\n\t(priority) = %i",
+                "(priority > SND_ENVEFFECTPRIO_NONE && priority < SND_ENVEFFECTPRIO_COUNT)",
+                priority))
         {
             __debugbreak();
         }
-        if ( !roomstring
-            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp", 319, 0, "%s", "roomstring") )
+        if (!roomstring
+            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp", 319, 0, "%s", "roomstring"))
         {
             __debugbreak();
         }
-        if ( fademsec < 0
-            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp", 320, 0, "%s", "fademsec >= 0") )
+        if (fademsec < 0
+            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp", 320, 0, "%s", "fademsec >= 0"))
         {
             __debugbreak();
         }
-        if ( (drylevel < 0.0 || drylevel > 1.0)
+        if ((drylevel < 0.0 || drylevel > 1.0)
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp",
-                        321,
-                        0,
-                        "%s",
-                        "drylevel >= 0 && drylevel <= 1") )
+                "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp",
+                321,
+                0,
+                "%s",
+                "drylevel >= 0 && drylevel <= 1"))
         {
             __debugbreak();
         }
-        if ( (wetlevel < 0.0 || wetlevel > 1.0)
+        if ((wetlevel < 0.0 || wetlevel > 1.0)
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp",
-                        322,
-                        0,
-                        "%s",
-                        "wetlevel >= 0 && wetlevel <= 1") )
+                "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp",
+                322,
+                0,
+                "%s",
+                "wetlevel >= 0 && wetlevel <= 1"))
         {
             __debugbreak();
         }
         effect = &g_snd.envEffects[priority];
         effect->active = 1;
-        if ( fademsec < 1 )
+        if (fademsec < 1)
             fademsec = 1;
         effect->drygoal = drylevel;
         effect->drylevel = g_snd.effect->drylevel;
@@ -391,11 +388,11 @@ void __cdecl SNDL_SetEnvironmentEffects(
         effect->wetlevel = g_snd.effect->wetlevel;
         effect->wetrate = (float)(wetlevel - g_snd.effect->wetlevel) / (float)fademsec;
         effect->reverbId = roomstring;
-        if ( effect != g_snd.effect )
+        if (effect != g_snd.effect)
         {
-            for ( i = priority + 1; i < 3; ++i )
+            for (i = priority + 1; i < 3; ++i)
             {
-                if ( g_snd.envEffects[i].active )
+                if (g_snd.envEffects[i].active)
                     return;
             }
             g_snd.effect = &g_snd.envEffects[priority];
@@ -408,41 +405,41 @@ void __cdecl SNDL_DeactivateEnvironmentEffects(int priority, int fademsec)
     snd_enveffect *effect; // [esp+0h] [ebp-8h]
     int i; // [esp+4h] [ebp-4h]
 
-    if ( SND_ActiveListenerCount() == 1 )
+    if (SND_ActiveListenerCount() == 1)
     {
-        if ( (priority <= 0 || priority >= 3)
+        if ((priority <= 0 || priority >= 3)
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp",
-                        367,
-                        0,
-                        "%s\n\t(priority) = %i",
-                        "(priority > SND_ENVEFFECTPRIO_NONE && priority < SND_ENVEFFECTPRIO_COUNT)",
-                        priority) )
+                "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp",
+                367,
+                0,
+                "%s\n\t(priority) = %i",
+                "(priority > SND_ENVEFFECTPRIO_NONE && priority < SND_ENVEFFECTPRIO_COUNT)",
+                priority))
         {
             __debugbreak();
         }
-        if ( fademsec < 0
-            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp", 368, 0, "%s", "fademsec >= 0") )
+        if (fademsec < 0
+            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp", 368, 0, "%s", "fademsec >= 0"))
         {
             __debugbreak();
         }
         effect = &g_snd.envEffects[priority];
         effect->active = 0;
-        if ( effect == g_snd.effect )
+        if (effect == g_snd.effect)
         {
-            for ( i = priority - 1; i >= 0 && !g_snd.envEffects[i].active; --i )
+            for (i = priority - 1; i >= 0 && !g_snd.envEffects[i].active; --i)
                 ;
-            if ( i < 0
+            if (i < 0
                 && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp",
-                            381,
-                            0,
-                            "%s",
-                            "i >= SND_ENVEFFECTPRIO_NONE") )
+                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp",
+                    381,
+                    0,
+                    "%s",
+                    "i >= SND_ENVEFFECTPRIO_NONE"))
             {
                 __debugbreak();
             }
-            if ( fademsec < 1 )
+            if (fademsec < 1)
                 fademsec = 1;
             g_snd.effect = &g_snd.envEffects[i];
             g_snd.envEffects[i].drylevel = effect->drylevel;
@@ -524,42 +521,42 @@ void __cdecl SNDL_StopPlayback(int playbackId)
 
 void __cdecl SNDL_SetSnapshot(snd_snapshot_type type, unsigned int id, float length, float amount)
 {
-    if ( (unsigned int)type >= SND_SNAPSHOT_COUNT
+    if ((unsigned int)type >= SND_SNAPSHOT_COUNT
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp",
-                    464,
-                    0,
-                    "type doesn't index SND_SNAPSHOT_COUNT\n\t%i not in [0, %i)",
-                    type,
-                    11) )
+            "C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_local.cpp",
+            464,
+            0,
+            "type doesn't index SND_SNAPSHOT_COUNT\n\t%i not in [0, %i)",
+            type,
+            11))
     {
         __debugbreak();
     }
-    if ( SND_GetSnapshotById(id) )
-        LODWORD(g_snd.snapshotAttenuation[387 * type - 3873]) = id;
+    if (SND_GetSnapshotById(id))
+        g_snd.snapshotCategories[type].snapshot = id;
     else
-        LODWORD(g_snd.snapshotAttenuation[387 * type - 3873]) = g_snd.defaultHash;
-    g_snd.snapshotAttenuation[387 * type - 3872] = length;
-    g_snd.snapshotAttenuation[387 * type - 3871] = amount;
+        g_snd.snapshotCategories[type].snapshot = g_snd.defaultHash;
+    g_snd.snapshotCategories[type].length = length;
+    g_snd.snapshotCategories[type].amount = amount;
 }
 
 void __cdecl SNDL_SetGameState(bool isMature, bool isPaused, float timescale, unsigned int cg_time, unsigned int seed)
 {
-    unsigned int v5; // eax
-    unsigned int v6; // [esp-4h] [ebp-4h]
+    unsigned int v6; // eax
+    unsigned int v7; // [esp-4h] [ebp-4h]
 
     g_snd.gameState.mature = isMature;
     g_snd.gameState.gamePaused = isPaused;
     g_snd.gameState.timescale = timescale;
     g_snd.gameState.cgTime = cg_time;
-    if ( seed )
+    if (seed)
         g_snd.gameState.seed = seed;
-    if ( isMature )
-        v6 = SND_HashName("explicit");
+    if (isMature)
+        v7 = SND_HashName("explicit");
     else
-        v6 = SND_HashName("safe");
-    v5 = SND_HashName("mature");
-    SNDL_SetContext(v5, v6);
+        v7 = SND_HashName("safe");
+    v6 = SND_HashName("mature");
+    SNDL_SetContext(v6, v7);
 }
 
 void __cdecl SNDL_SetScriptTimescale(float value)
@@ -633,19 +630,19 @@ void __cdecl SNDL_PlayLineAt(unsigned int id, float *origin0, float *origin1)
     bool gotIt; // [esp+13h] [ebp-1h]
 
     list = SND_FindAliasFromId(id);
-    if ( list && list->head )
+    if (list && list->head)
     {
         gotIt = 0;
-        for ( i = 0; i < 0x80; ++i )
+        for (i = 0; i < 0x80; ++i)
         {
-            if ( !g_snd.lineEmitters[i].id )
+            if (!g_snd.lineEmitters[i].id)
             {
                 g_snd.lineEmitters[i].id = id;
                 v4 = g_snd.lineEmitters[i].origin[0];
                 *v4 = *origin0;
                 v4[1] = origin0[1];
                 v4[2] = origin0[2];
-                v3 = (float *)(&g_snd.loopEmitters[-204].id + 8 * i);
+                v3 = g_snd.lineEmitters[i].origin[1];
                 *v3 = *origin1;
                 v3[1] = origin1[1];
                 v3[2] = origin1[2];
@@ -653,36 +650,36 @@ void __cdecl SNDL_PlayLineAt(unsigned int id, float *origin0, float *origin1)
                 break;
             }
         }
-        if ( !gotIt )
+        if (!gotIt)
             Com_PrintError(9, "ERROR: Sound ran out of line emitters\n");
     }
 }
 
 void __cdecl SNDL_StopLineAt(unsigned int id, const float *origin0, const float *origin1)
 {
-    unsigned int *v3; // [esp+14h] [ebp-2Ch]
-    float *v4; // [esp+18h] [ebp-28h]
+    float *v4; // [esp+14h] [ebp-2Ch]
+    float *v5; // [esp+18h] [ebp-28h]
     SndEntHandle sndEnt; // [esp+38h] [ebp-8h]
     unsigned int i; // [esp+3Ch] [ebp-4h]
 
-    for ( i = 0; i < 0x80; ++i )
+    for (i = 0; i < 0x80; ++i)
     {
-        if ( g_snd.lineEmitters[i].id == id
+        if (g_snd.lineEmitters[i].id == id
             && Vec3DistanceSq(origin0, g_snd.lineEmitters[i].origin[0]) < 0.0000152879
-            && Vec3DistanceSq(origin1, (const float *)&g_snd.loopEmitters[-204].id + 8 * i) < 0.0000152879 )
+            && Vec3DistanceSq(origin1, g_snd.lineEmitters[i].origin[1]) < 0.0000152879)
         {
             sndEnt.field = SND_EntHandle(0, i + 3966, 0, 0, 1, TEAM_FREE).field;
             SND_ContinueLoopingSound(g_snd.lineEmitters[i].id, 1.0, sndEnt, 0, -500, 0);
             g_snd.lineEmitters[i].id = 0;
             g_snd.lineEmitters[i].alias = 0;
-            v4 = g_snd.lineEmitters[i].origin[0];
+            v5 = g_snd.lineEmitters[i].origin[0];
+            *v5 = 0.0f;
+            v5[1] = 0.0f;
+            v5[2] = 0.0f;
+            v4 = g_snd.lineEmitters[i].origin[1];
             *v4 = 0.0f;
             v4[1] = 0.0f;
             v4[2] = 0.0f;
-            v3 = &g_snd.loopEmitters[-204].id + 8 * i;
-            *v3 = 0;
-            v3[1] = 0;
-            v3[2] = 0;
         }
     }
 }
@@ -705,24 +702,24 @@ void __cdecl SNDL_GameReset()
     snd_voice_t *voice; // [esp+1Ch] [ebp-Ch]
     unsigned int i; // [esp+20h] [ebp-8h]
 
-    if ( SND_Active() )
+    if (SND_Active())
     {
         SNDL_FadeIn();
         SND_ResetEntState();
         memset((unsigned __int8 *)g_snd.loopEmitters, 0, sizeof(g_snd.loopEmitters));
         memset((unsigned __int8 *)g_snd.lineEmitters, 0, sizeof(g_snd.lineEmitters));
         memset((unsigned __int8 *)g_snd.currentContexts, 0, sizeof(g_snd.currentContexts));
-        for ( i = 0; i < 0x4A; ++i )
+        for (i = 0; i < 0x4A; ++i)
         {
-            if ( g_snd.voiceAliasHash[i] )
+            if (g_snd.voiceAliasHash[i])
             {
-                voice = (snd_voice_t *)&g_snd.voiceAliasHash[118 * i - 8732];
+                voice = &g_snd.voice[i];
                 alias = voice->alias;
-                if ( alias->id == SND_HashName("mus_mp_frontend") )
+                if (alias->id == SND_HashName("mus_mp_frontend"))
                 {
-                    if ( (voice->alias->flags & 1) != 0 )
+                    if ((voice->alias->flags & 1) != 0)
                     {
-                        if ( SND_IsAliasMusic(voice->alias) )
+                        if (SND_IsAliasMusic(voice->alias))
                         {
                             SND_FaderSetRateTime(&voice->fade, 4.0);
                             SND_FaderSetGoal(&voice->fade, 0.0);
@@ -780,16 +777,16 @@ void __cdecl SNDL_UpdateLoopingSounds()
     snd_voice_t *voice; // [esp+4h] [ebp-8h]
     unsigned int i; // [esp+8h] [ebp-4h]
 
-    if ( !g_snd.paused )
+    if (!g_snd.paused)
     {
-        for ( i = 0; i < 0x4A; ++i )
+        for (i = 0; i < 0x4A; ++i)
         {
-            voice = (snd_voice_t *)&g_snd.voiceAliasHash[118 * i - 8732];
-            if ( g_snd.voiceAliasHash[i]
+            voice = &g_snd.voice[i];
+            if (g_snd.voiceAliasHash[i]
                 && (voice->alias->flags & 1) != 0
                 && voice->fade.goal != 0.0
                 && voice->looptime != g_snd.looptime
-                && (voice->sndEnt.handle & 0xFFF) != 0xFFE )
+                && (voice->sndEnt.handle & 0xFFF) != 0xFFE)
             {
                 SND_StopVoice(i);
             }

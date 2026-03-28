@@ -5016,17 +5016,17 @@ void __cdecl DB_LoadFastFilesForPC()
 
     if (!IsDedicatedServer())
     {
-        zoneInfo[zone].name = "patch_ui_mp";
-        zoneInfo[zone].allocFlags = 0x4000000;
-        zoneInfo[zone].freeFlags = 0;
-        zone++;
+        //zoneInfo[zone].name = "patch_ui_mp";
+        //zoneInfo[zone].allocFlags = 0x4000000;
+        //zoneInfo[zone].freeFlags = 0;
+        //zone++;
 
         zoneInfo[zone].name = "ui_mp";
-        zoneInfo[zone].allocFlags = 0x2000000;
+        zoneInfo[zone].allocFlags = 0x4000000;//  0x2000000; (KISAKTODO: flag fix, this flag doesn't load for some reason)
         zoneInfo[zone].freeFlags = 0;
         zone++;
 
-        DB_LoadXAssets(zoneInfo, 2, 0);
+        DB_LoadXAssets(zoneInfo, zone, 0);
     }
 
     zone = 0;
