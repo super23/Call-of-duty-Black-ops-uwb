@@ -596,6 +596,12 @@ struct avl_tree_accessor
     {
         return node->m_avl_key == key;
     }
+
+    // hacky aislop shit
+    static void set_key(node_type *node, const key_type &key)
+    {
+        node->m_avl_key = key;
+    }
 };
 
     phys_simple_link_list<contact_point_info> m_list_contact_point_info_buffer_1;

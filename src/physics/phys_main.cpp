@@ -2059,24 +2059,22 @@ void __cdecl Phys_DestroyUserData(int worldIndex, PhysObjUserData *userData)
 
 void    Phys_AddCacheImpulses()
 {
-    phys_vec3 v1; // [esp+8h] [ebp-68h] BYREF
-    float v2; // [esp+18h] [ebp-58h]
-    float v3; // [esp+1Ch] [ebp-54h]
-    float v4; // [esp+28h] [ebp-48h]
-    float v5; // [esp+2Ch] [ebp-44h]
-    float v6; // [esp+30h] [ebp-40h]
+    phys_vec3 v1; // [esp+14h] [ebp-5Ch] BYREF
+    float v2; // [esp+28h] [ebp-48h]
+    float v3; // [esp+2Ch] [ebp-44h]
+    float v4; // [esp+30h] [ebp-40h]
     phys_vec3 force; // [esp+34h] [ebp-3Ch] BYREF
     phys_vec3 pos; // [esp+44h] [ebp-2Ch] BYREF
     rigid_body *body; // [esp+54h] [ebp-1Ch]
     int id; // [esp+58h] [ebp-18h]
     PhysImpulse *impulse; // [esp+5Ch] [ebp-14h]
     int i; // [esp+60h] [ebp-10h]
-    //_UNKNOWN *v13; // [esp+64h] [ebp-Ch]
-    //int v14; // [esp+68h] [ebp-8h]
+    //_UNKNOWN *v11; // [esp+64h] [ebp-Ch]
+    //int v12; // [esp+68h] [ebp-8h]
     //int vars0; // [esp+70h] [ebp+0h]
     //
-    //v13 = a1;
-    //v14 = vars0;
+    //v11 = a1;
+    //v12 = vars0;
     //PIXBeginNamedEvent(-1, "Phys_AddCacheImpulses");
     for (i = 0; i < gImpulseCacheNum; ++i)
     {
@@ -2097,16 +2095,17 @@ void    Phys_AddCacheImpulses()
             {
                 __debugbreak();
             }
-            v6 = 0.001 * force.x;
-            v5 = 0.001 * force.y;
-            v4 = 0.001 * force.z;
-            v1.w = 0.001 * force.x;
-            v2 = 0.001 * force.y;
-            v3 = 0.001 * force.z;
-            //rigid_body::add_force(body, (phys_vec3 *)&v1.w, &pos, 1.0);
-            body->add_force((phys_vec3 *)&v1.w, &pos, 1.0);
+            v4 = 0.001 * force.x;
+            v3 = 0.001 * force.y;
+            v2 = 0.001 * force.z;
+            v1.x = 0.001 * force.x;
+            v1.y = 0.001 * force.y;
+            v1.z = 0.001 * force.z;
+            //rigid_body::add_force(body, &v1, &pos, 1.0);
+            body->add_force(&v1, &pos, 1.0);
         }
     }
+
     gImpulseCacheNum = 0;
     //if (g_DXDeviceThread == GetCurrentThreadId())
     //    D3DPERF_EndEvent();

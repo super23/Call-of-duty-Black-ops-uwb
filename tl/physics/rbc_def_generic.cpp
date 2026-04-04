@@ -435,100 +435,100 @@ void rigid_body_constraint_hinge::set(
         float theta_max,
         float damp_k)
 {
-  phys_vec3 *v12; // eax
-  phys_vec3 *p_m_b1_axis_loc; // edi
-  phys_vec3 *v14; // eax
-  phys_vec3 *v15; // eax
-  double y; // st7
-  const phys_vec3 *v17; // eax
-  double v18; // st7
-  double v19; // st7
-  const phys_vec3 *v20; // ecx
-  double v21; // st6
-  const phys_vec3 *v22; // eax
-  phys_vec3 *v23; // eax
-  const phys_vec3 *v24; // eax
-  phys_vec3 *v25; // eax
-  const phys_vec3 *v26; // esi
-  _BYTE v27[12]; // [esp+18h] [ebp-9Ch] BYREF
-  phys_mat44 rv; // [esp+24h] [ebp-90h] BYREF
-  phys_vec3 v29; // [esp+68h] [ebp-4Ch] BYREF
-  const phys_vec3 *p_m_b1_ref_loc; // [esp+7Ch] [ebp-38h]
-  const phys_vec3 *p_m_b2_ref_max_loc; // [esp+80h] [ebp-34h]
-  const phys_vec3 *p_m_b2_ref_min_loc; // [esp+84h] [ebp-30h]
-  phys_vec3 v33; // [esp+88h] [ebp-2Ch] BYREF
-  const phys_vec3 *p_m_b1_a1_loc; // [esp+9Ch] [ebp-18h]
-  const phys_vec3 *p_m_b1_a2_loc; // [esp+A0h] [ebp-14h]
-  const phys_vec3 *p_m_b2_axis_loc; // [esp+A4h] [ebp-10h]
-  //unsigned int v37[3]; // [esp+A8h] [ebp-Ch] BYREF
-  //_UNKNOWN *retaddr; // [esp+B4h] [ebp+0h]
-  //
-  //v37[0] = a2;
-  //v37[1] = retaddr;
-  this->m_flags = 0;
-  this->m_b1_r_loc.x = b1_r_loc->x;
-  this->m_b1_r_loc.y = b1_r_loc->y;
-  this->m_b1_r_loc.z = b1_r_loc->z;
-  this->m_b2_r_loc.x = b2_r_loc->x;
-  this->m_b2_r_loc.y = b2_r_loc->y;
-  this->m_b2_r_loc.z = b2_r_loc->z;
-  v12 = phys_Unitize(&v33, b1_axis_loc);
-  this->m_b1_axis_loc.x = v12->x;
-  p_m_b1_axis_loc = &this->m_b1_axis_loc;
-  this->m_b1_axis_loc.y = v12->y;
-  this->m_b1_axis_loc.z = v12->z;
-  v14 = phys_Unitize(&v33, b2_axis_loc);
-  this->m_b2_axis_loc.x = v14->x;
-  p_m_b2_axis_loc = &this->m_b2_axis_loc;
-  this->m_b2_axis_loc.y = v14->y;
-  this->m_b2_axis_loc.z = v14->z;
-  v15 = phys_Unitize(&v33, b1_ref_loc);
-  this->m_b1_ref_loc.x = v15->x;
-  y = v15->y;
-  p_m_b1_ref_loc = &this->m_b1_ref_loc;
-  this->m_b1_ref_loc.y = y;
-  this->m_b1_ref_loc.z = v15->z;
-  v17 = construct_orth_ud(&v33, &this->m_b1_axis_loc);
-  this->m_b1_a1_loc.x = v17->x;
-  v18 = v17->y;
-  p_m_b1_a1_loc = &this->m_b1_a1_loc;
-  this->m_b1_a1_loc.y = v18;
-  this->m_b1_a1_loc.z = v17->z;
-  v33.x = this->m_b1_axis_loc.y * this->m_b1_a1_loc.z - this->m_b1_axis_loc.z * this->m_b1_a1_loc.y;
-  v33.y = this->m_b1_a1_loc.x * this->m_b1_axis_loc.z - this->m_b1_a1_loc.z * this->m_b1_axis_loc.x;
-  v19 = this->m_b1_a1_loc.y * this->m_b1_axis_loc.x;
-  v20 = p_m_b2_axis_loc;
-  v21 = this->m_b1_a1_loc.x * this->m_b1_axis_loc.y;
-  p_m_b1_a2_loc = &this->m_b1_a2_loc;
-  v33.z = v19 - v21;
-  this->m_b1_a2_loc.x = v33.x;
-  this->m_b1_a2_loc.y = v33.y;
-  this->m_b1_a2_loc.z = v33.z;
-  make_rotate((phys_mat44 *)v27, v20, theta_min, 1000.0);
-  v22 = phys_multiply(&v33, (const phys_mat44 *)v27, b2_ref_loc);
-  v23 = phys_Unitize(&v29, v22);
-  this->m_b2_ref_min_loc.x = v23->x;
-  this->m_b2_ref_min_loc.y = v23->y;
-  p_m_b2_ref_min_loc = &this->m_b2_ref_min_loc;
-  this->m_b2_ref_min_loc.z = v23->z;
-  make_rotate((phys_mat44 *)v27, p_m_b2_axis_loc, theta_max, 1000.0);
-  v24 = phys_multiply(&v29, (const phys_mat44 *)v27, b2_ref_loc);
-  v25 = phys_Unitize((phys_vec3 *)&rv.w.y, v24);
-  this->m_b2_ref_max_loc.x = v25->x;
-  this->m_b2_ref_max_loc.y = v25->y;
-  p_m_b2_ref_max_loc = &this->m_b2_ref_max_loc;
-  this->m_b2_ref_max_loc.z = v25->z;
-  this->m_damp_k = damp_k;
-  PHYS_ASSERT_UNIT(&this->m_b1_axis_loc);
-  PHYS_ASSERT_UNIT(p_m_b2_axis_loc);
-  v26 = p_m_b1_ref_loc;
-  PHYS_ASSERT_UNIT(p_m_b1_ref_loc);
-  PHYS_ASSERT_UNIT(p_m_b1_a1_loc);
-  PHYS_ASSERT_UNIT(p_m_b1_a2_loc);
-  PHYS_ASSERT_UNIT(p_m_b2_ref_min_loc);
-  PHYS_ASSERT_UNIT(p_m_b2_ref_max_loc);
-  PHYS_ASSERT_ORTHOGONAL(p_m_b1_axis_loc, v26);
-  PHYS_ASSERT_ORTHOGONAL(p_m_b1_a1_loc, p_m_b1_a2_loc);
+    phys_vec3 *v12; // eax
+    phys_vec3 *p_m_b1_axis_loc; // edi
+    phys_vec3 *v14; // eax
+    phys_vec3 *v15; // eax
+    double y; // st7
+    const phys_vec3 *v17; // eax
+    double v18; // st7
+    double v19; // st7
+    const phys_vec3 *v20; // ecx
+    double v21; // st6
+    const phys_vec3 *v22; // eax
+    phys_vec3 *v23; // eax
+    const phys_vec3 *v24; // eax
+    phys_vec3 *v25; // eax
+    const phys_vec3 *v26; // esi
+    phys_mat44 rv; // [esp+18h] [ebp-9Ch] BYREF
+    phys_vec3 v28; // [esp+58h] [ebp-5Ch] BYREF
+    phys_vec3 v29; // [esp+68h] [ebp-4Ch] BYREF
+    const phys_vec3 *p_m_b1_ref_loc; // [esp+7Ch] [ebp-38h]
+    const phys_vec3 *p_m_b2_ref_max_loc; // [esp+80h] [ebp-34h]
+    const phys_vec3 *p_m_b2_ref_min_loc; // [esp+84h] [ebp-30h]
+    phys_vec3 v33; // [esp+88h] [ebp-2Ch] BYREF
+    const phys_vec3 *p_m_b1_a1_loc; // [esp+9Ch] [ebp-18h]
+    const phys_vec3 *p_m_b1_a2_loc; // [esp+A0h] [ebp-14h]
+    const phys_vec3 *p_m_b2_axis_loc; // [esp+A4h] [ebp-10h]
+    //_UNKNOWN *v37[2]; // [esp+A8h] [ebp-Ch] BYREF
+    //const phys_vec3 *b1_axis_loca; // [esp+B4h] [ebp+0h]
+    //
+    //v37[0] = a2;
+    //v37[1] = b1_axis_loca;
+    this->m_flags = 0;
+    this->m_b1_r_loc.x = b1_r_loc->x;
+    this->m_b1_r_loc.y = b1_r_loc->y;
+    this->m_b1_r_loc.z = b1_r_loc->z;
+    this->m_b2_r_loc.x = b2_r_loc->x;
+    this->m_b2_r_loc.y = b2_r_loc->y;
+    this->m_b2_r_loc.z = b2_r_loc->z;
+    v12 = phys_Unitize(&v33, b1_axis_loc);
+    this->m_b1_axis_loc.x = v12->x;
+    p_m_b1_axis_loc = &this->m_b1_axis_loc;
+    this->m_b1_axis_loc.y = v12->y;
+    this->m_b1_axis_loc.z = v12->z;
+    v14 = phys_Unitize(&v33, b2_axis_loc);
+    this->m_b2_axis_loc.x = v14->x;
+    p_m_b2_axis_loc = &this->m_b2_axis_loc;
+    this->m_b2_axis_loc.y = v14->y;
+    this->m_b2_axis_loc.z = v14->z;
+    v15 = phys_Unitize(&v33, b1_ref_loc);
+    this->m_b1_ref_loc.x = v15->x;
+    y = v15->y;
+    p_m_b1_ref_loc = &this->m_b1_ref_loc;
+    this->m_b1_ref_loc.y = y;
+    this->m_b1_ref_loc.z = v15->z;
+    v17 = construct_orth_ud(&v33, &this->m_b1_axis_loc);
+    this->m_b1_a1_loc.x = v17->x;
+    v18 = v17->y;
+    p_m_b1_a1_loc = &this->m_b1_a1_loc;
+    this->m_b1_a1_loc.y = v18;
+    this->m_b1_a1_loc.z = v17->z;
+    v33.x = this->m_b1_axis_loc.y * this->m_b1_a1_loc.z - this->m_b1_axis_loc.z * this->m_b1_a1_loc.y;
+    v33.y = this->m_b1_a1_loc.x * this->m_b1_axis_loc.z - this->m_b1_a1_loc.z * this->m_b1_axis_loc.x;
+    v19 = this->m_b1_a1_loc.y * this->m_b1_axis_loc.x;
+    v20 = p_m_b2_axis_loc;
+    v21 = this->m_b1_a1_loc.x * this->m_b1_axis_loc.y;
+    p_m_b1_a2_loc = &this->m_b1_a2_loc;
+    v33.z = v19 - v21;
+    this->m_b1_a2_loc.x = v33.x;
+    this->m_b1_a2_loc.y = v33.y;
+    this->m_b1_a2_loc.z = v33.z;
+    make_rotate(&rv, v20, theta_min, 1000.0);
+    v22 = phys_multiply(&v33, &rv, b2_ref_loc);
+    v23 = phys_Unitize(&v29, v22);
+    this->m_b2_ref_min_loc.x = v23->x;
+    this->m_b2_ref_min_loc.y = v23->y;
+    p_m_b2_ref_min_loc = &this->m_b2_ref_min_loc;
+    this->m_b2_ref_min_loc.z = v23->z;
+    make_rotate(&rv, p_m_b2_axis_loc, theta_max, 1000.0);
+    v24 = phys_multiply(&v29, &rv, b2_ref_loc);
+    v25 = phys_Unitize(&v28, v24);
+    this->m_b2_ref_max_loc.x = v25->x;
+    this->m_b2_ref_max_loc.y = v25->y;
+    p_m_b2_ref_max_loc = &this->m_b2_ref_max_loc;
+    this->m_b2_ref_max_loc.z = v25->z;
+    this->m_damp_k = damp_k;
+    PHYS_ASSERT_UNIT(&this->m_b1_axis_loc);
+    PHYS_ASSERT_UNIT(p_m_b2_axis_loc);
+    v26 = p_m_b1_ref_loc;
+    PHYS_ASSERT_UNIT(p_m_b1_ref_loc);
+    PHYS_ASSERT_UNIT(p_m_b1_a1_loc);
+    PHYS_ASSERT_UNIT(p_m_b1_a2_loc);
+    PHYS_ASSERT_UNIT(p_m_b2_ref_min_loc);
+    PHYS_ASSERT_UNIT(p_m_b2_ref_max_loc);
+    PHYS_ASSERT_ORTHOGONAL(p_m_b1_axis_loc, v26);
+    PHYS_ASSERT_ORTHOGONAL(p_m_b1_a1_loc, p_m_b1_a2_loc);
 }
 
 void rigid_body_constraint_angular_actuator::inner_update(float delta_t)

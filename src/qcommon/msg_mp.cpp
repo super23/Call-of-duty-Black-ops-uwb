@@ -2644,31 +2644,29 @@ void __cdecl MSG_WriteBit1(msg_t *msg)
 
 int __cdecl MSG_ReadBits(msg_t *msg, unsigned int bits)
 {
-    int bit; // [esp+0h] [ebp-Ch]
-    int i; // [esp+4h] [ebp-8h]
+    unsigned int bit; // [esp+0h] [ebp-Ch]
     int value; // [esp+8h] [ebp-4h]
 
-    if ( bits > 0x20
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\msg_mp.cpp", 359, 0, "%s", "(unsigned)bits <= 32") )
-    {
-        __debugbreak();
-    }
+    iassert((unsigned)bits <= 32);
+
     value = 0;
-    for ( i = 0; i < (int)bits; ++i )
+
+    for (int i = 0; i < bits; ++i)
     {
         bit = msg->bit & 7;
-        if ( !bit )
+        if (!bit)
         {
-            if ( msg->readcount >= msg->splitSize + msg->cursize )
+            if (msg->readcount >= msg->splitSize + msg->cursize)
             {
                 msg->overflowed = 1;
                 return -1;
             }
             msg->bit = 8 * msg->readcount++;
         }
-        value |= ((MSG_GetByte(msg, msg->bit >> 3) >> bit) & 1) << i;
+        value |= ((MSG_GetByte(msg, msg->bit / 8) >> bit) & 1) << i;
         ++msg->bit;
     }
+
     return value;
 }
 
@@ -2944,7 +2942,7 @@ void __cdecl MSG_WriteData(msg_t *buf, unsigned __int8 *data, unsigned int lengt
     }
 }
 
-void __cdecl MSG_WriteShort(msg_t *msg, __int16 c)
+void __cdecl MSG_WriteShort(msg_t *msg, unsigned short c)
 {
     int newsize; // [esp+0h] [ebp-4h]
 
@@ -2986,14 +2984,17 @@ void __cdecl MSG_WriteLong(msg_t *msg, int c)
     }
 }
 
-void __cdecl MSG_WriteFloat(msg_t *sb, int f)
+void __cdecl MSG_WriteFloat(msg_t *sb, float f)
 {
-    if ( *(float *)&f == NAN
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\msg_mp.cpp", 694, 0, "%s", "dat.l != -1") )
+    union
     {
-        __debugbreak();
-    }
-    MSG_WriteLong(sb, f);
+        float f;
+        int l;
+    } dat;
+
+    dat.f = f;
+    iassert(dat.l != -1);
+    MSG_WriteLong(sb, dat.l);
 }
 
 void __cdecl MSG_WriteInt64(msg_t *msg, unsigned __int64 c)
@@ -3155,7 +3156,8 @@ int __cdecl MSG_ReadShort(msg_t *msg)
     int i; // [esp+4h] [ebp-10h]
     int c; // [esp+8h] [ebp-Ch]
     int newcount; // [esp+Ch] [ebp-8h]
-    __int16 read[2]; // [esp+10h] [ebp-4h]
+    //__int16 read[2]; // [esp+10h] [ebp-4h]
+    short read;
 
     newcount = msg->readcount + 2;
     if ( newcount > msg->splitSize + msg->cursize )
@@ -3166,11 +3168,17 @@ int __cdecl MSG_ReadShort(msg_t *msg)
     else
     {
         where = msg->readcount;
-        for ( i = 0; i < 2; ++i )
-            *((_BYTE *)read + i) = MSG_GetByte(msg, where++);
-        c = read[0];
+
+        for (i = 0; i < 2; ++i)
+        {
+            //*((_BYTE *)read + i) = MSG_GetByte(msg, where++);
+            *(((_BYTE *)&read) + i) = MSG_GetByte(msg, where++);
+        }
+
+        //c = read[0];
+
         msg->readcount = newcount;
-        return c;
+        return read;
     }
 }
 
@@ -3223,21 +3231,38 @@ unsigned __int64 __cdecl MSG_ReadInt64(msg_t *msg)
 
 float  __cdecl MSG_ReadFloat(msg_t *msg)
 {
-    float result; // fp1
-    float f; // [sp+50h] [-20h]
+    //float result; // fp1
+    //float f; // [sp+50h] [-20h]
+    //
+    ////f = COERCE_FLOAT(MSG_ReadBits(msg, 32));
+    //*(int *)&f = MSG_ReadBits(msg, 32);
+    //
+    //if (f == NAN)
+    //{
+    //    msg->overflowed = 1;
+    //    result = -1.0;
+    //}
+    //else
+    //{
+    //    result = f;
+    //}
+    //
+    //return result;
 
-    f = COERCE_FLOAT(MSG_ReadBits(msg, 0x20u));
-    if (f == NAN)
+    union
     {
-        msg->overflowed = 1;
-        result = -1.0;
-    }
-    else
+        float f;
+        int l;
+    } dat;
+
+    dat.l = MSG_ReadLong(msg);
+    if (dat.l != -1)
     {
-        result = f;
+        return dat.f;
     }
 
-    return result;
+    msg->overflowed = 1;
+    return -1.0f;
 }
 
 char *__cdecl MSG_ReadString(msg_t *msg, char *string, unsigned int maxChars)

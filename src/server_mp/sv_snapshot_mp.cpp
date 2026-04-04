@@ -2104,8 +2104,8 @@ void __cdecl SV_BuildClientSnapshot(client_t *client)
     clientState_s *v12; // [esp+1044h] [ebp-B4h]
     cachedSnapshot_t *CachedSnapshot; // [esp+104Ch] [ebp-ACh]
     unsigned int v15[32]; // [esp+1050h] [ebp-A8h] BYREF
-    float position[2]; // [esp+10D0h] [ebp-28h] BYREF
-    float v17; // [esp+10D8h] [ebp-20h]
+    float position[3]; // [esp+10D0h] [ebp-28h] BYREF
+    //float v17; // [esp+10D8h] [ebp-20h]
     const void *v18; // [esp+10DCh] [ebp-1Ch]
     int i; // [esp+10E0h] [ebp-18h]
     MatchState *v20; // [esp+10E4h] [ebp-14h]
@@ -2155,8 +2155,8 @@ void __cdecl SV_BuildClientSnapshot(client_t *client)
                 clientNum = dst[304];
                 position[0] = *((float *)dst + 9);
                 position[1] = *((float *)dst + 10);
-                v17 = *((float *)dst + 11);
-                v17 = v17 + *((float *)dst + 100);
+                position[2] = *((float *)dst + 11);
+                position[2] = position[2] + *((float *)dst + 100);
                 AddLeanToPosition(position, *((float *)dst + 97), *((float *)dst + 31), 16.0, 20.0);
                 memset((unsigned __int8 *)v15, 0, sizeof(v15));
                 if ( CachedSnapshot )

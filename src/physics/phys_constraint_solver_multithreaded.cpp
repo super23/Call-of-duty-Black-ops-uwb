@@ -1468,39 +1468,37 @@ void pulse_sum_point::set(
 double pulse_sum_contact_point::get_impact_vel(pulse_sum_contact *psc)
 {
     pulse_sum_node *m_b2; // edi
-    float *p_x; // eax
+    rigid_body *p_body; // eax
     phys_vec3 *p_m_b2_ap_n; // esi
     rigid_body *m_rb; // eax
-    float *v7; // eax
+    rigid_body *v7; // eax
     phys_vec3 *v8; // esi
     rigid_body *v9; // eax
-    float v11; // [esp-1Ch] [ebp-5Ch] BYREF
-    float v12; // [esp-18h] [ebp-58h]
-    float v13; // [esp-14h] [ebp-54h]
-    float v14; // [esp-Ch] [ebp-4Ch]
-    float v15; // [esp-8h] [ebp-48h]
-    float v16; // [esp-4h] [ebp-44h]
+    phys_vec3 v11; // [esp-1Ch] [ebp-5Ch] BYREF
+    float v12; // [esp-Ch] [ebp-4Ch]
+    float v13; // [esp-8h] [ebp-48h]
+    float v14; // [esp-4h] [ebp-44h]
     phys_vec3 lv; // [esp+0h] [ebp-40h]
     phys_vec3 v; // [esp+10h] [ebp-30h]
-    float v19; // [esp+2Ch] [ebp-14h]
-    float v20; // [esp+30h] [ebp-10h]
-    //int v21; // [esp+34h] [ebp-Ch]
-    //void *v22; // [esp+38h] [ebp-8h]
+    float v17; // [esp+2Ch] [ebp-14h]
+    float v18; // [esp+30h] [ebp-10h]
+    //int v19; // [esp+34h] [ebp-Ch]
+    //void *v20; // [esp+38h] [ebp-8h]
     //void *retaddr; // [esp+40h] [ebp+0h]
     //
-    //v21 = a2;
-    //v22 = retaddr;
+    //v19 = a2;
+    //v20 = retaddr;
     m_b2 = psc->m_b2;
-    if ( m_b2 )
+    if (m_b2)
     {
-        p_x = &m_b2->m_rb->m_last_position.x;
-        p_m_b2_ap_n = (phys_vec3 *)&v11;
-        v.y = this->m_b2_r.z * p_x[49] - this->m_b2_r.y * p_x[50];
-        v.z = this->m_b2_r.x * p_x[50] - this->m_b2_r.z * p_x[48];
-        v.w = p_x[48] * this->m_b2_r.y - p_x[49] * this->m_b2_r.x;
-        v11 = p_x[44] + v.y;
-        v12 = p_x[45] + v.z;
-        v13 = p_x[46] + v.w;
+        p_body = m_b2->m_rb;
+        p_m_b2_ap_n = &v11;
+        v.y = this->m_b2_r.z * p_body->m_last_a_vel.y - this->m_b2_r.y * p_body->m_last_a_vel.z;
+        v.z = this->m_b2_r.x * p_body->m_last_a_vel.z - this->m_b2_r.z * p_body->m_last_a_vel.x;
+        v.w = p_body->m_last_a_vel.x * this->m_b2_r.y - p_body->m_last_a_vel.y * this->m_b2_r.x;
+        v11.x = p_body->m_last_t_vel.x + v.y;
+        v11.y = p_body->m_last_t_vel.y + v.z;
+        v11.z = p_body->m_last_t_vel.z + v.w;
     }
     else
     {
@@ -1513,19 +1511,19 @@ double pulse_sum_contact_point::get_impact_vel(pulse_sum_contact *psc)
     lv.y = m_rb->m_last_t_vel.x + v.y;
     lv.z = m_rb->m_last_t_vel.y + v.z;
     lv.w = m_rb->m_last_t_vel.z + v.w;
-    v14 = lv.y - p_m_b2_ap_n->x;
-    v15 = lv.z - p_m_b2_ap_n->y;
-    v16 = lv.w - p_m_b2_ap_n->z;
-    if ( m_b2 )
+    v12 = lv.y - p_m_b2_ap_n->x;
+    v13 = lv.z - p_m_b2_ap_n->y;
+    v14 = lv.w - p_m_b2_ap_n->z;
+    if (m_b2)
     {
-        v7 = &m_b2->m_rb->m_last_position.x;
-        v8 = (phys_vec3 *)&v11;
-        lv.y = this->m_b2_r.z * v7[41] - this->m_b2_r.y * v7[42];
-        lv.z = this->m_b2_r.x * v7[42] - this->m_b2_r.z * v7[40];
-        lv.w = v7[40] * this->m_b2_r.y - v7[41] * this->m_b2_r.x;
-        v11 = lv.y + v7[36];
-        v12 = v7[37] + lv.z;
-        v13 = v7[38] + lv.w;
+        v7 = m_b2->m_rb;
+        v8 = &v11;
+        lv.y = this->m_b2_r.z * v7->m_a_vel.y - this->m_b2_r.y * v7->m_a_vel.z;
+        lv.z = this->m_b2_r.x * v7->m_a_vel.z - this->m_b2_r.z * v7->m_a_vel.x;
+        lv.w = v7->m_a_vel.x * this->m_b2_r.y - v7->m_a_vel.y * this->m_b2_r.x;
+        v11.x = lv.y + v7->m_t_vel.x;
+        v11.y = v7->m_t_vel.y + lv.z;
+        v11.z = v7->m_t_vel.z + lv.w;
     }
     else
     {
@@ -1541,11 +1539,11 @@ double pulse_sum_contact_point::get_impact_vel(pulse_sum_contact *psc)
     lv.y = v.y - v8->x;
     lv.z = v.z - v8->y;
     lv.w = v.w - v8->z;
-    v19 = psc->m_ud_n.y * lv.z + psc->m_ud_n.x * lv.y + psc->m_ud_n.z * lv.w;
-    v20 = psc->m_ud_n.y * v15 + psc->m_ud_n.x * v14 + psc->m_ud_n.z * v16;
-    if ( v19 >= (double)v20 )
-        return v19;
-    return v20;
+    v17 = psc->m_ud_n.y * lv.z + psc->m_ud_n.x * lv.y + psc->m_ud_n.z * lv.w;
+    v18 = psc->m_ud_n.y * v13 + psc->m_ud_n.x * v12 + psc->m_ud_n.z * v14;
+    if (v17 >= (double)v18)
+        return v17;
+    return v18;
 }
 
 void pulse_sum_contact::set(

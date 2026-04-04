@@ -417,7 +417,7 @@ gjkcc_info *__cdecl find_gjkcc_info(unsigned int gjkcc_id, bool is_server_thread
     else
     {
         //return gjkcc_info_database_t::gjkcc_info_find(&g_gjkcc_info_client_database, gjkcc_id, 0);
-        g_gjkcc_info_client_database.gjkcc_info_find(gjkcc_id, 0);
+        return g_gjkcc_info_client_database.gjkcc_info_find(gjkcc_id, 0);
     }
 }
 

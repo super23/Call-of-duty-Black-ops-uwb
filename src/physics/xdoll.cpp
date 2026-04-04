@@ -816,8 +816,8 @@ rigid_body_constraint_point * XDoll_CreatePointConstraint(
                 environment_rigid_body *rb2,
                 const phys_vec3 *b1_anchor_loc)
 {
-    _BYTE v5[12]; // [esp-Ch] [ebp-3Ch] BYREF
-    phys_vec3 b2_anchor_loc; // [esp+0h] [ebp-30h] BYREF
+    phys_vec3 v5; // [esp-Ch] [ebp-3Ch] BYREF
+    phys_vec3 anchor_abs; // [esp+4h] [ebp-2Ch] BYREF
     rigid_body_constraint_point *constraint; // [esp+20h] [ebp-10h]
     //_UNKNOWN *v8[2]; // [esp+24h] [ebp-Ch] BYREF
     //const phys_vec3 *b1_anchor_loca; // [esp+30h] [ebp+0h]
@@ -827,10 +827,10 @@ rigid_body_constraint_point * XDoll_CreatePointConstraint(
     constraint = phys_sys::create_rbc_point(rb1, rb2, 0);
     if (constraint)
     {
-        phys_full_multiply((phys_vec3 *)&b2_anchor_loc.y, &rb1->m_mat, b1_anchor_loc);
-        phys_full_inv_multiply((phys_vec3 *)v5, &rb2->m_mat, (phys_vec3 *)&b2_anchor_loc.y);
-        //rigid_body_constraint_point::set(constraint, b1_anchor_loc, (const phys_vec3 *)v5);
-        constraint->set(b1_anchor_loc, (const phys_vec3 *)v5);
+        phys_full_multiply(&anchor_abs, &rb1->m_mat, b1_anchor_loc);
+        phys_full_inv_multiply(&v5, &rb2->m_mat, &anchor_abs);
+        //rigid_body_constraint_point::set(constraint, b1_anchor_loc, &v5);
+        constraint->set(b1_anchor_loc, &v5);
         return constraint;
     }
     else

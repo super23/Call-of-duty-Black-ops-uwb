@@ -93,7 +93,6 @@ pulse_sum_contact *__thiscall pulse_sum_constraint_solver::create_pulse_sum_cont
     this->m_list_pulse_sum_contact.add(result);
     v7->m_list_pscp = (pulse_sum_contact_point *)&v7[1];
     v7->m_list_pscp_count = cpi->m_point_pair_count;
-    //pulse_sum_contact::set(v7, (phys_vec3 *)&savedregs, b1, b2, cpi, delta_t);
     v7->set(b1, b2, cpi, delta_t);
     return v7;
   }

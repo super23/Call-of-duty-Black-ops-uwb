@@ -85,70 +85,70 @@ void    comp_trace_volume(
     const phys_vec3 *v10; // eax
     const phys_vec3 *v11; // eax
     const phys_vec3 *v12; // eax
-    float v13; // [esp-Ch] [ebp-4Ch] BYREF
-    float v14; // [esp-8h] [ebp-48h]
-    float v15; // [esp-4h] [ebp-44h]
-    phys_vec3 cmin; // [esp+0h] [ebp-40h] BYREF
-    phys_vec3 cmax; // [esp+10h] [ebp-30h] BYREF
-    phys_vec3 total_aabb_max; // [esp+20h] [ebp-20h]
+    phys_vec3 v13; // [esp-Ch] [ebp-4Ch] BYREF
+    phys_vec3 v14; // [esp+4h] [ebp-3Ch] BYREF
+    phys_vec3 v15; // [esp+14h] [ebp-2Ch] BYREF
+    float v16; // [esp+24h] [ebp-1Ch]
+    float v17; // [esp+28h] [ebp-18h]
+    float v18; // [esp+2Ch] [ebp-14h]
     //int v19; // [esp+34h] [ebp-Ch]
     //void *v20; // [esp+38h] [ebp-8h]
     //void *retaddr; // [esp+40h] [ebp+0h]
     //
     //v19 = a1;
     //v20 = retaddr;
-    cmin.y = aabb1_max->x - aabb1_min->x;
-    cmin.z = aabb1_max->y - aabb1_min->y;
-    cmin.w = aabb1_max->z - aabb1_min->z;
-    v13 = aabb2_max->x - aabb2_min->x;
-    v14 = aabb2_max->y - aabb2_min->y;
-    v15 = aabb2_max->z - aabb2_min->z;
-    v8 = phys_max((phys_vec3 *)&cmax.y, (phys_vec3 *)&cmin.y, (const phys_vec3 *)&v13);
-    total_aabb_max.y = v8->x * 0.5;
-    total_aabb_max.z = v8->y * 0.5;
-    total_aabb_max.w = 0.5 * v8->z;
-    half_dims->x = total_aabb_max.y;
-    half_dims->y = total_aabb_max.z;
-    half_dims->z = total_aabb_max.w;
-    phys_min((phys_vec3 *)&cmin.y, aabb1_min, aabb2_min);
-    phys_max((phys_vec3 *)&cmax.y, aabb1_max, aabb2_max);
-    v13 = cmin.y + total_aabb_max.y;
-    v14 = cmin.z + total_aabb_max.z;
-    v15 = cmin.w + total_aabb_max.w;
-    cmin.y = cmax.y - total_aabb_max.y;
-    cmin.z = cmax.z - total_aabb_max.z;
-    cmin.w = cmax.w - total_aabb_max.w;
-    total_aabb_max.y = aabb1_min->x + aabb1_max->x;
-    total_aabb_max.z = aabb1_min->y + aabb1_max->y;
-    total_aabb_max.w = aabb1_min->z + aabb1_max->z;
-    cmax.y = total_aabb_max.y * 0.5;
-    cmax.z = total_aabb_max.z * 0.5;
-    cmax.w = 0.5 * total_aabb_max.w;
-    p1->x = cmax.y;
-    p1->y = cmax.z;
-    p1->z = cmax.w;
-    v9 = phys_min((phys_vec3 *)&cmax.y, p1, (phys_vec3 *)&cmin.y);
+    v14.x = aabb1_max->x - aabb1_min->x;
+    v14.y = aabb1_max->y - aabb1_min->y;
+    v14.z = aabb1_max->z - aabb1_min->z;
+    v13.x = aabb2_max->x - aabb2_min->x;
+    v13.y = aabb2_max->y - aabb2_min->y;
+    v13.z = aabb2_max->z - aabb2_min->z;
+    v8 = phys_max(&v15, &v14, &v13);
+    v16 = v8->x * 0.5;
+    v17 = v8->y * 0.5;
+    v18 = 0.5 * v8->z;
+    half_dims->x = v16;
+    half_dims->y = v17;
+    half_dims->z = v18;
+    phys_min(&v14, aabb1_min, aabb2_min);
+    phys_max(&v15, aabb1_max, aabb2_max);
+    v13.x = v14.x + v16;
+    v13.y = v14.y + v17;
+    v13.z = v14.z + v18;
+    v14.x = v15.x - v16;
+    v14.y = v15.y - v17;
+    v14.z = v15.z - v18;
+    v16 = aabb1_min->x + aabb1_max->x;
+    v17 = aabb1_min->y + aabb1_max->y;
+    v18 = aabb1_min->z + aabb1_max->z;
+    v15.x = v16 * 0.5;
+    v15.y = v17 * 0.5;
+    v15.z = 0.5 * v18;
+    p1->x = v15.x;
+    p1->y = v15.y;
+    p1->z = v15.z;
+    v9 = phys_min(&v15, p1, &v14);
     p1->x = v9->x;
     p1->y = v9->y;
     p1->z = v9->z;
-    v10 = phys_max((phys_vec3 *)&cmax.y, p1, (const phys_vec3 *)&v13);
+    v10 = phys_max(&v15, p1, &v13);
     p1->x = v10->x;
     p1->y = v10->y;
     p1->z = v10->z;
-    cmax.y = aabb2_min->x + aabb2_max->x;
-    cmax.z = aabb2_min->y + aabb2_max->y;
-    cmax.w = aabb2_min->z + aabb2_max->z;
-    total_aabb_max.y = cmax.y * 0.5;
-    total_aabb_max.z = cmax.z * 0.5;
-    total_aabb_max.w = 0.5 * cmax.w;
-    p2->x = total_aabb_max.y;
-    p2->y = total_aabb_max.z;
-    p2->z = total_aabb_max.w;
-    v11 = phys_min((phys_vec3 *)&cmax.y, p2, (phys_vec3 *)&cmin.y);
+    v15.x = aabb2_min->x + aabb2_max->x;
+    v15.y = aabb2_min->y + aabb2_max->y;
+    v15.z = aabb2_min->z + aabb2_max->z;
+    v16 = v15.x * 0.5;
+    v17 = v15.y * 0.5;
+    v18 = 0.5 * v15.z;
+    p2->x = v16;
+    p2->y = v17;
+    p2->z = v18;
+    v11 = phys_min(&v15, p2, &v14);
     p2->x = v11->x;
     p2->y = v11->y;
     p2->z = v11->z;
-    v12 = phys_max((phys_vec3 *)&cmin.y, p2, (const phys_vec3 *)&v13);
+    v12 = phys_max(&v14, p2, &v13);
     p2->x = v12->x;
     p2->y = v12->y;
     p2->z = v12->z;
@@ -401,6 +401,7 @@ void __userpurge phys_wheel_collide_info::collision_epilog(
 }
 #endif
 
+// aislop
 void phys_wheel_collide_info::collision_epilog(rigid_body_constraint_wheel *rbc_wheel)
 {
     //rigid_body_constraint_wheel::set_no_collision(rbc_wheel);
@@ -611,6 +612,7 @@ void __cdecl check_terrain_query_params(broad_phase_base *bpb)
     }
 }
 
+#if 0
 void    calc_largest_vel_sq(broad_phase_info *bpi)
 {
     rigid_body *m_rb; // edi
@@ -626,21 +628,26 @@ void    calc_largest_vel_sq(broad_phase_info *bpi)
     signed __int32 v12; // ecx
     phys_vec3 v13; // [esp-4Ch] [ebp-BCh] BYREF
     phys_vec3 v14; // [esp-3Ch] [ebp-ACh] BYREF
-    int v15; // [esp-2Ch] [ebp-9Ch] BYREF
+    phys_vec3 v15; // [esp-2Ch] [ebp-9Ch] BYREF
     phys_vec3 v16; // [esp-1Ch] [ebp-8Ch] BYREF
-    _BYTE v17[12]; // [esp-Ch] [ebp-7Ch] BYREF
-    phys_vec3 dir_loc; // [esp+0h] [ebp-70h] BYREF
-    float t_vel_sq; // [esp+20h] [ebp-50h]
-    phys_vec3 dir; // [esp+24h] [ebp-4Ch] BYREF
-    phys_vec3 v21; // [esp+34h] [ebp-3Ch] BYREF
-    phys_vec3 support_pt; // [esp+44h] [ebp-2Ch] BYREF
-    signed __int32 lvs; // [esp+5Ch] [ebp-14h]
-    float ndir_sq; // [esp+60h] [ebp-10h]
-    //_UNKNOWN *v25[2]; // [esp+64h] [ebp-Ch] BYREF
-    //int vars0; // [esp+70h] [ebp+0h]
-    //
-    //v25[0] = a1;
-    //v25[1] = (_UNKNOWN *)vars0;
+    phys_vec3 v17; // [esp-Ch] [ebp-7Ch] BYREF
+    phys_vec3 v18; // [esp+4h] [ebp-6Ch] BYREF
+    float v19; // [esp+20h] [ebp-50h]
+    float y; // [esp+24h] [ebp-4Ch] BYREF
+    float z; // [esp+28h] [ebp-48h]
+    float t_vel_sq; // [esp+2Ch] [ebp-44h]
+    phys_vec3 dir; // [esp+30h] [ebp-40h] BYREF
+    float v24; // [esp+44h] [ebp-2Ch] BYREF
+    float v25; // [esp+48h] [ebp-28h]
+    float v26; // [esp+4Ch] [ebp-24h]
+    signed __int32 p_w; // [esp+5Ch] [ebp-14h]
+    float v28; // [esp+60h] [ebp-10h]
+    int v29; // [esp+64h] [ebp-Ch] BYREF
+    float lvs; // [esp+68h] [ebp-8h]
+    float retaddr; // [esp+70h] [ebp+0h]
+
+    v29 = a1;
+    lvs = retaddr;
     if ((bpi->m_flags & 4) != 0 && _tlAssert("source/phys_broad_phase.cpp", 692, "!bpi->is_bpi_env()", ""))
         __debugbreak();
     m_rb = bpi->m_rb;
@@ -654,91 +661,211 @@ void    calc_largest_vel_sq(broad_phase_info *bpi)
         __debugbreak();
     }
     p_x = &m_rb->m_a_vel.x;
-    *(float *)&lvs = m_rb->m_a_vel.y * m_rb->m_a_vel.y
+    *(float *)&p_w = m_rb->m_a_vel.y * m_rb->m_a_vel.y
         + m_rb->m_a_vel.x * m_rb->m_a_vel.x
         + m_rb->m_a_vel.z * m_rb->m_a_vel.z;
-    t_vel_sq = m_rb->m_t_vel.y * m_rb->m_t_vel.y + m_rb->m_t_vel.x * m_rb->m_t_vel.x + m_rb->m_t_vel.z * m_rb->m_t_vel.z;
+    v19 = m_rb->m_t_vel.y * m_rb->m_t_vel.y + m_rb->m_t_vel.x * m_rb->m_t_vel.x + m_rb->m_t_vel.z * m_rb->m_t_vel.z;
     v4 = 0.0000010000001;
-    if (*(float *)&lvs >= 0.0000010000001)
+    if (*(float *)&p_w >= 0.0000010000001)
     {
-        dir.x = m_rb->m_t_vel.y * m_rb->m_a_vel.z - m_rb->m_t_vel.z * m_rb->m_a_vel.y;
-        dir.y = m_rb->m_a_vel.x * m_rb->m_t_vel.z - m_rb->m_t_vel.x * m_rb->m_a_vel.z;
-        dir.z = m_rb->m_t_vel.x * m_rb->m_a_vel.y - m_rb->m_a_vel.x * m_rb->m_t_vel.y;
-        ndir_sq = dir.y * dir.y + dir.x * dir.x + dir.z * dir.z;
-        if (ndir_sq < 0.0000010000001)
+        y = m_rb->m_t_vel.y * m_rb->m_a_vel.z - m_rb->m_t_vel.z * m_rb->m_a_vel.y;
+        z = m_rb->m_a_vel.x * m_rb->m_t_vel.z - m_rb->m_t_vel.x * m_rb->m_a_vel.z;
+        t_vel_sq = m_rb->m_t_vel.x * m_rb->m_a_vel.y - m_rb->m_a_vel.x * m_rb->m_t_vel.y;
+        v28 = z * z + y * y + t_vel_sq * t_vel_sq;
+        if (v28 < 0.0000010000001)
         {
-            v21.x = m_rb->m_a_vel.y * 0.0 - m_rb->m_a_vel.z * 0.0;
+            dir.y = m_rb->m_a_vel.y * 0.0 - m_rb->m_a_vel.z * 0.0;
             v6 = 0.0 * *p_x;
-            v21.y = m_rb->m_a_vel.z - v6;
-            v21.z = v6 - m_rb->m_a_vel.y;
-            support_pt.x = m_rb->m_t_vel.x + v21.x;
-            support_pt.y = m_rb->m_t_vel.y + v21.y;
-            support_pt.z = m_rb->m_t_vel.z + v21.z;
-            v21.x = m_rb->m_a_vel.z * support_pt.y - support_pt.z * m_rb->m_a_vel.y;
-            v21.y = support_pt.z * *p_x - m_rb->m_a_vel.z * support_pt.x;
-            v21.z = support_pt.x * m_rb->m_a_vel.y - support_pt.y * m_rb->m_a_vel.x;
-            dir.x = v21.x;
-            dir.y = v21.y;
-            dir.z = v21.z;
-            ndir_sq = v21.z * v21.z + v21.y * v21.y + v21.x * v21.x;
-            if (ndir_sq < 0.0000010000001)
+            dir.z = m_rb->m_a_vel.z - v6;
+            dir.w = v6 - m_rb->m_a_vel.y;
+            v24 = m_rb->m_t_vel.x + dir.y;
+            v25 = m_rb->m_t_vel.y + dir.z;
+            v26 = m_rb->m_t_vel.z + dir.w;
+            dir.y = m_rb->m_a_vel.z * v25 - v26 * m_rb->m_a_vel.y;
+            dir.z = v26 * *p_x - m_rb->m_a_vel.z * v24;
+            dir.w = v24 * m_rb->m_a_vel.y - v25 * m_rb->m_a_vel.x;
+            y = dir.y;
+            z = dir.z;
+            t_vel_sq = dir.w;
+            v28 = dir.w * dir.w + dir.z * dir.z + dir.y * dir.y;
+            if (v28 < 0.0000010000001)
             {
-                support_pt.x = 0.0;
-                support_pt.y = 2.0;
-                support_pt.z = 0.0;
-                v7 = phys_cross(&v14, &m_rb->m_a_vel, &support_pt);
-                v21.x = m_rb->m_t_vel.x + v7->x;
-                v21.y = m_rb->m_t_vel.y + v7->y;
-                v21.z = m_rb->m_t_vel.z + v7->z;
-                v8 = phys_cross(&v16, &v21, &m_rb->m_a_vel);
-                dir.x = v8->x;
-                dir.y = v8->y;
-                dir.z = v8->z;
-                ndir_sq = dir.y * dir.y + dir.x * dir.x + dir.z * dir.z;
+                v24 = 0.0;
+                v25 = 2.0;
+                v26 = 0.0;
+                v7 = phys_cross(&v14, &m_rb->m_a_vel, (const phys_vec3 *)&v24);
+                dir.y = m_rb->m_t_vel.x + v7->x;
+                dir.z = m_rb->m_t_vel.y + v7->y;
+                dir.w = m_rb->m_t_vel.z + v7->z;
+                v8 = phys_cross(&v16, (phys_vec3 *)&dir.y, &m_rb->m_a_vel);
+                y = v8->x;
+                z = v8->y;
+                t_vel_sq = v8->z;
+                v28 = z * z + y * y + t_vel_sq * t_vel_sq;
                 v4 = 0.0000010000001;
             }
         }
-        if (v4 > ndir_sq)
+        if (v4 > v28)
         {
-            v5 = t_vel_sq + *(float *)&lvs;
+            v5 = v19 + *(float *)&p_w;
         }
         else
         {
-            phys_inv_multiply((phys_vec3 *)v17, bpi->m_cg_to_world_xform, &dir);
-            bpi->m_gjk_geom->support(
-                (const phys_vec3 *)v17,
-                (phys_vec3 *)&dir_loc.y,
-                (phys_vec3 *)&v15);
-            lvs = (signed __int32)&bpi->m_rb_to_world_xform->w;
-            v9 = phys_full_multiply(&v13, bpi->m_cg_to_world_xform, (phys_vec3 *)&dir_loc.y);
-            support_pt.x = v9->x - *(float *)lvs;
-            support_pt.y = v9->y - *(float *)(lvs + 4);
-            support_pt.z = v9->z - *(float *)(lvs + 8);
-            v21.x = m_rb->m_a_vel.y * support_pt.z - support_pt.y * m_rb->m_a_vel.z;
-            v21.y = support_pt.x * m_rb->m_a_vel.z - support_pt.z * m_rb->m_a_vel.x;
-            v21.z = support_pt.y * m_rb->m_a_vel.x - support_pt.x * m_rb->m_a_vel.y;
-            support_pt.x = v21.x + m_rb->m_t_vel.x;
-            support_pt.y = m_rb->m_t_vel.y + v21.y;
-            support_pt.z = m_rb->m_t_vel.z + v21.z;
-            v5 = support_pt.y * support_pt.y + support_pt.x * support_pt.x + support_pt.z * support_pt.z;
+            phys_inv_multiply(&v17, bpi->m_cg_to_world_xform, (const phys_vec3 *)&y);
+            bpi->m_gjk_geom->support(&v17, &v18, &v15);
+            p_w = (signed __int32)&bpi->m_rb_to_world_xform->w;
+            v9 = phys_full_multiply(&v13, bpi->m_cg_to_world_xform, &v18);
+            v24 = v9->x - *(float *)p_w;
+            v25 = v9->y - *(float *)(p_w + 4);
+            v26 = v9->z - *(float *)(p_w + 8);
+            dir.y = m_rb->m_a_vel.y * v26 - v25 * m_rb->m_a_vel.z;
+            dir.z = v24 * m_rb->m_a_vel.z - v26 * m_rb->m_a_vel.x;
+            dir.w = v25 * m_rb->m_a_vel.x - v24 * m_rb->m_a_vel.y;
+            v24 = dir.y + m_rb->m_t_vel.x;
+            v25 = m_rb->m_t_vel.y + dir.z;
+            v26 = m_rb->m_t_vel.z + dir.w;
+            v5 = v25 * v25 + v24 * v24 + v26 * v26;
         }
     }
     else
     {
-        v5 = t_vel_sq;
+        v5 = v19;
     }
-    ndir_sq = v5;
+    v28 = v5;
     p_m_largest_vel_sq = (volatile unsigned __int32 *)&m_rb->m_largest_vel_sq;
-    v11 = ndir_sq;
+    v11 = v28;
     do
     {
-        lvs = *(signed __int32 *)p_m_largest_vel_sq;
-        if (*(float *)&lvs > v11)
+        p_w = *(signed __int32 *)p_m_largest_vel_sq;
+        if (*(float *)&p_w > v11)
             break;
-        v12 = lvs;
-    } while (_InterlockedCompareExchange(p_m_largest_vel_sq, SLODWORD(ndir_sq), lvs) != v12);
+        v12 = p_w;
+    } while (_InterlockedCompareExchange(p_m_largest_vel_sq, SLODWORD(v28), p_w) != v12);
 }
+#else // aislop
+// Calculates the maximum possible velocity squared for a rigid body's broadphase sweep,
+// accounting for both translational and rotational velocity at the furthest support point.
+// Result is atomically stored in m_rb->m_largest_vel_sq if it exceeds the current value.
+void calc_largest_vel_sq(broad_phase_info *bpi)
+{
+    static constexpr float EPSILON_SQ = 1e-6f;
 
+    //ASSERT(!bpi->is_bpi_env(), "source/phys_broad_phase.cpp", 692, "!bpi->is_bpi_env()");
+
+    rigid_body *rb = bpi->m_rb;
+
+    //ASSERT(!rb->get_flag(rigid_body::FLAG_ENVIRONMENT_RIGID_BODY | rigid_body::FLAG_USER_RIGID_BODY),
+    //    "source/phys_broad_phase.cpp", 694,
+    //    "!rb->get_flag(rigid_body::FLAG_ENVIRONMENT_RIGID_BODY|rigid_body::FLAG_USER_RIGID_BODY)");
+
+    const phys_vec3 &a_vel = rb->m_a_vel; // angular velocity
+    const phys_vec3 &t_vel = rb->m_t_vel; // translational velocity
+
+    float a_vel_sq = a_vel.x * a_vel.x + a_vel.y * a_vel.y + a_vel.z * a_vel.z;
+    float t_vel_sq = t_vel.x * t_vel.x + t_vel.y * t_vel.y + t_vel.z * t_vel.z;
+
+    float result_vel_sq;
+
+    if (a_vel_sq < EPSILON_SQ)
+    {
+        // No meaningful angular velocity — translational speed alone is the bound.
+        result_vel_sq = t_vel_sq;
+    }
+    else
+    {
+        // Find a direction perpendicular to a_vel pointing toward the worst-case
+        // support point (the geometry point with the highest tangential speed).
+
+        // Attempt 1: perp = t_vel x a_vel
+        phys_vec3 perp;
+        phys_cross(&perp, &t_vel, &a_vel);
+        float perp_sq = perp.x * perp.x + perp.y * perp.y + perp.z * perp.z;
+
+        if (perp_sq < EPSILON_SQ)
+        {
+            // t_vel is parallel to a_vel — perturb t_vel slightly off-axis and retry.
+            // Construct an offset orthogonal to a_vel, add to t_vel, then cross with a_vel.
+            phys_vec3 offset = {
+                a_vel.y * 0.0f - a_vel.z * 0.0f,  // = 0; degenerate row intentional (see asm)
+                a_vel.z * 1.0f - a_vel.x * 0.0f,  // = a_vel.z
+                a_vel.x * 0.0f - a_vel.y * 1.0f   // = -a_vel.y
+            };
+            phys_vec3 perturbed_t = {
+                t_vel.x + offset.x,
+                t_vel.y + offset.y,
+                t_vel.z + offset.z
+            };
+            phys_cross(&perp, &perturbed_t, &a_vel);
+            perp_sq = perp.x * perp.x + perp.y * perp.y + perp.z * perp.z;
+
+            if (perp_sq < EPSILON_SQ)
+            {
+                // Still degenerate — cross a_vel with world Y (0,2,0), add to t_vel, retry.
+                phys_vec3 world_y = { 0.0f, 2.0f, 0.0f };
+                phys_vec3 a_cross_y;
+                phys_cross(&a_cross_y, &a_vel, &world_y);
+                phys_vec3 perturbed_t2 = {
+                    t_vel.x + a_cross_y.x,
+                    t_vel.y + a_cross_y.y,
+                    t_vel.z + a_cross_y.z
+                };
+                phys_cross(&perp, &perturbed_t2, &a_vel);
+                perp_sq = perp.x * perp.x + perp.y * perp.y + perp.z * perp.z;
+            }
+        }
+
+        if (perp_sq < EPSILON_SQ)
+        {
+            // Completely degenerate — fall back to simple sum.
+            result_vel_sq = t_vel_sq + a_vel_sq;
+        }
+        else
+        {
+            // perp points toward the support point in the plane perpendicular to a_vel.
+            // Transform into geometry local space, query the support point, transform back.
+            phys_vec3 perp_local;
+            phys_inv_multiply(&perp_local, bpi->m_cg_to_world_xform, &perp);
+
+            phys_vec3 support_local, support_unused;
+            bpi->m_gjk_geom->support(&perp_local, &support_local, &support_unused);
+
+            phys_vec3 support_world;
+            phys_full_multiply(&support_world, bpi->m_cg_to_world_xform, &support_local);
+
+            // Lever arm: from the rotation origin (rb_to_world translation) to the support point.
+            const phys_vec3 &origin = bpi->m_rb_to_world_xform->w;
+            phys_vec3 lever = {
+                support_world.x - origin.x,
+                support_world.y - origin.y,
+                support_world.z - origin.z
+            };
+
+            // Velocity at support point = t_vel + (a_vel x lever)
+            phys_vec3 rot_vel;
+            phys_cross(&rot_vel, &a_vel, &lever);
+
+            phys_vec3 total_vel = {
+                t_vel.x + rot_vel.x,
+                t_vel.y + rot_vel.y,
+                t_vel.z + rot_vel.z
+            };
+
+            result_vel_sq = total_vel.x * total_vel.x
+                + total_vel.y * total_vel.y
+                + total_vel.z * total_vel.z;
+        }
+    }
+
+    // Atomically update m_largest_vel_sq if our result is larger (lock-free CAS loop).
+    volatile unsigned __int32 *p_largest = (volatile unsigned __int32 *)&rb->m_largest_vel_sq;
+    unsigned __int32 expected;
+    do {
+        expected = *p_largest;
+        if (*(float *)&expected > result_vel_sq)
+            break; // existing value is already larger, nothing to do
+    } while (_InterlockedCompareExchange(p_largest, *(unsigned __int32 *)&result_vel_sq, expected) != expected);
+}
+#endif
 void __cdecl broad_phase_reset_buffer()
 {
     //phys_transient_allocator::reset(&G_BPM->g_collision_memory_buffer);
@@ -4021,23 +4148,25 @@ void    axis_aligned_sweep_and_prune::process_active_pair_list()
     broad_phase_info *j; // esi
     broad_phase_info *k; // edi
     char *v31; // esi
-    phys_vec3 v32; // [esp+Ch] [ebp-58h] BYREF
-    float v33; // [esp+1Ch] [ebp-48h]
-    float v34; // [esp+20h] [ebp-44h]
-    phys_vec3 v35; // [esp+28h] [ebp-3Ch] BYREF
+    phys_vec3 v32; // [esp+18h] [ebp-4Ch] BYREF
+    phys_vec3 v33; // [esp+28h] [ebp-3Ch] BYREF
     phys_heap_gjk_cache_system_avl_tree *p_g_phys_gjk_cache_system; // [esp+44h] [ebp-20h]
-    broad_phase_info *v37; // [esp+48h] [ebp-1Ch]
+    broad_phase_info *v35; // [esp+48h] [ebp-1Ch]
     axis_aligned_sweep_and_prune::active_pair **ap_i; // [esp+4Ch] [ebp-18h]
+    axis_aligned_sweep_and_prune *v37; // [esp+50h] [ebp-14h]
     float hit_time; // [esp+54h] [ebp-10h] BYREF
-    //_UNKNOWN *v41; // [esp+58h] [ebp-Ch]
-    //int v42; // [esp+5Ch] [ebp-8h]
+    //_UNKNOWN *v39; // [esp+58h] [ebp-Ch]
+    //int v40; // [esp+5Ch] [ebp-8h]
     //int vars0; // [esp+64h] [ebp+0h]
     //
-    //v41 = a2;
-    //v42 = vars0;
-    p_m_list_bpi_bpi = &this->m_list_bpi_bpi;
-    m_list_bpi_bpi = this->m_list_bpi_bpi;
-    ap_i = &this->m_list_bpi_bpi;
+    //v39 = a2;
+    //v40 = vars0;
+    axis_aligned_sweep_and_prune *thisptr = this; // :)
+
+    p_m_list_bpi_bpi = &thisptr->m_list_bpi_bpi;
+    m_list_bpi_bpi = thisptr->m_list_bpi_bpi;
+    v37 = thisptr;
+    ap_i = &thisptr->m_list_bpi_bpi;
     if (m_list_bpi_bpi)
     {
         while (1)
@@ -4061,7 +4190,7 @@ void    axis_aligned_sweep_and_prune::process_active_pair_list()
                     PMM_FREE((unsigned __int8 *)m_gjk_ci, 0x90u, 0x10u);
                 }
                 PMM_VALIDATE((char *)m_list_bpi_bpi, 0x10u, 4u);
-                --this->m_active_pair_allocator.m_count;
+                --v37->m_active_pair_allocator.m_count;
                 PMM_FREE((unsigned __int8 *)m_list_bpi_bpi, 0x10u, 4u);
             }
             else
@@ -4069,7 +4198,7 @@ void    axis_aligned_sweep_and_prune::process_active_pair_list()
                 m_bpb = m_p1->m_bpb;
                 v7 = (m_bpb->m_flags & 1) == 0;
                 ap_i = &m_list_bpi_bpi->m_next;
-                v37 = (broad_phase_info *)m_bpb;
+                v35 = (broad_phase_info *)m_bpb;
                 if (v7
                     && _tlAssert(
                         "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\collision\\phys_broad_phase_base.h",
@@ -4092,13 +4221,13 @@ void    axis_aligned_sweep_and_prune::process_active_pair_list()
                 {
                     __debugbreak();
                 }
-                v35.x = v37->m_trace_translation.x - v9->m_trace_translation.x;
-                v35.y = v37->m_trace_translation.y - v9->m_trace_translation.y;
-                v35.z = v37->m_trace_translation.z - v9->m_trace_translation.z;
+                v33.x = v35->m_trace_translation.x - v9->m_trace_translation.x;
+                v33.y = v35->m_trace_translation.y - v9->m_trace_translation.y;
+                v33.z = v35->m_trace_translation.z - v9->m_trace_translation.z;
                 if (phys_are_potentially_colliding(
-                    &v37->m_trace_aabb_min_whace,
-                    &v37->m_trace_aabb_max_whace,
-                    &v35,
+                    &v35->m_trace_aabb_min_whace,
+                    &v35->m_trace_aabb_max_whace,
+                    &v33,
                     &v9->m_trace_aabb_min_whace,
                     &v9->m_trace_aabb_max_whace,
                     &hit_time))
@@ -4121,7 +4250,7 @@ void    axis_aligned_sweep_and_prune::process_active_pair_list()
                         v9 = (broad_phase_info *)p_g_phys_gjk_cache_system;
                         m_list_bpi_bpi->m_gjk_ci = (phys_gjk_cache_info *)v11;
                     }
-                    add_collision_pair(v37, v9, hit_time, m_list_bpi_bpi->m_gjk_ci);
+                    add_collision_pair(v35, v9, hit_time, m_list_bpi_bpi->m_gjk_ci);
                 }
             }
             m_list_bpi_bpi = *ap_i;
@@ -4129,10 +4258,11 @@ void    axis_aligned_sweep_and_prune::process_active_pair_list()
                 break;
             p_m_list_bpi_bpi = ap_i;
         }
+        thisptr = v37;
     }
-    m_list_bpi_bpg = this->m_list_bpi_bpg;
-    p_m_list_bpi_bpg = &this->m_list_bpi_bpg;
-    ap_i = &this->m_list_bpi_bpg;
+    m_list_bpi_bpg = thisptr->m_list_bpi_bpg;
+    p_m_list_bpi_bpg = &thisptr->m_list_bpi_bpg;
+    ap_i = &thisptr->m_list_bpi_bpg;
     if (m_list_bpi_bpg)
     {
         while (1)
@@ -4156,7 +4286,7 @@ void    axis_aligned_sweep_and_prune::process_active_pair_list()
                     PMM_FREE((unsigned __int8 *)v21, 0x90u, 0x10u);
                 }
                 PMM_VALIDATE((char *)m_list_bpi_bpg, 0x10u, 4u);
-                --this->m_active_pair_allocator.m_count;
+                --v37->m_active_pair_allocator.m_count;
                 PMM_FREE((unsigned __int8 *)m_list_bpi_bpg, 0x10u, 4u);
             }
             else
@@ -4184,13 +4314,13 @@ void    axis_aligned_sweep_and_prune::process_active_pair_list()
                 {
                     __debugbreak();
                 }
-                v35.x = v17->m_trace_translation.x - v19->m_trace_translation.x;
-                v35.y = v17->m_trace_translation.y - v19->m_trace_translation.y;
-                v35.z = v17->m_trace_translation.z - v19->m_trace_translation.z;
+                v33.x = v17->m_trace_translation.x - v19->m_trace_translation.x;
+                v33.y = v17->m_trace_translation.y - v19->m_trace_translation.y;
+                v33.z = v17->m_trace_translation.z - v19->m_trace_translation.z;
                 if (phys_are_potentially_colliding(
                     &v17->m_trace_aabb_min_whace,
                     &v17->m_trace_aabb_max_whace,
-                    &v35,
+                    &v33,
                     &v19->m_trace_aabb_min_whace,
                     &v19->m_trace_aabb_max_whace,
                     &hit_time))
@@ -4199,13 +4329,13 @@ void    axis_aligned_sweep_and_prune::process_active_pair_list()
                         i;
                         i = (broad_phase_info *)i->m_list_bpb_next)
                     {
-                        v32.w = v17->m_trace_translation.x - i->m_trace_translation.x;
-                        v33 = v17->m_trace_translation.y - i->m_trace_translation.y;
-                        v34 = v17->m_trace_translation.z - i->m_trace_translation.z;
+                        v32.x = v17->m_trace_translation.x - i->m_trace_translation.x;
+                        v32.y = v17->m_trace_translation.y - i->m_trace_translation.y;
+                        v32.z = v17->m_trace_translation.z - i->m_trace_translation.z;
                         if (phys_are_potentially_colliding(
                             &v17->m_trace_aabb_min_whace,
                             &v17->m_trace_aabb_max_whace,
-                            (phys_vec3 *)&v32.w,
+                            &v32,
                             &i->m_trace_aabb_min_whace,
                             &i->m_trace_aabb_max_whace,
                             &hit_time))
@@ -4220,10 +4350,11 @@ void    axis_aligned_sweep_and_prune::process_active_pair_list()
                 break;
             p_m_list_bpi_bpg = ap_i;
         }
+        thisptr = v37;
     }
-    m_list_bpg_bpg = this->m_list_bpg_bpg;
-    p_m_list_bpg_bpg = &this->m_list_bpg_bpg;
-    ap_i = &this->m_list_bpg_bpg;
+    m_list_bpg_bpg = thisptr->m_list_bpg_bpg;
+    p_m_list_bpg_bpg = &thisptr->m_list_bpg_bpg;
+    ap_i = &thisptr->m_list_bpg_bpg;
     if (m_list_bpg_bpg)
     {
         while (1)
@@ -4247,7 +4378,7 @@ void    axis_aligned_sweep_and_prune::process_active_pair_list()
                     PMM_FREE((unsigned __int8 *)v31, 0x90u, 0x10u);
                 }
                 PMM_VALIDATE((char *)m_list_bpg_bpg, 0x10u, 4u);
-                --this->m_active_pair_allocator.m_count;
+                --v37->m_active_pair_allocator.m_count;
                 PMM_FREE((unsigned __int8 *)m_list_bpg_bpg, 0x10u, 4u);
             }
             else
@@ -4267,7 +4398,7 @@ void    axis_aligned_sweep_and_prune::process_active_pair_list()
                 v27 = (broad_phase_info **)m_list_bpg_bpg->m_p2;
                 v28 = *v27;
                 v7 = ((*v27)->m_flags & 2) == 0;
-                v37 = *v27;
+                v35 = *v27;
                 if (v7
                     && _tlAssert(
                         "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\collision\\phys_broad_phase_base.h",
@@ -4281,26 +4412,26 @@ void    axis_aligned_sweep_and_prune::process_active_pair_list()
                     j;
                     j = (broad_phase_info *)j->m_list_bpb_next)
                 {
-                    v32.w = j->m_trace_translation.x - v28->m_trace_translation.x;
-                    v33 = j->m_trace_translation.y - v28->m_trace_translation.y;
-                    v34 = j->m_trace_translation.z - v28->m_trace_translation.z;
+                    v32.x = j->m_trace_translation.x - v28->m_trace_translation.x;
+                    v32.y = j->m_trace_translation.y - v28->m_trace_translation.y;
+                    v32.z = j->m_trace_translation.z - v28->m_trace_translation.z;
                     if (phys_are_potentially_colliding(
                         &j->m_trace_aabb_min_whace,
                         &j->m_trace_aabb_max_whace,
-                        (phys_vec3 *)&v32.w,
+                        &v32,
                         &v28->m_trace_aabb_min_whace,
                         &v28->m_trace_aabb_max_whace,
                         &hit_time))
                     {
                         for (k = (broad_phase_info *)v28->m_rb; k; k = (broad_phase_info *)k->m_list_bpb_next)
                         {
-                            v35.x = j->m_trace_translation.x - k->m_trace_translation.x;
-                            v35.y = j->m_trace_translation.y - k->m_trace_translation.y;
-                            v35.z = j->m_trace_translation.z - k->m_trace_translation.z;
+                            v33.x = j->m_trace_translation.x - k->m_trace_translation.x;
+                            v33.y = j->m_trace_translation.y - k->m_trace_translation.y;
+                            v33.z = j->m_trace_translation.z - k->m_trace_translation.z;
                             if (phys_are_potentially_colliding(
                                 &j->m_trace_aabb_min_whace,
                                 &j->m_trace_aabb_max_whace,
-                                &v35,
+                                &v33,
                                 &k->m_trace_aabb_min_whace,
                                 &k->m_trace_aabb_max_whace,
                                 &hit_time))
@@ -4308,7 +4439,7 @@ void    axis_aligned_sweep_and_prune::process_active_pair_list()
                                 add_collision_pair(j, k, hit_time, 0);
                             }
                         }
-                        v28 = v37;
+                        v28 = v35;
                     }
                 }
             }

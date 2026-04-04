@@ -741,6 +741,9 @@ void __thiscall GlassesServer::WriteSnapshotToClient(msg_t *msg, int sinceTime)
     unsigned int numChanges; // [esp+44h] [ebp-8h]
     unsigned int _numGlasses; // [esp+48h] [ebp-4h]
 
+    // LWSS HACK AAHH
+    //MSG_WriteShort(msg, 13337);
+
     _numGlasses = this->numGlasses;
     if ( _numGlasses )
     {
@@ -768,7 +771,7 @@ void __thiscall GlassesServer::WriteSnapshotToClient(msg_t *msg, int sinceTime)
                 MSG_WriteShort(msg, 30154);
                 //if ( g_DXDeviceThread != GetCurrentThreadId() )
                 //    return;
-                goto LABEL_30;
+                return;
             }
             if ( 192 * numShattered + 2 * _numGlasses > 192 * numPositions + 12 * numChanges )
                 sendFull = 0;
@@ -817,8 +820,6 @@ void __thiscall GlassesServer::WriteSnapshotToClient(msg_t *msg, int sinceTime)
         }
         MSG_WriteShort(msg, 30154);
         //if ( g_DXDeviceThread == GetCurrentThreadId() )
-    LABEL_30:
-        ;
             //D3DPERF_EndEvent();
     }
 }

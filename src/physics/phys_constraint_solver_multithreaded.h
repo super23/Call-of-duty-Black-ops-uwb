@@ -390,6 +390,12 @@ struct pulse_sum_constraint_solver // sizeof=0x84
             {
                 return node->m_avl_key == key;
             }
+
+            // Hacky aislop shit
+            static void set_key(node_type *node, const key_type &key)
+            {
+                node->m_avl_key = key;
+            }
         };
         user_rigid_body *m_avl_key;
         phys_inplace_avl_tree_node<pulse_sum_constraint_solver::temp_user_rigid_body> m_avl_tree_node;

@@ -44,30 +44,15 @@ struct phys_gjk_geom // sizeof=0x4
 {                                       // XREF: gjk_base_t/r
     //phys_gjk_geom_vtbl *__vftable;
     virtual void support(const phys_vec3 *, phys_vec3 *, phys_vec3 *) const = 0;
-    virtual void get_simplex(const struct cached_simplex_info *, const int, phys_vec3 *, phys_vec3 *)
-    {
-        iassert(0);
-    }
+    virtual void get_simplex(const struct cached_simplex_info *, const int, phys_vec3 *, phys_vec3 *) = 0;
     virtual void set_simplex(const phys_vec3 *, const int, const phys_vec3 *, cached_simplex_info *);
-    virtual const phys_vec3 *get_center(phys_vec3 *result) const
-    {
-        // suckage
-        iassert(0);
-        return NULL;
-    }
-    virtual void get_feature(struct phys_contact_manifold *) const
-    {
-        iassert(0);
-    }
+    virtual const phys_vec3 *get_center(phys_vec3 *result) const = 0;
+    virtual void get_feature(struct phys_contact_manifold *) const = 0;
     virtual float get_geom_radius() const
     {
-        iassert(0);
         return 0.0f;
     }
-    virtual void calc_aabb(const phys_mat44 *, phys_vec3 *, phys_vec3 *) const
-    {
-        iassert(0);
-    }
+    virtual void calc_aabb(const phys_mat44 *, phys_vec3 *, phys_vec3 *) const = 0;
     virtual bool ray_cast(const phys_vec3 *, const phys_vec3 *, const float, float *, phys_vec3 *);
     virtual bool is_polyhedron()
     {
@@ -188,7 +173,7 @@ struct __declspec(align(16)) gjk_aabb_t : gjk_base_t // sizeof=0x80
         void calc_aabb(
                 const phys_mat44 *xform,
                 phys_vec3 *aabb_min,
-                phys_vec3 *aabb_max);
+                phys_vec3 *aabb_max) const;
         const cbrush_t * get_brush();
         static void __cdecl destroy(gjk_aabb_t *geom);
 
@@ -243,7 +228,7 @@ struct gjk_obb_t : gjk_base_t // sizeof=0xA0
         void calc_aabb(
             const phys_mat44 *xform,
             phys_vec3 *aabb_min,
-            phys_vec3 *aabb_max);
+            phys_vec3 *aabb_max) const;
 
         static void __cdecl destroy(gjk_obb_t *geom);
         const phys_vec3 *get_center(phys_vec3 *result) const;
@@ -290,7 +275,7 @@ struct __declspec(align(8)) gjk_brush_t : gjk_base_t // sizeof=0x60
         void calc_aabb(
                 const phys_mat44 *xform,
                 phys_vec3 *aabb_min,
-                phys_vec3 *aabb_max);
+                phys_vec3 *aabb_max) const;
         const cbrush_t *get_brush();
         unsigned int get_type() const;
         static void __cdecl destroy(gjk_brush_t *geom);
@@ -342,6 +327,12 @@ struct __declspec(align(16)) gjk_partition_t : gjk_base_t // sizeof=0x70
 
         bool is_walkable(const phys_vec3 *hit_point, const phys_vec3 *up);
 
+        const phys_vec3 *get_center(phys_vec3 *result) const
+        {
+            // This doesn't exist for this class (right?)
+            iassert(0);
+            return NULL;
+        }
 
         static gjk_partition_t *__cdecl create(const CollisionAabbTree *tree, gjk_collision_visitor *allocator);
         void support(
@@ -357,7 +348,7 @@ struct __declspec(align(16)) gjk_partition_t : gjk_base_t // sizeof=0x70
         void calc_aabb(
                 const phys_mat44 *xform,
                 phys_vec3 *aabb_min,
-                phys_vec3 *aabb_max);
+                phys_vec3 *aabb_max) const;
         unsigned int get_type();
         static void __cdecl destroy(gjk_partition_t *geom);
 
@@ -398,7 +389,7 @@ struct gjk_double_sphere_t : gjk_base_t // sizeof=0x90
         void calc_aabb(
                 const phys_mat44 *xform,
                 phys_vec3 *aabb_min,
-                phys_vec3 *aabb_max);
+                phys_vec3 *aabb_max) const;
         float get_geom_radius() const;
         bool is_polyhedron();
         static gjk_double_sphere_t *__cdecl create(
@@ -449,7 +440,7 @@ struct gjk_cylinder_t : gjk_base_t // sizeof=0xA0
         void calc_aabb(
                 const phys_mat44 *xform_,
                 phys_vec3 *aabb_min,
-                phys_vec3 *aabb_max);
+                phys_vec3 *aabb_max) const;
         unsigned int get_type() const;
         float get_geom_radius() const;
         static void __cdecl destroy(gjk_cylinder_t *geom);
@@ -559,6 +550,16 @@ struct __declspec(align(8)) gjk_polygon_cylinder_t : gjk_base_t // sizeof=0x80
                 gjk_collision_visitor *allocator);
         static void __cdecl destroy(gjk_polygon_cylinder_t *geom);
 
+
+        const phys_vec3 *get_center(phys_vec3 *result) const
+        {
+            iassert(0);
+            return NULL;
+        }
+        void get_feature(struct phys_contact_manifold *) const
+        {
+            iassert(0);
+        }
         
         void support(
             const phys_vec3 *v,
@@ -599,7 +600,7 @@ struct __declspec(align(8)) gjk_polygon_cylinder_t : gjk_base_t // sizeof=0x80
         void calc_aabb(
             const phys_mat44 *xform,
             phys_vec3 *aabb_min,
-            phys_vec3 *aabb_max);
+            phys_vec3 *aabb_max) const;
 
         inline bool is_foot(const phys_vec3 *hit_point) const
         {

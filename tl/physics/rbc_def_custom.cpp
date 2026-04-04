@@ -241,7 +241,7 @@ void rigid_body_constraint_custom_path::setup_constraint(pulse_sum_constraint_so
     pulse_sum_normal *psn; // edi
     double pos; // st7
     double v11; // st7
-    pulse_sum_normal *v12; // edi
+    pulse_sum_normal *pulse_sum_normal; // edi
     double v13; // st7
     double v14; // st7
     rigid_body *v15; // edi
@@ -269,41 +269,38 @@ void rigid_body_constraint_custom_path::setup_constraint(pulse_sum_constraint_so
     rigid_body *v37; // [esp-2Ch] [ebp-ACh]
     phys_vec3 v38; // [esp-Ch] [ebp-8Ch] BYREF
     phys_vec3 b1_r_4; // [esp+4h] [ebp-7Ch] BYREF
-    float b2_r_4[3]; // [esp+14h] [ebp-6Ch] BYREF
-    phys_vec3 v41; // [esp+24h] [ebp-5Ch] BYREF
-    float b1_r__4; // [esp+34h] [ebp-4Ch] BYREF
-    float b1_r__8; // [esp+38h] [ebp-48h]
-    float b1_r__12; // [esp+3Ch] [ebp-44h]
-    phys_vec3 axis; // [esp+40h] [ebp-40h] BYREF
-    float b1_ud; // [esp+50h] [ebp-30h]
-    float v47[2]; // [esp+5Ch] [ebp-24h] OVERLAPPED
-    float v48; // [esp+64h] [ebp-1Ch]
+    phys_vec3 b2_r_4; // [esp+14h] [ebp-6Ch] BYREF
+    phys_vec3 b1_r_; // [esp+24h] [ebp-5Ch] BYREF
+    phys_vec3 b1_r__4; // [esp+34h] [ebp-4Ch] BYREF
+    phys_vec3 b1_ud; // [esp+44h] [ebp-3Ch] BYREF
+    float v44[2]; // [esp+5Ch] [ebp-24h]
+    float v45; // [esp+64h] [ebp-1Ch]
     float y; // [esp+68h] [ebp-18h]
-    float v50[2]; // [esp+6Ch] [ebp-14h]
-    //_UNKNOWN *v51[2]; // [esp+74h] [ebp-Ch] BYREF
-    //int vars0; // [esp+80h] [ebp+0h]
+    float psysa[2]; // [esp+6Ch] [ebp-14h]
+    //int v48[2]; // [esp+74h] [ebp-Ch] BYREF
+    //int vars0_1; // [esp+80h] [ebp+0h]
     //
-    //v51[0] = a2;
-    //v51[1] = (_UNKNOWN *)vars0;
-    v41.x = 0.0;
+    //v48[0] = a2;
+    //v48[1] = vars0_1;
+    b1_r_.x = 0.0;
     b1 = this->b1;
-    v41.y = 0.0;
-    v41.z = 0.0;
+    b1_r_.y = 0.0;
+    b1_r_.z = 0.0;
     phys_multiply(&v38, &b1->m_mat, &this->b1_r_loc);
-    phys_multiply(&b1_r_4, &this->b2->m_mat, &v41);
+    phys_multiply(&b1_r_4, &this->b2->m_mat, &b1_r_);
     if (!this->m_urb && _tlAssert("source/rbc_def_custom.cpp", 148, "m_urb", ""))
         __debugbreak();
-    v50[1] = 1.0 / this->b1->m_inv_mass;
-    v6 = v50[1];
-    v50[1] = psn_spring_k * v50[1];
-    v50[1] = v50[1] * delta_t;
+    psysa[1] = 1.0 / this->b1->m_inv_mass;
+    v6 = psysa[1];
+    psysa[1] = psn_spring_k * psysa[1];
+    psysa[1] = psysa[1] * delta_t;
     v7 = v6 * psn_spring_d;
-    v8 = v50[1] * delta_t;
-    v50[1] = v7;
-    v50[1] = delta_t * v50[1];
-    v50[1] = 1.0 / (v50[1] + v8);
-    v47[1] = v8 * v50[1];
-    //psn = pulse_sum_constraint_solver::create_pulse_sum_normal(psys);
+    v8 = psysa[1] * delta_t;
+    psysa[1] = v7;
+    psysa[1] = delta_t * psysa[1];
+    psysa[1] = 1.0 / (psysa[1] + v8);
+    v44[1] = v8 * psysa[1];
+//    psn = pulse_sum_constraint_solver::create_pulse_sum_normal(psys);
     psn = psys->create_pulse_sum_normal();
     //pulse_sum_normal::set(
         psn->set(
@@ -314,20 +311,20 @@ void rigid_body_constraint_custom_path::setup_constraint(pulse_sum_constraint_so
         &PHYS_X_VEC,
         this->m_list_psc,
         &PHYS_ZERO_VEC);
-    *(double *)v47 = -v47[1] / delta_t;
-    //pos = pulse_sum_normal::get_pos(psn, (int)v51);
+    *(double *)v44 = -v44[1] / delta_t;
+    //pos = pulse_sum_normal::get_pos(psn, (int)v48);
     pos = psn->get_pos();
-    psn->m_right_side = pos * *(double *)v47;
+    psn->m_right_side = pos * *(double *)v44;
     psn->m_big_dirt = 0.0;
-    v11 = v50[1];
-    psn->m_cfm = v50[1];
+    v11 = psysa[1];
+    psn->m_cfm = psysa[1];
     psn->m_denom = v11 + psn->m_denom;
     psn->m_pulse_sum_min = -10000000.0;
     psn->m_pulse_sum_max = 10000000.0;
-    //v12 = pulse_sum_constraint_solver::create_pulse_sum_normal(psys);
-    v12 = psys->create_pulse_sum_normal();
+    //pulse_sum_normal = pulse_sum_constraint_solver::create_pulse_sum_normal(psys);
+    pulse_sum_normal = psys->create_pulse_sum_normal();
     //pulse_sum_normal::set(
-        v12->set(
+        pulse_sum_normal->set(
         this->b1,
         &v38,
         this->b2,
@@ -335,72 +332,71 @@ void rigid_body_constraint_custom_path::setup_constraint(pulse_sum_constraint_so
         &PHYS_Y_VEC,
         &this->m_list_psc[1],
         &PHYS_ZERO_VEC);
-    //v13 = pulse_sum_normal::get_pos(v12, (int)v51);
-    v13 = v12->get_pos();
-    v12->m_right_side = v13 * *(double *)v47;
-    v12->m_big_dirt = 0.0;
-    v14 = v50[1];
-    v12->m_cfm = v50[1];
-    v12->m_denom = v14 + v12->m_denom;
-    v12->m_pulse_sum_min = -10000000.0;
-    v12->m_pulse_sum_max = 10000000.0;
+    //v13 = pulse_sum_normal::get_pos(pulse_sum_normal, (int)v48);
+    v13 = pulse_sum_normal->get_pos();
+    pulse_sum_normal->m_right_side = v13 * *(double *)v44;
+    pulse_sum_normal->m_big_dirt = 0.0;
+    v14 = psysa[1];
+    pulse_sum_normal->m_cfm = psysa[1];
+    pulse_sum_normal->m_denom = v14 + pulse_sum_normal->m_denom;
+    pulse_sum_normal->m_pulse_sum_min = -10000000.0;
+    pulse_sum_normal->m_pulse_sum_max = 10000000.0;
     v15 = this->b1;
-    b1_r__4 = this->b1->m_mat.x.x;
-    b1_r__8 = v15->m_mat.x.y;
+    b1_r__4.x = this->b1->m_mat.x.x;
+    b1_r__4.y = v15->m_mat.x.y;
     b2 = this->b2;
-    b1_r__12 = v15->m_mat.x.z;
+    b1_r__4.z = v15->m_mat.x.z;
     b2 = (rigid_body *)((char *)b2 + 64);
-    axis.x = v15->m_mat.x.w;
+    b1_r__4.w = v15->m_mat.x.w;
     x = b2->m_last_position.x;
     y = b2->m_last_position.y;
-    v48 = x;
-    v50[0] = b2->m_last_position.z;
-    v50[1] = b2->m_last_position.w;
-    v47[1] = x * b1_r__4 + y * b1_r__8 + v50[0] * b1_r__12;
-    v41.x = x * v47[1];
-    v41.y = y * v47[1];
-    v41.z = v50[0] * v47[1];
-    axis.y = b1_r__4 - v41.x;
-    axis.z = b1_r__8 - v41.y;
-    axis.w = b1_r__12 - v41.z;
-    v47[1] = axis.y * axis.y + axis.z * axis.z + axis.w * axis.w;
-    v47[1] = sqrt(v47[1]);
-    if (v47[1] <= 0.00009999999747378752)
+    v45 = x;
+    psysa[0] = b2->m_last_position.z;
+    psysa[1] = b2->m_last_position.w;
+    v44[1] = x * b1_r__4.x + y * b1_r__4.y + psysa[0] * b1_r__4.z;
+    b1_r_.x = x * v44[1];
+    b1_r_.y = y * v44[1];
+    b1_r_.z = psysa[0] * v44[1];
+    b1_ud.x = b1_r__4.x - b1_r_.x;
+    b1_ud.y = b1_r__4.y - b1_r_.y;
+    b1_ud.z = b1_r__4.z - b1_r_.z;
+    v44[1] = b1_ud.x * b1_ud.x + b1_ud.y * b1_ud.y + b1_ud.z * b1_ud.z;
+    v44[1] = sqrt(v44[1]);
+    if (v44[1] <= 0.00009999999747378752)
     {
         v23 = 0.0;
     }
     else
     {
-        v47[1] = 1.0 / v47[1];
-        axis.y = axis.y * v47[1];
-        axis.z = axis.z * v47[1];
-        axis.w = v47[1] * axis.w;
-        v41.x = axis.w * y - axis.z * v50[0];
-        v41.y = v50[0] * axis.y - axis.w * v48;
-        v41.z = v48 * axis.z - axis.y * y;
-        //v18 = rbint::mul_L((int)v51, (const phys_vec3 *)b2_r_4, v15, &v41);
-        v18 = rbint::mul_L((phys_vec3 *)b2_r_4, v15, &v41);
-        v47[1] = v18->y * v41.y + v18->x * v41.x + v18->z * v41.z;
-        v19 = v47[1];
-        v47[1] = psa_spring_k_0 * v47[1];
-        v47[1] = v47[1] * delta_t;
-        *(double *)v50 = v47[1] * delta_t;
-        v47[1] = v19 * psa_spring_d_0;
-        v47[1] = delta_t * v47[1];
-        v47[1] = 1.0 / (*(double *)v50 + v47[1]);
-        v20 = //pulse_sum_constraint_solver::create_pulse_sum_angular(
-            psys->create_pulse_sum_angular(
+        v44[1] = 1.0 / v44[1];
+        b1_ud.x = b1_ud.x * v44[1];
+        b1_ud.y = b1_ud.y * v44[1];
+        b1_ud.z = v44[1] * b1_ud.z;
+        b1_r_.x = b1_ud.z * y - b1_ud.y * psysa[0];
+        b1_r_.y = psysa[0] * b1_ud.x - b1_ud.z * v45;
+        b1_r_.z = v45 * b1_ud.y - b1_ud.x * y;
+        v18 = rbint::mul_L(&b2_r_4, v15, &b1_r_);
+        v44[1] = v18->y * b1_r_.y + v18->x * b1_r_.x + v18->z * b1_r_.z;
+        v19 = v44[1];
+        v44[1] = psa_spring_k_0 * v44[1];
+        v44[1] = v44[1] * delta_t;
+        *(double *)psysa = v44[1] * delta_t;
+        v44[1] = v19 * psa_spring_d_0;
+        v44[1] = delta_t * v44[1];
+        v44[1] = 1.0 / (*(double *)psysa + v44[1]);
+        //v20 = pulse_sum_constraint_solver::create_pulse_sum_angular(
+        v20 = psys->create_pulse_sum_angular(
             this->b1,
-            (const phys_vec3 *)&b1_r__4,
+            &b1_r__4,
             this->b2,
-            (phys_vec3 *)&axis.y,
-            &v41,
+            &b1_ud,
+            &b1_r_,
             &this->m_list_psc[2]);
         //v21 = pulse_sum_angular::get_pos(v20);
         v21 = v20->get_pos();
-        v22 = v47[1];
-        v47[1] = *(double *)v50 * v47[1];
-        v20->m_right_side = v21 * (-v47[1] / delta_t);
+        v22 = v44[1];
+        v44[1] = *(double *)psysa * v44[1];
+        v20->m_right_side = v21 * (-v44[1] / delta_t);
         v20->m_big_dirt = 0.0;
         v23 = 0.0;
         v20->m_cfm = v22;
@@ -410,72 +406,72 @@ void rigid_body_constraint_custom_path::setup_constraint(pulse_sum_constraint_so
     }
     v24 = this->b1->m_mat.z.y;
     p_z = &this->b1->m_mat.z;
-    axis.y = p_z->x;
+    b1_ud.x = p_z->x;
     z = p_z->z;
     w = p_z->w;
-    b2_r_4[0] = v23;
-    b2_r_4[1] = v23;
-    axis.z = v24;
-    axis.w = z;
-    b2_r_4[2] = 1.0;
-    b1_ud = w;
-    v47[1] = v24 * 0.0 + axis.y * 0.0 + z;
-    v41.x = axis.y * v47[1];
-    v41.y = v24 * v47[1];
-    v41.z = v47[1] * z;
-    b1_r__4 = 0.0 - v41.x;
-    b1_r__8 = 0.0 - v41.y;
-    b1_r__12 = 1.0 - v41.z;
-    v47[1] = b1_r__4 * b1_r__4 + b1_r__8 * b1_r__8 + b1_r__12 * b1_r__12;
-    v47[1] = sqrt(v47[1]);
-    if (v47[1] >= 0.00009999999747378752)
+    b2_r_4.x = v23;
+    b2_r_4.y = v23;
+    b1_ud.y = v24;
+    b1_ud.z = z;
+    b2_r_4.z = 1.0;
+    b1_ud.w = w;
+    v44[1] = v24 * 0.0 + b1_ud.x * 0.0 + z;
+    b1_r_.x = b1_ud.x * v44[1];
+    b1_r_.y = v24 * v44[1];
+    b1_r_.z = v44[1] * z;
+    b1_r__4.x = 0.0 - b1_r_.x;
+    b1_r__4.y = 0.0 - b1_r_.y;
+    b1_r__4.z = 1.0 - b1_r_.z;
+    v44[1] = b1_r__4.x * b1_r__4.x + b1_r__4.y * b1_r__4.y + b1_r__4.z * b1_r__4.z;
+    v44[1] = sqrt(v44[1]);
+    if (v44[1] >= 0.00009999999747378752)
     {
-        v28 = axis.y;
-        v48 = axis.y * 0.5;
-        y = axis.z * 0.5;
-        v29 = axis.w;
-        v50[0] = 0.5 * axis.w;
-        v30 = axis.z;
-        v47[1] = 0.8660253882408142 / v47[1];
-        axis.y = b1_r__4 * v47[1];
-        axis.z = b1_r__8 * v47[1];
-        axis.w = v47[1] * b1_r__12;
-        v41.x = axis.y + v48;
-        v41.y = axis.z + y;
-        v41.z = axis.w + v50[0];
-        axis.y = v41.y * v29 - v41.z * v30;
-        axis.z = v41.z * v28 - v29 * v41.x;
-        axis.w = v41.x * v30 - v28 * v41.y;
-        b1_r__4 = axis.y * 1.154700517654419;
-        b1_r__8 = axis.z * 1.154700517654419;
-        b1_r__12 = 1.154700517654419 * axis.w;
-        PHYS_ASSERT_UNIT((const phys_vec3 *)&b1_r__4);
-        v31 = rbint::mul_L((phys_vec3 *)&axis.y, this->b1, (const phys_vec3 *)&b1_r__4);
+        v28 = b1_ud.x;
+        v45 = b1_ud.x * 0.5;
+        y = b1_ud.y * 0.5;
+        v29 = b1_ud.z;
+        psysa[0] = 0.5 * b1_ud.z;
+        v30 = b1_ud.y;
+        v44[1] = 0.8660253882408142 / v44[1];
+        b1_ud.x = b1_r__4.x * v44[1];
+        b1_ud.y = b1_r__4.y * v44[1];
+        b1_ud.z = v44[1] * b1_r__4.z;
+        b1_r_.x = b1_ud.x + v45;
+        b1_r_.y = b1_ud.y + y;
+        b1_r_.z = b1_ud.z + psysa[0];
+        b1_ud.x = b1_r_.y * v29 - b1_r_.z * v30;
+        b1_ud.y = b1_r_.z * v28 - v29 * b1_r_.x;
+        b1_ud.z = b1_r_.x * v30 - v28 * b1_r_.y;
+        b1_r__4.x = b1_ud.x * 1.154700517654419;
+        b1_r__4.y = b1_ud.y * 1.154700517654419;
+        b1_r__4.z = 1.154700517654419 * b1_ud.z;
+        PHYS_ASSERT_UNIT(&b1_r__4);
+        v31 = rbint::mul_L(&b1_ud, this->b1, &b1_r__4);
         v32 = this->b1;
         v37 = this->b2;
-        v47[1] = v31->y * b1_r__8 + v31->x * b1_r__4 + v31->z * b1_r__12;
-        v33 = v47[1];
-        v47[1] = v47[1] * psa_spring_k;
-        v47[1] = v47[1] * delta_t;
-        *(double *)v50 = v47[1] * delta_t;
-        v47[1] = v33 * psa_spring_d;
-        v47[1] = delta_t * v47[1];
-        v47[1] = 1.0 / (*(double *)v50 + v47[1]);
-        v34 = //pulse_sum_constraint_solver::create_pulse_sum_angular(
-            psys->create_pulse_sum_angular(
+        v44[1] = v31->y * b1_r__4.y + v31->x * b1_r__4.x + v31->z * b1_r__4.z;
+        v33 = v44[1];
+        v44[1] = v44[1] * psa_spring_k;
+        v44[1] = v44[1] * delta_t;
+        *(double *)psysa = v44[1] * delta_t;
+        v44[1] = v33 * psa_spring_d;
+        v44[1] = delta_t * v44[1];
+        v44[1] = 1.0 / (*(double *)psysa + v44[1]);
+        //v34 = pulse_sum_constraint_solver::create_pulse_sum_angular(
+        v34 = psys->create_pulse_sum_angular(
             v32,
-            &v41,
+            &b1_r_,
             v37,
-            (const phys_vec3 *)b2_r_4,
-            (const phys_vec3 *)&b1_r__4,
+            &b2_r_4,
+            &b1_r__4,
             &this->m_list_psc[3]);
         v34->m_pulse_sum_min = -10000000.0;
         v34->m_pulse_sum_max = 0.0;
         //v35 = pulse_sum_angular::get_pos(v34);
         v35 = v34->get_pos();
-        v36 = v47[1];
-        v47[1] = *(double *)v50 * v47[1];
-        v34->m_right_side = v35 * (-v47[1] / delta_t);
+        v36 = v44[1];
+        v44[1] = *(double *)psysa * v44[1];
+        v34->m_right_side = v35 * (-v44[1] / delta_t);
         v34->m_big_dirt = 0.0;
         v34->m_cfm = v36;
         v34->m_denom = v36 + v34->m_denom;

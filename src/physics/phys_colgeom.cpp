@@ -393,10 +393,8 @@ char *phys_memory_heap::fast_allocate(int size, const char *error_msg)
 void gjk_aabb_t::calc_aabb(
                 const phys_mat44 *xform,
                 phys_vec3 *aabb_min,
-                phys_vec3 *aabb_max)
+                phys_vec3 *aabb_max) const
 {
-    int savedregs; // [esp+128h] [ebp+0h] BYREF
-
     phys_calc_world_aabb(&this->m_center_local, &this->m_dims, xform, aabb_min, aabb_max);
 }
 
@@ -618,13 +616,13 @@ void gjk_obb_t::get_feature(phys_contact_manifold *cman) const
 void gjk_obb_t::calc_aabb(
     const phys_mat44 *xform,
     phys_vec3 *aabb_min,
-    phys_vec3 *aabb_max)
+    phys_vec3 *aabb_max) const
 {
     phys_vec3 v5; // [esp-30h] [ebp-BCh] BYREF
     float v6; // [esp-1Ch] [ebp-A8h]
     float v7; // [esp-18h] [ebp-A4h]
     float v8; // [esp-14h] [ebp-A0h]
-    phys_vec3 *v9; // [esp-10h] [ebp-9Ch]
+    const phys_vec3 *v9; // [esp-10h] [ebp-9Ch]
     const phys_vec3 *j; // [esp-Ch] [ebp-98h]
     const phys_mat44 *v11; // [esp-8h] [ebp-94h]
     const phys_vec3 *v12; // [esp-4h] [ebp-90h]
@@ -633,9 +631,9 @@ void gjk_obb_t::calc_aabb(
     float v15; // [esp+20h] [ebp-6Ch]
     float v16; // [esp+24h] [ebp-68h]
     float v17; // [esp+28h] [ebp-64h]
-    phys_vec3 *p_m_dims; // [esp+2Ch] [ebp-60h]
+    const phys_vec3 *p_m_dims; // [esp+2Ch] [ebp-60h]
     phys_mat44 v19; // [esp+30h] [ebp-5Ch] BYREF
-    gjk_obb_t *v20; // [esp+7Ch] [ebp-10h]
+    const gjk_obb_t *v20; // [esp+7Ch] [ebp-10h]
     //_DWORD v21[2]; // [esp+80h] [ebp-Ch] BYREF
     //_UNKNOWN *retaddr; // [esp+8Ch] [ebp+0h]
     //
@@ -909,13 +907,13 @@ void gjk_brush_t::get_feature(phys_contact_manifold *cman) const
 void gjk_brush_t::calc_aabb(
                 const phys_mat44 *xform,
                 phys_vec3 *aabb_min,
-                phys_vec3 *aabb_max)
+                phys_vec3 *aabb_max) const
 {
     const phys_vec3 *v5; // eax
     int i; // [esp-Ch] [ebp-44h]
     phys_vec3 v7; // [esp-4h] [ebp-3Ch] OVERLAPPED BYREF
     phys_vec3 v8; // [esp+Ch] [ebp-2Ch] BYREF
-    gjk_brush_t *v9; // [esp+28h] [ebp-10h]
+    const gjk_brush_t *v9; // [esp+28h] [ebp-10h]
     //_DWORD v10[2]; // [esp+2Ch] [ebp-Ch] BYREF
     //_UNKNOWN *retaddr; // [esp+38h] [ebp+0h]
     //
@@ -1099,7 +1097,7 @@ void gjk_partition_t::get_feature(phys_contact_manifold *cman) const
 void gjk_partition_t::calc_aabb(
                 const phys_mat44 *xform,
                 phys_vec3 *aabb_min,
-                phys_vec3 *aabb_max)
+                phys_vec3 *aabb_max) const
 {
     phys_vec3 v5; // [esp-Ch] [ebp-5Ch] BYREF
     const phys_vec3 *v6; // [esp+10h] [ebp-40h]
@@ -1314,7 +1312,7 @@ void gjk_double_sphere_t::get_feature(phys_contact_manifold *cman) const
 void gjk_double_sphere_t::calc_aabb(
                 const phys_mat44 *xform,
                 phys_vec3 *aabb_min,
-                phys_vec3 *aabb_max)
+                phys_vec3 *aabb_max) const
 {
     int i; // [esp+1A8h] [ebp-4h]
 
@@ -2141,7 +2139,7 @@ void gjk_cylinder_t::get_feature(phys_contact_manifold *cman) const
 void gjk_cylinder_t::calc_aabb(
                 const phys_mat44 *xform_,
                 phys_vec3 *aabb_min,
-                phys_vec3 *aabb_max)
+                phys_vec3 *aabb_max) const
 {
     const phys_vec3 *v5; // eax
     const phys_vec3 *v6; // eax
@@ -2155,7 +2153,7 @@ void gjk_cylinder_t::calc_aabb(
     unsigned int direction; // [esp+38h] [ebp-40h]
     phys_vec3 v15; // [esp+3Ch] [ebp-3Ch] OVERLAPPED BYREF
     phys_vec3 v16; // [esp+4Ch] [ebp-2Ch] BYREF
-    gjk_cylinder_t *v17; // [esp+68h] [ebp-10h]
+    const gjk_cylinder_t *v17; // [esp+68h] [ebp-10h]
     //_DWORD v18[2]; // [esp+6Ch] [ebp-Ch] BYREF
     //_UNKNOWN *retaddr; // [esp+78h] [ebp+0h]
     //
@@ -2237,43 +2235,37 @@ void    setup_gjk_polygon_cylinder(
                 gjk_polygon_cylinder_t *gjk_cylinder)
 {
     const phys_vec3 *v5; // edx
-    float v6; // xmm0_4
+    float radius; // xmm0_4
     float v7; // xmm0_4
-    long double v8; // [esp-60h] [ebp-15Ch]
+    float v8; // xmm0_4
     float v9; // [esp-54h] [ebp-150h]
     float m_half_height; // [esp-4Ch] [ebp-148h]
     float v11; // [esp-38h] [ebp-134h]
     float v12; // [esp-Ch] [ebp-108h]
-    float v13; // [esp+4h] [ebp-F8h]
-    float dim; // [esp+10h] [ebp-ECh]
-    float dim_4; // [esp+14h] [ebp-E8h]
-    float dim_8; // [esp+18h] [ebp-E4h]
-    phys_vec3 v17; // [esp+24h] [ebp-D8h] BYREF
-    phys_vec3 v18; // [esp+34h] [ebp-C8h] BYREF
-    float v19; // [esp+44h] [ebp-B8h]
-    float v20; // [esp+48h] [ebp-B4h]
-    float v21; // [esp+50h] [ebp-ACh]
-    float v22; // [esp+54h] [ebp-A8h]
-    float v23; // [esp+58h] [ebp-A4h]
-    const phys_vec3 *v24; // [esp+5Ch] [ebp-A0h]
-    int v25; // [esp+60h] [ebp-9Ch] BYREF
-    phys_vec3 v26; // [esp+64h] [ebp-98h] BYREF
-    float v27; // [esp+74h] [ebp-88h]
-    float v28; // [esp+78h] [ebp-84h]
-    float v29; // [esp+84h] [ebp-78h]
-    float v30; // [esp+88h] [ebp-74h]
-    float v31; // [esp+8Ch] [ebp-70h]
+    float x; // [esp+4h] [ebp-F8h]
+    phys_vec3 dim; // [esp+10h] [ebp-ECh]
+    phys_vec3 v15; // [esp+30h] [ebp-CCh] BYREF
+    phys_vec3 v16; // [esp+40h] [ebp-BCh] BYREF
+    float v17; // [esp+50h] [ebp-ACh]
+    float v18; // [esp+54h] [ebp-A8h]
+    float v19; // [esp+58h] [ebp-A4h]
+    const phys_vec3 *v20; // [esp+5Ch] [ebp-A0h]
+    phys_vec3 v21; // [esp+60h] [ebp-9Ch] BYREF
+    phys_vec3 v22; // [esp+70h] [ebp-8Ch] BYREF
+    float v23; // [esp+84h] [ebp-78h]
+    float v24; // [esp+88h] [ebp-74h]
+    float v25; // [esp+8Ch] [ebp-70h]
     phys_vec3 save_pv_maxs; // [esp+90h] [ebp-6Ch] BYREF
     phys_vec3 save_pv_mins; // [esp+A0h] [ebp-5Ch] BYREF
     phys_vec3 dim_adjust_vec; // [esp+B0h] [ebp-4Ch]
     float dim_adjust; // [esp+CCh] [ebp-30h]
     phys_vec3 pv_maxs; // [esp+D0h] [ebp-2Ch] BYREF
     phys_vec3 pv_mins; // [esp+E0h] [ebp-1Ch] BYREF
-    //_UNKNOWN *v38; // [esp+F0h] [ebp-Ch]
+    //_UNKNOWN *v32; // [esp+F0h] [ebp-Ch]
     //const float *minsa; // [esp+F4h] [ebp-8h]
     //float radius_adjusta; // [esp+FCh] [ebp+0h]
     //
-    //v38 = a1;
+    //v32 = a1;
     //minsa = (const float *)LODWORD(radius_adjusta);
     Phys_Vec3ToNitrousVec(mins, &pv_mins);
     Phys_Vec3ToNitrousVec(maxs, &pv_maxs);
@@ -2293,76 +2285,52 @@ void    setup_gjk_polygon_cylinder(
     dim_adjust_vec.z = radius_adjust - 0.125;
     save_pv_mins = pv_mins;
     save_pv_maxs = pv_maxs;
-    v31 = pv_mins.x + (float)(radius_adjust - 0.125);
-    v30 = pv_mins.y + (float)(radius_adjust - 0.125);
-    v29 = pv_mins.z + (float)(radius_adjust - 0.125);
-    v26.w = v31;
-    v27 = v30;
-    v28 = v29;
-    v24 = phys_min((phys_vec3 *)&v25, (phys_vec3 *)&v26.w, &save_pv_maxs);
-    *(_QWORD *)&pv_mins.x = *(_QWORD *)&v24->x;
-    pv_mins.z = v24->z;
-    v23 = save_pv_maxs.x - dim_adjust_vec.x;
-    v22 = save_pv_maxs.y - dim_adjust_vec.y;
-    v21 = save_pv_maxs.z - dim_adjust_vec.z;
-    v18.w = save_pv_maxs.x - dim_adjust_vec.x;
-    v19 = save_pv_maxs.y - dim_adjust_vec.y;
-    v20 = save_pv_maxs.z - dim_adjust_vec.z;
-    v5 = phys_max((phys_vec3 *)&v17.w, (phys_vec3 *)&v18.w, &save_pv_mins);
+    v25 = pv_mins.x + (float)(radius_adjust - 0.125);
+    v24 = pv_mins.y + (float)(radius_adjust - 0.125);
+    v23 = pv_mins.z + (float)(radius_adjust - 0.125);
+    v22.x = v25;
+    v22.y = v24;
+    v22.z = v23;
+    v20 = phys_min(&v21, &v22, &save_pv_maxs);
+    pv_mins.x = v20->x;
+    pv_mins.y = v20->y;
+    pv_mins.z = v20->z;
+    v19 = save_pv_maxs.x - dim_adjust_vec.x;
+    v18 = save_pv_maxs.y - dim_adjust_vec.y;
+    v17 = save_pv_maxs.z - dim_adjust_vec.z;
+    v16.x = save_pv_maxs.x - dim_adjust_vec.x;
+    v16.y = save_pv_maxs.y - dim_adjust_vec.y;
+    v16.z = save_pv_maxs.z - dim_adjust_vec.z;
+    v5 = phys_max(&v15, &v16, &save_pv_mins);
     pv_maxs.x = v5->x;
     pv_maxs.y = v5->y;
     pv_maxs.z = v5->z;
-    dim = pv_maxs.x - pv_mins.x;
-    dim_4 = pv_maxs.y - pv_mins.y;
-    dim_8 = pv_maxs.z - pv_mins.z;
-    if ((float)(pv_maxs.x - pv_mins.x) < 0.0
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_colgeom.cpp",
-            306,
-            0,
-            "%s",
-            "dim.GetX() >= 0.0f"))
-    {
-        __debugbreak();
-    }
-    if (dim_4 < 0.0
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_colgeom.cpp",
-            307,
-            0,
-            "%s",
-            "dim.GetY() >= 0.0f"))
-    {
-        __debugbreak();
-    }
-    if (dim_8 < 0.0
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_colgeom.cpp",
-            308,
-            0,
-            "%s",
-            "dim.GetZ() >= 0.0f"))
-    {
-        __debugbreak();
-    }
-    if (dim <= dim_8)
-        v13 = dim;
+    dim.x = pv_maxs.x - pv_mins.x;
+    dim.y = pv_maxs.y - pv_mins.y;
+    dim.z = pv_maxs.z - pv_mins.z;
+
+    iassert(dim.GetX() >= 0.0f);
+    iassert(dim.GetY() >= 0.0f);
+    iassert(dim.GetZ() >= 0.0f);
+
+    if (dim.x <= dim.z)
+        x = dim.x;
     else
-        v13 = dim_8;
-    if ((float)(0.5 * v13) >= 1.0)
-        v6 = 0.5 * v13;
+        x = dim.z;
+    if ((float)(0.5 * x) >= 1.0)
+        radius = 0.5 * x;
     else
-        v6 = 1.0f;
-    v12 = v6;
-    if (v6 == 1.0)
+        radius = 1.0f;
+    v12 = radius;
+    if (radius == 1.0)
         tlWarning("degenerate capsule.");
-    if (v6 < 0.0
+    if (radius < 0.0
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_colgeom.cpp", 312, 0, "%s", "radius >= 0.0f"))
     {
         __debugbreak();
     }
-    if ((float)(0.5 * dim_8) >= 1.0)
-        v7 = 0.5 * dim_8;
+    if ((float)(0.5 * dim.z) >= 1.0)
+        v7 = 0.5 * dim.z;
     else
         v7 = 1.0f;
     gjk_cylinder->m_half_height = v7;
@@ -2401,6 +2369,8 @@ void    setup_gjk_polygon_cylinder(
     gjk_cylinder->m_foot_offset = v9;
     gjk_cylinder->m_mode = 0;
 }
+
+
 
 gjk_polygon_cylinder_t::poly_verts gjk_polygon_cylinder_t::s_poly_verts;
 
@@ -3805,7 +3775,7 @@ void gjk_polygon_cylinder_t::get_simplex(
 void gjk_polygon_cylinder_t::calc_aabb(
     const phys_mat44 *xform,
     phys_vec3 *aabb_min,
-    phys_vec3 *aabb_max)
+    phys_vec3 *aabb_max) const
 {
     const phys_vec3 *v5; // eax
     float v6; // [esp+10h] [ebp-188h]
@@ -3843,7 +3813,7 @@ void gjk_polygon_cylinder_t::calc_aabb(
     float v38; // [esp+17Ch] [ebp-1Ch]
     float m_half_height; // [esp+180h] [ebp-18h]
     const phys_vec3 *p_z; // [esp+184h] [ebp-14h]
-    gjk_polygon_cylinder_t *thisa; // [esp+188h] [ebp-10h]
+    const gjk_polygon_cylinder_t *thisa; // [esp+188h] [ebp-10h]
     //int v42; // [esp+18Ch] [ebp-Ch]
     //void *xforma; // [esp+190h] [ebp-8h]
     //void *aabb_maxa; // [esp+198h] [ebp+0h]

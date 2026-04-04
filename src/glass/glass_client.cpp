@@ -137,6 +137,13 @@ void __thiscall GlassesClient::ParseSnapshot(int localClientNum, msg_t *msg, boo
     unsigned int num; // [esp+4Ch] [ebp-8h]
     unsigned int check; // [esp+50h] [ebp-4h]
 
+    // LWSS HACK
+    //check = MSG_ReadShort(msg);
+    //if (check != 13337)
+    //{
+    //    iassert(0);
+    //}
+
     if ( MSG_ReadBit(msg) == 1 )
     {
         if ( MSG_ReadBit(msg) == 1 )
@@ -314,7 +321,6 @@ void __thiscall GlassClient::SetState(
                 float *hitDir,
                 bool gameState)
 {
-    const char *v6; // eax
     char *autoShatterShound; // [esp+8h] [ebp-24h]
 
     if ( newState != (this->state.val.i & 0xF) )
@@ -352,8 +358,7 @@ void __thiscall GlassClient::SetState(
             }
             else
             {
-                v6 = va("wrong glass state: %d", newState);
-                if ( !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_client.cpp", 328, 0, v6) )
+                if ( !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_client.cpp", 328, 0, va("wrong glass state: %d", newState)) )
                     __debugbreak();
             }
         }

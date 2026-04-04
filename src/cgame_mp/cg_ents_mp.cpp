@@ -3208,7 +3208,6 @@ void __cdecl CG_InterpolateVehicle(cg_s *cgameGlob, centity_s *cent, int curTime
                     cent->nitrousVeh->update_from_network(v3, v4, &cent->nextState.lerp.u.vehicle, timeDifference);
                     //NitrousVehicle::update_from_network(
                     //    cent->nitrousVeh,
-                    //    (phys_vec3 *)&savedregs,
                     //    v3,
                     //    v4,
                     //    (LerpEntityStateVehicle *)&cent->nextState.lerp.u,

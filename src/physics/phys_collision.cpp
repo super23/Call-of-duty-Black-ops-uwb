@@ -1998,34 +1998,36 @@ generic_avl_map_node_t *__cdecl generic_avl_map_add(
     void *data,
     unsigned int avl_key)
 {
-    generic_avl_map_node_t *m_tree_root; // [esp+15Ch] [ebp-8h]
+    //generic_avl_map_node_t *m_tree_root; // [esp+15Ch] [ebp-8h]
     generic_avl_map_node_t *gamn; // [esp+160h] [ebp-4h]
 
-    m_tree_root = gam->m_tree_root;
-    while (m_tree_root && avl_key != m_tree_root->m_avl_key)
-    {
-        if (avl_key >= m_tree_root->m_avl_key)
-            m_tree_root = m_tree_root->m_avl_tree_node.m_right;
-        else
-            m_tree_root = m_tree_root->m_avl_tree_node.m_left;
-    }
-    if (m_tree_root
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_collision.cpp",
-            1243,
-            0,
-            "%s",
-            "gam->find(avl_key) == NULL"))
-    {
-        __debugbreak();
-    }
+    //m_tree_root = gam->m_tree_root;
+    //while (m_tree_root && avl_key != m_tree_root->m_avl_key)
+    //{
+    //    if (avl_key >= m_tree_root->m_avl_key)
+    //        m_tree_root = m_tree_root->m_avl_tree_node.m_right;
+    //    else
+    //        m_tree_root = m_tree_root->m_avl_tree_node.m_left;
+    //}
+    //if (m_tree_root
+    //    && !Assert_MyHandler(
+    //        "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_collision.cpp",
+    //        1243,
+    //        0,
+    //        "%s",
+    //        "gam->find(avl_key) == NULL"))
+    //{
+    //    __debugbreak();
+    //}
+    // 
+
+    iassert(gam->find(avl_key) == NULL);
+
     //gamn = phys_simple_allocator<generic_avl_map_node_t>::allocate(&g_generic_avl_map_node_allocator);
     gamn = g_generic_avl_map_node_allocator.allocate();
-    if (!gamn
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_collision.cpp", 1245, 0, "%s", "gamn"))
-    {
-        __debugbreak();
-    }
+
+    iassert(gamn);
+
     gamn->m_data = data;
     //phys_inplace_avl_tree<unsigned int, generic_avl_map_node_t, generic_avl_map_node_t>::add(gam, &avl_key, gamn);
     gam->add(avl_key, gamn);

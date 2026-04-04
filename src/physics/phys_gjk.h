@@ -57,6 +57,12 @@ struct broad_phase_environment_info // sizeof=0x24
             return node->m_database_id.m_id1 == key.m_id1 &&
                 node->m_database_id.m_id2 == key.m_id2;
         }
+
+        // Hacky aislop shit
+        static void set_key(node_type *node, const key_type &key)
+        {
+            node->m_database_id = key;  // uses m_database_id
+        }
     };
 
     void *m_data;
@@ -135,6 +141,12 @@ struct phys_heap_gjk_cache_system_avl_tree // sizeof=0x10
             {
                 return node->m_key.m_id1 == key.m_id1 &&
                     node->m_key.m_id2 == key.m_id2;
+            }
+
+            // Hacky aislop shit
+            static void set_key(node_type *node, const key_type &key)
+            {
+                node->m_key = key;  // uses m_key, not m_avl_key
             }
         };
 
@@ -680,6 +692,17 @@ struct generic_avl_map_node_t // sizeof=0x14
     static inline bool less(const generic_avl_map_node_t *a, const generic_avl_map_node_t *b)
     {
         return a->m_avl_key < b->m_avl_key;
+    }
+
+    // aislop hacky shit
+    static inline bool equals(const generic_avl_map_node_t *node, unsigned int key)
+    {
+        return node->m_avl_key == key;
+    }
+
+    static inline void set_key(generic_avl_map_node_t *node, unsigned int key)
+    {
+        node->m_avl_key = key;
     }
 };
 
