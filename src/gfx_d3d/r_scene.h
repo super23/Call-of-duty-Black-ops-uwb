@@ -499,7 +499,7 @@ void __cdecl R_SetEndTime(int endTime);
 void __cdecl R_WaitEndTime();
 void __cdecl R_SetSunConstants(GfxCmdBufInput *input);
 void __cdecl R_SetInputCodeConstant(GfxCmdBufInput *input, unsigned int constant, float x, float y, float z, float w);
-void __cdecl R_SetInputCodeConstantFromVec4(GfxCmdBufInput *input, unsigned int constant, float *value);
+void __cdecl R_SetInputCodeConstantFromVec4(GfxCmdBufInput *input, unsigned int constant, const float *value);
 void    R_SetHDRControlConstants(GfxCmdBufInput *input, const GfxViewInfo *viewInfo);
 void __cdecl R_GenerateMarkVertsForDynamicModels(const GfxLight *visibleLights, int visibleLightCount);
 void    R_SetSkyDynamicIntensity(const float *viewForward, GfxCmdBufInput *input);

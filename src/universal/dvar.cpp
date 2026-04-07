@@ -1629,48 +1629,31 @@ void __cdecl Dvar_SetVariant(dvar_s *dvar, DvarValue value, DvarSetSource source
             switch ( dvar->type )
             {
                 case DVAR_TYPE_FLOAT_2:
-                    dvar->current.integer64 = value.integer64;
-                    dvar->latched.integer64 = value.integer64;
+                    Vec2Copy(value.vector, dvar->current.vector);
+                    Vec2Copy(value.vector, dvar->latched.vector);
                     break;
                 case DVAR_TYPE_FLOAT_3:
                 case DVAR_TYPE_LINEAR_COLOR_RGB:
                 case DVAR_TYPE_COLOR_XYZ:
-                    dvar->current.integer = value.integer;
-                    *(__int64 *)((char *)&dvar->current.integer64 + 4) = *(__int64 *)((char *)&value.integer64 + 4);
-                    dvar->latched.integer64 = value.integer64;
-                    dvar->latched.vector[2] = value.vector[2];
+                    Vec3Copy(value.vector, dvar->current.vector);
+                    Vec3Copy(value.vector, dvar->latched.vector);
                     break;
                 case DVAR_TYPE_FLOAT_4:
-                    dvar->current = value;
-                    dvar->latched = value;
+                    Vec4Copy(value.vector, dvar->current.vector);
+                    Vec4Copy(value.vector, dvar->latched.vector);
                     break;
                 case DVAR_TYPE_STRING:
-                    if ( !dvar->name
-                        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\universal\\dvar.cpp", 1100, 0, "%s", "dvar->name") )
-                    {
-                        __debugbreak();
-                    }
-                    if ( value.integer == dvar->current.integer
-                        && value.integer != dvar->latched.integer
-                        && value.integer != dvar->reset.integer
-                        && !Assert_MyHandler(
-                                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\dvar.cpp",
-                                    1101,
-                                    0,
-                                    "%s\n\t(dvar->name) = %s",
-                                    "(value.string != dvar->current.string || value.string == dvar->latched.string || value.string == dvar->reset.string)",
-                                    dvar->name) )
-                    {
-                        __debugbreak();
-                    }
+                    iassert(dvar->name);
+                    iassert(value.string != dvar->current.string || value.string == dvar->latched.string || value.string == dvar->reset.string);
+ 
                     shouldFreeString = Dvar_ShouldFreeCurrentString(dvar);
                     if ( shouldFreeString )
                         oldString.integer = dvar->current.integer;
-                    Dvar_AssignCurrentStringValue(dvar, &currentString, (char *)value.integer);
-                    dvar->current.integer = currentString.integer;
+                    Dvar_AssignCurrentStringValue(dvar, &currentString, (char*)value.string);
+                    dvar->current.string= currentString.string;
                     if ( Dvar_ShouldFreeLatchedString(dvar) )
                         Dvar_FreeString(&dvar->latched);
-                    dvar->latched.integer = 0;
+                    dvar->latched.string = NULL;
                     Dvar_WeakCopyString(dvar->current.string, &dvar->latched);
                     if ( shouldFreeString )
                         Dvar_FreeString(&oldString);
@@ -2775,85 +2758,54 @@ void __cdecl Dvar_SetFloatFromSource(dvar_s *dvar, float value, DvarSetSource so
     }
 }
 
-void __cdecl Dvar_SetVec2FromSource(dvar_s *dvar, unsigned int x, unsigned int y, DvarSetSource source)
+void __cdecl Dvar_SetVec2FromSource(dvar_s *dvar, float x, float y, DvarSetSource source)
 {
     char string[64]; // [esp+10h] [ebp-58h] BYREF
     DvarValue newValue; // [esp+50h] [ebp-18h]
 
-    if ( !dvar && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\universal\\dvar.cpp", 2233, 0, "%s", "dvar") )
-        __debugbreak();
-    if ( !dvar->name
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\universal\\dvar.cpp", 2234, 0, "%s", "dvar->name") )
-    {
-        __debugbreak();
-    }
-    if ( dvar->type != DVAR_TYPE_FLOAT_2
-        && (dvar->type != DVAR_TYPE_STRING || (dvar->flags & 0x4000) == 0)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\dvar.cpp",
-                    2235,
-                    0,
-                    "%s\n\t(dvar->name) = %s",
-                    "(dvar->type == DVAR_TYPE_FLOAT_2 || (dvar->type == DVAR_TYPE_STRING && (dvar->flags & (1 << 14))))",
-                    dvar->name) )
-    {
-        __debugbreak();
-    }
+    iassert(dvar);
+    iassert(dvar->name);
+    iassert(dvar->type == DVAR_TYPE_FLOAT_2 || (dvar->type == DVAR_TYPE_STRING && (dvar->flags & (1 << 14))));
+
     if ( dvar && dvar->name )
     {
         if ( dvar->type == DVAR_TYPE_FLOAT_2 )
         {
-            newValue.integer64 = __PAIR64__(y, x);
+            newValue.vector[0] = x;
+            newValue.vector[1] = y;
         }
         else
         {
-            Com_sprintf(string, 0x40u, "%g %g", *(float *)&x, *(float *)&y);
-            newValue.integer = (int)string;
+            Com_sprintf(string, 0x40u, "%g %g", x, y);
+            newValue.string = string;
         }
         Dvar_SetVariant(dvar, newValue, source);
     }
 }
 
-void __cdecl Dvar_SetVec3FromSource(dvar_s *dvar, unsigned int x, unsigned int y, float z, DvarSetSource source)
+void __cdecl Dvar_SetVec3FromSource(dvar_s *dvar, float x, float y, float z, DvarSetSource source)
 {
     char string[96]; // [esp+18h] [ebp-78h] BYREF
     DvarValue newValue; // [esp+78h] [ebp-18h]
 
-    if ( !dvar && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\universal\\dvar.cpp", 2261, 0, "%s", "dvar") )
-        __debugbreak();
-    if ( !dvar->name
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\universal\\dvar.cpp", 2262, 0, "%s", "dvar->name") )
-    {
-        __debugbreak();
-    }
-    if ( dvar->type != DVAR_TYPE_FLOAT_3
-        && dvar->type != DVAR_TYPE_COLOR_XYZ
-        && dvar->type != DVAR_TYPE_LINEAR_COLOR_RGB
-        && (dvar->type != DVAR_TYPE_STRING || (dvar->flags & 0x4000) == 0)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\dvar.cpp",
-                    2263,
-                    0,
-                    "%s\n\t(dvar->name) = %s",
-                    "(dvar->type == DVAR_TYPE_FLOAT_3 || dvar->type == DVAR_TYPE_COLOR_XYZ || dvar->type == DVAR_TYPE_LINEAR_COLOR_"
-                    "RGB || (dvar->type == DVAR_TYPE_STRING && (dvar->flags & (1 << 14))))",
-                    dvar->name) )
-    {
-        __debugbreak();
-    }
+    iassert(dvar);
+    iassert(dvar->name);
+    iassert(dvar->type == DVAR_TYPE_FLOAT_3 || dvar->type == DVAR_TYPE_COLOR_XYZ || dvar->type == DVAR_TYPE_LINEAR_COLOR_RGB || (dvar->type == DVAR_TYPE_STRING && (dvar->flags & (1 << 14))));
+
     if ( dvar && dvar->name )
     {
         if ( dvar->type == DVAR_TYPE_FLOAT_3
             || dvar->type == DVAR_TYPE_LINEAR_COLOR_RGB
             || dvar->type == DVAR_TYPE_COLOR_XYZ )
         {
-            newValue.integer64 = __PAIR64__(y, x);
+            newValue.vector[0] = x;
+            newValue.vector[1] = y;
             newValue.vector[2] = z;
         }
         else
         {
-            Com_sprintf(string, 0x60u, "%g %g %g", *(float *)&x, *(float *)&y, z);
-            newValue.integer = (int)string;
+            Com_sprintf(string, 0x60u, "%g %g %g", x, y, z);
+            newValue.string = string;
         }
         Dvar_SetVariant(dvar, newValue, source);
     }
@@ -2861,45 +2813,29 @@ void __cdecl Dvar_SetVec3FromSource(dvar_s *dvar, unsigned int x, unsigned int y
 
 void __cdecl Dvar_SetVec4FromSource(
                 dvar_s *dvar,
-                unsigned int x,
-                unsigned int y,
-                unsigned int z,
-                unsigned int w,
+                float x,
+                float y,
+                float z,
+                float w,
                 DvarSetSource source)
 {
     char string[128]; // [esp+20h] [ebp-98h] BYREF
     DvarValue newValue; // [esp+A0h] [ebp-18h]
 
-    if ( !dvar && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\universal\\dvar.cpp", 2289, 0, "%s", "dvar") )
-        __debugbreak();
-    if ( !dvar->name
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\universal\\dvar.cpp", 2290, 0, "%s", "dvar->name") )
-    {
-        __debugbreak();
-    }
-    if ( dvar->type != DVAR_TYPE_FLOAT_4
-        && (dvar->type != DVAR_TYPE_STRING || (dvar->flags & 0x4000) == 0)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\dvar.cpp",
-                    2291,
-                    0,
-                    "%s\n\t(dvar->name) = %s",
-                    "(dvar->type == DVAR_TYPE_FLOAT_4 || (dvar->type == DVAR_TYPE_STRING && (dvar->flags & (1 << 14))))",
-                    dvar->name) )
-    {
-        __debugbreak();
-    }
+    iassert(dvar);
+    iassert(dvar->name);
+    iassert((dvar->type == DVAR_TYPE_FLOAT_4 || (dvar->type == DVAR_TYPE_STRING && (dvar->flags & (1 << 14)))));
+
     if ( dvar && dvar->name )
     {
         if ( dvar->type == DVAR_TYPE_FLOAT_4 )
         {
-            newValue.integer64 = __PAIR64__(y, x);
-            *((_QWORD *)&newValue.string + 1) = __PAIR64__(w, z);
+            Vec4Set(newValue.vector, x, y, z, w);
         }
         else
         {
-            Com_sprintf(string, 0x80u, "%g %g %g %g", *(float *)&x, *(float *)&y, *(float *)&z, *(float *)&w);
-            newValue.integer = (int)string;
+            Com_sprintf(string, sizeof(string), "%g %g %g %g", x, y, z, w);
+            newValue.string = string;
         }
         Dvar_SetVariant(dvar, newValue, source);
     }
@@ -3007,17 +2943,17 @@ void __cdecl Dvar_SetFloat(dvar_s *dvar, float value)
     Dvar_SetFloatFromSource(dvar, value, DVAR_SOURCE_INTERNAL);
 }
 
-void __cdecl Dvar_SetVec2(dvar_s *dvar, unsigned int x, unsigned int y)
+void __cdecl Dvar_SetVec2(dvar_s *dvar, float x, float y)
 {
     Dvar_SetVec2FromSource(dvar, x, y, DVAR_SOURCE_INTERNAL);
 }
 
-void __cdecl Dvar_SetVec3(dvar_s *dvar, unsigned int x, unsigned int y, float z)
+void __cdecl Dvar_SetVec3(dvar_s *dvar, float x, float y, float z)
 {
     Dvar_SetVec3FromSource(dvar, x, y, z, DVAR_SOURCE_INTERNAL);
 }
 
-void __cdecl Dvar_SetVec4(dvar_s *dvar, unsigned int x, unsigned int y, unsigned int z, unsigned int w)
+void __cdecl Dvar_SetVec4(dvar_s *dvar, float x, float y, float z, float w)
 {
     Dvar_SetVec4FromSource(dvar, x, y, z, w, DVAR_SOURCE_INTERNAL);
 }

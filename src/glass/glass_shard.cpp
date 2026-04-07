@@ -14,7 +14,7 @@ float hitPos[3];
 
 int GlassShard::splitFailCount[8];
 int GlassShard::lastFreeMemorySize;
-int GlassShard::removeReasonsCount[7];
+int GlassShard::removeReasonsCount[KISAK_TOTAL];
 
 //void __cdecl GlassShard::Defrag(GlassShard *ptr)
 //{
@@ -3115,6 +3115,7 @@ void __thiscall GlassShard::GenerateVerts(
                 unsigned __int16 vertsBaseIndex,
                 unsigned __int16 *idxOut)
 {
+#if 0
     unsigned __int8 numIndices; // [esp+2h] [ebp-154Ah]
     unsigned __int8 numVertsLow; // [esp+3h] [ebp-1549h]
     int numNorm; // [esp+4h] [ebp-1548h]
@@ -3176,11 +3177,8 @@ void __thiscall GlassShard::GenerateVerts(
     unsigned int v64; // [esp+1544h] [ebp-8h]
     float *v65; // [esp+1548h] [ebp-4h]
 
-    if ( !baseVerts
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_shard.cpp", 2311, 0, "%s", "baseVerts") )
-    {
-        __debugbreak();
-    }
+    iassert(baseVerts);
+
     v65 = (float *)v52;
     v53 = v54;
     thickness = this->thickness;
@@ -3308,6 +3306,132 @@ void __thiscall GlassShard::GenerateVerts(
     v57 = numIndices;
     for ( k = 0; k < v57; ++k )
         *idxOut++ = vertsBaseIndex + *indices++;
+#else // aislop cleanup
+
+    iassert(baseVerts);
+
+    // Build world-space positions for each outline vertex (front and back face)
+    // v52 stores float[3] positions, v54 stores packed UV coords
+    // Layout: [front xyz, back xyz] per outline vertex = 6 floats per vertex
+    float positions[769 * 3]; // front+back positions for all outline verts
+    unsigned int packedUVs[256];
+
+    const float thicknessX = this->thickness * this->axis[2][0];
+    const float thicknessY = this->thickness * this->axis[2][1];
+    const float thicknessZ = this->thickness * this->axis[2][2];
+
+    float *posOut = positions;
+    unsigned int *uvOut = packedUVs;
+
+    for (unsigned int i = 0; i < this->outline.numVerts; ++i)
+    {
+        const GlassShard::Outline::Vertex *vert = &this->outline.verts[i];
+        const float u = vert->edge.origin[0];
+        const float v = vert->edge.origin[1];
+
+        // Transform outline vertex from shard local space to world space
+        float wx = u * this->axis[0][0] + v * this->axis[1][0] + this->origin[0];
+        float wy = u * this->axis[0][1] + v * this->axis[1][1] + this->origin[1];
+        float wz = u * this->axis[0][2] + v * this->axis[1][2] + this->origin[2];
+
+        // Front face position
+        posOut[0] = wx;
+        posOut[1] = wy;
+        posOut[2] = wz;
+
+        // Back face position (offset by thickness along glass normal)
+        posOut[3] = wx + thicknessX;
+        posOut[4] = wy + thicknessY;
+        posOut[5] = wz + thicknessZ;
+
+        posOut += 6;
+
+        // Pack UV coordinates into 16-bit fixed point, two per dword
+        // Each component is clamped to [-16384, 16383] (14-bit signed)
+        // and packed as two 16-bit values in one uint32
+        auto packUVComponent = [](float f) -> int
+        {
+            int sign  = (*(int *)&f >> 16) & 0xC000;
+            int bits  = (int)((2 * *(unsigned int *)&f) ^ 0x80000000) >> 14;
+            bits = (bits < 0x3FFF) ? bits : 0x3FFF;
+            bits = (bits > -16384) ? bits : -16384;
+            return (bits & 0x3FFF) | sign;
+        };
+
+        int packedU = packUVComponent(u * this->uvScale);
+        int packedV = packUVComponent(v * this->uvScale);
+
+        uvOut[0] = packedV | (packedU << 16);
+        uvOut[1] = uvOut[0];
+        uvOut += 2;
+    }
+
+    // Transform and pack normal vectors from shard local space to world space
+    unsigned int packedNormals[256];
+    int numNorm = highLod ? this->mesh.numNorm : 2;
+
+    for (int j = 0; j < numNorm; ++j)
+    {
+        float localNorm[3];
+        Vec3UnpackUnitVec(this->mesh.normArray[j], localNorm);
+
+        // Rotate normal from shard local space into world space
+        float wx = localNorm[0] * this->axis[0][0]
+                 + localNorm[1] * this->axis[1][0]
+                 + localNorm[2] * this->axis[2][0];
+        float wy = localNorm[0] * this->axis[0][1]
+                 + localNorm[1] * this->axis[1][1]
+                 + localNorm[2] * this->axis[2][1];
+        float wz = localNorm[0] * this->axis[0][2]
+                 + localNorm[1] * this->axis[1][2]
+                 + localNorm[2] * this->axis[2][2];
+
+        // Pack to 8-bit snorm per component, w=63
+        packedNormals[j] = ((unsigned char)(int)(wx * 127.0f + 127.5f))
+                         | ((unsigned char)(int)(wy * 127.0f + 127.5f)) << 8
+                         | ((unsigned char)(int)(wz * 127.0f + 127.5f)) << 16
+                         | (63u << 24);
+    }
+
+    // Pack tangent (shard local X axis = axis[0]) into snorm8x4
+    PackedUnitVec tangent;
+    tangent.array[0] = (int)(this->axis[0][0] * 127.0f + 127.5f);
+    tangent.array[1] = (int)(this->axis[0][1] * 127.0f + 127.5f);
+    tangent.array[2] = (int)(this->axis[0][2] * 127.0f + 127.5f);
+    tangent.array[3] = 63;
+
+    // Mesh data pointer — indexes into positions/normals/uvs arrays
+    // Each mesh vertex entry is 2 bytes: [positionIndex, normalIndex]
+    const unsigned char *meshVerts = (const unsigned char *)
+        ((char *)&clGlasses->renderer->maxNumGroupChanges
+         + this->outline.numVerts * sizeof(int)); // KISAKTODO: fix this pointer
+
+    int numVerts = highLod ? this->mesh.numVerts : this->mesh.numVertsLow;
+
+    for (int i = 0; i < numVerts; ++i)
+    {
+        unsigned char posIdx  = meshVerts[2 * i    ];
+        unsigned char normIdx = meshVerts[2 * i + 1];
+
+        const float *pos = &positions[3 * posIdx];
+        baseVerts->xyz[0]        = pos[0];
+        baseVerts->xyz[1]        = pos[1];
+        baseVerts->xyz[2]        = pos[2];
+        baseVerts->normal.packed = packedNormals[normIdx];
+        baseVerts->tangent       = tangent;
+        baseVerts->color.packed  = 0xFFFFFFFF;
+        baseVerts->binormalSign  = 1.0f;
+        baseVerts->texCoord.packed = packedUVs[posIdx];
+        ++baseVerts;
+    }
+
+    // Output indices, offset by the base vertex index in the shared buffer
+    const unsigned char *indices = this->mesh.indices;
+    int numIndices = highLod ? this->mesh.numIndices : this->mesh.numIndicesLow;
+
+    for (int k = 0; k < numIndices; ++k)
+        *idxOut++ = vertsBaseIndex + *indices++;
+#endif
 }
 
 int __thiscall GlassShard::Split(
@@ -3800,7 +3924,7 @@ bool __thiscall GlassShard::InitPhysicsObj(bool enableCollisions)
     PhysPreset physPreset; // [esp+34h] [ebp-90h] BYREF
     float localBBoxMin[3]; // [esp+90h] [ebp-34h] BYREF
     float quat[4]; // [esp+9Ch] [ebp-28h] BYREF
-    broad_phase_base *bpb; // [esp+ACh] [ebp-18h]
+    //broad_phase_base *bpb; // [esp+ACh] [ebp-18h]
     float localBBoxMax[3]; // [esp+B0h] [ebp-14h] BYREF
     gjk_geom_list_t gjk_geom_list; // [esp+BCh] [ebp-8h] BYREF
     int savedregs; // [esp+C4h] [ebp+0h] BYREF
@@ -3841,11 +3965,14 @@ bool __thiscall GlassShard::InitPhysicsObj(bool enableCollisions)
                                             &g_empty_collision_visitor);
         //gjk_geom_list_t::add_geom(&gjk_geom_list, aabb_gjk_geom);
         gjk_geom_list.add_geom(aabb_gjk_geom);
-        this->physObjId = (int)Phys_ObjCreate(1, this->origin, quat, vec3_origin, &physPreset, &gjk_geom_list, 1, -1);
-        bpb = *(broad_phase_base **)(this->physObjId + 160);
+        PhysObjUserData *obj = Phys_ObjCreate(1, this->origin, quat, vec3_origin, &physPreset, &gjk_geom_list, 1, -1);
+        this->physObjId = (int)obj;
+
+        broad_phase_base *bpb = obj->m_bpb;
         aasap_list_remove(bpb);
         bpb->m_env_collision_flags &= ~0x40u;
         bpb->m_my_collision_type_flags |= 0x100u;
+
         Sys_LeaveCriticalSection(CRITSECT_PHYSICS);
         Sys_LeaveCriticalSection(CRITSECT_PHYSICS_UPDATE);
         return 1;

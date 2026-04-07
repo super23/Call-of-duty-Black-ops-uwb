@@ -6,6 +6,8 @@ struct XModel;
 struct XSurface;
 struct GfxStaticModelDrawInst;
 
+#define R_MAX_PRETESS_INDICES 0x100000
+
 struct GfxStaticModelId // sizeof=0x4
 {                                       // XREF: ?R_GetStaticModelId@@YA?AUGfxStaticModelId@@HH@Z/r
     unsigned __int16 surfType;          // XREF: R_GetStaticModelLightSurfs(GfxLight const *,int)+3A4/w

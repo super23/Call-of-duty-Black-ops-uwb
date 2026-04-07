@@ -84,12 +84,11 @@ void __cdecl R_SetupSunShadowMaps(const GfxViewParms *viewParms, GfxSunShadow *s
         partition = &sunShadow->partition[partitionIndex];
         shadowViewParms = &partition->shadowViewParms;
         memset((unsigned __int8 *)partition, 0xB0u, 0x140u);
-        //origin = shadowViewParms->origin;
+
         shadowViewParms->origin[0] = -sunAxis[0][0];
         shadowViewParms->origin[1] = -sunAxis[0][1];
         shadowViewParms->origin[2] = -sunAxis[0][2];
-        //*((unsigned int *)origin + 1) = LODWORD(sunAxis[0][1]) ^ _mask__NegFloat_;
-        //*((unsigned int *)origin + 2) = LODWORD(sunAxis[0][2]) ^ _mask__NegFloat_;
+
         shadowViewParms->origin[3] = 0.0f;
         AxisCopy(sunAxis, shadowViewParms->axis);
         memcpy(shadowViewParms, sunProj, 0x40u);
@@ -725,8 +724,8 @@ void __cdecl R_SetupSunShadowBoundingPoly(
     float tempFrustumPointsInSunProj[8][2]; // [esp+18h] [ebp-88h] BYREF
     float frustumBoundingPolyInSunProj[9][2]; // [esp+58h] [ebp-48h] BYREF
 
-    memcpy((unsigned __int8 *)tempFrustumPointsInSunProj, (unsigned __int8 *)frustumPointsInSunProj, 8 * pointCount);
-    boundingPoly->pointCount = Com_ConvexHull((float(*)[64][2])tempFrustumPointsInSunProj, pointCount, frustumBoundingPolyInSunProj);
+    memcpy(tempFrustumPointsInSunProj, frustumPointsInSunProj, 8 * pointCount);
+    boundingPoly->pointCount = Com_ConvexHull(tempFrustumPointsInSunProj, pointCount, frustumBoundingPolyInSunProj);
     if ( (boundingPoly->pointCount < 3 || boundingPoly->pointCount > 9)
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_sunshadow.cpp",

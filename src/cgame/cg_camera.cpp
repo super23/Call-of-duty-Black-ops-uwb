@@ -954,32 +954,23 @@ bool __cdecl CG_ShouldDefaultViewFov(int localClientNum)
 
 void __cdecl CG_CalcFov(int localClientNum, float fov_x)
 {
-    double v2; // xmm0_8
-    long double v3; // [esp+4h] [ebp-18h]
-    long double var18a; // [esp+4h] [ebp-18h]
     cg_s *cgameGlob; // [esp+Ch] [ebp-10h]
     float dxDzAtDefaultAspectRatio; // [esp+10h] [ebp-Ch]
     const cgs_t *cgs; // [esp+14h] [ebp-8h]
-    float fov_xa; // [esp+28h] [ebp+Ch]
 
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     cgs = CG_GetLocalClientStaticGlobals(localClientNum);
+
     if ( fov_x <= 0.0 )
         fov_x = CG_GetViewFov(localClientNum);
-    fov_xa = CG_UpdateCameraTweenFOV(localClientNum, fov_x);
-    //__libm_sse2_tan(v3);
-    fov_xa = tan(fov_xa); 
-    dxDzAtDefaultAspectRatio = (float)(fov_xa * 0.017453292) * 0.5;
-    *((float *)&var18a + 1) = (float)(dxDzAtDefaultAspectRatio * 0.75) * cgs->viewAspect;
-    cgameGlob->refdef.tanHalfFovX = *((float *)&var18a + 1);
+
+    fov_x = CG_UpdateCameraTweenFOV(localClientNum, fov_x);
+
+    dxDzAtDefaultAspectRatio = tan(DEG2RAD(fov_x) * 0.5);
+    cgameGlob->refdef.tanHalfFovX = (dxDzAtDefaultAspectRatio * 0.75) * cgs->viewAspect;
     cgameGlob->refdef.tanHalfFovY = dxDzAtDefaultAspectRatio * 0.75;
-    cgameGlob->refdef.fov_x = fov_xa;
-    //*(float *)&var18a = (float)(cg_fov->current.value * 0.017453292) * 0.5;
-    //v2 = *(float *)&var18a;
-    //__libm_sse2_tan(var18a);
-    //*(float *)&v2 = v2;
-    //cgameGlob->zoomSensitivity = dxDzAtDefaultAspectRatio / *(float *)&v2;
-    cgameGlob->zoomSensitivity = dxDzAtDefaultAspectRatio / tan((cg_fov->current.value * 0.017453292) * 0.5);
+    cgameGlob->refdef.fov_x = fov_x;
+    cgameGlob->zoomSensitivity = dxDzAtDefaultAspectRatio / tan(DEG2RAD(cg_fov->current.value) * 0.5f);
 }
 
 void __cdecl CG_CalculateGunnerOffset_Sway(

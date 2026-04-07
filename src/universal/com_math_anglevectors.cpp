@@ -92,10 +92,11 @@ void __cdecl AnglesToQuat(const float *angles, float *quat)
     AxisToQuat(axis, quat);
 }
 
-void __cdecl QuatToAxis(const float *quat, float (*axis)[3])
+void __cdecl QuatToAxis(const float *quat, float axis[3][3])
 {
     float yy; // [esp+0h] [ebp-38h]
     float yya; // [esp+0h] [ebp-38h]
+    float ww; // [esp+4h] [ebp-34h]
     float xy; // [esp+8h] [ebp-30h]
     float zz; // [esp+Ch] [ebp-2Ch]
     float zza; // [esp+Ch] [ebp-2Ch]
@@ -108,42 +109,37 @@ void __cdecl QuatToAxis(const float *quat, float (*axis)[3])
     float xx; // [esp+28h] [ebp-10h]
     float xxa; // [esp+28h] [ebp-10h]
     float xw; // [esp+2Ch] [ebp-Ch]
+    float scale; // [esp+30h] [ebp-8h]
     float magSqr; // [esp+34h] [ebp-4h]
 
     xx = *quat * *quat;
     yy = quat[1] * quat[1];
     zz = quat[2] * quat[2];
-    magSqr = (float)((float)(xx + yy) + zz) + (float)(quat[3] * quat[3]);
-    if ( magSqr <= 0.0
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\com_math_anglevectors.cpp",
-                    139,
-                    0,
-                    "%s",
-                    "magSqr > 0.0f") )
-    {
-        __debugbreak();
-    }
-    xxa = xx * (float)(2.0 / magSqr);
-    yya = yy * (float)(2.0 / magSqr);
-    zza = zz * (float)(2.0 / magSqr);
-    scaledX = (float)(2.0 / magSqr) * *quat;
+    ww = quat[3] * quat[3];
+    magSqr = xx + yy + zz + ww;
+    iassert(magSqr > 0.0f);
+    scale = 2.0 / magSqr;
+    xxa = xx * scale;
+    yya = yy * scale;
+    zza = zz * scale;
+    scaledX = scale * *quat;
     xy = scaledX * quat[1];
     xz = scaledX * quat[2];
     xw = scaledX * quat[3];
-    scaledY = (float)(2.0 / magSqr) * quat[1];
+    scaledY = scale * quat[1];
     yz = scaledY * quat[2];
     yw = scaledY * quat[3];
-    zw = (float)((float)(2.0 / magSqr) * quat[2]) * quat[3];
-    (*axis)[0] = 1.0 - (float)(yya + zza);
-    (*axis)[1] = xy + zw;
-    (*axis)[2] = xz - yw;
-    (*axis)[3] = xy - zw;
-    (*axis)[4] = 1.0 - (float)(xxa + zza);
-    (*axis)[5] = yz + xw;
-    (*axis)[6] = xz + yw;
-    (*axis)[7] = yz - xw;
-    (*axis)[8] = 1.0 - (float)(xxa + yya);
+    zw = scale * quat[2] * quat[3];
+
+    (axis)[0][0] = 1.0 - (yya + zza);
+    (axis)[0][1] = xy + zw;
+    (axis)[0][2] = xz - yw;
+    (axis)[1][0] = xy - zw;
+    (axis)[1][1] = 1.0 - (xxa + zza);
+    (axis)[1][2] = yz + xw;
+    (axis)[2][0] = xz + yw;
+    (axis)[2][1] = yz - xw;
+    (axis)[2][2] = 1.0 - (xxa + yya);
 }
 
 void __cdecl AxisToSignedAngles(const float (*axis)[3], float *angles)

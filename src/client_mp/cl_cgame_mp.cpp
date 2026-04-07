@@ -711,28 +711,22 @@ void __cdecl CL_GetDebugViewForward(float *forward)
 
 void __cdecl CL_GetDebugViewPos(float *pos)
 {
-    *pos = cls.debugRenderPos[0];
-    pos[1] = cls.debugRenderPos[1];
-    pos[2] = cls.debugRenderPos[2];
+    Vec3Copy(cls.debugRenderPos, pos);
 }
 
 void __cdecl CL_RenderScene(refdef_s *fd, int frameTime)
 {
-    cls.debugRenderPos[0] = fd->vieworg[0];
-    cls.debugRenderPos[1] = fd->vieworg[1];
-    cls.debugRenderPos[2] = fd->vieworg[2];
-    *(_QWORD *)cls.debugRenderForward = *(_QWORD *)&fd->viewaxis[0][0];
-    cls.debugRenderForward[2] = fd->viewaxis[0][2];
+    Vec3Copy(fd->vieworg, cls.debugRenderPos);
+    Vec3Copy(fd->viewaxis[0], cls.debugRenderForward);
+
     R_RenderScene(fd, frameTime);
 }
 
 void __cdecl CL_RenderMissileCam(const refdef_s *fd, int frameTime)
 {
-    cls.debugRenderPos[0] = fd->vieworg[0];
-    cls.debugRenderPos[1] = fd->vieworg[1];
-    cls.debugRenderPos[2] = fd->vieworg[2];
-    *(_QWORD *)cls.debugRenderForward = *(_QWORD *)&fd->viewaxis[0][0];
-    cls.debugRenderForward[2] = fd->viewaxis[0][2];
+    Vec3Copy(fd->vieworg, cls.debugRenderPos);
+    Vec3Copy(fd->viewaxis[0], cls.debugRenderForward);
+
     R_RenderMissileCam(fd, frameTime);
 }
 

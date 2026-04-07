@@ -74,7 +74,6 @@ char    gjk_push_out(
                 const gjkcc_input_t *gjkcc_in,
                 gjk_slide_move_input_t *input,
                 gjk_slide_move_output_t *output);
-float __cdecl Abs(const float *v);
 void __cdecl Phys_NitrousVecToVec3(const phys_vec3 *inVector, float *outVector);
 bool    gjk_slide_move1(
                 const gjkcc_input_t *gjkcc_in,

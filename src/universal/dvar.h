@@ -332,23 +332,23 @@ void __cdecl Dvar_SetBoolFromSource(dvar_s *dvar, bool value, DvarSetSource sour
 void __cdecl Dvar_SetIntFromSource(dvar_s *dvar, int value, DvarSetSource source);
 void __cdecl Dvar_SetInt64FromSource(dvar_s *dvar, __int64 value, DvarSetSource source);
 void __cdecl Dvar_SetFloatFromSource(dvar_s *dvar, float value, DvarSetSource source);
-void __cdecl Dvar_SetVec2FromSource(dvar_s *dvar, unsigned int x, unsigned int y, DvarSetSource source);
-void __cdecl Dvar_SetVec3FromSource(dvar_s *dvar, unsigned int x, unsigned int y, float z, DvarSetSource source);
+void __cdecl Dvar_SetVec2FromSource(dvar_s *dvar, float x, float y, DvarSetSource source);
+void __cdecl Dvar_SetVec3FromSource(dvar_s *dvar, float x, float y, float z, DvarSetSource source);
 void __cdecl Dvar_SetVec4FromSource(
                 dvar_s *dvar,
-                unsigned int x,
-                unsigned int y,
-                unsigned int z,
-                unsigned int w,
+                float x,
+                float y,
+                float z,
+                float w,
                 DvarSetSource source);
 void __cdecl Dvar_SetColorFromSource(dvar_s *dvar, float r, float g, float b, float a, DvarSetSource source);
 void __cdecl Dvar_SetBool(dvar_s *dvar, bool value);
 void __cdecl Dvar_SetInt(dvar_s *dvar, int value);
 void __cdecl Dvar_SetInt64(dvar_s *dvar, __int64 value);
 void __cdecl Dvar_SetFloat(dvar_s *dvar, float value);
-void __cdecl Dvar_SetVec2(dvar_s *dvar, unsigned int x, unsigned int y);
-void __cdecl Dvar_SetVec3(dvar_s *dvar, unsigned int x, unsigned int y, float z);
-void __cdecl Dvar_SetVec4(dvar_s *dvar, unsigned int x, unsigned int y, unsigned int z, unsigned int w);
+void __cdecl Dvar_SetVec2(dvar_s *dvar, float x, float y);
+void __cdecl Dvar_SetVec3(dvar_s *dvar, float x, float y, float z);
+void __cdecl Dvar_SetVec4(dvar_s *dvar, float x, float y, float z, float w);
 void __cdecl Dvar_SetString(dvar_s *dvar, const char *value);
 void __cdecl Dvar_SetStringFromSource(dvar_s *dvar, const char *string, DvarSetSource source);
 void __cdecl Dvar_SetColor(dvar_s *dvar, float r, float g, float b, float a);

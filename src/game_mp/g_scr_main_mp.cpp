@@ -13290,23 +13290,8 @@ void __cdecl GScr_SetLightRadius(scr_entref_t entref)
 
 void __cdecl GScr_GetLightFovInner(scr_entref_t entref)
 {
-#if 0
-    double v1; // xmm0_8
-    long double varC; // [esp+8h] [ebp-Ch]
-
-    HIDWORD(varC) = GScr_SetupLightEntity(entref);
-    LODWORD(varC) = *(unsigned int *)(HIDWORD(varC) + 100);
-    v1 = *(float *)&varC;
-    __libm_sse2_acos(varC);
-    *(float *)&v1 = v1;
-    Scr_AddFloat(*(float *)&v1 * 2.0, SCRIPTINSTANCE_SERVER);
-#endif
-
     gentity_s *ent = GScr_SetupLightEntity(entref);
-
-    // Offset 100 (0x64) holds the cosine of half the inner FOV
-    float innerCos = *(float *)((char *)ent + 100);
-
+    float innerCos = ent->s.lerp.u.primaryLight.cosHalfFovInner;
     float fov = acosf(innerCos) * 2.0f;
 
     Scr_AddFloat(fov, SCRIPTINSTANCE_SERVER);
@@ -13314,22 +13299,8 @@ void __cdecl GScr_GetLightFovInner(scr_entref_t entref)
 
 void __cdecl GScr_GetLightFovOuter(scr_entref_t entref)
 {
-#if 0
-    double v1; // xmm0_8
-    long double varC; // [esp+8h] [ebp-Ch]
-
-    HIDWORD(varC) = GScr_SetupLightEntity(entref);
-    LODWORD(varC) = *(unsigned int *)(HIDWORD(varC) + 96);
-    v1 = *(float *)&varC;
-    __libm_sse2_acos(varC);
-    *(float *)&v1 = v1;
-    Scr_AddFloat(*(float *)&v1 * 2.0, SCRIPTINSTANCE_SERVER);
-#endif
     gentity_s *ent = GScr_SetupLightEntity(entref);
-
-    // Offset 96 (0x60) holds cosine of half the outer FOV
-    float outerCos = *(float *)((char *)ent + 96);
-
+    float outerCos = ent->s.lerp.u.primaryLight.cosHalfFovOuter;
     float fov = acosf(outerCos) * 2.0f;
 
     Scr_AddFloat(fov, SCRIPTINSTANCE_SERVER);

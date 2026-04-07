@@ -43,6 +43,17 @@ unsigned int __cdecl GlassesClient::GetFreeMem()
     return GlassesClient::allocator.size - GlassesClient::allocator.pos;
 }
 
+void *GlassesClient::operator new(size_t size)
+{
+    return GlassesClient::Allocate(size, "C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_client.cpp", 69);
+}
+
+void GlassesClient::operator delete(void *ptr)
+{
+    GlassesClient::Free((char *)ptr);
+}
+
+
 GlassesClient::GlassesClient(const Glasses *glss)
 {
     GlassRenderer *v3; // [esp+0h] [ebp-10h]
@@ -59,8 +70,8 @@ GlassesClient::GlassesClient(const Glasses *glss)
     if (v5)
     {
         //v3 = GlassRenderer::GlassRenderer(v5, glss);
-        new (v5) GlassRenderer(glss);
-        this->renderer = v5;
+        //new (v5) GlassRenderer(glss);
+        this->renderer = new GlassRenderer(glss);
     }
     else
     {
@@ -708,13 +719,13 @@ char __thiscall GlassClient::PreShatter()
                         this->outlines = (GlassClient::Outlines*)buffer;
                     }
                     //GlassShard::Remove(baseShard, (GlassShard::RemoveReason)8, 0);
-                    baseShard->Remove((GlassShard::RemoveReason)8, 0);
+                    baseShard->Remove(GlassShard::RemoveReason::KISAK_I_HAVE_NO_CLUE_WHY, 0);
                 }
             }
             for (i = 0; i < numNewShards; ++i)
             {
                 //GlassShard::Remove(newShards[i], (GlassShard::RemoveReason)8, 0);
-                newShards[i]->Remove((GlassShard::RemoveReason)8, 0);
+                newShards[i]->Remove(GlassShard::RemoveReason::KISAK_I_HAVE_NO_CLUE_WHY, 0);
             }
         }
         else
@@ -853,7 +864,8 @@ void __cdecl GlassCl_AllocateMemory()
                 if (v1)
                 {
                     //v0 = GlassesClient::GlassesClient(v1, glasses);
-                    v0 = new (v1) GlassesClient(glasses);
+                    //v0 = new (v1) GlassesClient(glasses);
+                    v0 = new GlassesClient(glasses);
                 }
                 else
                 {

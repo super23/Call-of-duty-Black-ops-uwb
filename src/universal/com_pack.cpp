@@ -61,12 +61,13 @@ PackedUnitVec __cdecl Vec3PackUnitVec(const float *unitVec)
 
 void __cdecl Vec3UnpackUnitVec(PackedUnitVec in, float *out)
 {
-    float decodeScale; // [esp+0h] [ebp-4h]
+    float decodeScale; // [esp+10h] [ebp-4h]
 
-    decodeScale = (float)((float)in.array[3] - -192.0) / 32385.0;
-    *out = (float)((float)in.array[0] - 127.0) * decodeScale;
-    out[1] = (float)((float)in.array[1] - 127.0) * decodeScale;
-    out[2] = (float)((float)in.array[2] - 127.0) * decodeScale;
+    decodeScale = (in.array[3] - -192.0f) / 32385.0f;
+
+    out[0] = (in.array[0] - 127.0f) * decodeScale;
+    out[1] = (in.array[1] - 127.0f) * decodeScale;
+    out[2] = (in.array[2] - 127.0f) * decodeScale;
 }
 
 int __cdecl Vec4PackQuat(const float *in)

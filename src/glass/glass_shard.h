@@ -59,6 +59,7 @@ struct __declspec(align(16)) GlassPhysics // sizeof=0xA0
     void IntegratePos(float deltaTime);
     void GetPosition(float *position, float (*axis)[3]);
 };
+static_assert(sizeof(GlassPhysics) == 160);
 
 struct GlassDef;
 
@@ -101,6 +102,7 @@ struct ShardGroup // sizeof=0x54
         int mod);
     int __thiscall TracePoint(float *p0, const float *p1);
 };
+static_assert(sizeof(ShardGroup) == 84);
 
 struct GlassShardMeshVertex // sizeof=0x2
 {
@@ -120,6 +122,10 @@ struct GlassShard // sizeof=0x90
         REMOVE_ROLLBACK_TIME        = 0x5,
         NUM_REMOVE_REASONS          = 0x6,
         REMOVE_DONT_TRACK           = 0x7,
+        // LWSS ADD
+        KISAK_I_HAVE_NO_CLUE_WHY    = 0x8,
+        KISAK_TOTAL
+        // LWSS END
     };
 
     struct Outline;
@@ -348,8 +354,9 @@ struct GlassShard // sizeof=0x90
 
     static int splitFailCount[8];
     static int lastFreeMemorySize;
-    static int removeReasonsCount[7];
+    static int removeReasonsCount[KISAK_TOTAL];
 };
+static_assert(sizeof(GlassShard) == 144);
 
 void GlassShard_Defrag(void *ptr); // changed from static member func
 

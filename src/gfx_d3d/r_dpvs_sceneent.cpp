@@ -267,27 +267,36 @@ static int __cdecl R_CullSphereDpvs(const float *origin, float radius, const Dpv
     return 0;
 }
 
-// Blops augmented 
 void R_AddCellSceneEntSurfacesInFrustumCmd(GfxWorldDpvsPlanes *data)
 {
     bool v2; // zf
     DWORD v3; // eax
     DWORD v4; // eax
     int v5; // [esp+18h] [ebp-C0h]
+    const DpvsPlane *v6; // [esp+20h] [ebp-B8h]
+    int v7; // [esp+24h] [ebp-B4h]
     const float *mins; // [esp+28h] [ebp-B0h]
-    int skipWorkerCmd; // [esp+30h] [ebp-A8h]
-    const DpvsPlane *bmodel; // [esp+38h] [ebp-A0h]
+    int v9; // [esp+30h] [ebp-A8h]
+    const DpvsPlane *v10; // [esp+38h] [ebp-A0h]
+    int v11; // [esp+3Ch] [ebp-9Ch]
     GfxSceneEntity *sceneEnt; // [esp+40h] [ebp-98h]
     unsigned int sceneEntIndex; // [esp+4Ch] [ebp-8Ch]
+    unsigned int sceneEntIndexa; // [esp+4Ch] [ebp-8Ch]
     unsigned int entnum; // [esp+54h] [ebp-84h]
+    unsigned int entnuma; // [esp+54h] [ebp-84h]
     unsigned int indexLow; // [esp+58h] [ebp-80h]
+    unsigned int indexLowa; // [esp+58h] [ebp-80h]
     unsigned int bits; // [esp+5Ch] [ebp-7Ch]
+    unsigned int bitsa; // [esp+5Ch] [ebp-7Ch]
     unsigned int wordIndex; // [esp+60h] [ebp-78h]
+    unsigned int wordIndexa; // [esp+60h] [ebp-78h]
     int innerPlaneCount; // [esp+64h] [ebp-74h]
     const DpvsPlane *innerPlanes; // [esp+68h] [ebp-70h]
     unsigned int *entCellBits; // [esp+6Ch] [ebp-6Ch]
+    unsigned int *entCellBitsa; // [esp+6Ch] [ebp-6Ch]
     const DpvsPlane *planes; // [esp+70h] [ebp-68h]
     unsigned int offset; // [esp+78h] [ebp-60h]
+    unsigned int offseta; // [esp+78h] [ebp-60h]
     DpvsEntityCmd dpvsEntity; // [esp+7Ch] [ebp-5Ch] BYREF
     int frustumPlaneCount; // [esp+98h] [ebp-40h]
     int planeCount; // [esp+9Ch] [ebp-3Ch]
@@ -302,17 +311,30 @@ void R_AddCellSceneEntSurfacesInFrustumCmd(GfxWorldDpvsPlanes *data)
     unsigned int localClientNum; // [esp+C0h] [ebp-18h]
     GfxSceneDpvs *sceneDpvs; // [esp+C4h] [ebp-14h]
     DpvsDynamicCellCmd *dpvsCell; // [esp+C8h] [ebp-10h]
-
+    //_UNKNOWN *v44; // [esp+CCh] [ebp-Ch]
+    //void *dataa; // [esp+D0h] [ebp-8h]
+    //int v46; // [esp+D4h] [ebp-4h] BYREF
+    //int vars0; // [esp+D8h] [ebp+0h]
+    //
+    //v44 = a1;
+    //dataa = (void *)vars0;
     dpvsCell = (DpvsDynamicCellCmd *)data;
     sceneDpvs = &scene.dpvs;
     localClientNum = scene.dpvs.localClientNum;
     worldDpvsPlanes = &rgp.world->dpvsPlanes;
     wordCount = gfxCfg.entCount >> 5;
-
-    bcassert(localClientNum, gfxCfg.maxClientViews);
-
-    //entInfo = (GfxEntCellRefInfo *)scene.dynSModelVisBitsCamera[localClientNum - 4];
-    entInfo = scene.dpvs.entInfo[localClientNum];
+    if (scene.dpvs.localClientNum >= gfxCfg.maxClientViews
+        && !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_dpvs_sceneent.cpp",
+            213,
+            0,
+            "localClientNum doesn't index gfxCfg.maxClientViews\n\t%i not in [0, %i)",
+            localClientNum,
+            gfxCfg.maxClientViews))
+    {
+        __debugbreak();
+    }
+    entInfo = (GfxEntCellRefInfo *)scene.dynSModelVisBitsCamera[localClientNum - 4];
     sceneXModelIndex = scene.dpvs.sceneXModelIndex;
     sceneDObjIndex = scene.dpvs.sceneDObjIndex;
     viewIndex = dpvsCell->viewIndex;
@@ -320,25 +342,46 @@ void R_AddCellSceneEntSurfacesInFrustumCmd(GfxWorldDpvsPlanes *data)
     planesEA = dpvsCell->planes;
     planeCount = dpvsCell->planeCount;
     frustumPlaneCount = dpvsCell->frustumPlaneCount;
-
-    bcassert(cellIndex, worldDpvsPlanes->cellCount);
-
+    if (cellIndex >= worldDpvsPlanes->cellCount
+        && !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_dpvs_sceneent.cpp",
+            225,
+            0,
+            "cellIndex doesn't index worldDpvsPlanes->cellCount\n\t%i not in [0, %i)",
+            cellIndex,
+            worldDpvsPlanes->cellCount))
+    {
+        __debugbreak();
+    }
     dpvsEntity.entVisData = sceneDpvs->entVisData[viewIndex];
     dpvsEntity.planes = planesEA;
     dpvsEntity.planeCount = planeCount;
     dpvsEntity.cellIndex = cellIndex;
-
     offset = wordCount * localClientNum;
-
-    bcassert(offset, MAX_TOTAL_ENT_COUNT >> 5);
-
-    //offseta = offset + (cellIndex << 8);
-    offset += (cellIndex << 7);
+    if (wordCount * localClientNum >= 0x100
+        && !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_dpvs_sceneent.cpp",
+            234,
+            0,
+            "offset doesn't index MAX_TOTAL_ENT_COUNT >> 5\n\t%i not in [0, %i)",
+            offset,
+            256))
+    {
+        __debugbreak();
+    }
+    offseta = offset + (cellIndex << 8);
     planes = planesEA;
-    entCellBits = &worldDpvsPlanes->sceneEntCellBits[offset];
-
-    iassert(frustumPlaneCount <= planeCount);
-
+    entCellBits = &worldDpvsPlanes->sceneEntCellBits[offseta];
+    if (frustumPlaneCount > planeCount
+        && !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_dpvs_sceneent.cpp",
+            261,
+            0,
+            "%s",
+            "frustumPlaneCount <= planeCount"))
+    {
+        __debugbreak();
+    }
     innerPlanes = &planesEA[frustumPlaneCount];
     innerPlaneCount = planeCount - frustumPlaneCount;
     for (wordIndex = 0; wordIndex < wordCount; ++wordIndex)
@@ -349,25 +392,30 @@ void R_AddCellSceneEntSurfacesInFrustumCmd(GfxWorldDpvsPlanes *data)
             v2 = !_BitScanReverse(&v3, bits);
             if (v2)
                 v3 = 63;
-
-            indexLow = v3 ^ 31;
-            if ((v3 ^ 31) >= 32)
+            indexLow = v3 ^ 0x1F;
+            if ((v3 ^ 0x1Fu) >= 0x20)
                 break;
-
             entnum = indexLow + 32 * wordIndex;
-            unsigned int bit = (0x80000000 >> indexLow);
-            iassert(bits & bit);
-
-            bits &= ~(bit);
+            if (((0x80000000 >> indexLow) & bits) == 0
+                && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_dpvs_sceneent.cpp",
+                    278,
+                    0,
+                    "%s",
+                    "bits & bit"))
+            {
+                __debugbreak();
+            }
+            bits &= ~(0x80000000 >> indexLow);
             if (!dpvsEntity.entVisData[entnum])
             {
                 sceneEntIndex = sceneDObjIndex[entnum];
                 if (sceneEntIndex == 0xFFFF)
                 {
-                    sceneEntIndex = sceneXModelIndex[entnum];
-                    if (sceneEntIndex != 0xFFFF
+                    sceneEntIndexa = sceneXModelIndex[entnum];
+                    if (sceneEntIndexa != 0xFFFF
                         && !R_CullSphereDpvs(
-                            scene.sceneModel[sceneEntIndex].placement.base.origin,
+                            scene.sceneModel[sceneEntIndexa].placement.base.origin,
                             entInfo[entnum].radius,
                             innerPlanes,
                             innerPlaneCount))
@@ -380,76 +428,79 @@ void R_AddCellSceneEntSurfacesInFrustumCmd(GfxWorldDpvsPlanes *data)
                     sceneEnt = &scene.sceneDObj[sceneEntIndex];
                     if (!R_CullSphereDpvs(sceneEnt->placement.base.origin, entInfo[entnum].radius, innerPlanes, innerPlaneCount))
                     {
-                        int itr = 0;
                         if (sceneEnt->cull.state < 2)
                             goto LABEL_36;
-
-                        bmodel = planes;
-                        while (itr < planeCount)
+                        v11 = 0;
+                        v10 = planes;
+                        while (v11 < planeCount)
                         {
-                            if (R_DpvsPlaneMaxSignedDistToBox(bmodel, sceneEnt->cull.mins) <= 0.0)
+                            if (R_DpvsPlaneMaxSignedDistToBox(v10, sceneEnt->cull.mins) <= 0.0)
                             {
-                                skipWorkerCmd = 1;
+                                v9 = 1;
                                 goto LABEL_35;
                             }
-                            ++itr;
-                            ++bmodel;
+                            ++v11;
+                            ++v10;
                         }
-                        skipWorkerCmd = 0;
+                        v9 = 0;
                     LABEL_35:
-                        if (!skipWorkerCmd)
+                        if (!v9)
                         {
                         LABEL_36:
+                            dpvsEntity.sceneEnt = &scene.sceneDObj[sceneEntIndex];
                             if (sceneEnt->cull.state < 2)
-                                Sys_AddWorkerCmdInternal(&r_dpvs_entityWorkerCmd, (unsigned char *)&scene.sceneDObj[sceneEntIndex], 0);
+                                Sys_AddWorkerCmdInternal(&r_dpvs_entityWorkerCmd, (unsigned __int8 *)&dpvsEntity, 0);
                             else
-                                R_AddEntitySurfacesInFrustumCmd((unsigned short *)&scene.sceneDObj[sceneEntIndex]);
+                                R_AddEntitySurfacesInFrustumCmd((unsigned __int16 *)&dpvsEntity);
                         }
                     }
                 }
             }
         }
     }
-
-
-    //entCellBits = &worldDpvsPlanes->sceneEntCellBits[256 * worldDpvsPlanes->cellCount + offset];
-    entCellBits = &worldDpvsPlanes->sceneEntCellBits[128 * worldDpvsPlanes->cellCount + offset];
-    for (wordIndex = 0; wordIndex < wordCount; ++wordIndex)
+    entCellBitsa = &worldDpvsPlanes->sceneEntCellBits[256 * worldDpvsPlanes->cellCount + offseta];
+    for (wordIndexa = 0; wordIndexa < wordCount; ++wordIndexa)
     {
-        bits = entCellBits[wordIndex];
+        bitsa = entCellBitsa[wordIndexa];
         while (1)
         {
-            v2 = !_BitScanReverse(&v4, bits);
+            v2 = !_BitScanReverse(&v4, bitsa);
             if (v2)
                 v4 = 63;
-            indexLow = v4 ^ 31;
-            if ((v4 ^ 31) >= 32)
+            indexLowa = v4 ^ 0x1F;
+            if ((v4 ^ 0x1Fu) >= 0x20)
                 break;
-            entnum = indexLow + 32 * wordIndex;
-
-            unsigned int bit = (0x80000000 >> indexLow);
-            iassert(bits & bit);
-
-            bits &= ~(bit);
-            if (!dpvsEntity.entVisData[entnum])
+            entnuma = indexLowa + 32 * wordIndexa;
+            if (((0x80000000 >> indexLowa) & bitsa) == 0
+                && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_dpvs_sceneent.cpp",
+                    382,
+                    0,
+                    "%s",
+                    "bits & bit"))
             {
-                mins = entInfo[entnum].bmodel->writable.mins;
-                int itr = 0;
-                const DpvsPlane *plane = innerPlanes;
-                while (itr < innerPlaneCount)
+                __debugbreak();
+            }
+            bitsa &= ~(0x80000000 >> indexLowa);
+            if (!dpvsEntity.entVisData[entnuma])
+            {
+                mins = entInfo[entnuma].bmodel->writable.mins;
+                v7 = 0;
+                v6 = innerPlanes;
+                while (v7 < innerPlaneCount)
                 {
-                    if (R_DpvsPlaneMaxSignedDistToBox(plane, mins) <= 0.0)
+                    if (R_DpvsPlaneMaxSignedDistToBox(v6, mins) <= 0.0)
                     {
                         v5 = 1;
                         goto LABEL_56;
                     }
-                    ++itr;
-                    ++plane;
+                    ++v7;
+                    ++v6;
                 }
                 v5 = 0;
             LABEL_56:
                 if (!v5)
-                    dpvsEntity.entVisData[entnum] = 1;
+                    dpvsEntity.entVisData[entnuma] = 1;
             }
         }
     }

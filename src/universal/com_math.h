@@ -10,6 +10,16 @@
 
 #define MAX_11BIT_FLT 0.99951172f // not a real name
 
+// TODO change if we ever actually use classes
+#define vec2r float*
+#define vec3r float*
+#define vec4r float*
+
+// note - row major order
+using mat3x3 = float[3][3];
+using mat4x3 = float[4][3];
+using mat4x4 = float[4][4];
+
 struct cplane_s // sizeof=0x14
 {                                                                             // XREF: cplane_t/r
                                                                                 // CM_TraceThroughBrush/r ...
@@ -39,6 +49,27 @@ union float4
         PackedUnitVec unitVec[4];
 };
 
+union float4x3 {
+    union {
+        float4 x;
+        float4 y;
+        float4 z;
+    };
+
+    mat4x3 mat;
+};
+
+union float4x4 {
+    struct {
+        float4 x;
+        float4 y;
+        float4 z;
+        float4 w;
+    };
+
+    mat4x4 mat;
+};
+
 struct vector3 // sizeof=0x30
 {                                       // XREF: vector4/r
     float4 x;                           // XREF: CreateClipMatrix+63/r
@@ -61,16 +92,6 @@ struct orientation_t // sizeof=0x30
     float origin[3];                                        // XREF: Weapon_DrawAxisOrigin(orientation_t,float)+EB/r
     float axis[3][3];                                     // XREF: CG_Laser_Add(centity_s *,DObj *,cpose_t *,float const * const,LaserOwnerEnum)+50/o
 };
-
-// TODO change if we ever actually use classes
-#define vec2r float*
-#define vec3r float*
-#define vec4r float*
-
-// note - row major order
-using mat3x3 = float[3][3];
-using mat4x3 = float[4][3];
-using mat4x4 = float[4][4];
 
 double __cdecl random();
 double __cdecl crandom();
@@ -403,16 +424,16 @@ constexpr float g_identityMatrix44[4][4] =
 };
 
 constexpr float4 g_swizzleXYZA = {
-    {
+    .u = {
         0x00010203,
         0x04050607,
         0x08090A0B,
-        0x10111213
+        0x10111213 // this row goes over 16
     }
 };
-
+// each individual member never goes over 16
 constexpr float4 g_swizzleYZXW = {
-    {
+    .u = {
         0x04050607,
         0x08090A0B,
         0x00010203,
@@ -421,7 +442,7 @@ constexpr float4 g_swizzleYZXW = {
 };
 
 constexpr float4 g_keepXYW = {
-    {
+    .u = {
         0xFFFFFFFF,
         0xFFFFFFFF,
         0,
@@ -429,10 +450,17 @@ constexpr float4 g_keepXYW = {
     }
 };
 
+constexpr float4 g_keepXYZ = {
+    .u = {
+        0xFFFFFFFF,
+        0xFFFFFFFF,
+        0xFFFFFFFF,
+        0
+    }
+};
+
+
 constexpr float4 g_zero = { { 0.0, 0.0, 0.0, 0.0 } };
-
-
-constexpr float4 g_keepXYZ{ -1, -1, -1, 0 };
 
 constexpr float quatZRot[4] = { 0.0, 0.0, 1.0, 0.0 };
 

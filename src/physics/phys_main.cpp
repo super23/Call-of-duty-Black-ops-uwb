@@ -1148,7 +1148,6 @@ PhysObjUserData * Phys_CreateBodyFromState(
                 bool do_collision_test)
 {
     int m_geom_count; // ecx
-    PhysObjUserData *v7; // edx
     phys_vec3 v8; // [esp+28h] [ebp-36Ch] BYREF
     float v9; // [esp+44h] [ebp-350h] BYREF
     phys_vec3 v10; // [esp+48h] [ebp-34Ch] BYREF
@@ -1158,12 +1157,6 @@ PhysObjUserData * Phys_CreateBodyFromState(
     float mass; // [esp+6Ch] [ebp-328h]
     float m_inv_mass; // [esp+70h] [ebp-324h]
     rigid_body *v16; // [esp+74h] [ebp-320h]
-    const float *v17; // [esp+78h] [ebp-31Ch]
-    float *centerOfMassOffset; // [esp+7Ch] [ebp-318h]
-    const float *v19; // [esp+80h] [ebp-314h]
-    float *buoyancyBoxMax; // [esp+84h] [ebp-310h]
-    const float *v21; // [esp+88h] [ebp-30Ch]
-    float *buoyancyBoxMin; // [esp+8Ch] [ebp-308h]
     float *savedPos; // [esp+90h] [ebp-304h]
     phys_vec3 *p_m_gravity_acc_vec; // [esp+94h] [ebp-300h]
     float v25; // [esp+98h] [ebp-2FCh]
@@ -1176,18 +1169,8 @@ PhysObjUserData * Phys_CreateBodyFromState(
     phys_vec3 gravity_dir; // [esp+B8h] [ebp-2DCh] BYREF
     phys_mat44 rb2w; // [esp+C8h] [ebp-2CCh] BYREF
     phys_mat44 rb2m; // [esp+108h] [ebp-28Ch] BYREF
-    phys_vec3 *v35; // [esp+154h] [ebp-240h]
-    int v36; // [esp+158h] [ebp-23Ch]
-    float v37; // [esp+15Ch] [ebp-238h]
-    float v38; // [esp+160h] [ebp-234h]
-    int v39; // [esp+16Ch] [ebp-228h]
-    int v40; // [esp+170h] [ebp-224h]
-    int v41; // [esp+174h] [ebp-220h]
     phys_vec3 com_offset; // [esp+178h] [ebp-21Ch] BYREF
     phys_vec3 center; // [esp+188h] [ebp-20Ch]
-    float v44; // [esp+19Ch] [ebp-1F8h]
-    float v45; // [esp+1A0h] [ebp-1F4h]
-    float v46; // [esp+1A4h] [ebp-1F0h]
     float v47; // [esp+1A8h] [ebp-1ECh]
     float v48; // [esp+1ACh] [ebp-1E8h]
     float v49; // [esp+1B0h] [ebp-1E4h]
@@ -1196,45 +1179,12 @@ PhysObjUserData * Phys_CreateBodyFromState(
     float v52; // [esp+1C4h] [ebp-1D0h]
     phys_vec3 gjk_geom_list_aabb_mn_loc; // [esp+1C8h] [ebp-1CCh] BYREF
     phys_vec3 gjk_geom_list_aabb_mx_loc; // [esp+1D8h] [ebp-1BCh] BYREF
-    phys_vec3 *p_w; // [esp+1F4h] [ebp-1A0h]
-    float v56; // [esp+1F8h] [ebp-19Ch]
-    float v57; // [esp+1FCh] [ebp-198h]
-    float v58; // [esp+200h] [ebp-194h]
-    float v59; // [esp+208h] [ebp-18Ch]
-    float v60; // [esp+20Ch] [ebp-188h]
-    float v61; // [esp+210h] [ebp-184h]
-    phys_vec3 *p_z; // [esp+214h] [ebp-180h]
-    float v63; // [esp+218h] [ebp-17Ch]
-    float v64; // [esp+21Ch] [ebp-178h]
-    float v65; // [esp+220h] [ebp-174h]
-    float v66; // [esp+228h] [ebp-16Ch]
-    float v67; // [esp+22Ch] [ebp-168h]
-    float v68; // [esp+230h] [ebp-164h]
-    phys_vec3 *p_y; // [esp+234h] [ebp-160h]
-    float v70; // [esp+238h] [ebp-15Ch]
-    float v71; // [esp+23Ch] [ebp-158h]
-    float v72; // [esp+240h] [ebp-154h]
-    float v73; // [esp+24Ch] [ebp-148h]
-    float v74; // [esp+250h] [ebp-144h]
-    float v75; // [esp+254h] [ebp-140h]
     phys_mat44 m2w; // [esp+258h] [ebp-13Ch] BYREF
-    float v77; // [esp+298h] [ebp-FCh]
-    float v78; // [esp+29Ch] [ebp-F8h]
-    float v79; // [esp+2A0h] [ebp-F4h]
-    float v80; // [esp+2ACh] [ebp-E8h]
-    float v81; // [esp+2B0h] [ebp-E4h]
-    float v82; // [esp+2B4h] [ebp-E0h]
     phys_vec3 a_vel; // [esp+2B8h] [ebp-DCh] BYREF
-    float v84; // [esp+2CCh] [ebp-C8h]
-    float v85; // [esp+2D0h] [ebp-C4h]
-    float v86; // [esp+2D4h] [ebp-C0h]
     phys_vec3 t_vel; // [esp+2D8h] [ebp-BCh] BYREF
-    float v88; // [esp+2F0h] [ebp-A4h]
-    float v89; // [esp+2F4h] [ebp-A0h]
-    float v90; // [esp+2F8h] [ebp-9Ch]
     int minStableContactCount; // [esp+2FCh] [ebp-98h]
     float maxAVel; // [esp+300h] [ebp-94h]
-    float v93; // [esp+304h] [ebp-90h]
+    float inertiaScale; // [esp+304h] [ebp-90h]
     phys_vec3 inertia; // [esp+308h] [ebp-8Ch] BYREF
     float volume; // [esp+324h] [ebp-70h] BYREF
     phys_vec3 dim; // [esp+328h] [ebp-6Ch] BYREF
@@ -1277,233 +1227,188 @@ PhysObjUserData * Phys_CreateBodyFromState(
             }
         }
     }
+
     body = phys_sys::create_rigid_body(1);
-    if (body)
-    {
-        userData = Phys_CreateUserData(worldIndex);
-        if (userData)
-        {
-            dim.x = 3.0f;
-            dim.y = 3.0f;
-            dim.z = 3.0f;
-            nuge::calc_box_inertia(&dim, &inertia, &volume);
-            v93 = state->mass / volume;
-            inertia.x = inertia.x * v93;
-            inertia.y = inertia.y * v93;
-            inertia.z = inertia.z * v93;
-            maxAVel = 16.0f;
-            minStableContactCount = 3;
-            if (worldIndex == 2)
-                minStableContactCount = 1;
-            v90 = state->velocity[0];
-            v89 = state->velocity[1];
-            v88 = state->velocity[2];
-            t_vel.x = v90;
-            t_vel.y = v89;
-            t_vel.z = v88;
-            v86 = state->angVelocity[0];
-            v85 = state->angVelocity[1];
-            v84 = state->angVelocity[2];
-            a_vel.x = v86;
-            a_vel.y = v85;
-            a_vel.z = v84;
-            v82 = state->rotation[0][0];
-            v81 = state->rotation[0][1];
-            v80 = state->rotation[0][2];
-            v77 = v82;
-            v78 = v81;
-            v79 = v80;
-            m2w.x.x = v82;
-            m2w.x.y = v81;
-            m2w.x.z = v80;
-            v75 = state->rotation[1][0];
-            v74 = state->rotation[1][1];
-            v73 = state->rotation[1][2];
-            v70 = v75;
-            v71 = v74;
-            v72 = v73;
-            p_y = &m2w.y;
-            m2w.y.x = v75;
-            m2w.y.y = v74;
-            m2w.y.z = v73;
-            v68 = state->rotation[2][0];
-            v67 = state->rotation[2][1];
-            v66 = state->rotation[2][2];
-            v63 = v68;
-            v64 = v67;
-            v65 = v66;
-            p_z = &m2w.z;
-            m2w.z.x = v68;
-            m2w.z.y = v67;
-            m2w.z.z = v66;
-            v61 = state->position[0];
-            v60 = state->position[1];
-            v59 = state->position[2];
-            v56 = v61;
-            v57 = v60;
-            v58 = v59;
-            p_w = &m2w.w;
-            m2w.w.x = v61;
-            m2w.w.y = v60;
-            m2w.w.z = v59;
-            bodyId = (int)userData;
-            m_geom_count = gjk_geom_list->m_geom_count;
-            v7 = userData;
-            userData->m_gjk_geom_list.m_first_geom = gjk_geom_list->m_first_geom;
-            v7->m_gjk_geom_list.m_geom_count = m_geom_count;
-            //gjk_geom_list_t::comp_aabb_loc(
-                userData->m_gjk_geom_list.comp_aabb_loc(
-                &gjk_geom_list_aabb_mn_loc,
-                &gjk_geom_list_aabb_mx_loc);
-            //phys_mat44::operator=(&userData->cg2rb, &PHYS_IDENTITY_MATRIX_43);
-            userData->cg2rb = PHYS_IDENTITY_MATRIX;
-            //phys_mat44::operator=(&userData->cg2w, &PHYS_IDENTITY_MATRIX_43);
-            userData->cg2w = PHYS_IDENTITY_MATRIX;
-            v52 = gjk_geom_list_aabb_mn_loc.x + gjk_geom_list_aabb_mx_loc.x;
-            v51 = gjk_geom_list_aabb_mn_loc.y + gjk_geom_list_aabb_mx_loc.y;
-            v50 = gjk_geom_list_aabb_mn_loc.z + gjk_geom_list_aabb_mx_loc.z;
-            v47 = gjk_geom_list_aabb_mn_loc.x + gjk_geom_list_aabb_mx_loc.x;
-            v48 = gjk_geom_list_aabb_mn_loc.y + gjk_geom_list_aabb_mx_loc.y;
-            v49 = gjk_geom_list_aabb_mn_loc.z + gjk_geom_list_aabb_mx_loc.z;
-            v46 = 0.5 * (float)(gjk_geom_list_aabb_mn_loc.x + gjk_geom_list_aabb_mx_loc.x);
-            v45 = 0.5 * (float)(gjk_geom_list_aabb_mn_loc.y + gjk_geom_list_aabb_mx_loc.y);
-            v44 = 0.5 * (float)(gjk_geom_list_aabb_mn_loc.z + gjk_geom_list_aabb_mx_loc.z);
-            center.x = v46;
-            center.y = v45;
-            center.z = v44;
-            Phys_Vec3ToNitrousVec(state->centerOfMassOffset, &com_offset);
-            center.x = center.x + com_offset.x;
-            center.y = center.y + com_offset.y;
-            center.z = center.z + com_offset.z;
-            v41 = -(center.x);
-            v40 = -(center.y);
-            v39 = -(center.z);
-            v36 = -(center.x);
-            (v37) = -(center.y);
-            (v38) = -(center.z);
-            v35 = &userData->cg2rb.w;
-            //LODWORD(userData->cg2rb.w.x) = LODWORD(center.x) ^ _mask__NegFloat_;
-            (userData->cg2rb.w.x) = -(center.x);
-            v35->y = v37;
-            v35->z = v38;
-            phys_full_inverse(&rb2m, &userData->cg2rb);
-            phys_full_multiply_mat(&rb2w, &m2w, &rb2m);
-            if (Abs(&t_vel.x) >= 100000.0
-                && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp",
-                    862,
-                    0,
-                    "%s",
-                    "Abs(t_vel) < 100000.0f"))
-            {
-                __debugbreak();
-            }
-            if (Abs(&a_vel.x) >= 1000.0
-                && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp",
-                    863,
-                    0,
-                    "%s",
-                    "Abs(a_vel) < 1000.0f"))
-            {
-                __debugbreak();
-            }
-            //rigid_body::set(body, state->mass, &inertia, &rb2w, &t_vel, &a_vel, minStableContactCount);
-            body->set(state->mass, &inertia, &rb2w, &t_vel, &a_vel, minStableContactCount);
-            body->m_userdata = userData;
-            Phys_Vec3ToNitrousVec(&phys_gravity_dir->current.value, &gravity_dir);
-            value = phys_gravity->current.value;
-            v30 = value * gravity_dir.x;
-            v29 = value * gravity_dir.y;
-            v28 = value * gravity_dir.z;
-            v25 = value * gravity_dir.x;
-            v26 = value * gravity_dir.y;
-            v27 = value * gravity_dir.z;
-            p_m_gravity_acc_vec = &body->m_gravity_acc_vec;
-            body->m_gravity_acc_vec.x = value * gravity_dir.x;
-            p_m_gravity_acc_vec->y = v26;
-            p_m_gravity_acc_vec->z = v27;
-            body->m_max_avel = maxAVel;
-            userData->body = body;
-            savedPos = userData->savedPos;
-            userData->savedPos[0] = state->position[0];
-            savedPos[1] = state->position[1];
-            savedPos[2] = state->position[2];
-            memcpy(userData->savedRot, state->rotation, sizeof(userData->savedRot));
-            userData->bounce = state->bounce;
-            userData->buoyancy = state->buoyancy;
-            userData->friction = state->friction;
-            userData->underwater = state->underwater;
-            userData->mass = state->mass;
-            userData->id = state->id;
-            userData->refcount = 1;
-            userData->timeBuoyant = -1;
-            userData->timeRipple = -1;
-            userData->m_time_since_last_event = phys_impact_silence_window->current.value + 0.0099999998;
-            userData->m_time_since_last_reeval = phys_reeval_frequency->current.value + 0.0099999998;
-            userData->m_flags = 0;
-            buoyancyBoxMin = userData->buoyancyBoxMin;
-            v21 = state->buoyancyBoxMin;
-            userData->buoyancyBoxMin[0] = state->buoyancyBoxMin[0];
-            buoyancyBoxMin[1] = v21[1];
-            buoyancyBoxMin[2] = v21[2];
-            buoyancyBoxMax = userData->buoyancyBoxMax;
-            v19 = state->buoyancyBoxMax;
-            userData->buoyancyBoxMax[0] = state->buoyancyBoxMax[0];
-            buoyancyBoxMax[1] = v19[1];
-            buoyancyBoxMax[2] = v19[2];
-            centerOfMassOffset = userData->centerOfMassOffset;
-            v17 = state->centerOfMassOffset;
-            userData->centerOfMassOffset[0] = state->centerOfMassOffset[0];
-            centerOfMassOffset[1] = v17[1];
-            centerOfMassOffset[2] = v17[2];
-            v16 = userData->body;
-            m_inv_mass = v16->m_inv_mass;
-            mass = 1.0 / m_inv_mass;
-            v13 = gjk_geom_list_aabb_mx_loc.x - gjk_geom_list_aabb_mn_loc.x;
-            v12 = gjk_geom_list_aabb_mx_loc.y - gjk_geom_list_aabb_mn_loc.y;
-            v11 = gjk_geom_list_aabb_mx_loc.z - gjk_geom_list_aabb_mn_loc.z;
-            v10.x = gjk_geom_list_aabb_mx_loc.x - gjk_geom_list_aabb_mn_loc.x;
-            v10.y = gjk_geom_list_aabb_mx_loc.y - gjk_geom_list_aabb_mn_loc.y;
-            v10.z = gjk_geom_list_aabb_mx_loc.z - gjk_geom_list_aabb_mn_loc.z;
-            if (Abs(&v10.x) >= 10000.0
-                && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp",
-                    902,
-                    0,
-                    "%s",
-                    "Abs(dim) < 10000.0f"))
-            {
-                __debugbreak();
-            }
-            nuge::calc_box_inertia(&v10, &v8, &v9);
-            v8.x = v8.x * (float)(mass / v9);
-            v8.y = v8.y * (float)(mass / v9);
-            v8.z = v8.z * (float)(mass / v9);
-            //rigid_body::set_inertia(v16, &v8);
-            v16->set_inertia(&v8);
-            create_broad_phase_info(userData->body);
-            //if (do_collision_test)
-            //    BG_EvalVehicleName();
-            Sys_LeaveCriticalSection(CRITSECT_PHYSICS);
-            return (PhysObjUserData *)bodyId;
-        }
-        else
-        {
-            destroy_gjk_geom(gjk_geom_list);
-            phys_sys::destroy(body);
-            Com_PrintWarning(20, "Maximum number of Phys User Data exceeded\n");
-            Sys_LeaveCriticalSection(CRITSECT_PHYSICS);
-            return 0;
-        }
-    }
-    else
+
+    if (!body)
     {
         destroy_gjk_geom(gjk_geom_list);
         Com_PrintWarning(20, "Maximum number of physics bodies exceeded\n");
         Sys_LeaveCriticalSection(CRITSECT_PHYSICS);
         return 0;
     }
+
+    userData = Phys_CreateUserData(worldIndex);
+
+    if (!userData)
+    {
+        destroy_gjk_geom(gjk_geom_list);
+        phys_sys::destroy(body);
+        Com_PrintWarning(20, "Maximum number of Phys User Data exceeded\n");
+        Sys_LeaveCriticalSection(CRITSECT_PHYSICS);
+        return 0;
+    }
+
+    dim.x = 3.0f;
+    dim.y = 3.0f;
+    dim.z = 3.0f;
+    nuge::calc_box_inertia(&dim, &inertia, &volume);
+
+    inertiaScale = state->mass / volume;
+    inertia.x *= inertiaScale;
+    inertia.y *= inertiaScale;
+    inertia.z *= inertiaScale;
+
+    maxAVel = 16.0f;
+    minStableContactCount = 3;
+
+    if (worldIndex == 2)
+        minStableContactCount = 1;
+
+    t_vel.x = state->velocity[0];
+    t_vel.y = state->velocity[1];
+    t_vel.z = state->velocity[2];
+
+    a_vel.x = state->angVelocity[0];
+    a_vel.y = state->angVelocity[1];
+    a_vel.z = state->angVelocity[2];
+
+    m2w.x.x = state->rotation[0][0];
+    m2w.x.y = state->rotation[0][1];
+    m2w.x.z = state->rotation[0][2];
+
+    m2w.y.x = state->rotation[1][0];
+    m2w.y.y = state->rotation[1][1];
+    m2w.y.z = state->rotation[1][2];
+
+    m2w.z.x = state->rotation[2][0];
+    m2w.z.y = state->rotation[2][1];
+    m2w.z.z = state->rotation[2][2];
+
+    m2w.w.x = state->position[0];
+    m2w.w.y = state->position[1];
+    m2w.w.z = state->position[2];
+
+    bodyId = (int)userData;
+    m_geom_count = gjk_geom_list->m_geom_count;
+    userData->m_gjk_geom_list.m_first_geom = gjk_geom_list->m_first_geom;
+    userData->m_gjk_geom_list.m_geom_count = m_geom_count;
+
+    //gjk_geom_list_t::comp_aabb_loc(
+    userData->m_gjk_geom_list.comp_aabb_loc(&gjk_geom_list_aabb_mn_loc, &gjk_geom_list_aabb_mx_loc);
+
+    //phys_mat44::operator=(&userData->cg2rb, &PHYS_IDENTITY_MATRIX_43);
+    userData->cg2rb = PHYS_IDENTITY_MATRIX;
+
+    //phys_mat44::operator=(&userData->cg2w, &PHYS_IDENTITY_MATRIX_43);
+    userData->cg2w = PHYS_IDENTITY_MATRIX;
+
+    v52 = gjk_geom_list_aabb_mn_loc.x + gjk_geom_list_aabb_mx_loc.x;
+    v51 = gjk_geom_list_aabb_mn_loc.y + gjk_geom_list_aabb_mx_loc.y;
+    v50 = gjk_geom_list_aabb_mn_loc.z + gjk_geom_list_aabb_mx_loc.z;
+    v47 = gjk_geom_list_aabb_mn_loc.x + gjk_geom_list_aabb_mx_loc.x;
+    v48 = gjk_geom_list_aabb_mn_loc.y + gjk_geom_list_aabb_mx_loc.y;
+    v49 = gjk_geom_list_aabb_mn_loc.z + gjk_geom_list_aabb_mx_loc.z;
+    center.x = 0.5 * (float)(gjk_geom_list_aabb_mn_loc.x + gjk_geom_list_aabb_mx_loc.x);
+    center.y = 0.5 * (float)(gjk_geom_list_aabb_mn_loc.y + gjk_geom_list_aabb_mx_loc.y);
+    center.z = 0.5 * (float)(gjk_geom_list_aabb_mn_loc.z + gjk_geom_list_aabb_mx_loc.z);
+    Phys_Vec3ToNitrousVec(state->centerOfMassOffset, &com_offset);
+    center.x = center.x + com_offset.x;
+    center.y = center.y + com_offset.y;
+    center.z = center.z + com_offset.z;
+
+    userData->cg2rb.w.x = -(center.x);
+    userData->cg2rb.w.y = -(center.y);
+    userData->cg2rb.w.z = -(center.z);
+    phys_full_inverse(&rb2m, &userData->cg2rb);
+    phys_full_multiply_mat(&rb2w, &m2w, &rb2m);
+
+    iassert(Abs(t_vel) < 100000.0f);
+    iassert(Abs(a_vel) < 1000.0f);
+
+    //rigid_body::set(body, state->mass, &inertia, &rb2w, &t_vel, &a_vel, minStableContactCount);
+    body->set(state->mass, &inertia, &rb2w, &t_vel, &a_vel, minStableContactCount);
+    body->m_userdata = userData;
+    Phys_Vec3ToNitrousVec(&phys_gravity_dir->current.value, &gravity_dir);
+    value = phys_gravity->current.value;
+    v30 = value * gravity_dir.x;
+    v29 = value * gravity_dir.y;
+    v28 = value * gravity_dir.z;
+    v25 = value * gravity_dir.x;
+    v26 = value * gravity_dir.y;
+    v27 = value * gravity_dir.z;
+    p_m_gravity_acc_vec = &body->m_gravity_acc_vec;
+    body->m_gravity_acc_vec.x = value * gravity_dir.x;
+    p_m_gravity_acc_vec->y = v26;
+    p_m_gravity_acc_vec->z = v27;
+    body->m_max_avel = maxAVel;
+    userData->body = body;
+    savedPos = userData->savedPos;
+    userData->savedPos[0] = state->position[0];
+    savedPos[1] = state->position[1];
+    savedPos[2] = state->position[2];
+    memcpy(userData->savedRot, state->rotation, sizeof(userData->savedRot));
+    userData->bounce = state->bounce;
+    userData->buoyancy = state->buoyancy;
+    userData->friction = state->friction;
+    userData->underwater = state->underwater;
+    userData->mass = state->mass;
+    userData->id = state->id;
+    userData->refcount = 1;
+    userData->timeBuoyant = -1;
+    userData->timeRipple = -1;
+    userData->m_time_since_last_event = phys_impact_silence_window->current.value + 0.0099999998;
+    userData->m_time_since_last_reeval = phys_reeval_frequency->current.value + 0.0099999998;
+    userData->m_flags = 0;
+
+    userData->buoyancyBoxMin[0] = state->buoyancyBoxMin[0];
+    userData->buoyancyBoxMin[1] = state->buoyancyBoxMin[1];
+    userData->buoyancyBoxMin[2] = state->buoyancyBoxMin[2];
+
+    userData->buoyancyBoxMax[0] = state->buoyancyBoxMax[0];
+    userData->buoyancyBoxMax[1] = state->buoyancyBoxMax[1];
+    userData->buoyancyBoxMax[2] = state->buoyancyBoxMax[2];
+
+    userData->centerOfMassOffset[0] = state->centerOfMassOffset[0];
+    userData->centerOfMassOffset[1] = state->centerOfMassOffset[1];
+    userData->centerOfMassOffset[2] = state->centerOfMassOffset[2];
+
+    v16 = userData->body;
+    m_inv_mass = v16->m_inv_mass;
+    mass = 1.0 / m_inv_mass;
+    v13 = gjk_geom_list_aabb_mx_loc.x - gjk_geom_list_aabb_mn_loc.x;
+    v12 = gjk_geom_list_aabb_mx_loc.y - gjk_geom_list_aabb_mn_loc.y;
+    v11 = gjk_geom_list_aabb_mx_loc.z - gjk_geom_list_aabb_mn_loc.z;
+    v10.x = gjk_geom_list_aabb_mx_loc.x - gjk_geom_list_aabb_mn_loc.x;
+    v10.y = gjk_geom_list_aabb_mx_loc.y - gjk_geom_list_aabb_mn_loc.y;
+    v10.z = gjk_geom_list_aabb_mx_loc.z - gjk_geom_list_aabb_mn_loc.z;
+    if (Abs(&v10.x) >= 10000.0
+        && !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp",
+            902,
+            0,
+            "%s",
+            "Abs(dim) < 10000.0f"))
+    {
+        __debugbreak();
+    }
+
+    nuge::calc_box_inertia(&v10, &v8, &v9);
+    v8.x *= (float)(mass / v9);
+    v8.y *= (float)(mass / v9);
+    v8.z *= (float)(mass / v9);
+
+    //rigid_body::set_inertia(v16, &v8);
+
+    v16->set_inertia(&v8);
+    create_broad_phase_info(userData->body);
+
+    //if (do_collision_test)
+    //    BG_EvalVehicleName();
+
+    Sys_LeaveCriticalSection(CRITSECT_PHYSICS);
+
+    return (PhysObjUserData *)bodyId;
 }
 
 void    phys_full_inverse(phys_mat44 *dest, const phys_mat44 *source)
@@ -1583,22 +1488,12 @@ PhysObjUserData *__cdecl Phys_ObjCreate(
     nanassertvec3(quat);
     nanassertvec3(velocity);
 
-    if ( !physInited
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp", 968, 0, "%s", "physInited") )
-    {
-        __debugbreak();
-    }
-    if ( !physPreset
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp", 969, 0, "%s", "physPreset") )
-    {
-        __debugbreak();
-    }
-    if ( !gjk_geom_list
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp", 970, 0, "%s", "gjk_geom_list") )
-    {
-        __debugbreak();
-    }
+    iassert(physInited);
+    iassert(physPreset);
+    iassert(gjk_geom_list);
+
     QuatToAxis(quat, axis);
+
     return Phys_ObjCreateAxis(worldIndex, position, axis, velocity, physPreset, gjk_geom_list, id, do_collision_test);
 }
 
@@ -1612,30 +1507,18 @@ PhysObjUserData *__cdecl Phys_ObjCreateAxis(
                 int id,
                 bool do_collision_test)
 {
-    float v8; // xmm0_4
     BodyState state; // [esp+24h] [ebp-90h] BYREF
-    int savedregs; // [esp+B4h] [ebp+0h] BYREF
 
     nanassertvec3(position);
     nanassertvec3(velocity);
+    iassert(physInited);
+    iassert(physPreset);
 
-    if ( !physInited
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp", 931, 0, "%s", "physInited") )
-    {
-        __debugbreak();
-    }
-    if ( !physPreset
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp", 932, 0, "%s", "physPreset") )
-    {
-        __debugbreak();
-    }
     AxisCopy(axis, state.rotation);
-    state.position[0] = *position;
-    state.position[1] = position[1];
-    state.position[2] = position[2];
-    state.velocity[0] = *velocity;
-    state.velocity[1] = velocity[1];
-    state.velocity[2] = velocity[2];
+
+    Vec3Copy(position, state.position);
+    Vec3Copy(velocity, state.velocity);
+
     memset(state.angVelocity, 0, sizeof(state.angVelocity));
     state.mass = physPreset->mass;
     state.bounce = physPreset->bounce;
@@ -1643,36 +1526,25 @@ PhysObjUserData *__cdecl Phys_ObjCreateAxis(
     state.timeLastAsleep = physGlob.timeLastUpdate;
     state.underwater = 0;
     state.id = id;
+
     if ( physPreset->canFloat )
-        v8 = phys_gravity->current.value * -1.1;
+        state.buoyancy = phys_gravity->current.value * -1.1;
     else
-        v8 = phys_gravity->current.value * -0.89999998;
-    state.buoyancy = (int)v8;
-    state.buoyancyBoxMin[0] = physPreset->buoyancyBoxMin[0];
-    state.buoyancyBoxMin[1] = physPreset->buoyancyBoxMin[1];
-    state.buoyancyBoxMin[2] = physPreset->buoyancyBoxMin[2];
-    state.buoyancyBoxMax[0] = physPreset->buoyancyBoxMax[0];
-    state.buoyancyBoxMax[1] = physPreset->buoyancyBoxMax[1];
-    state.buoyancyBoxMax[2] = physPreset->buoyancyBoxMax[2];
-    state.centerOfMassOffset[0] = physPreset->centerOfMassOffset[0];
-    state.centerOfMassOffset[1] = physPreset->centerOfMassOffset[1];
-    state.centerOfMassOffset[2] = physPreset->centerOfMassOffset[2];
+        state.buoyancy = phys_gravity->current.value * -0.89999998;
+
+    Vec3Copy(physPreset->buoyancyBoxMin, state.buoyancyBoxMin);
+    Vec3Copy(physPreset->buoyancyBoxMax, state.buoyancyBoxMax);
+    Vec3Copy(physPreset->centerOfMassOffset, state.centerOfMassOffset);
+
     return Phys_CreateBodyFromState(worldIndex, &state, gjk_geom_list, do_collision_test);
 }
 
 void    Phys_ObjSetPosition(int id, float *newPosition)
 {
     phys_mat44 *v3; // [esp-B8h] [ebp-DCh]
-    float *savedPos; // [esp-64h] [ebp-88h]
-    phys_vec3 *p_m_last_position; // [esp-48h] [ebp-6Ch]
-    int p_m_mat; // [esp-40h] [ebp-64h]
-    phys_vec3 v7; // [esp-38h] [ebp-5Ch] BYREF
-    float v8; // [esp-1Ch] [ebp-40h]
-    float v9; // [esp-18h] [ebp-3Ch]
-    float v10; // [esp-14h] [ebp-38h]
-    phys_vec3 *p_w; // [esp-10h] [ebp-34h]
+    phys_vec3 newPos; // [esp-38h] [ebp-5Ch] BYREF
     PhysObjUserData *userData; // [esp-Ch] [ebp-30h]
-    phys_vec3 v13; // [esp-8h] [ebp-2Ch] OVERLAPPED BYREF
+    phys_vec3 pos; // [esp-8h] [ebp-2Ch] OVERLAPPED BYREF
     int newPos_8; // [esp+Ch] [ebp-18h]
     int newPos_12; // [esp+10h] [ebp-14h]
     int v16; // [esp+14h] [ebp-10h]
@@ -1685,29 +1557,25 @@ void    Phys_ObjSetPosition(int id, float *newPosition)
 
     iassert(!IS_NAN((newPosition)[0]) && !IS_NAN((newPosition)[1]) && !IS_NAN((newPosition)[2]));
     
-    Phys_Vec3ToNitrousVec(newPosition, &v13);
+    Phys_Vec3ToNitrousVec(newPosition, &pos);
     userData = Phys_GetUserData(id);
-    p_w = &userData->cg2rb.w;
-    v10 = v13.x + userData->cg2rb.w.x;
-    v9 = v13.y + userData->cg2rb.w.y;
-    v8 = v13.z + userData->cg2rb.w.z;
-    v7.x = v10;
-    v7.y = v9;
-    v7.z = v8;
+
+    newPos.x = pos.x + userData->cg2rb.w.x;
+    newPos.y = pos.y + userData->cg2rb.w.y;
+    newPos.z = pos.z + userData->cg2rb.w.z;
+
     //phys_vec3::operator=(&UserData->body->m_mat.w, &v7);
-    userData->body->m_mat.w = v7;
-    p_m_mat = (int)&userData->body->m_mat;
-    p_m_last_position = &userData->body->m_last_position;
-    p_m_last_position->x = userData->body->m_mat.w.x;
-    p_m_last_position->y = *(float *)(p_m_mat + 52);
-    p_m_last_position->z = *(float *)(p_m_mat + 56);
+    userData->body->m_mat.w = newPos;
+
+    userData->body->m_last_position.x = userData->body->m_mat.w.x;
+    userData->body->m_last_position.y = userData->body->m_mat.w.y;
+    userData->body->m_last_position.z = userData->body->m_mat.w.z;
 
     iassert(!IS_NAN((userData->body->m_last_position)[0]) && !IS_NAN((userData->body->m_last_position)[1]) && !IS_NAN((userData->body->m_last_position)[2]));
 
-    savedPos = userData->savedPos;
     userData->savedPos[0] = *newPosition;
-    savedPos[1] = newPosition[1];
-    savedPos[2] = newPosition[2];
+    userData->savedPos[1] = newPosition[1];
+    userData->savedPos[2] = newPosition[2];
 
     if (   (fabs(userData->body->m_last_position.x)) > 100000.0
         || (fabs(userData->body->m_last_position.y)) > 100000.0

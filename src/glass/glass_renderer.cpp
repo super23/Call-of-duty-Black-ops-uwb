@@ -22,18 +22,30 @@ cmd_function_s PrintHwmCmd_VAR;
 float MIN_SHARD_GROUP_VOLUME_SIZE = 32.0;
 
 
+void *GlassRenderer::operator new(size_t size)
+{
+    return GlassesClient::Allocate(
+        size,
+        "C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_renderer.cpp",
+        72);
+}
+
+void GlassRenderer::operator delete(void *ptr)
+{
+    GlassesClient::Free((char *)ptr);
+}
 
 GlassRenderer::GlassRenderer(const Glasses *glasses)
 {
     unsigned int *v2; // eax
     ShardGroup *v3; // eax
-    unsigned int *v4; // eax
-    unsigned int *v5; // eax
+    GlassShard *v4; // eax
+    GlassPhysics *v5; // eax
     unsigned int *v6; // eax
     unsigned int FreeMem; // eax
-    unsigned int maxGroups; // [esp+10h] [ebp-E8h]
-    unsigned int maxShards; // [esp+10h] [ebp-E8h]
-    unsigned int maxPhysics; // [esp+10h] [ebp-E8h]
+    //unsigned int maxGroups; // [esp+10h] [ebp-E8h]
+    //unsigned int maxShards; // [esp+10h] [ebp-E8h]
+    //unsigned int maxPhysics; // [esp+10h] [ebp-E8h]
     unsigned int smallAllocatorBlocks; // [esp+14h] [ebp-E4h]
     unsigned int shardMemorySize; // [esp+14h] [ebp-E4h]
     FixedSizeAllocator<GlassPhysics *> *v14; // [esp+2Ch] [ebp-CCh]
@@ -114,7 +126,9 @@ GlassRenderer::GlassRenderer(const Glasses *glasses)
     //{
     //    this->groupsAllocator = 0;
     //}
-    this->groupsAllocator = new FixedSizeAllocator<ShardGroup *>();
+
+    v3 = (ShardGroup *)GlassesClient::Allocate(sizeof(ShardGroup) * glasses->maxGroups, "blah", 123);
+    this->groupsAllocator = new FixedSizeAllocator<ShardGroup *>(v3, glasses->maxGroups, &this->smallAllocator);
 
 
     //v27 = (FixedSizeAllocator<GlassShard *> *)GlassesClient::Allocate(64, "C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_renderer.cpp", 77);
@@ -132,7 +146,8 @@ GlassRenderer::GlassRenderer(const Glasses *glasses)
     //{
     //    this->shardsAllocator = 0;
     //}
-    this->shardsAllocator = new FixedSizeAllocator<GlassShard *>();
+    v4 = (GlassShard*)GlassesClient::Allocate(sizeof(GlassShard) * glasses->maxShards, "asdf", 1243);
+    this->shardsAllocator = new FixedSizeAllocator<GlassShard *>(v4, glasses->maxShards, &this->smallAllocator);
 
 
     //v26 = (FixedSizeAllocator<GlassPhysics *> *)GlassesClient::Allocate(64, "C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_renderer.cpp", 79);
@@ -150,7 +165,8 @@ GlassRenderer::GlassRenderer(const Glasses *glasses)
     //{
     //    this->physicsAllocator = 0;
     //}
-    this->physicsAllocator = new FixedSizeAllocator<GlassPhysics *>();
+    v5 = (GlassPhysics*)GlassesClient::Allocate(sizeof(GlassPhysics) * glasses->maxPhysics, "grug", 21354);
+    this->physicsAllocator = new FixedSizeAllocator<GlassPhysics *>(v5, glasses->maxPhysics, &this->smallAllocator);
 
     shardMemorySize = glasses->shardMemorySize;
     v6 = GlassesClient::Allocate(shardMemorySize, "C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_renderer.cpp", 81);

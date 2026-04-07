@@ -86,21 +86,20 @@ void __cdecl FX_Beam_GenerateVerts(FxGenerateVertsCmd *cmd)
     int v58; // [esp+2FCh] [ebp-36Ch]
     float4 *v59; // [esp+318h] [ebp-350h]
     float4 *v60; // [esp+31Ch] [ebp-34Ch]
-    __int64 v61; // [esp+324h] [ebp-344h]
-    unsigned int v62; // [esp+32Ch] [ebp-33Ch]
-    int v63; // [esp+330h] [ebp-338h]
-    int v64; // [esp+334h] [ebp-334h]
-    int v65; // [esp+338h] [ebp-330h]
-    int v66; // [esp+33Ch] [ebp-32Ch]
-    int v67; // [esp+340h] [ebp-328h]
-    float4 v68; // [esp+344h] [ebp-324h]
-    float4 *v69; // [esp+358h] [ebp-310h]
+    //__int64 v61; // [esp+324h] [ebp-344h]
+    //unsigned int v62; // [esp+32Ch] [ebp-33Ch]
+    //int v63; // [esp+330h] [ebp-338h]
+    //int v64; // [esp+334h] [ebp-334h]
+    //int v65; // [esp+338h] [ebp-330h]
+    //int v66; // [esp+33Ch] [ebp-32Ch]
+    //int v67; // [esp+340h] [ebp-328h]
+    //float4 v68; // [esp+344h] [ebp-324h]
+    //float4 *v69; // [esp+358h] [ebp-310h]
     float v70; // [esp+35Ch] [ebp-30Ch]
     float v71; // [esp+378h] [ebp-2F0h]
     float *v72; // [esp+37Ch] [ebp-2ECh]
     float *v73; // [esp+380h] [ebp-2E8h]
     float *end; // [esp+384h] [ebp-2E4h]
-    float *v75; // [esp+388h] [ebp-2E0h]
     PackedTexCoords v76; // [esp+38Ch] [ebp-2DCh]
     PackedTexCoords v77; // [esp+390h] [ebp-2D8h]
     PackedTexCoords v78; // [esp+394h] [ebp-2D4h]
@@ -184,27 +183,27 @@ void __cdecl FX_Beam_GenerateVerts(FxGenerateVertsCmd *cmd)
     float4 tpos1; // [esp+5B0h] [ebp-B8h]
     FxBeamInfo *beamInfo; // [esp+5C0h] [ebp-A8h]
     float4 viewAxis; // [esp+5C8h] [ebp-A0h] BYREF
-    vector4 clipMtx; // [esp+5D8h] [ebp-90h] BYREF
+    float4x4 clipMtx; // [esp+5D8h] [ebp-90h] BYREF
     int beamIter; // [esp+618h] [ebp-50h]
     float *segVerts; // [esp+61Ch] [ebp-4Ch]
-    vector4 invClipMtx; // [esp+620h] [ebp-48h] BYREF
+    float4x4 invClipMtx; // [esp+620h] [ebp-48h] BYREF
     int indexPairIter;
 
     segVerts = 0;
-    if ( !cmd && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_beam.cpp", 307, 0, "%s", "cmd") )
-        __debugbreak();
-    if ( !cmd->beamInfo
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_beam.cpp", 308, 0, "%s", "cmd->beamInfo") )
-    {
-        __debugbreak();
-    }
+
+    iassert(cmd);
+    iassert(cmd->beamInfo);
+
     beamInfo = cmd->beamInfo;
+
     CreateClipMatrix(&clipMtx, cmd->vieworg, cmd->viewaxis);
-    MatrixInverse44((const mat4x4&)*clipMtx.x.v, (mat4x4&)*invClipMtx.x.v);
-    v75 = cmd->viewaxis[0];
-    *(_QWORD *)viewAxis.v = *(_QWORD *)&cmd->viewaxis[0][0];
-    viewAxis.u[2] = LODWORD(cmd->viewaxis[0][2]);
+    MatrixInverse44(clipMtx.mat, invClipMtx.mat);
+
+    viewAxis.v[0] = cmd->viewaxis[0][0];
+    viewAxis.v[1] = cmd->viewaxis[0][1];
+    viewAxis.v[2] = cmd->viewaxis[0][2];
     viewAxis.u[3] = 0;
+
     for ( beamIter = 0; beamIter != beamInfo->beamCount; ++beamIter )
     {
         perp_indexCount = 0;
@@ -250,26 +249,35 @@ void __cdecl FX_Beam_GenerateVerts(FxGenerateVertsCmd *cmd)
             {
                 __debugbreak();
             }
-            *(_QWORD *)beamWorldBegin.v = *(_QWORD *)segVerts;
+            beamWorldBegin.v[0] = segVerts[0];
+            beamWorldBegin.v[1] = segVerts[1];
             beamWorldBegin.v[2] = segVerts[2];
             beamWorldBegin.u[3] = 0;
+
             v73 = &segVerts[3 * (segCount / 3)];
-            *(_QWORD *)beamWorldEnd.v = *(_QWORD *)v73;
+            beamWorldEnd.v[0] = v73[0];
+            beamWorldEnd.v[1] = v73[1];
             beamWorldEnd.v[2] = v73[2];
             beamWorldEnd.u[3] = 0;
-            if ( !FX_GenerateBeam_GetFlatDelta(
-                            &clipMtx,
-                            &invClipMtx,
-                            &beamWorldBegin,
-                            &beamWorldEnd,
-                            &flatDelta) )
+
+            if (!FX_GenerateBeam_GetFlatDelta(
+                &clipMtx,
+                &invClipMtx,
+                &beamWorldBegin,
+                &beamWorldEnd,
+                &flatDelta))
+            {
                 continue;
-            *(_QWORD *)beamWorldBegin.v = *(_QWORD *)beam->begin;
-            beamWorldBegin.u[2] = LODWORD(beam->begin[2]);
+            }
+
+            beamWorldBegin.v[0] = beam->begin[0];
+            beamWorldBegin.v[1] = beam->begin[1];
+            beamWorldBegin.v[2] = beam->begin[2];
             beamWorldBegin.u[3] = 0;
-            //v72 = beam->end;
-            *(_QWORD *)beamWorldEnd.v = *(_QWORD *)beam->end;
-            beamWorldEnd.u[2] = LODWORD(beam->end[2]);
+
+            beamWorldEnd.v[0] = beam->end[0];
+            beamWorldEnd.v[1] = beam->end[1];
+            beamWorldEnd.v[2] = beam->end[2];
             beamWorldEnd.u[3] = 0;
         }
         else if ( !FX_GenerateBeam_GetFlatDelta(
@@ -314,27 +322,12 @@ void __cdecl FX_Beam_GenerateVerts(FxGenerateVertsCmd *cmd)
         workingIndex.value[0] = offset + baseVertex + 4;
         workingIndex.value[1] = offset + baseVertex + 5;
         indices[indexPairIter] = workingIndex;
-        if (workingIndex.value[1] != baseVertex + vertexCount - 1
-            && !Assert_MyHandler(
-                "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_beam.cpp",
-                438,
-                0,
-                "%s",
-                "workingIndex.value[1] == baseVertex+vertexCount-1"))
-        {
-            __debugbreak();
-        }
-        if (++indexPairIter != indexCount / 2
-            && !Assert_MyHandler(
-                "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_beam.cpp",
-                441,
-                0,
-                "%s",
-                "indexPairIter == indexCount/2"))
-        {
-            __debugbreak();
-        }
+
+        iassert(workingIndex.value[1] == baseVertex + vertexCount - 1);
+        iassert(indexPairIter == indexCount / 2);
+
         Material_GetInfo(beam->material, &mtlInfo);
+
         if ( mtlInfo.textureAtlasColumnCount > 1u || mtlInfo.textureAtlasRowCount > 1u )
         {
             v71 = (float)(mtlInfo.textureAtlasRowCount * mtlInfo.textureAtlasColumnCount) * beam->animFrac;
@@ -350,6 +343,7 @@ void __cdecl FX_Beam_GenerateVerts(FxGenerateVertsCmd *cmd)
             *(float *)&tMin = (float)row * step;
             tLen = step;
         }
+
         baseArgs = (float4 *)R_GetCodeMeshArgs(argOffset);
         baseVerts = R_GetCodeMeshVerts(baseVertex);
         Vec3Cross(flatDelta.v, viewAxis.v, perpFlatDelta.v);
@@ -362,38 +356,41 @@ void __cdecl FX_Beam_GenerateVerts(FxGenerateVertsCmd *cmd)
         normDelta.v[3] = beamWorldEnd.v[3] - beamWorldBegin.v[3];
         Vec3NormalizeTo(normDelta.v, normDelta.v);
         normDelta.u[3] = 0;
-        v70 = (float)((float)(beamWorldBegin.v[0] * normDelta.v[0]) + (float)(beamWorldBegin.v[1] * normDelta.v[1]))
-                + (float)(beamWorldBegin.v[2] * normDelta.v[2]);
-        beamDot.v[0] = -(v70);
-        beamDot.v[1] = -(v70);
-        beamDot.v[2] = -(v70);
-        beamDot.v[3] = -(v70);
+
+        beamDot.v[0] = -(Vec3Length(beamWorldBegin.v));
+        beamDot.v[1] = -(Vec3Length(beamWorldBegin.v));
+        beamDot.v[2] = -(Vec3Length(beamWorldBegin.v));
+        beamDot.v[3] = -(Vec3Length(beamWorldBegin.v));
+
         args = baseArgs;
-        v61 = *(_QWORD *)normDelta.v;
-        v62 = normDelta.u[2];
-        v63 = 0;
-        v64 = -(v70);
-        v65 = -(v70);
-        v66 = -(v70);
-        v67 = -(v70);
-        v68 = g_swizzleXYZA;
-        v69 = baseArgs;
-        baseArgs->unitVec[0].array[0] = *((_BYTE *)&v61 + g_swizzleXYZA.unitVec[0].array[3]);
-        v69->unitVec[0].array[1] = *((_BYTE *)&v61 + v68.unitVec[0].array[2]);
-        v69->unitVec[0].array[2] = *((_BYTE *)&v61 + v68.unitVec[0].array[1]);
-        v69->unitVec[0].array[3] = *((_BYTE *)&v61 + v68.unitVec[0].array[0]);
-        v69->unitVec[1].array[0] = *((_BYTE *)&v61 + v68.unitVec[1].array[3]);
-        v69->unitVec[1].array[1] = *((_BYTE *)&v61 + v68.unitVec[1].array[2]);
-        v69->unitVec[1].array[2] = *((_BYTE *)&v61 + v68.unitVec[1].array[1]);
-        v69->unitVec[1].array[3] = *((_BYTE *)&v61 + v68.unitVec[1].array[0]);
-        v69->unitVec[2].array[0] = *((_BYTE *)&v61 + v68.unitVec[2].array[3]);
-        v69->unitVec[2].array[1] = *((_BYTE *)&v61 + v68.unitVec[2].array[2]);
-        v69->unitVec[2].array[2] = *((_BYTE *)&v61 + v68.unitVec[2].array[1]);
-        v69->unitVec[2].array[3] = *((_BYTE *)&v61 + v68.unitVec[2].array[0]);
-        v69->unitVec[3].array[0] = *((_BYTE *)&v61 + v68.unitVec[3].array[3]);
-        v69->unitVec[3].array[1] = *((_BYTE *)&v61 + v68.unitVec[3].array[2]);
-        v69->unitVec[3].array[2] = *((_BYTE *)&v61 + v68.unitVec[3].array[1]);
-        v69->unitVec[3].array[3] = *((_BYTE *)&v61 + v68.unitVec[3].array[0]);
+        //v61 = *(_QWORD *)normDelta.v;
+        //v62 = normDelta.u[2];
+        //v63 = 0;
+        //v64 = -(v70);
+        //v65 = -(v70);
+        //v66 = -(v70);
+        //v67 = -(v70);
+        //v68 = g_swizzleXYZA;
+        //v69 = baseArgs;
+
+        baseArgs->unitVec[0].array[0] = normDelta.unitVec[0].array[g_swizzleXYZA.unitVec[0].array[3]];
+        baseArgs->unitVec[0].array[1] = normDelta.unitVec[0].array[g_swizzleXYZA.unitVec[0].array[2]];
+        baseArgs->unitVec[0].array[2] = normDelta.unitVec[0].array[g_swizzleXYZA.unitVec[0].array[1]];
+        baseArgs->unitVec[0].array[3] = normDelta.unitVec[0].array[g_swizzleXYZA.unitVec[0].array[0]];
+        baseArgs->unitVec[1].array[0] = normDelta.unitVec[0].array[g_swizzleXYZA.unitVec[1].array[3]];
+        baseArgs->unitVec[1].array[1] = normDelta.unitVec[0].array[g_swizzleXYZA.unitVec[1].array[2]];
+        baseArgs->unitVec[1].array[2] = normDelta.unitVec[0].array[g_swizzleXYZA.unitVec[1].array[1]];
+        baseArgs->unitVec[1].array[3] = normDelta.unitVec[0].array[g_swizzleXYZA.unitVec[1].array[0]];
+        baseArgs->unitVec[2].array[0] = normDelta.unitVec[0].array[g_swizzleXYZA.unitVec[2].array[3]];
+        baseArgs->unitVec[2].array[1] = normDelta.unitVec[0].array[g_swizzleXYZA.unitVec[2].array[2]];
+        baseArgs->unitVec[2].array[2] = normDelta.unitVec[0].array[g_swizzleXYZA.unitVec[2].array[1]];
+        baseArgs->unitVec[2].array[3] = normDelta.unitVec[0].array[g_swizzleXYZA.unitVec[2].array[0]];
+        // At this point, the swizzle goes over 16 (float vec4x4) and goes oob into "beamDot".
+        baseArgs->unitVec[3].array[0] = beamDot.unitVec[0].array[g_swizzleXYZA.unitVec[3].array[3] - 16];
+        baseArgs->unitVec[3].array[1] = beamDot.unitVec[0].array[g_swizzleXYZA.unitVec[3].array[2] - 16];
+        baseArgs->unitVec[3].array[2] = beamDot.unitVec[0].array[g_swizzleXYZA.unitVec[3].array[1] - 16];
+        baseArgs->unitVec[3].array[3] = beamDot.unitVec[0].array[g_swizzleXYZA.unitVec[3].array[0] - 16];
+
         args[1] = g_unit;
         v59 = args + 1;
         v60 = args + 1;
@@ -408,13 +405,15 @@ void __cdecl FX_Beam_GenerateVerts(FxGenerateVertsCmd *cmd)
         vertPos.v[1] = (float)(0.0 * flatDelta.v[1]) + beamWorldBegin.v[1];
         vertPos.v[2] = (float)(0.0 * flatDelta.v[2]) + beamWorldBegin.v[2];
         vertPos.v[3] = (float)(0.0 * flatDelta.v[3]) + beamWorldBegin.v[3];
-        baseVerts->xyz[0] = vertPos.v[0];
-        *(_QWORD *)&verts->xyz[1] = *(_QWORD *)&vertPos.unitVec[1].packed;
+        verts->xyz[0] = vertPos.v[0];
+        verts->xyz[1] = vertPos.v[1];
+        verts->xyz[2] = vertPos.v[2];
         verts->color = beginColor;
         verts->binormalSign = 1.0f;
         verts->normal.packed = 1073643391;
         verts->tangent.packed = 1065320446;
         verts->texCoord.packed = 0;
+
         if ( (beam->flags & 1) != 0 )
         {
             s1 = sMin;
@@ -466,6 +465,7 @@ void __cdecl FX_Beam_GenerateVerts(FxGenerateVertsCmd *cmd)
         {
             verts->texCoord.packed = 0;
         }
+
         ++verts;
         wiggleDist = beam->wiggleDist;
         lerpedColor.packed = -1;
@@ -509,7 +509,8 @@ void __cdecl FX_Beam_GenerateVerts(FxGenerateVertsCmd *cmd)
             lerpedRadius = (float)((float)(endRadius - beginRadius) * alpha) + beginRadius;
             if ( segVerts )
             {
-                *(_QWORD *)basePos.v = *(_QWORD *)segVerts;
+                basePos.v[0] = segVerts[0];
+                basePos.v[1] = segVerts[1];
                 basePos.v[2] = segVerts[2];
                 basePos.u[3] = 0;
                 segVerts += 3;
@@ -539,15 +540,17 @@ void __cdecl FX_Beam_GenerateVerts(FxGenerateVertsCmd *cmd)
             tpos1.v[3] = (float)(lerpedRadius * perpFlatDelta.v[3]) + basePos.v[3];
             vert1 = verts;
             verts->xyz[0] = tpos0.v[0];
-            *(_QWORD *)&verts->xyz[1] = *(_QWORD *)&tpos0.unitVec[1].packed;
+            verts->xyz[1] = tpos0.v[1];
+            verts->xyz[2] = tpos0.v[2];
             verts->color = lerpedColor;
             verts->binormalSign = 1.0f;
             verts->normal.packed = 1073643391;
             verts->tangent.packed = 1065320446;
             verts->texCoord.packed = 15360;
             ++verts;
-            *(_QWORD *)verts->xyz = *(_QWORD *)tpos1.v;
-            LODWORD(verts->xyz[2]) = tpos1.u[2];
+            verts->xyz[0] = tpos1.v[0];
+            verts->xyz[1] = tpos1.v[1];
+            verts->xyz[2] = tpos1.v[2];
             vert2 = verts;
             verts->color = lerpedColor;
             verts->binormalSign = 1.0f;
@@ -656,7 +659,8 @@ void __cdecl FX_Beam_GenerateVerts(FxGenerateVertsCmd *cmd)
         tpos0.v[2] = (float)(0.0 * flatDelta.v[2]) + beamWorldEnd.v[2];
         tpos0.v[3] = (float)(0.0 * flatDelta.v[3]) + beamWorldEnd.v[3];
         verts->xyz[0] = tpos0.v[0];
-        *(_QWORD *)&verts->xyz[1] = *(_QWORD *)&tpos0.unitVec[1].packed;
+        verts->xyz[1] = tpos0.v[1];
+        verts->xyz[2] = tpos0.v[2];
         verts->color = endColor;
         verts->binormalSign = 1.0f;
         verts->normal.packed = 1073643391;
@@ -717,16 +721,7 @@ void __cdecl FX_Beam_GenerateVerts(FxGenerateVertsCmd *cmd)
         R_AddCodeMeshDrawSurf(beam->material, baseIndices, indexCount, argOffset, 2u, "Beam", 0xDu);
         if ( (beam->flags & 4) != 0 )
         {
-            if ( perpSegCount != 1
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_beam.cpp",
-                            696,
-                            0,
-                            "%s",
-                            "perpSegCount == 1") )
-            {
-                __debugbreak();
-            }
+            iassert(perpSegCount == 1);
             perp_indexCount = 6 * perpSegCount;
             perp_vertexCount = 4 * perpSegCount;
             if ( !R_ReserveCodeMeshIndices(6 * perpSegCount, &perp_indices)
@@ -887,217 +882,188 @@ void __cdecl FX_Beam_GenerateVerts(FxGenerateVertsCmd *cmd)
     }
 }
 
-void __cdecl CreateClipMatrix(vector4 *clipMtx, const float *vieworg, const float (*viewaxis)[3])
+void __cdecl CreateClipMatrix(float4x4 *clipMtx, const float *vieworg, const float (*viewaxis)[3])
 {
-    int LocalClientNum; // eax
-    int v4; // eax
-    cg_s *LocalClientGlobals; // eax
-    float tanHalfFovY; // [esp+4h] [ebp-90h]
-    vector4 viewMtx; // [esp+Ch] [ebp-88h] BYREF
-    vector4 projMtx; // [esp+4Ch] [ebp-48h] BYREF
+    cg_s *cgameGlob; // eax
+    float4x4 viewMtx; // [esp+Ch] [ebp-88h] BYREF
+    float4x4 projMtx; // [esp+4Ch] [ebp-48h] BYREF
 
     Float4x4ForViewer(&viewMtx, vieworg, viewaxis);
-    LocalClientNum = R_GetLocalClientNum();
-    tanHalfFovY = CG_GetLocalClientGlobals(LocalClientNum)->refdef.tanHalfFovY;
-    v4 = R_GetLocalClientNum();
-    LocalClientGlobals = CG_GetLocalClientGlobals(v4);
-    Float4x4InfinitePerspectiveMatrix(&projMtx, LocalClientGlobals->refdef.tanHalfFovX, tanHalfFovY, 1.0);
-    clipMtx->x.v[0] = (float)((float)((float)(viewMtx.x.v[0] * projMtx.x.v[0]) + (float)(viewMtx.x.v[1] * projMtx.y.v[0]))
-                                                    + (float)(viewMtx.x.v[2] * projMtx.z.v[0]))
-                                    + (float)(viewMtx.x.v[3] * projMtx.w.v[0]);
-    clipMtx->x.v[1] = (float)((float)((float)(viewMtx.x.v[0] * projMtx.x.v[1]) + (float)(viewMtx.x.v[1] * projMtx.y.v[1]))
-                                                    + (float)(viewMtx.x.v[2] * projMtx.z.v[1]))
-                                    + (float)(viewMtx.x.v[3] * projMtx.w.v[1]);
-    clipMtx->x.v[2] = (float)((float)((float)(viewMtx.x.v[0] * projMtx.x.v[2]) + (float)(viewMtx.x.v[1] * projMtx.y.v[2]))
-                                                    + (float)(viewMtx.x.v[2] * projMtx.z.v[2]))
-                                    + (float)(viewMtx.x.v[3] * projMtx.w.v[2]);
-    clipMtx->x.v[3] = (float)((float)((float)(viewMtx.x.v[0] * projMtx.x.v[3]) + (float)(viewMtx.x.v[1] * projMtx.y.v[3]))
-                                                    + (float)(viewMtx.x.v[2] * projMtx.z.v[3]))
-                                    + (float)(viewMtx.x.v[3] * projMtx.w.v[3]);
-    clipMtx->y.v[0] = (float)((float)((float)(viewMtx.y.v[0] * projMtx.x.v[0]) + (float)(viewMtx.y.v[1] * projMtx.y.v[0]))
-                                                    + (float)(viewMtx.y.v[2] * projMtx.z.v[0]))
-                                    + (float)(viewMtx.y.v[3] * projMtx.w.v[0]);
-    clipMtx->y.v[1] = (float)((float)((float)(viewMtx.y.v[0] * projMtx.x.v[1]) + (float)(viewMtx.y.v[1] * projMtx.y.v[1]))
-                                                    + (float)(viewMtx.y.v[2] * projMtx.z.v[1]))
-                                    + (float)(viewMtx.y.v[3] * projMtx.w.v[1]);
-    clipMtx->y.v[2] = (float)((float)((float)(viewMtx.y.v[0] * projMtx.x.v[2]) + (float)(viewMtx.y.v[1] * projMtx.y.v[2]))
-                                                    + (float)(viewMtx.y.v[2] * projMtx.z.v[2]))
-                                    + (float)(viewMtx.y.v[3] * projMtx.w.v[2]);
-    clipMtx->y.v[3] = (float)((float)((float)(viewMtx.y.v[0] * projMtx.x.v[3]) + (float)(viewMtx.y.v[1] * projMtx.y.v[3]))
-                                                    + (float)(viewMtx.y.v[2] * projMtx.z.v[3]))
-                                    + (float)(viewMtx.y.v[3] * projMtx.w.v[3]);
-    clipMtx->z.v[0] = (float)((float)((float)(viewMtx.z.v[0] * projMtx.x.v[0]) + (float)(viewMtx.z.v[1] * projMtx.y.v[0]))
-                                                    + (float)(viewMtx.z.v[2] * projMtx.z.v[0]))
-                                    + (float)(viewMtx.z.v[3] * projMtx.w.v[0]);
-    clipMtx->z.v[1] = (float)((float)((float)(viewMtx.z.v[0] * projMtx.x.v[1]) + (float)(viewMtx.z.v[1] * projMtx.y.v[1]))
-                                                    + (float)(viewMtx.z.v[2] * projMtx.z.v[1]))
-                                    + (float)(viewMtx.z.v[3] * projMtx.w.v[1]);
-    clipMtx->z.v[2] = (float)((float)((float)(viewMtx.z.v[0] * projMtx.x.v[2]) + (float)(viewMtx.z.v[1] * projMtx.y.v[2]))
-                                                    + (float)(viewMtx.z.v[2] * projMtx.z.v[2]))
-                                    + (float)(viewMtx.z.v[3] * projMtx.w.v[2]);
-    clipMtx->z.v[3] = (float)((float)((float)(viewMtx.z.v[0] * projMtx.x.v[3]) + (float)(viewMtx.z.v[1] * projMtx.y.v[3]))
-                                                    + (float)(viewMtx.z.v[2] * projMtx.z.v[3]))
-                                    + (float)(viewMtx.z.v[3] * projMtx.w.v[3]);
-    clipMtx->w.v[0] = (float)((float)((float)(viewMtx.w.v[0] * projMtx.x.v[0]) + (float)(viewMtx.w.v[1] * projMtx.y.v[0]))
-                                                    + (float)(viewMtx.w.v[2] * projMtx.z.v[0]))
-                                    + (float)(viewMtx.w.v[3] * projMtx.w.v[0]);
-    clipMtx->w.v[1] = (float)((float)((float)(viewMtx.w.v[0] * projMtx.x.v[1]) + (float)(viewMtx.w.v[1] * projMtx.y.v[1]))
-                                                    + (float)(viewMtx.w.v[2] * projMtx.z.v[1]))
-                                    + (float)(viewMtx.w.v[3] * projMtx.w.v[1]);
-    clipMtx->w.v[2] = (float)((float)((float)(viewMtx.w.v[0] * projMtx.x.v[2]) + (float)(viewMtx.w.v[1] * projMtx.y.v[2]))
-                                                    + (float)(viewMtx.w.v[2] * projMtx.z.v[2]))
-                                    + (float)(viewMtx.w.v[3] * projMtx.w.v[2]);
-    clipMtx->w.v[3] = (float)((float)((float)(viewMtx.w.v[0] * projMtx.x.v[3]) + (float)(viewMtx.w.v[1] * projMtx.y.v[3]))
-                                                    + (float)(viewMtx.w.v[2] * projMtx.z.v[3]))
-                                    + (float)(viewMtx.w.v[3] * projMtx.w.v[3]);
+    cgameGlob = CG_GetLocalClientGlobals(R_GetLocalClientNum());
+    Float4x4InfinitePerspectiveMatrix(&projMtx, cgameGlob->refdef.tanHalfFovX, cgameGlob->refdef.tanHalfFovY, 1.0);
+
+    clipMtx->x.v[0] = viewMtx.x.v[0] * projMtx.x.v[0]
+        + viewMtx.x.v[1] * projMtx.y.v[0]
+        + viewMtx.x.v[2] * projMtx.z.v[0]
+        + viewMtx.x.v[3] * projMtx.w.v[0];
+    clipMtx->x.v[1] = viewMtx.x.v[0] * projMtx.x.v[1]
+        + viewMtx.x.v[1] * projMtx.y.v[1]
+        + viewMtx.x.v[2] * projMtx.z.v[1]
+        + viewMtx.x.v[3] * projMtx.w.v[1];
+    clipMtx->x.v[2] = viewMtx.x.v[0] * projMtx.x.v[2]
+        + viewMtx.x.v[1] * projMtx.y.v[2]
+        + viewMtx.x.v[2] * projMtx.z.v[2]
+        + viewMtx.x.v[3] * projMtx.w.v[2];
+    clipMtx->x.v[3] = viewMtx.x.v[0] * projMtx.x.v[3]
+        + viewMtx.x.v[1] * projMtx.y.v[3]
+        + viewMtx.x.v[2] * projMtx.z.v[3]
+        + viewMtx.x.v[3] * projMtx.w.v[3];
+    clipMtx->y.v[0] = viewMtx.y.v[0] * projMtx.x.v[0]
+        + viewMtx.y.v[1] * projMtx.y.v[0]
+        + viewMtx.y.v[2] * projMtx.z.v[0]
+        + viewMtx.y.v[3] * projMtx.w.v[0];
+    clipMtx->y.v[1] = viewMtx.y.v[0] * projMtx.x.v[1]
+        + viewMtx.y.v[1] * projMtx.y.v[1]
+        + viewMtx.y.v[2] * projMtx.z.v[1]
+        + viewMtx.y.v[3] * projMtx.w.v[1];
+    clipMtx->y.v[2] = viewMtx.y.v[0] * projMtx.x.v[2]
+        + viewMtx.y.v[1] * projMtx.y.v[2]
+        + viewMtx.y.v[2] * projMtx.z.v[2]
+        + viewMtx.y.v[3] * projMtx.w.v[2];
+    clipMtx->y.v[3] = viewMtx.y.v[0] * projMtx.x.v[3]
+        + viewMtx.y.v[1] * projMtx.y.v[3]
+        + viewMtx.y.v[2] * projMtx.z.v[3]
+        + viewMtx.y.v[3] * projMtx.w.v[3];
+    clipMtx->z.v[0] = viewMtx.z.v[0] * projMtx.x.v[0]
+        + viewMtx.z.v[1] * projMtx.y.v[0]
+        + viewMtx.z.v[2] * projMtx.z.v[0]
+        + viewMtx.z.v[3] * projMtx.w.v[0];
+    clipMtx->z.v[1] = viewMtx.z.v[0] * projMtx.x.v[1]
+        + viewMtx.z.v[1] * projMtx.y.v[1]
+        + viewMtx.z.v[2] * projMtx.z.v[1]
+        + viewMtx.z.v[3] * projMtx.w.v[1];
+    clipMtx->z.v[2] = viewMtx.z.v[0] * projMtx.x.v[2]
+        + viewMtx.z.v[1] * projMtx.y.v[2]
+        + viewMtx.z.v[2] * projMtx.z.v[2]
+        + viewMtx.z.v[3] * projMtx.w.v[2];
+    clipMtx->z.v[3] = viewMtx.z.v[0] * projMtx.x.v[3]
+        + viewMtx.z.v[1] * projMtx.y.v[3]
+        + viewMtx.z.v[2] * projMtx.z.v[3]
+        + viewMtx.z.v[3] * projMtx.w.v[3];
+    clipMtx->w.v[0] = viewMtx.w.v[0] * projMtx.x.v[0]
+        + viewMtx.w.v[1] * projMtx.y.v[0]
+        + viewMtx.w.v[2] * projMtx.z.v[0]
+        + viewMtx.w.v[3] * projMtx.w.v[0];
+    clipMtx->w.v[1] = viewMtx.w.v[0] * projMtx.x.v[1]
+        + viewMtx.w.v[1] * projMtx.y.v[1]
+        + viewMtx.w.v[2] * projMtx.z.v[1]
+        + viewMtx.w.v[3] * projMtx.w.v[1];
+    clipMtx->w.v[2] = viewMtx.w.v[0] * projMtx.x.v[2]
+        + viewMtx.w.v[1] * projMtx.y.v[2]
+        + viewMtx.w.v[2] * projMtx.z.v[2]
+        + viewMtx.w.v[3] * projMtx.w.v[2];
+    clipMtx->w.v[3] = viewMtx.w.v[0] * projMtx.x.v[3]
+        + viewMtx.w.v[1] * projMtx.y.v[3]
+        + viewMtx.w.v[2] * projMtx.z.v[3]
+        + viewMtx.w.v[3] * projMtx.w.v[3];
 }
 
-void __cdecl Float4x4ForViewer(vector4 *mtx, const float *origin3, const float (*axis3)[3])
+void __cdecl Float4x4ForViewer(float4x4 *mtx, const float *origin3, const float (*axis3)[3])
 {
-    float v3; // [esp+10h] [ebp-1B4h]
-    float v4; // [esp+14h] [ebp-1B0h]
-    float v5; // [esp+18h] [ebp-1ACh]
-    float4 v6[2]; // [esp+24h] [ebp-1A0h]
-    float4 v7; // [esp+44h] [ebp-180h]
-    float4 *p_z; // [esp+58h] [ebp-16Ch]
-    float4 v9[2]; // [esp+5Ch] [ebp-168h]
-    float4 v10; // [esp+7Ch] [ebp-148h]
-    float4 *p_y; // [esp+90h] [ebp-134h]
-    _QWORD v12[4]; // [esp+94h] [ebp-130h]
-    float4 v13; // [esp+B4h] [ebp-110h]
-    vector4 *v14; // [esp+C8h] [ebp-FCh]
-    unsigned int v15[20]; // [esp+CCh] [ebp-F8h] BYREF
-    float4 origin; // [esp+11Ch] [ebp-A8h]
-    vector4 tAxis; // [esp+12Ch] [ebp-98h] BYREF
-    float4 transRow; // [esp+16Ch] [ebp-58h]
-    vector4 axis; // [esp+17Ch] [ebp-48h] BYREF
+    float4 origin; // [esp+144h] [ebp-A8h]
+    float4x4 tAxis; // [esp+154h] [ebp-98h] BYREF
+    float4 transRow; // [esp+194h] [ebp-58h]
+    float4x4 axis; // [esp+1A4h] [ebp-48h] BYREF
 
-    //*(_QWORD *)origin.v = *(_QWORD *)origin3;
     origin.v[0] = origin3[0];
     origin.v[1] = origin3[1];
     origin.v[2] = origin3[2];
-    origin.u[3] = 0;
+    origin.v[3] = 0.0;
 
-    //v15[19] = axis3;
-    *(_QWORD *)tAxis.x.v = *(_QWORD *)&(*axis3)[0];
-    tAxis.x.u[2] = LODWORD((*axis3)[2]);
-    tAxis.x.u[3] = 0;
-    *(_QWORD *)tAxis.y.v = *(_QWORD *)&(*axis3)[3];
-    tAxis.y.u[2] = LODWORD((*axis3)[5]);
-    tAxis.y.u[3] = 0;
-    *(_QWORD *)tAxis.z.v = *(_QWORD *)&(*axis3)[6];
-    tAxis.z.u[2] = LODWORD((*axis3)[8]);
-    memset(&tAxis.z.unitVec[3], 0, 12);
+    tAxis.x.v[0] = (axis3)[0][0];
+    tAxis.x.v[1] = (axis3)[0][1];
+    tAxis.x.v[2] = (axis3)[0][2];
+    tAxis.x.v[3] = 0.0;
 
-    tAxis.z.v[2] = 0.0f;
-    tAxis.z.v[3] = 1.0f;
-    //*(_QWORD *)&tAxis.w.unitVec[2].packed = __PAIR64__(LODWORD(1.0f), 0);
+    tAxis.y.v[0] = (axis3)[1][0];
+    tAxis.y.v[1] = (axis3)[1][1];
+    tAxis.y.v[2] = (axis3)[1][2];
+    tAxis.y.v[3] = 0.0;
 
-    //v15[17] = &tAxis.y;
-    //v15[18] = &tAxis.y;
+    tAxis.z.v[0] = (axis3)[2][0];
+    tAxis.z.v[1] = (axis3)[2][1];
+    tAxis.z.v[2] = (axis3)[2][2];
+    tAxis.z.v[3] = 0.0;
+
+    tAxis.w.v[0] = 0.0;
+    tAxis.w.v[1] = 0.0;
+    tAxis.w.v[2] = 0.0;
+    tAxis.w.v[3] = 1.0;
 
     tAxis.y.v[0] = -tAxis.y.v[0];
     tAxis.y.v[1] = -tAxis.y.v[1];
     tAxis.y.v[2] = -tAxis.y.v[2];
-    tAxis.y.v[3] = -0.0f; // negative 0, thats what ida tells me
+    tAxis.y.v[3] = -(float)0.0;
 
-    v15[0] = tAxis.x.u[0];
-    v15[1] = tAxis.y.u[0];
-    v15[2] = tAxis.z.u[0];
-    v15[3] = 0;
-    v15[4] = tAxis.x.u[1];
-    v15[5] = tAxis.y.u[1];
-    v15[6] = tAxis.z.u[1];
-    v15[7] = 0;
-    v15[8] = tAxis.x.u[2];
-    v15[9] = tAxis.y.u[2];
-    v15[10] = tAxis.z.u[2];
-    v15[11] = 0;
-    v15[12] = 0;
-    v15[13] = -0.0f;// 0 ^ _mask__NegFloat_;
-    v15[14] = 0;
-    *(float *)&v15[15] = 1.0f;
-    memcpy(&axis, v15, sizeof(axis));
-    v12[0] = *(_QWORD *)axis.x.v;
-    v12[1] = *(_QWORD *)&axis.x.unitVec[2].packed;
-    v12[2] = *(_QWORD *)axis.x.v;
-    v12[3] = *(_QWORD *)&axis.x.unitVec[2].packed;
-    v13 = g_swizzleYZXW;
-    v14 = mtx;
-    mtx->x.unitVec[0].array[0] = *((_BYTE *)v12 + g_swizzleYZXW.unitVec[0].array[3]);
-    v14->x.unitVec[0].array[1] = *((_BYTE *)v12 + v13.unitVec[0].array[2]);
-    v14->x.unitVec[0].array[2] = *((_BYTE *)v12 + v13.unitVec[0].array[1]);
-    v14->x.unitVec[0].array[3] = *((_BYTE *)v12 + v13.unitVec[0].array[0]);
-    v14->x.unitVec[1].array[0] = *((_BYTE *)v12 + v13.unitVec[1].array[3]);
-    v14->x.unitVec[1].array[1] = *((_BYTE *)v12 + v13.unitVec[1].array[2]);
-    v14->x.unitVec[1].array[2] = *((_BYTE *)v12 + v13.unitVec[1].array[1]);
-    v14->x.unitVec[1].array[3] = *((_BYTE *)v12 + v13.unitVec[1].array[0]);
-    v14->x.unitVec[2].array[0] = *((_BYTE *)v12 + v13.unitVec[2].array[3]);
-    v14->x.unitVec[2].array[1] = *((_BYTE *)v12 + v13.unitVec[2].array[2]);
-    v14->x.unitVec[2].array[2] = *((_BYTE *)v12 + v13.unitVec[2].array[1]);
-    v14->x.unitVec[2].array[3] = *((_BYTE *)v12 + v13.unitVec[2].array[0]);
-    v14->x.unitVec[3].array[0] = *((_BYTE *)v12 + v13.unitVec[3].array[3]);
-    v14->x.unitVec[3].array[1] = *((_BYTE *)v12 + v13.unitVec[3].array[2]);
-    v14->x.unitVec[3].array[2] = *((_BYTE *)v12 + v13.unitVec[3].array[1]);
-    v14->x.unitVec[3].array[3] = *((_BYTE *)v12 + v13.unitVec[3].array[0]);
-    v9[0] = axis.y;
-    v9[1] = axis.y;
-    v10 = g_swizzleYZXW;
-    p_y = &mtx->y;
-    mtx->y.unitVec[0].array[0] = v9[0].unitVec[0].array[g_swizzleYZXW.unitVec[0].array[3]];
-    p_y->unitVec[0].array[1] = v9[0].unitVec[0].array[v10.unitVec[0].array[2]];
-    p_y->unitVec[0].array[2] = v9[0].unitVec[0].array[v10.unitVec[0].array[1]];
-    p_y->unitVec[0].array[3] = v9[0].unitVec[0].array[v10.unitVec[0].array[0]];
-    p_y->unitVec[1].array[0] = v9[0].unitVec[0].array[v10.unitVec[1].array[3]];
-    p_y->unitVec[1].array[1] = v9[0].unitVec[0].array[v10.unitVec[1].array[2]];
-    p_y->unitVec[1].array[2] = v9[0].unitVec[0].array[v10.unitVec[1].array[1]];
-    p_y->unitVec[1].array[3] = v9[0].unitVec[0].array[v10.unitVec[1].array[0]];
-    p_y->unitVec[2].array[0] = v9[0].unitVec[0].array[v10.unitVec[2].array[3]];
-    p_y->unitVec[2].array[1] = v9[0].unitVec[0].array[v10.unitVec[2].array[2]];
-    p_y->unitVec[2].array[2] = v9[0].unitVec[0].array[v10.unitVec[2].array[1]];
-    p_y->unitVec[2].array[3] = v9[0].unitVec[0].array[v10.unitVec[2].array[0]];
-    p_y->unitVec[3].array[0] = v9[0].unitVec[0].array[v10.unitVec[3].array[3]];
-    p_y->unitVec[3].array[1] = v9[0].unitVec[0].array[v10.unitVec[3].array[2]];
-    p_y->unitVec[3].array[2] = v9[0].unitVec[0].array[v10.unitVec[3].array[1]];
-    p_y->unitVec[3].array[3] = v9[0].unitVec[0].array[v10.unitVec[3].array[0]];
-    v6[0] = axis.z;
-    v6[1] = axis.z;
-    v7 = g_swizzleYZXW;
-    p_z = &mtx->z;
-    mtx->z.unitVec[0].array[0] = v6[0].unitVec[0].array[g_swizzleYZXW.unitVec[0].array[3]];
-    p_z->unitVec[0].array[1] = v6[0].unitVec[0].array[v7.unitVec[0].array[2]];
-    p_z->unitVec[0].array[2] = v6[0].unitVec[0].array[v7.unitVec[0].array[1]];
-    p_z->unitVec[0].array[3] = v6[0].unitVec[0].array[v7.unitVec[0].array[0]];
-    p_z->unitVec[1].array[0] = v6[0].unitVec[0].array[v7.unitVec[1].array[3]];
-    p_z->unitVec[1].array[1] = v6[0].unitVec[0].array[v7.unitVec[1].array[2]];
-    p_z->unitVec[1].array[2] = v6[0].unitVec[0].array[v7.unitVec[1].array[1]];
-    p_z->unitVec[1].array[3] = v6[0].unitVec[0].array[v7.unitVec[1].array[0]];
-    p_z->unitVec[2].array[0] = v6[0].unitVec[0].array[v7.unitVec[2].array[3]];
-    p_z->unitVec[2].array[1] = v6[0].unitVec[0].array[v7.unitVec[2].array[2]];
-    p_z->unitVec[2].array[2] = v6[0].unitVec[0].array[v7.unitVec[2].array[1]];
-    p_z->unitVec[2].array[3] = v6[0].unitVec[0].array[v7.unitVec[2].array[0]];
-    p_z->unitVec[3].array[0] = v6[0].unitVec[0].array[v7.unitVec[3].array[3]];
-    p_z->unitVec[3].array[1] = v6[0].unitVec[0].array[v7.unitVec[3].array[2]];
-    p_z->unitVec[3].array[2] = v6[0].unitVec[0].array[v7.unitVec[3].array[1]];
-    p_z->unitVec[3].array[3] = v6[0].unitVec[0].array[v7.unitVec[3].array[0]];
+    axis.x = { tAxis.x.v[0], tAxis.y.v[0], tAxis.z.v[0], 0.0f };
+    axis.y = { tAxis.x.v[1], tAxis.y.v[1], tAxis.z.v[1], 0.0f };
+    axis.z = { tAxis.x.v[2], tAxis.y.v[2], tAxis.z.v[2], 0.0f };
+    axis.w = { 0.0f,         tAxis.y.v[3], 0.0f,         1.0f };
+
+    mtx->x.unitVec[0].array[0] = axis.x.unitVec[0].array[g_swizzleYZXW.unitVec[0].array[3]];
+    mtx->x.unitVec[0].array[1] = axis.x.unitVec[0].array[g_swizzleYZXW.unitVec[0].array[2]];
+    mtx->x.unitVec[0].array[2] = axis.x.unitVec[0].array[g_swizzleYZXW.unitVec[0].array[1]];
+    mtx->x.unitVec[0].array[3] = axis.x.unitVec[0].array[g_swizzleYZXW.unitVec[0].array[0]];
+    mtx->x.unitVec[1].array[0] = axis.x.unitVec[0].array[g_swizzleYZXW.unitVec[1].array[3]];
+    mtx->x.unitVec[1].array[1] = axis.x.unitVec[0].array[g_swizzleYZXW.unitVec[1].array[2]];
+    mtx->x.unitVec[1].array[2] = axis.x.unitVec[0].array[g_swizzleYZXW.unitVec[1].array[1]];
+    mtx->x.unitVec[1].array[3] = axis.x.unitVec[0].array[g_swizzleYZXW.unitVec[1].array[0]];
+    mtx->x.unitVec[2].array[0] = axis.x.unitVec[0].array[g_swizzleYZXW.unitVec[2].array[3]];
+    mtx->x.unitVec[2].array[1] = axis.x.unitVec[0].array[g_swizzleYZXW.unitVec[2].array[2]];
+    mtx->x.unitVec[2].array[2] = axis.x.unitVec[0].array[g_swizzleYZXW.unitVec[2].array[1]];
+    mtx->x.unitVec[2].array[3] = axis.x.unitVec[0].array[g_swizzleYZXW.unitVec[2].array[0]];
+    mtx->x.unitVec[3].array[0] = axis.x.unitVec[0].array[g_swizzleYZXW.unitVec[3].array[3]];
+    mtx->x.unitVec[3].array[1] = axis.x.unitVec[0].array[g_swizzleYZXW.unitVec[3].array[2]];
+    mtx->x.unitVec[3].array[2] = axis.x.unitVec[0].array[g_swizzleYZXW.unitVec[3].array[1]];
+    mtx->x.unitVec[3].array[3] = axis.x.unitVec[0].array[g_swizzleYZXW.unitVec[3].array[0]];
+
+    mtx->y.unitVec[0].array[0] = axis.y.unitVec[0].array[g_swizzleYZXW.unitVec[0].array[3]];
+    mtx->y.unitVec[0].array[1] = axis.y.unitVec[0].array[g_swizzleYZXW.unitVec[0].array[2]];
+    mtx->y.unitVec[0].array[2] = axis.y.unitVec[0].array[g_swizzleYZXW.unitVec[0].array[1]];
+    mtx->y.unitVec[0].array[3] = axis.y.unitVec[0].array[g_swizzleYZXW.unitVec[0].array[0]];
+    mtx->y.unitVec[1].array[0] = axis.y.unitVec[0].array[g_swizzleYZXW.unitVec[1].array[3]];
+    mtx->y.unitVec[1].array[1] = axis.y.unitVec[0].array[g_swizzleYZXW.unitVec[1].array[2]];
+    mtx->y.unitVec[1].array[2] = axis.y.unitVec[0].array[g_swizzleYZXW.unitVec[1].array[1]];
+    mtx->y.unitVec[1].array[3] = axis.y.unitVec[0].array[g_swizzleYZXW.unitVec[1].array[0]];
+    mtx->y.unitVec[2].array[0] = axis.y.unitVec[0].array[g_swizzleYZXW.unitVec[2].array[3]];
+    mtx->y.unitVec[2].array[1] = axis.y.unitVec[0].array[g_swizzleYZXW.unitVec[2].array[2]];
+    mtx->y.unitVec[2].array[2] = axis.y.unitVec[0].array[g_swizzleYZXW.unitVec[2].array[1]];
+    mtx->y.unitVec[2].array[3] = axis.y.unitVec[0].array[g_swizzleYZXW.unitVec[2].array[0]];
+    mtx->y.unitVec[3].array[0] = axis.y.unitVec[0].array[g_swizzleYZXW.unitVec[3].array[3]];
+    mtx->y.unitVec[3].array[1] = axis.y.unitVec[0].array[g_swizzleYZXW.unitVec[3].array[2]];
+    mtx->y.unitVec[3].array[2] = axis.y.unitVec[0].array[g_swizzleYZXW.unitVec[3].array[1]];
+    mtx->y.unitVec[3].array[3] = axis.y.unitVec[0].array[g_swizzleYZXW.unitVec[3].array[0]];
+
+    mtx->z.unitVec[0].array[0] = axis.z.unitVec[0].array[g_swizzleYZXW.unitVec[0].array[3]];
+    mtx->z.unitVec[0].array[1] = axis.z.unitVec[0].array[g_swizzleYZXW.unitVec[0].array[2]];
+    mtx->z.unitVec[0].array[2] = axis.z.unitVec[0].array[g_swizzleYZXW.unitVec[0].array[1]];
+    mtx->z.unitVec[0].array[3] = axis.z.unitVec[0].array[g_swizzleYZXW.unitVec[0].array[0]];
+    mtx->z.unitVec[1].array[0] = axis.z.unitVec[0].array[g_swizzleYZXW.unitVec[1].array[3]];
+    mtx->z.unitVec[1].array[1] = axis.z.unitVec[0].array[g_swizzleYZXW.unitVec[1].array[2]];
+    mtx->z.unitVec[1].array[2] = axis.z.unitVec[0].array[g_swizzleYZXW.unitVec[1].array[1]];
+    mtx->z.unitVec[1].array[3] = axis.z.unitVec[0].array[g_swizzleYZXW.unitVec[1].array[0]];
+    mtx->z.unitVec[2].array[0] = axis.z.unitVec[0].array[g_swizzleYZXW.unitVec[2].array[3]];
+    mtx->z.unitVec[2].array[1] = axis.z.unitVec[0].array[g_swizzleYZXW.unitVec[2].array[2]];
+    mtx->z.unitVec[2].array[2] = axis.z.unitVec[0].array[g_swizzleYZXW.unitVec[2].array[1]];
+    mtx->z.unitVec[2].array[3] = axis.z.unitVec[0].array[g_swizzleYZXW.unitVec[2].array[0]];
+    mtx->z.unitVec[3].array[0] = axis.z.unitVec[0].array[g_swizzleYZXW.unitVec[3].array[3]];
+    mtx->z.unitVec[3].array[1] = axis.z.unitVec[0].array[g_swizzleYZXW.unitVec[3].array[2]];
+    mtx->z.unitVec[3].array[2] = axis.z.unitVec[0].array[g_swizzleYZXW.unitVec[3].array[1]];
+    mtx->z.unitVec[3].array[3] = axis.z.unitVec[0].array[g_swizzleYZXW.unitVec[3].array[0]];
+
     mtx->w = g_unit;
-    v3 = (float)((float)((float)(origin.v[0] * mtx->x.v[1]) + (float)(origin.v[1] * mtx->y.v[1]))
-                         + (float)(origin.v[2] * mtx->z.v[1]))
-         + mtx->w.v[1];
-    v4 = (float)((float)((float)(origin.v[0] * mtx->x.v[2]) + (float)(origin.v[1] * mtx->y.v[2]))
-                         + (float)(origin.v[2] * mtx->z.v[2]))
-         + mtx->w.v[2];
-    v5 = (float)((float)((float)(origin.v[0] * mtx->x.v[3]) + (float)(origin.v[1] * mtx->y.v[3]))
-                         + (float)(origin.v[2] * mtx->z.v[3]))
-         + mtx->w.v[3];
-    transRow.v[0] = (-((float)((float)((float)(origin.v[0] * mtx->x.v[0]) + (float)(origin.v[1] * mtx->y.v[0])) + (float)(origin.v[2] * mtx->z.v[0])) + mtx->w.v[0])) + 0.0;
-    transRow.v[1] = (-(v3)) + 0.0;
-    transRow.v[2] = (-(v4)) + 0.0;
-    transRow.v[3] = (-(v5)) + 2.0;
+    transRow.v[0] = -(origin.v[0] * mtx->x.v[0] + origin.v[1] * mtx->y.v[0] + origin.v[2] * mtx->z.v[0] + mtx->w.v[0]);
+    transRow.v[1] = -(origin.v[0] * mtx->x.v[1] + origin.v[1] * mtx->y.v[1] + origin.v[2] * mtx->z.v[1] + mtx->w.v[1]);
+    transRow.v[2] = -(origin.v[0] * mtx->x.v[2] + origin.v[1] * mtx->y.v[2] + origin.v[2] * mtx->z.v[2] + mtx->w.v[2]);
+    transRow.v[3] = -(origin.v[0] * mtx->x.v[3] + origin.v[1] * mtx->y.v[3] + origin.v[2] * mtx->z.v[3] + mtx->w.v[3]);
+    transRow.v[0] += 0.0;
+    transRow.v[1] += 0.0;
+    transRow.v[2] += 0.0;
+    transRow.v[3] += 2.0;
     mtx->w = transRow;
 }
 
-void __cdecl Float4x4InfinitePerspectiveMatrix(vector4 *mtx, float tanHalfFovX, float tanHalfFovY, float zNear)
+void __cdecl Float4x4InfinitePerspectiveMatrix(float4x4 *mtx, float tanHalfFovX, float tanHalfFovY, float zNear)
 {
     mtx->x.v[0] = MAX_11BIT_FLT / tanHalfFovX;
     mtx->x.v[1] = 0.0f;
@@ -1122,135 +1088,132 @@ void __cdecl Float4x4InfinitePerspectiveMatrix(vector4 *mtx, float tanHalfFovX, 
 
 // local variable allocation has failed, the output may be wrong!
 char    FX_GenerateBeam_GetFlatDelta(
-                const vector4 *clipMtx,
-                const vector4 *invClipMtx,
+                const float4x4 *clipMtx,
+                const float4x4 *invClipMtx,
                 const float4 *beamWorldBegin,
                 const float4 *beamWorldEnd,
                 float4 *outFlatDelta)
 {
     float v7; // [esp-10h] [ebp-E0h]
-    __int64 v8; // [esp-Ch] [ebp-DCh] BYREF
-    _BYTE v9[20]; // [esp-4h] [ebp-D4h] OVERLAPPED
-    _BYTE v10[24]; // [esp+10h] [ebp-C0h] OVERLAPPED
-    __int64 v11; // [esp+28h] [ebp-A8h]
-    _BYTE v12[20]; // [esp+30h] [ebp-A0h] OVERLAPPED
-    float4 clipSpaceBeamEndDivided; // [esp+44h] [ebp-8Ch]
-    float v14; // [esp+54h] [ebp-7Ch]
-    float4 clipSpaceBeamBeginDivided; // [esp+58h] [ebp-78h] BYREF
-    float v16; // [esp+68h] [ebp-68h]
-    float4 clipSpaceBeamEnd; // [esp+6Ch] [ebp-64h]
-    float v18; // [esp+7Ch] [ebp-54h]
-    __int64 v19; // [esp+80h] [ebp-50h] BYREF
-    float v20; // [esp+88h] [ebp-48h]
-    float4 clipSpaceBeamBegin; // [esp+8Ch] [ebp-44h]
-    float v22; // [esp+9Ch] [ebp-34h]
-    float v23; // [esp+A0h] [ebp-30h]
-    float v24; // [esp+A4h] [ebp-2Ch]
-    float v25; // [esp+A8h] [ebp-28h]
-    float4 worldSpaceBeamEnd; // [esp+ACh] [ebp-24h]
-    float4 worldSpaceBeamBegin; // [esp+BCh] [ebp-14h]
-    //unsigned int retaddr; // [esp+D0h] [ebp+0h]
-
-    //*(_QWORD *)&worldSpaceBeamBegin.unitVec[2].packed = __PAIR64__(retaddr, a1);
-    worldSpaceBeamEnd.v[1] = beamWorldBegin->v[0] + 0.0;
-    worldSpaceBeamEnd.v[2] = beamWorldBegin->v[1] + 0.0;
-    worldSpaceBeamEnd.v[3] = beamWorldBegin->v[2] + 0.0;
-    worldSpaceBeamBegin.v[0] = beamWorldBegin->v[3] + 1.0;
-    v23 = beamWorldEnd->v[0] + 0.0;
-    v24 = beamWorldEnd->v[1] + 0.0;
-    v25 = beamWorldEnd->v[2] + 0.0;
-    worldSpaceBeamEnd.v[0] = beamWorldEnd->v[3] + 1.0;
-    clipSpaceBeamBegin.v[1] = (float)((float)((float)(worldSpaceBeamEnd.v[1] * clipMtx->x.v[0])
-                                                                                    + (float)(worldSpaceBeamEnd.v[2] * clipMtx->y.v[0]))
-                                                                    + (float)(worldSpaceBeamEnd.v[3] * clipMtx->z.v[0]))
-                                                    + (float)(worldSpaceBeamBegin.v[0] * clipMtx->w.v[0]);
-    clipSpaceBeamBegin.v[2] = (float)((float)((float)(worldSpaceBeamEnd.v[1] * clipMtx->x.v[1])
-                                                                                    + (float)(worldSpaceBeamEnd.v[2] * clipMtx->y.v[1]))
-                                                                    + (float)(worldSpaceBeamEnd.v[3] * clipMtx->z.v[1]))
-                                                    + (float)(worldSpaceBeamBegin.v[0] * clipMtx->w.v[1]);
-    clipSpaceBeamBegin.v[3] = (float)((float)((float)(worldSpaceBeamEnd.v[1] * clipMtx->x.v[2])
-                                                                                    + (float)(worldSpaceBeamEnd.v[2] * clipMtx->y.v[2]))
-                                                                    + (float)(worldSpaceBeamEnd.v[3] * clipMtx->z.v[2]))
-                                                    + (float)(worldSpaceBeamBegin.v[0] * clipMtx->w.v[2]);
-    v22 = (float)((float)((float)(worldSpaceBeamEnd.v[1] * clipMtx->x.v[3])
-                                            + (float)(worldSpaceBeamEnd.v[2] * clipMtx->y.v[3]))
-                            + (float)(worldSpaceBeamEnd.v[3] * clipMtx->z.v[3]))
-            + (float)(worldSpaceBeamBegin.v[0] * clipMtx->w.v[3]);
-    v19 = *(_QWORD *)&clipSpaceBeamBegin.unitVec[1].packed;
-    v20 = clipSpaceBeamBegin.v[3];
-    clipSpaceBeamBegin.v[0] = v22;
-    clipSpaceBeamEnd.v[1] = (float)((float)((float)(v23 * clipMtx->x.v[0]) + (float)(v24 * clipMtx->y.v[0]))
-                                                                + (float)(v25 * clipMtx->z.v[0]))
-                                                + (float)(worldSpaceBeamEnd.v[0] * clipMtx->w.v[0]);
-    clipSpaceBeamEnd.v[2] = (float)((float)((float)(v23 * clipMtx->x.v[1]) + (float)(v24 * clipMtx->y.v[1]))
-                                                                + (float)(v25 * clipMtx->z.v[1]))
-                                                + (float)(worldSpaceBeamEnd.v[0] * clipMtx->w.v[1]);
-    clipSpaceBeamEnd.v[3] = (float)((float)((float)(v23 * clipMtx->x.v[2]) + (float)(v24 * clipMtx->y.v[2]))
-                                                                + (float)(v25 * clipMtx->z.v[2]))
-                                                + (float)(worldSpaceBeamEnd.v[0] * clipMtx->w.v[2]);
-    v18 = (float)((float)((float)(v23 * clipMtx->x.v[3]) + (float)(v24 * clipMtx->y.v[3])) + (float)(v25 * clipMtx->z.v[3]))
-            + (float)(worldSpaceBeamEnd.v[0] * clipMtx->w.v[3]);
-    *(_QWORD *)&clipSpaceBeamBeginDivided.unitVec[2].packed = *(_QWORD *)&clipSpaceBeamEnd.unitVec[1].packed;
-    v16 = clipSpaceBeamEnd.v[3];
-    clipSpaceBeamEnd.v[0] = v18;
-    if ( !Vec4HomogenousClipBothZ((float4 *)&v19, (float4 *)&clipSpaceBeamBeginDivided.unitVec[2]) )
+    float4 v8; // [esp-Ch] [ebp-DCh] BYREF
+    float4 worldSpaceFlatDelta; // [esp+8h] [ebp-C8h]
+    float4 v10; // [esp+18h] [ebp-B8h]
+    float4 clipSpaceFlatDelta; // [esp+28h] [ebp-A8h]
+    float4 clipSpaceBeamEndDivided; // [esp+38h] [ebp-98h]
+    float v13; // [esp+48h] [ebp-88h]
+    float4 clipSpaceBeamBeginDivided; // [esp+4Ch] [ebp-84h]
+    float v15; // [esp+5Ch] [ebp-74h]
+    float4 clipSpaceBeamEnd; // [esp+60h] [ebp-70h] BYREF
+    float4 v17; // [esp+70h] [ebp-60h]
+    float4 clipSpaceBeamBegin; // [esp+80h] [ebp-50h] BYREF
+    float4 v19; // [esp+90h] [ebp-40h]
+    float4 worldSpaceBeamEnd; // [esp+A0h] [ebp-30h]
+    float4 worldSpaceBeamBegin; // [esp+B0h] [ebp-20h]
+    //_UNKNOWN *v22; // [esp+C4h] [ebp-Ch]
+    //const float4x4 *clipMtxa; // [esp+C8h] [ebp-8h]
+    //const float4 *beamWorldBegina; // [esp+D0h] [ebp+0h]
+    //
+    //v22 = a1;
+    //clipMtxa = (const float4x4 *)beamWorldBegina;
+    worldSpaceBeamBegin.v[0] = beamWorldBegin->v[0] + 0.0;
+    worldSpaceBeamBegin.v[1] = beamWorldBegin->v[1] + 0.0;
+    worldSpaceBeamBegin.v[2] = beamWorldBegin->v[2] + 0.0;
+    worldSpaceBeamBegin.v[3] = beamWorldBegin->v[3] + 1.0;
+    worldSpaceBeamEnd.v[0] = beamWorldEnd->v[0] + 0.0;
+    worldSpaceBeamEnd.v[1] = beamWorldEnd->v[1] + 0.0;
+    worldSpaceBeamEnd.v[2] = beamWorldEnd->v[2] + 0.0;
+    worldSpaceBeamEnd.v[3] = beamWorldEnd->v[3] + 1.0;
+    v19.v[0] = (float)((float)((float)(worldSpaceBeamBegin.v[0] * clipMtx->x.v[0])
+        + (float)(worldSpaceBeamBegin.v[1] * clipMtx->y.v[0]))
+        + (float)(worldSpaceBeamBegin.v[2] * clipMtx->z.v[0]))
+        + (float)(worldSpaceBeamBegin.v[3] * clipMtx->w.v[0]);
+    v19.v[1] = (float)((float)((float)(worldSpaceBeamBegin.v[0] * clipMtx->x.v[1])
+        + (float)(worldSpaceBeamBegin.v[1] * clipMtx->y.v[1]))
+        + (float)(worldSpaceBeamBegin.v[2] * clipMtx->z.v[1]))
+        + (float)(worldSpaceBeamBegin.v[3] * clipMtx->w.v[1]);
+    v19.v[2] = (float)((float)((float)(worldSpaceBeamBegin.v[0] * clipMtx->x.v[2])
+        + (float)(worldSpaceBeamBegin.v[1] * clipMtx->y.v[2]))
+        + (float)(worldSpaceBeamBegin.v[2] * clipMtx->z.v[2]))
+        + (float)(worldSpaceBeamBegin.v[3] * clipMtx->w.v[2]);
+    v19.v[3] = (float)((float)((float)(worldSpaceBeamBegin.v[0] * clipMtx->x.v[3])
+        + (float)(worldSpaceBeamBegin.v[1] * clipMtx->y.v[3]))
+        + (float)(worldSpaceBeamBegin.v[2] * clipMtx->z.v[3]))
+        + (float)(worldSpaceBeamBegin.v[3] * clipMtx->w.v[3]);
+    clipSpaceBeamBegin = v19;
+    v17.v[0] = (float)((float)((float)(worldSpaceBeamEnd.v[0] * clipMtx->x.v[0])
+        + (float)(worldSpaceBeamEnd.v[1] * clipMtx->y.v[0]))
+        + (float)(worldSpaceBeamEnd.v[2] * clipMtx->z.v[0]))
+        + (float)(worldSpaceBeamEnd.v[3] * clipMtx->w.v[0]);
+    v17.v[1] = (float)((float)((float)(worldSpaceBeamEnd.v[0] * clipMtx->x.v[1])
+        + (float)(worldSpaceBeamEnd.v[1] * clipMtx->y.v[1]))
+        + (float)(worldSpaceBeamEnd.v[2] * clipMtx->z.v[1]))
+        + (float)(worldSpaceBeamEnd.v[3] * clipMtx->w.v[1]);
+    v17.v[2] = (float)((float)((float)(worldSpaceBeamEnd.v[0] * clipMtx->x.v[2])
+        + (float)(worldSpaceBeamEnd.v[1] * clipMtx->y.v[2]))
+        + (float)(worldSpaceBeamEnd.v[2] * clipMtx->z.v[2]))
+        + (float)(worldSpaceBeamEnd.v[3] * clipMtx->w.v[2]);
+    v17.v[3] = (float)((float)((float)(worldSpaceBeamEnd.v[0] * clipMtx->x.v[3])
+        + (float)(worldSpaceBeamEnd.v[1] * clipMtx->y.v[3]))
+        + (float)(worldSpaceBeamEnd.v[2] * clipMtx->z.v[3]))
+        + (float)(worldSpaceBeamEnd.v[3] * clipMtx->w.v[3]);
+    clipSpaceBeamEnd = v17;
+    if (!Vec4HomogenousClipBothZ(&clipSpaceBeamBegin, &clipSpaceBeamEnd))
         return 0;
-    if ( clipSpaceBeamBegin.v[0] == 0.0
-        && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\universal\\com_vector4_novec.h", 645, 0, "%s", "in.v[3]") )
+    if (clipSpaceBeamBegin.v[3] == 0.0
+        && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\universal\\com_vector4_novec.h", 645, 0, "%s", "in.v[3]"))
     {
         __debugbreak();
     }
-    clipSpaceBeamBeginDivided.v[1] = 1.0 / clipSpaceBeamBegin.v[0];
-    clipSpaceBeamEndDivided.v[2] = *(float *)&v19 * (float)(1.0 / clipSpaceBeamBegin.v[0]);
-    clipSpaceBeamEndDivided.v[3] = *((float *)&v19 + 1) * (float)(1.0 / clipSpaceBeamBegin.v[0]);
-    v14 = v20 * (float)(1.0 / clipSpaceBeamBegin.v[0]);
-    clipSpaceBeamBeginDivided.v[0] = 1.0f;
-    if ( clipSpaceBeamEnd.v[0] == 0.0
-        && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\universal\\com_vector4_novec.h", 645, 0, "%s", "in.v[3]") )
+    v15 = 1.0 / clipSpaceBeamBegin.v[3];
+    clipSpaceBeamBeginDivided.v[0] = clipSpaceBeamBegin.v[0] * (float)(1.0 / clipSpaceBeamBegin.v[3]);
+    clipSpaceBeamBeginDivided.v[1] = clipSpaceBeamBegin.v[1] * (float)(1.0 / clipSpaceBeamBegin.v[3]);
+    clipSpaceBeamBeginDivided.v[2] = clipSpaceBeamBegin.v[2] * (float)(1.0 / clipSpaceBeamBegin.v[3]);
+    clipSpaceBeamBeginDivided.v[3] = 1.0f;
+    if (clipSpaceBeamEnd.v[3] == 0.0
+        && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\universal\\com_vector4_novec.h", 645, 0, "%s", "in.v[3]"))
     {
         __debugbreak();
     }
-    clipSpaceBeamEndDivided.v[1] = 1.0 / clipSpaceBeamEnd.v[0];
-    *(float *)&v12[8] = clipSpaceBeamBeginDivided.v[2] * (float)(1.0 / clipSpaceBeamEnd.v[0]);
-    *(float *)&v12[12] = clipSpaceBeamBeginDivided.v[3] * (float)(1.0 / clipSpaceBeamEnd.v[0]);
-    *(float *)&v12[16] = v16 * (float)(1.0 / clipSpaceBeamEnd.v[0]);
-    clipSpaceBeamEndDivided.v[0] = 1.0f;
-    *(float *)&v11 = *(float *)&v12[8] - clipSpaceBeamEndDivided.v[2];
-    *((float *)&v11 + 1) = *(float *)&v12[12] - clipSpaceBeamEndDivided.v[3];
-    *(float *)v12 = *(float *)&v12[16] - v14;
-    *(float *)&v12[4] = 1.0 - clipSpaceBeamBeginDivided.v[0];
-    v11 &= *(_QWORD *)g_keepXYW.v;
-    *(_QWORD *)v12 &= *(_QWORD *)&g_keepXYW.unitVec[2].packed;
-    *(float *)&v10[8] = (float)((float)((float)(*(float *)&v11 * invClipMtx->x.v[0])
-                                                                        + (float)(*((float *)&v11 + 1) * invClipMtx->y.v[0]))
-                                                        + (float)(*(float *)v12 * invClipMtx->z.v[0]))
-                                        + (float)(*(float *)&v12[4] * invClipMtx->w.v[0]);
-    *(float *)&v10[12] = (float)((float)((float)(*(float *)&v11 * invClipMtx->x.v[1])
-                                                                         + (float)(*((float *)&v11 + 1) * invClipMtx->y.v[1]))
-                                                         + (float)(*(float *)v12 * invClipMtx->z.v[1]))
-                                         + (float)(*(float *)&v12[4] * invClipMtx->w.v[1]);
-    *(float *)&v10[16] = (float)((float)((float)(*(float *)&v11 * invClipMtx->x.v[2])
-                                                                         + (float)(*((float *)&v11 + 1) * invClipMtx->y.v[2]))
-                                                         + (float)(*(float *)v12 * invClipMtx->z.v[2]))
-                                         + (float)(*(float *)&v12[4] * invClipMtx->w.v[2]);
-    *(float *)&v10[20] = (float)((float)((float)(*(float *)&v11 * invClipMtx->x.v[3])
-                                                                         + (float)(*((float *)&v11 + 1) * invClipMtx->y.v[3]))
-                                                         + (float)(*(float *)v12 * invClipMtx->z.v[3]))
-                                         + (float)(*(float *)&v12[4] * invClipMtx->w.v[3]);
-    *(_QWORD *)&v9[12] = *(_QWORD *)&v10[8];
-    *(_QWORD *)v10 = *(_QWORD *)&v10[16];
-    *(_QWORD *)outFlatDelta->v = *(_QWORD *)g_keepXYZ.v & *(_QWORD *)&v10[8];
-    *(_QWORD *)&outFlatDelta->unitVec[2].packed = *(_QWORD *)&g_keepXYZ.unitVec[2].packed & *(_QWORD *)v10;
-    v8 = *(_QWORD *)outFlatDelta->v;
-    *(_QWORD *)v9 = *(_QWORD *)&outFlatDelta->unitVec[2].packed;
-    if ( Vec4LengthSq((const float *)&v8) < 0.000002 )
+    v13 = 1.0 / clipSpaceBeamEnd.v[3];
+    clipSpaceBeamEndDivided.v[0] = clipSpaceBeamEnd.v[0] * (float)(1.0 / clipSpaceBeamEnd.v[3]);
+    clipSpaceBeamEndDivided.v[1] = clipSpaceBeamEnd.v[1] * (float)(1.0 / clipSpaceBeamEnd.v[3]);
+    clipSpaceBeamEndDivided.v[2] = clipSpaceBeamEnd.v[2] * (float)(1.0 / clipSpaceBeamEnd.v[3]);
+    clipSpaceBeamEndDivided.v[3] = 1.0f;
+    clipSpaceFlatDelta.v[0] = clipSpaceBeamEndDivided.v[0] - clipSpaceBeamBeginDivided.v[0];
+    clipSpaceFlatDelta.v[1] = clipSpaceBeamEndDivided.v[1] - clipSpaceBeamBeginDivided.v[1];
+    clipSpaceFlatDelta.v[2] = clipSpaceBeamEndDivided.v[2] - clipSpaceBeamBeginDivided.v[2];
+    clipSpaceFlatDelta.v[3] = 1.0 - clipSpaceBeamBeginDivided.v[3];
+    *(_QWORD *)clipSpaceFlatDelta.v &= *(_QWORD *)g_keepXYW.v;
+    *(_QWORD *)&clipSpaceFlatDelta.unitVec[2].packed &= *(_QWORD *)&g_keepXYW.unitVec[2].packed;
+    v10.v[0] = (float)((float)((float)(clipSpaceFlatDelta.v[0] * invClipMtx->x.v[0])
+        + (float)(clipSpaceFlatDelta.v[1] * invClipMtx->y.v[0]))
+        + (float)(clipSpaceFlatDelta.v[2] * invClipMtx->z.v[0]))
+        + (float)(clipSpaceFlatDelta.v[3] * invClipMtx->w.v[0]);
+    v10.v[1] = (float)((float)((float)(clipSpaceFlatDelta.v[0] * invClipMtx->x.v[1])
+        + (float)(clipSpaceFlatDelta.v[1] * invClipMtx->y.v[1]))
+        + (float)(clipSpaceFlatDelta.v[2] * invClipMtx->z.v[1]))
+        + (float)(clipSpaceFlatDelta.v[3] * invClipMtx->w.v[1]);
+    v10.v[2] = (float)((float)((float)(clipSpaceFlatDelta.v[0] * invClipMtx->x.v[2])
+        + (float)(clipSpaceFlatDelta.v[1] * invClipMtx->y.v[2]))
+        + (float)(clipSpaceFlatDelta.v[2] * invClipMtx->z.v[2]))
+        + (float)(clipSpaceFlatDelta.v[3] * invClipMtx->w.v[2]);
+    v10.v[3] = (float)((float)((float)(clipSpaceFlatDelta.v[0] * invClipMtx->x.v[3])
+        + (float)(clipSpaceFlatDelta.v[1] * invClipMtx->y.v[3]))
+        + (float)(clipSpaceFlatDelta.v[2] * invClipMtx->z.v[3]))
+        + (float)(clipSpaceFlatDelta.v[3] * invClipMtx->w.v[3]);
+    worldSpaceFlatDelta = v10;
+    *(_QWORD *)outFlatDelta->v = *(_QWORD *)g_keepXYZ.v & *(_QWORD *)v10.v;
+    *(_QWORD *)&outFlatDelta->unitVec[2].packed = *(_QWORD *)&g_keepXYZ.unitVec[2].packed
+        & *(_QWORD *)&worldSpaceFlatDelta.unitVec[2].packed;
+    v8 = *outFlatDelta;
+    if (Vec4LengthSq(v8.v) < 0.000002)
         return 0;
     v7 = 1.0
-         / sqrtf(
-                 (float)((float)((float)(outFlatDelta->v[0] * outFlatDelta->v[0])
-                                             + (float)(outFlatDelta->v[1] * outFlatDelta->v[1]))
-                             + (float)(outFlatDelta->v[2] * outFlatDelta->v[2]))
-             + (float)(outFlatDelta->v[3] * outFlatDelta->v[3]));
+        / sqrtf(
+            (float)((float)((float)(outFlatDelta->v[0] * outFlatDelta->v[0])
+                + (float)(outFlatDelta->v[1] * outFlatDelta->v[1]))
+                + (float)(outFlatDelta->v[2] * outFlatDelta->v[2]))
+            + (float)(outFlatDelta->v[3] * outFlatDelta->v[3]));
     outFlatDelta->v[0] = outFlatDelta->v[0] * v7;
     outFlatDelta->v[1] = outFlatDelta->v[1] * v7;
     outFlatDelta->v[2] = outFlatDelta->v[2] * v7;
@@ -1264,7 +1227,6 @@ bool __cdecl Vec4HomogenousClipBothZ(float4 *pt0, float4 *pt1)
     float4 coeffZLt0; // [esp+150h] [ebp-14h] BYREF
 
     coeffZLt0.u[0] = 0;
-    //*(_QWORD *)&coeffZLt0.unitVec[1].packed = __PAIR64__(LODWORD(1.0f), 0);
     coeffZLt0.v[1] = 0.0f;
     coeffZLt0.v[2] = 1.0f;
     coeffZLt0.u[3] = 0;
@@ -1272,8 +1234,8 @@ bool __cdecl Vec4HomogenousClipBothZ(float4 *pt0, float4 *pt1)
     coeffZGtW.u[0] = 0;
     coeffZGtW.v[1] = 0.0;
     coeffZGtW.v[2] = -1.0f;
-    //*(_QWORD *)&coeffZGtW.unitVec[1].packed = __PAIR64__(LODWORD(-1.0f), 0);
     coeffZGtW.v[3] = 1.0f;
+
     return Vec4HomogenousClipZW(pt0, pt1, &coeffZLt0) && Vec4HomogenousClipZW(pt0, pt1, &coeffZGtW);
 }
 
@@ -1307,12 +1269,8 @@ bool __cdecl Vec4HomogenousClipZW(float4 *pt0, float4 *pt1, const float4 *coeffZ
     float alpha_12; // [esp+BCh] [ebp-18h]
     __int64 dist1Sel0_8; // [esp+C8h] [ebp-Ch]
 
-    dist0_12 = (float)((float)((float)(coeffZW->v[0] * pt0->v[0]) + (float)(coeffZW->v[1] * pt0->v[1]))
-                                     + (float)(coeffZW->v[2] * pt0->v[2]))
-                     + (float)(coeffZW->v[3] * pt0->v[3]);
-    dist1_12 = (float)((float)((float)(coeffZW->v[0] * pt1->v[0]) + (float)(coeffZW->v[1] * pt1->v[1]))
-                                     + (float)(coeffZW->v[2] * pt1->v[2]))
-                     + (float)(coeffZW->v[3] * pt1->v[3]);
+    dist0_12 = (float)((float)((float)(coeffZW->v[0] * pt0->v[0]) + (float)(coeffZW->v[1] * pt0->v[1])) + (float)(coeffZW->v[2] * pt0->v[2])) + (float)(coeffZW->v[3] * pt0->v[3]);
+    dist1_12 = (float)((float)((float)(coeffZW->v[0] * pt1->v[0]) + (float)(coeffZW->v[1] * pt1->v[1])) + (float)(coeffZW->v[2] * pt1->v[2])) + (float)(coeffZW->v[3] * pt1->v[3]);
     if ( dist0_12 >= 0.0 )
         v15 = 0;
     else
@@ -1389,8 +1347,7 @@ bool __cdecl Vec4HomogenousClipZW(float4 *pt0, float4 *pt1, const float4 *coeffZ
 
 double __cdecl I_fres(float val)
 {
-    if ( val == 0.0 && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\universal\\com_math.h", 140, 0, "%s", "val") )
-        __debugbreak();
+    iassert(val);
     return 1.0 / val;
 }
 

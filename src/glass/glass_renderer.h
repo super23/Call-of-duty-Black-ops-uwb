@@ -104,6 +104,9 @@ struct GlassRenderer // sizeof=0x4DF8
         void Insert(GlassShard *shard);
     };
 
+    void *operator new(size_t size);
+    void operator delete(void *ptr);
+
     const dvar_s *cullShards;
     const dvar_s *drawDebug;
     const dvar_s *drawBBox;

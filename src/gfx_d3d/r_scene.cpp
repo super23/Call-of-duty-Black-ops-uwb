@@ -869,9 +869,9 @@ void __cdecl R_AddSpotLightToScene(const float *org, const float (*axis)[3], flo
                 light->specularColor[0] = light->diffuseColor[0];
                 light->specularColor[1] = light->diffuseColor[1];
                 light->specularColor[2] = light->diffuseColor[2];
-                __libm_sse2_cos(v11);
+                cos(v11);
                 light->cosHalfFovInner = spotLightFovInner;
-                __libm_sse2_cos(v12);
+                cos(v12);
                 light->cosHalfFovOuter = v7;
                 light->angles[0] = 0.0f;
                 light->angles[1] = 0.0f;
@@ -2189,32 +2189,11 @@ void __cdecl R_SetInputCodeConstant(GfxCmdBufInput *input, unsigned int constant
     v6[3] = w;
 }
 
-void __cdecl R_SetInputCodeConstantFromVec4(GfxCmdBufInput *input, unsigned int constant, float *value)
+void __cdecl R_SetInputCodeConstantFromVec4(GfxCmdBufInput *input, unsigned int constant, const float *value)
 {
-    float *v3; // [esp+0h] [ebp-4h]
+    bcassert(constant, CONST_SRC_CODE_COUNT_FLOAT4);
+    iassert(s_codeConstUpdateFreq[constant] == MTL_UPDATE_RARELY);
 
-    if ( constant >= 0xC5
-        && !Assert_MyHandler(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.h",
-                    1744,
-                    0,
-                    "constant doesn't index CONST_SRC_CODE_COUNT_FLOAT4\n\t%i not in [0, %i)",
-                    constant,
-                    197) )
-    {
-        __debugbreak();
-    }
-    if ( s_codeConstUpdateFreq[constant] != 2
-        && !Assert_MyHandler(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.h",
-                    1746,
-                    0,
-                    "%s\n\t(constant) = %i",
-                    "(s_codeConstUpdateFreq[constant] == MTL_UPDATE_RARELY)",
-                    constant) )
-    {
-        __debugbreak();
-    }
     if ( constant < 0x2F
         && !Assert_MyHandler(
                     "c:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.h",
@@ -2226,226 +2205,202 @@ void __cdecl R_SetInputCodeConstantFromVec4(GfxCmdBufInput *input, unsigned int 
     {
         __debugbreak();
     }
-    v3 = input->consts[constant];
-    *v3 = *value;
-    v3[1] = value[1];
-    v3[2] = value[2];
-    v3[3] = value[3];
+
+    input->consts[constant][0] = value[0];
+    input->consts[constant][1] = value[1];
+    input->consts[constant][2] = value[2];
+    input->consts[constant][3] = value[3];
 }
 
 void    R_SetHDRControlConstants(GfxCmdBufInput *input, const GfxViewInfo *viewInfo)
 {
     float v3; // xmm0_4
     float v4; // xmm0_4
-    double v5; // xmm0_8
-    double w; // xmm0_8
-    double v7; // xmm0_8
-    double v8; // xmm0_8
-    double v9; // xmm0_8
-    double v10; // xmm0_8
-    double v11; // xmm0_8
-    double v12; // xmm0_8
-    long double v13; // [esp+10h] [ebp-18Ch]
-    long double v14; // [esp+10h] [ebp-18Ch]
-    long double v15; // [esp+10h] [ebp-18Ch]
-    long double v16; // [esp+10h] [ebp-18Ch]
-    long double v17; // [esp+10h] [ebp-18Ch]
-    long double v18; // [esp+10h] [ebp-18Ch]
-    long double v19; // [esp+10h] [ebp-18Ch]
-    long double v20; // [esp+10h] [ebp-18Ch]
-    float floatTime; // [esp+20h] [ebp-17Ch]
-    float v22; // [esp+28h] [ebp-174h]
-    float v23; // [esp+34h] [ebp-168h]
-    float v24; // [esp+40h] [ebp-15Ch]
-    float v25; // [esp+4Ch] [ebp-150h]
-    float v26; // [esp+58h] [ebp-144h]
-    float v27; // [esp+58h] [ebp-144h]
-    float v28; // [esp+58h] [ebp-144h]
-    float v29; // [esp+58h] [ebp-144h]
-    float v30; // [esp+60h] [ebp-13Ch]
-    float vx[3]; // [esp+64h] [ebp-138h]
-    //float bpwpscale; // [esp+6Ch] [ebp-130h]
-    float rangeC[4]; // [esp+70h] [ebp-12Ch]
-    float rangeB[4]; // [esp+80h] [ebp-11Ch]
-    float rangeA[4]; // [esp+90h] [ebp-10Ch]
-    float Cadd[4]; // [esp+A0h] [ebp-FCh]
-    float Cmul[5]; // [esp+B0h] [ebp-ECh]
-    float Badd[4]; // [esp+C4h] [ebp-D8h]
-    float Bmul[4]; // [esp+D4h] [ebp-C8h]
-    float Amul[5]; // [esp+E4h] [ebp-B8h]
-    float v41; // [esp+F8h] [ebp-A4h]
-    int j; // [esp+FCh] [ebp-A0h]
-    float v43; // [esp+100h] [ebp-9Ch]
-    float x; // [esp+104h] [ebp-98h]
-    int i; // [esp+108h] [ebp-94h]
-    float bloomS; // [esp+10Ch] [ebp-90h]
-    float curveE[4]; // [esp+110h] [ebp-8Ch]
-    float z; // [esp+120h] [ebp-7Ch]
-    float curveS[5]; // [esp+124h] [ebp-78h]
-    float remapE[5]; // [esp+138h] [ebp-64h]
-    float remapS[5]; // [esp+14Ch] [ebp-50h]
-    float linearE[5]; // [esp+160h] [ebp-3Ch]
-    float linearS[4]; // [esp+174h] [ebp-28h]
-    float v54; // [esp+184h] [ebp-18h]
-    float blackPoint; // [esp+188h] [ebp-14h]
-    float whitePoint; // [esp+18Ch] [ebp-10h]
-    //float exposure; // [esp+190h] [ebp-Ch]
-    //float debugLayers; // [esp+194h] [ebp-8h]
-    //float retaddr; // [esp+19Ch] [ebp+0h]
-
-    //exposure = a1;
-    //debugLayers = retaddr;
-    if ( r_debugLayers->current.enabled )
-        whitePoint = 1.0f;
+    float v5; // xmm0_4
+    float v6; // xmm0_4
+    float v7; // xmm0_4
+    float v8; // xmm0_4
+    float v9; // xmm0_4
+    float v10; // xmm0_4
+    float v11; // xmm0_4
+    float v12; // xmm0_4
+    float gametime; // [esp+20h] [ebp-17Ch]
+    float v14; // [esp+28h] [ebp-174h]
+    float v15; // [esp+34h] [ebp-168h]
+    float v16; // [esp+40h] [ebp-15Ch]
+    float v17; // [esp+4Ch] [ebp-150h]
+    float vx; // [esp+58h] [ebp-144h]
+    float vxa; // [esp+58h] [ebp-144h]
+    float vxb; // [esp+58h] [ebp-144h]
+    float vxc; // [esp+58h] [ebp-144h]
+    float bpwpscale; // [esp+60h] [ebp-13Ch]
+    float rangeC[4]; // [esp+64h] [ebp-138h]
+    float rangeB[4]; // [esp+74h] [ebp-128h]
+    float rangeA[4]; // [esp+84h] [ebp-118h]
+    float Cadd[4]; // [esp+94h] [ebp-108h]
+    float Cmul[5]; // [esp+A4h] [ebp-F8h]
+    float Badd[4]; // [esp+B8h] [ebp-E4h]
+    float Bmul[4]; // [esp+C8h] [ebp-D4h]
+    float Amul[6]; // [esp+D8h] [ebp-C4h]
+    float v31; // [esp+F0h] [ebp-ACh]
+    float v32; // [esp+F4h] [ebp-A8h]
+    float v33; // [esp+F8h] [ebp-A4h]
+    int i; // [esp+FCh] [ebp-A0h]
+    float bloomS; // [esp+100h] [ebp-9Ch]
+    float curveE[5]; // [esp+104h] [ebp-98h]
+    float curveS[5]; // [esp+118h] [ebp-84h]
+    float remapE[5]; // [esp+12Ch] [ebp-70h]
+    float remapS[5]; // [esp+140h] [ebp-5Ch]
+    float linearE[5]; // [esp+154h] [ebp-48h]
+    float linearS[5]; // [esp+168h] [ebp-34h]
+    float blackPoint; // [esp+17Ch] [ebp-20h]
+    float whitePoint; // [esp+180h] [ebp-1Ch]
+    float exposure; // [esp+184h] [ebp-18h]
+    float debugLayers; // [esp+188h] [ebp-14h]
+    float w; // [esp+18Ch] [ebp-10h]
+    //_UNKNOWN *v47; // [esp+190h] [ebp-Ch]
+    //GfxCmdBufInput *inputa; // [esp+194h] [ebp-8h]
+    //int vars0; // [esp+19Ch] [ebp+0h]
+    //
+    //v47 = a1;
+    //inputa = (GfxCmdBufInput *)vars0;
+    if (r_debugLayers->current.enabled)
+        w = 1.0f;
     else
-        whitePoint = 0.0f;
-    blackPoint = whitePoint;
+        w = 0.0f;
+    debugLayers = w;
     R_SetInputCodeConstant(input, 0x89u, viewInfo->exposureRemap.remapMul[0], 0.0, 0.0, 0.0);
-    R_SetInputCodeConstant(input, 0x8Au, 1.0, 0.0, 0.0, whitePoint);
-    if ( r_reflectionProbeGenerate->current.enabled )
+    R_SetInputCodeConstant(input, 0x8Au, 1.0, 0.0, 0.0, w);
+    if (r_reflectionProbeGenerate->current.enabled)
     {
         R_SetInputCodeConstant(input, 0x89u, 0.0625, 1.0, 1.0, 0.0);
         R_SetInputCodeConstant(input, 0x8Au, 0.0, 0.0, 0.0, 0.0);
     }
-    v54 = viewInfo->exposureValue.blackPoint[3];
-    linearS[3] = viewInfo->exposureValue.whitePoint[0];
-    linearS[2] = viewInfo->exposureValue.blackPoint[0];
-    //LODWORD(linearS[1]) = viewInfo->exposureValue.linearStart;
-    linearE[2] = viewInfo->exposureValue.linearStart[0];
-    linearE[3] = viewInfo->exposureValue.linearStart[1];
-    linearE[4] = viewInfo->exposureValue.linearStart[2];
-    linearS[0] = viewInfo->exposureValue.linearStart[3];
-    //LODWORD(linearE[1]) = viewInfo->exposureValue.linearEnd;
-    remapS[2] = viewInfo->exposureValue.linearEnd[0];
-    remapS[3] = viewInfo->exposureValue.linearEnd[1];
-    remapS[4] = viewInfo->exposureValue.linearEnd[2];
-    linearE[0] = viewInfo->exposureValue.linearEnd[3];
-    //LODWORD(remapS[1]) = viewInfo->exposureValue.remapStart;
-    remapE[2] = viewInfo->exposureValue.remapStart[0];
-    remapE[3] = viewInfo->exposureValue.remapStart[1];
-    remapE[4] = viewInfo->exposureValue.remapStart[2];
-    remapS[0] = viewInfo->exposureValue.remapStart[3];
-    //LODWORD(remapE[1]) = viewInfo->exposureValue.remapEnd;
-    curveS[2] = viewInfo->exposureValue.remapEnd[0];
-    curveS[3] = viewInfo->exposureValue.remapEnd[1];
-    curveS[4] = viewInfo->exposureValue.remapEnd[2];
-    remapE[0] = viewInfo->exposureValue.remapEnd[3];
-    //LODWORD(curveS[1]) = viewInfo->exposureValue.scurveStart;
-    curveE[2] = viewInfo->exposureValue.scurveStart[0];
-    curveE[3] = viewInfo->exposureValue.scurveStart[1];
-    z = viewInfo->exposureValue.scurveStart[2];
-    curveS[0] = viewInfo->exposureValue.scurveStart[3];
-    //LODWORD(curveE[1]) = viewInfo->exposureValue.scurveEnd;
-    x = viewInfo->exposureValue.scurveEnd[0];
-    i = LODWORD(viewInfo->exposureValue.scurveEnd[1]);
-    bloomS = viewInfo->exposureValue.scurveEnd[2];
-    curveE[0] = viewInfo->exposureValue.scurveEnd[3];
-    v43 = 1.0f;
-    for ( j = 0; j < 3; ++j )
+    exposure = viewInfo->exposureValue.blackPoint[3];
+    whitePoint = viewInfo->exposureValue.whitePoint[0];
+    blackPoint = viewInfo->exposureValue.blackPoint[0];
+
+    linearS[0] = viewInfo->exposureValue.linearStart[0];
+    linearS[1] = viewInfo->exposureValue.linearStart[1];
+    linearS[2] = viewInfo->exposureValue.linearStart[2];
+    linearS[3] = viewInfo->exposureValue.linearStart[3];
+
+    linearE[0] = viewInfo->exposureValue.linearEnd[0];
+    linearE[1] = viewInfo->exposureValue.linearEnd[1];
+    linearE[2] = viewInfo->exposureValue.linearEnd[2];
+    linearE[3] = viewInfo->exposureValue.linearEnd[3];
+
+    remapS[0] = viewInfo->exposureValue.remapStart[0];
+    remapS[1] = viewInfo->exposureValue.remapStart[1];
+    remapS[2] = viewInfo->exposureValue.remapStart[2];
+    remapS[3] = viewInfo->exposureValue.remapStart[3];
+
+    remapE[0] = viewInfo->exposureValue.remapEnd[0];
+    remapE[1] = viewInfo->exposureValue.remapEnd[1];
+    remapE[2] = viewInfo->exposureValue.remapEnd[2];
+    remapE[3] = viewInfo->exposureValue.remapEnd[3];
+
+    curveS[0] = viewInfo->exposureValue.scurveStart[0];
+    curveS[1] = viewInfo->exposureValue.scurveStart[1];
+    curveS[2] = viewInfo->exposureValue.scurveStart[2];
+    curveS[3] = viewInfo->exposureValue.scurveStart[3];
+
+    curveE[0] = viewInfo->exposureValue.scurveEnd[0];
+    curveE[1] = viewInfo->exposureValue.scurveEnd[1];
+    curveE[2] = viewInfo->exposureValue.scurveEnd[2];
+    curveE[3] = viewInfo->exposureValue.scurveEnd[3];
+
+    bloomS = 1.0f;
+    for (i = 0; i < 3; ++i)
     {
-        if ( linearE[j + 2] <= 0.99998474 )
-            v41 = linearE[j + 2];
+        if (linearS[i] <= 0.99998474)
+            v33 = linearS[i];
         else
-            v41 = 0.99998474f;
-        linearE[j + 2] = v41;
-        if ( linearE[j + 2] < remapS[j + 2] )
-            v3 = remapS[j + 2];
+            v33 = 0.99998474f;
+        linearS[i] = v33;
+        if (linearS[i] < linearE[i])
+            v3 = linearE[i];
         else
-            v3 = linearE[j + 2] + 0.000015287891;
-        Amul[4] = v3;
-        remapS[j + 2] = v3;
-        if ( remapE[j + 2] <= 0.99998474 )
-            Amul[3] = remapE[j + 2];
+            v3 = linearS[i] + 0.000015287891;
+        v32 = v3;
+        linearE[i] = v3;
+        if (remapS[i] <= 0.99998474)
+            v31 = remapS[i];
         else
-            Amul[3] = 0.99998474f;
-        remapE[j + 2] = Amul[3];
-        if ( remapE[j + 2] < curveS[j + 2] )
-            v4 = curveS[j + 2];
+            v31 = 0.99998474f;
+        remapS[i] = v31;
+        if (remapS[i] < remapE[i])
+            v4 = remapE[i];
         else
-            v4 = remapE[j + 2] + 0.000015287891;
-        Amul[2] = v4;
-        curveS[j + 2] = v4;
-        if ( linearE[j + 2] == 0.0 )
-            Amul[1] = 0.0f;
+            v4 = remapS[i] + 0.000015287891;
+        Amul[5] = v4;
+        remapE[i] = v4;
+        if (linearS[i] == 0.0)
+            Amul[4] = 0.0f;
         else
-            Amul[1] = 1.0 / linearE[j + 2];
-        Bmul[j + 1] = Amul[1];
-        Badd[j + 1] = 1.0 / (float)(remapS[j + 2] - linearE[j + 2]);
-        Cmul[j + 2] = (-(linearE[j + 2])) * Badd[j + 1];
-        if ( remapS[j + 2] == 1.0 )
-            Cmul[1] = 0.0f;
+            Amul[4] = 1.0 / linearS[i];
+        Amul[i] = Amul[4];
+        Bmul[i] = 1.0 / (float)(linearE[i] - linearS[i]);
+        //Badd[i] = COERCE_FLOAT(LODWORD(linearS[i]) ^ _mask__NegFloat_) * Bmul[i];
+        Badd[i] = (-(linearS[i])) * Bmul[i];
+        if (linearE[i] == 1.0)
+            Cmul[4] = 0.0f;
         else
-            Cmul[1] = 1.0 / (float)(1.0 - remapS[j + 2]);
-        Cadd[j + 1] = Cmul[1];
-        rangeA[j + 1] = (-(remapS[j + 2])) * Cadd[j + 1];
-        curveE[j + 2] = curveE[j + 2] * 2.0;
-        *(&x + j) = *(&x + j) * 2.0;
-        rangeB[j + 1] = remapE[j + 2];
-        rangeC[j + 1] = curveS[j + 2] - remapE[j + 2];
-        vx[j] = 1.0 - curveS[j + 2];
+            Cmul[4] = 1.0 / (float)(1.0 - linearE[i]);
+        Cmul[i] = Cmul[4];
+        //Cadd[i] = COERCE_FLOAT(LODWORD(linearE[i]) ^ _mask__NegFloat_) * Cmul[i];
+        Cadd[i] = (-(linearE[i])) * Cmul[i];
+        curveS[i] = curveS[i] * 2.0;
+        curveE[i] = curveE[i] * 2.0;
+        rangeA[i] = remapS[i];
+        rangeB[i] = remapE[i] - remapS[i];
+        rangeC[i] = 1.0 - remapE[i];
     }
-    v30 = 1.0 / (float)(linearS[3] - linearS[2]);
-    R_SetInputCodeConstant(input, 0x79u, v30 * v54, 0.0, 1.0 - v43, 1.0);
-    R_SetInputCodeConstant(input, 0x7Au, (-(linearS[2])) * v30, 0.0, 0.0, 0.0);
-    R_SetInputCodeConstant(input, 0x7Bu, Bmul[1], Bmul[2], Bmul[3], 1.0);
-    R_SetInputCodeConstant(input, 0x7Cu, Badd[1], Badd[2], Badd[3], 0.0);
-    R_SetInputCodeConstant(input, 0x7Du, Cmul[2], Cmul[3], Cmul[4], 0.0);
-    R_SetInputCodeConstant(input, 0x7Eu, Cadd[1], Cadd[2], Cadd[3], 0.0);
-    R_SetInputCodeConstant(input, 0x7Fu, rangeA[1], rangeA[2], rangeA[3], 0.0);
-    R_SetInputCodeConstant(input, 0x80u, curveE[2], curveE[3], z, 0.0);
-    R_SetInputCodeConstant(input, 0x81u, x, *(float *)&i, bloomS, 0.0);
-    R_SetInputCodeConstant(input, 0x82u, rangeB[1], rangeB[2], rangeB[3], 0.0);
-    R_SetInputCodeConstant(input, 0x83u, rangeC[1], rangeC[2], rangeC[3], 0.0);
-    R_SetInputCodeConstant(input, 0x84u, vx[0], vx[1], vx[2], 0.0);
-#if 0
-    v5 = (float)(r_waterWaveAngle->current.value * 0.017453292);
-    __libm_sse2_cos(v13);
-    *(float *)&v5 = v5;
-    v26 = *(float *)&v5;
-    w = (float)(r_waterWaveAngle->current.value * 0.017453292);
-    __libm_sse2_sin(v14);
-    *(float *)&w = w;
-    v25 = 6.2831855 / r_waterWaveWavelength->current.value;
-    R_SetInputCodeConstant(input, 0x79u, v26 * v25, *(float *)&w * v25, v26, *(float *)&w);
-    v7 = (float)(r_waterWaveAngle->current.vector[1] * 0.017453292);
-    __libm_sse2_cos(v15);
-    *(float *)&v7 = v7;
-    v27 = *(float *)&v7;
-    v8 = (float)(r_waterWaveAngle->current.vector[1] * 0.017453292);
-    __libm_sse2_sin(v16);
-    *(float *)&v8 = v8;
-    v24 = 6.2831855 / r_waterWaveWavelength->current.vector[1];
-    R_SetInputCodeConstant(input, 0x7Au, v27 * v24, *(float *)&v8 * v24, v27, *(float *)&v8);
-    v9 = (float)(r_waterWaveAngle->current.vector[2] * 0.017453292);
-    __libm_sse2_cos(v17);
-    *(float *)&v9 = v9;
-    v28 = *(float *)&v9;
-    v10 = (float)(r_waterWaveAngle->current.vector[2] * 0.017453292);
-    __libm_sse2_sin(v18);
-    *(float *)&v10 = v10;
-    v23 = 6.2831855 / r_waterWaveWavelength->current.vector[2];
-    R_SetInputCodeConstant(input, 0x7Bu, v28 * v23, *(float *)&v10 * v23, v28, *(float *)&v10);
-    v11 = (float)(r_waterWaveAngle->current.vector[3] * 0.017453292);
-    __libm_sse2_cos(v19);
-    *(float *)&v11 = v11;
-    v29 = *(float *)&v11;
-    v12 = (float)(r_waterWaveAngle->current.vector[3] * 0.017453292);
-    __libm_sse2_sin(v20);
-    *(float *)&v12 = v12;
-    v22 = 6.2831855 / r_waterWaveWavelength->current.vector[3];
-    R_SetInputCodeConstant(input, 0x7Cu, v29 * v22, *(float *)&v12 * v22, v29, *(float *)&v12);
-    floatTime = viewInfo->sceneDef.floatTime;
+    bpwpscale = 1.0 / (float)(whitePoint - blackPoint);
+    R_SetInputCodeConstant(input, 0x79u, bpwpscale * exposure, 0.0, 1.0 - bloomS, 1.0);
+    //R_SetInputCodeConstant(input, 0x7Au, COERCE_FLOAT(LODWORD(blackPoint) ^ _mask__NegFloat_) * bpwpscale, 0.0, 0.0, 0.0);
+    R_SetInputCodeConstant(input, 0x7Au, (-(blackPoint)) * bpwpscale, 0.0, 0.0, 0.0);
+    R_SetInputCodeConstant(input, 0x7Bu, Amul[0], Amul[1], Amul[2], 1.0);
+    R_SetInputCodeConstant(input, 0x7Cu, Bmul[0], Bmul[1], Bmul[2], 0.0);
+    R_SetInputCodeConstant(input, 0x7Du, Badd[0], Badd[1], Badd[2], 0.0);
+    R_SetInputCodeConstant(input, 0x7Eu, Cmul[0], Cmul[1], Cmul[2], 0.0);
+    R_SetInputCodeConstant(input, 0x7Fu, Cadd[0], Cadd[1], Cadd[2], 0.0);
+    R_SetInputCodeConstant(input, 0x80u, curveS[0], curveS[1], curveS[2], 0.0);
+    R_SetInputCodeConstant(input, 0x81u, curveE[0], curveE[1], curveE[2], 0.0);
+    R_SetInputCodeConstant(input, 0x82u, rangeA[0], rangeA[1], rangeA[2], 0.0);
+    R_SetInputCodeConstant(input, 0x83u, rangeB[0], rangeB[1], rangeB[2], 0.0);
+    R_SetInputCodeConstant(input, 0x84u, rangeC[0], rangeC[1], rangeC[2], 0.0);
+    v5 = cos((float)(r_waterWaveAngle->current.value * 0.017453292));
+    vx = v5;
+    v6 = sin((float)(r_waterWaveAngle->current.value * 0.017453292));
+    v17 = 6.2831855 / r_waterWaveWavelength->current.value;
+    R_SetInputCodeConstant(input, 0x79u, vx * v17, v6 * v17, vx, v6);
+    v7 = cos((float)(r_waterWaveAngle->current.vector[1] * 0.017453292));
+    vxa = v7;
+    v8 = sin((float)(r_waterWaveAngle->current.vector[1] * 0.017453292));
+    v16 = 6.2831855 / r_waterWaveWavelength->current.vector[1];
+    R_SetInputCodeConstant(input, 0x7Au, vxa * v16, v8 * v16, vxa, v8);
+    v9 = cos((float)(r_waterWaveAngle->current.vector[2] * 0.017453292));
+    vxb = v9;
+    v10 = sin((float)(r_waterWaveAngle->current.vector[2] * 0.017453292));
+    v15 = 6.2831855 / r_waterWaveWavelength->current.vector[2];
+    R_SetInputCodeConstant(input, 0x7Bu, vxb * v15, v10 * v15, vxb, v10);
+    v11 = cos((float)(r_waterWaveAngle->current.vector[3] * 0.017453292));
+    vxc = v11;
+    v12 = sin((float)(r_waterWaveAngle->current.vector[3] * 0.017453292));
+    v14 = 6.2831855 / r_waterWaveWavelength->current.vector[3];
+    R_SetInputCodeConstant(input, 0x7Cu, vxc * v14, v12 * v14, vxc, v12);
+    gametime = viewInfo->sceneDef.floatTime;
     R_SetInputCodeConstant(
         input,
         0x7Du,
-        (float)((float)(sqrtf(386.22 * v25) * floatTime) * r_waterWaveSpeed->current.value)
-    + r_waterWavePhase->current.value,
-        (float)((float)(sqrtf(386.22 * v24) * floatTime) * r_waterWaveSpeed->current.vector[1])
-    + r_waterWavePhase->current.vector[1],
-        (float)((float)(sqrtf(386.22 * v23) * floatTime) * r_waterWaveSpeed->current.vector[2])
-    + r_waterWavePhase->current.vector[2],
-        (float)((float)(sqrtf(386.22 * v22) * floatTime) * r_waterWaveSpeed->current.vector[3])
-    + r_waterWavePhase->current.vector[3]);
+        (float)((float)(sqrtf(386.22 * v17) * gametime) * r_waterWaveSpeed->current.value) + r_waterWavePhase->current.value,
+        (float)((float)(sqrtf(386.22 * v16) * gametime) * r_waterWaveSpeed->current.vector[1])
+        + r_waterWavePhase->current.vector[1],
+        (float)((float)(sqrtf(386.22 * v15) * gametime) * r_waterWaveSpeed->current.vector[2])
+        + r_waterWavePhase->current.vector[2],
+        (float)((float)(sqrtf(386.22 * v14) * gametime) * r_waterWaveSpeed->current.vector[3])
+        + r_waterWavePhase->current.vector[3]);
     R_SetInputCodeConstant(
         input,
         0x7Eu,
@@ -2460,59 +2415,6 @@ void    R_SetHDRControlConstants(GfxCmdBufInput *input, const GfxViewInfo *viewI
         r_waterWaveSteepness->current.vector[1],
         r_waterWaveSteepness->current.vector[2],
         r_waterWaveSteepness->current.vector[3]);
-#endif
-    /* -------- WATER WAVES (SSE SIN/COS FIXED) -------- */
-
-    float time = viewInfo->sceneDef.floatTime;
-
-    for (int wv = 0; wv < 4; ++wv)
-    {
-        float angle = DEG2RAD(wv == 0 ? r_waterWaveAngle->current.value : r_waterWaveAngle->current.vector[wv]);
-
-        float c = cosf(angle);
-        float s = sinf(angle);
-
-        float k = M_2_PI / (wv == 0 ? r_waterWaveWavelength->current.value : r_waterWaveWavelength->current.vector[wv]);
-
-        R_SetInputCodeConstant(
-            input, 0x79u + wv,
-            c * k,
-            s * k,
-            c,
-            s
-        );
-    }
-
-    R_SetInputCodeConstant(
-        input,
-        0x7Du,
-        sqrtf(386.22f * M_2_PI / r_waterWaveWavelength->current.value) * time * r_waterWaveSpeed->current.value
-        + r_waterWavePhase->current.value,
-        sqrtf(386.22f * M_2_PI / r_waterWaveWavelength->current.vector[1]) * time * r_waterWaveSpeed->current.vector[1]
-        + r_waterWavePhase->current.vector[1],
-        sqrtf(386.22f * M_2_PI / r_waterWaveWavelength->current.vector[2]) * time * r_waterWaveSpeed->current.vector[2]
-        + r_waterWavePhase->current.vector[2],
-        sqrtf(386.22f * M_2_PI / r_waterWaveWavelength->current.vector[3]) * time * r_waterWaveSpeed->current.vector[3]
-        + r_waterWavePhase->current.vector[3]
-    );
-
-    R_SetInputCodeConstant(
-        input,
-        0x7Eu,
-        r_waterWaveAmplitude->current.value,
-        r_waterWaveAmplitude->current.vector[1],
-        r_waterWaveAmplitude->current.vector[2],
-        r_waterWaveAmplitude->current.vector[3]
-    );
-
-    R_SetInputCodeConstant(
-        input,
-        0x7Fu,
-        r_waterWaveSteepness->current.value,
-        r_waterWaveSteepness->current.vector[1],
-        r_waterWaveSteepness->current.vector[2],
-        r_waterWaveSteepness->current.vector[3]
-    );
 }
 
 void __cdecl R_GenerateMarkVertsForDynamicModels(const GfxLight *visibleLights, int visibleLightCount)
@@ -2638,9 +2540,9 @@ void    R_SetSkyDynamicIntensity(const float *viewForward, GfxCmdBufInput *input
             value = rgp.world->skyDynIntensity.factor1;
         }
         diff = value;
-        __libm_sse2_cos(v4);
+        cos(v4);
         v12 = (float)(90.0 - factor1) * 0.017453292;
-        __libm_sse2_cos(v4);
+        cos(v4);
         interp = (float)(90.0 - dotAngle0) * 0.017453292;
         skyIntensity = interp - v12;
         if ( fabs(interp - v12) <= 0.000099999997 )
@@ -4395,9 +4297,9 @@ void __cdecl R_SetPoisonFx(GfxViewInfo *viewInfo, const GfxSceneParms *sceneParm
         base = r_poisonFX_blurMin->current.value;
         range = r_poisonFX_blurMax->current.value - base;
         v3 = (float)((float)((float)(viewInfo->sceneDef.floatTime / 6.0) * 3.1415927) * 2.5);
-        __libm_sse2_sin(POISON_BLUR_SLOW);
+        sin(POISON_BLUR_SLOW);
         *(float *)&v3 = v3;
-        __libm_sse2_sin(POISON_BLUR_SLOWa);
+        sin(POISON_BLUR_SLOWa);
         viewInfo->blurRadius = (float)((float)(1.0 - blenda)
                                                                  * (float)((float)((float)((float)(*(float *)&v3 * 0.5) + 0.5) * range) + base))
                                                  + (float)(blenda

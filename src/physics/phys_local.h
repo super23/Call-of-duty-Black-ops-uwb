@@ -14,7 +14,7 @@ struct phys_vec2 // sizeof=0x8
     // phys_contact_manifold::generate_convex_poly_internal(void)+7C/w ...
 };
 
-struct phys_vec3 // sizeof=0x10
+struct alignas(16) phys_vec3 // sizeof=0x10
 {                                                                             // XREF: .data:PHYS_X_VEC/r
     float x;                                                        // XREF: gjkcc_info::update_cg(float const * const,float const * const,bool)+1F2/r
     float y;                                                        // XREF: gjkcc_info::update_cg(float const * const,float const * const,bool)+209/r
@@ -177,6 +177,8 @@ public:
         return r;
     }
 };
+static_assert(alignof(phys_vec3) == 16, "Alignment broken"); // The physics system expects in a dozen+ places that the alignment is 16 (sizeof phys_vec3)
+
 
 // KISAKTODO: operator cleanup
 inline phys_vec3 operator+(const phys_vec3 &a, const phys_vec3 &b)
@@ -2176,6 +2178,11 @@ inline void __cdecl Phys_AxisToNitrousMat(float (*axis)[3], phys_mat44 *outMat)
     Phys_Vec3ToNitrousVec((float *)axis, &outMat->x);
     Phys_Vec3ToNitrousVec(&(*axis)[3], &outMat->y);
     Phys_Vec3ToNitrousVec(&(*axis)[6], &outMat->z);
+}
+
+inline float Abs(const phys_vec3 &vec)
+{
+    return sqrt( (vec.x * vec.x) + (vec.y * vec.y) + (vec.z * vec.z) );
 }
 
 

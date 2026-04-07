@@ -68,22 +68,15 @@ char __cdecl R_PreTessBspDrawSurfs(
     triCount = 0;
     for ( surfIter = 0; surfIter < count; ++surfIter )
     {
-        if ( (unsigned int)list[surfIter] >= rgp.world->surfaceCount
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_add_bsp.cpp",
-                        229,
-                        0,
-                        "list[surfIter] doesn't index rgp.world->surfaceCount\n\t%i not in [0, %i)",
-                        list[surfIter],
-                        rgp.world->surfaceCount) )
-        {
-            __debugbreak();
-        }
+        bcassert(list[surfIter], rgp.world->surfaceCount);
         triCount += rgp.world->dpvs.surfaces[list[surfIter]].tris.triCount;
     }
+
     preTessIndices = R_AllocPreTessIndices(3 * triCount);
+
     if ( !preTessIndices )
         return 0;
+
     copyIndex = 0;
     simplifiedCount = 0;
     baseVertex = 0x7FFFFFFF;
@@ -106,23 +99,19 @@ char __cdecl R_PreTessBspDrawSurfs(
         }
         Com_Memcpy(&preTessIndices[copyIndex], &rgp.world->draw.indices[tris->tris.baseIndex], 6 * tris->tris.triCount);
         copyIndex += 3 * tris->tris.triCount;
-        *((_WORD *)&copyIndex + 2 * simplifiedCount + 1) = truncate_cast<unsigned short>(tris->tris.triCount + *((unsigned __int16 *)&copyIndex + 2 * simplifiedCount + 1));
+        iassert(simplifiedCount); // kcod4
+
+        //*((_WORD *)&copyIndex + 2 * simplifiedCount + 1) = truncate_cast<unsigned short>(tris->tris.triCount + *((unsigned __int16 *)&copyIndex + 2 * simplifiedCount + 1));
+        simplifiedList[simplifiedCount - 1].totalTriCount = truncate_cast<unsigned short>(tris->tris.triCount + simplifiedList[simplifiedCount - 1].totalTriCount);
     }
+
     HIDWORD(drawSurf.packed) = HIDWORD(drawSurf.packed) & 0xFF87FFFF | 0x80000;
+
     if ( R_AllocDrawSurf(&surfData->delayedCmdBuf, drawSurf, &surfData->drawSurfList, simplifiedCount + 2) )
     {
         firstIndex = preTessIndices - gfxBuf.preTessIndexBuffer->indices;
-        if ( firstIndex >= 0x100000
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_add_bsp.cpp",
-                        269,
-                        0,
-                        "firstIndex doesn't index R_MAX_PRETESS_INDICES\n\t%i not in [0, %i)",
-                        firstIndex,
-                        0x100000) )
-        {
-            __debugbreak();
-        }
+        bcassert(firstIndex, R_MAX_PRETESS_INDICES);
+
         R_WritePrimDrawSurfInt(&surfData->delayedCmdBuf, simplifiedCount);
         R_WritePrimDrawSurfInt(&surfData->delayedCmdBuf, firstIndex);
         R_WritePrimDrawSurfData(&surfData->delayedCmdBuf, (unsigned __int8 *)simplifiedList, simplifiedCount);

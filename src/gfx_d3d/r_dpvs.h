@@ -322,7 +322,7 @@ void __cdecl R_FilterXModelIntoScene(
                 float lightToleranceSq);
 int __cdecl R_CullSphereDpvs(const float *origin, float radius, const DpvsPlane *planes, int planeCount);
 void __cdecl R_InitialEntityCulling();
-double __cdecl R_DpvsPlaneMaxSignedDistToBox(const DpvsPlane *plane, const float *minmax);
+float __cdecl R_DpvsPlaneMaxSignedDistToBox(const DpvsPlane *plane, const float *minmax);
 void __cdecl R_GetStaticModels(const float *mins, float *maxs, int *models, int *models_count, int max_models);
 void __cdecl R_GetStaticModelsAabb(
                 const GfxAabbTree *tree,

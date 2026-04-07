@@ -69,6 +69,9 @@ struct GlassesClient // sizeof=0x10
     GlassRenderer *renderer;
     unsigned int lastPreShatter;
 
+    void *operator new(size_t size);
+    void operator delete(void *ptr);
+
     GlassesClient(const Glasses *glss);
     ~GlassesClient();
 

@@ -20,14 +20,11 @@ struct SmallAllocator // sizeof=0x18
 
 template <typename T>
 struct SmallAllocatorTemplate//<GlassPhysics * *> // sizeof=0x4
-{                                       // XREF: ??0?$_List_ptr@PAUShardGroup@@V?$SmallAllocatorTemplate@PAPAUShardGroup@@@@@std@@IAE@V?$SmallAllocatorTemplate@PAPAUShardGroup@@@@@Z/r
-    //SmallAllocator *alloc;              // XREF: std::list<GlassShard *,SmallAllocatorTemplate<GlassShard * *>>::list<GlassShard *,SmallAllocatorTemplate<GlassShard * *>>(SmallAllocatorTemplate<GlassShard *> const &)+14/w
-
+{
     using value_type = T;
 
     SmallAllocator *alloc;
 
-    //SmallAllocatorTemplate() noexcept : alloc(nullptr) {}
     SmallAllocatorTemplate(SmallAllocator *a) noexcept : alloc(a) {}
 
     template<class U>
@@ -37,12 +34,12 @@ struct SmallAllocatorTemplate//<GlassPhysics * *> // sizeof=0x4
 
     T *allocate(std::size_t n)
     {
-        return static_cast<T *>(*alloc->Allocate(sizeof(T) * n));
+        return reinterpret_cast<T *>(alloc->Allocate(sizeof(T) * n));
     }
 
     void deallocate(T *p, std::size_t)
     {
-        alloc->Free((void **)p, 1);
+        alloc->Free(reinterpret_cast<void **>(p), 1);
     }
 
     template<class U>
@@ -52,72 +49,65 @@ struct SmallAllocatorTemplate//<GlassPhysics * *> // sizeof=0x4
     };
 };
 
+// aislop
 template <typename T>
 struct FixedSizeAllocator
 {
-    void *memory;
+    //void *memory;
 
-    std::list<T> used;
-    std::list<T> free;
+    std::list<T, SmallAllocatorTemplate<T>> used;
+    std::list<T, SmallAllocatorTemplate<T>> free;
 
     unsigned int maxUsed;
+    void *memory;
+    // ...
 
-    void *operator new(std::size_t size)
+    void *operator new(size_t size)
     {
-        return GlassesClient::Allocate(size, "C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_renderer.cpp", 72);
+        return GlassesClient::Allocate(size, "C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_client.cpp", 69);
     }
     void operator delete(void *ptr)
     {
         GlassesClient::Free((char *)ptr);
     }
 
-
-    void Init(void *mem, unsigned int numObjects)
+    FixedSizeAllocator(T mem, unsigned int numObjects, SmallAllocator *allocator)
+        : used(SmallAllocatorTemplate<T>(allocator))
+        , free(SmallAllocatorTemplate<T>(allocator))
+        , maxUsed(0)
+        , memory(mem)
     {
-        memory = mem;
-
-        used.clear();
-        free.clear();
-        maxUsed = 0;
-
-        T *array = static_cast<T *>(mem);
-
         for (unsigned int i = 0; i < numObjects; ++i)
-        {
-            free.push_back(array[i]);
-        }
+            free.push_front(&mem[i]);
     }
 
     T Allocate()
     {
-        if (free.empty())
-            __debugbreak(); // out-of-memory
+        T ret = nullptr;
 
-        T obj = free.front();
-        free.pop_front();
+        if (!free.empty())
+        {
+            ret = free.front();
+            free.erase(free.begin());
+            used.push_front(ret);
+        }
 
-        used.push_back(obj);
-
-        if (used.size() > maxUsed)
+        if ((unsigned int)used.size() > maxUsed)
             maxUsed = (unsigned int)used.size();
 
-        return obj;
+        return ret;
     }
 
     void Free(T obj)
     {
         used.remove(obj);
-        free.push_back(obj);
+        free.push_front(obj);
     }
 
     void FreeAll()
     {
         while (!used.empty())
-        {
-            T obj = used.front();
-            used.pop_front();
-            free.push_back(obj);
-        }
+            Free(used.front());
     }
 };
 
