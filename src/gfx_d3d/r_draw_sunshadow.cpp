@@ -58,7 +58,7 @@ void __cdecl R_DrawSunShadowMapCallback(const void *userData, GfxCmdBufContext c
     partition = data->partition;
     drawList = data->drawList;
 
-    R_SetRenderTarget(context, 0xEu);
+    R_SetRenderTarget(context, R_RENDERTARGET_SHADOWMAP_SUN);
     if ( !partition->partitionIndex )
         R_ClearScreen(context.state->prim.device, 3u, shadowmapClearColor, 1.0, 0, 0);
     R_HW_EnableScissor(

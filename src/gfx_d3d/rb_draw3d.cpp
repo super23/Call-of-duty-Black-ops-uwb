@@ -60,22 +60,20 @@ void __cdecl R_ShowTris(GfxCmdBufContext context, const GfxDrawSurfListInfo *inf
     int showTris; // [esp+70h] [ebp-4h]
 
     showTris = r_showTris->current.integer;
-    if ( showTris )
+
+    if (!showTris)
     {
-        v2 = 3;
-        for ( i = debugInfo.group; --v2 >= 0; ++i )
-        {
-            i->QueuedBatchCount = 0;
-            i->ExecutingBatchCount = 0;
-        }
-        if ( showTris != 3 || info == &info->viewInfo->drawList[4] )
-        {
-            if ( showTris == 2 )
-                R_ClearScreen(context.state->prim.device, 6u, colorWhite, 1.0, 0, 0);
-            memcpy(&debugInfo, info, sizeof(debugInfo));
-            debugInfo.baseTechType = 125;
-            R_DrawSurfs(context, 0, &debugInfo);
-        }
+        return;
+    }
+
+    if ( showTris != 3 || info == &info->viewInfo->drawList[DRAWLIST_EMISSIVE] )
+    {
+        if ( showTris == 2 )
+            R_ClearScreen(context.state->prim.device, 6u, colorWhite, 1.0, 0, 0);
+
+        debugInfo = *info;
+        debugInfo.baseTechType = 125;
+        R_DrawSurfs(context, 0, &debugInfo);
     }
 }
 
@@ -103,16 +101,18 @@ void __cdecl R_DrawEmissiveCallback(const void *userData, GfxCmdBufContext conte
     GfxViewInfo *viewInfo = (GfxViewInfo *)userData;
 
     PROF_SCOPED("R_DrawEmissiveCallback");
+
     R_UpdateCodeConstant(context.source, CONST_SRC_CODE_FRAMEBUFFER_READ, 0.0, 0.0, 1.0, 1.0);
 
     {
         PROF_SCOPED("emissive");
-        R_DrawSurfs(context, 0, &viewInfo->drawList[4]);
+        R_DrawSurfs(context, 0, &viewInfo->drawList[DRAWLIST_EMISSIVE]);
     }
     
-    R_ShowTris(context, viewInfo->drawList);
-    R_ShowTris(context, &viewInfo->drawList[3]);
-    R_ShowTris(context, &viewInfo->drawList[4]);
+    R_ShowTris(context, &viewInfo->drawList[DRAWLIST_LIT]);
+    R_ShowTris(context, &viewInfo->drawList[DRAWLIST_DECAL]);
+    R_ShowTris(context, &viewInfo->drawList[DRAWLIST_EMISSIVE]);
+
     if ((viewInfo->sceneComposition.renderingMode & 7) == 0)
         R_HW_DisableScissor(context.state->prim.device);
 }
@@ -168,22 +168,20 @@ void    R_DrawReflected(const GfxViewInfo *viewInfo, GfxCmdBuf *cmdBuf)
 
 void __cdecl R_DrawReflectedCallback(const void *userData, GfxCmdBufContext context, GfxCmdBufContext prepassContext)
 {
-    float clearColor[4]; // [esp+20h] [ebp-14h] BYREF
-    unsigned __int8 surface; // [esp+33h] [ebp-1h]
-
     const GfxViewInfo *viewInfo = (const GfxViewInfo *)userData;
 
-    surface = 10;
     R_InitLocalCmdBufState(context.state);
-    R_SetRenderTargetSize(context.source, 0xAu);
-    R_SetRenderTarget(context, 0xAu);
+    R_SetRenderTargetSize(context.source, R_RENDERTARGET_POST_EFFECT_SRC);
+    R_SetRenderTarget(context, R_RENDERTARGET_POST_EFFECT_SRC);
     R_Set3D(context.source);
-    memset(clearColor, 0, sizeof(clearColor));
-    R_ClearScreen(context.state->prim.device, 1u, clearColor, 1.0, 0, 0);
+
+    float clearColor[4]{ 0 }; // [esp+20h] [ebp-14h] BYREF
+
+    R_ClearScreen(context.state->prim.device, 1, clearColor, 1.0, 0, 0);
 
     {
         PROF_SCOPED("reflected");
-        R_DrawSurfs(context, 0, &viewInfo->drawList[5]);
+        R_DrawSurfs(context, 0, &viewInfo->drawList[DRAWLIST_REFLECTED]);
     }
     
     R_HW_DisableScissor(context.state->prim.device);
@@ -237,8 +235,8 @@ void __cdecl RB_Draw3DInternal(GfxViewInfo *viewInfo)
   else
   {
     R_InitLocalCmdBufState(&gfxCmdBufState);
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 2u);
-    R_SetRenderTarget(gfxCmdBufContext, 2u);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_FRAME_BUFFER);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_FRAME_BUFFER);
     memcpy(gfxCmdBufState.refSamplerState, gfxCmdBufState.refSamplerState, sizeof(gfxCmdBufState));
   }
 }
@@ -268,6 +266,7 @@ void __cdecl RB_FullbrightDrawCommands(const GfxViewInfo *viewInfo)
 void __cdecl RB_EndSceneRendering(GfxCmdBufContext context, const GfxCmdBufInput *input, const GfxViewInfo *viewInfo)
 {
     PROF_SCOPED("RB_EndSceneRendering()");
+
     R_HW_InsertFence(&backEndData->endFence);
     R_InitCmdBufSourceState(context.source, input, 0);
     R_InitLocalCmdBufState(context.state);
@@ -354,14 +353,19 @@ void __cdecl R_DrawFullbrightLitCallback(const void *userData, GfxCmdBufContext 
     const GfxViewInfo *viewInfo = (const GfxViewInfo *)userData;
 
     R_SetRenderTarget(context, viewInfo->sceneComposition.mainSceneMSAA);
+
     if ((viewInfo->sceneComposition.renderingMode & 7) == 0)
+    {
         R_HW_EnableScissor(
             context.state->prim.device,
             viewInfo->cullViewInfo.scissorViewport.x,
             viewInfo->cullViewInfo.scissorViewport.y,
             viewInfo->cullViewInfo.scissorViewport.width,
             viewInfo->cullViewInfo.scissorViewport.height);
+    }
+        
     R_DrawSurfs(context, 0, viewInfo->drawList);
+
     if ((viewInfo->sceneComposition.renderingMode & 7) == 0)
         R_HW_DisableScissor(context.state->prim.device);
 }
@@ -427,6 +431,7 @@ void __cdecl R_DrawFullbrightDecalCallback(const void *userData, GfxCmdBufContex
     const GfxViewInfo *viewInfo = (const GfxViewInfo *)userData;
 
     R_SetRenderTarget(context, viewInfo->sceneComposition.mainSceneMSAA);
+
     if ((viewInfo->sceneComposition.renderingMode & 7) == 0)
         R_HW_EnableScissor(
             context.state->prim.device,
@@ -434,7 +439,9 @@ void __cdecl R_DrawFullbrightDecalCallback(const void *userData, GfxCmdBufContex
             viewInfo->cullViewInfo.scissorViewport.y,
             viewInfo->cullViewInfo.scissorViewport.width,
             viewInfo->cullViewInfo.scissorViewport.height);
-    R_DrawSurfs(context, 0, &viewInfo->drawList[3]);
+
+    R_DrawSurfs(context, 0, &viewInfo->drawList[DRAWLIST_DECAL]);
+
     if ((viewInfo->sceneComposition.renderingMode & 7) == 0)
         R_HW_DisableScissor(context.state->prim.device);
 }
@@ -547,7 +554,7 @@ void __cdecl R_DrawDebugShaderLitCallback(const void *userData, GfxCmdBufContext
 {
     const GfxViewInfo *viewInfo = (const GfxViewInfo *)userData;
 
-    R_SetRenderTarget(context, 3u);
+    R_SetRenderTarget(context, R_RENDERTARGET_SCENE);
     R_HW_EnableScissor(
         context.state->prim.device,
         viewInfo->cullViewInfo.scissorViewport.x,
@@ -562,7 +569,7 @@ void __cdecl R_DrawDebugShaderDecalCallback(const void *userData, GfxCmdBufConte
 {
     const GfxViewInfo *viewInfo = (const GfxViewInfo *)userData;
 
-    R_SetRenderTarget(context, 3u);
+    R_SetRenderTarget(context, R_RENDERTARGET_SCENE);
     R_DrawSurfs(context, 0, &viewInfo->drawList[3]);
 }
 
@@ -570,7 +577,7 @@ void __cdecl R_DrawDebugShaderEmissiveCallback(const void *userData, GfxCmdBufCo
 {
     const GfxViewInfo *viewInfo = (const GfxViewInfo *)userData;
 
-    R_SetRenderTarget(context, 3u);
+    R_SetRenderTarget(context, R_RENDERTARGET_SCENE);
     R_HW_EnableScissor(
         context.state->prim.device,
         viewInfo->cullViewInfo.scissorViewport.x,
@@ -587,14 +594,14 @@ void __cdecl R_DrawDebugShaderEmissiveCallback(const void *userData, GfxCmdBufCo
 
 void __cdecl RB_StandardDrawCommands(GfxViewInfo *viewInfo)
 {
-  unsigned __int8 depthPrepassRT; // [esp+7Fh] [ebp-51h]
+  GfxRenderTargetId depthPrepassRT; // [esp+7Fh] [ebp-51h]
   float v2[4]; // [esp+80h] [ebp-50h] BYREF
-  unsigned __int8 setupRenderTargetId; // [esp+91h] [ebp-3Fh]
+  GfxRenderTargetId setupRenderTargetId; // [esp+91h] [ebp-3Fh]
   bool drawWaypoints; // [esp+93h] [ebp-3Dh]
   const GfxBackEndData *data; // [esp+94h] [ebp-3Ch]
   GfxCmdBuf cmdBuf; // [esp+98h] [ebp-38h] BYREF
   bool needsDepthPrepass; // [esp+9Ch] [ebp-34h]
-  unsigned __int8 floatzRenderTarget; // [esp+9Dh] [ebp-33h]
+  GfxRenderTargetId floatzRenderTarget; // [esp+9Dh] [ebp-33h]
   bool applyPostFX; // [esp+9Eh] [ebp-32h]
   bool resolveDistortion; // [esp+9Fh] [ebp-31h]
   ShadowType dynamicShadowType; // [esp+A0h] [ebp-30h]
@@ -611,7 +618,7 @@ void __cdecl RB_StandardDrawCommands(GfxViewInfo *viewInfo)
 
   data = backEndData;
   isMissileCam = viewInfo->isMissileCamera;
-  floatzRenderTarget = isMissileCam ? 23 : 7;
+  floatzRenderTarget = isMissileCam ? R_RENDERTARGET_FLOAT_Z_MISSILE_CAM : R_RENDERTARGET_FLOAT_Z;
   resolveDistortion = 1;
   drawReflected = !isMissileCam;
   drawWaypoints = drawReflected;
@@ -631,7 +638,7 @@ void __cdecl RB_StandardDrawCommands(GfxViewInfo *viewInfo)
   whichToClearForScene = 7;
   R_InitContext(data, &cmdBuf);
   if ( viewInfo->needsFloatZ
-    && !gfxRenderTargets[viewInfo->isMissileCamera ? 23 : 7].surface.color
+    && !gfxRenderTargets[viewInfo->isMissileCamera ? R_RENDERTARGET_FLOAT_Z_MISSILE_CAM : R_RENDERTARGET_FLOAT_Z].surface.color
     && !Assert_MyHandler(
           "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_draw3d.cpp",
           7133,
@@ -662,8 +669,8 @@ void __cdecl RB_StandardDrawCommands(GfxViewInfo *viewInfo)
   {
     R_InitLocalCmdBufState(&gfxCmdBufState);
     PROF_SCOPED("Clear ExtraCam Render Target");
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 0x16u);
-    R_SetRenderTarget(gfxCmdBufContext, 0x16u);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_MISSILE_CAM);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_MISSILE_CAM);
     memset(v2, 0, 12);
     v2[3] = 1.0f;
     R_ClearScreen(gfxCmdBufState.prim.device, 7u, v2, 1.0, 0, 0);
@@ -681,20 +688,20 @@ void __cdecl RB_StandardDrawCommands(GfxViewInfo *viewInfo)
   {
     PROF_SCOPED("R_DepthPrepass");
     R_InitContext(data, &cmdBuf);
-    depthPrepassRT = dx.supportsSceneNullRenderTarget + 3;
+    depthPrepassRT = dx.supportsSceneNullRenderTarget ? R_RENDERTARGET_SCENE_NULLCOLOR : R_RENDERTARGET_SCENE;
     R_SetRenderTargetSize(&gfxCmdBufSourceState, depthPrepassRT);
     R_SetRenderTarget(gfxCmdBufContext, depthPrepassRT);
     R_DepthPrepass(viewInfo->sceneComposition.mainSceneMSAA, viewInfo, &cmdBuf);
   }
   if ( viewInfo->isMissileCamera )
   {
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 0x16u);
-    R_SetRenderTarget(gfxCmdBufContext, 0x16u);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_MISSILE_CAM);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_MISSILE_CAM);
   }
   else if ( dx.supportsSceneNullRenderTarget )
   {
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 3u);
-    R_SetRenderTarget(gfxCmdBufContext, 3u);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_SCENE);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_SCENE);
   }
   viewInfo->needsFloatZ = need_float_z;
   if ( viewInfo->drawList[6].drawSurfCount )
@@ -816,7 +823,7 @@ void __cdecl RB_StandardDrawCommands(GfxViewInfo *viewInfo)
   if ( viewInfo->drawList[6].drawSurfCount )
   {
     if ( (viewInfo->sceneComposition.renderingMode & 7) == 0 )
-        R_Resolve(gfxCmdBufContext, gfxRenderTargets[6].image);
+        R_Resolve(gfxCmdBufContext, gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
     R_InitContext(data, &cmdBuf);
 
     PROF_SCOPED("CloakPostEmissive");
@@ -1072,17 +1079,18 @@ void __cdecl R_DrawPointLitSurfsCallback(const void *userData, GfxCmdBufContext 
 
 void __cdecl R_ResolveDistortion(const GfxViewInfo *viewInfo)
 {
-  unsigned __int8 mainSceneMSAA; // [esp+0h] [ebp-18h]
-  unsigned __int8 resolveSrc; // [esp+17h] [ebp-1h]
+  GfxRenderTargetId resolveDst; // [esp+0h] [ebp-18h]
+  GfxRenderTargetId resolveSrc; // [esp+17h] [ebp-1h]
 
   PROF_SCOPED("Resolve Distortion");
 
   resolveSrc = viewInfo->sceneComposition.mainSceneMSAA;
-  if ( resolveSrc == 3 )
-    mainSceneMSAA = 5;
+  if ( resolveSrc == R_RENDERTARGET_SCENE )
+    resolveDst = R_RENDERTARGET_RESOLVED_POST_SUN;
   else
-    mainSceneMSAA = viewInfo->sceneComposition.mainSceneMSAA;
-  if ( resolveSrc == mainSceneMSAA )
+    resolveDst = viewInfo->sceneComposition.mainSceneMSAA;
+
+  if ( resolveSrc == resolveDst )
   {
       return;
   }
@@ -1090,7 +1098,7 @@ void __cdecl R_ResolveDistortion(const GfxViewInfo *viewInfo)
   {
     R_SetRenderTargetSize(&gfxCmdBufSourceState, resolveSrc);
     R_SetRenderTarget(gfxCmdBufContext, resolveSrc);
-    R_Resolve(gfxCmdBufContext, gfxRenderTargets[mainSceneMSAA].image);
+    R_Resolve(gfxCmdBufContext, gfxRenderTargets[resolveDst].image);
   }
 }
 
@@ -1109,24 +1117,24 @@ void __cdecl RB_StandardPostEffects(GfxViewInfo *viewInfo)
   R_BeginView(&gfxCmdBufSourceState, &viewInfo->sceneDef, &viewInfo->cullViewInfo.viewParms);
   R_SetViewportStruct(&gfxCmdBufSourceState, &viewInfo->cullViewInfo.sceneViewport);
   RB_ApplyLatePostEffects(viewInfo);
-  R_SetRenderTargetSize(&gfxCmdBufSourceState, 3u);
-  R_SetRenderTarget(gfxCmdBufContext, 3u);
+  R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_SCENE);
+  R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_SCENE);
   RB_DrawSunPostEffects(viewInfo->localClientNum, viewInfo->sunVisibility);
   memcpy(gfxCmdBufState.refSamplerState, gfxCmdBufState.refSamplerState, sizeof(gfxCmdBufState));
 }
 
 void __cdecl R_SetResolvedScene(GfxCmdBufContext context)
 {
-    R_SetRenderTargetSize(context.source, 3u);
-    R_SetRenderTarget(context, 3u);
+    R_SetRenderTargetSize(context.source, R_RENDERTARGET_SCENE);
+    R_SetRenderTarget(context, R_RENDERTARGET_SCENE);
 }
 
 void __cdecl RB_ApplyLatePostEffects(const GfxViewInfo *viewInfo)
 {
     PROF_SCOPED("RB_ApplyLatePostEffects");
     RB_ProcessPostEffects(viewInfo);
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 3u);
-    R_SetRenderTarget(gfxCmdBufContext, 3u);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_SCENE);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_SCENE);
     RB_DrawDebugPostEffects();
 }
 
@@ -1242,8 +1250,8 @@ void RB_ShowFbColorDebug_Feedback()
   halfScreenHeight = (float)gfxCmdBufSourceState.renderTargetHeight * 0.5;
   quarterScreenWidth = halfScreenWidth * 0.5;
   quarterScreenHeight = halfScreenHeight * 0.5;
-  R_SetRenderTargetSize(&gfxCmdBufSourceState, 2u);
-  R_SetRenderTarget(gfxCmdBufContext, 2u);
+  R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_FRAME_BUFFER);
+  R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_FRAME_BUFFER);
   R_Set2D(&gfxCmdBufSourceState);
   gfxCmdBufSourceState.input.consts[44][0] = 1.0f;
   gfxCmdBufSourceState.input.consts[44][1] = 0.0f;
@@ -1343,7 +1351,7 @@ void RB_ShowFloatZDebug()
     float halfScreenWidth; // [esp+2Ch] [ebp-Ch]
     float halfScreenHeight; // [esp+30h] [ebp-8h]
 
-    if (gfxRenderTargets[7].surface.color)
+    if (gfxRenderTargets[R_RENDERTARGET_FLOAT_Z].surface.color)
     {
         if (tess.indexCount)
             RB_EndTessSurface();
@@ -1424,8 +1432,8 @@ void __cdecl RB_FullbrightRenderCommands(GfxViewInfo *viewInfo)
     R_InitCmdBufSourceState(gfxCmdBufContext.source, &gfxCmdBufInput, 0);
     gfxCmdBufContext.source->input.data = data;
     R_InitLocalCmdBufState(gfxCmdBufContext.state);
-    R_SetRenderTargetSize(gfxCmdBufContext.source, 2u);
-    R_SetRenderTarget(gfxCmdBufContext, 2u);
+    R_SetRenderTargetSize(gfxCmdBufContext.source, R_RENDERTARGET_FRAME_BUFFER);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_FRAME_BUFFER);
     R_BeginView(gfxCmdBufContext.source, &viewInfo->sceneDef, &viewInfo->cullViewInfo.viewParms);
     R_SetViewportStruct(gfxCmdBufContext.source, &viewInfo->cullViewInfo.displayViewport);
     if ( viewInfo->cmds )
@@ -1497,20 +1505,20 @@ void RB_StandardDrawCommandsCommon()
     }
     viewInfoa = backEndData->viewInfo;
     R_InitCmdBufSourceState(&gfxCmdBufSourceState, &viewInfoa->input, 0);
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 2u);
-    R_SetRenderTarget(gfxCmdBufContext, 2u);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_FRAME_BUFFER);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_FRAME_BUFFER);
     R_BeginView(&gfxCmdBufSourceState, &viewInfoa->sceneDef, &viewInfoa->cullViewInfo.viewParms);
     R_SetViewportStruct(&gfxCmdBufSourceState, &viewInfoa->cullViewInfo.displayViewport);
     R_Set2D(&gfxCmdBufSourceState);
     R_InitLocalCmdBufState(&gfxCmdBufState);
     if (r_ui3d_debug_display->current.enabled)
     {
-        R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[20].image);
+        R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[R_RENDERTARGET_UI3D].image);
         RB_DrawStretchPic(
             rgp.feedbackReplaceMaterial,
             50.0,
             40.0,
-            (float)((float)gfxRenderTargets[20].width / (float)gfxRenderTargets[20].height) * 175.0,
+            (float)((float)gfxRenderTargets[R_RENDERTARGET_UI3D].width / (float)gfxRenderTargets[R_RENDERTARGET_UI3D].height) * 175.0,
             175.0,
             0.0,
             0.0,
@@ -1537,8 +1545,8 @@ void RB_StandardDrawCommandsCommon()
             0xFFFFFFFF,
             GFX_PRIM_STATS_HUD);
         RB_EndTessSurface();
-        if (gfxRenderTargets[22].image)
-            R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[22].image);
+        if (gfxRenderTargets[R_RENDERTARGET_MISSILE_CAM].image)
+            R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[R_RENDERTARGET_MISSILE_CAM].image);
         RB_DrawStretchPic(
             rgp.feedbackReplaceMaterial,
             50.0,
@@ -1597,8 +1605,8 @@ void __cdecl RB_StandardRenderCommands(GfxViewInfo *viewInfo)
   R_InitCmdBufSourceState(&gfxCmdBufSourceState, &gfxCmdBufInput, 0);
   gfxCmdBufSourceState.input.data = backEndData;
   R_InitLocalCmdBufState(&gfxCmdBufState);
-  R_SetRenderTargetSize(&gfxCmdBufSourceState, 2u);
-  R_SetRenderTarget(gfxCmdBufContext, 2u);
+  R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_FRAME_BUFFER);
+  R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_FRAME_BUFFER);
   if ( (viewInfo->sceneComposition.renderingMode & 7) != 0 )
   {
       if ((viewInfo->sceneComposition.renderingMode & 0x40000000) != 0)

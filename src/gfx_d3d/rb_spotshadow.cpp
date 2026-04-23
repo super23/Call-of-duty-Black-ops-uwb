@@ -115,7 +115,7 @@ void __cdecl RB_DrawSpotShadowOverlay()
     {
         h = (double)vidConfig.displayHeight * 0.25;
         gfxCmdBufSourceState.input.codeImageSamplerStates[8] = 97;
-        R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[15].image);
+        R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[R_RENDERTARGET_SHADOWMAP_SPOT].image);
         for (spotShadowIndex = 0; spotShadowIndex < backEndData->spotShadowCount; ++spotShadowIndex)
         {
             t0 = (double)spotShadowIndex * 0.25;

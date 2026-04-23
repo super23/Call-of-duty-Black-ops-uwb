@@ -3099,11 +3099,11 @@ void __cdecl UpdateVPosToWorld(GfxCmdBufSourceState *source)
 }
 
 bool g_renderTargetIsOverridden;
-void R_SetRenderTargetSize(GfxCmdBufSourceState *source, unsigned __int8 newTargetId)
+void R_SetRenderTargetSize(GfxCmdBufSourceState *source, GfxRenderTargetId newTargetId)
 {
     const char *v3; // eax
     const char *v4; // eax
-    unsigned __int8 actualTargetId; // [esp+3h] [ebp-1h]
+    GfxRenderTargetId actualTargetId; // [esp+3h] [ebp-1h]
 
     if (!source
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp", 2819, 0, "%s", "source"))
@@ -3168,7 +3168,7 @@ void R_SetRenderTargetSize(GfxCmdBufSourceState *source, unsigned __int8 newTarg
     UpdateVPosToWorld(source);
 }
 
-GfxViewportBehavior __cdecl R_ViewportBehaviorForRenderTarget(unsigned __int8 renderTargetId)
+GfxViewportBehavior __cdecl R_ViewportBehaviorForRenderTarget(GfxRenderTargetId renderTargetId)
 {
     if ( !s_viewportBehaviorForRenderTarget
         && !Assert_MyHandler(
@@ -3194,64 +3194,36 @@ GfxViewportBehavior __cdecl R_ViewportBehaviorForRenderTarget(unsigned __int8 re
     return s_viewportBehaviorForRenderTarget[renderTargetId];
 }
 
-void R_SetRenderTarget(GfxCmdBufContext context, unsigned __int8 newTargetId)
+void R_SetRenderTarget(GfxCmdBufContext context, GfxRenderTargetId newTargetId)
 {
-    const char *v3; // eax
-    char *v4; // eax
-
     if (pixelCostMode > GFX_PIXEL_COST_MODE_MEASURE_MSEC)
         newTargetId = RB_PixelCost_OverrideRenderTarget(newTargetId);
+
     if (newTargetId != context.state->renderTargetId)
     {
         if (r_logFile->current.integer)
         {
-            v3 = R_RenderTargetName(newTargetId);
-            v4 = va("\n========== R_SetRenderTarget( %s ) ==========\n\n", v3);
-            RB_LogPrint(v4);
+            RB_LogPrint(va("\n========== R_SetRenderTarget( %s ) ==========\n\n", R_RenderTargetName(newTargetId)));
         }
+
         R_UpdateStatsTarget(context);
+
         if (gfxRenderTargets[newTargetId].image)
             R_UnbindImage(context.state, gfxRenderTargets[newTargetId].image);
-        if (context.source->renderTargetHeight != gfxRenderTargets[newTargetId].height
-            && !Assert_MyHandler(
-                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                2885,
-                0,
-                "%s",
-                "context.local.source->renderTargetHeight == (int)gfxRenderTargets[newTargetId].height"))
-        {
-            __debugbreak();
-        }
-        if (context.source->renderTargetWidth <= 0
-            && !Assert_MyHandler(
-                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                2886,
-                0,
-                "%s\n\t(context.local.source->renderTargetWidth) = %i",
-                "(context.local.source->renderTargetWidth > 0)",
-                context.source->renderTargetWidth))
-        {
-            __debugbreak();
-        }
-        if (context.source->renderTargetHeight <= 0
-            && !Assert_MyHandler(
-                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                2887,
-                0,
-                "%s\n\t(context.local.source->renderTargetHeight) = %i",
-                "(context.local.source->renderTargetHeight > 0)",
-                context.source->renderTargetHeight))
-        {
-            __debugbreak();
-        }
+
+        iassert(context.source->renderTargetHeight == (int)gfxRenderTargets[newTargetId].height);
+        iassert(context.source->renderTargetWidth > 0);
+        iassert(context.source->renderTargetHeight > 0);
+
         R_HW_SetRenderTarget(context.state, newTargetId);
+
         context.state->renderTargetId = newTargetId;
         context.source->viewMode = VIEW_MODE_NONE;
         context.source->viewportIsDirty = 1;
     }
 }
 
-void R_HW_SetRenderTarget(GfxCmdBufState *state, unsigned __int8 newTargetId)
+void R_HW_SetRenderTarget(GfxCmdBufState *state, GfxRenderTargetId newTargetId)
 {
     const char *v3; // eax
     const char *v4; // eax
@@ -3341,7 +3313,7 @@ void __cdecl R_UnbindImage(GfxCmdBufState *state, const GfxImage *image)
     }
 }
 
-void R_ClearRenderTargetForMultiGpu(GfxCmdBufContext context, unsigned __int8 targetId)
+void R_ClearRenderTargetForMultiGpu(GfxCmdBufContext context, GfxRenderTargetId targetId)
 {
     const char *v3; // eax
     int semaphore; // [esp+8h] [ebp-8h]

@@ -9,7 +9,7 @@
 #include "r_wind.h"
 
 void    R_DepthPrepass(
-                unsigned __int8 renderTargetId,
+                GfxRenderTargetId renderTargetId,
                 const GfxViewInfo *viewInfo,
                 GfxCmdBuf *cmdBuf)
 {
@@ -43,22 +43,25 @@ void __cdecl R_DepthPrepassCallback(const void *userData, GfxCmdBufContext conte
 
     viewInfo = (const GfxViewInfo *)userData;
 
-    if ( (viewInfo->sceneComposition.renderingMode & 7) == 0 )
+    if ((viewInfo->sceneComposition.renderingMode & 7) == 0)
+    {
         R_HW_EnableScissor(
             context.state->prim.device,
             viewInfo->cullViewInfo.scissorViewport.x,
             viewInfo->cullViewInfo.scissorViewport.y,
             viewInfo->cullViewInfo.scissorViewport.width,
             viewInfo->cullViewInfo.scissorViewport.height);
+    }
+
     if ( viewInfo->renderingFloatZ )
     {
         if ( viewInfo->isMissileCamera )
         {
-            R_SetRenderTarget(context, 0x17u);
+            R_SetRenderTarget(context, R_RENDERTARGET_FLOAT_Z_MISSILE_CAM);
         }
         else
         {
-            if (!gfxRenderTargets[viewInfo->isMissileCamera ? 23 : 7].surface.color
+            if (!gfxRenderTargets[viewInfo->isMissileCamera ? R_RENDERTARGET_FLOAT_Z_MISSILE_CAM : R_RENDERTARGET_FLOAT_Z].surface.color
                 && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_depthprepass.cpp",
                     213,
@@ -68,23 +71,21 @@ void __cdecl R_DepthPrepassCallback(const void *userData, GfxCmdBufContext conte
             {
                 __debugbreak();
             }
-            R_SetRenderTarget(context, 7u);
+            R_SetRenderTarget(context, R_RENDERTARGET_FLOAT_Z);
         }
         baseTechType = 1;
         R_DrawQuadMesh(context, rgp.shadowClearMaterial, &viewInfo->fullSceneViewMesh->meshData);
-        context.source->input.consts[75][0] = 0.0f;
-        context.source->input.consts[75][1] = 0.0f;
-        context.source->input.consts[75][2] = 0.0f;
-        context.source->input.consts[75][3] = 1.0f;
-        R_DirtyCodeConstant(context.source, CONST_SRC_CODE_DEPTH_FROM_CLIP);
+        R_SetCodeConstant(context.source, CONST_SRC_CODE_DEPTH_FROM_CLIP, 0.0f, 0.0f, 0.0f, 1.0f);
     }
     else
     {
-        R_SetRenderTarget(context, dx.supportsSceneNullRenderTarget + 3);
+        R_SetRenderTarget(context, dx.supportsSceneNullRenderTarget ? R_RENDERTARGET_SCENE_NULLCOLOR : R_RENDERTARGET_SCENE);
         baseTechType = 0;
     }
+
     R_SetWindShaderConstants(context.source);
-    memcpy(&info, &viewInfo->drawList[3], sizeof(info));
+
+    info = viewInfo->drawList[DRAWLIST_DECAL];
     info.baseTechType = baseTechType;
 
     {
@@ -92,7 +93,7 @@ void __cdecl R_DepthPrepassCallback(const void *userData, GfxCmdBufContext conte
         R_DrawSurfs(context, 0, &info);
     }
     
-    memcpy(&info, viewInfo->drawList, sizeof(info));
+    info = viewInfo->drawList[DRAWLIST_LIT];
     info.baseTechType = baseTechType;
 
     {

@@ -228,14 +228,14 @@ struct GfxExposureShaderRemap // sizeof=0x18
 
 struct GfxViewRenderControl // sizeof=0x38
 {                                       // XREF: GfxViewInfo/r
-    unsigned __int8 mainSceneMSAA;
-    unsigned __int8 mainScene;
-    unsigned __int8 mainSceneFinal;
-    unsigned __int8 mainSceneSaved;
-    unsigned __int8 extraCam;
-    unsigned __int8 ui3d;
-    unsigned __int8 seeThruDecal;
-    unsigned __int8 frameBuffer;
+    GfxRenderTargetId mainSceneMSAA;
+    GfxRenderTargetId mainScene;
+    GfxRenderTargetId mainSceneFinal;
+    GfxRenderTargetId mainSceneSaved;
+    GfxRenderTargetId extraCam;
+    GfxRenderTargetId ui3d;
+    GfxRenderTargetId seeThruDecal;
+    GfxRenderTargetId frameBuffer;
     float sceneWindowU0;
     float sceneWindowV0;
     float sceneWindowU1;
@@ -249,6 +249,7 @@ struct GfxViewRenderControl // sizeof=0x38
     unsigned int renderingMode;
     unsigned int additionalPostFX;
 };
+static_assert(sizeof(GfxViewRenderControl) == 0x38);
 
 struct GfxUI3DBackend // sizeof=0xE0
 {                                       // XREF: GfxViewInfo/r
@@ -533,7 +534,7 @@ struct __declspec(align(16)) GfxSpotShadow // sizeof=0x1D0
     // padding byte
     // padding byte
     GfxCodeImageRenderTarget spotShadowRenderTarget;
-    unsigned __int8 renderTargetId;
+    GfxRenderTargetId renderTargetId;
     // padding byte
     // padding byte
     // padding byte

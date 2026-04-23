@@ -38,8 +38,8 @@ void __cdecl RB_SetInitialState()
   iassert(gfxCmdBufSourceState.renderTargetHeight == 0);
   iassert(gfxCmdBufSourceState.viewportBehavior == 0);
 
-  R_SetRenderTargetSize(&gfxCmdBufSourceState, 2u);
-  R_SetRenderTarget(gfxCmdBufContext, 2u);
+  R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_FRAME_BUFFER);
+  R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_FRAME_BUFFER);
 
   iassert(gfxCmdBufState.prim.indexBuffer == NULL);
   iassert(gfxCmdBufState.prim.streams[0].vb == NULL);

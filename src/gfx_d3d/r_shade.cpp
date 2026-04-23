@@ -94,11 +94,9 @@ float *__cdecl R_GetCodeConstant(const GfxCmdBufContext context, unsigned int co
 {
     iassert(context.state);
     iassert(context.source);
-    bcassert(constant, 0xC5/*CONST_SRC_CODE_COUNT_FLOAT4*/);
+    bcassert(constant, CONST_SRC_CODE_COUNT_FLOAT4);
 
-    //return ($26AC422158757CD6FC73CEC8E4188A45 *)((char *)&context->source->2048 + 16 * constant);
-    return (float *)((char *)&context.source->input + 16 * constant);
-
+    return context.source->input.consts[constant];
 }
 
 char __cdecl R_IsVertexShaderConstantUpToDate(GfxCmdBufContext context, const MaterialShaderArgument *routingData)
@@ -226,8 +224,8 @@ void __cdecl R_SetVertexShaderConstantFromCode_New(
     constant = &context.state->vertexShaderConstState[routingData->dest];
     index = routingData->u.codeConst.index;
     codeConstBits = (unsigned __int64)routingData->u.codeSampler << 32;
-
-    if (index < 0xC5u)
+    
+    if (index < CONST_SRC_FIRST_CODE_MATRIX)
     {
         if (routingData->u.codeConst.rowCount != 1
             && !Assert_MyHandler(

@@ -1112,7 +1112,6 @@ void __cdecl R_DrawXModelSkinnedCached(GfxCmdBufContext context, const GfxModelS
 
 void __cdecl R_DrawXModelSkinnedUncached(GfxCmdBufContext context, XSurface *xsurf, GfxPackedVertex *skinnedVert)
 {
-    const char *v3; // eax
     GfxCmdBufSourceState *ActiveWorldMatrix; // eax
     IDirect3DVertexBuffer9 *vb; // [esp+0h] [ebp-14h]
     unsigned int vertexOffset; // [esp+4h] [ebp-10h]
@@ -1120,16 +1119,12 @@ void __cdecl R_DrawXModelSkinnedUncached(GfxCmdBufContext context, XSurface *xsu
 
     if ( r_logFile->current.integer )
     {
-        v3 = va("--- R_DrawXModelSkinnedUncached( %s ) ---\n", context.state->material->info.name);
-        RB_LogPrint(v3);
+        RB_LogPrint(va("--- R_DrawXModelSkinnedUncached( %s ) ---\n", context.state->material->info.name));
     }
-    if ( !xsurf && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_tess.cpp", 1508, 0, "%s", "xsurf") )
-        __debugbreak();
-    if ( !skinnedVert
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_tess.cpp", 1509, 0, "%s", "skinnedVert") )
-    {
-        __debugbreak();
-    }
+
+    iassert(xsurf);
+    iassert(skinnedVert);
+
     args.triCount = XSurfaceGetNumTris(xsurf);
     args.vertexCount = XSurfaceGetNumVerts(xsurf);
     context.state->prim.frameStats.geoIndexCount += 3 * args.triCount;
@@ -1137,20 +1132,12 @@ void __cdecl R_DrawXModelSkinnedUncached(GfxCmdBufContext context, XSurface *xsu
     R_CheckVertexDataOverflow(32 * args.vertexCount);
     vertexOffset = R_SetVertexData(context.state, skinnedVert, args.vertexCount, 32);
     vb = gfxBuf.dynamicVertexBuffer->buffer;
-    if ( !vb && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_tess.cpp", 1523, 0, "%s", "vb") )
-        __debugbreak();
+    iassert(vb);
     R_SetStreamSource(&context.state->prim, vb, vertexOffset, 0x20u);
     R_DrawIndexedPrimitive(&context.state->prim, &args);
-    if ( !context.state->prim.primStats
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_tess.cpp",
-                    1530,
-                    0,
-                    "%s",
-                    "context.state->prim.primStats") )
-    {
-        __debugbreak();
-    }
+
+    iassert(context.state->prim.primStats);
+
     context.state->prim.primStats->staticIndexCount += 3 * args.triCount;
     context.state->prim.primStats->staticVertexCount += args.vertexCount;
     if ( r_showTess->current.integer )
@@ -1928,7 +1915,6 @@ unsigned int __cdecl R_TessStaticModelRigidDrawSurfList(
     const GfxDrawSurfListArgs *listArgs,
     GfxCmdBufContext prepassContext)
 {
-    const char *v2; // eax
     GfxDepthRangeType v4; // [esp+4h] [ebp-28h]
     GfxDepthRangeType depthRangeType; // [esp+8h] [ebp-24h]
     GfxCmdBufContext context; // [esp+Ch] [ebp-20h]
@@ -1953,8 +1939,7 @@ unsigned int __cdecl R_TessStaticModelRigidDrawSurfList(
     info = listArgs->info;
     if (r_logFile->current.integer)
     {
-        v2 = va("--- R_TessStaticModelRigidDrawSurfList( %s ) ---\n", context.state->material->info.name);
-        RB_LogPrint(v2);
+        RB_LogPrint(va("--- R_TessStaticModelRigidDrawSurfList( %s ) ---\n", context.state->material->info.name));
     }
     baseTechType = info->baseTechType;
     R_SetupPassCriticalPixelShaderArgs(context);

@@ -10,7 +10,7 @@ bool __cdecl RB_UsingGenericFilter(const GfxViewInfo *viewInfo);
 bool __cdecl RB_UsingReviveFX(const GfxViewInfo *viewInfo);
 bool __cdecl RB_UsingBlur(const GfxViewInfo *viewInfo);
 bool __cdecl RB_SetBloomConstants(const GfxViewInfo *viewInfo);
-void __cdecl RB_BloomStreak(const GfxViewInfo *viewInfo, unsigned __int8 *srcRt, unsigned __int8 *dstRt);
+void __cdecl RB_BloomStreak(const GfxViewInfo *viewInfo, GfxRenderTargetId *srcRt, GfxRenderTargetId *dstRt);
 void __cdecl RB_SetBlurConstants(float radius, float textureScaler);
 void __cdecl RB_SetFilmCurveConstants(const GfxViewInfo *viewInfo);
 // local variable allocation has failed, the output may be wrong!

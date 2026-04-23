@@ -1,7 +1,8 @@
 #pragma once
 #include "r_material.h"
 
-enum GfxRenderTargetId : __int32
+//enum GfxRenderTargetId : __int32
+enum GfxRenderTargetId : unsigned __int8
 {
     R_RENDERTARGET_NULL = 0,
     R_RENDERTARGET_NONE = 0,

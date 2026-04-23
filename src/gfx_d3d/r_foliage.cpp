@@ -716,7 +716,7 @@ void __cdecl R_FoliageSetDefaultShaderConstants(GfxCmdBufSourceState *source)
     R_SetCodeConstantFromVec4(source, CONST_SRC_CODE_GRASS_WIND_FORCE0, zero);
 }
 
-void __cdecl R_SetCodeConstantFromVec4(GfxCmdBufSourceState *source, CodeConstant constant, float *value)
+void __cdecl R_SetCodeConstantFromVec4(GfxCmdBufSourceState *source, CodeConstant constant, const float *value)
 {
     bcassert(constant, CONST_SRC_CODE_COUNT_FLOAT4);
 

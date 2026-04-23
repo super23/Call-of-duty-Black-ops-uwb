@@ -3,7 +3,7 @@
 #include "rb_state.h"
 
 void    R_DepthPrepass(
-                unsigned __int8 renderTargetId,
+                GfxRenderTargetId renderTargetId,
                 const GfxViewInfo *viewInfo,
                 GfxCmdBuf *cmdBuf);
 void __cdecl R_DepthPrepassCallback(const void *userData, GfxCmdBufContext context, GfxCmdBufContext prepassContext);

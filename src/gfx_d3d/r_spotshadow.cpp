@@ -124,8 +124,8 @@ char __cdecl R_AddSpotShadowsForLight(
         spotShadow->viewport.y = spotShadowIndex * (unsigned int)dx.singleSampleDepthStencilSurface;
         spotShadow->viewport.width = (int)dx.singleSampleDepthStencilSurface;
         spotShadow->viewport.height = (int)dx.singleSampleDepthStencilSurface;
-        spotShadow->image = gfxRenderTargets[14].image;
-        spotShadow->renderTargetId = 14;
+        spotShadow->image = gfxRenderTargets[R_RENDERTARGET_SHADOWMAP_SUN].image;
+        spotShadow->renderTargetId = R_RENDERTARGET_SHADOWMAP_SUN;
         v8 = 0.5 / (float)(2 * (int)dx.singleSampleDepthStencilSurface);
         v9 = 0.5 / (float)(int)dx.singleSampleDepthStencilSurface;
         v10 = -0.25 / (float)(2 * (int)dx.singleSampleDepthStencilSurface);
@@ -143,8 +143,8 @@ char __cdecl R_AddSpotShadowsForLight(
         spotShadow->viewport.y = spotShadowIndex << 9;
         spotShadow->viewport.width = 512;
         spotShadow->viewport.height = 512;
-        spotShadow->image = gfxRenderTargets[15].image;
-        spotShadow->renderTargetId = 15;
+        spotShadow->image = gfxRenderTargets[R_RENDERTARGET_SHADOWMAP_SPOT].image;
+        spotShadow->renderTargetId = R_RENDERTARGET_SHADOWMAP_SPOT;
         spotShadow->pixelAdjust[0] = 0.00048828125f;
         spotShadow->pixelAdjust[1] = 0.00024414062f;
         spotShadow->pixelAdjust[2] = 0.0009765625f;

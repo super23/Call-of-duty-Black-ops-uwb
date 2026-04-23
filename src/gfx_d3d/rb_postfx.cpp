@@ -283,7 +283,7 @@ bool __cdecl RB_SetBloomConstants(const GfxViewInfo *viewInfo)
                + viewInfo->bloom.bloomExpansionWeights[3]) != 0.0;
 }
 
-void __cdecl RB_BloomStreak(const GfxViewInfo *viewInfo, unsigned __int8 *srcRt, unsigned __int8 *dstRt)
+void __cdecl RB_BloomStreak(const GfxViewInfo *viewInfo, GfxRenderTargetId *srcRt, GfxRenderTargetId *dstRt)
 {
   float v3; // [esp+10h] [ebp-3B8h]
   float v4; // [esp+14h] [ebp-3B4h]
@@ -376,8 +376,8 @@ void __cdecl RB_BloomStreak(const GfxViewInfo *viewInfo, unsigned __int8 *srcRt,
   float v91; // [esp+2B4h] [ebp-114h]
   float v92; // [esp+2B8h] [ebp-110h]
   float v93; // [esp+2BCh] [ebp-10Ch]
-  unsigned __int8 v94; // [esp+2C6h] [ebp-102h]
-  unsigned __int8 tmp; // [esp+2C7h] [ebp-101h]
+  GfxRenderTargetId v94; // [esp+2C6h] [ebp-102h]
+  GfxRenderTargetId tmp; // [esp+2C7h] [ebp-101h]
   unsigned int j; // [esp+2C8h] [ebp-100h]
   float dg; // [esp+2CCh] [ebp-FCh]
   float dga; // [esp+2CCh] [ebp-FCh]
@@ -445,9 +445,9 @@ void __cdecl RB_BloomStreak(const GfxViewInfo *viewInfo, unsigned __int8 *srcRt,
   if ( (float)((float)(viewInfo->bloom.bloomStreakXTint[0] + viewInfo->bloom.bloomStreakXTint[1])
              + viewInfo->bloom.bloomStreakXTint[2]) != 0.0 )
   {
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 0x1Eu);
-    R_SetRenderTarget(gfxCmdBufContext, 0x1Eu);
-    R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, 0x1Eu);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_BLOOM_STREAK);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_BLOOM_STREAK);
+    R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, R_RENDERTARGET_BLOOM_STREAK);
     ib = viewInfo->bloom.bloomStreakXLevels1[0];
     if ( ib < viewInfo->bloom.bloomStreakXLevels1[1] )
       v4 = viewInfo->bloom.bloomStreakXLevels1[1];
@@ -468,16 +468,16 @@ void __cdecl RB_BloomStreak(const GfxViewInfo *viewInfo, unsigned __int8 *srcRt,
     gfxCmdBufSourceState.input.consts[122][2] = ob;
     gfxCmdBufSourceState.input.consts[122][3] = 0.0f;
     R_DirtyCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_POSTFX_CONTROL1);
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[27].image);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP3].image);
     RB_Filter(rgp.bloomRemapStreak, viewInfo);
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[30].image);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[R_RENDERTARGET_BLOOM_STREAK].image);
     r = viewInfo->bloom.bloomStreakXInnerTint[0];
     g = viewInfo->bloom.bloomStreakXInnerTint[1];
     b = viewInfo->bloom.bloomStreakXInnerTint[2];
     dr = (float)(viewInfo->bloom.bloomStreakXOuterTint[0] - viewInfo->bloom.bloomStreakXInnerTint[0]) * 0.0625;
     dg = (float)(viewInfo->bloom.bloomStreakXOuterTint[1] - viewInfo->bloom.bloomStreakXInnerTint[1]) * 0.0625;
     db = (float)(viewInfo->bloom.bloomStreakXOuterTint[2] - viewInfo->bloom.bloomStreakXInnerTint[2]) * 0.0625;
-    pSize = 1.0 / (float)gfxRenderTargets[30].height;
+    pSize = 1.0 / (float)gfxRenderTargets[R_RENDERTARGET_BLOOM_STREAK].height;
     v88 = g * sampleWeight[0];
     v89 = b * sampleWeight[0];
     v90 = sampleTaps[0] * pSize;
@@ -680,9 +680,9 @@ void __cdecl RB_BloomStreak(const GfxViewInfo *viewInfo, unsigned __int8 *srcRt,
   if ( (float)((float)(viewInfo->bloom.bloomStreakYTint[0] + viewInfo->bloom.bloomStreakYTint[1])
              + viewInfo->bloom.bloomStreakYTint[2]) != 0.0 )
   {
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 0x1Eu);
-    R_SetRenderTarget(gfxCmdBufContext, 0x1Eu);
-    R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, 0x1Eu);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_BLOOM_STREAK);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_BLOOM_STREAK);
+    R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, R_RENDERTARGET_BLOOM_STREAK);
     ib = viewInfo->bloom.bloomStreakYLevels1[0];
     if ( ib < viewInfo->bloom.bloomStreakYLevels1[1] )
       v3 = viewInfo->bloom.bloomStreakYLevels1[1];
@@ -703,16 +703,16 @@ void __cdecl RB_BloomStreak(const GfxViewInfo *viewInfo, unsigned __int8 *srcRt,
     gfxCmdBufSourceState.input.consts[122][2] = ob;
     gfxCmdBufSourceState.input.consts[122][3] = 0.0f;
     R_DirtyCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_POSTFX_CONTROL1);
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[27].image);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP3].image);
     RB_Filter(rgp.bloomRemapStreak, viewInfo);
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[30].image);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[R_RENDERTARGET_BLOOM_STREAK].image);
     rp = viewInfo->bloom.bloomStreakYInnerTint[0];
     g = viewInfo->bloom.bloomStreakYInnerTint[1];
     b = viewInfo->bloom.bloomStreakYInnerTint[2];
     dra = (float)(viewInfo->bloom.bloomStreakYOuterTint[0] - viewInfo->bloom.bloomStreakYInnerTint[0]) * 0.0625;
     dga = (float)(viewInfo->bloom.bloomStreakYOuterTint[1] - viewInfo->bloom.bloomStreakYInnerTint[1]) * 0.0625;
     db = (float)(viewInfo->bloom.bloomStreakYOuterTint[2] - viewInfo->bloom.bloomStreakYInnerTint[2]) * 0.0625;
-    pSize = 1.0 / (float)gfxRenderTargets[30].height;
+    pSize = 1.0 / (float)gfxRenderTargets[R_RENDERTARGET_BLOOM_STREAK].height;
     v36 = g * sampleWeight[0];
     v37 = b * sampleWeight[0];
     v38 = sampleTaps[0] * pSize;
@@ -1323,77 +1323,77 @@ void __cdecl RB_BloomLDR(const GfxViewInfo *viewInfo)
     float v10; // [esp+50h] [ebp-14h]
     float v11; // [esp+54h] [ebp-10h]
     float v12; // [esp+58h] [ebp-Ch]
-    unsigned __int8 srcRt; // [esp+61h] [ebp-3h] BYREF
-    unsigned __int8 dstRt; // [esp+62h] [ebp-2h] BYREF
-    unsigned __int8 tmp; // [esp+63h] [ebp-1h]
+    GfxRenderTargetId srcRt; // [esp+61h] [ebp-3h] BYREF
+    GfxRenderTargetId dstRt; // [esp+62h] [ebp-2h] BYREF
+    GfxRenderTargetId tmp; // [esp+63h] [ebp-1h]
 
     PROF_SCOPED("LDR Bloom");
 
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 0x19u);
-    R_SetRenderTarget(gfxCmdBufContext, 0x19u);
-    R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, 0x19u);
-    v10 = -2.0 / (float)gfxRenderTargets[6].height;
-    v11 = 2.0 / (float)gfxRenderTargets[6].width;
-    v12 = 2.0 / (float)gfxRenderTargets[6].height;
-    gfxCmdBufSourceState.input.consts[121][0] = -2.0 / (float)gfxRenderTargets[6].width;
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_BLOOM_MIP1);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_BLOOM_MIP1);
+    R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, R_RENDERTARGET_BLOOM_MIP1);
+    v10 = -2.0 / (float)gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].height;
+    v11 = 2.0 / (float)gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].width;
+    v12 = 2.0 / (float)gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].height;
+    gfxCmdBufSourceState.input.consts[121][0] = -2.0 / (float)gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].width;
     gfxCmdBufSourceState.input.consts[121][1] = v10;
     gfxCmdBufSourceState.input.consts[121][2] = v11;
     gfxCmdBufSourceState.input.consts[121][3] = v12;
     R_DirtyCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_POSTFX_CONTROL0);
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[6].image);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
     RB_Filter(rgp.bloomDownsampleLDR, viewInfo);
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 0x1Au);
-    R_SetRenderTarget(gfxCmdBufContext, 0x1Au);
-    R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, 0x1Au);
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[25].image);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_BLOOM_MIP2);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_BLOOM_MIP2);
+    R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, R_RENDERTARGET_BLOOM_MIP2);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP1].image);
     RB_Filter(rgp.resampleFinal, viewInfo);
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 0x1Bu);
-    R_SetRenderTarget(gfxCmdBufContext, 0x1Bu);
-    R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, 0x1Bu);
-    v7 = -2.0 / (float)gfxRenderTargets[26].height;
-    v8 = 2.0 / (float)gfxRenderTargets[26].width;
-    v9 = 2.0 / (float)gfxRenderTargets[26].height;
-    gfxCmdBufSourceState.input.consts[121][0] = -2.0 / (float)gfxRenderTargets[26].width;
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_BLOOM_MIP3);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_BLOOM_MIP3);
+    R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, R_RENDERTARGET_BLOOM_MIP3);
+    v7 = -2.0 / (float)gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP2].height;
+    v8 = 2.0 / (float)gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP2].width;
+    v9 = 2.0 / (float)gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP2].height;
+    gfxCmdBufSourceState.input.consts[121][0] = -2.0 / (float)gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP2].width;
     gfxCmdBufSourceState.input.consts[121][1] = v7;
     gfxCmdBufSourceState.input.consts[121][2] = v8;
     gfxCmdBufSourceState.input.consts[121][3] = v9;
     R_DirtyCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_POSTFX_CONTROL0);
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[26].image);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP2].image);
     RB_Filter(rgp.bloomDownsampleConvolution, viewInfo);
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 0x1Cu);
-    R_SetRenderTarget(gfxCmdBufContext, 0x1Cu);
-    R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, 0x1Cu);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_BLOOM_MIP3_PING);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_BLOOM_MIP3_PING);
+    R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, R_RENDERTARGET_BLOOM_MIP3_PING);
     RB_SetBloomConstants(viewInfo);
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[27].image);
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x23u, gfxRenderTargets[27].image);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP3].image);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x23u, gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP3].image);
     RB_Filter(rgp.bloomRemap, viewInfo);
-    RB_SetBlurConstants(viewInfo->bloom.bloomBlurRadius, 1.0 / (float)gfxRenderTargets[27].width);
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 0x1Du);
-    R_SetRenderTarget(gfxCmdBufContext, 0x1Du);
-    R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, 0x1Du);
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[28].image);
+    RB_SetBlurConstants(viewInfo->bloom.bloomBlurRadius, 1.0 / (float)gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP3].width);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_BLOOM_MIP3_PONG);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_BLOOM_MIP3_PONG);
+    R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, R_RENDERTARGET_BLOOM_MIP3_PONG);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP3_PING].image);
     RB_Filter(rgp.bloomBlurX, viewInfo);
-    RB_SetBlurConstants(viewInfo->bloom.bloomBlurRadius, 1.0 / (float)gfxRenderTargets[27].height);
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 0x1Cu);
-    R_SetRenderTarget(gfxCmdBufContext, 0x1Cu);
-    R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, 0x1Cu);
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[29].image);
+    RB_SetBlurConstants(viewInfo->bloom.bloomBlurRadius, 1.0 / (float)gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP3].height);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_BLOOM_MIP3_PING);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_BLOOM_MIP3_PING);
+    R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, R_RENDERTARGET_BLOOM_MIP3_PING);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP3_PONG].image);
     RB_Filter(rgp.bloomBlurY, viewInfo);
-    srcRt = 28;
-    dstRt = 29;
+    srcRt = R_RENDERTARGET_BLOOM_MIP3_PING;
+    dstRt = R_RENDERTARGET_BLOOM_MIP3_PONG;
     RB_BloomStreak(viewInfo, &srcRt, &dstRt);
-    v4 = 0.5 / (float)gfxRenderTargets[27].height;
-    v5 = 0.5 / (float)gfxRenderTargets[27].width;
-    v6 = -1.5 / (float)gfxRenderTargets[27].height;
-    gfxCmdBufSourceState.input.consts[121][0] = 1.5 / (float)gfxRenderTargets[27].width;
+    v4 = 0.5 / (float)gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP3].height;
+    v5 = 0.5 / (float)gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP3].width;
+    v6 = -1.5 / (float)gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP3].height;
+    gfxCmdBufSourceState.input.consts[121][0] = 1.5 / (float)gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP3].width;
     gfxCmdBufSourceState.input.consts[121][1] = v4;
     gfxCmdBufSourceState.input.consts[121][2] = v5;
     gfxCmdBufSourceState.input.consts[121][3] = v6;
     R_DirtyCodeConstant(&gfxCmdBufSourceState, CONST_SRC_CODE_POSTFX_CONTROL0);
-    v1 = -0.5 / (float)gfxRenderTargets[27].height;
-    v2 = -0.5 / (float)gfxRenderTargets[27].width;
-    v3 = 1.5 / (float)gfxRenderTargets[27].height;
-    gfxCmdBufSourceState.input.consts[122][0] = -1.5 / (float)gfxRenderTargets[27].width;
+    v1 = -0.5 / (float)gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP3].height;
+    v2 = -0.5 / (float)gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP3].width;
+    v3 = 1.5 / (float)gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP3].height;
+    gfxCmdBufSourceState.input.consts[122][0] = -1.5 / (float)gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP3].width;
     gfxCmdBufSourceState.input.consts[122][1] = v1;
     gfxCmdBufSourceState.input.consts[122][2] = v2;
     gfxCmdBufSourceState.input.consts[122][3] = v3;
@@ -1406,16 +1406,16 @@ void __cdecl RB_BloomLDR(const GfxViewInfo *viewInfo)
     tmp = srcRt;
     srcRt = dstRt;
     dstRt = tmp;
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 3u);
-    R_SetRenderTarget(gfxCmdBufContext, 3u);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_SCENE);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_SCENE);
     RB_SetFilmCurveConstants(viewInfo);
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[6].image);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
     R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x23u, gfxRenderTargets[srcRt].image);
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x24u, gfxRenderTargets[6].image);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x24u, gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
     RB_Filter(rgp.bloomApplyLDR, viewInfo);
     RB_SetVisionSetColorCorrection(viewInfo);
-    R_Resolve(gfxCmdBufContext, gfxRenderTargets[6].image);
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0xAu, gfxRenderTargets[6].image);
+    R_Resolve(gfxCmdBufContext, gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0xAu, gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
     RB_Filter(rgp.postFxColorMaterial, viewInfo);
 }
 
@@ -1566,8 +1566,8 @@ void RB_PoisonFX(const GfxViewInfo *viewInfo)
     float dvisionPhase0, dvisionPhase1;
     float time;
 
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 3);
-    R_SetRenderTarget(gfxCmdBufContext, 3);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_SCENE);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_SCENE);
 
     /* smooth pulse (clamped cubic) */
     pulse = r_poisonFX_pulse->current.value - 1.0f;
@@ -1774,7 +1774,7 @@ void    RB_GenericFilterFX(const GfxViewInfo *viewInfo)
   unsigned __int8 v107; // [esp+1F2h] [ebp-72h]
   char v108; // [esp+1F3h] [ebp-71h]
   int v109; // [esp+1F4h] [ebp-70h] OVERLAPPED
-  unsigned __int8 v110; // [esp+1FBh] [ebp-69h]
+  GfxRenderTargetId v110; // [esp+1FBh] [ebp-69h]
   int j; // [esp+1FCh] [ebp-68h] OVERLAPPED
   char v112; // [esp+202h] [ebp-62h]
   char v113; // [esp+203h] [ebp-61h]
@@ -1806,18 +1806,18 @@ void    RB_GenericFilterFX(const GfxViewInfo *viewInfo)
          || (float)(p_genericFilter->passParam[i][j][4] * p_genericFilter->passFlareOcclusion[i][j]) > 0.0)
         && r_superFlare_enable->current.enabled )
       {
-        v110 = 0;
+        v110 = R_RENDERTARGET_NONE;
         v109 = p_genericFilter->passTarget[i][j];
         switch ( --v109 )
         {
           case 0:
-            v110 = 12;
+            v110 = R_RENDERTARGET_POST_EFFECT_0;
             goto LABEL_18;
           case 1:
-            v110 = 13;
+            v110 = R_RENDERTARGET_POST_EFFECT_1;
             goto LABEL_18;
           case 2:
-            v110 = 3;
+            v110 = R_RENDERTARGET_SCENE;
 LABEL_18:
             v108 = 0;
             v107 = 0;
@@ -1865,21 +1865,21 @@ LABEL_18:
             }
             if ( v108 == 12 || HIBYTE(semaphore) == 12 )
             {
-              R_SetRenderTargetSize(&gfxCmdBufSourceState, 0xCu);
-              R_SetRenderTarget(gfxCmdBufContext, 0xCu);
-              R_Resolve(gfxCmdBufContext, gfxRenderTargets[12].image);
+              R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_POST_EFFECT_0);
+              R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_POST_EFFECT_0);
+              R_Resolve(gfxCmdBufContext, gfxRenderTargets[R_RENDERTARGET_POST_EFFECT_0].image);
             }
             if ( v108 == 13 || HIBYTE(semaphore) == 13 )
             {
-              R_SetRenderTargetSize(&gfxCmdBufSourceState, 0xDu);
-              R_SetRenderTarget(gfxCmdBufContext, 0xDu);
-              R_Resolve(gfxCmdBufContext, gfxRenderTargets[13].image);
+              R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_POST_EFFECT_1);
+              R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_POST_EFFECT_1);
+              R_Resolve(gfxCmdBufContext, gfxRenderTargets[R_RENDERTARGET_POST_EFFECT_1].image);
             }
             if ( v108 == 3 || HIBYTE(semaphore) == 3 )
             {
-              R_SetRenderTargetSize(&gfxCmdBufSourceState, 3u);
-              R_SetRenderTarget(gfxCmdBufContext, 3u);
-              Surface = Image_GetSurface(gfxRenderTargets[6].image);
+              R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_SCENE);
+              R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_SCENE);
+              Surface = Image_GetSurface(gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
               if ( !Surface
                 && !Assert_MyHandler(
                       "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_postfx.cpp",
@@ -1940,8 +1940,8 @@ LABEL_18:
               R_SetCodeImageTexture(&gfxCmdBufSourceState, 0xEu, gfxRenderTargets[BYTE2(semaphore)].image);
             if ( v110 == 3 )
             {
-              R_SetRenderTargetSize(&gfxCmdBufSourceState, 3u);
-              R_SetRenderTarget(gfxCmdBufContext, 3u);
+              R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_SCENE);
+              R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_SCENE);
             }
             else
             {
@@ -2186,7 +2186,7 @@ LABEL_18:
             }
             break;
           case 3:
-            v110 = 5;
+            v110 = R_RENDERTARGET_RESOLVED_POST_SUN;
             break;
           default:
             continue;
@@ -2195,17 +2195,17 @@ LABEL_18:
     }
     if ( v113 )
     {
-        RB_SetBlurConstants(viewInfo->bloom.bloomBlurRadius, 1.0 / gfxRenderTargets[13].width);
-        R_SetRenderTargetSize(&gfxCmdBufSourceState, 0xDu);
-        R_SetRenderTarget(gfxCmdBufContext, 0xDu);
-        R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, 0xDu);
-        R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[12].image);
+        RB_SetBlurConstants(viewInfo->bloom.bloomBlurRadius, 1.0 / gfxRenderTargets[R_RENDERTARGET_POST_EFFECT_1].width);
+        R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_POST_EFFECT_1);
+        R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_POST_EFFECT_1);
+        R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, R_RENDERTARGET_POST_EFFECT_1);
+        R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[R_RENDERTARGET_POST_EFFECT_0].image);
         RB_Filter(rgp.bloomBlurX, viewInfo);
-        RB_SetBlurConstants(viewInfo->bloom.bloomBlurRadius, 1.0 / gfxRenderTargets[12].height);
-        R_SetRenderTargetSize(&gfxCmdBufSourceState, 0xCu);
-        R_SetRenderTarget(gfxCmdBufContext, 0xCu);
-        R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, 0xCu);
-        R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[13].image);
+        RB_SetBlurConstants(viewInfo->bloom.bloomBlurRadius, 1.0 / gfxRenderTargets[R_RENDERTARGET_POST_EFFECT_0].height);
+        R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_POST_EFFECT_0);
+        R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_POST_EFFECT_0);
+        R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, R_RENDERTARGET_POST_EFFECT_0);
+        R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x22u, gfxRenderTargets[R_RENDERTARGET_POST_EFFECT_1].image);
         RB_Filter(rgp.bloomBlurY, viewInfo);
         gfxCmdBufSourceState.input.codeImageRenderTargetControl[13].packed = 0xC800062;
         R_SetRenderTargetSize(&gfxCmdBufSourceState, viewInfo->sceneComposition.mainScene);
@@ -2231,9 +2231,9 @@ void __cdecl RB_FlameFX(const GfxViewInfo *viewInfo)
     float fadeEffect; // [esp+3Ch] [ebp-8h]
     const Material *flameFxMaterial; // [esp+40h] [ebp-4h]
 
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[6].image);
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 3u);
-    R_SetRenderTarget(gfxCmdBufContext, 3u);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_SCENE);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_SCENE);
     flameFxMaterial = rgp.permapAssets.flameThrowerFXMaterial;
     R_UpdateCodeConstant(
         &gfxCmdBufSourceState,
@@ -2290,9 +2290,9 @@ void __cdecl RB_ElectrifiedFX(const GfxViewInfo *viewInfo)
     const Material *electrifiedMtl; // [esp+3Ch] [ebp-8h]
     float fadeEffect; // [esp+40h] [ebp-4h]
 
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[6].image);
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 3u);
-    R_SetRenderTarget(gfxCmdBufContext, 3u);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_SCENE);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_SCENE);
     electrifiedMtl = rgp.permapAssets.electrifiedFXMaterial;
     R_UpdateCodeConstant(
         &gfxCmdBufSourceState,
@@ -2351,9 +2351,9 @@ void __cdecl RB_TransportedFX(const GfxViewInfo *viewInfo)
     const Material *transportedMtl; // [esp+3Ch] [ebp-8h]
     float fadeEffect; // [esp+40h] [ebp-4h]
 
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[6].image);
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 3u);
-    R_SetRenderTarget(gfxCmdBufContext, 3u);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_SCENE);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_SCENE);
     transportedMtl = rgp.permapAssets.transportedFXMaterial;
     R_UpdateCodeConstant(
         &gfxCmdBufSourceState,
@@ -2417,9 +2417,9 @@ void __cdecl RB_WaterSheetingFX(const GfxViewInfo *viewInfo)
     float fadeEffect; // [esp+4Ch] [ebp-8h]
     float x_speed; // [esp+50h] [ebp-4h]
 
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[6].image);
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 3u);
-    R_SetRenderTarget(gfxCmdBufContext, 3u);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_SCENE);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_SCENE);
     R_CalcGameTimeVec(gfxCmdBufSourceState.sceneDef.floatTime, gameTimeVec);
     x_speed = viewInfo->waterSheetingFx.distortionScale[0];
     if (viewInfo->waterSheetingFx.distortionScale[1] <= 0.0)
@@ -2475,10 +2475,10 @@ void __cdecl RB_ReviveFX(const GfxViewInfo *viewInfo)
 
   PROF_SCOPED("RB_ReviveFX");
 
-  RB_GaussianFilterImage(6.4000001, 6u, 0xCu);
-  R_SetRenderTargetSize(&gfxCmdBufSourceState, 3u);
-  R_SetRenderTarget(gfxCmdBufContext, 3u);
-  R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[6].image);
+  RB_GaussianFilterImage(6.4000001, R_RENDERTARGET_RESOLVED_SCENE, R_RENDERTARGET_POST_EFFECT_0);
+  R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_SCENE);
+  R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_SCENE);
+  R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
   colorTempMatrix(whiteTempMatrix, viewInfo->reviveFx.reviveEdgeColorTemp);
   colorSaturationMatrix(saturationMatrix, viewInfo->reviveFx.reviveEdgeSaturation);
   MatrixMultiply44(whiteTempMatrix, saturationMatrix, finalMatrix);
@@ -2625,8 +2625,8 @@ LABEL_29:
       RB_SaveScreen_BlendFlashed(&viewInfo->saveScreenFx.blendFlashedParam, viewInfo);
       RB_SaveScreen(&viewInfo->saveScreenFx.saveScreenParam, viewInfo);
     }
-    R_Resolve(gfxCmdBufContext, gfxRenderTargets[6].image);
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0xAu, gfxRenderTargets[6].image);
+    R_Resolve(gfxCmdBufContext, gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 0xAu, gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
   }
 }
 
@@ -2684,8 +2684,8 @@ void RB_GetResolvedScene()
   {
     __debugbreak();
   }
-  R_Resolve(gfxCmdBufContext, gfxRenderTargets[6].image);
-  R_SetCodeImageTexture(&gfxCmdBufSourceState, 0xAu, gfxRenderTargets[6].image);
+  R_Resolve(gfxCmdBufContext, gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
+  R_SetCodeImageTexture(&gfxCmdBufSourceState, 0xAu, gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
 }
 
 void    RB_ApplyDepthOfField(const GfxViewInfo *viewInfo)
@@ -2738,8 +2738,8 @@ void    RB_ApplyDepthOfField(const GfxViewInfo *viewInfo)
         1.0 / (float)(1.0 - mediumFrac),
         -mediumFrac / (float)(1.0 - mediumFrac));
     RB_GetDepthOfFieldInputImages(viewInfo->dof.nearBlur);
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 2u);
-    R_SetRenderTarget(gfxCmdBufContext, 2u);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_FRAME_BUFFER);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_FRAME_BUFFER);
     if (dx.supportsIntZ)
         RB_Filter(rgp.postFxDofNvIntzMaterial, viewInfo);
     else
@@ -2853,21 +2853,21 @@ double __cdecl RB_GetDepthOfFieldBlurFraction(const GfxViewInfo *viewInfo, float
 
 void __cdecl RB_GetDepthOfFieldInputImages(float radius)
 {
-  R_SetRenderTargetSize(&gfxCmdBufSourceState, 0xDu);
-  R_SetRenderTarget(gfxCmdBufContext, 0xDu);
-  R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, 0xDu);
+  R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_POST_EFFECT_1);
+  R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_POST_EFFECT_1);
+  R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, R_RENDERTARGET_POST_EFFECT_1);
   if ( dx.supportsIntZ )
     RB_FullScreenFilter(rgp.dofDownsampleNvIntzMaterial);
   else
     RB_FullScreenFilter(rgp.dofDownsampleMaterial);
-  RB_GaussianFilterImage(radius * 0.25, 0xDu, 0xCu);
-  R_SetRenderTargetSize(&gfxCmdBufSourceState, 8u);
-  R_SetRenderTarget(gfxCmdBufContext, 8u);
-  R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, 8u);
+  RB_GaussianFilterImage(radius * 0.25, R_RENDERTARGET_POST_EFFECT_1, R_RENDERTARGET_POST_EFFECT_0);
+  R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_PINGPONG_0);
+  R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_PINGPONG_0);
+  R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, R_RENDERTARGET_PINGPONG_0);
   RB_FullScreenFilter(rgp.dofNearCocMaterial);
-  R_SetRenderTargetSize(&gfxCmdBufSourceState, 0xDu);
-  R_SetRenderTarget(gfxCmdBufContext, 0xDu);
-  R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[8].image);
+  R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_POST_EFFECT_1);
+  R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_POST_EFFECT_1);
+  R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[R_RENDERTARGET_PINGPONG_0].image);
   RB_FullScreenFilter(rgp.smallBlurMaterial);
 }
 
@@ -2916,7 +2916,7 @@ void __cdecl RB_BlurScreen(const GfxViewInfo *viewInfo, float blurRadius)
     HIBYTE(color) = (int)((float)((float)(blurRadius / blurRadiusMin) * 255.0) + 9.313225746154785e-10);
     blurRadius = 1440.0 / (float)gfxCmdBufSourceState.sceneViewport.height;
   }
-  imageSurface = Image_GetSurface(gfxRenderTargets[6].image);
+  imageSurface = Image_GetSurface(gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
   iassert(imageSurface);
   R_AssertDXDeviceOwnership();
   if ( r_logFile && r_logFile->current.integer )
@@ -2932,7 +2932,7 @@ void __cdecl RB_BlurScreen(const GfxViewInfo *viewInfo, float blurRadius)
   //       0,
   //       D3DTEXF_LINEAR);
 
-  hr = gfxCmdBufContext.state->prim.device->StretchRect(gfxRenderTargets[3].surface.color, NULL, imageSurface, NULL, D3DTEXF_LINEAR);
+  hr = gfxCmdBufContext.state->prim.device->StretchRect(gfxRenderTargets[R_RENDERTARGET_SCENE].surface.color, NULL, imageSurface, NULL, D3DTEXF_LINEAR);
   if ( semaphore )
     R_ReleaseDXDeviceOwnership();
   if ( hr < 0 )
@@ -2963,10 +2963,10 @@ void __cdecl RB_BlurScreen(const GfxViewInfo *viewInfo, float blurRadius)
       4257,
       v3);
   }
-  RB_GaussianFilterImage(blurRadius, 6u, 0xCu);
-  R_SetRenderTargetSize(&gfxCmdBufSourceState, 3u);
-  R_SetRenderTarget(gfxCmdBufContext, 3u);
-  R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[12].image);
+  RB_GaussianFilterImage(blurRadius, R_RENDERTARGET_RESOLVED_SCENE, R_RENDERTARGET_POST_EFFECT_0);
+  R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_SCENE);
+  R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_SCENE);
+  R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[R_RENDERTARGET_POST_EFFECT_0].image);
   RB_ColoredFilter(rgp.feedbackBlendMaterial, viewInfo, color);
 }
 

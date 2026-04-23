@@ -6,7 +6,7 @@
 #include "rb_draw3d.h"
 #include "r_state.h"
 
-void __cdecl RB_GaussianFilterImage(float radius, unsigned __int8 srcRenderTargetId, unsigned __int8 dstRenderTargetId)
+void __cdecl RB_GaussianFilterImage(float radius, GfxRenderTargetId srcRenderTargetId, GfxRenderTargetId dstRenderTargetId)
 {
     float radiusY; // [esp+30h] [ebp-13ACh] BYREF
     int srcWidth; // [esp+34h] [ebp-13A8h]
@@ -428,7 +428,7 @@ void __cdecl RB_SetupFilterPass(const GfxImageFilterPass *filterPass)
 
 void __cdecl RB_FilterPingPong(const GfxImageFilter *filter, int passIndex)
 {
-  unsigned __int8 finalTarget; // [esp+3h] [ebp-11h]
+  GfxRenderTargetId finalTarget; // [esp+3h] [ebp-11h]
   GfxImage *image; // [esp+4h] [ebp-10h]
   unsigned int pingpong; // [esp+8h] [ebp-Ch]
 
@@ -441,7 +441,7 @@ void __cdecl RB_FilterPingPong(const GfxImageFilter *filter, int passIndex)
   if ( passIndex == filter->passCount - 1 )
     finalTarget = filter->finalTarget;
   else
-    finalTarget = pingpong + 8;
+    finalTarget = (GfxRenderTargetId)(pingpong + 8);
   R_SetRenderTargetSize(&gfxCmdBufSourceState, finalTarget);
   R_SetRenderTarget(gfxCmdBufContext, finalTarget);
   R_ClearRenderTargetForMultiGpu(gfxCmdBufContext, finalTarget);

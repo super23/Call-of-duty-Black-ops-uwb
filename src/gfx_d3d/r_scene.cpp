@@ -3554,8 +3554,8 @@ void __cdecl R_GenerateSortedDrawSurfs(
     if ( forMissileCamView )
     {
         viewInfo->isMissileCamera = 1;
-        viewInfo->sceneComposition.mainSceneMSAA = 22;
-        image = gfxRenderTargets[23].image;
+        viewInfo->sceneComposition.mainSceneMSAA = R_RENDERTARGET_MISSILE_CAM;
+        image = gfxRenderTargets[R_RENDERTARGET_FLOAT_Z_MISSILE_CAM].image;
         if ( viewInfo == (GfxViewInfo *)-9872
             && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.h", 1850, 0, "%s", "input") )
         {
@@ -3581,7 +3581,7 @@ void __cdecl R_GenerateSortedDrawSurfs(
     else
     {
         viewInfo->isMissileCamera = 0;
-        viewInfo->sceneComposition.mainSceneMSAA = 3;
+        viewInfo->sceneComposition.mainSceneMSAA = R_RENDERTARGET_SCENE;
         R_SetInputCodeConstant(&viewInfo->input, 0xC3u, 0.0, 0.0, 0.0, 0.0);
     }
     if ( r_debugShowPrimaryLights->current.enabled )
@@ -3981,20 +3981,20 @@ bool __cdecl R_DynamicShadowType()
 
 void __cdecl R_SetSceneComposition(GfxViewInfo *viewInfo, const GfxSceneParms *sceneParms, bool extraCam)
 {
-    viewInfo->sceneComposition.ui3d = 20;
-    viewInfo->sceneComposition.seeThruDecal = 19;
-    viewInfo->sceneComposition.frameBuffer = 2;
+    viewInfo->sceneComposition.ui3d = R_RENDERTARGET_UI3D;
+    viewInfo->sceneComposition.seeThruDecal = R_RENDERTARGET_SEETHRU_DECAL;
+    viewInfo->sceneComposition.frameBuffer = R_RENDERTARGET_FRAME_BUFFER;
     viewInfo->sceneComposition.renderingMode = 0;
-    viewInfo->sceneComposition.extraCam = 22;
+    viewInfo->sceneComposition.extraCam = R_RENDERTARGET_MISSILE_CAM;
     if ( extraCam )
     {
-        viewInfo->sceneComposition.mainSceneMSAA = 22;
-        viewInfo->sceneComposition.mainScene = 22;
+        viewInfo->sceneComposition.mainSceneMSAA = R_RENDERTARGET_MISSILE_CAM;
+        viewInfo->sceneComposition.mainScene = R_RENDERTARGET_MISSILE_CAM;
     }
     else
     {
-        viewInfo->sceneComposition.mainSceneMSAA = 3;
-        viewInfo->sceneComposition.mainScene = 3;
+        viewInfo->sceneComposition.mainSceneMSAA = R_RENDERTARGET_SCENE;
+        viewInfo->sceneComposition.mainScene = R_RENDERTARGET_SCENE;
     }
 }
 
@@ -4145,7 +4145,7 @@ void __cdecl R_SetDepthOfField(GfxViewInfo *viewInfo, const GfxSceneParms *scene
         }
         if ( !dx.supportsIntZ )
         {
-            if (!gfxRenderTargets[7].surface.color)
+            if (!gfxRenderTargets[R_RENDERTARGET_FLOAT_Z].surface.color)
                 Com_Error(
                     ERR_FATAL,
                     "Depth of field used (enabled via r_dof_enable or r_dof_tweak) with no float-z buffer (r_floatz wasn't enabled "
@@ -5750,7 +5750,7 @@ char __cdecl R_DoesDrawSurfListInfoNeedFloatz(GfxViewInfo *viewInfo, GfxDrawSurf
                 break;
         }
     }
-    if (!gfxRenderTargets[viewInfo->isMissileCamera ? 23 : 7].surface.color)
+    if (!gfxRenderTargets[viewInfo->isMissileCamera ? R_RENDERTARGET_FLOAT_Z_MISSILE_CAM : R_RENDERTARGET_FLOAT_Z].surface.color)
         Com_Error(ERR_FATAL, "Renderer attempted to use technique that uses floatz buffer, but it wasn't created.\n");
     return 1;
 }

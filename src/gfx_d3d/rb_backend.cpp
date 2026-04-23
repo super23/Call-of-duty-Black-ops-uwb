@@ -335,7 +335,7 @@ unsigned int(__cdecl *const rb_tessTable[16])(const GfxDrawSurfListArgs *, GfxCm
   &R_TessGlassMeshList
 };
 
-GfxRenderTarget gfxRenderTargets[44];
+GfxRenderTarget gfxRenderTargets[R_RENDERTARGET_COUNT];
 
 GfxDrawConsts g_drawConsts;
 r_backEndGlobals_t backEnd;
@@ -721,7 +721,7 @@ void R_ResolveIntZ_PC()
     else
     {
         memset(dummy, 0, sizeof(dummy));
-        dx.device->SetTexture(0, gfxRenderTargets[7].image->texture.basemap);
+        dx.device->SetTexture(0, gfxRenderTargets[R_RENDERTARGET_FLOAT_Z].image->texture.basemap);
         dx.device->SetRenderState(D3DRS_POINTSIZE, 0);
         dx.device->DrawPrimitiveUP(D3DPT_POINTLIST, 1u, dummy, 12u);
         dx.device->SetRenderState(D3DRS_POINTSIZE, 2141212672u);
@@ -741,7 +741,7 @@ void R_GetIntZHandles()
     {
         dx.nvDepthBufferHandle = h;
 
-        if (!NvAPI_D3D9_GetTextureHandle(gfxRenderTargets[7].image->texture.map, &h))
+        if (!NvAPI_D3D9_GetTextureHandle(gfxRenderTargets[R_RENDERTARGET_FLOAT_Z].image->texture.map, &h))
         {
             dx.nvFloatZBufferHandle = h;
         }
@@ -753,7 +753,6 @@ void __cdecl R_Resolve(GfxCmdBufContext context, GfxImage *image)
     const char *v2; // eax
     const char *v3; // eax
     const char *v4; // eax
-    const char *v5; // eax
     const char *v6; // eax
     int v7; // [esp+0h] [ebp-80h]
     int v8; // [esp+4h] [ebp-7Ch]
@@ -781,62 +780,26 @@ void __cdecl R_Resolve(GfxCmdBufContext context, GfxImage *image)
     int h; // [esp+70h] [ebp-10h]
     int w; // [esp+74h] [ebp-Ch]
     IDirect3DSurface9 *imageSurface; // [esp+78h] [ebp-8h]
-    int a; // [esp+7Ch] [ebp-4h]
 
-    if (!image && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_backend.cpp", 1258, 0, "%s", "image"))
-        __debugbreak();
-    if (image->width != gfxRenderTargets[context.state->renderTargetId].width)
-    {
-        v2 = va("%s,%i", image->name, context.state->renderTargetId);
-        if (!Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_backend.cpp",
-            1261,
-            0,
-            "%s\n\t%s",
-            "image->width == gfxRenderTargets[context.state->renderTargetId].width",
-            v2))
-            __debugbreak();
-    }
-    if (image->height != gfxRenderTargets[context.state->renderTargetId].height)
-    {
-        v3 = va("%s,%i", image->name, context.state->renderTargetId);
-        if (!Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_backend.cpp",
-            1262,
-            0,
-            "%s\n\t%s",
-            "image->height == gfxRenderTargets[context.state->renderTargetId].height",
-            v3))
-            __debugbreak();
-    }
-    if (image == gfxRenderTargets[context.state->renderTargetId].image
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_backend.cpp",
-            1268,
-            0,
-            "%s",
-            "image != gfxRenderTargets[context.state->renderTargetId].image"))
-    {
-        __debugbreak();
-    }
+    iassert(image);
+    iassert(image->width == gfxRenderTargets[context.state->renderTargetId].width);
+    iassert(image->height == gfxRenderTargets[context.state->renderTargetId].height);
+    iassert(image != gfxRenderTargets[context.state->renderTargetId].image);
+
     imageSurface = Image_GetSurface(image);
-    if (!imageSurface
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_backend.cpp", 1271, 0, "%s", "imageSurface"))
+    iassert(imageSurface);
+
+    if (context.state->renderTargetId == 3 && r_reflectionProbeGenerate->current.enabled)
     {
-        __debugbreak();
-    }
-    a = r_reflectionProbeGenerate->current.color[0];
-    if (context.state->renderTargetId == 3 && a)
-    {
-        w = gfxRenderTargets[3].width;
-        h = gfxRenderTargets[3].height;
-        surf = gfxRenderTargets[2].surface.color;
-        surfd = gfxRenderTargets[16].surface.color;
+        w = gfxRenderTargets[R_RENDERTARGET_SCENE].width;
+        h = gfxRenderTargets[R_RENDERTARGET_SCENE].height;
+        surf = gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.color;
+        surfd = gfxRenderTargets[R_RENDERTARGET_16BIT_SYSTEM].surface.color;
         surfx = gfxRenderTargets[17].surface.color;
-        surfxd = gfxRenderTargets[18].surface.color;
+        surfxd = gfxRenderTargets[R_RENDERTARGET_8BIT_SWAPCHAIN_BACKBUFFER].surface.color;
         context.state->prim.device->GetRenderTargetData(
-            gfxRenderTargets[2].surface.color,
-            gfxRenderTargets[16].surface.color);
+            gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.color,
+            gfxRenderTargets[R_RENDERTARGET_16BIT_SYSTEM].surface.color);
         Sleep(100);
         surfd->LockRect(&rs, 0, 0);
         //((void(__thiscall *)(IDirect3DSurface9 *, IDirect3DSurface9 *, _D3DLOCKED_RECT *, _DWORD, _DWORD))surfd->LockRect)(
@@ -901,7 +864,7 @@ void __cdecl R_Resolve(GfxCmdBufContext context, GfxImage *image)
                 "0, D3DTEXF_LINEAR)\n");
         semaphore = R_AcquireDXDeviceOwnership(0);
         hr = context.state->prim.device->StretchRect(
-            gfxRenderTargets[3].surface.color,
+            gfxRenderTargets[R_RENDERTARGET_SCENE].surface.color,
             0,
             imageSurface,
             0,
@@ -925,27 +888,20 @@ void __cdecl R_Resolve(GfxCmdBufContext context, GfxImage *image)
         R_AssertDXDeviceOwnership();
         if (r_logFile && r_logFile->current.integer)
             RB_LogPrint(
-                "context.state->prim.device->StretchRect( gfxRenderTargets[context.state->renderTargetId].surface.color, 0, image"
-                "Surface, 0, D3DTEXF_NONE)\n");
+                "context.state->prim.device->StretchRect( gfxRenderTargets[context.state->renderTargetId].surface.color, 0, imageSurface, 0, D3DTEXF_NONE)\n");
         v9 = R_AcquireDXDeviceOwnership(0);
-        v10 = context.state->prim.device->StretchRect(
-            gfxRenderTargets[context.state->renderTargetId].surface.color,
-            0,
-            imageSurface,
-            0,
-            D3DTEXF_NONE);
+        v10 = context.state->prim.device->StretchRect(gfxRenderTargets[context.state->renderTargetId].surface.color, 0, imageSurface, 0, D3DTEXF_NONE);
         if (v9)
             R_ReleaseDXDeviceOwnership();
         if (v10 < 0)
         {
             ++g_disableRendering;
-            v5 = R_ErrorDescription(v10);
             Com_Error(
                 ERR_FATAL,
                 "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_backend.cpp (%i) context.state->prim.device->StretchRect( gfxRend"
                 "erTargets[context.state->renderTargetId].surface.color, 0, imageSurface, 0, D3DTEXF_NONE) failed: %s\n",
                 1352,
-                v5);
+                R_ErrorDescription(v10));
         }
     }
     R_AssertDXDeviceOwnership();
@@ -1497,7 +1453,7 @@ void __cdecl RB_StretchRaw(int x, int y, int w, int h, int cols, int rows, const
         RB_LogPrint(
             "dx.device->StretchRect( rawSurf, 0, gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.color, &dstRect, D3DTEXF_LINEAR )\n");
     v10 = R_AcquireDXDeviceOwnership(0);
-    v11 = dx.device->StretchRect(rawSurf, 0, gfxRenderTargets[2].surface.color, &dstRect, D3DTEXF_LINEAR);
+    v11 = dx.device->StretchRect(rawSurf, 0, gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.color, &dstRect, D3DTEXF_LINEAR);
     if ( v10 )
         R_ReleaseDXDeviceOwnership();
     if ( v11 < 0 )
@@ -1640,21 +1596,16 @@ void __cdecl R_DrawSurfs(GfxCmdBufContext context, GfxCmdBufState *prepassState,
 
     prepassContext.source = 0;
     prepassContext.state = 0;
-    if (context.source->cameraView != info->cameraView
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_backend.cpp",
-            2231,
-            0,
-            "%s",
-            "context.local.source->cameraView == info->cameraView"))
-    {
-        __debugbreak();
-    }
+
+    iassert(context.source->cameraView == info->cameraView);
+
     context.state->origMaterial = 0;
     R_SetDrawSurfsShadowableLight(context.source, info);
     R_Set3D(context.source);
+
     prepassContext.source = prepassState != 0 ? context.source : 0;
     prepassContext.state = prepassState;
+
     if (context.source->viewportIsDirty)
     {
         R_GetViewport(context.source, &viewport);
@@ -1663,16 +1614,8 @@ void __cdecl R_DrawSurfs(GfxCmdBufContext context, GfxCmdBufState *prepassState,
             R_SetViewport(prepassContext.state, &viewport);
         R_UpdateViewport(context.source, &viewport);
     }
-    if ((!dx.d3d9 || !dx.device)
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_backend.cpp",
-            2260,
-            0,
-            "%s",
-            "dx.d3d9 && dx.device"))
-    {
-        __debugbreak();
-    }
+
+    iassert(dx.d3d9 && dx.device);
 
     //if (context.state->prim.device != dx.device)
     //    PIXBeginNamedEvent(-1, "draw surf");
@@ -1682,44 +1625,30 @@ void __cdecl R_DrawSurfs(GfxCmdBufContext context, GfxCmdBufState *prepassState,
         R_BeginPixMaterials(prepassContext.state);
     drawSurfCount = info->drawSurfCount;
     R_SetWaterSimulationConstants(context.source, 0.0);
-    context.source->input.consts[114][0] = 0.0f;
-    context.source->input.consts[114][1] = 0.0f;
-    context.source->input.consts[114][2] = 0.0f;
-    context.source->input.consts[114][3] = 0.0f;
-    R_DirtyCodeConstant(context.source, CONST_SRC_CODE_DESTRUCTIBLE_PARMS);
-    context.source->input.consts[118][0] = 0.0f;
-    context.source->input.consts[118][1] = 0.0f;
-    context.source->input.consts[118][2] = 0.0f;
-    context.source->input.consts[118][3] = 0.0f;
-    R_DirtyCodeConstant(context.source, CONST_SRC_CODE_CHARACTER_CHARRED_AMOUNT);
-    context.source->input.consts[117][0] = 1.0f;
-    context.source->input.consts[117][1] = 1.0f;
-    context.source->input.consts[117][2] = 1.0f;
-    context.source->input.consts[117][3] = 1.0f;
-    R_DirtyCodeConstant(context.source, CONST_SRC_CODE_CROSSFADE_PARMS);
-    context.source->input.consts[179][0] = 0.0f;
-    context.source->input.consts[179][1] = 0.0f;
-    context.source->input.consts[179][2] = 0.0f;
-    context.source->input.consts[179][3] = 0.0f;
-    R_DirtyCodeConstant(context.source, CONST_SRC_CODE_CHARACTER_DISSOLVE_COLOR);
+
+    R_SetCodeConstant(context.source, CONST_SRC_CODE_DESTRUCTIBLE_PARMS, 0.0f, 0.0f, 0.0f, 0.0f);
+    R_SetCodeConstant(context.source, CONST_SRC_CODE_CHARACTER_CHARRED_AMOUNT, 0.0f, 0.0f, 0.0f, 0.0f);
+    R_SetCodeConstant(context.source, CONST_SRC_CODE_CROSSFADE_PARMS, 1.0f, 1.0f, 1.0f, 1.0f);
+    R_SetCodeConstant(context.source, CONST_SRC_CODE_CHARACTER_DISSOLVE_COLOR, 0.0f, 0.0f, 0.0f, 0.0f);
+
     R_FoliageSetDefaultShaderConstants(context.source);
-    v3 = r_swrk_override_characterDissolveColor->current.vector[1];
-    v4 = r_swrk_override_characterDissolveColor->current.vector[2];
-    v5 = r_swrk_override_characterDissolveColor->current.vector[3];
-    LODWORD(context.source->input.consts[179][0]) = r_swrk_override_characterDissolveColor->current.integer;
-    context.source->input.consts[179][1] = v3;
-    context.source->input.consts[179][2] = v4;
-    context.source->input.consts[179][3] = v5;
-    R_DirtyCodeConstant(context.source, CONST_SRC_CODE_CHARACTER_DISSOLVE_COLOR);
+
+    R_SetCodeConstantFromVec4(context.source,
+        CONST_SRC_CODE_CHARACTER_DISSOLVE_COLOR,
+        r_swrk_override_characterDissolveColor->current.vector);
+
     localUI3DBackend = 0;
     if (info->viewInfo)
         localUI3DBackend = &info->viewInfo->rbUI3D;
+
     RB_UI3D_SetShaderConstants(context.source, localUI3DBackend);
-    RB_SetCustomWindConstants(context.source, (float*)info->viewOrigin);
+    RB_SetCustomWindConstants(context.source, info->viewOrigin);
     RB_SetEyeOffsetConstant(context.source, info->viewOrigin);
+
     listArgs.context = context;
     listArgs.firstDrawSurfIndex = 0;
     listArgs.info = info;
+
     drawMatCount = 0;
     while (listArgs.firstDrawSurfIndex != drawSurfCount)
     {
@@ -1727,13 +1656,17 @@ void __cdecl R_DrawSurfs(GfxCmdBufContext context, GfxCmdBufState *prepassState,
         listArgs.firstDrawSurfIndex += processedDrawSurfCount;
         ++drawMatCount;
     }
+
     context.state->prim.viewStats->drawSurfCount += drawSurfCount;
     context.state->prim.viewStats->drawMatCount += drawMatCount;
     R_EndPixMaterials(context.state);
+
     if (prepassContext.state)
         R_EndPixMaterials(prepassContext.state);
+
     //if (context.state->prim.device != dx.device && GetCurrentThreadId() == g_DXDeviceThread)
     //    D3DPERF_EndEvent();
+
     R_TessEnd(context, prepassContext);
     context.state->origMaterial = 0;
 }
@@ -1842,31 +1775,28 @@ unsigned int __cdecl R_SkipDrawSurfListMaterial(const GfxDrawSurf *drawSurfList,
 
 void __cdecl R_TessEnd(GfxCmdBufContext context, GfxCmdBufContext prepassContext)
 {
-    GfxDepthRangeType v2; // [esp+0h] [ebp-Ch]
-    GfxDepthRangeType depthRangeType; // [esp+4h] [ebp-8h]
+    GfxCmdBufSourceState *commonSource = context.source;
 
-    if (prepassContext.state
-        && context.source != prepassContext.source
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_backend.cpp",
-            2197,
-            0,
-            "%s",
-            "prepassContext.local.state == NULL || commonSource == prepassContext.local.source"))
+    iassert(prepassContext.state == NULL || commonSource == prepassContext.source);
+
+    commonSource->viewMode = VIEW_MODE_NONE;
+
+    R_ChangeDepthHackNearClip(commonSource, 0);
+
+    GfxDepthRangeType depthRangeType = commonSource->cameraView != 0 ? GFX_DEPTH_RANGE_SCENE : GFX_DEPTH_RANGE_FULL;
+
+    if (depthRangeType != context.state->depthRangeType)
     {
-        __debugbreak();
+        R_ChangeDepthRange(context.state, depthRangeType);
     }
 
-    context.source->objectPlacement = 0;
-    R_ChangeDepthHackNearClip(context.source, 0);
-    depthRangeType = (GfxDepthRangeType)((context.source->cameraView != 0) - 1);
-    if (depthRangeType != context.state->depthRangeType)
-        R_ChangeDepthRange(context.state, depthRangeType);
     if (prepassContext.state)
     {
-        v2 = (GfxDepthRangeType)((prepassContext.source->cameraView != 0) - 1);
-        if (v2 != prepassContext.state->depthRangeType)
-            R_ChangeDepthRange(prepassContext.state, v2);
+        depthRangeType = prepassContext.source->cameraView != 0 ? GFX_DEPTH_RANGE_SCENE : GFX_DEPTH_RANGE_FULL;
+        if (depthRangeType != prepassContext.state->depthRangeType)
+        {
+            R_ChangeDepthRange(prepassContext.state, depthRangeType);
+        }
     }
 }
 
@@ -2477,9 +2407,9 @@ void __cdecl RB_ResolveCompositeCmd(GfxRenderCommandExecState *execState)
     if (tess.indexCount)
         RB_EndTessSurface();
     cmd = (const GfxCmdResolveComposite *)execState->cmd;
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 2u);
-    R_SetRenderTarget(gfxCmdBufContext, 2u);
-    cmd->callback(gfxRenderTargets[24].image);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_FRAME_BUFFER);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_FRAME_BUFFER);
+    cmd->callback(gfxRenderTargets[R_RENDERTARGET_COMPOSITE].image);
     execState->cmd = (char *)execState->cmd + *(unsigned __int16 *)execState->cmd;
 }
 
@@ -2546,7 +2476,7 @@ void __cdecl RB_PCCopyImageGenMIPCmd(GfxRenderCommandExecState *execState)
     _D3DSURFACE_DESC mipDesc; // [esp+C8h] [ebp-20h] BYREF
 
     cmd = (const GfxCmdPCCopyImageGenMIP *)execState->cmd;
-    renderSurface = gfxRenderTargets[24].surface.color;
+    renderSurface = gfxRenderTargets[R_RENDERTARGET_COMPOSITE].surface.color;
     R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("dx.device->CreateTexture(256, 256, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &resolveTexture, 0)\n");
@@ -5034,14 +4964,14 @@ void __cdecl RB_ExecuteRenderCommandsLoop(const void *cmds, int *ui3dTextureWind
 
     PROF_SCOPED("RB_ExecuteRenderCommandsLoop");
 
-    if (gfxRenderTargets[22].image)
-        R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x28u, gfxRenderTargets[22].image);
+    if (gfxRenderTargets[R_RENDERTARGET_MISSILE_CAM].image)
+        R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x28u, gfxRenderTargets[R_RENDERTARGET_MISSILE_CAM].image);
     if (rgp.heatMapImage)
         R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x2Au, rgp.heatMapImage);
     else
         R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x2Au, rgp.whiteImage);
-    if (gfxRenderTargets[20].image)
-        R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x27u, gfxRenderTargets[20].image);
+    if (gfxRenderTargets[R_RENDERTARGET_UI3D].image)
+        R_SetCodeImageTexture(&gfxCmdBufSourceState, 0x27u, gfxRenderTargets[R_RENDERTARGET_UI3D].image);
     if (tess.indexCount
         && !Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_backend.cpp",
@@ -5244,8 +5174,8 @@ void __cdecl RB_CallExecuteRenderCommands()
     R_InitCmdBufSourceState(&gfxCmdBufSourceState, &gfxCmdBufInput, 0);
     gfxCmdBufSourceState.input.data = backEndData;
     R_InitLocalCmdBufState(&gfxCmdBufState);
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 2u);
-    R_SetRenderTarget(gfxCmdBufContext, 2u);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_FRAME_BUFFER);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_FRAME_BUFFER);
     RB_InitSceneViewport();
     gfxCmdBufSourceState.input.consts[170][0] = 0.0f;
     gfxCmdBufSourceState.input.consts[170][1] = 0.0f;
@@ -5644,7 +5574,7 @@ void __cdecl RB_InitCodeImages()
     gfxCmdBufInput.codeImageSamplerStates[3] = -30;
     rg.codeImageNames[3] = "TEXTURE_SRC_CODE_MODEL_LIGHTING";
     shadowmapSamplerState = gfxMetrics.shadowmapSamplerState;
-    gfxCmdBufInput.codeImages[6] = gfxRenderTargets[14].image;
+    gfxCmdBufInput.codeImages[6] = gfxRenderTargets[R_RENDERTARGET_SHADOWMAP_SUN].image;
     gfxCmdBufInput.codeImageSamplerStates[6] = shadowmapSamplerState;
     rg.codeImageNames[6] = "shadowmapSamplerSun";
     v0 = gfxMetrics.shadowmapSamplerState;
@@ -5657,19 +5587,19 @@ void __cdecl RB_InitCodeImages()
     gfxCmdBufInput.codeImages[9] = 0;
     gfxCmdBufInput.codeImageSamplerStates[9] = 98;
     rg.codeImageNames[9] = "TEXTURE_SRC_CODE_RESOLVED_POST_SUN";
-    gfxCmdBufInput.codeImages[10] = gfxRenderTargets[6].image;
+    gfxCmdBufInput.codeImages[10] = gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image;
     gfxCmdBufInput.codeImageSamplerStates[10] = 98;
     rg.codeImageNames[10] = "resolvedScene";
-    gfxCmdBufInput.codeImages[11] = gfxRenderTargets[10].image;
+    gfxCmdBufInput.codeImages[11] = gfxRenderTargets[R_RENDERTARGET_POST_EFFECT_SRC].image;
     gfxCmdBufInput.codeImageSamplerStates[11] = 98;
     rg.codeImageNames[11] = "postEffectSrc";
-    gfxCmdBufInput.codeImages[12] = gfxRenderTargets[11].image;
+    gfxCmdBufInput.codeImages[12] = gfxRenderTargets[R_RENDERTARGET_POST_EFFECT_GODRAYS].image;
     gfxCmdBufInput.codeImageSamplerStates[12] = 98;
     rg.codeImageNames[12] = "postEffectGodRays";
-    gfxCmdBufInput.codeImages[13] = gfxRenderTargets[12].image;
+    gfxCmdBufInput.codeImages[13] = gfxRenderTargets[R_RENDERTARGET_POST_EFFECT_0].image;
     gfxCmdBufInput.codeImageSamplerStates[13] = 98;
     rg.codeImageNames[13] = "postEffect0";
-    gfxCmdBufInput.codeImages[14] = gfxRenderTargets[13].image;
+    gfxCmdBufInput.codeImages[14] = gfxRenderTargets[R_RENDERTARGET_POST_EFFECT_1].image;
     gfxCmdBufInput.codeImageSamplerStates[14] = 98;
     rg.codeImageNames[14] = "postEffect1";
     gfxCmdBufInput.codeImages[15] = 0;
@@ -5684,7 +5614,7 @@ void __cdecl RB_InitCodeImages()
     gfxCmdBufInput.codeImages[18] = 0;
     gfxCmdBufInput.codeImageSamplerStates[18] = 98;
     rg.codeImageNames[18] = "TEXTURE_SRC_CODE_OUTDOOR";
-    gfxCmdBufInput.codeImages[19] = gfxRenderTargets[7].image;
+    gfxCmdBufInput.codeImages[19] = gfxRenderTargets[R_RENDERTARGET_FLOAT_Z].image;
     gfxCmdBufInput.codeImageSamplerStates[19] = 97;
     rg.codeImageNames[19] = "floatz";
     gfxCmdBufInput.codeImages[23] = 0;
@@ -5812,7 +5742,7 @@ void __cdecl RB_RegisterBackendAssets()
 //                gfxCmdBufSourceState.input.codeImageRenderTargetControl[8].packed = (viewInfo->sceneComposition.mainSceneSaved << 24)
 //                | 0x800062;
 //            else
-//                R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[1].image);
+//                R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[R_RENDERTARGET_SAVED_SCREEN].image);
 //            RB_DrawStretchPic(
 //                rgp.shellShockBlurredMaterial,
 //                0.0,
@@ -5951,7 +5881,7 @@ void __cdecl RB_SaveScreen_BlendBlurred(
         R_SetCodeImageTexture(
             &gfxCmdBufSourceState,
             8,
-            gfxRenderTargets[1].image);
+            gfxRenderTargets[R_RENDERTARGET_SAVED_SCREEN].image);
     }
 
     /* -----------------------------------------
@@ -6041,7 +5971,7 @@ void __cdecl RB_SaveScreen_BlendFlashed(const GfxBlendSaveScreenFlashedParam *p,
             gfxCmdBufSourceState.input.codeImageRenderTargetControl[8].packed = (viewInfo->sceneComposition.mainSceneSaved << 24)
             | 0x800062;
         else
-            R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[1].image);
+            R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[R_RENDERTARGET_SAVED_SCREEN].image);
         RB_DrawStretchPic(
             rgp.shellShockFlashedMaterial,
             0.0,
@@ -6100,7 +6030,7 @@ void __cdecl RB_SaveScreen(const GfxSaveScreenParam *p, const GfxViewInfo *viewI
         }
         else if (p->mode == 1)
         {
-            R_Resolve(gfxCmdBufContext, gfxRenderTargets[1].image);
+            R_Resolve(gfxCmdBufContext, gfxRenderTargets[R_RENDERTARGET_SAVED_SCREEN].image);
             rgp.savedScreenTimes[p->screenTimerId] = gfxCmdBufSourceState.sceneDef.time;
             ssParams->s0 = 0.0f;
             ssParams->t0 = 0.0f;
@@ -6110,10 +6040,10 @@ void __cdecl RB_SaveScreen(const GfxSaveScreenParam *p, const GfxViewInfo *viewI
         }
         else if (p->mode == 2)
         {
-            R_ResolveSection(gfxCmdBufContext, gfxRenderTargets[6].image);
+            R_ResolveSection(gfxCmdBufContext, gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
             rgp.savedScreenTimes[p->screenTimerId] = gfxCmdBufSourceState.sceneDef.time;
-            R_SetRenderTargetSize(&gfxCmdBufSourceState, 1u);
-            R_SetRenderTarget(gfxCmdBufContext, 1u);
+            R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_SAVED_SCREEN);
+            R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_SAVED_SCREEN);
             R_Set2D(&gfxCmdBufSourceState);
             renderTargetWidth = gfxCmdBufSourceState.renderTargetWidth;
             renderTargetHeight = gfxCmdBufSourceState.renderTargetHeight;
@@ -6126,7 +6056,7 @@ void __cdecl RB_SaveScreen(const GfxSaveScreenParam *p, const GfxViewInfo *viewI
             clientId = p->screenTimerId;
             x0 = gfxCmdBufSourceState.renderTargetWidth / 2 * (clientId % 2);
             y0 = gfxCmdBufSourceState.renderTargetHeight / 2 * (clientId / 2);
-            R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[6].image);
+            R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
             RB_DrawStretchPic(
                 rgp.feedbackReplaceMaterial,
                 (float)x0,
@@ -6146,21 +6076,22 @@ void __cdecl RB_SaveScreen(const GfxSaveScreenParam *p, const GfxViewInfo *viewI
             ssParams->ds = (float)halfWidth / (float)renderTargetWidth;
             ssParams->dt = (float)halfHeight / (float)renderTargetHeight;
             ssParams->isSet = 1;
-            R_SetRenderTargetSize(&gfxCmdBufSourceState, 3u);
-            R_SetRenderTarget(gfxCmdBufContext, 3u);
+            R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_SCENE);
+            R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_SCENE);
         }
     }
 }
 
 void __cdecl R_ResolveSection(GfxCmdBufContext context, GfxImage *image)
 {
-    if ( !image && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_backend.cpp", 1412, 0, "%s", "image") )
-        __debugbreak();
-    if ( !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_backend.cpp",
-                    1415,
-                    0,
-                    "R_ResolveSection(): Not implemented on win32.") )
-        __debugbreak();
+    iassert(image);
+
+    iassert(0);
+    //if ( !Assert_MyHandler(
+    //                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_backend.cpp",
+    //                1415,
+    //                0,
+    //                "R_ResolveSection(): Not implemented on win32.") )
+    //    __debugbreak();
 }
 

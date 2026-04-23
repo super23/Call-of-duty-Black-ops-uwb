@@ -13,8 +13,8 @@ void __cdecl RB_DrawComposites()
   if ( cmds )
   {
     R_InitLocalCmdBufState(&gfxCmdBufState);
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 0x18u);
-    R_SetRenderTarget(gfxCmdBufContext, 0x18u);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_COMPOSITE);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_COMPOSITE);
     R_Set2D(&gfxCmdBufSourceState);
     RB_ExecuteRenderCommandsLoop(cmds, 0);
     memcpy(gfxCmdBufState.refSamplerState, gfxCmdBufState.refSamplerState, sizeof(gfxCmdBufState));

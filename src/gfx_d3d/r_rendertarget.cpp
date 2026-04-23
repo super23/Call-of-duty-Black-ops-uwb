@@ -105,22 +105,22 @@ void R_InitRenderTargets_PC()
             0,
             D3DFMT_A16B16G16R16F,
             RENDERTARGET_USAGE_RENDER,
-            &gfxRenderTargets[16]);
+            &gfxRenderTargets[R_RENDERTARGET_16BIT_SYSTEM]);
         R_InitFullscreenRenderTargetImage(
             15,
             FULLSCREEN_SCENE,
             0,
             D3DFMT_A8R8G8B8,
             RENDERTARGET_USAGE_RENDER,
-            &gfxRenderTargets[17]);
+            &gfxRenderTargets[R_RENDERTARGET_8BIT_SYSTEM]);
         R_InitFullscreenRenderTargetImage(
             13,
             FULLSCREEN_SCENE,
             0,
             D3DFMT_A16B16G16R16F,
             RENDERTARGET_USAGE_RENDER,
-            &gfxRenderTargets[2]);
-        R_ShareRenderTarget(2u, 3u);
+            &gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER]);
+        R_ShareRenderTarget(R_RENDERTARGET_FRAME_BUFFER, R_RENDERTARGET_SCENE);
     }
     if (!g_allocateMinimalResources)
     {
@@ -134,16 +134,16 @@ void R_InitRenderTargets_PC()
                     0,
                     D3DFMT_R32F,
                     RENDERTARGET_USAGE_RENDER,
-                    &gfxRenderTargets[7]);
+                    &gfxRenderTargets[R_RENDERTARGET_FLOAT_Z]);
         }
-        R_ShareRenderTarget(6u, 5u);
+        R_ShareRenderTarget(R_RENDERTARGET_RESOLVED_SCENE, R_RENDERTARGET_RESOLVED_POST_SUN);
         R_InitFullscreenRenderTargetImage(
             10,
             FULLSCREEN_SCENE,
             0,
             backBufferFormat,
             RENDERTARGET_USAGE_RENDER,
-            &gfxRenderTargets[1]);
+            &gfxRenderTargets[R_RENDERTARGET_SAVED_SCREEN]);
         R_InitSceneNullRenderTarget_PC();
         dx.sunShadowmapSize = 1024;
         if (dx.nvStereoHandle)
@@ -151,113 +151,107 @@ void R_InitRenderTargets_PC()
             if (vidConfig.displayWidth <= 0x400)
                 dx.sunShadowmapSize = 512;
         }
-        R_InitShadowmapRenderTarget(0, dx.sunShadowmapSize, 2u, &gfxRenderTargets[14], SHADOWMAP_RT_TILE_VERTICAL);
-        R_InitShadowmapRenderTarget(1, 0x200u, 4u, &gfxRenderTargets[15], SHADOWMAP_RT_TILE_VERTICAL);
+        R_InitShadowmapRenderTarget(0, dx.sunShadowmapSize, 2u, &gfxRenderTargets[R_RENDERTARGET_SHADOWMAP_SUN], SHADOWMAP_RT_TILE_VERTICAL);
+        R_InitShadowmapRenderTarget(1, 0x200u, 4u, &gfxRenderTargets[R_RENDERTARGET_SHADOWMAP_SPOT], SHADOWMAP_RT_TILE_VERTICAL);
         R_InitFullscreenRenderTargetImage(
             5,
             FULLSCREEN_SCENE,
             2,
             backBufferFormat,
             RENDERTARGET_USAGE_RENDER,
-            &gfxRenderTargets[12]);
+            &gfxRenderTargets[R_RENDERTARGET_POST_EFFECT_0]);
         R_InitFullscreenRenderTargetImage(
             6,
             FULLSCREEN_SCENE,
             2,
             backBufferFormat,
             RENDERTARGET_USAGE_RENDER,
-            &gfxRenderTargets[13]);
+            &gfxRenderTargets[R_RENDERTARGET_POST_EFFECT_1]);
         R_InitFullscreenRenderTargetImage(
             3,
             FULLSCREEN_SCENE,
             2,
             backBufferFormat,
             RENDERTARGET_USAGE_RENDER,
-            &gfxRenderTargets[10]);
+            &gfxRenderTargets[R_RENDERTARGET_POST_EFFECT_SRC]);
         R_InitFullscreenRenderTargetImage(
             4,
             FULLSCREEN_SCENE,
             2,
             backBufferFormat,
             RENDERTARGET_USAGE_RENDER,
-            &gfxRenderTargets[11]);
+            &gfxRenderTargets[R_RENDERTARGET_POST_EFFECT_GODRAYS]);
         R_InitFullscreenRenderTargetImage(
             7,
             FULLSCREEN_SCENE,
             2,
             backBufferFormat,
             RENDERTARGET_USAGE_RENDER,
-            &gfxRenderTargets[8]);
+            &gfxRenderTargets[R_RENDERTARGET_PINGPONG_0]);
         R_InitFullscreenRenderTargetImage(
             8,
             FULLSCREEN_SCENE,
             2,
             backBufferFormat,
             RENDERTARGET_USAGE_RENDER,
-            &gfxRenderTargets[9]);
+            &gfxRenderTargets[R_RENDERTARGET_PINGPONG_1]);
         R_InitFullscreenRenderTargetImage(
             23,
             FULLSCREEN_SCENE,
             1,
             D3DFMT_A16B16G16R16,
             RENDERTARGET_USAGE_RENDER,
-            &gfxRenderTargets[25]);
+            &gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP1]);
         R_InitFullscreenRenderTargetImage(
             24,
             FULLSCREEN_SCENE,
             2,
             D3DFMT_A16B16G16R16,
             RENDERTARGET_USAGE_RENDER,
-            &gfxRenderTargets[26]);
+            &gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP2]);
         R_InitFullscreenRenderTargetImage(
             25,
             FULLSCREEN_SCENE,
             3,
             D3DFMT_A16B16G16R16,
             RENDERTARGET_USAGE_RENDER,
-            &gfxRenderTargets[27]);
+            &gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP3]);
         R_InitFullscreenRenderTargetImage(
             26,
             FULLSCREEN_SCENE,
             3,
             D3DFMT_A16B16G16R16,
             RENDERTARGET_USAGE_RENDER,
-            &gfxRenderTargets[28]);
+            &gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP3_PING]);
         R_InitFullscreenRenderTargetImage(
             27,
             FULLSCREEN_SCENE,
             3,
             D3DFMT_A16B16G16R16,
             RENDERTARGET_USAGE_RENDER,
-            &gfxRenderTargets[29]);
+            &gfxRenderTargets[R_RENDERTARGET_BLOOM_MIP3_PONG]);
         R_InitFullscreenRenderTargetImage(
             28,
             FULLSCREEN_SCENE,
             3,
             D3DFMT_A8R8G8B8,
             RENDERTARGET_USAGE_RENDER,
-            &gfxRenderTargets[30]);
-        R_InitRenderTargetImage_Composite(22, &gfxRenderTargets[24]);
+            &gfxRenderTargets[R_RENDERTARGET_BLOOM_STREAK]);
+        R_InitRenderTargetImage_Composite(22, &gfxRenderTargets[R_RENDERTARGET_COMPOSITE]);
         R_UI3D_CheckRenderTarget();
         R_CheckExtraCamTargets();
     }
 }
 
-void __cdecl R_ShareRenderTarget(unsigned __int8 idFrom, unsigned __int8 idTo)
+void __cdecl R_ShareRenderTarget(GfxRenderTargetId idFrom, GfxRenderTargetId idTo)
 {
-    GfxRenderTarget *v2; // ecx
-    GfxRenderTarget *v3; // edx
-
     AssertUninitializedRenderTarget(&gfxRenderTargets[idTo]);
-    v2 = &gfxRenderTargets[idFrom];
-    v3 = &gfxRenderTargets[idTo];
-    v3->image = v2->image;
-    v3->surface.color = v2->surface.color;
-    v3->surface.depthStencil = v2->surface.depthStencil;
-    *(_DWORD *)&v3->width = *(_DWORD *)&v2->width;
-    *(_DWORD *)&v3->cleared = *(_DWORD *)&v2->cleared;
+
+    gfxRenderTargets[idTo] = gfxRenderTargets[idFrom];
+
     if (gfxRenderTargets[idTo].surface.color)
         gfxRenderTargets[idTo].surface.color->AddRef();
+
     if (gfxRenderTargets[idTo].surface.depthStencil)
         gfxRenderTargets[idTo].surface.depthStencil->AddRef();
 }
@@ -399,7 +393,7 @@ IDirect3DSurface9 *R_AssignSingleSampleDepthStencilSurface()
     int depthStencilHeight; // [esp+Ch] [ebp-4h] BYREF
 
     if (!dx.singleSampleDepthStencilSurface && dx.multiSampleType == D3DMULTISAMPLE_NONE)
-        dx.singleSampleDepthStencilSurface = gfxRenderTargets[2].surface.depthStencil;
+        dx.singleSampleDepthStencilSurface = gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.depthStencil;
     if (dx.singleSampleDepthStencilSurface)
     {
         dx.singleSampleDepthStencilSurface->AddRef();
@@ -693,10 +687,10 @@ _D3DFORMAT __cdecl R_InitFrameBufferRenderTarget()
 
     if ( r_reflectionProbeGenerate->current.enabled )
     {
-        R_InitFrameBufferRenderTarget_Win32(&gfxRenderTargets[18]);
+        R_InitFrameBufferRenderTarget_Win32(&gfxRenderTargets[R_RENDERTARGET_8BIT_SWAPCHAIN_BACKBUFFER]);
         v0 = R_DescribeFormat(D3DFMT_A8R8G8B8);
         Com_Printf(8, "Requested frame buffer to be %s\n", v0);
-        gfxRenderTargets[18].surface.color->GetDesc(&surfaceDesc);
+        gfxRenderTargets[R_RENDERTARGET_8BIT_SWAPCHAIN_BACKBUFFER].surface.color->GetDesc(&surfaceDesc);
         if ( surfaceDesc.Format == D3DFMT_UNKNOWN
             && !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_rendertarget.cpp",
@@ -716,15 +710,15 @@ _D3DFORMAT __cdecl R_InitFrameBufferRenderTarget()
                 0,
                 D3DFMT_A16B16G16R16F,
                 RENDERTARGET_USAGE_RENDER,
-                &gfxRenderTargets[6]);
+                &gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE]);
     }
     else
     {
-        R_InitFrameBufferRenderTarget_Win32(&gfxRenderTargets[2]);
-        R_ShareRenderTarget(2u, 3u);
+        R_InitFrameBufferRenderTarget_Win32(&gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER]);
+        R_ShareRenderTarget(R_RENDERTARGET_FRAME_BUFFER, R_RENDERTARGET_SCENE);
         v2 = R_DescribeFormat(D3DFMT_A8R8G8B8);
         Com_Printf(8, "Requested frame buffer to be %s\n", v2);
-        gfxRenderTargets[2].surface.color->GetDesc(&surfaceDesc);
+        gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.color->GetDesc(&surfaceDesc);
         if ( surfaceDesc.Format == D3DFMT_UNKNOWN
             && !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_rendertarget.cpp",
@@ -744,7 +738,7 @@ _D3DFORMAT __cdecl R_InitFrameBufferRenderTarget()
                 0,
                 surfaceDesc.Format,
                 RENDERTARGET_USAGE_RENDER,
-                &gfxRenderTargets[6]);
+                &gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE]);
     }
     return surfaceDesc.Format;
 }
@@ -944,8 +938,8 @@ void R_InitSceneNullRenderTarget_PC()
             {
                 R_AssertDXDeviceOwnership();
                 hr = dx.device->CreateRenderTarget(
-                            gfxRenderTargets[3].width,
-                            gfxRenderTargets[3].height,
+                            gfxRenderTargets[R_RENDERTARGET_SCENE].width,
+                            gfxRenderTargets[R_RENDERTARGET_SCENE].height,
                              (_D3DFORMAT)1280070990,
                              dx.multiSampleType,
                              dx.multiSampleQuality,
@@ -1133,9 +1127,9 @@ LABEL_22:
                 image->height = height;
                 image->depth = 1;
                 image->mapType = 3;
-                gfxRenderTargets[7].image = image;
-                gfxRenderTargets[7].width = width;
-                gfxRenderTargets[7].height = height;
+                gfxRenderTargets[R_RENDERTARGET_FLOAT_Z].image = image;
+                gfxRenderTargets[R_RENDERTARGET_FLOAT_Z].width = width;
+                gfxRenderTargets[R_RENDERTARGET_FLOAT_Z].height = height;
                 Com_Printf(8, "INTZ format supported\n");
             }
         }
@@ -1196,7 +1190,7 @@ void __cdecl R_InitExtraCamRenderTargets(unsigned int width, unsigned int height
     g_extraCamSettings.width = width;
     g_extraCamSettings.height = height;
     g_extraCamSettings.location = location;
-    gfxRenderTargets[2].surface.color->GetDesc(&surfaceDesc);
+    gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.color->GetDesc(&surfaceDesc);
     backBufferFormat = surfaceDesc.Format;
     R_InitSizedRenderTargetImage(
         20,
@@ -1205,8 +1199,8 @@ void __cdecl R_InitExtraCamRenderTargets(unsigned int width, unsigned int height
         0,
         surfaceDesc.Format,
         RENDERTARGET_USAGE_RENDER,
-        &gfxRenderTargets[22]);
-    R_InitSizedRenderTargetImage(21, width, height, 0, D3DFMT_R32F, RENDERTARGET_USAGE_RENDER, &gfxRenderTargets[23]);
+        &gfxRenderTargets[R_RENDERTARGET_MISSILE_CAM]);
+    R_InitSizedRenderTargetImage(21, width, height, 0, D3DFMT_R32F, RENDERTARGET_USAGE_RENDER, &gfxRenderTargets[R_RENDERTARGET_FLOAT_Z_MISSILE_CAM]);
 }
 
 void R_InitSizedRenderTargetImage(
@@ -1235,7 +1229,7 @@ void R_InitSizedRenderTargetImage(
     R_InitRenderTargetImage(imageProgType, v10, v9, format, usage, renderTarget);
     if (usage == RENDERTARGET_USAGE_RENDER_SHARE_SCENE)
     {
-        if (!gfxRenderTargets[3].surface.depthStencil
+        if (!gfxRenderTargets[R_RENDERTARGET_SCENE].surface.depthStencil
             && !Assert_MyHandler(
                 "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_rendertarget.cpp",
                 1390,
@@ -1245,9 +1239,9 @@ void R_InitSizedRenderTargetImage(
         {
             __debugbreak();
         }
-        renderTarget->surface.depthStencil = gfxRenderTargets[3].surface.depthStencil;
+        renderTarget->surface.depthStencil = gfxRenderTargets[R_RENDERTARGET_SCENE].surface.depthStencil;
         renderTarget->surface.depthStencil->AddRef();
-        if (!gfxRenderTargets[3].surface.color
+        if (!gfxRenderTargets[R_RENDERTARGET_SCENE].surface.color
             && !Assert_MyHandler(
                 "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_rendertarget.cpp",
                 1394,
@@ -1257,7 +1251,7 @@ void R_InitSizedRenderTargetImage(
         {
             __debugbreak();
         }
-        renderTarget->surface.color = gfxRenderTargets[3].surface.color;
+        renderTarget->surface.color = gfxRenderTargets[R_RENDERTARGET_SCENE].surface.color;
         renderTarget->surface.color->AddRef();
     }
     else if (usage == RENDERTARGET_USAGE_RENDER)
@@ -1297,8 +1291,8 @@ void R_InitSizedRenderTargetImage(
 void __cdecl R_ShutdownExtraCamRenderTargets()
 {
     g_extraCamSettings.enabled = 0;
-    R_ShutDownSingleRenderTarget(&gfxRenderTargets[22]);
-    R_ShutDownSingleRenderTarget(&gfxRenderTargets[23]);
+    R_ShutDownSingleRenderTarget(&gfxRenderTargets[R_RENDERTARGET_MISSILE_CAM]);
+    R_ShutDownSingleRenderTarget(&gfxRenderTargets[R_RENDERTARGET_FLOAT_Z_MISSILE_CAM]);
 }
 
 void R_InitUI3DRenderTarget(
@@ -1317,7 +1311,7 @@ void R_InitUI3DRenderTarget(
         0,
         D3DFMT_A8R8G8B8,
         RENDERTARGET_USAGE_RENDER,
-        &gfxRenderTargets[20]);
+        &gfxRenderTargets[R_RENDERTARGET_UI3D]);
     if (allocatePingPongBuffer)
         R_InitSizedRenderTargetImage(
             19,
@@ -1326,7 +1320,7 @@ void R_InitUI3DRenderTarget(
             0,
             D3DFMT_A8R8G8B8,
             RENDERTARGET_USAGE_RENDER,
-            &gfxRenderTargets[21]);
+            &gfxRenderTargets[R_RENDERTARGET_UI3D_PING_PONG]);
     if (semaphore)
         R_ReleaseDXDeviceOwnership();
 }
@@ -1334,6 +1328,6 @@ void R_InitUI3DRenderTarget(
 void __cdecl R_ShutdownUI3DRenderTarget(bool freePingPongBuffer)
 {
     if (freePingPongBuffer)
-        R_ShutDownSingleRenderTarget(&gfxRenderTargets[21]);
-    R_ShutDownSingleRenderTarget(&gfxRenderTargets[20]);
+        R_ShutDownSingleRenderTarget(&gfxRenderTargets[R_RENDERTARGET_UI3D_PING_PONG]);
+    R_ShutDownSingleRenderTarget(&gfxRenderTargets[R_RENDERTARGET_UI3D]);
 }

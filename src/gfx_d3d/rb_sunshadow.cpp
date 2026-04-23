@@ -94,7 +94,7 @@ void __cdecl RB_DrawSunShadowOverlay()
     w = h;
     RB_SetSunShadowOverlayScaleAndBias();
     gfxCmdBufSourceState.input.codeImageSamplerStates[8] = 97;
-    R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[14].image);
+    R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, gfxRenderTargets[R_RENDERTARGET_SHADOWMAP_SUN].image);
     for (partitionIndex = 0; partitionIndex < 2; ++partitionIndex)
         RB_DrawStretchPic(
             rgp.shadowOverlayMaterial,

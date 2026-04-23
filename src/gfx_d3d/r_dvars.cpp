@@ -585,7 +585,8 @@ void __cdecl R_RegisterDvars()
     r_clipFPS = _Dvar_RegisterInt("r_clipFPS", 24, 10, 60, 1u, "Render clip FPS.");
     vid_xpos = _Dvar_RegisterInt("vid_xpos", 3, -4096, 4096, 1u, "Game window horizontal position");
     vid_ypos = _Dvar_RegisterInt("vid_ypos", 22, -4096, 4096, 1u, "game window vertical position");
-    r_fullscreen = _Dvar_RegisterBool("r_fullscreen", 1, 0x21u, "Display game full screen");
+    //r_fullscreen = _Dvar_RegisterBool("r_fullscreen", 1, 0x21u, "Display game full screen");
+    r_fullscreen = _Dvar_RegisterBool("r_fullscreen", 0, 0x21u, "Display game full screen");
     r_gamma = _Dvar_RegisterFloat("r_gamma", 0.89999998, 0.5, 3.0, 1u, "Gamma value");
     if ( r_reflectionProbeGenerate && r_reflectionProbeGenerate->current.enabled )
         Dvar_SetFloat((dvar_s *)r_gamma, 0.89999998);

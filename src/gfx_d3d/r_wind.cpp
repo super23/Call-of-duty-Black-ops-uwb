@@ -104,7 +104,7 @@ void __cdecl R_SetWindShaderConstants(GfxCmdBufSourceState *source)
     }
 }
 
-void __cdecl RB_SetCustomWindConstants(GfxCmdBufSourceState *source, float *drawSurfListViewOrigin)
+void __cdecl RB_SetCustomWindConstants(GfxCmdBufSourceState *source, const float *drawSurfListViewOrigin)
 {
     float eyeOffset; // [esp+2Ch] [ebp-28h]
     float eyeOffset_4; // [esp+30h] [ebp-24h]

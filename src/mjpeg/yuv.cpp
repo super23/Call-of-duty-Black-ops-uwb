@@ -1090,7 +1090,7 @@ char __cdecl yuv_encode_frame()
     //    0,
     //    &dstSurface);
     yuv_globals.srcTexture->GetSurfaceLevel(0, &dstSurface);
-    srcSurface = gfxRenderTargets[2].surface.color;
+    srcSurface = gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.color;
     R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("dx.device->StretchRect(srcSurface, 0, dstSurface, 0, D3DTEXF_NONE)\n");

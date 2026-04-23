@@ -284,17 +284,22 @@ void __cdecl R_PixelCost_EndSurface(GfxCmdBufContext context)
 
     if ( pixelCostMode == GFX_PIXEL_COST_MODE_MEASURE_COST )
     {
-        gfxAssets.pixelCountQuery[r_glob.backEndFrameCount % 4]->Issue(1u);
-        //BLOPS_NULLSUB();
+        gfxAssets.pixelCountQuery[r_glob.backEndFrameCount % 4]->Issue(D3DISSUE_END);
+        //BLOPS_NULLSUB(); RB_PixelCost_EndTiming()
         pixelCount = RB_HW_ReadOcclusionQuery(gfxAssets.pixelCountQuery[r_glob.backEndFrameCount % 4]);
         if ( pixelCount )
         {
+            //v3 = (int)ceil(
+            //    (double)(LODWORD(context.source[1].matrices.matrix[0].m[2][1])
+            //        * LODWORD(context.source[1].matrices.matrix[0].m[2][0]))
+            //    * pixelCostGlob.msecElapsed
+            //    / (double)pixelCount
+            //    * 30.72);
             v3 = (int)ceil(
-                                    (double)(LODWORD(context.source[1].matrices.matrix[0].m[2][1])
-                                                 * LODWORD(context.source[1].matrices.matrix[0].m[2][0]))
-                                * pixelCostGlob.msecElapsed
-                                / (double)pixelCount
-                                * 30.72);
+                (double)(context.source->renderTargetHeight * context.source->renderTargetWidth)
+                * pixelCostGlob.msecElapsed
+                / (double)pixelCount
+                * 30.72);
             if ( v3 > 1 )
                 v2 = v3;
             else
@@ -353,12 +358,14 @@ int RB_PixelCost_AccumulateMsec()
     return result;
 }
 
-unsigned __int8 __cdecl RB_PixelCost_OverrideRenderTarget(unsigned __int8 targetId)
+GfxRenderTargetId __cdecl RB_PixelCost_OverrideRenderTarget(GfxRenderTargetId targetId)
 {
-    if ( targetId < 3u )
-        return 2;
-    if ( targetId >= 0xAu )
+    if (targetId < R_RENDERTARGET_SCENE)
+        return R_RENDERTARGET_FRAME_BUFFER;
+
+    if ( targetId >= R_RENDERTARGET_POST_EFFECT_SRC)
         return targetId;
-    return 3;
+
+    return R_RENDERTARGET_SCENE;
 }
 

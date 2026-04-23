@@ -360,13 +360,13 @@ void __cdecl R_UpdateViewport(GfxCmdBufSourceState *source, GfxViewport *viewpor
 void __cdecl R_DisableSampler(GfxCmdBufState *state, unsigned int samplerIndex);
 void __cdecl R_HW_DisableSampler(IDirect3DDevice9 *device, unsigned int samplerIndex);
 void __cdecl UpdateVPosToWorld(GfxCmdBufSourceState *source);
-void __cdecl R_SetRenderTargetSize(GfxCmdBufSourceState *source, unsigned __int8 newTargetId);
-GfxViewportBehavior __cdecl R_ViewportBehaviorForRenderTarget(unsigned __int8 renderTargetId);
-void __cdecl R_SetRenderTarget(GfxCmdBufContext context, unsigned __int8 newTargetId);
-void __cdecl R_HW_SetRenderTarget(GfxCmdBufState *state, unsigned __int8 newTargetId);
+void __cdecl R_SetRenderTargetSize(GfxCmdBufSourceState *source, GfxRenderTargetId newTargetId);
+GfxViewportBehavior __cdecl R_ViewportBehaviorForRenderTarget(GfxRenderTargetId renderTargetId);
+void R_SetRenderTarget(GfxCmdBufContext context, GfxRenderTargetId newTargetId);
+void __cdecl R_HW_SetRenderTarget(GfxCmdBufState *state, GfxRenderTargetId newTargetId);
 void __cdecl R_UpdateStatsTarget(GfxCmdBufContext context);
 void __cdecl R_UnbindImage(GfxCmdBufState *state, const GfxImage *image);
-void __cdecl R_ClearRenderTargetForMultiGpu(GfxCmdBufContext context, unsigned __int8 targetId);
+void __cdecl R_ClearRenderTargetForMultiGpu(GfxCmdBufContext context, GfxRenderTargetId targetId);
 void __cdecl R_ClearScreenInternal(
                 IDirect3DDevice9 *device,
                 unsigned __int8 whichToClear,

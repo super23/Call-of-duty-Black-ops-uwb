@@ -237,11 +237,11 @@ void __cdecl R_DrawQuadMesh(GfxCmdBufContext context, const Material *material, 
     GfxViewport viewport; // [esp+0h] [ebp-1Ch] BYREF
     GfxDrawPrimArgs args; // [esp+10h] [ebp-Ch] BYREF
 
-    if ( R_BeginMaterial(context.state, material, 4u) )
+    if (R_BeginMaterial(context.state, material, 4u))
     {
         context.state->prim.vertDeclType = VERTDECL_GENERIC;
         R_Set2D(context.source);
-        if ( LOBYTE(context.source[1].matrices.matrix[0].m[2][2]) )
+        if (context.source->viewportIsDirty)
         {
             R_GetViewport(context.source, &viewport);
             R_SetViewport(context.state, &viewport);

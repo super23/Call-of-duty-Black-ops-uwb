@@ -105,7 +105,8 @@ void __cdecl R_DrawBspDrawSurfsLit(
     if ( (customSamplerFlags & 8) != 0 )
         R_SetSamplerState(context.state, 0xEu, 0x62u);
     drawStream.reflectionProbeTexture = context.state->samplerTexture[15];
-    *(_QWORD *)&drawStream.lightmapPrimaryTexture = *(_QWORD *)&context.state->samplerTexture[12];
+    drawStream.lightmapPrimaryTexture = context.state->samplerTexture[12];
+    drawStream.lightmapSecondaryTexture = context.state->samplerTexture[13];
     drawStream.lightmapSecondaryTextureB = context.state->samplerTexture[14];
     drawStream.whiteTexture = &rgp.whiteImage->texture;
     drawStream.primDrawSurfPos = primDrawSurfPos;
@@ -116,7 +117,8 @@ void __cdecl R_DrawBspDrawSurfsLit(
     else
         R_DrawTrianglesLit(&drawStream, &context.state->prim, 0);
     context.state->samplerTexture[15] = drawStream.reflectionProbeTexture;
-    *(_QWORD *)&context.state->samplerTexture[12] = *(_QWORD *)&drawStream.lightmapPrimaryTexture;
+    context.state->samplerTexture[12] = drawStream.lightmapPrimaryTexture;
+    context.state->samplerTexture[13] = drawStream.lightmapSecondaryTexture;
     context.state->samplerTexture[14] = drawStream.lightmapSecondaryTextureB;
 }
 

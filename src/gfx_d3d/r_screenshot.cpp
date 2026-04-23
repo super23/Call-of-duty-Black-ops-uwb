@@ -721,8 +721,8 @@ int R_CubemapShotSetInitialState()
   int hr; // [esp+Ch] [ebp-8h]
   int semaphore; // [esp+10h] [ebp-4h]
 
-  R_SetRenderTargetSize(&gfxCmdBufSourceState, 2u);
-  R_SetRenderTarget(gfxCmdBufContext, 2u);
+  R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_FRAME_BUFFER);
+  R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_FRAME_BUFFER);
   semaphore = R_AcquireDXDeviceOwnership(0);
   R_AssertDXDeviceOwnership();
   if ( r_logFile && r_logFile->current.integer )
@@ -881,9 +881,9 @@ char __cdecl R_GetBackBufferDataHDR(int x, int y, int width, int height, int byt
 
     initHalfToFloat();
     Sleep(0x3E8u);
-    surf = gfxRenderTargets[2].surface.color;
-    surface1 = gfxRenderTargets[16].surface.color;
-    dx.device->GetRenderTargetData(gfxRenderTargets[2].surface.color, gfxRenderTargets[16].surface.color);
+    surf = gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.color;
+    surface1 = gfxRenderTargets[R_RENDERTARGET_16BIT_SYSTEM].surface.color;
+    dx.device->GetRenderTargetData(gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.color, gfxRenderTargets[R_RENDERTARGET_16BIT_SYSTEM].surface.color);
     sourceRect.left = x;
     sourceRect.right = width + x;
     sourceRect.top = y + 2;
@@ -981,8 +981,8 @@ unsigned int __cdecl convertmantissa(unsigned int i)
 
 void R_CubemapShotRestoreState()
 {
-  R_SetRenderTargetSize(&gfxCmdBufSourceState, 2u);
-  R_SetRenderTarget(gfxCmdBufContext, 2u);
+  R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_FRAME_BUFFER);
+  R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_FRAME_BUFFER);
 }
 
 void __cdecl R_SaveCubemapShot(char *filename, CubemapShot shotIndex, float n0, float n1)

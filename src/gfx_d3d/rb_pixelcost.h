@@ -41,6 +41,6 @@ bool __cdecl RB_PixelCost_DoesPrimMatch(unsigned __int64 packedKey);
 void __cdecl RB_PixelCost_ResetPrim(unsigned __int64 packedKey);
 void __cdecl R_PixelCost_EndSurface(GfxCmdBufContext context);
 int RB_PixelCost_AccumulateMsec();
-unsigned __int8 __cdecl RB_PixelCost_OverrideRenderTarget(unsigned __int8 targetId);
+GfxRenderTargetId __cdecl RB_PixelCost_OverrideRenderTarget(GfxRenderTargetId targetId);
 
 extern GfxPixelCostMode pixelCostMode;

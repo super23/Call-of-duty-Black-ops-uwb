@@ -67,7 +67,7 @@ unsigned int __cdecl R_DrawXModelSurfLitInternal(
                 GfxCmdBufContext context)
 {
     GfxCmdBufSourceState *ActiveWorldMatrix; // eax
-    int v4; // eax
+    int v5; // eax
     vector4 worldMat; // [esp+A8h] [ebp-A0h] BYREF
     unsigned int baseGfxEntIndex; // [esp+ECh] [ebp-5Ch]
     GfxDrawSurf drawSurf; // [esp+F0h] [ebp-58h]
@@ -91,48 +91,50 @@ unsigned int __cdecl R_DrawXModelSurfLitInternal(
     drawSurfMask.packed = -234946560;
     drawSurfKey = drawSurf.packed & 0xFFFFFFFFF1FF0000uLL;
     drawSurfIndex = 0;
-    *(_QWORD *)eyeOffset.v = *(_QWORD *)context.source->skinnedPlacement.base.origin;
-    eyeOffset.u[2] = LODWORD(context.source->skinnedPlacement.base.origin[2]);
+    *(_QWORD *)eyeOffset.v = *(_QWORD *)context.source->eyeOffset;
+    eyeOffset.u[2] = LODWORD(context.source->eyeOffset[2]);
     eyeOffset.v[0] = eyeOffset.v[0] - 0.0;
     eyeOffset.v[1] = eyeOffset.v[1] - 0.0;
     eyeOffset.v[2] = eyeOffset.v[2] - 0.0;
     eyeOffset.v[3] = 0.0 - 1.0;
     modelSurf = (const GfxModelRigidSurface *)((char *)data + 4 * LOWORD(drawSurf.packed));
     baseGfxEntIndex = modelSurf->surf.info.gfxEntIndex;
-    depthHackFlags = LODWORD(context.source->sceneDef.floatTime);
-    materialTime = context.source[1].matrices.matrix[0].m[0][3];
-    curDestructibleBurnAmount = context.source[1].matrices.matrix[0].m[1][0];
-    curDestructibleFadeAmount = context.source[1].matrices.matrix[0].m[1][1];
-    curWetness = context.source[1].matrices.matrix[0].m[1][2];
-    while ( 1 )
+    depthHackFlags = context.source->depthHackFlags;
+    materialTime = context.source->materialTime;
+    curDestructibleBurnAmount = context.source->destructibleBurnAmount;
+    curDestructibleFadeAmount = context.source->destructibleFadeAmount;
+    curWetness = context.source->wetness;
+    while (1)
     {
         xsurf = modelSurf->surf.xsurf;
         R_GetWorldMatrixForModelSurf(modelSurf, eyeOffset, &worldMat);
         ActiveWorldMatrix = R_GetActiveWorldMatrix(commonSource);
-        ActiveWorldMatrix->matrices.matrix[0] = worldMat;
+        GfxMatrix tmp; // KISAKTODO: this sucks
+        tmp = worldMat;
+        ActiveWorldMatrix->matrices.matrix[0] = tmp;
         R_SetModelLightingCoordsForSource(modelSurf->surf.info.lightingHandle, commonSource);
         R_SetReflectionProbe(context, (drawSurf.packed >> 25) & 7);
         R_DrawXModelRigidModelSurf(context, xsurf);
-        if ( ++drawSurfIndex == drawSurfCount )
+        if (++drawSurfIndex == drawSurfCount)
             break;
-        drawSurf.packed = drawSurfList[drawSurfIndex].packed;
-        if ( (drawSurfMask.packed & drawSurf.packed) != drawSurfKey )
+        drawSurf.fields = drawSurfList[drawSurfIndex].fields;
+        if ((drawSurfMask.packed & drawSurf.packed) != drawSurfKey)
             break;
-        v4 = 4 * LOWORD(drawSurf.packed);
-        modelSurf = (const GfxModelRigidSurface *)&data->surfsBuffer[v4];
-        if ( *(unsigned __int16 *)&data->surfsBuffer[v4 + 14] != baseGfxEntIndex )
+        v5 = 4 * LOWORD(drawSurf.packed);
+        modelSurf = (const GfxModelRigidSurface *)&data->surfsBuffer[v5];
+        if (*(unsigned __int16 *)&data->surfsBuffer[v5 + 14] != baseGfxEntIndex)
         {
-            if ( R_DrawXModelSurfCheckBreak(
-                         modelSurf->surf.info.gfxEntIndex,
-                         data,
-                         depthHackFlags,
-                         materialTime,
-                         curDestructibleBurnAmount,
-                         curDestructibleFadeAmount,
-                         curWetness,
-                         0,
-                         -1,
-                         0) )
+            if (R_DrawXModelSurfCheckBreak(
+                modelSurf->surf.info.gfxEntIndex,
+                data,
+                depthHackFlags,
+                materialTime,
+                curDestructibleBurnAmount,
+                curDestructibleFadeAmount,
+                curWetness,
+                0,
+                -1,
+                0))
             {
                 break;
             }
@@ -263,7 +265,7 @@ unsigned int __cdecl R_DrawXModelSurfCameraInternal(
                 unsigned int drawSurfCount,
                 GfxCmdBufContext context)
 {
-    int v3; // eax
+    int v4; // eax
     GfxCmdBufSourceState *matrix; // [esp+A4h] [ebp-ACh]
     vector4 worldMat; // [esp+A8h] [ebp-A8h] BYREF
     unsigned int baseGfxEntIndex; // [esp+ECh] [ebp-64h]
@@ -290,20 +292,20 @@ unsigned int __cdecl R_DrawXModelSurfCameraInternal(
     drawSurfMask.packed = -267452416;
     drawSurfKey = drawSurf.packed & 0xFFFFFFFFF00F0000uLL;
     drawSurfIndex = 0;
-    eyeOffset.u[0] = LODWORD(context.source->skinnedPlacement.base.origin[0]);
-    *(_QWORD *)&eyeOffset.unitVec[1].packed = *(_QWORD *)&context.source->skinnedPlacement.base.origin[1];
+    eyeOffset.u[0] = LODWORD(context.source->eyeOffset[0]);
+    *(_QWORD *)&eyeOffset.unitVec[1].packed = *(_QWORD *)&context.source->eyeOffset[1];
     eyeOffset.v[0] = eyeOffset.v[0] - 0.0;
     eyeOffset.v[1] = eyeOffset.v[1] - 0.0;
     eyeOffset.v[2] = eyeOffset.v[2] - 0.0;
     eyeOffset.v[3] = 0.0 - 1.0;
     modelSurf = (const GfxModelRigidSurface *)((char *)data + 4 * LOWORD(drawSurf.packed));
     baseGfxEntIndex = modelSurf->surf.info.gfxEntIndex;
-    depthHackFlags = LODWORD(context.source->sceneDef.floatTime);
-    materialTime = context.source[1].matrices.matrix[0].m[0][3];
-    curDestructibleBurnAmount = context.source[1].matrices.matrix[0].m[1][0];
-    curDestructibleFadeAmount = context.source[1].matrices.matrix[0].m[1][1];
-    curWetness = context.source[1].matrices.matrix[0].m[1][2];
-    if ( baseGfxEntIndex )
+    depthHackFlags = context.source->depthHackFlags;
+    materialTime = context.source->materialTime;
+    curDestructibleBurnAmount = context.source->destructibleBurnAmount;
+    curDestructibleFadeAmount = context.source->destructibleFadeAmount;
+    curWetness = context.source->wetness;
+    if (baseGfxEntIndex)
     {
         gfxEnt = &data->gfxEnts[baseGfxEntIndex];
         currTextureOverride = data->gfxEnts[baseGfxEntIndex].textureOverrideIndex;
@@ -312,36 +314,37 @@ unsigned int __cdecl R_DrawXModelSurfCameraInternal(
     {
         currTextureOverride = -1;
     }
-    while ( 1 )
+    while (1)
     {
         xsurf = modelSurf->surf.xsurf;
         R_GetWorldMatrixForModelSurf(modelSurf, eyeOffset, &worldMat);
         matrix = R_GetActiveWorldMatrix(commonSource);
-        matrix->matrices.matrix[0] = worldMat;
-        if ( currTextureOverride >= 0 )
+        GfxMatrix tmp;
+        tmp = worldMat; // KISAKTODO: sucks
+        matrix->matrices.matrix[0] = tmp;
+        if (currTextureOverride >= 0)
             R_TextureOverride(data, context, modelSurf->surf.info.dobjModelIndex, currTextureOverride);
         R_DrawXModelRigidModelSurf(context, xsurf);
-        if ( ++drawSurfIndex == drawSurfCount )
+        if (++drawSurfIndex == drawSurfCount)
             break;
-        //drawSurf.fields = (GfxDrawSurfFields)drawSurfList[drawSurfIndex];
-        drawSurf.packed = drawSurfList[drawSurfIndex].packed;
-        if ( (drawSurfMask.packed & drawSurf.packed) != drawSurfKey )
+        drawSurf.fields = drawSurfList[drawSurfIndex].fields;
+        if ((drawSurfMask.packed & drawSurf.packed) != drawSurfKey)
             break;
-        v3 = 4 * LOWORD(drawSurf.packed);
-        modelSurf = (const GfxModelRigidSurface *)&data->surfsBuffer[v3];
-        if ( *(unsigned __int16 *)&data->surfsBuffer[v3 + 14] != baseGfxEntIndex )
+        v4 = 4 * LOWORD(drawSurf.packed);
+        modelSurf = (const GfxModelRigidSurface *)&data->surfsBuffer[v4];
+        if (*(unsigned __int16 *)&data->surfsBuffer[v4 + 14] != baseGfxEntIndex)
         {
-            if ( R_DrawXModelSurfCheckBreak(
-                         modelSurf->surf.info.gfxEntIndex,
-                         data,
-                         depthHackFlags,
-                         materialTime,
-                         curDestructibleBurnAmount,
-                         curDestructibleFadeAmount,
-                         curWetness,
-                         1,
-                         currTextureOverride,
-                         0) )
+            if (R_DrawXModelSurfCheckBreak(
+                modelSurf->surf.info.gfxEntIndex,
+                data,
+                depthHackFlags,
+                materialTime,
+                curDestructibleBurnAmount,
+                curDestructibleFadeAmount,
+                curWetness,
+                1,
+                currTextureOverride,
+                0))
             {
                 break;
             }

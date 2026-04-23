@@ -193,7 +193,7 @@ void __cdecl DrawDebugAxis(const float *pos);
 void __cdecl AddInstantForce(const GrassForce *force);
 void __cdecl R_FoliageNotifyVehiclePosition(int localClientNum, const float *vehiclePos);
 void __cdecl R_FoliageSetDefaultShaderConstants(GfxCmdBufSourceState *source);
-void __cdecl R_SetCodeConstantFromVec4(GfxCmdBufSourceState *source, CodeConstant constant, float *value);
+void __cdecl R_SetCodeConstantFromVec4(GfxCmdBufSourceState *source, CodeConstant constant, const float *value);
 void __cdecl R_DirtyCodeConstant(GfxCmdBufSourceState *source, CodeConstant constant);
 void __cdecl R_DynSModelInitGfxState(DynSModelGfxState *dynData);
 int __cdecl dyn_smodel_drawstateCallback(jqBatch *batch);

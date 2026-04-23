@@ -538,11 +538,8 @@ void __cdecl RB_DrawCoronaQuerySprite(Corona *corona)
 
 void __cdecl RB_HW_BeginOcclusionQuery(IDirect3DQuery9 *query)
 {
-    //if ( !query && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_query_d3d.h", 34, 0, "%s", "query") )
-    //    __debugbreak();
     iassert(query);
-    query->Issue(2);
-    //((void (__thiscall *)(IDirect3DQuery9 *, IDirect3DQuery9 *, int))query->Issue)(query, query, 2);
+    query->Issue(D3DISSUE_BEGIN);
 }
 
 unsigned int __cdecl RB_HW_ReadOcclusionQuery(IDirect3DQuery9 *query)

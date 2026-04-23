@@ -1459,25 +1459,20 @@ char __cdecl R_CreateForInitOrReset()
         Com_Printf(8, "Initializing particle cloud buffer...\n");
         R_CreateParticleCloudBuffer();
     }
+
     Com_Printf(8, "Creating Direct3D queries...\n");
     dx.nextFence = 0;
+
     semaphore = R_AcquireDXDeviceOwnership(0);
+
     hr = dx.device->CreateQuery(D3DQUERYTYPE_EVENT, &dx.gpuSyncDelay);
-    //hr = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, int, unsigned __int64 *))dx.device->CreateQuery)(
-    //             dx.device,
-    //             dx.device,
-    //             8,
-    //             &dx.gpuSyncDelay);
+
     if ( hr >= 0 )
     {
         for (fenceIter = 0; fenceIter < 8; ++fenceIter)
         {
-            dx.device->CreateQuery(D3DQUERYTYPE_EVENT, &dx.fencePool[fenceIter]);
-            //((void(__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, int, IDirect3DQuery9 **))dx.device->CreateQuery)(
-            //    dx.device,
-            //    dx.device,
-            //    8,
-            //    &dx.fencePool[fenceIter]);
+            hr = dx.device->CreateQuery(D3DQUERYTYPE_EVENT, &dx.fencePool[fenceIter]);
+            iassert(hr >= 0); // LWSS ADD
         }
             
         if ( semaphore )
@@ -1990,8 +1985,8 @@ char __cdecl R_ResetDevice()
     R_InitCmdBufSourceState(&gfxCmdBufSourceState, &gfxCmdBufInput, 0);
     R_InitCmdBufState(&gfxCmdBufState);
     RB_InitSceneViewport();
-    R_SetRenderTargetSize(&gfxCmdBufSourceState, 2u);
-    R_SetRenderTarget(gfxCmdBufContext, 2u);
+    R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_FRAME_BUFFER);
+    R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_FRAME_BUFFER);
     return 1;
 }
 

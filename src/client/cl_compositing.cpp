@@ -223,7 +223,7 @@ void __cdecl R_HW_InsertFence(IDirect3DQuery9 **fence)
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("(*fence)->Issue( (1 << 0) )\n");
     v2 = R_AcquireDXDeviceOwnership(0);
-    hr = (*fence)->Issue(1);
+    hr = (*fence)->Issue(D3DISSUE_END);
     if ( v2 )
         R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )

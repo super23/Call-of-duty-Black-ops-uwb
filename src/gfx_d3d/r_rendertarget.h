@@ -1,6 +1,7 @@
 #pragma once
 #include <d3d9.h>
 #include "r_gfx.h"
+#include "rb_state.h"
 
 enum FullscreenType : __int32
 {                                       // XREF: R_InitFullscreenRenderTargetImage/r
@@ -70,7 +71,7 @@ int __cdecl R_GetDepthStencilFormat(_D3DFORMAT renderTargetFormat);
 bool __cdecl R_IsDepthStencilFormatOk(_D3DFORMAT renderTargetFormat, _D3DFORMAT depthStencilFormat);
 void __cdecl R_InitRenderTargets();
 void R_InitRenderTargets_PC();
-void __cdecl R_ShareRenderTarget(unsigned __int8 idFrom, unsigned __int8 idTo);
+void __cdecl R_ShareRenderTarget(GfxRenderTargetId idFrom, GfxRenderTargetId idTo);
 void __cdecl AssertUninitializedRenderTarget(const GfxRenderTarget *renderTarget);
 void __cdecl R_InitFullscreenRenderTargetImage(
                 int imageProgType,

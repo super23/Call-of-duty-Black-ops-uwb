@@ -1,5 +1,6 @@
 #pragma once
 #include "r_material.h"
+#include "rb_state.h"
 
 struct __declspec(align(4)) GfxImageFilterPass // sizeof=0x9C
 {                                       // XREF: GfxImageFilter/r
@@ -22,13 +23,13 @@ struct __declspec(align(4)) GfxImageFilter // sizeof=0x138C
                                         // RB_GaussianFilterImage(float,uchar,uchar,int)+E6/r
     GfxImageFilterPass passes[32];      // XREF: RB_GaussianFilterImage(float,uchar,uchar,int)+9F/o
     GfxImage *sourceImage;              // XREF: RB_GaussianFilterImage(float,uchar,uchar,int)+96/w
-    unsigned __int8 finalTarget;        // XREF: RB_GaussianFilterImage(float,uchar,uchar,int)+9C/w
+    GfxRenderTargetId finalTarget;        // XREF: RB_GaussianFilterImage(float,uchar,uchar,int)+9C/w
     // padding byte
     // padding byte
     // padding byte
 };
 
-void __cdecl RB_GaussianFilterImage(float radius, unsigned __int8 srcRenderTargetId, unsigned __int8 dstRenderTargetId);
+void __cdecl RB_GaussianFilterImage(float radius, GfxRenderTargetId srcRenderTargetId, GfxRenderTargetId dstRenderTargetId);
 void __cdecl RB_VirtualToSceneRadius(float radius, float *radiusX, float *radiusY);
 int __cdecl RB_GenerateGaussianFilterChain(
                 float radiusX,

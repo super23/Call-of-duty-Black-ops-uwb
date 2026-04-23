@@ -77,7 +77,7 @@ void __cdecl R_UI3D_CheckRenderTarget()
         g_ui3dStatus.width = vidConfig.displayWidth;
         g_ui3dStatus.height = vidConfig.displayHeight;
     }
-    if (!gfxRenderTargets[20].width && g_ui3dStatus.initialized)
+    if (!gfxRenderTargets[R_RENDERTARGET_UI3D].width && g_ui3dStatus.initialized)
     {
         R_InitUI3DRenderTarget(
             g_ui3dStatus.width,
@@ -356,8 +356,8 @@ void __cdecl RB_UI3D_SetShaderConstants(GfxCmdBufSourceState *source, const GfxU
 
 void __cdecl RB_SetUI3DSamplerAndConstants(GfxCmdBufSourceState *cmdBufSrcState, const GfxUI3DBackend *rbUI3D)
 {
-    if (gfxRenderTargets[20].image)
-        R_SetCodeImageTexture(cmdBufSrcState, 0x27u, gfxRenderTargets[20].image);
+    if (gfxRenderTargets[R_RENDERTARGET_UI3D].image)
+        R_SetCodeImageTexture(cmdBufSrcState, 0x27u, gfxRenderTargets[R_RENDERTARGET_UI3D].image);
     if (rbUI3D)
         RB_UI3D_SetShaderConstants(cmdBufSrcState, rbUI3D);
 }
@@ -403,8 +403,8 @@ void __cdecl RB_UI3D_RenderToTexture(const void *cmds, const GfxUI3DBackend *rbU
           R_InitCmdBufSourceState(&gfxCmdBufSourceState, input, 0);
           gfxCmdBufSourceState.input.data = backEndData;
           R_InitLocalCmdBufState(&gfxCmdBufState);
-          R_SetRenderTargetSize(&gfxCmdBufSourceState, 0x14u);
-          R_SetRenderTarget(gfxCmdBufContext, 0x14u);
+          R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_UI3D);
+          R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_UI3D);
           scissor_min_x = 4095;
           scissor_max_x = 0;
           scissor_min_y = 4095;
@@ -477,12 +477,12 @@ void __cdecl RB_UI3D_RenderToTexture(const void *cmds, const GfxUI3DBackend *rbU
           R_HW_DisableScissor(gfxCmdBufContext.state->prim.device);
           memcpy(gfxCmdBufState.refSamplerState, gfxCmdBufState.refSamplerState, sizeof(gfxCmdBufState));
           if (rbUI3D->blurRadius > 0.0
-              && gfxRenderTargets[21].image
-              && gfxRenderTargets[21].width == gfxRenderTargets[20].width
-              && gfxRenderTargets[21].height == gfxRenderTargets[20].height)
+              && gfxRenderTargets[R_RENDERTARGET_UI3D_PING_PONG].image
+              && gfxRenderTargets[R_RENDERTARGET_UI3D_PING_PONG].width == gfxRenderTargets[R_RENDERTARGET_UI3D].width
+              && gfxRenderTargets[R_RENDERTARGET_UI3D_PING_PONG].height == gfxRenderTargets[R_RENDERTARGET_UI3D].height)
           {
-            RB_GaussianFilterImage(rbUI3D->blurRadius, 0x14u, 0x15u);
-            RB_GaussianFilterImage(rbUI3D->blurRadius, 0x15u, 0x14u);
+            RB_GaussianFilterImage(rbUI3D->blurRadius, R_RENDERTARGET_UI3D, R_RENDERTARGET_UI3D_PING_PONG);
+            RB_GaussianFilterImage(rbUI3D->blurRadius, R_RENDERTARGET_UI3D_PING_PONG, R_RENDERTARGET_UI3D);
           }
           g_ui3dStatus.rendering = 0;
         }
