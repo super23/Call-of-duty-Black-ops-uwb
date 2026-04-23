@@ -436,7 +436,7 @@ void __cdecl R_ChangeObjectPlacementRemote(GfxCmdBufSourceState *source, const G
     R_ChangeObjectPlacement(source, remotePlacement);
 }
 
-GfxCmdBufSourceState *__cdecl R_GetCodeMatrix(
+float *__cdecl R_GetCodeMatrix(
     GfxCmdBufSourceState *source,
     unsigned int sourceIndex,
     unsigned int firstRow)
@@ -447,108 +447,56 @@ GfxCmdBufSourceState *__cdecl R_GetCodeMatrix(
     unsigned int inverseIndex; // [esp+11Ch] [ebp-8h]
     unsigned int matrixVersion; // [esp+120h] [ebp-4h]
 
-    if (!source->matrixVersions[(sourceIndex - 197) >> 2]
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-            1281,
-            0,
-            "%s\n\t(sourceIndex) = %i",
-            "(source->matrixVersions[(((sourceIndex) - CONST_SRC_FIRST_CODE_MATRIX) >> 2)])",
-            sourceIndex))
-    {
-        __debugbreak();
-    }
-    if (firstRow > 3
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-            1283,
-            0,
-            "firstRow not in [0, 3]\n\t%i not in [%i, %i]",
-            firstRow,
-            0,
-            3))
-    {
-        __debugbreak();
-    }
-    matrixVersion = source->matrixVersions[(sourceIndex - 197) >> 2];
-    matrixIndex = sourceIndex - 197;
+    iassert(source->matrixVersions[MATRIX_VERSIONS_INDEX(sourceIndex)]);
+    bcassert2(firstRow, 3);
+
+    matrixVersion = source->matrixVersions[MATRIX_VERSIONS_INDEX(sourceIndex)];
+    matrixIndex = MATRIX_INDEX(sourceIndex);
+
     if (source->constVersions[sourceIndex] == matrixVersion)
-        return (GfxCmdBufSourceState *)((char *)source + 64 * matrixIndex + 16 * firstRow);
+    {
+        return source->matrices.matrix[matrixIndex].m[firstRow];
+    }
+
     baseIndex = matrixIndex & 0xFFFFFFFC;
-    if (source->constVersions[(matrixIndex & 0xFFFFFFFC) + 197] != matrixVersion)
+
+    if (source->constVersions[(matrixIndex & 0xFFFFFFFC) + CONST_SRC_FIRST_CODE_MATRIX] != matrixVersion)
     {
         R_DeriveCodeMatrix(source, &source->matrices, baseIndex);
         if (matrixIndex == baseIndex)
-            return (GfxCmdBufSourceState *)((char *)source + 64 * matrixIndex + 16 * firstRow);
-        if (source->constVersions[sourceIndex] == matrixVersion
-            && !Assert_MyHandler(
-                "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                1297,
-                0,
-                "%s\n\t(sourceIndex) = %i",
-                "(source->constVersions[sourceIndex] != matrixVersion)",
-                sourceIndex))
-        {
-            __debugbreak();
-        }
+            return source->matrices.matrix[matrixIndex].m[firstRow];
+
+        iassert(source->constVersions[sourceIndex] != matrixVersion);
     }
+
     source->constVersions[sourceIndex] = matrixVersion;
     transposeIndex = matrixIndex ^ 2;
-    if (source->constVersions[(matrixIndex ^ 2) + 197] == matrixVersion)
+    if (source->constVersions[(matrixIndex ^ 2) + CONST_SRC_FIRST_CODE_MATRIX] == matrixVersion)
     {
         MatrixTranspose44(
             *(mat4x4*)&source->matrices.matrix[transposeIndex],
             *(mat4x4*)&source->matrices.matrix[matrixIndex]);
-        return (GfxCmdBufSourceState *)((char *)source + 64 * matrixIndex + 16 * firstRow);
+        return source->matrices.matrix[matrixIndex].m[firstRow];
     }
-    else
+
+    inverseIndex = matrixIndex ^ 1;
+    if (source->constVersions[(matrixIndex ^ 1) + CONST_SRC_FIRST_CODE_MATRIX] == matrixVersion)
     {
-        inverseIndex = matrixIndex ^ 1;
-        if (source->constVersions[(matrixIndex ^ 1) + 197] == matrixVersion)
-        {
-            MatrixInverse44(
-                *(mat4x4*)&source->matrices.matrix[inverseIndex],
-                *(mat4x4*)&source->matrices.matrix[matrixIndex]);
-            return (GfxCmdBufSourceState *)((char *)source + 64 * matrixIndex + 16 * firstRow);
-        }
-        else
-        {
-            if (matrixIndex != (baseIndex | 3)
-                && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                    1316,
-                    0,
-                    "%s",
-                    "matrixIndex == (baseIndex | CONST_SRC_MATRIX_INVERSE_BIT | CONST_SRC_MATRIX_TRANSPOSE_BIT)"))
-            {
-                __debugbreak();
-            }
-            if (transposeIndex != (baseIndex | 1)
-                && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                    1317,
-                    0,
-                    "%s",
-                    "transposeIndex == (baseIndex | CONST_SRC_MATRIX_INVERSE_BIT)"))
-            {
-                __debugbreak();
-            }
-            if (inverseIndex != (baseIndex | 2)
-                && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-                    1318,
-                    0,
-                    "%s",
-                    "inverseIndex == (baseIndex | CONST_SRC_MATRIX_TRANSPOSE_BIT)"))
-            {
-                __debugbreak();
-            }
-            MatrixTranspose44(*(mat4x4*)&source->matrices.matrix[baseIndex], *(mat4x4 *)&source->matrices.matrix[inverseIndex]);
-            source->constVersions[inverseIndex + 197] = matrixVersion;
-            MatrixInverse44(*(mat4x4*)&source->matrices.matrix[inverseIndex], *(mat4x4*)&source->matrices.matrix[matrixIndex]);
-            return (GfxCmdBufSourceState *)((char *)source + 64 * matrixIndex + 16 * firstRow);
-        }
+        MatrixInverse44(
+            *(mat4x4*)&source->matrices.matrix[inverseIndex],
+            *(mat4x4*)&source->matrices.matrix[matrixIndex]);
+        return source->matrices.matrix[matrixIndex].m[firstRow];
     }
+
+    iassert(matrixIndex == (baseIndex | CONST_SRC_MATRIX_INVERSE_BIT | CONST_SRC_MATRIX_TRANSPOSE_BIT));
+    iassert(transposeIndex == (baseIndex | CONST_SRC_MATRIX_INVERSE_BIT));
+    iassert(inverseIndex == (baseIndex | CONST_SRC_MATRIX_TRANSPOSE_BIT));
+
+    MatrixTranspose44(*(mat4x4*)&source->matrices.matrix[baseIndex], *(mat4x4 *)&source->matrices.matrix[inverseIndex]);
+    source->constVersions[inverseIndex + CONST_SRC_FIRST_CODE_MATRIX] = matrixVersion;
+    MatrixInverse44(*(mat4x4*)&source->matrices.matrix[inverseIndex], *(mat4x4*)&source->matrices.matrix[matrixIndex]);
+
+    return source->matrices.matrix[matrixIndex].m[firstRow];
 }
 
 void __cdecl R_DeriveCodeMatrix(GfxCmdBufSourceState *source, GfxCodeMatrices *activeMatrices, unsigned int baseIndex)
@@ -594,34 +542,20 @@ void __cdecl R_DeriveViewMatrix(GfxCmdBufSourceState *source)
     source->constVersions[201] = source->matrixVersions[1];
 }
 
-// local variable allocation has failed, the output may be wrong!
 void    R_DeriveWorldViewMatrix(GfxCmdBufSourceState *source)
 {
-    GfxMatrix world; // [esp+4h] [ebp-5Ch] BYREF
-    float *world_60; // [esp+4Ch] [ebp-14h]
-    GfxViewParms *p_viewParms; // [esp+50h] [ebp-10h]
-    //GfxCodeMatrices *activeMatrices; // [esp+58h] [ebp-8h]
-    //GfxCodeMatrices *retaddr; // [esp+60h] [ebp+0h]
-    //
-    //activeMatrices = retaddr;
-    p_viewParms = &source->viewParms;
-    world_60 = (float *)source;
-    if (source->constVersions[197] != source->matrixVersions[0]
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-            1047,
-            0,
-            "%s",
-            "R_IsMatrixConstantUpToDate( source, CONST_SRC_CODE_WORLD_MATRIX )"))
-    {
-        __debugbreak();
-    }
-    memcpy(&world, world_60, sizeof(world));
-    world.m[3][0] = world.m[3][0] + source->eyeOffset[0];
-    world.m[3][1] = world.m[3][1] + source->eyeOffset[1];
-    world.m[3][2] = world.m[3][2] + source->eyeOffset[2];
-    MatrixMultiply44(world.m, p_viewParms->viewMatrix.m, (float (*)[4])(world_60 + 48));
-    source->constVersions[209] = source->matrixVersions[3];
+    const GfxViewParms *viewParms = &source->viewParms;
+    GfxCodeMatrices *activeMatrices = &source->matrices;
+
+    iassert(R_IsMatrixConstantUpToDate(source, CONST_SRC_CODE_WORLD_MATRIX));
+
+    GfxMatrix world = activeMatrices->matrix[MATRIX_INDEX(CONST_SRC_CODE_WORLD_MATRIX)];
+    Vec3Add(world.m[3], source->eyeOffset, world.m[3]);
+    GfxMatrix *worldView = &activeMatrices->matrix[MATRIX_INDEX(CONST_SRC_CODE_WORLD_VIEW_MATRIX)];
+    MatrixMultiply44(world.m, viewParms->viewMatrix.m, worldView->m);
+    //source->constVersions[CONST_SRC_CODE_WORLD_VIEW_MATRIX] = source->matrixVersions[3];
+    static_assert(MATRIX_VERSIONS_INDEX(CONST_SRC_CODE_WORLD_VIEW_MATRIX) == 3);
+    source->constVersions[CONST_SRC_CODE_WORLD_VIEW_MATRIX] = source->matrixVersions[MATRIX_VERSIONS_INDEX(CONST_SRC_CODE_WORLD_VIEW_MATRIX)];
 }
 
 void __cdecl R_DeriveProjectionMatrix(GfxCmdBufSourceState *source)
@@ -664,45 +598,33 @@ void __cdecl R_DeriveViewProjectionMatrix(GfxCmdBufSourceState *source)
     source->constVersions[213] = source->matrixVersions[4];
 }
 
-// local variable allocation has failed, the output may be wrong!
 void    R_DeriveWorldViewProjectionMatrix(GfxCmdBufSourceState *source)
 {
-    GfxMatrix *v2; // [esp-8h] [ebp-60h]
-    GfxMatrix world; // [esp-4h] [ebp-5Ch] BYREF
-    GfxCodeMatrices *worldViewProj; // [esp+44h] [ebp-14h]
-    const GfxViewParms *viewParms; // [esp+48h] [ebp-10h]
-    //GfxCmdBufSourceState *activeMatrices; // [esp+50h] [ebp-8h]
-    //int vars0; // [esp+58h] [ebp+0h]
-    //
-    //activeMatrices = (GfxCmdBufSourceState *)vars0;
-    viewParms = &source->viewParms;
-    worldViewProj = &source->matrices;
-    if (source->constVersions[197] != source->matrixVersions[0]
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
-            1128,
-            0,
-            "%s",
-            "R_IsMatrixConstantUpToDate( source, CONST_SRC_CODE_WORLD_MATRIX )"))
-    {
-        __debugbreak();
-    }
-    memcpy(&world, worldViewProj, sizeof(world));
-    v2 = &worldViewProj->matrix[20];
+    const GfxViewParms *viewParms = &source->viewParms;
+    GfxCodeMatrices *activeMatrices = &source->matrices;
+
+    iassert(R_IsMatrixConstantUpToDate(source, CONST_SRC_CODE_WORLD_MATRIX));
+
+    GfxMatrix world = activeMatrices->matrix[MATRIX_INDEX(CONST_SRC_CODE_WORLD_MATRIX)];
+    GfxMatrix *worldViewProj = &activeMatrices->matrix[MATRIX_INDEX(CONST_SRC_CODE_WORLD_VIEW_PROJECTION_MATRIX)];
+
     if (source->depthHackFlags == 2)
     {
-        if (source->constVersions[213] != source->matrixVersions[4])
+        if (!R_IsMatrixConstantUpToDate(source, CONST_SRC_CODE_VIEW_PROJECTION_MATRIX))
+        {
             R_DeriveViewProjectionMatrix(source);
-        MatrixMultiply44(world.m, worldViewProj->matrix[16].m, v2->m);
+        }
+        const GfxMatrix *viewProj = &activeMatrices->matrix[MATRIX_INDEX(CONST_SRC_CODE_VIEW_PROJECTION_MATRIX)];
+        MatrixMultiply44(world.m, viewProj->m, worldViewProj->m);
     }
     else
     {
-        world.m[3][0] = world.m[3][0] + source->eyeOffset[0];
-        world.m[3][1] = world.m[3][1] + source->eyeOffset[1];
-        world.m[3][2] = world.m[3][2] + source->eyeOffset[2];
-        MatrixMultiply44(world.m, viewParms->viewProjectionMatrix.m, v2->m);
+        Vec3Add(world.m[3], source->eyeOffset, world.m[3]);
+        MatrixMultiply44(world.m, viewParms->viewProjectionMatrix.m, worldViewProj->m);
     }
-    source->constVersions[217] = source->matrixVersions[5];
+
+    static_assert(MATRIX_VERSIONS_INDEX(CONST_SRC_CODE_WORLD_VIEW_PROJECTION_MATRIX) == 5);
+    source->constVersions[CONST_SRC_CODE_WORLD_VIEW_PROJECTION_MATRIX] = source->matrixVersions[MATRIX_VERSIONS_INDEX(CONST_SRC_CODE_WORLD_VIEW_PROJECTION_MATRIX)];
 }
 
 void __cdecl R_DeriveShadowLookupMatrix(GfxCmdBufSourceState *source)
@@ -712,7 +634,6 @@ void __cdecl R_DeriveShadowLookupMatrix(GfxCmdBufSourceState *source)
     source->constVersions[221] = source->matrixVersions[6];
 }
 
-// local variable allocation has failed, the output may be wrong!
 void    R_GenerateWorldOutdoorLookupMatrix(GfxCmdBufSourceState *source, float (*outMatrix)[4])
 {
     GfxMatrix worldMatrix; // [esp-Ch] [ebp-8Ch] BYREF
@@ -734,7 +655,7 @@ void    R_GenerateWorldOutdoorLookupMatrix(GfxCmdBufSourceState *source, float (
     zInTimesInvViewTimesOutdoorLookup[2] += downBias;
     MatrixTransformVector44(zInTimesInvViewTimesOutdoorLookup, g_drawConsts.outdoorLookupMatrix, worldOffset);
 
-    //iassert(R_IsMatrixConstantUpToDate(source, CONST_SRC_CODE_WORLD_MATRIX));
+    iassert(R_IsMatrixConstantUpToDate(source, CONST_SRC_CODE_WORLD_MATRIX));
 
     memcpy(&worldMatrix, source, sizeof(worldMatrix));
 
@@ -744,7 +665,8 @@ void    R_GenerateWorldOutdoorLookupMatrix(GfxCmdBufSourceState *source, float (
 
     Vec4Add(&(*outMatrix)[12], worldOffset, &(*outMatrix)[12]);
 
-    source->constVersions[225] = source->matrixVersions[7];
+    static_assert(MATRIX_VERSIONS_INDEX(CONST_SRC_CODE_WORLD_OUTDOOR_LOOKUP_MATRIX) == 7);
+    source->constVersions[CONST_SRC_CODE_WORLD_OUTDOOR_LOOKUP_MATRIX] = source->matrixVersions[MATRIX_VERSIONS_INDEX(CONST_SRC_CODE_WORLD_OUTDOOR_LOOKUP_MATRIX)];
 }
 
 const GfxImage *__cdecl R_GetTextureFromCode(

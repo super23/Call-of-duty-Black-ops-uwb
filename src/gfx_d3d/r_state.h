@@ -210,6 +210,7 @@ enum CodeConstant : __int32 // LWSS: not a real enum name
     CONST_SRC_CODE_EMBLEM_LUT_SELECTOR = 196,
     CONST_SRC_CODE_NEVER_DIRTY_PS_END = 197,
     CONST_SRC_CODE_COUNT_FLOAT4 = 197,
+
     CONST_SRC_FIRST_CODE_MATRIX = 197,
     CONST_SRC_CODE_WORLD_MATRIX = 197,
     CONST_SRC_CODE_INVERSE_WORLD_MATRIX = 198,
@@ -243,9 +244,29 @@ enum CodeConstant : __int32 // LWSS: not a real enum name
     CONST_SRC_CODE_INVERSE_WORLD_OUTDOOR_LOOKUP_MATRIX = 226,
     CONST_SRC_CODE_TRANSPOSE_WORLD_OUTDOOR_LOOKUP_MATRIX = 227,
     CONST_SRC_CODE_INVERSE_TRANSPOSE_WORLD_OUTDOOR_LOOKUP_MATRIX = 228,
+
     CONST_SRC_TOTAL_COUNT = 229,
     CONST_SRC_NONE = 230,
 };
+
+// 31 Matrix const's, divide by 4 to go into matrixVersions[8] in `GfxCmdBufSourceState` (and ty to opent5)
+#define MATRIX_VERSIONS_INDEX(idx) ((idx - CONST_SRC_FIRST_CODE_MATRIX) / 4)
+#define MATRIX_INDEX(idx) (idx - CONST_SRC_FIRST_CODE_MATRIX)
+
+#define CONST_SRC_MATRIX_INVERSE_BIT 1
+#define CONST_SRC_MATRIX_TRANSPOSE_BIT 2
+
+// credits to opent5
+static inline unsigned int
+R_GetMatrixConstantVersion(GfxCmdBufSourceState *source, unsigned int codeConstIndex)
+{
+    return source->matrixVersions[MATRIX_VERSIONS_INDEX(codeConstIndex)];
+}
+static inline bool
+R_IsMatrixConstantUpToDate(GfxCmdBufSourceState *source, unsigned int codeConstIndex)
+{
+    return R_GetMatrixConstantVersion(source, codeConstIndex) == source->constVersions[codeConstIndex];
+}
 
 void __cdecl R_PixStartNamedRenderTarget(unsigned __int8 renderTargetId);
 void R_PixEndNamedRenderTarget();
@@ -256,17 +277,15 @@ void __cdecl R_DepthHackNearClipChanged(GfxCmdBufSourceState *source);
 void __cdecl R_ChangeObjectPlacement(GfxCmdBufSourceState *source, const GfxScaledPlacement *placement);
 void __cdecl R_ChangeObjectPlacement_Core(GfxCmdBufSourceState *source, const GfxScaledPlacement *placement);
 void __cdecl R_ChangeObjectPlacementRemote(GfxCmdBufSourceState *source, const GfxScaledPlacement *remotePlacement);
-GfxCmdBufSourceState *__cdecl R_GetCodeMatrix(
+float *__cdecl R_GetCodeMatrix(
                 GfxCmdBufSourceState *source,
                 unsigned int sourceIndex,
                 unsigned int firstRow);
 void __cdecl R_DeriveCodeMatrix(GfxCmdBufSourceState *source, GfxCodeMatrices *activeMatrices, unsigned int baseIndex);
 void __cdecl R_DeriveViewMatrix(GfxCmdBufSourceState *source);
-// local variable allocation has failed, the output may be wrong!
 void    R_DeriveWorldViewMatrix(GfxCmdBufSourceState *source);
 void __cdecl R_DeriveProjectionMatrix(GfxCmdBufSourceState *source);
 void __cdecl R_DeriveViewProjectionMatrix(GfxCmdBufSourceState *source);
-// local variable allocation has failed, the output may be wrong!
 void    R_DeriveWorldViewProjectionMatrix(GfxCmdBufSourceState *source);
 void __cdecl R_DeriveShadowLookupMatrix(GfxCmdBufSourceState *source);
 // local variable allocation has failed, the output may be wrong!

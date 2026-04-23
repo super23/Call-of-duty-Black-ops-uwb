@@ -365,7 +365,8 @@ void __cdecl R_WorldMatrixChanged(GfxCmdBufSourceState *source)
     ++source->matrixVersions[3];
     ++source->matrixVersions[5];
     ++source->matrixVersions[7];
-    source->constVersions[197] = source->matrixVersions[0];
+
+    source->constVersions[CONST_SRC_CODE_WORLD_MATRIX] = source->matrixVersions[0];
 }
 
 void __cdecl R_Set2D(GfxCmdBufSourceState *source)

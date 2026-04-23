@@ -18,11 +18,11 @@ void __cdecl R_SetPassShaderPrimArguments(const GfxCmdBufContext context, unsign
 void __cdecl R_SetVertexShaderConstantFromCode_Old(GfxCmdBufContext context, const MaterialShaderArgument *routingData);
 float *__cdecl R_GetCodeConstant(const GfxCmdBufContext context, unsigned int constant);
 char __cdecl R_IsVertexShaderConstantUpToDate(GfxCmdBufContext context, const MaterialShaderArgument *routingData);
-char __cdecl R_IsShaderMatrixUpToDate(
+bool __cdecl R_IsShaderMatrixUpToDate(
                 const GfxCmdBufSourceState *source,
                 GfxShaderConstantState *constant,
                 const MaterialShaderArgument *routingData);
-char __cdecl R_IsShaderConstantUpToDate(
+bool __cdecl R_IsShaderConstantUpToDate(
                 const GfxCmdBufSourceState *source,
                 GfxShaderConstantState *constant,
                 const MaterialShaderArgument *routingData);
