@@ -160,7 +160,7 @@ gjk_aabb_t *__cdecl gjk_aabb_t::create(
     }
     if ( allocator->is_query() )
     {
-        obj = (gjk_aabb_t *)allocator->allocate(128, 16, 0);
+        obj = (gjk_aabb_t *)allocator->allocate(sizeof(gjk_aabb_t), 16, 0);
         if (obj)
         {
             new (obj) gjk_aabb_t();
@@ -436,10 +436,11 @@ gjk_obb_t *__cdecl gjk_obb_t::create(
     iassert(allocator);
     if ( allocator->is_query() )
     {
-        obj = (gjk_obb_t *)allocator->allocate(160, 16, 0);
+        obj = (gjk_obb_t *)allocator->allocate(sizeof(gjk_obb_t), 16, 0);
         if (obj)
         {
-            *obj = dummy; // set vtable this way
+            new (obj) gjk_obb_t();
+            //*obj = dummy; // set vtable this way
             //obj->__vftable = (gjk_obb_t_vtbl *)&phys_gjk_geom::`vftable';
             //obj->__vftable = (gjk_obb_t_vtbl *)&gjk_base_t::`vftable';
             //obj->__vftable = (gjk_obb_t_vtbl *)&gjk_obb_t::`vftable';
@@ -703,11 +704,6 @@ void    phys_aabb_add_point(
     aabb_max->z = v5->z;
 }
 
-unsigned int gjk_obb_t::get_type() const
-{
-    return 6;
-}
-
 void __cdecl gjk_obb_t::destroy(gjk_obb_t *geom)
 {
     if ( geom )
@@ -768,7 +764,7 @@ gjk_brush_t * gjk_brush_t::create(
         }
         if (allocator->is_query())
         {
-            v9 = (gjk_brush_t *)allocator->allocate(96, 16, 0);
+            v9 = (gjk_brush_t *)allocator->allocate(sizeof(gjk_brush_t), 16, 0);
             if (v9)
             {
                 //v9->__vftable = (gjk_brush_t_vtbl *)&phys_gjk_geom::`vftable';
@@ -947,11 +943,6 @@ const cbrush_t *gjk_brush_t::get_brush()
     return this->brush;
 }
 
-unsigned int gjk_brush_t::get_type() const
-{
-    return 2;
-}
-
 bool gjk_obb_t::is_polyhedron()
 {
     return 1;
@@ -985,13 +976,15 @@ gjk_partition_t *__cdecl gjk_partition_t::create(const CollisionAabbTree *tree, 
     }
     if ( allocator->is_query() )
     {
-        obj = (gjk_partition_t *)allocator->allocate(112, 16, 0);
+        obj = (gjk_partition_t *)allocator->allocate(sizeof(gjk_partition_t), 16, 0);
         if ( obj )
         {
             //obj->__vftable = (gjk_partition_t_vtbl *)&phys_gjk_geom::`vftable';
             //obj->__vftable = (gjk_partition_t_vtbl *)&gjk_base_t::`vftable';
             //obj->__vftable = (gjk_partition_t_vtbl *)&gjk_partition_t::`vftable';
             //v4 = obj;
+            new (obj) gjk_partition_t();
+
             *obj = dummypart;
             obj->m_flags = 0;
             v4 = obj;
@@ -1459,7 +1452,7 @@ gjk_double_sphere_t *__cdecl gjk_double_sphere_t::create(
     }
     if ( allocator->is_query() )
     {
-        v11 = (unsigned int *)allocator->allocate(144, 0, 0);
+        v11 = (unsigned int *)allocator->allocate(sizeof(gjk_double_sphere_t), 0, 0);
 
         if ( v11 )
         {
@@ -1552,7 +1545,7 @@ gjk_cylinder_t *__cdecl gjk_cylinder_t::create(
     }
     if ( allocator->is_query() )
     {
-        v9 = (gjk_cylinder_t *)allocator->allocate(160, 16, 0);
+        v9 = (gjk_cylinder_t *)allocator->allocate(sizeof(gjk_cylinder_t), 16, 0);
         if ( v9 )
         {
             //v9->__vftable = (gjk_cylinder_t_vtbl *)&phys_gjk_geom::`vftable';
@@ -2044,11 +2037,6 @@ void gjk_cylinder_t::calc_aabb(
     phys_aabb_add_sphere(xform_, v6, radiusa, aabb_min, aabb_max);
 }
 
-unsigned int gjk_cylinder_t::get_type() const
-{
-    return 5;
-}
-
 float gjk_cylinder_t::get_geom_radius() const
 {
     return this->m_geom_radius;
@@ -2232,7 +2220,7 @@ gjk_polygon_cylinder_t *__cdecl gjk_polygon_cylinder_t::create(
     }
     if (allocator->is_query())
     {
-        v8 = (gjk_polygon_cylinder_t *)allocator->allocate(128, 16, 0);
+        v8 = (gjk_polygon_cylinder_t *)allocator->allocate(sizeof(gjk_polygon_cylinder_t), 16, 0);
         if (v8)
         {
             //v8->__vftable = (gjk_polygon_cylinder_t_vtbl *)&phys_gjk_geom::`vftable';

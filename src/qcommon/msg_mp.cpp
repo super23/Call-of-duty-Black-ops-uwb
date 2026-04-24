@@ -4808,7 +4808,7 @@ void __cdecl MSG_ReadDeltaPlayerstate(
         memset(dst, 0, sizeof(playerState_s));
     }
 
-    memcpy((unsigned __int8 *)to, (unsigned __int8 *)from, sizeof(playerState_s));
+    memcpy(to, from, sizeof(playerState_s));
 
     if (cl_shownet && (cl_shownet->current.integer >= 2 || cl_shownet->current.integer == -2))
     {

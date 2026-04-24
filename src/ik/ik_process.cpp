@@ -226,39 +226,33 @@ char __cdecl IK_HasAnimatedBones(IKState *ikState)
 
 void    IK_Process(IKState *ikState, bool isLocalBones)
 {
-    //void *v3; // esp
-    int v4; // [esp-1CC0h] [ebp-1CCCh] BYREF
-    int v5; // [esp-1700h] [ebp-170Ch] BYREF
-    int v6; // [esp-1140h] [ebp-114Ch] BYREF
-    int v7; // [esp-B80h] [ebp-B8Ch] BYREF
-    int v8; // [esp-5C0h] [ebp-5CCh] BYREF
-    //_BYTE v9[12]; // [esp+0h] [ebp-Ch] BYREF
-    //_UNKNOWN *retaddr; // [esp+Ch] [ebp+0h]
-
-    //*(unsigned int *)v9 = a1;
-    //*(unsigned int *)&v9[4] = retaddr;
-    //v3 = alloca(7368);
+    float matArrayPostIK[23][4][4];
+    float matArrayPreIK[23][4][4];
+    float matArrayXforms[23][4][4];
+    float matArrayCache[23][4][4];
+    float matArrayCachePre[23][4][4];
 
     iassert(!ikState->matArrayPostIK);
 
-    ikState->matArrayPostIK = (float (*)[4][4])&v8;
-    ikState->matArrayPreIK = (float (*)[4][4])&v7;
-    ikState->matArrayXforms = (float (*)[4][4])&v6;
-    ikState->matArrayCache = (float (*)[4][4])&v5;
-    ikState->matArrayCachePre = (float (*)[4][4])&v4;
+    ikState->matArrayPostIK = matArrayPostIK;
+    ikState->matArrayPreIK = matArrayPreIK;
+    ikState->matArrayXforms = matArrayXforms;
+    ikState->matArrayCache = matArrayCache;
+    ikState->matArrayCachePre = matArrayCachePre;
+
     ikState->cacheActive = 1;
     ikState->bHasActiveLayers = 1;
     if ( ikState->cacheActive )
     {
-        memset((unsigned __int8 *)ikState->matArrayCache, 0, 0x5C0u);
+        memset(ikState->matArrayCache, 0, sizeof(ikState->matArrayCache));
         ikState->cacheActive = 0;
     }
-    memset((unsigned __int8 *)ikState->matArrayCachePre, 0, 0x5C0u);
+    memset(ikState->matArrayCachePre, 0, sizeof(ikState->matArrayCachePre));
     if ( IK_HasAnimatedBones(ikState) )
     {
         ikState->modifiedIKBones = 0;
         IK_GeneratePreIKMatrices(ikState, isLocalBones);
-        memcpy(ikState->matArrayPostIK, ikState->matArrayPreIK, 0x5C0u);
+        memcpy(ikState->matArrayPostIK, ikState->matArrayPreIK, sizeof(ikState->matArrayPostIK));
         if ( !ikState->bJointVarsValid )
             IK_GetJointVars(ikState);
         IKImport_Profiler(ikState);
@@ -269,6 +263,7 @@ void    IK_Process(IKState *ikState, bool isLocalBones)
         if ( IKImport_GetVar_IK_Debug() == 2 )
             IKImport_DrawDebugSkeleton(ikState);
     }
+
     ikState->matArrayPostIK = 0;
     ikState->matArrayPreIK = 0;
     ikState->matArrayXforms = 0;

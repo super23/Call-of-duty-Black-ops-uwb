@@ -1783,7 +1783,6 @@ phys_mat44 *__cdecl create_ent_mat(gjk_physics_collision_visitor *collision_visi
     float v7[9]; // [esp+38h] [ebp-70h] BYREF
     const float *inVector; // [esp+5Ch] [ebp-4Ch]
     float axis[9]; // [esp+64h] [ebp-44h] BYREF
-    int v10; // [esp+88h] [ebp-20h]
     int v11; // [esp+8Ch] [ebp-1Ch]
     int v12; // [esp+90h] [ebp-18h]
     phys_mat44 *v13; // [esp+94h] [ebp-14h]
@@ -1794,9 +1793,8 @@ phys_mat44 *__cdecl create_ent_mat(gjk_physics_collision_visitor *collision_visi
 
     v12 = 4;
     v11 = 16;
-    v10 = (int)collision_visitor->allocate(64, 16, 0);
-    v13 = (phys_mat44 *)v10;
-    if (v10)
+    v13 = (phys_mat44 *)collision_visitor->allocate(sizeof(phys_mat44), 16, 0);
+    if (v13)
         v3 = v13;
     else
         v3 = 0;
@@ -1849,7 +1847,7 @@ phys_auto_activate_callback *__cdecl create_ent_aac(gjk_physics_collision_visito
     {
         if (collision_visitor->cent->destructible && (collision_visitor->bpeqi->env_collision_flags & 8) != 0)
         {
-            v7 = (destructible_ent_aa *)collision_visitor->allocate(12, 4, 0);
+            v7 = (destructible_ent_aa *)collision_visitor->allocate(sizeof(destructible_ent_aa), 4, 0);
             if (!v7)
                 return 0;
             //cent = (phys_auto_activate_callback_vtbl *)collision_visitor->cent;
@@ -1882,7 +1880,7 @@ phys_auto_activate_callback *__cdecl create_ent_aac(gjk_physics_collision_visito
         {
             __debugbreak();
         }
-        v6 = (dynamic_ent_aa *)collision_visitor->allocate(12, 4, 0);
+        v6 = (dynamic_ent_aa *)collision_visitor->allocate(sizeof(dynamic_ent_aa), 4, 0);
         if (!v6)
             return 0;
         dynEntDef = (DynEntityDef*)collision_visitor->dynEntDef;

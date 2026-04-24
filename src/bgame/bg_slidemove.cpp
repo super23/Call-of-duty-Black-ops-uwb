@@ -489,91 +489,73 @@ void __cdecl calc_time(phys_gjk_info *gjk_info, bool keep_all_collisions, float 
     }
 }
 
-void __cdecl POLYGON_CYLINDER_HACK(phys_gjk_input *pgi, gjk_base_t *cg1, const gjk_base_t *cg2)
+static void POLYGON_CYLINDER_HACK(phys_gjk_input *pgi, const gjk_base_t *cg1, const gjk_base_t *cg2)
 {
-    if ( cg1->get_type() == 7 )
+    if ( cg1->get_type() == GJK_POLYGON_CYLINDER ) // CYLINDER
     {
+        gjk_polygon_cylinder_t *cylinder1 = (gjk_polygon_cylinder_t *)cg1;
+
         if (cg2->get_brush())
-        {
-            cg1[1].m_aabb_mx_loc.z = 0.0;
-        }
+            cylinder1->m_mode = 0;
         else
-        {
-            //LODWORD(cg1[1].m_aabb_mx_loc.z) = 1;
-            cg1[1].m_aabb_mx_loc.z = 1.0;
-        }
-        pgi->cg1_radius = cg1->get_geom_radius();
+            cylinder1->m_mode = 1;
+        pgi->cg1_radius = cylinder1->get_geom_radius();
     }
 }
 
-// local variable allocation has failed, the output may be wrong!
-char    gjk_collide(
+bool gjk_collide(
                 phys_gjk_info *gjk_info,
                 phys_gjk_input *pgi,
                 gjk_trace_output_t *gto,
                 const gjk_trace_input_t *gti,
                 gjk_geom_info_t *gi)
 {
-    char v7[12]; // [esp+18h] [ebp-154h] BYREF
-    char buf[256]; // [esp+24h] [ebp-148h]
-    float v9; // [esp+124h] [ebp-48h]
-    float v10; // [esp+128h] [ebp-44h]
-    float v11; // [esp+134h] [ebp-38h]
-    float v12; // [esp+138h] [ebp-34h]
-    float v13; // [esp+13Ch] [ebp-30h]
-    phys_vec3 *p_m_p2; // [esp+140h] [ebp-2Ch]
-    phys_vec3 *p_w; // [esp+144h] [ebp-28h]
-    phys_vec3 *p_m_arm; // [esp+148h] [ebp-24h]
-    phys_gjk_collision_info *p_cg1_cinfo_loc; // [esp+14Ch] [ebp-20h]
-    float v18; // [esp+150h] [ebp-1Ch] BYREF
-    float v19; // [esp+154h] [ebp-18h] BYREF
-    //float hit_dist; // [esp+160h] [ebp-Ch] BYREF
-    //void *v22; // [esp+164h] [ebp-8h] OVERLAPPED
-    //void *retaddr; // [esp+16Ch] [ebp+0h]
-    //
-    //hit_dist = a1;
-    //v22 = retaddr;
-    POLYGON_CYLINDER_HACK(pgi, (gjk_base_t*)gti->m_cg, gi->m_cg);
-    //if ( !phys_gjk_info::phys_collide_do_gjk_collide(gjk_info, (int)&hit_dist, pgi) )
-    if ( !gjk_info->phys_collide_do_gjk_collide(pgi) )
-        return 0;
-    calc_time(gjk_info, gti->m_keep_all_collisions, &v18, &v19);
-    if ( pgi->m_end_time <= v18 && v19 >= 0.0 )
-        return 0;
-    if ( !gto && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_slidemove.cpp", 657, 0, "%s", "gto") )
-        __debugbreak();
-    p_cg1_cinfo_loc = &gjk_info->cg1_cinfo_loc;
-    p_m_arm = &gto->m_arm;
-    gto->m_arm.x = gjk_info->cg1_cinfo_loc.m_p1.x;
-    p_m_arm->y = p_cg1_cinfo_loc->m_p1.y;
-    p_m_arm->z = p_cg1_cinfo_loc->m_p1.z;
-    p_w = &gti->m_gcci->m_cg_to_world_xform.w;
-    p_m_p2 = &gjk_info->cg1_cinfo_loc.m_p2;
-    v13 = gjk_info->cg1_cinfo_loc.m_p2.x + p_w->x;
-    v12 = gjk_info->cg1_cinfo_loc.m_p2.y + p_w->y;
-    v11 = gjk_info->cg1_cinfo_loc.m_p2.z + p_w->z;
-    *(float *)&buf[252] = v13;
-    v9 = v12;
-    v10 = v11;
-    *(unsigned int *)&buf[248] = (unsigned int)&gto->m_hit_point;
-    gto->m_hit_point.x = v13;
-    *(float *)(*(unsigned int *)&buf[248] + 4) = v9;
-    *(float *)(*(unsigned int *)&buf[248] + 8) = v10;
-    *(unsigned int *)&buf[244] = (unsigned int)&gjk_info->cg1_cinfo_loc.m_n;
-    gto->m_hit_normal.x = gjk_info->cg1_cinfo_loc.m_n.x;
-    gto->m_hit_normal.y = *(float *)(*(unsigned int *)&buf[244] + 4);
-    gto->m_hit_normal.z = *(float *)(*(unsigned int *)&buf[244] + 8);
-    gto->m_hit_time = v18;
-    gto->m_hit_dist = v19;
-    if ( v19 < 0.0 && (v19 > 0.0 || v18 != 0.0) )
+    float hit_time; // [esp+150h] [ebp-1Ch] BYREF
+    float hit_dist; // [esp+154h] [ebp-18h] BYREF
+
+    POLYGON_CYLINDER_HACK(pgi, gti->m_cg, gi->m_cg); // de-const cast
+
+    if (!gjk_info->phys_collide_do_gjk_collide(pgi))
     {
-        sprintf(v7, "bad hit_time, hit_dist:%f, %f\n", v18, v19);
-        tlWarning(v7);
-        Com_PrintError(1, v7);
+        return false;
     }
+
+    calc_time(gjk_info, gti->m_keep_all_collisions, &hit_time, &hit_dist);
+
+    if (pgi->m_end_time <= hit_time && hit_dist >= 0.0)
+    {
+        return false;
+    }
+
+    iassert(gto);
+
+    gto->m_arm.x = gjk_info->cg1_cinfo_loc.m_p1.x;
+    gto->m_arm.y = gjk_info->cg1_cinfo_loc.m_p1.y;
+    gto->m_arm.z = gjk_info->cg1_cinfo_loc.m_p1.z;
+
+    gto->m_hit_point.x = gjk_info->cg1_cinfo_loc.m_p2.x + gti->m_gcci->m_cg_to_world_xform.w.x;
+    gto->m_hit_point.y = gjk_info->cg1_cinfo_loc.m_p2.y + gti->m_gcci->m_cg_to_world_xform.w.y;
+    gto->m_hit_point.z = gjk_info->cg1_cinfo_loc.m_p2.z + gti->m_gcci->m_cg_to_world_xform.w.z;
+
+    gto->m_hit_normal.x = gjk_info->cg1_cinfo_loc.m_n.x;
+    gto->m_hit_normal.y = gjk_info->cg1_cinfo_loc.m_n.y;
+    gto->m_hit_normal.z = gjk_info->cg1_cinfo_loc.m_n.z;
+
+    gto->m_hit_time = hit_time;
+    gto->m_hit_dist = hit_dist;
+
+    if (hit_dist < 0.0 && (hit_dist > 0.0 || hit_time != 0.0))
+    {
+        char buf[256]; // [esp+18h] [ebp-154h] BYREF
+        sprintf(buf, "bad hit_time, hit_dist:%f, %f\n", hit_time, hit_dist);
+        tlWarning(buf);
+        Com_PrintError(1, buf);
+    }
+
     gto->m_is_foot = gti->m_cg->is_foot(&gto->m_arm);
     gto->m_gi = gi;
-    return 1;
+
+    return true;
 }
 
 void __cdecl sort_gi_list(gjk_geom_info_t **list, int list_count)

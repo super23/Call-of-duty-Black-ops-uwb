@@ -1597,26 +1597,14 @@ void __cdecl Phys_ObjSetOrientation(int id, const float *newPosition, const floa
 
 void    Phys_ObjSetAngularVelocity(int id, float *angularVel)
 {
-    phys_vec3 v3; // [esp-20h] [ebp-2Ch] BYREF
-    float v4; // [esp-10h] [ebp-1Ch]
-    float v5; // [esp-Ch] [ebp-18h]
-    float v6; // [esp-8h] [ebp-14h]
-    rigid_body *body; // [esp-4h] [ebp-10h]
-    //int v8; // [esp+0h] [ebp-Ch]
-    //void *v9; // [esp+4h] [ebp-8h]
-    //void *retaddr; // [esp+Ch] [ebp+0h]
-    //
-    //v8 = a1;
-    //v9 = retaddr;
-    body = Phys_GetUserData(id)->body;
-    v6 = angularVel[2];
-    v5 = *angularVel;
-    v4 = angularVel[1];
-    v3.x = v6;
-    v3.y = v5;
-    v3.z = v4;
-    //rigid_body::dangerous_set_a_vel(body, &v3);
-    body->dangerous_set_a_vel(&v3);
+    rigid_body *body = Phys_GetUserData(id)->body;
+
+    phys_vec3 angVel;
+    angVel.x = angularVel[2];
+    angVel.y = angularVel[0];
+    angVel.z = angularVel[1];
+
+    body->dangerous_set_a_vel(&angVel);
 }
 
 void __thiscall rigid_body::dangerous_set_a_vel(const phys_vec3 *a_vel)
@@ -1632,28 +1620,16 @@ void __thiscall rigid_body::dangerous_set_a_vel(const phys_vec3 *a_vel)
     }
 }
 
-void    Phys_ObjSetVelocity(int id, float *velocity)
+void Phys_ObjSetVelocity(int id, float *velocity)
 {
-    phys_vec3 v3; // [esp-20h] [ebp-2Ch] BYREF
-    float v4; // [esp-10h] [ebp-1Ch]
-    float v5; // [esp-Ch] [ebp-18h]
-    float v6; // [esp-8h] [ebp-14h]
-    rigid_body *body; // [esp-4h] [ebp-10h]
-    //int v8; // [esp+0h] [ebp-Ch]
-    //void *v9; // [esp+4h] [ebp-8h]
-    //void *retaddr; // [esp+Ch] [ebp+0h]
-    //
-    //v8 = a1;
-    //v9 = retaddr;
-    body = Phys_GetUserData(id)->body;
-    v6 = *velocity;
-    v5 = velocity[1];
-    v4 = velocity[2];
-    v3.x = v6;
-    v3.y = v5;
-    v3.z = v4;
-    //rigid_body::dangerous_set_t_vel(body, &v3);
-    body->dangerous_set_t_vel(&v3);
+    rigid_body *body = Phys_GetUserData(id)->body;
+
+    phys_vec3 vel;
+    vel.x = velocity[0];
+    vel.y = velocity[1];
+    vel.z = velocity[2];
+
+    body->dangerous_set_t_vel(&vel);
 }
 
 void __thiscall rigid_body::dangerous_set_t_vel(const phys_vec3 *t_vel)
@@ -5504,46 +5480,33 @@ rigid_body_constraint_ragdoll * Phys_CreateSwivel(
     }
 }
 
-// local variable allocation has failed, the output may be wrong!
-void    phys_inv_multiply_mat(phys_mat44 *dest, const phys_mat44 *left, const phys_mat44 *right)
+void phys_inv_multiply_mat(phys_mat44 *dest, const phys_mat44 *left, const phys_mat44 *right)
 {
-    _BYTE v4[76]; // [esp-Ch] [ebp-ACh] OVERLAPPED BYREF
-    const phys_vec3 *v5; // [esp+40h] [ebp-60h]
-    phys_vec3 v6; // [esp+44h] [ebp-5Ch] BYREF
-    phys_vec3 *p_y; // [esp+5Ch] [ebp-44h]
-    const phys_vec3 *v8; // [esp+60h] [ebp-40h]
-    phys_vec3 v9; // [esp+64h] [ebp-3Ch] BYREF
-    phys_mat44 *v10; // [esp+7Ch] [ebp-24h]
-    const phys_vec3 *v11; // [esp+80h] [ebp-20h]
-    phys_vec3 v12; // [esp+84h] [ebp-1Ch] BYREF
-    //int v13; // [esp+94h] [ebp-Ch]
-    //void *v14; // [esp+98h] [ebp-8h]
-    //void *retaddr; // [esp+A0h] [ebp+0h]
-    //
-    //v13 = a1;
-    //v14 = retaddr;
     if ( dest == left )
     {
-        memcpy(v4, left, 0x40u);
-        phys_inv_multiply_mat(dest, (const phys_mat44 *)v4, right);
+        phys_mat44 temp;
+        memcpy(&temp, left, sizeof(phys_mat44));
+        phys_inv_multiply_mat(dest, &temp, right);
+        return;
     }
     else
     {
-        v11 = phys_inv_multiply(&v12, left, &right->x);
-        v10 = dest;
-        dest->x.x = v11->x;
-        v10->x.y = v11->y;
-        v10->x.z = v11->z;
-        v8 = phys_inv_multiply(&v9, left, &right->y);
-        p_y = &dest->y;
-        dest->y.x = v8->x;
-        p_y->y = v8->y;
-        p_y->z = v8->z;
-        v5 = phys_inv_multiply(&v6, left, &right->z);
-        *(unsigned int *)&v4[72] = (unsigned int)&dest->z;
-        dest->z.x = v5->x;
-        *(float *)(*(unsigned int *)&v4[72] + 4) = v5->y;
-        *(float *)(*(unsigned int *)&v4[72] + 8) = v5->z;
+        phys_vec3 tmp;
+
+        phys_inv_multiply(&tmp, left, &right->x);
+        dest->x.x = tmp.x;
+        dest->x.y = tmp.y;
+        dest->x.z = tmp.z;
+
+        phys_inv_multiply(&tmp, left, &right->y);
+        dest->y.x = tmp.x;
+        dest->y.y = tmp.y;
+        dest->y.z = tmp.z;
+
+        phys_inv_multiply(&tmp, left, &right->z);
+        dest->z.x = tmp.x;
+        dest->z.y = tmp.y;
+        dest->z.z = tmp.z;
     }
 }
 
@@ -5607,322 +5570,6 @@ int __cdecl Phys_GetCurrentTime()
     return physGlob.timeLastUpdate;
 }
 
-//PhysObjUserData *__thiscall phys_free_list<PhysObjUserData>::add(
-//                phys_free_list<PhysObjUserData> *this,
-//                int no_error,
-//                const char *error_msg)
-//{
-//    phys_free_list<PhysObjUserData>::T_internal *ptr; // [esp+28h] [ebp-4h]
-//
-//    ptr = (phys_free_list<PhysObjUserData>::T_internal *)PMM_ALLOC(0x150u, 0x10u);
-//    if ( ptr )
-//    {
-//        ptr->m_data.m_gjk_geom_list.m_first_geom = 0;
-//        ptr->m_data.m_gjk_geom_list.m_geom_count = 0;
-//        ptr->m_data.m_bpb = 0;
-//        ptr->m_prev_T_internal = &this->m_dummy_head;
-//        ptr->m_next_T_internal = this->m_dummy_head.m_next_T_internal;
-//        this->m_dummy_head.m_next_T_internal->m_prev_T_internal = ptr;
-//        this->m_dummy_head.m_next_T_internal = ptr;
-//        ++this->m_list_count;
-//        phys_free_list<PhysObjUserData>::debug_add(this, ptr);
-//        return &ptr->m_data;
-//    }
-//    else
-//    {
-//        if ( !no_error )
-//        {
-//            if ( _tlAssert("c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h", 470, "no_error", error_msg) )
-//                __debugbreak();
-//        }
-//        return 0;
-//    }
-//}
-//
-//void __thiscall phys_free_list<PhysObjUserData>::remove(phys_free_list<PhysObjUserData> *this, PhysObjUserData *data_)
-//{
-//    if ( data_ )
-//    {
-//        PMM_VALIDATE((char *)data_[-1].centerOfMassOffset, 0x150u, 0x10u);
-//        phys_free_list<PhysObjUserData>::remove(
-//            this,
-//            (phys_free_list<PhysObjUserData>::T_internal *)data_[-1].centerOfMassOffset);
-//    }
-//}
-//
-//void __thiscall phys_link_list1<PhysObjUserData>::add(phys_link_list1<PhysObjUserData> *this, PhysObjUserData *p)
-//{
-//    PhysObjUserData *i; // [esp+Ch] [ebp-4h]
-//
-//    for ( i = this->m_first; i; i = i->m_next_link )
-//    {
-//        if ( i == p )
-//        {
-//            if ( _tlAssert("c:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_local.h", 135, "i != p", "") )
-//                __debugbreak();
-//        }
-//    }
-//    ++this->m_alloc_count;
-//    if ( this->m_last )
-//        this->m_last->m_next_link = p;
-//    else
-//        this->m_first = p;
-//    this->m_last = p;
-//    this->m_last->m_next_link = 0;
-//}
-//
-//void __thiscall phys_link_list1<PhysObjUserData>::remove(phys_link_list1<PhysObjUserData> *this, PhysObjUserData *p)
-//{
-//    PhysObjUserData *i; // [esp+10h] [ebp-8h]
-//    PhysObjUserData *last_i; // [esp+14h] [ebp-4h]
-//
-//    i = this->m_first;
-//    last_i = 0;
-//    while ( i )
-//    {
-//        if ( p == i )
-//        {
-//            --this->m_alloc_count;
-//            if ( last_i )
-//                last_i->m_next_link = i->m_next_link;
-//            else
-//                this->m_first = i->m_next_link;
-//            if ( i == this->m_last )
-//            {
-//                this->m_last = last_i;
-//                if ( last_i )
-//                {
-//                    if ( last_i->m_next_link )
-//                    {
-//                        if ( _tlAssert(
-//                                     "c:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_local.h",
-//                                     160,
-//                                     "!last_i || last_i->get_next_link() == NULL",
-//                                     "") )
-//                        {
-//                            __debugbreak();
-//                        }
-//                    }
-//                }
-//            }
-//            return;
-//        }
-//        last_i = i;
-//        i = i->m_next_link;
-//    }
-//    if ( _tlAssert("c:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_local.h", 165, "0", "") )
-//        __debugbreak();
-//}
-//
-//phys_vec3 *__thiscall phys_static_array<phys_vec3,6144>::add(
-//                phys_static_array<phys_vec3,6144> *this,
-//                int no_error,
-//                const char *error_msg)
-//{
-//    if ( this->m_alloc_count < 6144 )
-//    {
-//        return &this->m_slot_array[this->m_alloc_count++];
-//    }
-//    else
-//    {
-//        if ( !no_error )
-//            tlFatal(error_msg);
-//        return 0;
-//    }
-//}
-//
-//phys_vec3 *__thiscall phys_static_array<phys_vec3,6144>::operator[](phys_static_array<phys_vec3,6144> *this, int i)
-//{
-//    if ( i < 0 || i >= this->m_alloc_count )
-//    {
-//        if ( _tlAssert(
-//                     "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_array_base.inc",
-//                     118,
-//                     "i >= 0 && i < m_alloc_count",
-//                     "") )
-//        {
-//            __debugbreak();
-//        }
-//    }
-//    return &this->m_slot_array[i];
-//}
-//
-//phys_convex_hull::ch_triangle *__thiscall phys_static_array<phys_convex_hull::ch_triangle,256>::add(
-//                phys_static_array<phys_convex_hull::ch_triangle,256> *this,
-//                int no_error,
-//                const char *error_msg)
-//{
-//    if ( this->m_alloc_count < 256 )
-//    {
-//        return &this->m_slot_array[this->m_alloc_count++];
-//    }
-//    else
-//    {
-//        if ( !no_error )
-//            tlFatal(error_msg);
-//        return 0;
-//    }
-//}
-//
-//void __thiscall phys_static_array<phys_convex_hull::ch_triangle,256>::remove_slow(
-//                phys_static_array<phys_convex_hull::ch_triangle,256> *this,
-//                phys_convex_hull::ch_triangle *data)
-//{
-//    bool v3; // [esp+Bh] [ebp-1h]
-//
-//    if ( (unsigned int)((char *)data - (char *)this->m_slot_array) % 0x20 )
-//        v3 = 0;
-//    else
-//        v3 = data >= this->m_slot_array && data < &this->m_slot_array[this->m_alloc_count];
-//    if ( !v3
-//        && _tlAssert(
-//                 "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_array_base.inc",
-//                 73,
-//                 "is_member(data)",
-//                 "") )
-//    {
-//        __debugbreak();
-//    }
-//    phys_convex_hull::ch_triangle::operator=(data, &this->m_slot_array[--this->m_alloc_count]);
-//}
-//
-//phys_convex_hull::ch_triangle *__thiscall phys_static_array<phys_convex_hull::ch_triangle,256>::get_list_head(
-//                phys_static_array<phys_convex_hull::ch_triangle,256> *this)
-//{
-//    if ( this->m_alloc_count <= 0
-//        && _tlAssert(
-//                 "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_array_base.inc",
-//                 131,
-//                 "m_alloc_count > 0",
-//                 "") )
-//    {
-//        __debugbreak();
-//    }
-//    return this->m_slot_array;
-//}
-//
-//void __thiscall phys_static_array<phys_convex_hull::ch_edge,128>::remove_slow(
-//                phys_static_array<phys_convex_hull::ch_edge,128> *this,
-//                phys_convex_hull::ch_edge *data)
-//{
-//    int v2; // eax
-//    phys_convex_hull::ch_edge *m_slot_array; // edx
-//    phys_vec3 *v4; // ecx
-//    phys_vec3 *v5; // edx
-//    bool v7; // [esp+7h] [ebp-1h]
-//
-//    if ( (unsigned int)((char *)data - (char *)this->m_slot_array) % 8 )
-//        v7 = 0;
-//    else
-//        v7 = data >= this->m_slot_array && data < &this->m_slot_array[this->m_alloc_count];
-//    if ( !v7
-//        && _tlAssert(
-//                 "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_array_base.inc",
-//                 73,
-//                 "is_member(data)",
-//                 "") )
-//    {
-//        __debugbreak();
-//    }
-//    v2 = --this->m_alloc_count;
-//    m_slot_array = this->m_slot_array;
-//    v4 = m_slot_array[v2].m_verts[0];
-//    v5 = m_slot_array[v2].m_verts[1];
-//    data->m_verts[0] = v4;
-//    data->m_verts[1] = v5;
-//}
-//
-//phys_convex_hull::ch_triangle *__thiscall phys_static_array<phys_convex_hull::ch_triangle,64>::add(
-//                phys_static_array<phys_convex_hull::ch_triangle,64> *this,
-//                int no_error,
-//                const char *error_msg)
-//{
-//    if ( this->m_alloc_count < 64 )
-//    {
-//        return &this->m_slot_array[this->m_alloc_count++];
-//    }
-//    else
-//    {
-//        if ( !no_error )
-//            tlFatal(error_msg);
-//        return 0;
-//    }
-//}
-//
-//void __thiscall phys_free_list<PhysObjUserData>::debug_add(
-//                phys_free_list<PhysObjUserData> *this,
-//                phys_free_list<PhysObjUserData>::T_internal *T_i)
-//{
-//    int m_list_count; // [esp+0h] [ebp-10h]
-//
-//    if ( this->m_list_count_high_water <= this->m_list_count )
-//        m_list_count = this->m_list_count;
-//    else
-//        m_list_count = this->m_list_count_high_water;
-//    this->m_list_count_high_water = m_list_count;
-//    if ( this->m_ptr_list_count >= 256 )
-//    {
-//        T_i->m_ptr_list_index = -1;
-//    }
-//    else
-//    {
-//        T_i->m_ptr_list_index = this->m_ptr_list_count;
-//        this->m_ptr_list[this->m_ptr_list_count++] = &T_i->m_data;
-//    }
-//}
-//
-//void __thiscall phys_free_list<PhysObjUserData>::remove(
-//                phys_free_list<PhysObjUserData> *this,
-//                phys_free_list<PhysObjUserData>::T_internal *data)
-//{
-//    phys_free_list<PhysObjUserData>::T_internal_base *next; // [esp+14h] [ebp-8h]
-//    phys_free_list<PhysObjUserData>::T_internal_base *prev; // [esp+18h] [ebp-4h]
-//
-//    if ( !data
-//        && _tlAssert("c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h", 477, "data", "") )
-//    {
-//        __debugbreak();
-//    }
-//    --this->m_list_count;
-//    phys_free_list<PhysObjUserData>::debug_remove(this, data);
-//    next = data->m_next_T_internal;
-//    prev = data->m_prev_T_internal;
-//    prev->m_next_T_internal = next;
-//    next->m_prev_T_internal = prev;
-//    PMM_FREE((unsigned __int8 *)data, 0x150u, 0x10u);
-//}
-//
-//void __thiscall phys_free_list<PhysObjUserData>::debug_remove(
-//                phys_free_list<PhysObjUserData> *this,
-//                phys_free_list<PhysObjUserData>::T_internal *T_i)
-//{
-//    if ( T_i->m_ptr_list_index != -1 )
-//    {
-//        if ( T_i->m_ptr_list_index >= 0x100u
-//            && _tlAssert(
-//                     "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
-//                     421,
-//                     "T_i->m_ptr_list_index >= 0 && T_i->m_ptr_list_index < PTR_LIST_SIZE",
-//                     "") )
-//        {
-//            __debugbreak();
-//        }
-//        if ( this->m_ptr_list[T_i->m_ptr_list_index] != &T_i->m_data )
-//        {
-//            if ( _tlAssert(
-//                         "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
-//                         422,
-//                         "m_ptr_list[T_i->m_ptr_list_index] == &T_i->m_data",
-//                         "") )
-//            {
-//                __debugbreak();
-//            }
-//        }
-//        this->m_ptr_list[--this->m_ptr_list_count][1].body = (rigid_body *)T_i->m_ptr_list_index;
-//        this->m_ptr_list[T_i->m_ptr_list_index] = this->m_ptr_list[this->m_ptr_list_count];
-//    }
-//}
-
 cdl_proftimer::cdl_proftimer()
 {
     int i; // [esp+4h] [ebp-4h]
@@ -5973,255 +5620,6 @@ phys_convex_hull::phys_convex_hull()
     this->m_convex_hull_triangle_list.m_alloc_count = 0;
 }
 
-//void __thiscall phys_free_list<PhysObjUserData>::~phys_free_list<PhysObjUserData>(
-//                phys_free_list<PhysObjUserData> *this)
-//{
-//    while ( (phys_free_list<PhysObjUserData> *)this->m_dummy_head.m_next_T_internal != this )
-//        phys_free_list<PhysObjUserData>::remove(
-//            this,
-//            (phys_free_list<PhysObjUserData>::T_internal *)this->m_dummy_head.m_next_T_internal);
-//    if ( this->m_list_count
-//        && _tlAssert(
-//                 "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
-//                 448,
-//                 "m_list_count == 0",
-//                 "") )
-//    {
-//        __debugbreak();
-//    }
-//    if ( (phys_free_list<PhysObjUserData> *)this->m_dummy_head.m_next_T_internal != this
-//        && _tlAssert(
-//                 "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
-//                 449,
-//                 "m_dummy_head.m_next_T_internal == &m_dummy_head",
-//                 "") )
-//    {
-//        __debugbreak();
-//    }
-//    if ( (phys_free_list<PhysObjUserData> *)this->m_dummy_head.m_prev_T_internal != this
-//        && _tlAssert(
-//                 "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
-//                 450,
-//                 "m_dummy_head.m_prev_T_internal == &m_dummy_head",
-//                 "") )
-//    {
-//        __debugbreak();
-//    }
-//    this->m_list_count_high_water = 0;
-//    this->m_ptr_list_count = 0;
-//}
-//
-//phys_free_list<VehicleParameter>::~phys_free_list<VehicleParameter>()
-//{
-//    while ( (phys_free_list<VehicleParameter> *)this->m_dummy_head.m_next_T_internal != this )
-//        phys_free_list<VehicleParameter>::remove(
-//            this,
-//            (phys_free_list<VehicleParameter>::T_internal *)this->m_dummy_head.m_next_T_internal);
-//    if ( this->m_list_count
-//        && _tlAssert(
-//                 "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
-//                 448,
-//                 "m_list_count == 0",
-//                 "") )
-//    {
-//        __debugbreak();
-//    }
-//    if ( (phys_free_list<VehicleParameter> *)this->m_dummy_head.m_next_T_internal != this
-//        && _tlAssert(
-//                 "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
-//                 449,
-//                 "m_dummy_head.m_next_T_internal == &m_dummy_head",
-//                 "") )
-//    {
-//        __debugbreak();
-//    }
-//    if ( (phys_free_list<VehicleParameter> *)this->m_dummy_head.m_prev_T_internal != this
-//        && _tlAssert(
-//                 "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
-//                 450,
-//                 "m_dummy_head.m_prev_T_internal == &m_dummy_head",
-//                 "") )
-//    {
-//        __debugbreak();
-//    }
-//    this->m_list_count_high_water = 0;
-//    this->m_ptr_list_count = 0;
-//}
-//
-//void __thiscall phys_free_list<VehicleParameter>::remove(phys_free_list<VehicleParameter>::T_internal *data)
-//{
-//    phys_free_list<VehicleParameter>::T_internal_base *next; // [esp+14h] [ebp-8h]
-//    phys_free_list<VehicleParameter>::T_internal_base *prev; // [esp+18h] [ebp-4h]
-//
-//    if ( !data
-//        && _tlAssert("c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h", 477, "data", "") )
-//    {
-//        __debugbreak();
-//    }
-//    --this->m_list_count;
-//    phys_free_list<VehicleParameter>::debug_remove(data);
-//    next = data->m_next_T_internal;
-//    prev = data->m_prev_T_internal;
-//    prev->m_next_T_internal = next;
-//    next->m_prev_T_internal = prev;
-//    PMM_FREE((unsigned __int8 *)data, 0x130u, 4u);
-//}
-//
-//void __thiscall phys_free_list<VehicleParameter>::debug_remove(phys_free_list<VehicleParameter>::T_internal *T_i)
-//{
-//    if ( T_i->m_ptr_list_index != -1 )
-//    {
-//        if ( T_i->m_ptr_list_index >= 0x100u
-//            && _tlAssert(
-//                     "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
-//                     421,
-//                     "T_i->m_ptr_list_index >= 0 && T_i->m_ptr_list_index < PTR_LIST_SIZE",
-//                     "") )
-//        {
-//            __debugbreak();
-//        }
-//        if ( this->m_ptr_list[T_i->m_ptr_list_index] != &T_i->m_data )
-//        {
-//            if ( _tlAssert(
-//                         "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
-//                         422,
-//                         "m_ptr_list[T_i->m_ptr_list_index] == &T_i->m_data",
-//                         "") )
-//            {
-//                __debugbreak();
-//            }
-//        }
-//        LODWORD(this->m_ptr_list[--this->m_ptr_list_count][1].m_speed_max) = T_i->m_ptr_list_index;
-//        this->m_ptr_list[T_i->m_ptr_list_index] = this->m_ptr_list[this->m_ptr_list_count];
-//    }
-//}
-//
-//phys_free_list<NitrousVehicle>::~phys_free_list<NitrousVehicle>()
-//{
-//    while ((phys_free_list<NitrousVehicle> *)this->m_dummy_head.m_next_T_internal != this)
-//    {
-//        //phys_free_list<NitrousVehicle>::remove(this, (phys_free_list<NitrousVehicle>::T_internal *)this->m_dummy_head.m_next_T_internal);
-//        this->remove((phys_free_list<NitrousVehicle>::T_internal *)this->m_dummy_head.m_next_T_internal);
-//    }
-//        
-//    if ( this->m_list_count
-//        && _tlAssert(
-//                 "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
-//                 448,
-//                 "m_list_count == 0",
-//                 "") )
-//    {
-//        __debugbreak();
-//    }
-//    if ( (phys_free_list<NitrousVehicle> *)this->m_dummy_head.m_next_T_internal != this
-//        && _tlAssert(
-//                 "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
-//                 449,
-//                 "m_dummy_head.m_next_T_internal == &m_dummy_head",
-//                 "") )
-//    {
-//        __debugbreak();
-//    }
-//    if ( (phys_free_list<NitrousVehicle> *)this->m_dummy_head.m_prev_T_internal != this
-//        && _tlAssert(
-//                 "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
-//                 450,
-//                 "m_dummy_head.m_prev_T_internal == &m_dummy_head",
-//                 "") )
-//    {
-//        __debugbreak();
-//    }
-//    this->m_list_count_high_water = 0;
-//    this->m_ptr_list_count = 0;
-//}
-//
-//phys_free_list<RagdollBody>::~phys_free_list<RagdollBody>()
-//{
-//    while ((phys_free_list<RagdollBody> *)this->m_dummy_head.m_next_T_internal != this)
-//    {
-//        //phys_free_list<RagdollBody>::remove(
-//            this->remove((phys_free_list<RagdollBody>::T_internal *)this->m_dummy_head.m_next_T_internal);
-//    }
-//        
-//    if ( this->m_list_count
-//        && _tlAssert(
-//                 "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
-//                 448,
-//                 "m_list_count == 0",
-//                 "") )
-//    {
-//        __debugbreak();
-//    }
-//    if ( (phys_free_list<RagdollBody> *)this->m_dummy_head.m_next_T_internal != this
-//        && _tlAssert(
-//                 "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
-//                 449,
-//                 "m_dummy_head.m_next_T_internal == &m_dummy_head",
-//                 "") )
-//    {
-//        __debugbreak();
-//    }
-//    if ( (phys_free_list<RagdollBody> *)this->m_dummy_head.m_prev_T_internal != this
-//        && _tlAssert(
-//                 "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
-//                 450,
-//                 "m_dummy_head.m_prev_T_internal == &m_dummy_head",
-//                 "") )
-//    {
-//        __debugbreak();
-//    }
-//    this->m_list_count_high_water = 0;
-//    this->m_ptr_list_count = 0;
-//}
-//
-//void __thiscall phys_free_list<RagdollBody>::remove(phys_free_list<RagdollBody>::T_internal *data)
-//{
-//    phys_free_list<RagdollBody>::T_internal_base *next; // [esp+14h] [ebp-8h]
-//    phys_free_list<RagdollBody>::T_internal_base *prev; // [esp+18h] [ebp-4h]
-//
-//    if ( !data
-//        && _tlAssert("c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h", 477, "data", "") )
-//    {
-//        __debugbreak();
-//    }
-//    --this->m_list_count;
-//    phys_free_list<RagdollBody>::debug_remove(data);
-//    next = data->m_next_T_internal;
-//    prev = data->m_prev_T_internal;
-//    prev->m_next_T_internal = next;
-//    next->m_prev_T_internal = prev;
-//    PMM_FREE((unsigned __int8 *)data, 0xA34u, 4u);
-//}
-//
-//void __thiscall phys_free_list<RagdollBody>::debug_remove(phys_free_list<RagdollBody>::T_internal *T_i)
-//{
-//    if ( T_i->m_ptr_list_index != -1 )
-//    {
-//        if ( T_i->m_ptr_list_index >= 0x100u
-//            && _tlAssert(
-//                     "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
-//                     421,
-//                     "T_i->m_ptr_list_index >= 0 && T_i->m_ptr_list_index < PTR_LIST_SIZE",
-//                     "") )
-//        {
-//            __debugbreak();
-//        }
-//        if ( this->m_ptr_list[T_i->m_ptr_list_index] != &T_i->m_data )
-//        {
-//            if ( _tlAssert(
-//                         "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
-//                         422,
-//                         "m_ptr_list[T_i->m_ptr_list_index] == &T_i->m_data",
-//                         "") )
-//            {
-//                __debugbreak();
-//            }
-//        }
-//        this->m_ptr_list[--this->m_ptr_list_count][1].references = T_i->m_ptr_list_index;
-//        this->m_ptr_list[T_i->m_ptr_list_index] = this->m_ptr_list[this->m_ptr_list_count];
-//    }
-//}
-
 phys_convex_hull::~phys_convex_hull()
 {
     int ii; // [esp+4h] [ebp-18h]
@@ -6244,32 +5642,3 @@ phys_convex_hull::~phys_convex_hull()
     for ( ii = 0; ii < this->m_vertex_buffer.m_alloc_count; ++ii )
         ;
 }
-
-//void __thiscall phys_free_list<RagdollBody>::remove(RagdollBody *data_)
-//{
-//    if ( data_ )
-//    {
-//        PMM_VALIDATE((char *)&data_[-1].rope_id, 0xA34u, 4u);
-//        //phys_free_list<RagdollBody>::remove(this, (phys_free_list<RagdollBody>::T_internal *)&data_[-1].rope_id);
-//        this->remove((phys_free_list<RagdollBody>::T_internal *) &data_[-1].rope_id);
-//    }
-//}
-
-//void __cdecl destroy_broad_phase_info(broad_phase_info *bpi)
-//{
-//    phys_free_list<broad_phase_info> *p_g_list_broad_phase_info; // edi
-//
-//    environment_collision_list_remove(bpi);
-//    //axis_aligned_sweep_and_prune::destroy_sap_node(g_axis_aligned_sweep_and_prune, bpi);
-//    g_axis_aligned_sweep_and_prune->destroy_sap_node(bpi);
-//    p_g_list_broad_phase_info = &G_BPM->g_list_broad_phase_info;
-//    if ( bpi )
-//    {
-//        PMM_VALIDATE((char *)&bpi[-1].m_gjk_geom, 0x90u, 0x10u);
-//        //phys_free_list<broad_phase_info>::remove(
-//            p_g_list_broad_phase_info->remove(
-//            (phys_free_list<broad_phase_info>::T_internal *)&bpi[-1].m_gjk_geom);
-//    }
-//}
-//
-//

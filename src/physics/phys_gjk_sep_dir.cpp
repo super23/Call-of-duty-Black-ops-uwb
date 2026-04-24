@@ -349,147 +349,222 @@ const phys_vec3 * gjk_sep_dir::comp_sep_dir(
     }
     return v31;
 }
-#else // aislop
+#else // aislop 2
 const phys_vec3 *gjk_sep_dir::comp_sep_dir(
     phys_vec3 *result,
     const phys_gjk_input *input,
     phys_gjk_info *info)
 {
-    constexpr int SUPPORT_COUNT = 12;
-    constexpr int TRI_INDEX_COUNT = 60;
-    constexpr float INV_COUNT = 1.0f / 12.0f;
-    constexpr float MIN_LEN_SQ = 1e-8f;
+    // --- Phase 1: Sample support points in 12 directions ---
+    // For each support direction, get support point on cg1 (in cg1 local space)
+    // and support point on cg2 (transformed into cg1 local space)
+    // then compute the Minkowski difference vertex: cg1_vert - cg2_vert_in_cg1_space
 
-    phys_vec3 minkowski[SUPPORT_COUNT];
-    phys_vec3 normals[20];
+    phys_vec3 m_vert_list[12];   // Minkowski difference verts (cg1 - cg2 in cg1 space)
+    phys_vec3 m_normal_list[20]; // Face normals computed in phase 2
 
-    phys_vec3 meshA_center(0, 0, 0);
-    phys_vec3 meshB_center(0, 0, 0);
-    phys_vec3 avgDir(0, 0, 0);
+    phys_vec3 mesh_a_center = { 0, 0, 0, 0 }; // accumulator for cg2 verts in cg1 space
+    phys_vec3 mesh_b_center = { 0, 0, 0, 0 }; // accumulator for cg1 verts
+    phys_vec3 diff_sum = { 0, 0, 0, 0 }; // accumulator for Minkowski diff verts
 
-    // ============================================================
-    // 1) Build Minkowski difference samples
-    // ============================================================
-
-    for (int i = 0; i < SUPPORT_COUNT; ++i)
+    for (int i = 0; i < 12; ++i)
     {
-        const phys_vec3 &dir = m_list_support_dir[i];
+        // Get support point on cg1 in cg1 local space
+        phys_vec3 cg1_support_ind;
+        phys_vec3 cg1_support_vert;
+       
+        input->gjk_cg1->support(
+            &m_list_support_dir[i],
+            &cg1_support_vert,
+            &cg1_support_ind);
 
-        phys_vec3 aVert;
-        phys_vec3 dummy;
+        iassert(cg1_support_vert.x == cg1_support_vert.x &&
+            cg1_support_vert.y == cg1_support_vert.y &&
+            cg1_support_vert.z == cg1_support_vert.z); // NaN check
 
-        input->gjk_cg1->support(&dir, &aVert, nullptr);
+        // Transform support direction into cg2 local space (negate for Minkowski)
+        phys_vec3 cg2_dir_local;
+        cg2_dir_local.x = -(m_list_support_dir[i].x);
+        cg2_dir_local.y = -(m_list_support_dir[i].y);
+        cg2_dir_local.z = -(m_list_support_dir[i].z);
 
-        phys_vec3 negDir(-dir.x, -dir.y, -dir.z);
+        // Transform negated direction into cg2 space using the rotation part of cg2_to_cg1
+        phys_vec3 cg2_dir_in_cg2;
+        cg2_dir_in_cg2.x = info->cg2_to_cg1_xform.x.x * cg2_dir_local.x
+            + info->cg2_to_cg1_xform.x.y * cg2_dir_local.y
+            + info->cg2_to_cg1_xform.x.z * cg2_dir_local.z;
+        cg2_dir_in_cg2.y = info->cg2_to_cg1_xform.y.x * cg2_dir_local.x
+            + info->cg2_to_cg1_xform.y.y * cg2_dir_local.y
+            + info->cg2_to_cg1_xform.y.z * cg2_dir_local.z;
+        cg2_dir_in_cg2.z = info->cg2_to_cg1_xform.z.x * cg2_dir_local.x
+            + info->cg2_to_cg1_xform.z.y * cg2_dir_local.y
+            + info->cg2_to_cg1_xform.z.z * cg2_dir_local.z;
 
-        phys_vec3 bLocal;
-        input->gjk_cg2->support(&negDir, &bLocal, nullptr);
+        // Get support point on cg2 in cg2 local space
+        phys_vec3 cg2_support_ind;
+        phys_vec3 cg2_support_vert_local;
+        input->gjk_cg2->support(
+            &cg2_dir_in_cg2,
+            &cg2_support_vert_local,
+            &cg2_support_ind);
 
-        phys_vec3 bWorld;
-        phys_multiply(&bWorld, &info->cg2_to_cg1_xform, &bLocal);
+        iassert(cg2_support_vert_local.x == cg2_support_vert_local.x &&
+            cg2_support_vert_local.y == cg2_support_vert_local.y &&
+            cg2_support_vert_local.z == cg2_support_vert_local.z); // NaN check
 
-        bWorld.x += info->cg2_to_cg1_xform.w.x;
-        bWorld.y += info->cg2_to_cg1_xform.w.y;
-        bWorld.z += info->cg2_to_cg1_xform.w.z;
+        // Transform cg2 support vert into cg1 space (rotation only)
+        phys_vec3 cg2_rotated;
+        phys_multiply(&cg2_rotated, &info->cg2_to_cg1_xform, &cg2_support_vert_local);
 
-        minkowski[i] = phys_vec3(
-            aVert.x - bWorld.x,
-            aVert.y - bWorld.y,
-            aVert.z - bWorld.z
-        );
+        // Add translation (w column of cg2_to_cg1)
+        phys_vec3 cg2_support_in_cg1;
+        cg2_support_in_cg1.x = cg2_rotated.x + info->cg2_to_cg1_xform.w.x;
+        cg2_support_in_cg1.y = cg2_rotated.y + info->cg2_to_cg1_xform.w.y;
+        cg2_support_in_cg1.z = cg2_rotated.z + info->cg2_to_cg1_xform.w.z;
 
-        meshA_center += aVert;
-        meshB_center += bWorld;
-        avgDir += minkowski[i];
+        // Minkowski difference: cg1_vert - cg2_vert_in_cg1
+        m_vert_list[i].x = cg1_support_vert.x - cg2_support_in_cg1.x;
+        m_vert_list[i].y = cg1_support_vert.y - cg2_support_in_cg1.y;
+        m_vert_list[i].z = cg1_support_vert.z - cg2_support_in_cg1.z;
+
+        // Accumulate centroids
+        mesh_b_center.x += cg1_support_vert.x;
+        mesh_b_center.y += cg1_support_vert.y;
+        mesh_b_center.z += cg1_support_vert.z;
+
+        mesh_a_center.x += cg2_support_in_cg1.x;
+        mesh_a_center.y += cg2_support_in_cg1.y;
+        mesh_a_center.z += cg2_support_in_cg1.z;
+
+        diff_sum.x += m_vert_list[i].x;
+        diff_sum.y += m_vert_list[i].y;
+        diff_sum.z += m_vert_list[i].z;
     }
 
-    meshA_center *= INV_COUNT;
-    meshB_center *= INV_COUNT;
-    avgDir *= INV_COUNT;
+    // Average to get centroids
+    const float inv12 = 1.0f / 12.0f;
+    mesh_b_center.x *= inv12;
+    mesh_b_center.y *= inv12;
+    mesh_b_center.z *= inv12;
+    mesh_a_center.x *= inv12;
+    mesh_a_center.y *= inv12;
+    mesh_a_center.z *= inv12;
 
-    // ============================================================
-    // 2) Evaluate triangle normals
-    // ============================================================
+    // Centroid of Minkowski difference vertices
+    phys_vec3 mink_center;
+    mink_center.x = diff_sum.x * inv12;
+    mink_center.y = diff_sum.y * inv12;
+    mink_center.z = diff_sum.z * inv12;
 
-    phys_vec3 *bestNormal = nullptr;
-    float bestScore = 0.0f;
+    // --- Phase 2: Find best separating face normal ---
+    // Iterate over icosahedron triangle faces, compute face normals,
+    // orient them outward, and find the one with the best signed distance
+    // from the origin — this is the initial separation direction for GJK
 
-    for (int t = 0; t < TRI_INDEX_COUNT; t += 3)
+    float       best_dist_sq = 0.0f;
+    phys_vec3 *best_normal = nullptr;
+
+    // m_list_triangle: triples of indices into m_vert_list
+    // Loop ends when pointer reaches string "bad separation dir.\n"
+    for (const int *tri = m_list_triangle;
+        tri < (const int *)"bad separation dir.\n";
+        tri += 3)
     {
-        const phys_vec3 &p0 = minkowski[m_list_triangle[t]];
-        const phys_vec3 &p1 = minkowski[m_list_triangle[t + 1]];
-        const phys_vec3 &p2 = minkowski[m_list_triangle[t + 2]];
+        const phys_vec3 *v0 = &m_vert_list[tri[0]];
+        const phys_vec3 *v1 = &m_vert_list[tri[1]];
+        const phys_vec3 *v2 = &m_vert_list[tri[2]];
 
-        phys_vec3 e1 = p1 - p0;
-        phys_vec3 e2 = p2 - p0;
+        // Edge vectors from v0
+        phys_vec3 e1 = { v2->x - v0->x, v2->y - v0->y, v2->z - v0->z };
+        phys_vec3 e2 = { v1->x - v0->x, v1->y - v0->y, v1->z - v0->z };
 
-        phys_vec3 n;// = cross(e1, e2);
-        Vec3Cross((float *)&e1, (float *)&e2, (float *)&n);
+        // Face normal via cross product e1 x e2
+        phys_vec3 normal;
+        normal.x = e1.y * e2.z - e1.z * e2.y;  // wait, cross(e2,e1)?
+        normal.y = e1.z * e2.x - e1.x * e2.z;
+        normal.z = e1.x * e2.y - e1.y * e2.x;
 
-        //float lenSq = dot(n, n);
-        float lenSq = Vec3Dot((float *)&n, (float *)&n);
+        // Vector from mink_center to v0
+        phys_vec3 to_v0;
+        to_v0.x = v0->x - mink_center.x;
+        to_v0.y = v0->y - mink_center.y;
+        to_v0.z = v0->z - mink_center.z;
 
-        if (lenSq < MIN_LEN_SQ)
+        // Ensure normal points away from centroid (outward)
+        float dot_center = to_v0.x * normal.x + to_v0.y * normal.y + to_v0.z * normal.z;
+        if (dot_center < 0.0f)
+        {
+            normal.x = -normal.x;
+            normal.y = -normal.y;
+            normal.z = -normal.z;
+        }
+
+        float normal_len_sq = normal.x * normal.x + normal.y * normal.y + normal.z * normal.z;
+
+        if (normal_len_sq < 1e-8f)
+        {
+            // Degenerate face, skip
             continue;
+        }
 
-        // orient outward
-        //if (dot(p0 - avgDir, n) < 0.0f)
-        phys_vec3 tmp = p0 - avgDir;
-        if (Vec3Dot((float*)&tmp, (float*)&n) < 0.0f)
-            n = -n;
+        // Signed distance from origin to face plane, scaled by normal length
+        // dist = (-v0 . normal) / |normal|, then stored as dist^2 * sign(dist)
+        phys_vec3 neg_v0 = { -v0->x, -v0->y, -v0->z };
+        float dot_origin = neg_v0.x * normal.x + neg_v0.y * normal.y + neg_v0.z * normal.z;
+        float dist_sq_signed = (dot_origin * dot_origin) / normal_len_sq;
+        if (dot_origin < 0.0f)
+            dist_sq_signed = -dist_sq_signed;
 
-        //float dist = dot(-p0, n);
-        phys_vec3 tmp2 = -p0;
-        float dist = Vec3Dot((float*)&tmp2, (float*)&n);
-        float score = (dist * dist) / lenSq;
-
-        if (!bestNormal || score > bestScore)
+        // Keep face with maximum signed distance (most separated)
+        if (!best_normal || best_dist_sq < dist_sq_signed)
         {
-            normals[t / 3] = n;
-            bestNormal = &normals[t / 3];
-            bestScore = score;
+            best_dist_sq = dist_sq_signed;
+            best_normal = &normal; // NOTE: this stores stack address — see below
         }
     }
 
-    // ============================================================
-    // 3) Return best normal if valid
-    // ============================================================
+    // --- Phase 3: Output result ---
 
-    if (bestNormal)
+    if (!best_normal)
     {
-        //float lenSq = dot(*bestNormal, *bestNormal);
-        float lenSq = Vec3Dot((float*)bestNormal, (float*)bestNormal);
+        // No valid face found — fall back to vector between shape centers
+        phys_vec3 center_diff;
+        center_diff.x = mesh_a_center.x - mesh_b_center.x;
+        center_diff.y = mesh_a_center.y - mesh_b_center.y;
+        center_diff.z = mesh_a_center.z - mesh_b_center.z;
 
-        if (lenSq < MIN_LEN_SQ)
+        float len_sq = center_diff.x * center_diff.x
+            + center_diff.y * center_diff.y
+            + center_diff.z * center_diff.z;
+
+        if (len_sq < 1e-8f)
         {
-            _tlAssert(
-                "source/phys_gjk_sep_dir.cpp",
-                258,
-                "AbsSquared(*best_normal) >= phys_sqr(GJK_MIN_SUPPORT_DIR_LENGTH)",
-                "");
+            tlWarning("bad separation dir.\n");
+            *result = PHYS_X_VEC; // fallback: X axis
+            return result;
         }
 
-        *result = -(*bestNormal);
+        result->x = center_diff.x;
+        result->y = center_diff.y;
+        result->z = center_diff.z;
         return result;
     }
 
-    // ============================================================
-    // 4) Fallback: center difference
-    // ============================================================
+    // Validate the best normal isn't degenerate
+    float best_len_sq = best_normal->x * best_normal->x
+        + best_normal->y * best_normal->y
+        + best_normal->z * best_normal->z;
 
-    phys_vec3 fallback = meshA_center - meshB_center;
-    float lenSq = Vec3Dot((float*)&fallback, (float*)&fallback);
-
-    if (lenSq < MIN_LEN_SQ)
+    if (best_len_sq < 1e-8f)
     {
-        tlWarning("bad separation dir.\n");
-        *result = PHYS_X_VEC;
-    }
-    else
-    {
-        *result = fallback;
+        iassert(!"AbsSquared(*best_normal) >= phys_sqr(GJK_MIN_SUPPORT_DIR_LENGTH)");
+        // best_normal stays as whatever it was — original code falls through
     }
 
+    // Negate: we want the direction pointing FROM cg2 TOWARD cg1
+    result->x = -best_normal->x;
+    result->y = -best_normal->y;
+    result->z = -best_normal->z;
     return result;
 }
 #endif

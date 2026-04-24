@@ -149,7 +149,7 @@ void __cdecl Touch_Item(gentity_s *ent, gentity_s *other, int touched)
             if ( other->health >= 1 && !level.clientIsSpawning )
             {
                 weapIndex = ent->s.un3.item % 2048;
-                item = (gitem_s *)(4 * ent->s.un3.item + 15073304);
+                item = (gitem_s *)&bg_itemlist[ent->s.un3.item];
                 if ( BG_CanItemBeGrabbed(&ent->s, &other->client->ps, touched) )
                 {
                     I_strncpyz(cleanname, other->client->sess.cs.name, 64);
@@ -1025,7 +1025,6 @@ gentity_s *__cdecl ThrowDownWeapon(
                 float throwDistance)
 {
     const char *v6; // eax
-    int v8; // edx
     int v9; // eax
     float *currentOrigin; // [esp+8h] [ebp-C8h]
     float *trBase; // [esp+Ch] [ebp-C4h]
@@ -1051,18 +1050,10 @@ gentity_s *__cdecl ThrowDownWeapon(
         }
         weapIdx = altWeapIdx;
     }
-    v8 = weapIdx + (weaponModel << 11);
-    weapItem = (const gitem_s *)(4 * v8 + 15073304);
-    //if ( bg_itemlist[v8] != 1
-    //    && !Assert_MyHandler(
-    //                "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_items.cpp",
-    //                1186,
-    //                0,
-    //                "%s",
-    //                "weapItem->giType == IT_WEAPON") )
-    //{
-    //    __debugbreak();
-    //}
+
+    weapItem = (const gitem_s *)&bg_itemlist[2048 * weaponModel + weapIdx];
+    iassert(weapItem->giType == IT_WEAPON);
+    
     if ( (!ent->client || BG_PlayerHasWeapon(&ent->client->ps, weapIdx)
                                          && PlayerHasAnyAmmoToTransferToWeapon(ent, weapIdx))
         && (!ent->client || !BG_GetWeaponDef(weapIdx)->bClipOnly || BG_GetAmmoInClip(&ent->client->ps, weapIdx)) )

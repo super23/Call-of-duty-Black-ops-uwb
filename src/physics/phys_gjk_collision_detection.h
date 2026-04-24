@@ -37,6 +37,7 @@ struct destructible_ent_aa : phys_auto_activate_callback // sizeof=0xC
     }
     void auto_activate(struct broad_phase_info *bpi_impactor);
 };
+static_assert(sizeof(destructible_ent_aa) == 12);
 
 struct dynamic_ent_aa : phys_auto_activate_callback // sizeof=0xC
 {

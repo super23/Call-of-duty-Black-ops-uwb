@@ -19,9 +19,7 @@ gjkcc_info *__cdecl find_gjkcc_info(unsigned int gjkcc_id, bool is_server_thread
 
 
 void __cdecl calc_time(phys_gjk_info *gjk_info, bool keep_all_collisions, float *time, float *dist);
-void __cdecl POLYGON_CYLINDER_HACK(phys_gjk_input *pgi, gjk_base_t *cg1, const gjk_base_t *cg2);
-// local variable allocation has failed, the output may be wrong!
-char    gjk_collide(
+bool gjk_collide(
                 phys_gjk_info *gjk_info,
                 phys_gjk_input *pgi,
                 gjk_trace_output_t *gto,

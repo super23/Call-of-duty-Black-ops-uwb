@@ -1974,7 +1974,7 @@ const gitem_s *__cdecl G_FindItem(char *pickupName)
 
     iIndex = G_GetWeaponIndexForName(pickupName);
     if ( iIndex )
-        return (const gitem_s *)(4 * iIndex + 15073304);
+        return (const gitem_s *)&bg_itemlist[iIndex];
     else
         return 0;
 }

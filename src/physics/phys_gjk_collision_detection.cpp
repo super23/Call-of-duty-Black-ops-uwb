@@ -469,7 +469,7 @@ void __thiscall gjk_query_output::query_epilog()
     this->m_allocator_state = v1;
 }
 
-void *__thiscall gjk_query_output::allocate(int size, int alignment, bool no_error)
+void *gjk_query_output::allocate(int size, int alignment, bool no_error)
 {
     return this->m_allocator.allocate(size, alignment, no_error, "gjk player trace out of memory");
 }
@@ -797,8 +797,8 @@ void __thiscall gjk_query_output::add(
     database_id.m_id1 = (unsigned int)partition;
     database_id.m_id2 = 0;
     //bpei = bpei_database_t::get_bpei(&this->m_bpei_database, (bpei_database_id)(unsigned int)partition);
-    bpei = this->m_bpei_database.get_bpei((bpei_database_id)(unsigned int)partition);
-    if ( !bpei->m_data )
+    bpei = this->m_bpei_database.get_bpei(database_id);
+    if ( !bpei->m_data ) // lwss: I have confirmed that this cache works if the same partition is passed in
     {
         cg = gjk_partition_t::create(tree, this);
         //gjk_base_t::set_geom_id_new(cg, bpei->m_gjk_geom_id);

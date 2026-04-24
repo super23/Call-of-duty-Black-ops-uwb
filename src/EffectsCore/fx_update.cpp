@@ -1928,18 +1928,9 @@ int __cdecl FX_CollisionResponse(
                     - preImpactVelocity[0]);
             v11[1] = v11[1] + velDelta_4;
             v11[2] = v11[2] + velDelta_8;
-            if (((*(_DWORD *)update->elemBaseVel & 0x7F800000) == 0x7F800000
-                || ((_DWORD)update->elemBaseVel[1] & 0x7F800000) == 0x7F800000
-                || ((_DWORD)update->elemBaseVel[2] & 0x7F800000) == 0x7F800000)
-                && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_update.cpp",
-                    1043,
-                    0,
-                    "%s",
-                    "!IS_NAN((update->elemBaseVel)[0]) && !IS_NAN((update->elemBaseVel)[1]) && !IS_NAN((update->elemBaseVel)[2])"))
-            {
-                __debugbreak();
-            }
+            
+            nanassertvec3(update->elemBaseVel);
+
             FX_OrientationPosFromWorldPos(&update->orient, update->posWorld, update->elemOrigin);
             *xyzWorldOld = update->posWorld[0];
             xyzWorldOld[1] = update->posWorld[1];

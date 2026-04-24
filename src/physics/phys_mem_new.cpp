@@ -228,9 +228,7 @@ void __cdecl PMM_VALIDATE(char *ptr, unsigned int size, unsigned int alignment)
 {
     phys_slot_pool *slot_pool; // eax
 
-    //slot_pool = phys_memory_manager::get_slot_pool(g_phys_memory_manager, size, alignment);
     slot_pool = g_phys_memory_manager->get_slot_pool(size, alignment);
-    //phys_slot_pool::validate_slot(slot_pool, ptr);
     slot_pool->validate_slot(ptr);
 }
 

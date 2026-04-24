@@ -386,8 +386,7 @@ struct rigid_body_constraint_ragdoll * Phys_CreateSwivel(
                 const float *motorFMaxs,
                 float *lowStops,
                 float *highStops);
-// local variable allocation has failed, the output may be wrong!
-void    phys_inv_multiply_mat(phys_mat44 *dest, const phys_mat44 *left, const phys_mat44 *right);
+void phys_inv_multiply_mat(phys_mat44 *dest, const phys_mat44 *left, const phys_mat44 *right);
 void __cdecl Phys_CalcPreset(PhysPreset *physPreset, float *dims, int surfaceType);
 int __cdecl Phys_GetCurrentTime();
 
