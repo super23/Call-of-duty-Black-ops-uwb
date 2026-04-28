@@ -4422,7 +4422,7 @@ void    UpdateRigidBody(float delta_t)
         Sys_EnterCriticalSection(CRITSECT_PHYSICS_UPDATE);
         if (gravityChange)
         {
-            Phys_Vec3ToNitrousVec(&phys_gravity_dir->current.value, &gravity_dir);
+            Phys_Vec3ToNitrousVec(phys_gravity_dir->current.vector, &gravity_dir);
             //m_next_T_internal = g_physics_system->m_list_rigid_body.m_dummy_head.m_next_T_internal;
             //p_m_list_rigid_body = &g_physics_system->m_list_rigid_body;
             //while ( p_m_list_rigid_body != (phys_free_list<rigid_body> *)m_next_T_internal )

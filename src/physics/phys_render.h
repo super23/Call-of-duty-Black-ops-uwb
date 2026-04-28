@@ -130,11 +130,10 @@ void    render_box(float *_mn, float *_mx, const float *color, int duration);
 void __cdecl render_box(const phys_vec3 *mins, const phys_vec3 *maxs, const float *color, int duration);
 void    render_gjk_geom(gjk_base_t *geom, const phys_mat44 *cg2w);
 void    debug_render(PhysObjUserData *userData);
-void    clip_winding(phys_static_array<phys_vec3,512> *winding, const plane_lt *clip);
+void    clip_winding(phys_static_array<phys_vec3, 512> &winding, const plane_lt &clip);
 void    init_winding(const plane_lt *plane, phys_static_array<phys_vec3,512> *winding);
-// local variable allocation has failed, the output may be wrong!
 void    calc_winding(
-                phys_static_array<plane_lt,512> *planes,
+                const phys_static_array<plane_lt,512> &planes,
                 int plane_index,
                 phys_static_array<phys_vec3,512> *winding);
 void __cdecl Phys_DebugPoint(const phys_vec3 *pos, float radius, const float *color);

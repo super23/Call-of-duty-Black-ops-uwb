@@ -790,6 +790,12 @@ public:
         return &this->m_slot_array[i];
     }
 
+    const T *operator[](int i) const
+    {
+        iassert(i >= 0 && i < m_alloc_count);
+        return &this->m_slot_array[i];
+    }
+
     T *add(int no_error, const char *error_msg)
     {
         if (m_alloc_count < 512)

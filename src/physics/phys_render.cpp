@@ -72,76 +72,27 @@ void    make_rotate(
                 float theta_factor,
                 float max_rotation_radians)
 {
-#if 0
-    long double x; // [esp+4h] [ebp-50h]
-    float xa; // [esp+4h] [ebp-50h]
-    long double x_4; // [esp+8h] [ebp-4Ch]
-    unsigned int v8[3]; // [esp+18h] [ebp-3Ch] BYREF
-    float v9; // [esp+34h] [ebp-20h]
-    float v10; // [esp+38h] [ebp-1Ch]
-    float v11; // [esp+3Ch] [ebp-18h]
-    float v12; // [esp+40h] [ebp-14h]
-    float ca; // [esp+44h] [ebp-10h]
-    int v14; // [esp+48h] [ebp-Ch]
-    void *v15; // [esp+4Ch] [ebp-8h]
-    void *retaddr; // [esp+54h] [ebp+0h]
+    phys_vec3 v8; // [esp+18h] [ebp-3Ch] BYREF
+    float len; // [esp+44h] [ebp-10h]
 
-    v14 = a1;
-    v15 = retaddr;
-    ca = Abs(&v->x);
-    if ( ca >= 0.0000099999997 )
+    len = Abs(&v->x);
+    if (len >= 0.0000099999997)
     {
-        v12 = 1.0 / ca;
-        v11 = (float)(1.0 / ca) * v->x;
-        v10 = (float)(1.0 / ca) * v->y;
-        v9 = (float)(1.0 / ca) * v->z;
-        *(float *)v8 = v11;
-        *(float *)&v8[1] = v10;
-        *(float *)&v8[2] = v9;
-        ca = ca * theta_factor;
-        if ( ca > max_rotation_radians )
-            ca = max_rotation_radians;
-        __libm_sse2_sin(x_4);
-        *(float *)&x = ca;
-        __libm_sse2_cos(x);
-        make_rotate(mat, (const phys_vec3 *)v8, ca, xa);
+        v8.x = (1.0 / len) * v->x;
+        v8.y = (1.0 / len) * v->y;
+        v8.z = (1.0 / len) * v->z;
+
+        len = len * theta_factor;
+        if (len > max_rotation_radians)
+            len = max_rotation_radians;
+
+        make_rotate(*mat, &v8, cos(len), sin(len));
     }
     else
     {
-        phys_mat44::operator=(mat, &PHYS_IDENTITY_MATRIX);
-    }
-#else // aislop
-    float len = sqrtf(v->x * v->x +
-        v->y * v->y +
-        v->z * v->z);
-
-    if (len < 1e-5f)
-    {
         *mat = PHYS_IDENTITY_MATRIX;
-        return;
+        //phys_mat44::operator=(mat, &PHYS_IDENTITY_MATRIX_34);
     }
-
-    // Normalize axis
-    float invLen = 1.0f / len;
-
-    phys_vec3 axis;
-    axis.x = v->x * invLen;
-    axis.y = v->y * invLen;
-    axis.z = v->z * invLen;
-
-    // Compute clamped angle
-    float angle = len * theta_factor;
-
-    if (angle > max_rotation_radians)
-        angle = max_rotation_radians;
-
-    // Precompute trig
-    float s = sinf(angle);
-    float c = cosf(angle);
-
-    // THIS is the real call
-    make_rotate(*mat, (const phys_vec3 *) & axis, s, c);
-#endif
 }
 
 void __cdecl DebugPatchesAndBrushesProlog()
@@ -196,297 +147,100 @@ void __cdecl add_debug_brush(const cbrush_t *brush, const phys_mat44 *mat)
     }
 }
 
+// aislop supervised
 void debug_brush_info_t::add_brush(
                 const cbrush_t *brush,
                 const phys_mat44 *mat)
 {
-    void *v4; // esp
-    phys_vec3 *v5; // eax
-    int jj; // [esp-62E0h] [ebp-62ECh]
-    int ii; // [esp-62DCh] [ebp-62E8h]
-    unsigned int index_in_brush; // [esp-62D8h] [ebp-62E4h]
-    float v9[3]; // [esp-62D4h] [ebp-62E0h] BYREF
-    int n; // [esp-62C8h] [ebp-62D4h]
-    int m; // [esp-62C4h] [ebp-62D0h]
-    int k; // [esp-62C0h] [ebp-62CCh]
-    unsigned __int8 v13; // [esp-62B9h] [ebp-62C5h]
-    int v14; // [esp-62B8h] [ebp-62C4h]
-    int v15; // [esp-62B4h] [ebp-62C0h]
-    phys_static_array<phys_vec3,512> v16; // [esp-62B0h] [ebp-62BCh] BYREF
-    unsigned int j; // [esp-42A0h] [ebp-42ACh]
-    int num_windings; // [esp-429Ch] [ebp-42A8h]
-    int kk; // [esp-4298h] [ebp-42A4h]
-    debug_brush_t *v20; // [esp-4294h] [ebp-42A0h]
-    unsigned __int16 v21; // [esp-4290h] [ebp-429Ch]
-    int v22; // [esp-428Ch] [ebp-4298h]
-    int m_alloc_count; // [esp-4288h] [ebp-4294h]
-    plane_lt *v24; // [esp-4284h] [ebp-4290h]
-    phys_vec3 v25; // [esp-4280h] [ebp-428Ch] BYREF
-    float v26; // [esp-4270h] [ebp-427Ch]
-    float z; // [esp-4254h] [ebp-4260h]
-    int v28; // [esp-4250h] [ebp-425Ch]
-    int v29; // [esp-424Ch] [ebp-4258h]
-    float v30; // [esp-4248h] [ebp-4254h]
-    float v31; // [esp-4244h] [ebp-4250h]
-    plane_lt *v32; // [esp-4234h] [ebp-4240h]
-    phys_vec3 v33; // [esp-4230h] [ebp-423Ch] BYREF
-    float v34; // [esp-4220h] [ebp-422Ch]
-    float y; // [esp-4204h] [ebp-4210h]
-    int v36; // [esp-4200h] [ebp-420Ch]
-    float v37; // [esp-41FCh] [ebp-4208h]
-    int v38; // [esp-41F8h] [ebp-4204h]
-    float v39; // [esp-41F4h] [ebp-4200h]
-    plane_lt *v40; // [esp-41E4h] [ebp-41F0h]
-    phys_vec3 v41; // [esp-41E0h] [ebp-41ECh] BYREF
-    float v42; // [esp-41D0h] [ebp-41DCh]
-    float x; // [esp-41B4h] [ebp-41C0h]
-    float v44; // [esp-41B0h] [ebp-41BCh]
-    int v45; // [esp-41ACh] [ebp-41B8h]
-    int v46; // [esp-41A8h] [ebp-41B4h]
-    float v47; // [esp-41A4h] [ebp-41B0h]
-    plane_lt *v48; // [esp-4194h] [ebp-41A0h]
-    phys_vec3 v49; // [esp-4190h] [ebp-419Ch] BYREF
-    float v50; // [esp-4180h] [ebp-418Ch]
-    int v51; // [esp-4164h] [ebp-4170h]
-    int v52; // [esp-4160h] [ebp-416Ch]
-    int v53; // [esp-415Ch] [ebp-4168h]
-    float v54; // [esp-4158h] [ebp-4164h]
-    float v55; // [esp-4154h] [ebp-4160h]
-    plane_lt *v56; // [esp-4144h] [ebp-4150h]
-    phys_vec3 v57; // [esp-4140h] [ebp-414Ch] BYREF
-    float v58; // [esp-4130h] [ebp-413Ch]
-    int v59; // [esp-4114h] [ebp-4120h]
-    int v60; // [esp-4110h] [ebp-411Ch]
-    float v61; // [esp-410Ch] [ebp-4118h]
-    int v62; // [esp-4108h] [ebp-4114h]
-    float v63; // [esp-4104h] [ebp-4110h]
-    plane_lt *v64; // [esp-40F4h] [ebp-4100h]
-    phys_vec3 v65; // [esp-40F0h] [ebp-40FCh] BYREF
-    float v66; // [esp-40E0h] [ebp-40ECh]
-    int v67; // [esp-40C4h] [ebp-40D0h]
-    float v68; // [esp-40C0h] [ebp-40CCh]
-    int v69; // [esp-40BCh] [ebp-40C8h]
-    int v70; // [esp-40B8h] [ebp-40C4h]
-    float v71; // [esp-40B4h] [ebp-40C0h]
-    plane_lt *v72; // [esp-40A4h] [ebp-40B0h]
-    phys_vec3 v73; // [esp-40A0h] [ebp-40ACh] BYREF
-    float v74; // [esp-4090h] [ebp-409Ch]
-    float dist; // [esp-4074h] [ebp-4080h]
-    phys_vec3 v76; // [esp-4070h] [ebp-407Ch] BYREF
-    cplane_s *plane; // [esp-4058h] [ebp-4064h]
-    unsigned int i; // [esp-4054h] [ebp-4060h]
-    phys_static_array<plane_lt,512> v79; // [esp-4050h] [ebp-405Ch] BYREF
-    unsigned int numsides; // [esp-34h] [ebp-40h]
-    phys_vec3 v81; // [esp-30h] [ebp-3Ch] BYREF
-    phys_vec3 v82; // [esp-20h] [ebp-2Ch] BYREF
-    debug_brush_info_t *v83; // [esp-8h] [ebp-14h]
-    //unsigned int v84[3]; // [esp+0h] [ebp-Ch] BYREF
-    //_UNKNOWN *retaddr; // [esp+Ch] [ebp+0h]
-    //
-    //v84[0] = a2;
-    //v84[1] = retaddr;
-    v4 = alloca(25312);
-    v83 = this;
-    if ( this->num_brushes == 5000 )
+    if ( this->num_brushes >= 5000 )
     {
         Com_Printf(0, "Debug brush limit exceeded, limit=%d\n", 5000);
+        return;
     }
-    else if ( mat )
+
+    if ( mat )
     {
         Com_Printf(0, "Debug rendering for xformed brushes is not supported at the moment\n");
+        return;
     }
-    else
+
+    phys_vec3 brushMins, brushMaxs;
+    Phys_Vec3ToNitrousVec(brush->mins, &brushMins);
+    Phys_Vec3ToNitrousVec(brush->maxs, &brushMaxs);
+
+    phys_static_array<plane_lt, 512> planes;
+
+    for (unsigned int i = 0; i < brush->numsides; ++i)
     {
-        Phys_Vec3ToNitrousVec(brush->mins, &v82);
-        Phys_Vec3ToNitrousVec(brush->maxs, &v81);
-        numsides = brush->numsides;
-        v79.m_slot_array = (plane_lt *const)&v79;
-        v79.m_alloc_count = 0;
-        for ( i = 0; i < numsides; ++i )
+        const cplane_s *plane = brush->sides[i].plane;
+        phys_vec3 n;
+        Phys_Vec3ToNitrousVec(plane->normal, &n);
+
+        plane_lt *p = planes.add(0, "phys array add overflow.");
+        p->n = n;
+        p->d = plane->dist;
+    }
+
+    { plane_lt *p = planes.add(0, "phys array add overflow."); p->n = { -1,  0,  0 }; p->d = -brushMins.x; }
+    { plane_lt *p = planes.add(0, "phys array add overflow."); p->n = { 0, -1,  0 }; p->d = -brushMins.y; }
+    { plane_lt *p = planes.add(0, "phys array add overflow."); p->n = { 0,  0, -1 }; p->d = -brushMins.z; }
+    { plane_lt *p = planes.add(0, "phys array add overflow."); p->n = { 1,  0,  0 }; p->d = brushMaxs.x; }
+    { plane_lt *p = planes.add(0, "phys array add overflow."); p->n = { 0,  1,  0 }; p->d = brushMaxs.y; }
+    { plane_lt *p = planes.add(0, "phys array add overflow."); p->n = { 0,  0,  1 }; p->d = brushMaxs.z; }
+
+    iassert(planes.get_count() < 65536);
+
+    uint16_t nplanes_u16 = (uint16_t)planes.get_count();
+
+    // Allocate a new debug_brush_t entry
+    debug_brush_t *db = &brushes[num_brushes++];
+    db->brush = brush;
+    db->first_winding_index = num_windings;
+    db->first_vertex_index = num_indices;
+    db->num_windings = nplanes_u16;
+
+    if (num_windings + nplanes_u16 >= 50000)
+    {
+        Com_Printf(0, "Debug brush windings limit exceeded, limit=%d\n", 50000);
+        this->num_brushes--;
+        return;
+    }
+
+    int saved_num_windings = num_windings;
+
+    for (unsigned int j = 0; j < nplanes_u16; ++j)
+    {
+        phys_static_array<phys_vec3, 512> winding;
+        calc_winding(planes, j, &winding);
+
+        uint8_t winding_count = (uint8_t)winding.m_alloc_count;
+        iassert(winding.m_alloc_count < 65536); // "winding.get_count() < 65536"
+
+        windings[num_windings++] = winding_count;
+
+        // Check index budget
+        if (num_indices + winding_count >= 360000)
         {
-            plane = brush->sides[i].plane;
-            Phys_Vec3ToNitrousVec(plane->normal, &v76);
-            dist = plane->dist;
-            v73 = v76;
-            v74 = dist;
-            //v72 = phys_static_array<plane_lt,512>::add(&v79, 0, "phys array add overflow.");
-            v72 = v79.add(0, "phys array add overflow.");
-            //phys_vec3::operator=(&v72->n, &v73);
-            v72->n = v73;
-            v72->d = v74;
+            Com_Printf(0, "Debug brush windings limit exceeded, limit=%d\n", 360000);
+            --num_brushes;
+            num_windings = saved_num_windings;
+            return;
         }
-        v68 = -1.0f;
-        v69 = 0;
-        v70 = 0;
-        //v67 = LODWORD(v82.x) ^ _mask__NegFloat_;
-        v67 = -(v82.x);
-        v65.x = -1.0f;
-        v65.y = 0.0f;
-        v65.z = 0.0f;
-        v65.w = 0.0f;//v71;
-        v66 = -v82.x;
-        //v64 = phys_static_array<plane_lt,512>::add(&v79, 0, "phys array add overflow.");
-        v64 = v79.add(0, "phys array add overflow.");
-        //phys_vec3::operator=(&v64->n, &v65);
-        v64->n = v65;
-        v64->d = v66;
-        v60 = 0;
-        v61 = -1.0f;
-        v62 = 0;
-        //v59 = LODWORD(v82.y) ^ _mask__NegFloat_;
-        v59 = -(v82.y);
-        v57.x = 0.0f;
-        v57.y = -1.0f;
-        v57.z = 0.0f;
-        v57.w = 0.0f;//v63;
-        v58 = -v82.y;
-        //v56 = phys_static_array<plane_lt,512>::add(&v79, 0, "phys array add overflow.");
-        v56 = v79.add(0, "phys array add overflow.");
-        //phys_vec3::operator=(&v56->n, &v57);
-        v56->n = v57;
-        v56->d = v58;
-        v52 = 0;
-        v53 = 0;
-        v54 = -1.0f;
-        //v51 = LODWORD(v82.z) ^ _mask__NegFloat_;
-        v51 = -(v82.z);
-        v49.x = 0.0f;
-        v49.y = 0.0f;
-        v49.z = -1.0f;
-        v49.w = 0.0f;//v55;
-        v50 = -v82.z;
-        //v48 = phys_static_array<plane_lt,512>::add(&v79, 0, "phys array add overflow.");
-        v48 = v79.add(0, "phys array add overflow.");
-        //phys_vec3::operator=(&v48->n, &v49);
-        v48->n = v49;
-        v48->d = v50;
-        v44 = 1.0f;
-        v45 = 0;
-        v46 = 0;
-        x = v81.x;
-        v41.x = 1.0f;
-        v41.y = 0.0f;
-        v41.z = 0.0f;
-        v41.w = 0.0f;//v47;
-        v42 = v81.x;
-        //v40 = phys_static_array<plane_lt,512>::add(&v79, 0, "phys array add overflow.");
-        v40 = v79.add(0, "phys array add overflow.");
-        //phys_vec3::operator=(&v40->n, &v41);
-        v40->n = v41;
-        v40->d = v42;
-        v36 = 0;
-        v37 = 1.0f;
-        v38 = 0;
-        y = v81.y;
-        v33.x = 0.0f;
-        v33.y = 1.0f;
-        v33.z = 0.0f;
-        v33.w = 0.0f;//v39;
-        v34 = v81.y;
-        //v32 = phys_static_array<plane_lt,512>::add(&v79, 0, "phys array add overflow.");
-        v32 = v79.add(0, "phys array add overflow.");
-        //phys_vec3::operator=(&v32->n, &v33);
-        v32->n = v33;
-        v32->d = v34;
-        v28 = 0;
-        v29 = 0;
-        v30 = 1.0f;
-        z = v81.z;
-        v25.x = 0.0f;
-        v25.y = 0.0f;
-        v25.z = 1.0f;
-        v25.w = 0.0f;// v31;
-        v26 = v81.z;
-        //v24 = phys_static_array<plane_lt,512>::add(&v79, 0, "phys array add overflow.");
-        v24 = v79.add(0, "phys array add overflow.");
-        //phys_vec3::operator=(&v24->n, &v25);
-        v24->n = v25;
-        v24->d = v26;
-        m_alloc_count = v79.m_alloc_count;
-        if ( v79.m_alloc_count >= 0x10000
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_render.cpp",
-                        146,
-                        0,
-                        "%s",
-                        "planes.get_count() < 65536") )
+
+        for (int n = 0; n < winding_count; ++n)
         {
-            __debugbreak();
-        }
-        v22 = v79.m_alloc_count;
-        v21 = v79.m_alloc_count;
-        v20 = &v83->brushes[v83->num_brushes++];
-        v20->brush = brush;
-        v20->first_winding_index = v83->num_windings;
-        v20->first_vertex_index = v83->num_indices;
-        v20->num_windings = v21;
-        if ( v83->num_windings + v21 < 50000 )
-        {
-            num_windings = v83->num_windings;
-            for ( j = 0; j < v21; ++j )
-            {
-                v16.m_slot_array = (phys_vec3 *const)&v16;
-                v16.m_alloc_count = 0;
-                calc_winding(&v79, j, &v16);
-                v15 = v16.m_alloc_count;
-                if ( v16.m_alloc_count >= 0x10000
-                    && !Assert_MyHandler(
-                                "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_render.cpp",
-                                167,
-                                0,
-                                "%s",
-                                "winding.get_count() < 65536") )
-                {
-                    __debugbreak();
-                }
-                v14 = v16.m_alloc_count;
-                v13 = v16.m_alloc_count;
-                v83->windings[v83->num_windings++] = v16.m_alloc_count;
-                if ( v83->num_indices + v13 >= 360000 )
-                {
-                    Com_Printf(0, "Debug brush windings limit exceeded, limit=%d\n", 360000);
-                    --v83->num_brushes;
-                    v83->num_windings = num_windings;
-                    for ( k = 0; k < v16.m_alloc_count; ++k )
-                        ;
-                    for ( m = 0; m < v79.m_alloc_count; ++m )
-                        ;
-                    return;
-                }
-                for ( n = 0; n < v13; ++n )
-                {
-                    //v5 = phys_static_array<phys_vec3,512>::operator[](&v16, n);
-                    v5 = v16[n];
-                    Phys_NitrousVecToVec3(v5, v9);
-                    //index_in_brush = (unsigned __int16)debug_brush_info_t::find_index_in_brush(v83, brush, v9);
-                    index_in_brush = v83->find_index_in_brush(brush, v9);
-                    if ( index_in_brush >= 0x100
-                        && !Assert_MyHandler(
-                                    "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_render.cpp",
-                                    184,
-                                    0,
-                                    "%s",
-                                    "ind < 256") )
-                    {
-                        __debugbreak();
-                    }
-                    v83->indices[v83->num_indices++] = index_in_brush;
-                }
-                for ( ii = 0; ii < v16.m_alloc_count; ++ii )
-                    ;
-            }
-            v20->num_indices = LOWORD(v83->num_indices) - LOWORD(v20->first_vertex_index);
-            for ( jj = 0; jj < v79.m_alloc_count; ++jj )
-                ;
-        }
-        else
-        {
-            Com_Printf(0, "Debug brush windings limit exceeded, limit=%d\n", 50000);
-            --v83->num_brushes;
-            for ( kk = 0; kk < v79.m_alloc_count; ++kk )
-                ;
+            float v[3];
+            Phys_NitrousVecToVec3(winding[n], v);
+
+            unsigned int ind = find_index_in_brush(brush, v);
+            iassert(ind < 256); // "ind < 256"
+
+            indices[num_indices++] = (uint8_t)ind;
         }
     }
+
+    db->num_indices = (uint16_t)(num_indices - db->first_vertex_index);
+
 }
 
 __int16 __thiscall debug_brush_info_t::find_index_in_brush(const cbrush_t *brush, const float *v)
@@ -1416,283 +1170,106 @@ void    debug_render(PhysObjUserData *userData)
     //BLOPS_NULLSUB();
 }
 
-void    clip_winding(phys_static_array<phys_vec3,512> *winding, const plane_lt *clip)
+// aislop supervised
+void    clip_winding(phys_static_array<phys_vec3,512> &winding, const plane_lt &clip)
 {
-    void *v3; // esp
-    int *v4; // esi
-    int *v5; // esi
-    int *v6; // edi
-    float *v7; // eax
-    const float *v8; // esi
-    const float *v9; // edi
-    const float *v10; // eax
-    phys_vec3 *v11; // eax
-    phys_vec3 *v12; // eax
-    phys_vec3 *v13; // [esp-3104h] [ebp-3110h]
-    int jj; // [esp-30F8h] [ebp-3104h]
-    int ii; // [esp-30F4h] [ebp-3100h]
-    int v16; // [esp-30F0h] [ebp-30FCh]
-    int m; // [esp-30ECh] [ebp-30F8h]
-    float v18; // [esp-30E8h] [ebp-30F4h]
-    int v19; // [esp-30E4h] [ebp-30F0h]
-    phys_vec3 v20; // [esp-30E0h] [ebp-30ECh] BYREF
-    signed int k; // [esp-30D0h] [ebp-30DCh]
-    float v22; // [esp-30CCh] [ebp-30D8h]
-    phys_vec3 *v23; // [esp-30C8h] [ebp-30D4h]
-    phys_vec3 *v24; // [esp-30C4h] [ebp-30D0h]
-    phys_vec3 *v25; // [esp-30C0h] [ebp-30CCh]
-    phys_vec3 *v26; // [esp-30BCh] [ebp-30C8h]
-    int v27; // [esp-30B8h] [ebp-30C4h]
-    int j; // [esp-30B4h] [ebp-30C0h]
-    phys_static_array<phys_vec3,512> v29; // [esp-30B0h] [ebp-30BCh] BYREF
-    int kk; // [esp-1098h] [ebp-10A4h]
-    int *v31; // [esp-1094h] [ebp-10A0h]
-    int *v32; // [esp-1090h] [ebp-109Ch]
-    float *v33; // [esp-108Ch] [ebp-1098h]
-    int *v34; // [esp-1088h] [ebp-1094h]
-    int *v35; // [esp-1084h] [ebp-1090h]
-    int *v36; // [esp-1080h] [ebp-108Ch]
-    int *v37; // [esp-107Ch] [ebp-1088h]
-    float v38; // [esp-1078h] [ebp-1084h]
-    float v39; // [esp-1074h] [ebp-1080h]
-    phys_vec3 *v40; // [esp-1070h] [ebp-107Ch]
-    int *v41; // [esp-106Ch] [ebp-1078h]
-    int *v42; // [esp-1068h] [ebp-1074h]
-    int *v43; // [esp-1064h] [ebp-1070h]
-    int *v44; // [esp-1060h] [ebp-106Ch]
-    int i; // [esp-105Ch] [ebp-1068h]
-    int m_alloc_count; // [esp-1058h] [ebp-1064h]
-    float d; // [esp-1054h] [ebp-1060h]
-    phys_vec3 n; // [esp-1050h] [ebp-105Ch] BYREF
-    int v49; // [esp-103Ch] [ebp-1048h] BYREF
-    int v50; // [esp-1038h] [ebp-1044h]
-    int v51; // [esp-1034h] [ebp-1040h]
-    phys_static_array<int,512> v52; // [esp-1030h] [ebp-103Ch] BYREF
-    phys_static_array<int,512> v53; // [esp-820h] [ebp-82Ch] BYREF
-    //int v54; // [esp+0h] [ebp-Ch]
-    //void *v55; // [esp+4h] [ebp-8h]
-    //void *retaddr; // [esp+Ch] [ebp+0h]
-    //
-    //v54 = a1;
-    //v55 = retaddr;
-    v3 = alloca(12536);
-    v53.m_slot_array = (int *const)&v53;
-    v53.m_alloc_count = 0;
-    v52.m_slot_array = (int *const)&v52;
-    v52.m_alloc_count = 0;
-    v49 = 0;
-    v50 = 0;
-    v51 = 0;
-    n = clip->n;
-    d = clip->d;
-    m_alloc_count = winding->m_alloc_count;
-    //phys_static_array<float,512>::call_destructors(&v53);
-    v53.m_alloc_count = 0;
-    //phys_static_array<float,512>::call_destructors(&v52); // call_Destructors() can be omitted
-    v52.m_alloc_count = 0;
-    for ( i = 0; i < m_alloc_count; ++i )
+    phys_static_array<float, 512> dists;
+    phys_static_array<int, 512>   sides;
+
+    int counts[3] = { 0, 0, 0 }; // [0]=front, [1]=back, [2]=on
+
+    phys_vec3 n = clip.n;
+    float     d = clip.d;
+    int       num_verts = winding.m_alloc_count;
+
+    // Classify each vertex against the plane
+    for (int i = 0; i < num_verts; ++i)
     {
-        if ( v53.m_alloc_count < 512 )
-        {
-            v44 = &v53.m_slot_array[v53.m_alloc_count++];
-            v43 = v44;
-        }
+        float dot = winding[i]->dot(n);
+        float dist = dot - d;
+
+        *dists.add(0, "phys array add overflow.") = dist;
+
+        int side;
+        if (dist > 0.01f)
+            side = 0; // front
+        else if (dist < -0.01f)
+            side = 1; // back
         else
+            side = 2; // on
+
+        *sides.add(0, "phys array add overflow.") = side;
+        ++counts[side];
+    }
+
+    // Wrap: copy first element to end (for edge testing)
+    *sides.add(0, "phys array add overflow.") = *sides[0];
+    *dists.add(0, "phys array add overflow.") = *dists[0];
+
+    // All verts are behind (or on) the plane — winding is completely clipped
+    if (!counts[0])
+    {
+        winding.m_alloc_count = 0;
+        return;
+    }
+
+    // All verts are in front — winding is unmodified, nothing to clip
+    if (!counts[1])
+        return;
+
+    // Mixed — need to clip
+    phys_static_array<phys_vec3, 512> clipped;
+
+    for (int j = 0; j < winding.m_alloc_count; ++j)
+    {
+        phys_vec3 *p = winding[j];
+
+        if (*sides[j] == 2) // on plane — keep as-is
         {
-            tlFatal("phys array add overflow.");
+            *clipped.add(0, "phys array add overflow.") = *p;
+            continue;
         }
-        if ( v52.m_alloc_count < 512 )
+
+        if (*sides[j] == 0) // front — keep
+            *clipped.add(0, "phys array add overflow.") = *p;
+
+        // Check if the next edge crosses a side boundary
+        if (*sides[j + 1] == 2)
+            continue;
+
+        if (*sides[j + 1] == *sides[j])
+            continue;
+
+        // Edge crosses the plane — compute intersection
+        phys_vec3 *q = winding[(j + 1) % num_verts];
+        float      fj = *dists[j];
+        float      fj1 = *dists[j + 1];
+        float      t = fj / (fj - fj1);
+
+        phys_vec3 mid;
+        for (int k = 0; k < 3; ++k)
         {
-            v42 = &v52.m_slot_array[v52.m_alloc_count++];
-            v41 = v42;
-        }
-        else
-        {
-            tlFatal("phys array add overflow.");
-        }
-        //v40 = phys_static_array<phys_vec3,512>::operator[](winding, i);
-        v40 = winding->operator[](i);
-        v39 = (float)((float)(v40->x * n.x) + (float)(v40->y * n.y)) + (float)(v40->z * n.z);
-        v38 = v39 - d;
-        //*(float *)phys_static_array<float,512>::operator[](&v53, i) = v39 - d;
-        *(float *)v53.operator[](i) = v39 - d;
-        //if ( *(float *)phys_static_array<float,512>::operator[](&v53, i) <= 0.0099999998 )
-        if ( *(float *)v53.operator[](i) <= 0.0099999998 )
-        {
-            //if ( *(float *)phys_static_array<float,512>::operator[](&v53, i) >= -0.0099999998 )
-            if (*(float *)v53.operator[](i) >= -0.0099999998)
+            if (n[k] == 1.0f)
             {
-                //*phys_static_array<float, 512>::operator[](&v52, i) = 2;
-                *v52.operator[](i) = 2;
+                mid[k] = d;
+            }
+            else if (n[k] == -1.0f)
+            {
+                mid[k] = -d;
             }
             else
             {
-                //*phys_static_array<float, 512>::operator[](&v52, i) = 1;
-                *v52.operator[](i) = 1;
+                mid[k] = (*p)[k] + ((*q)[k] - (*p)[k]) * t;
             }
         }
-        else
-        {
-            //*phys_static_array<float,512>::operator[](&v52, i) = 0;
-            *v52.operator[](i) = 0;
-        }
-        //v37 = &v49 + *phys_static_array<float,512>::operator[](&v52, i);
-        v37 = &v49 + *v52.operator[](i);
-        ++*v37;
+
+        *clipped.add(0, "phys array add overflow.") = mid;
     }
-    if ( v52.m_alloc_count < 512 )
-    {
-        v35 = &v52.m_slot_array[v52.m_alloc_count++];
-        v34 = v35;
-        v36 = v35;
-    }
-    else
-    {
-        tlFatal("phys array add overflow.");
-        v36 = 0;
-    }
-    //*v36 = *phys_static_array<float,512>::operator[](&v52, 0);
-    *v36 = *v52.operator[](0);
-    if ( v53.m_alloc_count < 512 )
-    {
-        v32 = &v53.m_slot_array[v53.m_alloc_count++];
-        v31 = v32;
-        v33 = (float *)v32;
-    }
-    else
-    {
-        tlFatal("phys array add overflow.");
-        v33 = 0;
-    }
-    //*v33 = *(float *)phys_static_array<float,512>::operator[](&v53, 0);
-    *v33 = *(float *)v53.operator[](0);
-    if ( v49 )
-    {
-        if ( v50 )
-        {
-            v29.m_slot_array = (phys_vec3 *const)&v29;
-            v29.m_alloc_count = 0;
-            for ( j = 0; ; ++j )
-            {
-                v27 = winding->m_alloc_count;
-                if ( j >= v27 )
-                    break;
-                //v26 = phys_static_array<phys_vec3,512>::operator[](winding, j);
-                v26 = winding->operator[](j);
-                //if ( *phys_static_array<float,512>::operator[](&v52, j) == 2 )
-                if ( *v52.operator[](j) == 2 )
-                {
-                    //v25 = phys_static_array<phys_vec3,512>::add(&v29, 0, "phys array add overflow.");
-                    v25 = v29.add(0, "phys array add overflow.");
-                    v25->x = v26->x;
-                    v25->y = v26->y;
-                    v25->z = v26->z;
-                }
-                else
-                {
-                    //if ( !*phys_static_array<float,512>::operator[](&v52, j) )
-                    if ( !*v52.operator[](j) )
-                    {
-                        //v24 = phys_static_array<phys_vec3,512>::add(&v29, 0, "phys array add overflow.");
-                        v24 = v29.add(0, "phys array add overflow.");
-                        v24->x = v26->x;
-                        v24->y = v26->y;
-                        v24->z = v26->z;
-                    }
-                    //if ( *phys_static_array<float,512>::operator[](&v52, j + 1) != 2 )
-                    if ( *v52.operator[](j + 1) != 2 )
-                    {
-                        //v4 = phys_static_array<float,512>::operator[](&v52, j + 1);
-                        v4 = v52.operator[](j + 1);
-                        //if ( *v4 != *phys_static_array<float,512>::operator[](&v52, j) )
-                        if ( *v4 != *v52.operator[](j) )
-                        {
-                            //v23 = phys_static_array<phys_vec3,512>::operator[](winding, (j + 1) % m_alloc_count);
-                            v23 = winding->operator[]((j + 1) % m_alloc_count);
-                            //v5 = phys_static_array<float,512>::operator[](&v53, j);
-                            v5 = v53.operator[](j);
-                            //v6 = phys_static_array<float,512>::operator[](&v53, j);
-                            v6 = v53.operator[](j);
-                            //v22 = *(float *)v5 / (float)(*(float *)v6 - *(float *)phys_static_array<float,512>::operator[](&v53, j + 1));
-                            v22 = *(float *)v5 / (float)(*(float *)v6 - *(float *)v53.operator[](j + 1));
-                            for ( k = 0; k < 3; ++k )
-                            {
-                                if ( k < 0
-                                    && _tlAssert(
-                                             "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\old_phys_math.h",
-                                             32,
-                                             "i >= 0 && i < 3",
-                                             "") )
-                                {
-                                    __debugbreak();
-                                }
-                                if ( *(&n.x + k) == 1.0 )
-                                {
-                                    //v7 = phys_vec3::operator[]<int>(&v20, k);
-                                    v7 = &v20.operator[](k);
-                                    *v7 = d;
-                                }
-                                //else if ( *phys_vec3::operator[]<int>(&n, k) == -1.0 )
-                                else if ( n.operator[](k) == -1.0 )
-                                {
-                                    //v19 = LODWORD(d) ^ _mask__NegFloat_;
-                                    v19 = -(d);
-                                    //*(unsigned int *)phys_vec3::operator[]<int>(&v20, k) = v19;
-                                    *(unsigned int *)&v20.operator[](k) = v19;
-                                }
-                                else
-                                {
-                                    //v8 = phys_vec3::operator[]<int>(v26, k);
-                                    v8 = &v26->operator[](k);
-                                    //v9 = phys_vec3::operator[]<int>(v23, k);
-                                    v9 = &v23->operator[](k);
-                                    //v10 = phys_vec3::operator[]<int>(v26, k);
-                                    v10 = &v26->operator[](k);
-                                    v18 = (float)((float)(*v9 - *v10) * v22) + *v8;
-                                    //*phys_vec3::operator[]<int>(&v20, k) = v18;
-                                    v20.operator[](k) = v18;
-                                }
-                            }
-                            //v11 = phys_static_array<phys_vec3,512>::add(&v29, 0, "phys array add overflow.");
-                            v11 = v29.add(0, "phys array add overflow.");
-                            //phys_vec3::operator=(v11, &v20);
-                            *v11 = v20;
-                        }
-                    }
-                }
-            }
-            for ( m = 0; m < winding->m_alloc_count; ++m )
-                ;
-            winding->m_alloc_count = 0;
-            v16 = v29.m_alloc_count;
-            for ( ii = 0; ii < v16; ++ii )
-            {
-                //v13 = phys_static_array<phys_vec3,512>::operator[](&v29, ii);
-                v13 = v29.operator[](ii);
-                //v12 = phys_static_array<phys_vec3,512>::add(winding, 0, "phys array add overflow.");
-                v12 = winding->add(0, "phys array add overflow.");
-                //phys_vec3::operator=(v12, v13);
-                v12 = v13;
-            }
-            for ( jj = 0; jj < v29.m_alloc_count; ++jj )
-                ;
-            //phys_static_array<float,512>::call_destructors(&v52);
-            //phys_static_array<float,512>::call_destructors(&v53);
-        }
-        else
-        {
-            //phys_static_array<float,512>::call_destructors(&v52);
-            //phys_static_array<float,512>::call_destructors(&v53);
-        }
-    }
-    else
-    {
-        for ( kk = 0; kk < winding->m_alloc_count; ++kk )
-            ;
-        winding->m_alloc_count = 0;
-        //phys_static_array<float,512>::call_destructors(&v52);
-        //phys_static_array<float,512>::call_destructors(&v53);
-    }
+
+    // Replace winding with clipped result
+    winding.m_alloc_count = 0;
+    for (int i = 0; i < clipped.m_alloc_count; ++i)
+        *winding.add(0, "phys array add overflow.") = *clipped[i];
 }
 
 void    init_winding(const plane_lt *plane, phys_static_array<phys_vec3,512> *winding)
@@ -1890,59 +1467,48 @@ void    init_winding(const plane_lt *plane, phys_static_array<phys_vec3,512> *wi
     *v13 = v20;
 }
 
-// local variable allocation has failed, the output may be wrong!
 void    calc_winding(
-                phys_static_array<plane_lt,512> *planes,
+                const phys_static_array<plane_lt,512> &planes,
                 int plane_index,
                 phys_static_array<phys_vec3,512> *winding)
 {
-    int j; // [esp-38h] [ebp-68h]
-    plane_lt v5; // [esp-Ch] [ebp-3Ch] BYREF
-    int i; // [esp+14h] [ebp-1Ch]
-    int nplanes; // [esp+18h] [ebp-18h]
-    bool past; // [esp+1Fh] [ebp-11h]
-    const plane_lt *plane; // [esp+20h] [ebp-10h]
-    int trash; // [esp+24h] [ebp-Ch] BYREF
-    //void *v11; // [esp+28h] [ebp-8h] OVERLAPPED
-    //void *retaddr; // [esp+30h] [ebp+0h]
-    //
-    //trash = a1;
-    //v11 = retaddr;
-    //plane = phys_static_array<plane_lt, 512>::operator[](planes, plane_index);
-    plane = planes->operator[](plane_index);
-    init_winding(plane, winding);
-    past = 0;
-    nplanes = planes->m_alloc_count;
-    for (i = 0; i < nplanes; ++i)
+    const plane_lt *first_plane = planes[plane_index];
+    init_winding(first_plane, winding);
+
+    bool past = false;
+    int nplanes = planes.m_alloc_count;
+    for (int i = 0; i < nplanes; ++i)
     {
         if (i == plane_index)
         {
-            past = 1;
+            past = true;
+            continue;
         }
-        else
+
+        plane_lt clip = *planes[i];
+
+        float dot = first_plane->n.dot(clip.n);
+        float ddelta = first_plane->d - clip.d;
+
+        if (dot > 0.99989998f && fabsf(ddelta) < 0.001f)
         {
-            //memcpy(&v5, phys_static_array<plane_lt, 512>::operator[](planes, i), sizeof(v5));
-            memcpy(&v5, planes->operator[](i), sizeof(v5));
-            if ((float)((float)((float)(plane->n.x * v5.n.x) + (float)(plane->n.y * v5.n.y)) + (float)(plane->n.z * v5.n.z)) <= 0.99989998
-                //|| COERCE_FLOAT(COERCE_UNSIGNED_INT(plane->d - v5.d) & _mask__AbsFloat_) >= 0.001)
-                || (fabs(plane->d - v5.d)) >= 0.001)
+            if (past)
             {
-                v5.n.x = -v5.n.x;
-                v5.n.y = -v5.n.y;
-                v5.n.z = -v5.n.z;
-                v5.d = -v5.d;
-                clip_winding(winding, &v5);
-                if (winding->m_alloc_count < 3)
-                    return;
-            }
-            else if (past)
-            {
-                for (j = 0; j < winding->m_alloc_count; ++j)
-                    ;
                 winding->m_alloc_count = 0;
                 return;
             }
+            continue;
         }
+
+        clip.n.x = -clip.n.x;
+        clip.n.y = -clip.n.y;
+        clip.n.z = -clip.n.z;
+        clip.d = -clip.d;
+
+        clip_winding(*winding, clip);
+
+        if (winding->m_alloc_count < 3)
+            return;
     }
 }
 
@@ -2614,93 +2180,3 @@ void __cdecl GjkTraceGeom::Render()
     }
     GjkTraceGeom::nGeoms = 0;
 }
-
-//plane_lt *__thiscall phys_static_array<plane_lt,512>::add(
-//                phys_static_array<plane_lt,512> *this,
-//                int no_error,
-//                const char *error_msg)
-//{
-//    if ( this->m_alloc_count < 512 )
-//    {
-//        return &this->m_slot_array[this->m_alloc_count++];
-//    }
-//    else
-//    {
-//        if ( !no_error )
-//            tlFatal(error_msg);
-//        return 0;
-//    }
-//}
-//
-//const plane_lt *__thiscall phys_static_array<plane_lt,512>::operator[](phys_static_array<plane_lt,512> *this, int i)
-//{
-//    if ( i < 0 || i >= this->m_alloc_count )
-//    {
-//        if ( _tlAssert(
-//                     "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_array_base.inc",
-//                     124,
-//                     "i >= 0 && i < m_alloc_count",
-//                     "") )
-//        {
-//            __debugbreak();
-//        }
-//    }
-//    return &this->m_slot_array[i];
-//}
-//
-//phys_vec3 *__thiscall phys_static_array<phys_vec3,512>::add(
-//                phys_static_array<phys_vec3,512> *this,
-//                int no_error,
-//                const char *error_msg)
-//{
-//    if ( this->m_alloc_count < 512 )
-//    {
-//        return &this->m_slot_array[this->m_alloc_count++];
-//    }
-//    else
-//    {
-//        if ( !no_error )
-//            tlFatal(error_msg);
-//        return 0;
-//    }
-//}
-//
-//phys_vec3 *__thiscall phys_static_array<phys_vec3,512>::operator[](phys_static_array<phys_vec3,512> *this, int i)
-//{
-//    if ( i < 0 || i >= this->m_alloc_count )
-//    {
-//        if ( _tlAssert(
-//                     "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_array_base.inc",
-//                     118,
-//                     "i >= 0 && i < m_alloc_count",
-//                     "") )
-//        {
-//            __debugbreak();
-//        }
-//    }
-//    return &this->m_slot_array[i];
-//}
-//
-//int *__thiscall phys_static_array<float,512>::operator[](phys_static_array<int,512> *this, int i)
-//{
-//    if ( i < 0 || i >= this->m_alloc_count )
-//    {
-//        if ( _tlAssert(
-//                     "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_array_base.inc",
-//                     118,
-//                     "i >= 0 && i < m_alloc_count",
-//                     "") )
-//        {
-//            __debugbreak();
-//        }
-//    }
-//    return &this->m_slot_array[i];
-//}
-//
-//void __thiscall phys_static_array<float,512>::call_destructors(phys_static_array<int,512> *this)
-//{
-//    int i; // [esp+4h] [ebp-4h]
-//
-//    for ( i = 0; i < this->m_alloc_count; ++i )
-//        ;
-//}
