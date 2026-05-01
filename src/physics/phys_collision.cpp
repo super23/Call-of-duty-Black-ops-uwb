@@ -1505,6 +1505,9 @@ generic_avl_map_node_t *__cdecl generic_avl_map_add(
     gamn->m_data = data;
     //phys_inplace_avl_tree<unsigned int, generic_avl_map_node_t, generic_avl_map_node_t>::add(gam, &avl_key, gamn);
     gam->add(avl_key, gamn);
+
+    iassert(gam->find(avl_key) != NULL); // lwss add
+
     return gamn;
 }
 

@@ -44,7 +44,8 @@ struct phys_contact_manifold;
 
 struct phys_gjk_geom // sizeof=0x4
 {
-    virtual void support(const phys_vec3 *, phys_vec3 *, phys_vec3 *) const = 0;
+    // Find the Furthest point in a shape along the given direction
+    virtual void support(const phys_vec3 &dir, phys_vec3 *, phys_vec3 *) const = 0;
     virtual void get_simplex(const struct cached_simplex_info *, const int, phys_vec3 *, phys_vec3 *) const = 0;
     virtual void set_simplex(const phys_vec3 *, const int, const phys_vec3 *, cached_simplex_info *) const;
     virtual const phys_vec3 *get_center(phys_vec3 *result) const = 0;
@@ -161,6 +162,17 @@ public:
             this->m_flags = 0;
         }
 
+        const phys_vec3 *get_aabb_mx() const
+        {
+            iassert(get_flag(FLAG_AABB_LOC_VALID));
+            return &this->m_aabb_mx_loc;
+        }
+        const phys_vec3 *get_aabb_mn() const
+        {
+            iassert(get_flag(FLAG_AABB_LOC_VALID));
+            return &this->m_aabb_mn_loc;
+        }
+
         unsigned int get_geom_id() const;
         const phys_mat44 *get_xform();
 
@@ -217,7 +229,7 @@ struct __declspec(align(16)) gjk_aabb_t : gjk_base_t // sizeof=0x80
                 gjk_collision_visitor *allocator);
         static void __cdecl destroy(gjk_aabb_t *geom);
 
-        virtual void support(const phys_vec3 *v, phys_vec3 *support_vert, phys_vec3 *support_ind) const override;
+        virtual void support(const phys_vec3 &dir, phys_vec3 *support_vert, phys_vec3 *support_ind) const override;
         virtual void get_simplex(const cached_simplex_info *cache_info, int index_count, phys_vec3 *simplex_verts, phys_vec3 *simplex_inds) const override;
         // set_simplex() - phys_gjk_geom
         virtual const phys_vec3 * get_center(phys_vec3 *result) const override;
@@ -302,7 +314,7 @@ struct gjk_obb_t : gjk_base_t // sizeof=0xA0
         //virtual bool is_walkable(const phys_vec3 *hit_point, const phys_vec3 *up);
         //virtual const cbrush_t *get_brush() const;
 
-        virtual void support(const phys_vec3 *v, phys_vec3 *support_vert, phys_vec3 *support_ind) const override;
+        virtual void support(const phys_vec3 &dir, phys_vec3 *support_vert, phys_vec3 *support_ind) const override;
         virtual void get_simplex(const cached_simplex_info *cache_info, int index_count, phys_vec3 *simplex_verts, phys_vec3 *simplex_inds) const override;
         // set_simplex - phys_gjk_geom
         virtual const phys_vec3 *get_center(phys_vec3 *result) const override;
@@ -361,7 +373,7 @@ struct __declspec(align(8)) gjk_brush_t : gjk_base_t // sizeof=0x60
         //virtual bool is_walkable(const phys_vec3 *hit_point, const phys_vec3 *up);
         //virtual const cbrush_t *get_brush() const;
 
-        virtual void support(const phys_vec3 *v, phys_vec3 *support_vert, phys_vec3 *support_ind) const override;
+        virtual void support(const phys_vec3 &dir, phys_vec3 *support_vert, phys_vec3 *support_ind) const override;
         virtual void get_simplex(const cached_simplex_info *cache_info, int index_count, phys_vec3 *simplex_verts, phys_vec3 *simplex_inds) const override;
         // set_simplex() - phys_gjk_geom
         virtual const phys_vec3 *get_center(phys_vec3 *result) const override;
@@ -450,7 +462,7 @@ struct __declspec(align(16)) gjk_partition_t : gjk_base_t // sizeof=0x70
         //virtual bool is_walkable(const phys_vec3 *hit_point, const phys_vec3 *up);
         //virtual const cbrush_t *get_brush() const;
 
-        virtual void support(const phys_vec3 *v, phys_vec3 *support_vert, phys_vec3 *support_ind) const override;
+        virtual void support(const phys_vec3 &dir, phys_vec3 *support_vert, phys_vec3 *support_ind) const override;
         virtual void get_simplex(const cached_simplex_info *cache_info, int index_count, phys_vec3 *simplex_verts, phys_vec3 *simplex_inds) const override;
         // set_simplex() - phys_gjk_geom
         virtual const phys_vec3 *get_center(phys_vec3 *result) const override // This is technically "gjk_brush_t::get_center()"
@@ -517,7 +529,7 @@ struct gjk_double_sphere_t : gjk_base_t // sizeof=0x90
         //virtual bool is_walkable(const phys_vec3 *hit_point, const phys_vec3 *up);
         //virtual const cbrush_t *get_brush() const;
 
-        virtual void support(const phys_vec3 *v, phys_vec3 *support_vert, phys_vec3 *support_ind) const override;
+        virtual void support(const phys_vec3 &dir, phys_vec3 *support_vert, phys_vec3 *support_ind) const override;
         virtual void get_simplex(const cached_simplex_info *cache_info, int index_count, phys_vec3 *simplex_verts, phys_vec3 *simplex_inds) const override;
         virtual void set_simplex(const phys_vec3 *simplex_inds, int w_set, const phys_vec3 *normal, cached_simplex_info *cache_info) const override;
         virtual const phys_vec3 *get_center(phys_vec3 *result) const override;
@@ -574,7 +586,7 @@ struct gjk_cylinder_t : gjk_base_t // sizeof=0xA0
         //virtual bool is_walkable(const phys_vec3 *hit_point, const phys_vec3 *up);
         //virtual const cbrush_t *get_brush() const;
 
-        virtual void support(const phys_vec3 *v, phys_vec3 *support_vert, phys_vec3 *support_ind) const override;
+        virtual void support(const phys_vec3 &dir, phys_vec3 *support_vert, phys_vec3 *support_ind) const override;
         virtual void get_simplex(const cached_simplex_info *cache_info, int index_count, phys_vec3 *simplex_verts, phys_vec3 *simplex_inds) const override;
         // set_simplex() - phys_gjk_geom
         virtual const phys_vec3 *get_center(phys_vec3 *result) const override;
@@ -690,7 +702,7 @@ struct __declspec(align(8)) gjk_polygon_cylinder_t : gjk_base_t // sizeof=0x80
         //virtual bool is_walkable(const phys_vec3 *hit_point, const phys_vec3 *up);
         //virtual const cbrush_t *get_brush() const;
 
-        virtual void support(const phys_vec3 *v, phys_vec3 *support_vert, phys_vec3 *support_ind) const override;
+        virtual void support(const phys_vec3 &dir, phys_vec3 *support_vert, phys_vec3 *support_ind) const override;
         virtual void get_simplex(const cached_simplex_info *cache_info, int index_count, phys_vec3 *simplex_verts, phys_vec3 *simplex_inds) const override;
         //set_simplex() - phys_gjk_geom
         virtual const phys_vec3 *get_center(phys_vec3 *result) const override// This is "gjk_aabb_t::get_center()" in the decomp,

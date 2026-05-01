@@ -378,12 +378,10 @@ const phys_vec3 *gjk_sep_dir::comp_sep_dir(
         phys_vec3 aVert;
         phys_vec3 dummy;
 
-        input->gjk_cg1->support(&dir, &aVert, &dummy);
-
-        phys_vec3 negDir(-dir.x, -dir.y, -dir.z);
+        input->gjk_cg1->support(dir, &aVert, &dummy);
 
         phys_vec3 bLocal;
-        input->gjk_cg2->support(&negDir, &bLocal, &dummy);
+        input->gjk_cg2->support(-dir, &bLocal, &dummy);
 
         phys_vec3 bWorld;
         phys_multiply(&bWorld, &info->cg2_to_cg1_xform, &bLocal);

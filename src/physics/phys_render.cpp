@@ -11,6 +11,7 @@
 #include <game/g_debug.h>
 #include <tl/tl_system.h>
 #include "physics_system.h"
+#include "phys_convex_hull.h"
 
 float alpha = 1.0f;
 float alpha_0 = 1.0f;
@@ -664,6 +665,10 @@ void    render_brush(
             *(_QWORD *)&verts[0][0] = *(_QWORD *)v21;
             verts[0][2] = v21[2];
             v19 = verts[1];
+            // lwss add
+            if (chull->inds[ind_i + 1] > 99)
+                return;
+            // lwss end
             v18 = vert_list[chull->inds[ind_i + 1]];
             verts[1][0] = *v18;
             verts[1][1] = v18[1];
@@ -979,118 +984,50 @@ void __cdecl render_box(const phys_vec3 *mins, const phys_vec3 *maxs, const floa
     render_box(mins, maxs, &PHYS_IDENTITY_MATRIX, color, duration);
 }
 
-// bad sp value at call has been detected, the output may be wrong!
 void    render_gjk_geom(gjk_base_t *geom, const phys_mat44 *cg2w)
 {
-    phys_vec3 v3; // [esp+8h] [ebp-11Ch] BYREF
-    phys_vec3 v4; // [esp+18h] [ebp-10Ch] BYREF
-    float v5[4]; // [esp+34h] [ebp-F0h] BYREF
-    float v6; // [esp+44h] [ebp-E0h] BYREF
-    const cbrush_t *v7; // [esp+54h] [ebp-D0h]
-    phys_vec3 v8; // [esp+58h] [ebp-CCh] BYREF
-    float v9; // [esp+68h] [ebp-BCh]
-    float v10; // [esp+6Ch] [ebp-B8h]
-    float v11; // [esp+70h] [ebp-B4h]
-    phys_vec3 *p_m_dims; // [esp+74h] [ebp-B0h]
+    float edgeColor[4]; // [esp+34h] [ebp-F0h] BYREF
+    float color; // [esp+44h] [ebp-E0h] BYREF
+    phys_vec3 mins; // [esp+58h] [ebp-CCh] BYREF
     phys_mat44 mat; // [esp+78h] [ebp-ACh] BYREF
     const gjk_obb_t *obb; // [esp+C4h] [ebp-60h]
-    phys_vec3 m_aabb_mn_loc; // [esp+C8h] [ebp-5Ch] BYREF
-    phys_vec3 m_aabb_mx_loc; // [esp+D8h] [ebp-4Ch] BYREF
-    int v17; // [esp+ECh] [ebp-38h]
-    int type; // [esp+F0h] [ebp-34h]
-    float edgeColor[4]; // [esp+F4h] [ebp-30h] BYREF
+    const gjk_partition_t *partition; // [esp+C4h] [ebp-60h]
     float faceColor[4]; // [esp+104h] [ebp-20h] BYREF
-    const cbrush_t *brush; // [esp+114h] [ebp-10h]
-    //_UNKNOWN *v22[2]; // [esp+118h] [ebp-Ch] BYREF
-    //int vars0; // [esp+124h] [ebp+0h]
-    //
-    //*(float *)v22 = a1;
-    //v22[1] = (_UNKNOWN *)vars0;
+
     if (geom->get_brush())
     {
-        brush = geom->get_brush();
-        calc_color((unsigned int)brush, alpha_1, faceColor);
-        render_brush(brush, cg2w, faceColor, 0, 0, 0, 1, edgeColor);
+        calc_color((unsigned int)geom->get_brush(), alpha_1, faceColor);
+        render_brush(geom->get_brush(), cg2w, faceColor, 0, 0, 0, 1, edgeColor);
     }
     else
     {
-        type = geom->get_type();
-        v17 = type - 1;
-        switch (type)
+        switch (geom->get_type())
         {
-        case 1:
-        case 4:
-        case 5:
-            if ((geom->m_flags & 2) == 0
-                && _tlAssert(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_colgeom.h",
-                    83,
-                    "get_flag(FLAG_AABB_LOC_VALID)",
-                    ""))
-            {
-                __debugbreak();
-            }
-            m_aabb_mx_loc = geom->m_aabb_mx_loc;
-            if ((geom->m_flags & 2) == 0)
-            {
-                if (_tlAssert(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_colgeom.h",
-                    82,
-                    "get_flag(FLAG_AABB_LOC_VALID)",
-                    ""))
-                {
-                    __debugbreak();
-                }
-            }
-            m_aabb_mn_loc = geom->m_aabb_mn_loc;
-            render_box(&m_aabb_mn_loc, &m_aabb_mx_loc, cg2w, colorMdRed, 0);
+        case GJK_AABB:
+        case GJK_DOUBLE_SPHERE:
+        case GJK_CYLINDER:
+            render_box(geom->get_aabb_mn(), geom->get_aabb_mx(), cg2w, colorMdRed, 0);
             break;
-        case 2:
-            v7 = geom->get_brush();
-            calc_color((unsigned int)v7, alpha_0, &v6);
-            memset(v5, 0, 12);
-            v5[3] = 1.0f;
-            render_brush(v7, cg2w, &v6, 0, 0, 0, 1, v5);
+        case GJK_BRUSH:
+            calc_color((unsigned int)geom->get_brush(), alpha_0, &color);
+            memset(edgeColor, 0, 12);
+            edgeColor[3] = 1.0f;
+            render_brush(geom->get_brush(), cg2w, &color, 0, 0, 0, 1, edgeColor);
             break;
-        case 3:
-            //render_convex_partition((const CollisionAabbTree *)LODWORD(geom->m_xform.x.x));
-            render_convex_partition((CollisionAabbTree *)LODWORD(geom[1].m_aabb_mn_loc.x)); // KISAKTODO: boy... sick.
+        case GJK_PARTITION:
+            partition = (gjk_partition_t *)geom;
+            render_convex_partition(partition->tree);
             break;
-        case 6:
-            //obb = geom;
-            obb = (const gjk_obb_t *)geom; // sus
-            //phys_full_multiply_mat(&mat, cg2w, &geom->m_xform);
-            phys_full_multiply_mat(&mat, cg2w, (const phys_mat44 *)&geom[1].m_aabb_mn_loc);
-            //p_m_dims = &obb->m_dims;
-            LODWORD(v11) = -(obb->m_dims.x);
-            LODWORD(v10) = -(obb->m_dims.y);
-            LODWORD(v9) =  -(obb->m_dims.z);
-            v8.x = v11;
-            v8.y = v10;
-            v8.z = v9;
-            render_box(&v8, &obb->m_dims, &mat, colorMdRed, 0);
+        case GJK_OBB:
+            obb = (const gjk_obb_t *)geom;
+            phys_full_multiply_mat(&mat, cg2w, &obb->m_xform);
+            mins.x = -(obb->m_dims.x);
+            mins.y = -(obb->m_dims.y);
+            mins.z = -(obb->m_dims.z);
+            render_box(&mins, &obb->m_dims, &mat, colorMdRed, 0);
             break;
         default:
-            if ((geom->m_flags & 2) == 0
-                && _tlAssert(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_colgeom.h",
-                    83,
-                    "get_flag(FLAG_AABB_LOC_VALID)",
-                    ""))
-            {
-                __debugbreak();
-            }
-            v4 = geom->m_aabb_mx_loc;
-            if ((geom->m_flags & 2) == 0
-                && _tlAssert(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_colgeom.h",
-                    82,
-                    "get_flag(FLAG_AABB_LOC_VALID)",
-                    ""))
-            {
-                __debugbreak();
-            }
-            render_box(&v3, &v4, cg2w, colorLtOrange, 0);
+            render_box(geom->get_aabb_mn(), geom->get_aabb_mx(), cg2w, colorLtOrange, 0);
             break;
         }
     }

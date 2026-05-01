@@ -247,6 +247,7 @@ struct chull_t // sizeof=0x20
     int touched;
     chull_t *next_list;
 };
+static_assert(sizeof(chull_t) == 0x20);
 
 struct minspec_mutex // sizeof=0x4
 {                                       // XREF: .data:minspec_mutex g_render_mutex/r
@@ -395,6 +396,27 @@ struct phys_mat44 // sizeof=0x40
     phys_vec3 w; // position                                                // XREF: phys_calc_world_aabb(phys_vec3 const &,phys_vec3 const &,phys_mat44 const &,phys_vec3 *,phys_vec3 *)+10/w
     // create_obb_gjk_geom(float const (* const)[3],float const * const,float const * const,int,gjk_collision_visitor *)+10/w ...
 };
+
+inline void assert_mat44_initialized(const phys_mat44 &m)
+{
+    const unsigned int UNINIT = 0xCCCCCCCC;
+    const unsigned int *u = reinterpret_cast<const unsigned int *>(&m);
+    iassert(u[0] != UNINIT); //x.x
+    iassert(u[1] != UNINIT); //x.y
+    iassert(u[2] != UNINIT); //x.z
+
+    iassert(u[4] != UNINIT); //y.x
+    iassert(u[5] != UNINIT); //y.y
+    iassert(u[6] != UNINIT); //y.z
+
+    iassert(u[8] != UNINIT); //z.x
+    iassert(u[9] != UNINIT); //z.y
+    iassert(u[10] != UNINIT);//z.z
+
+    iassert(u[12] != UNINIT);//w.x
+    iassert(u[13] != UNINIT);//w.y
+    iassert(u[14] != UNINIT);//w.z
+}
 
 template <typename T>
 struct phys_link_list_base // sizeof=0x4
@@ -776,7 +798,16 @@ public:
 
     ~phys_static_array()
     {
-        // this is supposed to call destructor on each element I believe
+        clear();
+    }
+
+    void clear()
+    {
+        for (int i = 0; i < this->m_alloc_count; i++)
+        {
+            this->operator[](i)->~T();
+        }
+        this->m_alloc_count = 0;
     }
 
     int get_count()
@@ -840,6 +871,15 @@ public:
         {
             m_slot_array[idx] = m_slot_array[last];
         }
+    }
+
+    void remove(T *data)
+    {
+        iassert(is_member(data));
+
+        //*data = *phys_static_array<phys_vec3 *, 6144>::back(this);
+        *data = *this->back();
+        --this->m_alloc_count;
     }
 };
 
@@ -1508,6 +1548,8 @@ inline const phys_vec3 *phys_full_multiply(
     const phys_vec3 *v7; // [esp-24h] [ebp-30h]
     phys_vec3 v8; // [esp-20h] [ebp-2Ch] BYREF
 
+    assert_mat44_initialized(*mat);
+
     v7 = phys_multiply(&v8, mat, v);
     result->x = v7->x + mat->w.x;
     result->y = v7->y + mat->w.y;
@@ -1558,6 +1600,8 @@ inline void phys_calc_world_aabb(
 
 inline void __cdecl phys_transpose(phys_mat44 *dest, const phys_mat44 *source)
 {
+    assert_mat44_initialized(*source);
+
     if (dest == source)
     {
         float tmp;
@@ -1595,6 +1639,8 @@ inline const phys_vec3 *__cdecl phys_inv_multiply(phys_vec3 *result, const phys_
     float v4; // [esp+4h] [ebp-10h]
     float v5; // [esp+Ch] [ebp-8h]
 
+    assert_mat44_initialized(*mat);
+
     v5 = (float)((float)(v->x * mat->z.x) + (float)(v->y * mat->z.y)) + (float)(v->z * mat->z.z);
     v4 = (float)((float)(v->x * mat->y.x) + (float)(v->y * mat->y.y)) + (float)(v->z * mat->y.z);
     result->x = (float)((float)(v->x * mat->x.x) + (float)(v->y * mat->x.y)) + (float)(v->z * mat->x.z);
@@ -1619,6 +1665,9 @@ inline phys_vec3 *phys_full_inv_multiply(
     //
     //v10 = a1;
     //v11 = retaddr;
+
+    assert_mat44_initialized(*mat);
+
     p_w = &mat->w;
     v8 = v->x - mat->w.x;
     v7 = v->y - mat->w.y;
@@ -1675,6 +1724,8 @@ inline void __cdecl phys_calc_local_aabb(
     float v40; // [esp+328h] [ebp-8h]
     float v41; // [esp+32Ch] [ebp-4h]
     int savedregs; // [esp+330h] [ebp+0h] BYREF
+
+    assert_mat44_initialized(*local_to_world_xform);
 
     v41 = aabb_max->x - aabb_min->x;
     v40 = aabb_max->y - aabb_min->y;
@@ -1782,6 +1833,10 @@ inline const phys_vec3 &get_mat_wrow(const phys_mat44 &mat)
     return mat.w;
 }
 
+inline bool CrazyFloat(float f) // lwss add
+{
+    return !(f < 50000.0f && f > -50000.0f);
+}
 
 // oh fuck yes, in the compiler this is slurped into every file and duplicated 68 times
 static const phys_vec3 PHYS_X_VEC = { 1.0f, 0.0f, 0.0f, 0.0f };

@@ -3594,6 +3594,9 @@
     <ClCompile Include="src\tracy\public\TracyClient.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\physics\phys_convex_hull.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\libs\libtomcrypt-1.17\src\headers\tomcrypt.h">
@@ -6063,6 +6066,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\tracy\public\tracy\TracyC.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\physics\phys_convex_hull.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

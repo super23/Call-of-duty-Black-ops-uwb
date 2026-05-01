@@ -2603,6 +2603,10 @@ void    phys_full_multiply_mat(phys_mat44 *dest, const phys_mat44 *left, const p
     //
     //v16[0] = a1;
     //v16[1] = righta;
+
+    assert_mat44_initialized(*left);
+    assert_mat44_initialized(*right);
+
     if (dest == left)
     {
         memcpy(&v4, left, sizeof(v4));
@@ -3238,6 +3242,10 @@ void    phys_multiply_mat(phys_mat44 *dest, const phys_mat44 *left, const phys_m
     //
     //v13[0] = a1;
     //v13[1] = righta;
+
+    assert_mat44_initialized(*left);
+    //assert_mat44_initialized(*right);
+
     if (dest == left)
     {
         memcpy(&v4, left, sizeof(v4));
@@ -3357,6 +3365,8 @@ void    phys_multiply_mat(phys_mat44 *dest, const phys_mat44 *left, const phys_m
 
 void __cdecl Phys_NitrousMat44ToVec33(const phys_mat44 *inMat, float (*outAxis)[3])
 {
+    assert_mat44_initialized(*inMat);
+
     (*outAxis)[0] = inMat->x.x;
     (*outAxis)[1] = inMat->x.y;
     (*outAxis)[2] = inMat->x.z;

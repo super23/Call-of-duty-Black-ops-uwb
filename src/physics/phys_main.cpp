@@ -38,6 +38,7 @@
 #include <demo/demo_playback.h>
 #include <client/splitscreen.h>
 #include <client/client.h>
+#include "phys_convex_hull.h"
 
 // i hereby curse ye, all who enter this file. May only misery and misfortune accompany you as you read further.
 
@@ -133,9 +134,6 @@ PhysGlob physGlob;
 int gImpulseCacheNum;
 PhysImpulse gImpulseCache[16];
 
-chull_t *chull_list;
-phys_inplace_avl_tree<unsigned int, generic_avl_map_node_t, generic_avl_map_node_t> entities_map;
-phys_convex_hull g_hull;
 float g_delta_t;
 phys_free_list<PhysObjUserData>::iterator g_pop_iter;
 phys_free_list<PhysObjUserData>::iterator g_pop_iter_end;
@@ -437,8 +435,8 @@ void __cdecl Phys_Init()
         bpmi.m_max_num_surface_types = 35;
         broad_phase_system_init(
             &bpmi,
-            (bool (__cdecl *)(const broad_phase_base *, const broad_phase_base *))Phys_ShouldCollideCallback);
-        phys_sys::set_collision_callback((void (__cdecl *)())Phys_CollisionCallback);
+            Phys_ShouldCollideCallback);
+        phys_sys::set_collision_callback(Phys_CollisionCallback);
         phys_sys::set_max_delta_t(1.0);
         phys_sys::set_v_tol(8);
         set_bp_standard_query();
@@ -849,17 +847,11 @@ PhysObjUserData * Phys_CreateUserBody(float *position, int id, PhysicsGeomType g
     float mn_[3]; // [esp+B8h] [ebp-178h] BYREF
     float mx[3]; // [esp+C4h] [ebp-16Ch] BYREF
     float mn[3]; // [esp+D0h] [ebp-160h] BYREF
-    float v16; // [esp+DCh] [ebp-154h]
-    float v17; // [esp+E0h] [ebp-150h]
     float capsuleCenter[3]; // [esp+E4h] [ebp-14Ch] BYREF
     float rot[3][3]; // [esp+F0h] [ebp-140h] BYREF
-    float v20; // [esp+114h] [ebp-11Ch]
-    float v21; // [esp+118h] [ebp-118h]
     float trans[3]; // [esp+11Ch] [ebp-114h] BYREF
     gjk_base_t *gjk_geom; // [esp+128h] [ebp-108h]
     float rot_[3][3]; // [esp+12Ch] [ebp-104h] BYREF
-    float hheight; // [esp+150h] [ebp-E0h]
-    float radius; // [esp+154h] [ebp-DCh]
     float trans_[4]; // [esp+158h] [ebp-D8h] BYREF
     user_rigid_body *body; // [esp+168h] [ebp-C8h]
     int bodyId; // [esp+16Ch] [ebp-C4h]
@@ -943,17 +935,19 @@ PhysObjUserData * Phys_CreateUserBody(float *position, int id, PhysicsGeomType g
                 trans_[0] = 0.0f;
                 trans_[1] = 0.0f;
                 trans_[2] = 35.0f;
-                radius = 15.0f;
-                hheight = 35.0f;
+
                 rot_[0][0] = 0.0f;
                 rot_[0][1] = 0.0f;
                 rot_[0][2] = 1.0f;
+
                 rot_[1][0] = 0.0f;
                 rot_[1][1] = -1.0f;
                 rot_[1][2] = 0.0f;
+
                 rot_[2][0] = 1.0f;
-                rot_[2][0] = 0.0f;
+                rot_[2][1] = 0.0f;
                 rot_[2][2] = 0.0f;
+
                 gjk_geom = create_cylinder_gjk_geom(
                     rot_,
                     trans_,
@@ -966,29 +960,29 @@ PhysObjUserData * Phys_CreateUserBody(float *position, int id, PhysicsGeomType g
                 trans[0] = 0.0f;
                 trans[1] = 0.0f;
                 trans[2] = 20.0f;
-                v21 = 35.0f;
-                v20 = 20.0f;
+
                 rot[0][0] = 0.0f;
                 rot[0][1] = 0.0f;
                 rot[0][2] = 1.0f;
+
                 rot[1][0] = 0.0f;
                 rot[1][1] = -1.0f;
                 rot[1][2] = 0.0f;
+
                 rot[2][0] = 1.0f;
                 rot[2][1] = 0.0f;
                 rot[2][2] = 0.0f;
-                gjk_geom = create_cylinder_gjk_geom(rot, trans, 35.0, 20.0, 7, &g_empty_collision_visitor);
+
+                gjk_geom = create_cylinder_gjk_geom(rot, trans, 35.0f, 20.0f, 7, &g_empty_collision_visitor);
                 break;
             case PHYS_GEOM_CAPSULE:
                 capsuleCenter[0] = 0.0f;
                 capsuleCenter[1] = 0.0f;
                 capsuleCenter[2] = 45.0f;
-                v17 = 15.0f;
-                v16 = 5.0f;
                 gjk_geom = create_capsule_gjk_geom(
                     capsuleCenter,
-                    15.0,
-                    5.0,
+                    15.0f,
+                    5.0f,
                     2u,
                     7,
                     &g_empty_collision_visitor);
@@ -2348,1133 +2342,6 @@ void __cdecl Phys_FindAndRenderBulletMesh(const float *start, const float *end)
     }
 }
 
-chull_t *__cdecl create_chull(phys_convex_hull *pch)
-{
-    float *v2; // [esp+1Ch] [ebp-50h]
-    float *v3; // [esp+20h] [ebp-4Ch]
-    phys_vec3 **m_slot_array; // [esp+44h] [ebp-28h]
-    phys_vec3 **v5; // [esp+48h] [ebp-24h]
-    phys_convex_hull::ch_triangle *tri_i; // [esp+50h] [ebp-1Ch]
-    phys_static_array<phys_convex_hull::ch_triangle,64>::iterator tri_i_end; // [esp+54h] [ebp-18h]
-    float **vi; // [esp+58h] [ebp-14h]
-    phys_static_array<phys_vec3 *,64>::iterator vi_end; // [esp+5Ch] [ebp-10h]
-    int ind_i; // [esp+60h] [ebp-Ch]
-    int vert_i; // [esp+64h] [ebp-8h]
-    __int16 vert_ia; // [esp+64h] [ebp-8h]
-    char *hull; // [esp+68h] [ebp-4h]
-
-    hull = PMM_ALLOC(0x20u, 4u);
-    *((unsigned int *)hull + 1) = pch->m_convex_hull_vert_list.m_alloc_count;
-    *((unsigned int *)hull + 2) = (unsigned int)PMM_ALLOC(16 * *((unsigned int *)hull + 1), 0x10u);
-    *((unsigned int *)hull + 3) = 3 * pch->m_convex_hull_triangle_list.m_alloc_count;
-    *((unsigned int *)hull + 4) = (unsigned int)PMM_ALLOC((2 * *((unsigned int *)hull + 3) + 3) & 0xFFFFFFFC, 4u);
-    *((unsigned int *)hull + 5) = 0;
-    vert_i = 0;
-    vi = (float **)pch->m_convex_hull_vert_list.m_slot_array;
-    vi_end.m_ptr = (phys_vec3 **)&vi[pch->m_convex_hull_vert_list.m_alloc_count];
-    while ( (float **)vi_end.m_ptr != vi )
-    {
-        v3 = (float *)(*((unsigned int *)hull + 2) + 16 * vert_i++);
-        v2 = *vi;
-        *v3 = **vi;
-        v3[1] = v2[1];
-        v3[2] = v2[2];
-        ++vi;
-    }
-    ind_i = 0;
-    tri_i = pch->m_convex_hull_triangle_list.m_slot_array;
-    tri_i_end.m_ptr = &tri_i[pch->m_convex_hull_triangle_list.m_alloc_count];
-    while ( tri_i_end.m_ptr != tri_i )
-    {
-        vert_ia = 0;
-        m_slot_array = pch->m_convex_hull_vert_list.m_slot_array;
-        v5 = &m_slot_array[pch->m_convex_hull_vert_list.m_alloc_count];
-        while ( v5 != m_slot_array )
-        {
-            if ( tri_i->m_verts[0] == *m_slot_array )
-                *(_WORD *)(*((unsigned int *)hull + 4) + 2 * ind_i) = vert_ia;
-            if ( tri_i->m_verts[1] == *m_slot_array )
-                *(_WORD *)(*((unsigned int *)hull + 4) + 2 * ind_i + 2) = vert_ia;
-            if ( tri_i->m_verts[2] == *m_slot_array )
-                *(_WORD *)(*((unsigned int *)hull + 4) + 2 * ind_i + 4) = vert_ia;
-            ++vert_ia;
-            ++m_slot_array;
-        }
-        ind_i += 3;
-        ++tri_i;
-    }
-    return (chull_t *)hull;
-}
-
-void __cdecl free_chull(chull_t *first)
-{
-    chull_t *next; // [esp+Ch] [ebp-4h]
-
-    while ( first )
-    {
-        next = first->next;
-        PMM_FREE((unsigned __int8 *)first->verts, 16 * first->nverts, 0x10u);
-        PMM_FREE((unsigned __int8 *)first->inds, (2 * first->ninds + 3) & 0xFFFFFFFC, 4u);
-        PMM_FREE((unsigned __int8 *)first, 0x20u, 4u);
-        first = next;
-    }
-}
-
-void __cdecl chull_list_add(chull_t *chull, unsigned int key)
-{
-    generic_avl_map_add(&entities_map, chull, key);
-    chull->key = key;
-    chull->next_list = chull_list;
-    chull_list = chull;
-}
-
-void __cdecl free_chull_lists()
-{
-    chull_t *next_list; // [esp+0h] [ebp-Ch]
-    chull_t *first_list; // [esp+4h] [ebp-8h]
-    chull_t **prev_next; // [esp+8h] [ebp-4h]
-
-    first_list = chull_list;
-    prev_next = &chull_list;
-    while ( first_list )
-    {
-        next_list = first_list->next_list;
-        if ( first_list->touched == 1 )
-        {
-            first_list->touched = 0;
-            prev_next = &first_list->next_list;
-        }
-        else
-        {
-            *prev_next = next_list;
-            generic_avl_map_destroy(&entities_map, first_list->key);
-            free_chull(first_list);
-        }
-        first_list = next_list;
-    }
-}
-
-chull_t * generate_brush_chull(const cbrush_t *brush)
-{
-    phys_vec3 *v3; // eax
-    phys_vec3 v4; // [esp+14h] [ebp-2Ch] BYREF
-    unsigned int vi; // [esp+2Ch] [ebp-14h]
-    int i; // [esp+30h] [ebp-10h]
-    //int v7; // [esp+34h] [ebp-Ch] BYREF
-    //unsigned int vi; // [esp+38h] [ebp-8h]
-    //unsigned int retaddr; // [esp+40h] [ebp+0h]
-    //
-    //v7 = a1;
-    //vi = retaddr;
-    if (!brush)
-        return 0;
-    for (i = 0; i < g_hull.m_vertex_buffer.m_alloc_count; ++i)
-        ;
-
-    g_hull.m_vertex_buffer.m_alloc_count = 0;
-
-    for (vi = 0; vi < brush->numverts; ++vi)
-    {
-        Phys_Vec3ToNitrousVec(brush->verts[vi], &v4);
-        //v3 = phys_static_array<phys_vec3, 6144>::add(&g_hull.m_vertex_buffer, 0, "phys array add overflow.");
-        v3 = g_hull.m_vertex_buffer.add(0, "phys array add overflow.");
-        v3->x = v4.x;
-        v3->y = v4.y;
-        v3->z = v4.z;
-    }
-    //phys_convex_hull::compute_convex_hull(&g_hull, (int)&v7, 128, 0.0);
-    g_hull.compute_convex_hull(128, 0.0);
-    return create_chull(&g_hull);
-}
-
-void phys_convex_hull::compute_convex_hull(
-                int max_verts,
-                float min_expansion_volume_percent)
-{
-    phys_vec3 *v4; // eax
-    phys_convex_hull::ch_triangle *v5; // eax
-    const phys_vec3 *v6; // eax
-    phys_convex_hull::ch_triangle *v7; // eax
-    phys_convex_hull::ch_triangle *v8; // [esp-14h] [ebp-B0h]
-    phys_convex_hull::ch_triangle *list_head; // [esp-Ch] [ebp-A8h]
-    phys_convex_hull::ch_edge *edge; // [esp+0h] [ebp-9Ch]
-    phys_convex_hull::ch_edge *edge_i; // [esp+Ch] [ebp-90h]
-    float v12; // [esp+18h] [ebp-84h]
-    float v13; // [esp+1Ch] [ebp-80h]
-    phys_vec3 increase_percent_; // [esp+20h] [ebp-7Ch] BYREF
-    const phys_vec3 *v15; // [esp+30h] [ebp-6Ch]
-    phys_convex_hull::ch_triangle *m_ptr; // [esp+34h] [ebp-68h]
-    float volume; // [esp+38h] [ebp-64h]
-    float support_vert_dist; // [esp+3Ch] [ebp-60h]
-    //phys_vec3 v19; // [esp+40h] [ebp-5Ch] BYREF
-    const phys_vec3 *v20; // [esp+50h] [ebp-4Ch]
-    phys_vec3 **support_vert; // [esp+54h] [ebp-48h]
-    phys_convex_hull::ch_triangle *tri; // [esp+58h] [ebp-44h]
-    phys_convex_hull::ch_triangle *v23; // [esp+5Ch] [ebp-40h]
-    phys_convex_hull::ch_triangle *v24; // [esp+60h] [ebp-3Ch]
-    phys_static_array<phys_convex_hull::ch_triangle, 256> *p_m_intermediate_triangle_list; // [esp+64h] [ebp-38h]
-    phys_static_array<phys_convex_hull::ch_triangle, 256>::iterator tri_i; // [esp+68h] [ebp-34h]
-    phys_convex_hull::ch_triangle *m_slot_array; // [esp+6Ch] [ebp-30h]
-    float best_volume; // [esp+70h] [ebp-2Ch]
-    phys_vec3 **best_vert; // [esp+74h] [ebp-28h]
-    phys_convex_hull::ch_triangle *best_tri; // [esp+78h] [ebp-24h]
-    int v31; // [esp+7Ch] [ebp-20h]
-    int v32; // [esp+80h] [ebp-1Ch]
-    int m_alloc_count; // [esp+84h] [ebp-18h]
-    float total_volume; // [esp+88h] [ebp-14h]
-    //phys_convex_hull *thisa; // [esp+8Ch] [ebp-10h]
-    //_UNKNOWN *v36[2]; // [esp+90h] [ebp-Ch] BYREF
-    //int vars0; // [esp+9Ch] [ebp+0h]
-    //
-    //v36[0] = a2;
-    //v36[1] = (_UNKNOWN *)vars0;
-    //thisa = this;
-    if (max_verts < 3
-        && _tlAssert(
-            "C:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\collision\\phys_convex_hull.h",
-            331,
-            "max_verts >= 3",
-            ""))
-    {
-        __debugbreak();
-    }
-    phys_convex_hull::init_convex_hull();
-    total_volume = 0.0f;
-    while (1)
-    {
-        m_alloc_count = this->m_convex_hull_vert_list.m_alloc_count;
-        if (m_alloc_count >= max_verts)
-            break;
-        v32 = this->m_intermediate_triangle_list.m_alloc_count;
-        if (v32 <= 0)
-            break;
-        v31 = this->m_intermediate_vertex_list.m_alloc_count;
-        if (v31 <= 0)
-            break;
-        best_tri = 0;
-        best_vert = 0;
-        best_volume = 0.0f;
-        m_slot_array = this->m_intermediate_triangle_list.m_slot_array;
-        tri_i.m_ptr = m_slot_array;
-        while (1)
-        {
-            p_m_intermediate_triangle_list = &this->m_intermediate_triangle_list;
-            v24 = &this->m_intermediate_triangle_list.m_slot_array[this->m_intermediate_triangle_list.m_alloc_count];
-            v23 = v24;
-            if (v24 == tri_i.m_ptr)
-                break;
-            tri = tri_i.m_ptr;
-            support_vert = phys_convex_hull::support_intermediate_verts(&tri_i.m_ptr->m_normal);
-            v20 = *support_vert;
-            //v4 = operator-(&v19, v20, tri->m_verts[0]);
-            //support_vert_dist = phys_dot(&tri->m_normal, v4);
-            phys_vec3 aids = *support_vert[0] - *tri->m_verts[0]; // having fun with operators
-            support_vert_dist = phys_dot(&tri->m_normal, &aids);
-            if (support_vert_dist <= 0.034000002)
-            {
-                v8 = tri;
-                //v5 = phys_static_array<phys_convex_hull::ch_triangle, 64>::add(&this->m_convex_hull_triangle_list, 0, "phys array add overflow.");
-                v5 = this->m_convex_hull_triangle_list.add(0, "phys array add overflow.");
-                //phys_convex_hull::ch_triangle::operator=(v5, v8);
-                v5 = v8;
-                m_ptr = tri_i.m_ptr;
-                //phys_static_array<phys_convex_hull::ch_triangle, 256>::remove_slow(&this->m_intermediate_triangle_list, tri);
-                this->m_intermediate_triangle_list.remove_slow(tri);
-            }
-            else
-            {
-                volume = phys_convex_hull::calc_expansion_volume(*support_vert);
-                if (volume > best_volume)
-                {
-                    best_tri = tri;
-                    best_vert = support_vert;
-                    best_volume = volume;
-                }
-                ++tri_i.m_ptr;
-            }
-        }
-        if (!best_tri)
-            break;
-        if (!best_vert
-            && _tlAssert(
-                "C:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\collision\\phys_convex_hull.h",
-                373,
-                "best_vert",
-                ""))
-        {
-            __debugbreak();
-        }
-        if (best_volume <= 0.0
-            && _tlAssert(
-                "C:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\collision\\phys_convex_hull.h",
-                374,
-                "best_volume > 0.0f",
-                ""))
-        {
-            __debugbreak();
-        }
-        v15 = *best_vert;
-        //v6 = operator-(&increase_percent_, v15, best_tri->m_verts[0]);
-        phys_vec3 crap = *v15 - *best_tri->m_verts[0];
-        //v13 = phys_dot(&best_tri->m_normal, v6);
-        v13 = phys_dot(&best_tri->m_normal, &crap);
-        if (v13 <= 0.034000002
-            && _tlAssert(
-                "C:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\collision\\phys_convex_hull.h",
-                375,
-                "best_tri->get_dist(**best_vert) > CONVEX_HULL_VERT_ADD_DIST_THRESH",
-                ""))
-        {
-            __debugbreak();
-        }
-        v12 = total_volume <= 0.000099999997 ? 100000.0 : best_volume / total_volume;
-        if (min_expansion_volume_percent > v12)
-            break;
-        total_volume = total_volume + best_volume;
-        phys_convex_hull::create_edge_list(*best_vert);
-        edge_i = this->m_intermediate_edge_list.m_slot_array;
-        edge = &edge_i[this->m_intermediate_edge_list.m_alloc_count];
-        while (edge != edge_i)
-        {
-            phys_convex_hull::create_intermediate_triangle(
-                *best_vert,
-                edge_i->m_verts[0],
-                edge_i->m_verts[1]);
-            ++edge_i;
-        }
-        phys_convex_hull::add_convex_hull_vert(best_vert);
-        phys_convex_hull::remove_inside_verts();
-    }
-    while (this->m_intermediate_triangle_list.m_alloc_count > 0)
-    {
-        //list_head = phys_static_array<phys_convex_hull::ch_triangle, 256>::get_list_head(&this->m_intermediate_triangle_list);
-        list_head = this->m_intermediate_triangle_list.get_list_head();
-        //v7 = phys_static_array<phys_convex_hull::ch_triangle, 64>::add(&this->m_convex_hull_triangle_list, 0, "phys array add overflow.");
-        v7 = this->m_convex_hull_triangle_list.add(0, "phys array add overflow.");
-        //phys_convex_hull::ch_triangle::operator=(v7, list_head);
-        v7 =  list_head;
-        //phys_static_array<phys_convex_hull::ch_triangle, 256>::remove_slow(&this->m_intermediate_triangle_list, list_head);
-        this->m_intermediate_triangle_list.remove_slow(list_head);
-    }
-}
-
-void __thiscall phys_convex_hull::add_convex_hull_vert(phys_vec3 **vert)
-{
-    phys_vec3 **v3; // [esp+8h] [ebp-10h]
-    phys_vec3 **v4; // [esp+14h] [ebp-4h]
-
-    if ( !vert
-        && _tlAssert(
-                 "C:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\collision\\phys_convex_hull.h",
-                 52,
-                 "vert",
-                 "") )
-    {
-        __debugbreak();
-    }
-    if ( this->m_convex_hull_vert_list.m_alloc_count < 64 )
-    {
-        v4 = &this->m_convex_hull_vert_list.m_slot_array[this->m_convex_hull_vert_list.m_alloc_count++];
-        v3 = v4;
-    }
-    else
-    {
-        tlFatal("phys array add overflow.");
-        v3 = 0;
-    }
-    *v3 = *vert;
-    //phys_static_array<phys_vec3 *,6144>::remove(&this->m_intermediate_vertex_list, vert);
-    this->m_intermediate_vertex_list.remove_slow(vert); // KISAKTODO: remove()
-}
-
-void phys_convex_hull::create_intermediate_triangle(
-                phys_vec3 *v0,
-                phys_vec3 *v1,
-                phys_vec3 *v2)
-{
-    float v5; // [esp-34h] [ebp-98h]
-    float v6; // [esp-30h] [ebp-94h]
-    float nnormal; // [esp-Ch] [ebp-70h]
-    phys_vec3 v8; // [esp-8h] [ebp-6Ch] BYREF
-    phys_vec3 v9; // [esp+8h] [ebp-5Ch] BYREF
-    float v10; // [esp+1Ch] [ebp-48h]
-    float v11; // [esp+20h] [ebp-44h]
-    float v12; // [esp+24h] [ebp-40h]
-    phys_vec3 v13; // [esp+28h] [ebp-3Ch] BYREF
-    float v14; // [esp+44h] [ebp-20h]
-    float v15; // [esp+48h] [ebp-1Ch]
-    float v16; // [esp+4Ch] [ebp-18h]
-    phys_convex_hull::ch_triangle *v17; // [esp+50h] [ebp-14h]
-    phys_convex_hull *v18; // [esp+54h] [ebp-10h]
-    phys_convex_hull::ch_triangle *tri; // [esp+58h] [ebp-Ch]
-    //phys_convex_hull *thisa; // [esp+5Ch] [ebp-8h]
-    //phys_vec3 *v0a; // [esp+64h] [ebp+0h]
-    //
-    //tri = a2;
-    //thisa = (phys_convex_hull *)v0a;
-    v18 = this;
-    //v17 = phys_static_array<phys_convex_hull::ch_triangle, 256>::add(&this->m_intermediate_triangle_list, 0, "phys array add overflow.");
-    v17 = this->m_intermediate_triangle_list.add(0, "phys array add overflow.");
-    v17->m_verts[0] = v0;
-    v17->m_verts[1] = v1;
-    v17->m_verts[2] = v2;
-    v16 = v2->x - v0->x;
-    v15 = v2->y - v0->y;
-    v14 = v2->z - v0->z;
-    v13.x = v16;
-    v13.y = v15;
-    v13.z = v14;
-    v12 = v1->x - v0->x;
-    v11 = v1->y - v0->y;
-    v10 = v1->z - v0->z;
-    v9.x = v12;
-    v9.y = v11;
-    v9.z = v10;
-    phys_cross(&v8, &v9, &v13);
-    nnormal = Abs(&v8.x);
-    if (nnormal <= 0.0000099999997
-        && _tlAssert(
-            "C:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\collision\\phys_convex_hull.h",
-            95,
-            "nnormal > 0.00001f",
-            ""))
-    {
-        __debugbreak();
-    }
-    v5 = (float)(1.0 / nnormal) * v8.y;
-    v6 = (float)(1.0 / nnormal) * v8.z;
-    v17->m_normal.x = (float)(1.0 / nnormal) * v8.x;
-    v17->m_normal.y = v5;
-    v17->m_normal.z = v6;
-}
-
-phys_vec3 **__thiscall phys_convex_hull::support_intermediate_verts(const phys_vec3 *dir)
-{
-    phys_vec3 **vert_i; // [esp+1Ch] [ebp-10h]
-    phys_vec3 **best_vert; // [esp+24h] [ebp-8h]
-    float best_dotp; // [esp+28h] [ebp-4h]
-
-    best_vert = 0;
-    best_dotp = -1000000.0;
-    for ( vert_i = this->m_intermediate_vertex_list.m_slot_array;
-                &this->m_intermediate_vertex_list.m_slot_array[this->m_intermediate_vertex_list.m_alloc_count] != vert_i;
-                ++vert_i )
-    {
-        if ( (float)((float)((float)(dir->x * (*vert_i)->x) + (float)(dir->y * (*vert_i)->y))
-                             + (float)(dir->z * (*vert_i)->z)) > best_dotp )
-        {
-            best_vert = vert_i;
-            best_dotp = (float)((float)(dir->x * (*vert_i)->x) + (float)(dir->y * (*vert_i)->y))
-                                + (float)(dir->z * (*vert_i)->z);
-        }
-    }
-    if ( !best_vert
-        && _tlAssert(
-                 "C:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\collision\\phys_convex_hull.h",
-                 118,
-                 "best_vert",
-                 "") )
-    {
-        __debugbreak();
-    }
-    return best_vert;
-}
-
-void __thiscall phys_convex_hull::init_convex_hull()
-{
-    phys_vec3 **v1; // eax
-    phys_vec3 **v2; // eax
-    phys_vec3 *v3; // [esp-8h] [ebp-160h]
-    phys_vec3 *v4; // [esp-8h] [ebp-160h]
-    phys_vec3 *v5; // [esp-4h] [ebp-15Ch]
-    phys_vec3 *v6; // [esp-4h] [ebp-15Ch]
-    int m; // [esp+118h] [ebp-40h]
-    int k; // [esp+120h] [ebp-38h]
-    int j; // [esp+128h] [ebp-30h]
-    phys_vec3 **v11; // [esp+12Ch] [ebp-2Ch]
-    phys_vec3 **v12; // [esp+138h] [ebp-20h]
-    int i; // [esp+14Ch] [ebp-Ch]
-    phys_vec3 *vert_i; // [esp+150h] [ebp-8h]
-    phys_static_array<phys_vec3,6144>::iterator vert_i_end; // [esp+154h] [ebp-4h]
-    int savedregs; // [esp+158h] [ebp+0h] BYREF
-
-    for ( i = 0; i < this->m_intermediate_vertex_list.m_alloc_count; ++i )
-        ;
-    this->m_intermediate_vertex_list.m_alloc_count = 0;
-    vert_i = this->m_vertex_buffer.m_slot_array;
-    vert_i_end.m_ptr = &vert_i[this->m_vertex_buffer.m_alloc_count];
-    while ( vert_i_end.m_ptr != vert_i )
-    {
-        if ( this->m_intermediate_vertex_list.m_alloc_count < 6144 )
-        {
-            v12 = &this->m_intermediate_vertex_list.m_slot_array[this->m_intermediate_vertex_list.m_alloc_count++];
-            v11 = v12;
-        }
-        else
-        {
-            tlFatal("phys array add overflow.");
-            v11 = 0;
-        }
-        *v11 = vert_i++;
-    }
-    for ( j = 0; j < this->m_convex_hull_vert_list.m_alloc_count; ++j )
-        ;
-    this->m_convex_hull_vert_list.m_alloc_count = 0;
-    for ( k = 0; k < this->m_intermediate_triangle_list.m_alloc_count; ++k )
-        ;
-    this->m_intermediate_triangle_list.m_alloc_count = 0;
-    for ( m = 0; m < this->m_convex_hull_triangle_list.m_alloc_count; ++m )
-        ;
-    this->m_convex_hull_triangle_list.m_alloc_count = 0;
-    phys_convex_hull::calculate_initial_triangle_vertices();
-    if ( this->m_convex_hull_vert_list.m_alloc_count != 3
-        && _tlAssert(
-                 "C:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\collision\\phys_convex_hull.h",
-                 256,
-                 "m_convex_hull_vert_list.get_count() == 3",
-                 "") )
-    {
-        __debugbreak();
-    }
-    //v5 = *phys_static_array<phys_vec3 *,64>::operator[](&this->m_convex_hull_vert_list, 2);
-    v5 = *this->m_convex_hull_vert_list.operator[](2);
-    //v3 = *phys_static_array<phys_vec3 *,64>::operator[](&this->m_convex_hull_vert_list, 1);
-    v3 = *this->m_convex_hull_vert_list.operator[](1);
-    //v1 = phys_static_array<phys_vec3 *,64>::operator[](&this->m_convex_hull_vert_list, 0);
-    v1 = this->m_convex_hull_vert_list.operator[](0);
-    phys_convex_hull::create_intermediate_triangle(*v1, v3, v5);
-    //v6 = *phys_static_array<phys_vec3 *,64>::operator[](&this->m_convex_hull_vert_list, 2);
-    v6 = *this->m_convex_hull_vert_list.operator[](2);
-    //v4 = *phys_static_array<phys_vec3 *,64>::operator[](&this->m_convex_hull_vert_list, 0);
-    v4 = *this->m_convex_hull_vert_list.operator[](0);
-    //v2 = phys_static_array<phys_vec3 *,64>::operator[](&this->m_convex_hull_vert_list, 1);
-    v2 = this->m_convex_hull_vert_list.operator[](1);
-    phys_convex_hull::create_intermediate_triangle(*v2, v4, v6);
-}
-
-void    phys_convex_hull::calculate_initial_triangle_vertices()
-{
-    phys_vec3 *eax15; // eax
-    phys_vec3 **v3; // [esp-Ch] [ebp-17Ch]
-    int j; // [esp-8h] [ebp-178h]
-    char v5; // [esp-1h] [ebp-171h]
-    phys_vec3 **i; // [esp+4h] [ebp-16Ch]
-    phys_vec3 **v7; // [esp+8h] [ebp-168h]
-    int m_alloc_count; // [esp+10h] [ebp-160h]
-    phys_vec3 v9; // [esp+14h] [ebp-15Ch] BYREF
-    float v10; // [esp+30h] [ebp-140h]
-    float v11; // [esp+34h] [ebp-13Ch]
-    float v12; // [esp+38h] [ebp-138h]
-    float *v13; // [esp+3Ch] [ebp-134h]
-    phys_vec3 *v14; // [esp+40h] [ebp-130h]
-    phys_vec3 v15; // [esp+44h] [ebp-12Ch] BYREF
-    phys_vec3 nn; // [esp+54h] [ebp-11Ch] BYREF
-    phys_vec3 v17; // [esp+64h] [ebp-10Ch] BYREF
-    float v18; // [esp+80h] [ebp-F0h]
-    float v19; // [esp+84h] [ebp-ECh]
-    float v20; // [esp+88h] [ebp-E8h]
-    float *v21; // [esp+8Ch] [ebp-E4h]
-    float *v22; // [esp+90h] [ebp-E0h]
-    phys_vec3 v23; // [esp+94h] [ebp-DCh] BYREF
-    float v24; // [esp+ACh] [ebp-C4h]
-    float v25; // [esp+B0h] [ebp-C0h]
-    float v26; // [esp+B4h] [ebp-BCh]
-    float *v27; // [esp+B8h] [ebp-B8h]
-    float *v28; // [esp+BCh] [ebp-B4h]
-    phys_vec3 **best_verts[3]; // [esp+C0h] [ebp-B0h]
-    float twice_area_sq; // [esp+CCh] [ebp-A4h]
-    phys_vec3 *v31; // [esp+D0h] [ebp-A0h]
-    int v32; // [esp+D4h] [ebp-9Ch] BYREF
-    phys_vec3 v33; // [esp+D8h] [ebp-98h] BYREF
-    float v34; // [esp+E8h] [ebp-88h]
-    float v35; // [esp+ECh] [ebp-84h]
-    float v36; // [esp+100h] [ebp-70h]
-    float v37; // [esp+104h] [ebp-6Ch]
-    float v38; // [esp+108h] [ebp-68h]
-    phys_vec3 *v39; // [esp+10Ch] [ebp-64h]
-    phys_vec3 *v40; // [esp+110h] [ebp-60h]
-    phys_vec3 v41; // [esp+114h] [ebp-5Ch] BYREF
-    float v42; // [esp+12Ch] [ebp-44h]
-    float v43; // [esp+130h] [ebp-40h]
-    float v44; // [esp+134h] [ebp-3Ch]
-    phys_vec3 *v45; // [esp+138h] [ebp-38h]
-    phys_vec3 *v46; // [esp+13Ch] [ebp-34h]
-    phys_vec3 **z2; // [esp+140h] [ebp-30h]
-    int v2; // [esp+144h] [ebp-2Ch]
-    phys_vec3 **z1; // [esp+148h] [ebp-28h]
-    int v1; // [esp+14Ch] [ebp-24h]
-    phys_vec3 **z0; // [esp+150h] [ebp-20h]
-    int v0; // [esp+154h] [ebp-1Ch]
-    int NUM_SPHERE_VERTS; // [esp+158h] [ebp-18h]
-    float largest_twice_area_sq; // [esp+15Ch] [ebp-14h]
-    phys_convex_hull *thisa; // [esp+160h] [ebp-10h]
-    //_UNKNOWN *v56; // [esp+164h] [ebp-Ch]
-    //int v57; // [esp+168h] [ebp-8h]
-    //int vars0; // [esp+170h] [ebp+0h]
-    //
-    //v56 = a2;
-    //v57 = vars0;
-    thisa = this;
-    largest_twice_area_sq = 0.0f;
-    NUM_SPHERE_VERTS = this->m_intermediate_vertex_list.m_alloc_count;
-    for (v0 = 0; v0 < NUM_SPHERE_VERTS - 2; ++v0)
-    {
-        //z0 = phys_static_array<phys_vec3 *, 6144>::operator[](&thisa->m_intermediate_vertex_list, v0);
-        z0 = thisa->m_intermediate_vertex_list.operator[](v0);
-        for (v1 = v0 + 1; v1 < NUM_SPHERE_VERTS - 1; ++v1)
-        {
-            //z1 = phys_static_array<phys_vec3 *, 6144>::operator[](&thisa->m_intermediate_vertex_list, v1);
-            z1 = thisa->m_intermediate_vertex_list.operator[](v1);
-            for (v2 = v1 + 1; v2 < NUM_SPHERE_VERTS; ++v2)
-            {
-                //z2 = phys_static_array<phys_vec3 *, 6144>::operator[](&thisa->m_intermediate_vertex_list, v2);
-                z2 = thisa->m_intermediate_vertex_list.operator[](v2);
-                v46 = *z0;
-                v45 = *z2;
-                v44 = v45->x - v46->x;
-                v43 = v45->y - v46->y;
-                v42 = v45->z - v46->z;
-                v41.x = v44;
-                v41.y = v43;
-                v41.z = v42;
-                v40 = *z0;
-                v39 = *z1;
-                v38 = v39->x - v40->x;
-                v37 = v39->y - v40->y;
-                v36 = v39->z - v40->z;
-                v33.w = v38;
-                v34 = v37;
-                v35 = v36;
-                v31 = phys_cross((phys_vec3 *)&v32, (phys_vec3 *)&v33.w, &v41);
-                twice_area_sq = (float)((float)(v31->x * v31->x) + (float)(v31->y * v31->y)) + (float)(v31->z * v31->z);
-                if (twice_area_sq > largest_twice_area_sq)
-                {
-                    largest_twice_area_sq = twice_area_sq;
-                    best_verts[0] = z0;
-                    best_verts[1] = z1;
-                    best_verts[2] = z2;
-                }
-            }
-        }
-    }
-    if (largest_twice_area_sq <= 0.0
-        && _tlAssert(
-            "C:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\collision\\phys_convex_hull.h",
-            210,
-            "largest_twice_area_sq>0.0f",
-            ""))
-    {
-        __debugbreak();
-    }
-    v28 = (float *)*best_verts[0];
-    v27 = (float *)*best_verts[2];
-    v26 = *v27 - *v28;
-    v25 = v27[1] - v28[1];
-    v24 = v27[2] - v28[2];
-    v23.x = v26;
-    v23.y = v25;
-    v23.z = v24;
-    v22 = (float *)*best_verts[0];
-    v21 = (float *)*best_verts[1];
-    v20 = *v21 - *v22;
-    v19 = v21[1] - v22[1];
-    v18 = v21[2] - v22[2];
-    v17.x = v20;
-    v17.y = v19;
-    v17.z = v18;
-    phys_cross(&nn, &v17, &v23);
-    v14 = phys_Unitize(&v15, &nn);
-    nn.x = v14->x;
-    nn.y = v14->y;
-    nn.z = v14->z;
-    v13 = (float *)*best_verts[0];
-    v12 = *v13 + nn.x;
-    v11 = v13[1] + nn.y;
-    v10 = v13[2] + nn.z;
-    v9.x = v12;
-    v9.y = v11;
-    v9.z = v10;
-    //eax15 = phys_static_array<phys_vec3, 6144>::add(&thisa->m_vertex_buffer, 0, "phys array add overflow.");
-    eax15 = thisa->m_vertex_buffer.add(0, "phys array add overflow.");
-    //phys_vec3::operator=(eax15, &v9);
-    *eax15 = v9;
-    m_alloc_count = thisa->m_vertex_buffer.m_alloc_count;
-    if (thisa->m_intermediate_vertex_list.m_alloc_count < 6144)
-    {
-        i = &thisa->m_intermediate_vertex_list.m_slot_array[thisa->m_intermediate_vertex_list.m_alloc_count++];
-        v7 = i;
-    }
-    else
-    {
-        tlFatal("phys array add overflow.");
-        v7 = 0;
-    }
-    //*v7 = phys_static_array<phys_vec3, 6144>::operator[](&thisa->m_vertex_buffer, m_alloc_count - 1);
-    *v7 = thisa->m_vertex_buffer.operator[](m_alloc_count - 1);
-    v5 = 1;
-    while (v5)
-    {
-        v5 = 0;
-        for (j = 0; j < 2; ++j)
-        {
-            if (best_verts[j] < best_verts[j + 1])
-            {
-                v3 = best_verts[j];
-                best_verts[j] = best_verts[j + 1];
-                best_verts[j + 1] = v3;
-                v5 = 1;
-            }
-        }
-    }
-    phys_convex_hull::add_convex_hull_vert(best_verts[0]);
-    phys_convex_hull::add_convex_hull_vert(best_verts[1]);
-    phys_convex_hull::add_convex_hull_vert(best_verts[2]);
-}
-
-double __thiscall phys_convex_hull::calc_expansion_volume(const phys_vec3 *vert)
-{
-    float vert_dist; // [esp+B0h] [ebp-10h]
-    phys_convex_hull::ch_triangle *tri_i; // [esp+B4h] [ebp-Ch]
-    phys_static_array<phys_convex_hull::ch_triangle,256>::iterator tri_i_end; // [esp+B8h] [ebp-8h]
-    float volume; // [esp+BCh] [ebp-4h]
-    int savedregs; // [esp+C0h] [ebp+0h] BYREF
-
-    volume = 0.0f;
-    tri_i = this->m_intermediate_triangle_list.m_slot_array;
-    tri_i_end.m_ptr = &tri_i[this->m_intermediate_triangle_list.m_alloc_count];
-    while ( tri_i_end.m_ptr != tri_i )
-    {
-        //vert_dist = phys_convex_hull::ch_triangle::get_dist(tri_i, vert);
-        vert_dist = tri_i->get_dist(vert);
-        if ( vert_dist > 0.034000002 )
-            volume = phys_convex_hull::tetrahedron_volume(
-                                 vert,
-                                 tri_i->m_verts[0],
-                                 tri_i->m_verts[1],
-                                 tri_i->m_verts[2])
-                         + volume;
-        ++tri_i;
-    }
-    if ( volume <= 0.0
-        && _tlAssert(
-                 "C:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\collision\\phys_convex_hull.h",
-                 277,
-                 "volume > 0.0f",
-                 "") )
-    {
-        __debugbreak();
-    }
-    return volume;
-}
-
-double __thiscall phys_convex_hull::ch_triangle::get_dist(const phys_vec3 *vert)
-{
-    return this->m_normal.z * (float)(vert->z - this->m_verts[0]->z)
-             + this->m_normal.y * (float)(vert->y - this->m_verts[0]->y)
-             + this->m_normal.x * (float)(vert->x - this->m_verts[0]->x);
-}
-
-double phys_convex_hull::tetrahedron_volume(
-                const phys_vec3 *a,
-                const phys_vec3 *b,
-                const phys_vec3 *c,
-                const phys_vec3 *d)
-{
-    phys_vec3 *v6; // edx
-    phys_vec3 vol; // [esp+0h] [ebp-7Ch] BYREF
-    float v9; // [esp+10h] [ebp-6Ch]
-    float v10; // [esp+14h] [ebp-68h]
-    float v11; // [esp+18h] [ebp-64h]
-    float v12; // [esp+24h] [ebp-58h]
-    float v13; // [esp+28h] [ebp-54h]
-    float v14; // [esp+2Ch] [ebp-50h]
-    phys_vec3 v15; // [esp+30h] [ebp-4Ch] BYREF
-    float v16; // [esp+44h] [ebp-38h]
-    float v17; // [esp+48h] [ebp-34h]
-    float v18; // [esp+4Ch] [ebp-30h]
-    phys_vec3 v19; // [esp+50h] [ebp-2Ch] BYREF
-    float v20; // [esp+60h] [ebp-1Ch]
-    float v21; // [esp+64h] [ebp-18h]
-    float v22; // [esp+68h] [ebp-14h]
-    phys_convex_hull *v23; // [esp+6Ch] [ebp-10h]
-    //int v24; // [esp+70h] [ebp-Ch]
-    //void *v25; // [esp+74h] [ebp-8h]
-    //void *retaddr; // [esp+7Ch] [ebp+0h]
-    //
-    //v24 = a2;
-    //v25 = retaddr;
-    v23 = this;
-    v22 = c->x - d->x;
-    v21 = c->y - d->y;
-    v20 = c->z - d->z;
-    v19.x = v22;
-    v19.y = v21;
-    v19.z = v20;
-    v18 = b->x - d->x;
-    v17 = b->y - d->y;
-    v16 = b->z - d->z;
-    v15.x = v18;
-    v15.y = v17;
-    v15.z = v16;
-    v14 = a->x - d->x;
-    v13 = a->y - d->y;
-    v12 = a->z - d->z;
-    v9 = v14;
-    v10 = v13;
-    v11 = v12;
-    v6 = phys_cross(&vol, &v15, &v19);
-    return (float)(fabs((float)((float)(v9 * v6->x) + (float)(v10 * v6->y)) + (float)(v11 * v6->z))
-                             / 6.0);
-}
-
-void __thiscall phys_convex_hull::create_edge_list(const phys_vec3 *vert)
-{
-    phys_convex_hull::ch_triangle *m_slot_array; // [esp+34h] [ebp-20h]
-    int i; // [esp+3Ch] [ebp-18h]
-
-    for ( i = 0; i < this->m_intermediate_edge_list.m_alloc_count; ++i )
-        ;
-    this->m_intermediate_edge_list.m_alloc_count = 0;
-    m_slot_array = this->m_intermediate_triangle_list.m_slot_array;
-    while ( &this->m_intermediate_triangle_list.m_slot_array[this->m_intermediate_triangle_list.m_alloc_count] != m_slot_array )
-    {
-        if ( (float)((float)((float)(m_slot_array->m_normal.x * (float)(vert->x - m_slot_array->m_verts[0]->x))
-                                             + (float)(m_slot_array->m_normal.y * (float)(vert->y - m_slot_array->m_verts[0]->y)))
-                             + (float)(m_slot_array->m_normal.z * (float)(vert->z - m_slot_array->m_verts[0]->z))) <= 0.034000002 )
-        {
-            ++m_slot_array;
-        }
-        else
-        {
-            phys_convex_hull::add_triangle_edges(m_slot_array);
-            //phys_static_array<phys_convex_hull::ch_triangle,256>::remove_slow(&this->m_intermediate_triangle_list, m_slot_array);
-            this->m_intermediate_triangle_list.remove_slow(m_slot_array);
-        }
-    }
-    if ( this->m_intermediate_edge_list.m_alloc_count < 3
-        && _tlAssert(
-                 "C:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\collision\\phys_convex_hull.h",
-                 301,
-                 "m_intermediate_edge_list.get_count() >= 3",
-                 "") )
-    {
-        __debugbreak();
-    }
-}
-
-void __thiscall phys_convex_hull::add_triangle_edges(phys_convex_hull::ch_triangle *tri)
-{
-    phys_convex_hull::add_intermediate_edge(tri->m_verts[0], tri->m_verts[1]);
-    phys_convex_hull::add_intermediate_edge(tri->m_verts[1], tri->m_verts[2]);
-    phys_convex_hull::add_intermediate_edge(tri->m_verts[2], tri->m_verts[0]);
-}
-
-void __thiscall phys_convex_hull::add_intermediate_edge(phys_vec3 *v0, phys_vec3 *v1)
-{
-    phys_convex_hull::ch_edge *v4; // [esp+Ch] [ebp-24h]
-    phys_convex_hull::ch_edge *edge_i; // [esp+28h] [ebp-8h]
-    phys_convex_hull::ch_edge *edge; // [esp+2Ch] [ebp-4h]
-
-    if ( (!v0 || !v1 || v0 == v1)
-        && _tlAssert(
-                 "C:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\collision\\phys_convex_hull.h",
-                 59,
-                 "v0 && v1 && v0 != v1",
-                 "") )
-    {
-        __debugbreak();
-    }
-    for ( edge_i = this->m_intermediate_edge_list.m_slot_array;
-                &this->m_intermediate_edge_list.m_slot_array[this->m_intermediate_edge_list.m_alloc_count] != edge_i;
-                ++edge_i )
-    {
-        if ( edge_i->m_verts[0] == v0 && edge_i->m_verts[1] == v1 || edge_i->m_verts[0] == v1 && edge_i->m_verts[1] == v0 )
-        {
-            //phys_static_array<phys_convex_hull::ch_edge,128>::remove_slow(&this->m_intermediate_edge_list, edge_i);
-            this->m_intermediate_edge_list.remove_slow(edge_i);
-            return;
-        }
-    }
-    if ( this->m_intermediate_edge_list.m_alloc_count < 128 )
-    {
-        v4 = &this->m_intermediate_edge_list.m_slot_array[this->m_intermediate_edge_list.m_alloc_count++];
-        edge = v4;
-    }
-    else
-    {
-        tlFatal("phys array add overflow.");
-        edge = 0;
-    }
-    edge->m_verts[0] = v0;
-    edge->m_verts[1] = v1;
-}
-
-void __thiscall phys_convex_hull::remove_inside_verts()
-{
-    float vert_dist; // [esp+50h] [ebp-18h]
-    phys_convex_hull::ch_triangle *tri_i; // [esp+54h] [ebp-14h]
-    bool inside; // [esp+5Bh] [ebp-Dh]
-    phys_static_array<phys_convex_hull::ch_triangle,256>::iterator tri_i_end; // [esp+5Ch] [ebp-Ch]
-    phys_vec3 **vert_i; // [esp+64h] [ebp-4h]
-
-    vert_i = this->m_intermediate_vertex_list.m_slot_array;
-    while ( &this->m_intermediate_vertex_list.m_slot_array[this->m_intermediate_vertex_list.m_alloc_count] != vert_i )
-    {
-        inside = 1;
-        tri_i = this->m_intermediate_triangle_list.m_slot_array;
-        tri_i_end.m_ptr = &tri_i[this->m_intermediate_triangle_list.m_alloc_count];
-        while ( tri_i_end.m_ptr != tri_i && inside )
-        {
-            //vert_dist = phys_convex_hull::ch_triangle::get_dist(tri_i, *vert_i);
-            vert_dist = tri_i->get_dist(*vert_i);
-            inside = vert_dist <= 0.034000002;
-            ++tri_i;
-        }
-        if (inside)
-        {
-            //phys_static_array<phys_vec3 *, 6144>::remove(&this->m_intermediate_vertex_list, vert_i);
-            this->m_intermediate_vertex_list.remove_slow(vert_i); // KISAKTODO: remove()
-        }
-        else
-            ++vert_i;
-    }
-}
-
-//phys_convex_hull::ch_triangle *__thiscall phys_convex_hull::ch_triangle::operator=(const phys_convex_hull::ch_triangle *__that)
-//{
-//    unsigned int _S2; // [esp+8h] [ebp-4h]
-//
-//    this->m_normal.x = __that->m_normal.x;
-//    this->m_normal.y = __that->m_normal.y;
-//    this->m_normal.z = __that->m_normal.z;
-//    for ( _S2 = 0; _S2 < 3; ++_S2 )
-//        this->m_verts[_S2] = __that->m_verts[_S2];
-//    return this;
-//}
-
-chull_t * generate_partition_chull(const CollisionAabbTree *tree)
-{
-    phys_vec3 *v3; // eax
-    phys_vec3 v; // [esp+14h] [ebp-3Ch] BYREF
-    int ind_i; // [esp+2Ch] [ebp-24h]
-    int ninds; // [esp+30h] [ebp-20h]
-    unsigned __int16 *inds; // [esp+34h] [ebp-1Ch]
-    const float (*verts)[3]; // [esp+38h] [ebp-18h]
-    const CollisionPartition *partition; // [esp+3Ch] [ebp-14h]
-    int i; // [esp+40h] [ebp-10h]
-    //_UNKNOWN *v11[2]; // [esp+44h] [ebp-Ch] BYREF
-    //int vars0; // [esp+50h] [ebp+0h]
-    //
-    //v11[0] = a1;
-    //v11[1] = (_UNKNOWN *)vars0;
-    if (!tree)
-        return 0;
-    for (i = 0; i < g_hull.m_vertex_buffer.m_alloc_count; ++i)
-        ;
-    g_hull.m_vertex_buffer.m_alloc_count = 0;
-    partition = &cm.partitions[*(_DWORD *)(tree + 28)];
-    verts = cm.verts;
-    inds = &cm.uinds[partition->fuind];
-    ninds = partition->nuinds;
-    for (ind_i = 0; ind_i < ninds; ++ind_i)
-    {
-        Phys_Vec3ToNitrousVec((float *)verts[inds[ind_i]], &v);
-        //v3 = phys_static_array<phys_vec3, 6144>::add(&g_hull.m_vertex_buffer, 0, "phys array add overflow.");
-        v3 = g_hull.m_vertex_buffer.add(0, "phys array add overflow.");
-        v3->x = v.x;
-        v3->y = v.y;
-        v3->z = v.z;
-    }
-    //phys_convex_hull::compute_convex_hull(&g_hull, v11, 128, 0.0);
-    g_hull.compute_convex_hull(128, 0.0);
-    return create_chull(&g_hull);
-}
-
-void __cdecl generate_brushmodel_chull_r(cLeafBrushNode_s *node, chull_t **hull)
-{
-    chull_t *brush_chull; // eax
-    int i; // [esp+Ch] [ebp-4h]
-    int savedregs; // [esp+10h] [ebp+0h] BYREF
-
-    if ( node->leafBrushCount )
-    {
-        if ( node->leafBrushCount > 0 )
-        {
-            for ( i = 0; i < node->leafBrushCount; ++i )
-            {
-                brush_chull = generate_brush_chull(&cm.brushes[node->data.leaf.brushes[i]]);
-                brush_chull->next = *hull;
-                *hull = brush_chull;
-            }
-            return;
-        }
-        generate_brushmodel_chull_r(node + 1, hull);
-    }
-    if ( node->data.children.childOffset[0] || node->data.children.childOffset[1] )
-    {
-        generate_brushmodel_chull_r(&node[node->data.children.childOffset[0]], hull);
-        generate_brushmodel_chull_r(&node[node->data.children.childOffset[1]], hull);
-    }
-}
-
-chull_t *__cdecl generate_brushmodel_chull(unsigned int brushmodel)
-{
-    const cmodel_t *model; // [esp+4h] [ebp-8h]
-    chull_t *hull; // [esp+8h] [ebp-4h] BYREF
-
-    hull = 0;
-    model = CM_ClipHandleToModel(brushmodel);
-    generate_brushmodel_chull_r(&cm.leafbrushNodes[model->leaf.leafBrushNode], &hull);
-    return hull;
-}
-
-chull_t *__cdecl generate_collmap_chull(PhysGeomList *geomList)
-{
-    chull_t *brush_chull; // eax
-    PhysGeomInfo *geom; // [esp+8h] [ebp-Ch]
-    chull_t *first; // [esp+Ch] [ebp-8h]
-    unsigned int gi; // [esp+10h] [ebp-4h]
-    int savedregs; // [esp+14h] [ebp+0h] BYREF
-
-    first = 0;
-    gi = 0;
-    geom = geomList->geoms;
-    while ( gi < geomList->count )
-    {
-        if ( geom->brush )
-        {
-            brush_chull = generate_brush_chull((const cbrush_t *)geom->brush);
-            brush_chull->next = first;
-            first = brush_chull;
-        }
-        ++geom;
-        ++gi;
-    }
-    return first;
-}
-
-chull_t *__cdecl get_collmap_chull(PhysGeomList *geomList, unsigned int key)
-{
-    generic_avl_map_node_t *m_tree_root; // [esp+0h] [ebp-Ch]
-    chull_t *chull; // [esp+8h] [ebp-4h]
-
-    m_tree_root = entities_map.m_tree_root;
-    while ( m_tree_root && key != m_tree_root->m_avl_key )
-    {
-        if ( key >= m_tree_root->m_avl_key )
-            m_tree_root = m_tree_root->m_avl_tree_node.m_right;
-        else
-            m_tree_root = m_tree_root->m_avl_tree_node.m_left;
-    }
-    if ( m_tree_root )
-    {
-        chull = (chull_t *)m_tree_root->m_data;
-    }
-    else
-    {
-        chull = generate_collmap_chull(geomList);
-        if ( !chull )
-            return 0;
-        chull_list_add(chull, key);
-    }
-    if ( !chull && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp", 1789, 0, "%s", "chull") )
-        __debugbreak();
-    chull->touched = 1;
-    return chull;
-}
-
-chull_t *__cdecl get_brushmodel_chull(unsigned int brushmodel, unsigned int key)
-{
-    generic_avl_map_node_t *m_tree_root; // [esp+0h] [ebp-Ch]
-    chull_t *chull; // [esp+8h] [ebp-4h]
-
-    m_tree_root = entities_map.m_tree_root;
-    while ( m_tree_root && key != m_tree_root->m_avl_key )
-    {
-        if ( key >= m_tree_root->m_avl_key )
-            m_tree_root = m_tree_root->m_avl_tree_node.m_right;
-        else
-            m_tree_root = m_tree_root->m_avl_tree_node.m_left;
-    }
-    if ( m_tree_root )
-    {
-        chull = (chull_t *)m_tree_root->m_data;
-    }
-    else
-    {
-        chull = generate_brushmodel_chull(brushmodel);
-        if ( !chull )
-            return 0;
-        chull_list_add(chull, key);
-    }
-    if ( !chull && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp", 1810, 0, "%s", "chull") )
-        __debugbreak();
-    chull->touched = 1;
-    return chull;
-}
-
-chull_t *__cdecl get_brush_chull(const cbrush_t *brush)
-{
-    generic_avl_map_node_t *m_tree_root; // [esp+0h] [ebp-10h]
-    chull_t *chull; // [esp+8h] [ebp-8h]
-    int savedregs; // [esp+10h] [ebp+0h] BYREF
-
-    m_tree_root = entities_map.m_tree_root;
-    while ( m_tree_root && brush != (const cbrush_t *)m_tree_root->m_avl_key )
-    {
-        if ( (unsigned int)brush >= m_tree_root->m_avl_key )
-            m_tree_root = m_tree_root->m_avl_tree_node.m_right;
-        else
-            m_tree_root = m_tree_root->m_avl_tree_node.m_left;
-    }
-    if ( m_tree_root )
-    {
-        chull = (chull_t *)m_tree_root->m_data;
-    }
-    else
-    {
-        chull = generate_brush_chull(brush);
-        if ( !chull )
-            return 0;
-        chull_list_add(chull, (unsigned int)brush);
-    }
-    if ( !chull && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp", 1832, 0, "%s", "chull") )
-        __debugbreak();
-    chull->touched = 1;
-    return chull;
-}
-
-chull_t *__cdecl get_partition_chull(const CollisionAabbTree *tree)
-{
-    generic_avl_map_node_t *m_tree_root; // [esp+0h] [ebp-10h]
-    chull_t *chull; // [esp+8h] [ebp-8h]
-    int savedregs; // [esp+10h] [ebp+0h] BYREF
-
-    m_tree_root = entities_map.m_tree_root;
-    while ( m_tree_root && tree != (const CollisionAabbTree *)m_tree_root->m_avl_key )
-    {
-        if ( (unsigned int)tree >= m_tree_root->m_avl_key )
-            m_tree_root = m_tree_root->m_avl_tree_node.m_right;
-        else
-            m_tree_root = m_tree_root->m_avl_tree_node.m_left;
-    }
-    if ( m_tree_root )
-    {
-        chull = (chull_t *)m_tree_root->m_data;
-    }
-    else
-    {
-        chull = generate_partition_chull(tree);
-        if ( !chull )
-            return 0;
-        chull_list_add(chull, (unsigned int)tree);
-    }
-    if ( !chull && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp", 1854, 0, "%s", "chull") )
-        __debugbreak();
-    chull->touched = 1;
-    return chull;
-}
-
 float query_radius = 2000.0;
 void    Phys_FindAndRenderEntityBrushes(const float *pos, int contentmask)
 {
@@ -4679,7 +3546,7 @@ void collide_vehicle_wheels(PhysObjUserData *userData)
     }
 }
 
-int __cdecl wheel_collision_worker();
+int __cdecl wheel_collision_worker(jqBatch *__);
 phys_free_list<PhysObjUserData>::iterator g_wpop_iter;
 phys_free_list<PhysObjUserData>::iterator g_wpop_iter_end;
 jqModule wheelCollisionModule =
@@ -4697,7 +3564,7 @@ void __cdecl prop_system_collision_process()
     phys_task_manager_flush();
 }
 
-int __cdecl wheel_collision_worker()
+int __cdecl wheel_collision_worker(jqBatch *__)
 {
     phys_free_list<PhysObjUserData>::T_internal_base *i; // [esp+10h] [ebp-4h]
 
@@ -4746,7 +3613,7 @@ void    Phys_CollisionCallback()
         //cdl_proftimer::start_capture(&proftimer_physics_frame_advance);
         proftimer_physics_frame_advance.start_capture();
     }
-    prop_system_collision_process();
+    prop_system_collision_process(); // This is used just for vehicle wheels now
     broad_phase_process();
     Phys_EffectsProcess();
     if (phys_drawcontacts->current.enabled)
@@ -4859,7 +3726,7 @@ void __thiscall cdl_proftimer::reset()
     this->value = 0;
 }
 
-char __cdecl Phys_ShouldCollideCallback(const broad_phase_base *bpi1, const broad_phase_base *bpi2)
+bool __cdecl Phys_ShouldCollideCallback(const broad_phase_base *bpi1, const broad_phase_base *bpi2)
 {
     if ( (bpi1->m_my_collision_type_flags & 0x40) != 0 )
     {
@@ -5313,7 +4180,7 @@ rigid_body_constraint_ragdoll * Phys_CreateSwivel(
     //v76[0] = a1;
     //v76[1] = anchora;
     body1 = Phys_GetUserData(obj1)->body;
-    body2 = Phys_GetUserData((int)obj2)->body;
+    body2 = Phys_GetUserData(obj2)->body;
     if ((unsigned int)numAxes >= 4
         && !Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp",
@@ -5576,43 +4443,4 @@ PhysGlob::PhysGlob()
         i->m_last = 0;
         i->m_alloc_count = 0;
     }
-}
-
-phys_convex_hull::phys_convex_hull()
-{
-    this->m_vertex_buffer.m_slot_array = (phys_vec3 *const)this;
-    this->m_vertex_buffer.m_alloc_count = 0;
-    this->m_intermediate_vertex_list.m_slot_array = (phys_vec3 **const)&this->m_intermediate_vertex_list;
-    this->m_intermediate_vertex_list.m_alloc_count = 0;
-    this->m_intermediate_triangle_list.m_slot_array = (phys_convex_hull::ch_triangle *const)&this->m_intermediate_triangle_list;
-    this->m_intermediate_triangle_list.m_alloc_count = 0;
-    this->m_intermediate_edge_list.m_slot_array = (phys_convex_hull::ch_edge *const)&this->m_intermediate_edge_list;
-    this->m_intermediate_edge_list.m_alloc_count = 0;
-    this->m_convex_hull_vert_list.m_slot_array = (phys_vec3 **const)&this->m_convex_hull_vert_list;
-    this->m_convex_hull_vert_list.m_alloc_count = 0;
-    this->m_convex_hull_triangle_list.m_slot_array = (phys_convex_hull::ch_triangle *const)&this->m_convex_hull_triangle_list;
-    this->m_convex_hull_triangle_list.m_alloc_count = 0;
-}
-
-phys_convex_hull::~phys_convex_hull()
-{
-    int ii; // [esp+4h] [ebp-18h]
-    int n; // [esp+8h] [ebp-14h]
-    int m; // [esp+Ch] [ebp-10h]
-    int k; // [esp+10h] [ebp-Ch]
-    int j; // [esp+14h] [ebp-8h]
-    int i; // [esp+18h] [ebp-4h]
-
-    for ( i = 0; i < this->m_convex_hull_triangle_list.m_alloc_count; ++i )
-        ;
-    for ( j = 0; j < this->m_convex_hull_vert_list.m_alloc_count; ++j )
-        ;
-    for ( k = 0; k < this->m_intermediate_edge_list.m_alloc_count; ++k )
-        ;
-    for ( m = 0; m < this->m_intermediate_triangle_list.m_alloc_count; ++m )
-        ;
-    for ( n = 0; n < this->m_intermediate_vertex_list.m_alloc_count; ++n )
-        ;
-    for ( ii = 0; ii < this->m_vertex_buffer.m_alloc_count; ++ii )
-        ;
 }

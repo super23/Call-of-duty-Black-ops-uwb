@@ -293,6 +293,7 @@ int    backup1(phys_gjk_info *gjk_info, int new_index, bool seed_simplex)
         float lambda_b_num = cross_nv_d1.x * difs[2].x
             + cross_nv_d1.y * difs[2].y
             + cross_nv_d1.z * difs[2].z;
+
         float lambda_b = -lambda_b_num / denom;
         if (lambda_b < 0.0f)
             return best_set;
@@ -315,6 +316,9 @@ void    phys_full_inv_multiply_mat(
     phys_vec3 *v5; // eax
     phys_mat44 v6; // [esp-Ch] [ebp-5Ch] BYREF
     phys_vec3 temp; // [esp+34h] [ebp-1Ch] BYREF
+
+    assert_mat44_initialized(*left);
+    assert_mat44_initialized(*right);
 
     if (dest == left)
     {
@@ -399,11 +403,7 @@ int phys_gjk_info::seed_simplex(int cached_vert_count)
     int bit = 1;
     int i = 0;
 
-    // -----------------------------------------------------------------------
-    // Unrolled 4-at-a-time loop (only runs if cached_vert_count >= 4,
-    // which the assert above prevents — but the compiler emitted it anyway
-    // as dead code for the general case. Leave it matching the original.)
-    // -----------------------------------------------------------------------
+#if 0 // LWSS: this (shitty!) code is not even intended to go beyond 3 (see assert^^)
     if (cached_vert_count >= 4)
     {
         int iterations = ((unsigned int)(cached_vert_count - 4) >> 2) + 1;
@@ -437,6 +437,7 @@ int phys_gjk_info::seed_simplex(int cached_vert_count)
             bit = __ROL4__(bit, 1);
         }
     }
+#endif
 
     // -----------------------------------------------------------------------
     // Scalar tail: handles remaining verts (or all verts when count < 4)
@@ -447,6 +448,7 @@ int phys_gjk_info::seed_simplex(int cached_vert_count)
         this->m_w_verts[i].x = (this->m_a_verts[i].x - this->m_b_verts[i].x) - this->m_gjk_origin.x;
         this->m_w_verts[i].y = (this->m_a_verts[i].y - this->m_b_verts[i].y) - this->m_gjk_origin.y;
         this->m_w_verts[i].z = (this->m_a_verts[i].z - this->m_b_verts[i].z) - this->m_gjk_origin.z;
+
         this->m_w_set |= bit;
         bit = __ROL4__(bit, 1);
     }
@@ -460,6 +462,225 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk(
                 const phys_vec3 *initial_support_dir,
                 bool in_separation_loop)
 {
+#if 0
+    bool v9; // zf
+    double v10; // st7
+    phys_gjk_info::gjk_retval_e result; // eax
+    int m_w_set; // eax
+    const phys_gjk_geom *gjk_cg1; // ecx
+    const phys_gjk_geom *gjk_cg2; // ecx
+    double v15; // st7
+    double v16; // st6
+    const phys_vec3 *v17; // eax
+    float *p_x; // ecx
+    double z; // st7
+    const phys_vec3 *v20; // eax
+    double v21; // st6
+    double v22; // st5
+    double v23; // st7
+    double v24; // st4
+    double v25; // st3
+    int v26; // ecx
+    int v27; // edx
+    int v28; // ecx
+    phys_vec3 *v29; // eax
+    int v30; // eax
+    phys_vec3 *v33; // [esp-54h] [ebp-94h]
+    phys_vec3 v34; // [esp-4Ch] [ebp-8Ch] BYREF
+    float v35[4]; // [esp-3Ch] [ebp-7Ch] BYREF
+    float v36[4]; // [esp-2Ch] [ebp-6Ch] BYREF
+    float v37; // [esp-1Ch] [ebp-5Ch]
+    float v38; // [esp-18h] [ebp-58h]
+    float v39; // [esp-14h] [ebp-54h]
+    float v40; // [esp-Ch] [ebp-4Ch]
+    float v41; // [esp-8h] [ebp-48h]
+    float v42; // [esp-4h] [ebp-44h]
+    phys_vec3 w; // [esp+0h] [ebp-40h]
+    float v44; // [esp+14h] [ebp-2Ch]
+    float v45; // [esp+18h] [ebp-28h]
+    float v46; // [esp+1Ch] [ebp-24h]
+    phys_vec3 *m_gjk_sep_thresh_low; // [esp+28h] [ebp-18h]
+    //const phys_vec3 *v48; // [esp+2Ch] [ebp-14h]
+    unsigned int v49; // [esp+30h] [ebp-10h]
+    float lower_dist_sq[2]; // [esp+34h] [ebp-Ch] BYREF
+    float retaddr; // [esp+40h] [ebp+0h]
+    phys_vec3 neg_support_dir;
+    phys_vec3 v_in_cg2;
+
+    this->m_lower_dist_sq = -34.0;
+    this->m_upper_dist_sq = 34.0;
+
+    this->m_gjk_iter = phys_gjk_info::init_gjk(d, initial_support_dir, in_separation_loop);
+
+    while (1)
+    {
+        v9 = this->m_gjk_iter == 0;
+        v10 = this->m_support_dir.y * this->m_support_dir.y
+            + this->m_support_dir.x * this->m_support_dir.x
+            + this->m_support_dir.z * this->m_support_dir.z;
+        this->m_upper_dist_sq = v10;
+        if (!v9 && this->m_gjk_pen_thresh_sq > v10)
+            return GJK_PENETRATING;
+        m_w_set = this->m_w_set;
+        if ((m_w_set & 1) != 0)
+        {
+            if ((m_w_set & 2) != 0)
+                v49 = (this->m_w_set & 4 | 8u) >> 2;
+            else
+                v49 = 1;
+        }
+        else
+        {
+            v49 = 0;
+        }
+        gjk_cg1 = d->gjk_cg1;
+        //v36[0] = -this->m_support_dir.x;
+        //v36[1] = -this->m_support_dir.y;
+        //v36[2] = -this->m_support_dir.z;
+        //m_gjk_sep_thresh_low = &this->m_a_verts[v49];
+        //((void(__thiscall *)(const phys_gjk_geom *, float *, phys_vec3 *, phys_vec3 *, float *, const phys_vec3 *, phys_vec3 *))gjk_cg1->support)(
+        //    gjk_cg1,
+        //    v36,
+        //    m_gjk_sep_thresh_low,
+        //    &this->m_a_inds[v49],
+        //    a3,
+        //    a4,
+        //    v33);
+        neg_support_dir = { -m_support_dir.x,
+                          -m_support_dir.y,
+                          -m_support_dir.z };
+        gjk_cg1->support(&neg_support_dir, &m_a_verts[v49], &m_a_inds[v49]);
+
+        gjk_cg2 = d->gjk_cg2;
+        v15 = this->cg2_to_cg1_xform.x.y * this->m_support_dir.y + this->m_support_dir.x * this->cg2_to_cg1_xform.x.x;
+        v16 = this->cg2_to_cg1_xform.x.z * this->m_support_dir.z;
+        //v48 = &this->m_b_verts[v49];
+        v33 = &this->m_b_inds[v49];
+        ////a4 = v48;
+        //v35[0] = v15 + v16;
+        ////a3 = v35;
+        //v35[1] = this->cg2_to_cg1_xform.y.y * this->m_support_dir.y
+        //    + this->m_support_dir.x * this->cg2_to_cg1_xform.y.x
+        //    + this->cg2_to_cg1_xform.y.z * this->m_support_dir.z;
+        //v35[2] = this->cg2_to_cg1_xform.z.y * this->m_support_dir.y
+        //    + this->cg2_to_cg1_xform.z.x * this->m_support_dir.x
+        //    + this->cg2_to_cg1_xform.z.z * this->m_support_dir.z;
+
+        v_in_cg2.x = m_support_dir.x * cg2_to_cg1_xform.x.x
+            + m_support_dir.y * cg2_to_cg1_xform.x.y
+            + m_support_dir.z * cg2_to_cg1_xform.x.z;
+        v_in_cg2.y = m_support_dir.x * cg2_to_cg1_xform.y.x
+            + m_support_dir.y * cg2_to_cg1_xform.y.y
+            + m_support_dir.z * cg2_to_cg1_xform.y.z;
+        v_in_cg2.z = m_support_dir.x * cg2_to_cg1_xform.z.x
+            + m_support_dir.y * cg2_to_cg1_xform.z.y
+            + m_support_dir.z * cg2_to_cg1_xform.z.z;
+
+        //((void(__thiscall *)(const phys_gjk_geom *))gjk_cg2->support)(gjk_cg2);
+        gjk_cg2->support(&v_in_cg2, &m_b_verts[v49], &m_b_inds[v49]);
+
+        v17 = phys_multiply(&v34, &this->cg2_to_cg1_xform, &this->m_b_verts[v49]);
+        //p_x = &m_gjk_sep_thresh_low->x;
+        v44 = v17->x + this->cg2_to_cg1_xform.w.x;
+        v45 = v17->y + this->cg2_to_cg1_xform.w.y;
+        z = v17->z;
+        //v20 = v48;
+        v46 = z + this->cg2_to_cg1_xform.w.z;
+        //v48->x = v44;
+        //v20->y = v45;
+        //v20->z = v46;
+        this->m_b_verts[v49].x = v44;
+        this->m_b_verts[v49].y = v45;
+        this->m_b_verts[v49].z = v46;
+        //w.y = *p_x -   this->m_b_verts[v49].x;
+        //w.z = p_x[1] - this->m_b_verts[v49].y;
+        //w.w = p_x[2] - this->m_b_verts[v49].z;
+
+        w.y = (m_a_verts[v49].x - m_b_verts[v49].x);
+        w.z = (m_a_verts[v49].y - m_b_verts[v49].y);
+        w.w = (m_a_verts[v49].z - m_b_verts[v49].z);
+        v40 = w.y - this->m_gjk_origin.x;
+        v41 = w.z - this->m_gjk_origin.y;
+        v42 = w.w - this->m_gjk_origin.z;
+        v21 = v41;
+        v22 = v40;
+        v23 = v42;
+        *(float *)&m_gjk_sep_thresh_low = this->m_support_dir.z * v42
+            + this->m_support_dir.y * v41
+            + v40 * this->m_support_dir.x;
+        v24 = 0.0;
+        if (*(float *)&m_gjk_sep_thresh_low > 0.0)
+        {
+            if (this->m_upper_dist_sq <= 0.0)
+            {
+                v24 = 0.0;
+            }
+            else
+            {
+                v24 = 0.0;
+                *(float *)&m_gjk_sep_thresh_low = *(float *)&m_gjk_sep_thresh_low * *(float *)&m_gjk_sep_thresh_low;
+                *(float *)&m_gjk_sep_thresh_low = *(float *)&m_gjk_sep_thresh_low / this->m_upper_dist_sq;
+                v25 = *(float *)&m_gjk_sep_thresh_low;
+                if (this->m_lower_dist_sq < (double)*(float *)&m_gjk_sep_thresh_low)
+                {
+                    v9 = (this->m_flags & 1) == 0;
+                    this->m_lower_dist_sq = *(float *)&m_gjk_sep_thresh_low;
+                    if (!v9)
+                    {
+                        m_gjk_sep_thresh_low = (phys_vec3 *)LODWORD(this->m_gjk_sep_thresh);
+                        *(float *)&m_gjk_sep_thresh_low = *(float *)&m_gjk_sep_thresh_low * *(float *)&m_gjk_sep_thresh_low;
+                        if (*(float *)&m_gjk_sep_thresh_low < v25)
+                            return GJK_SEPARATED;
+                    }
+                }
+            }
+        }
+        if (this->m_gjk_iter && v24 < this->m_lower_dist_sq)
+            break;
+    LABEL_24:
+        v28 = v49;
+        v29 = &this->m_w_verts[v49];
+        v29->x = v22;
+        v29->y = v21;
+        v29->z = v23;
+        this->m_w_set |= 1 << v28;
+        this->m_last_w_set = this->m_w_set;
+        v30 = backup1(this, v28, 0);
+        this->m_w_set = v30;
+        if (v30 == 15)
+            return GJK_PENETRATING;
+        phys_gjk_info::comp_v(v30, &this->m_support_dir);
+        result = GJK_VALID;
+        if (++this->m_gjk_iter >= 30)
+        {
+            tlWarning("gjk reached the maximum number of iterations.");
+            return result;
+        }
+    }
+    *(float *)&m_gjk_sep_thresh_low = 1.0 - CONV_THRESH;
+    *(float *)&m_gjk_sep_thresh_low = *(float *)&m_gjk_sep_thresh_low * *(float *)&m_gjk_sep_thresh_low;
+    if (this->m_lower_dist_sq > *(float *)&m_gjk_sep_thresh_low * this->m_upper_dist_sq)
+        return GJK_VALID;
+    v26 = 0;
+    v27 = 1;
+    m_gjk_sep_thresh_low = (phys_vec3 *)&this->m_w_verts[0].z;
+    while (1)
+    {
+        if ((v27 & this->m_last_w_set) != 0)
+        {
+            v37 = v22 - m_gjk_sep_thresh_low[-1].z;
+            v38 = v21 - m_gjk_sep_thresh_low[-1].w;
+            v39 = v23 - m_gjk_sep_thresh_low->x;
+            if ((v38 * v38 + v37 * v37 + v39 * v39) < 0.0000010000001)
+                return GJK_VALID;
+        }
+        ++m_gjk_sep_thresh_low;
+        ++v26;
+        v27 *= 2;
+        if (v26 >= 4)
+            goto LABEL_24;
+    }
+#else
     // Bounds on the squared distance from origin to the Minkowski difference
     // (A - B):
     //   m_upper_dist_sq = |v|^2          (current closest-point candidate)
@@ -475,14 +696,13 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk(
     for (;;)
     {
         // -------- 1. Update upper bound from current search direction v ------
-        const float v_len_sq = m_support_dir.x * m_support_dir.x
+        m_upper_dist_sq = m_support_dir.x * m_support_dir.x
             + m_support_dir.y * m_support_dir.y
             + m_support_dir.z * m_support_dir.z;
-        m_upper_dist_sq = v_len_sq;
 
         // After the first iteration, if |v|^2 has dropped below the
         // penetration threshold, the simplex effectively wraps the origin.
-        if (m_gjk_iter != 0 && m_gjk_pen_thresh_sq > v_len_sq)
+        if (m_gjk_iter != 0 && m_gjk_pen_thresh_sq > m_upper_dist_sq)
             return GJK_PENETRATING;
 
         // -------- 2. Pick the lowest free slot in the 4-vertex simplex -------
@@ -497,12 +717,7 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk(
         else                         new_index = 3;
 
         // -------- 3. Support point on shape A in direction -v ----------------
-        const phys_vec3 neg_v = { -m_support_dir.x,
-                                  -m_support_dir.y,
-                                  -m_support_dir.z };
-        d->gjk_cg1->support(&neg_v,
-            &m_a_verts[new_index],
-            &m_a_inds[new_index]);
+        d->gjk_cg1->support(-m_support_dir, &m_a_verts[new_index], &m_a_inds[new_index]);
 
         // -------- 4. Support point on shape B in direction v -----------------
         // v lives in cg1's frame; rotate into cg2's frame.
@@ -510,18 +725,16 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk(
         // against the rows gives the inverse rotation (R^T * v).
         phys_vec3 v_in_cg2;
         v_in_cg2.x = m_support_dir.x * cg2_to_cg1_xform.x.x
-            + m_support_dir.y * cg2_to_cg1_xform.x.y
-            + m_support_dir.z * cg2_to_cg1_xform.x.z;
+                   + m_support_dir.y * cg2_to_cg1_xform.x.y
+                   + m_support_dir.z * cg2_to_cg1_xform.x.z;
         v_in_cg2.y = m_support_dir.x * cg2_to_cg1_xform.y.x
-            + m_support_dir.y * cg2_to_cg1_xform.y.y
-            + m_support_dir.z * cg2_to_cg1_xform.y.z;
+                   + m_support_dir.y * cg2_to_cg1_xform.y.y
+                   + m_support_dir.z * cg2_to_cg1_xform.y.z;
         v_in_cg2.z = m_support_dir.x * cg2_to_cg1_xform.z.x
-            + m_support_dir.y * cg2_to_cg1_xform.z.y
-            + m_support_dir.z * cg2_to_cg1_xform.z.z;
+                   + m_support_dir.y * cg2_to_cg1_xform.z.y
+                   + m_support_dir.z * cg2_to_cg1_xform.z.z;
 
-        d->gjk_cg2->support(&v_in_cg2,
-            &m_b_verts[new_index],
-            &m_b_inds[new_index]);
+        d->gjk_cg2->support(v_in_cg2, &m_b_verts[new_index], &m_b_inds[new_index]);
 
         // Bring B's support point back into A's frame so we can subtract:
         //   b_cg1 = R * b_cg2 + t   where (R | t) = cg2_to_cg1_xform
@@ -538,17 +751,18 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk(
             (m_a_verts[new_index].z - m_b_verts[new_index].z) - m_gjk_origin.z
         };
 
+
         // -------- 6. Separation / lower-bound update -------------------------
         // v . w is the signed support along the current search direction.
         // If positive, we have new evidence the shapes are separated and can
         // tighten the lower bound on the squared distance.
-        const float v_dot_w = m_support_dir.x * w.x
+        const float support_dot_w = m_support_dir.x * w.x
             + m_support_dir.y * w.y
             + m_support_dir.z * w.z;
 
-        if (v_dot_w > 0.0f && m_upper_dist_sq > 0.0f)
+        if (support_dot_w > 0.0f && m_upper_dist_sq > 0.0f)
         {
-            const float candidate = (v_dot_w * v_dot_w) / m_upper_dist_sq;
+            const float candidate = (support_dot_w * support_dot_w) / m_upper_dist_sq;
 
             if (candidate > m_lower_dist_sq)
             {
@@ -611,8 +825,20 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk(
         comp_v(m_w_set, &m_support_dir);
 
         if (++m_gjk_iter >= 30)                 // hard iteration cap
+        {
+            tlWarning("gjk reached the maximum number of iterations. cg1=%s cg2=%s "
+                "lower=%.6f upper=%.6f lambda=%.6f flags=0x%X",
+                GjkTypeToString(d->gjk_cg1->get_type()),
+                GjkTypeToString(d->gjk_cg2->get_type()),
+                this->m_lower_dist_sq,
+                this->m_upper_dist_sq,
+                this->m_continuous_collision_lambda,
+                this->m_flags);
+            //tlWarning("gjk reached the maximum number of iterations.");
             return GJK_VALID;
+        }
     }
+#endif
 }
 
 // aislop used here, manual was about the same
@@ -627,30 +853,42 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
     int new_index;
 
     // Initialize continuous collision time and shift GJK origin accordingly
-    // lambda = d->m_start_time (loaded from [edi+20h])
     float lambda = d->m_start_time;
     this->m_continuous_collision_lambda = lambda;
 
-    // neg_lambda = -lambda; origin = translation * neg_lambda
     float neg_lambda = -lambda;
     this->m_gjk_origin.x = this->m_cg1_relative_translation_loc.x * neg_lambda;
     this->m_gjk_origin.y = this->m_cg1_relative_translation_loc.y * neg_lambda;
     this->m_gjk_origin.z = this->m_cg1_relative_translation_loc.z * neg_lambda;
 
-    // m_lower_dist_sq = -34.0, m_upper_dist_sq = 34.0
     this->m_lower_dist_sq = -34.0f;
     this->m_upper_dist_sq = 34.0f;
 
     // init_gjk returns nonzero if initialized successfully; stores gjk_iter
     this->m_gjk_iter = init_gjk(d, initial_support_dir, in_separation_loop);
 
+    tlWarning("gjk_ray_cast post-init: iter=%d w_set=0x%X support_dir=(%.3f,%.3f,%.3f) "
+        "origin=(%.3f,%.3f,%.3f) lambda=%.6f cg1=%s cg2=%s",
+        this->m_gjk_iter,
+        this->m_w_set,
+        this->m_support_dir.x, this->m_support_dir.y, this->m_support_dir.z,
+        this->m_gjk_origin.x, this->m_gjk_origin.y, this->m_gjk_origin.z,
+        this->m_continuous_collision_lambda,
+        GjkTypeToString(d->gjk_cg1->get_type()),
+        GjkTypeToString(d->gjk_cg2->get_type()));
+
+    // LWSS ADD
+    iassert(d->m_start_time >= 0.0f && d->m_start_time <= 1.0f);
+    iassert(d->m_end_time >= d->m_start_time && d->m_end_time <= 1.0f);
+    iassert(this->m_gjk_sep_thresh > 0.0f);
+    iassert(this->m_geom_radii_sum >= 0.0f);
+    // LWSS END
+
     // Clear flags: bits 0 (sep), 2 (converged/done?), 5 (positive-witness)
-    // ASM: and dword ptr [esi+1F8h], 0FFFFFFDAh  (~0x25)
     static_assert(0xFFFFFFDA == ~(0x1u | 0x4u | 0x20u));
     this->m_flags &= ~(0x1u | 0x4u | 0x20u);
 
     // Set/clear bit 4 (cached-support-dir) based on gjk_ci flags
-    // [edi+38h] = d->gjk_ci (pointer); [ecx+7Ch] bit 2 = cache valid
     if (d->gjk_ci && (d->gjk_ci->m_flags & 4))
         this->m_flags |= 0x10u;
     else
@@ -658,11 +896,7 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
 
     this->m_cc_reset_iter = 0;
 
-    // support_dir_moveback = max(m_geom_radii_sum, 0.051f)
-    // ASM: fld [esi+1F0h]; fcomp __real@3faa1cac (=0.051f); branch
-    float support_dir_moveback = (this->m_geom_radii_sum >= 0.051f)
-        ? this->m_geom_radii_sum
-        : 0.051f;
+    float support_dir_moveback = (this->m_geom_radii_sum >= 0.051f) ? this->m_geom_radii_sum : 0.051f;
 
     iassert(support_dir_moveback < this->m_gjk_sep_thresh);
 
@@ -677,12 +911,10 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
         while (true)
         {
             // Compute ||support_dir||^2
-            // ASM: fld [esi+1E4]; fld [esi+1E0]; ... dot product of support_dir with itself
-            float nsupport_dir_sq =
-                this->m_support_dir.x * this->m_support_dir.x +
-                this->m_support_dir.y * this->m_support_dir.y +
-                this->m_support_dir.z * this->m_support_dir.z;
-            this->m_upper_dist_sq = nsupport_dir_sq;
+            this->m_upper_dist_sq = AbsSquared(this->m_support_dir);
+
+            iassert(this->m_upper_dist_sq >= 0.0f); // LWSS ADD
+            iassert(this->m_lower_dist_sq <= (this->m_upper_dist_sq + 0.001f)); // LWSS ADD
 
             if (this->m_gjk_iter != 0)
             {
@@ -690,16 +922,14 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
                 if (this->m_flags & 0x10)
                 {
                     float sep_thresh_sq = this->m_gjk_sep_thresh * this->m_gjk_sep_thresh;
-                    if (sep_thresh_sq > nsupport_dir_sq)
+                    if (sep_thresh_sq > this->m_upper_dist_sq)
                         this->m_flags |= 1u;
                 }
 
                 // Penetration threshold check
-                // ASM: fld [esi+210h] (upper); fld [esi+20Ch] (pen_thresh_sq); fcompp; test 41h; jnz
                 if (this->m_gjk_pen_thresh_sq > this->m_upper_dist_sq)
                 {
                     // Penetrating — emit warning if in CC mode with nonzero lambda
-                    // ASM: test cl, 8; fldz; fcomp [esi+50h]; test 44h; jnp; test cl, 2; jnz
                     if ((this->m_flags & 8) &&
                         this->m_continuous_collision_lambda != 0.0f &&
                         !(this->m_flags & 2))
@@ -710,8 +940,8 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
                 }
             }
 
-            // Select new simplex slot from w_set
-            // ASM: mov eax, [esi+1FCh]; test al,1; test al,2; and/or/shr logic
+            // Use bit flags to select new simplex slot from w_set
+            // There are 4 slots 1 per vertex of the simplex
             int m_w_set = this->m_w_set;
             if (m_w_set & 1)
             {
@@ -725,42 +955,29 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
                 new_index = 0;
             }
 
-            // Support function for A (cg1): direction = -support_dir
-            // ASM: fld [esi+1E0h]; fchs; fstp [ebp-80h] etc; call [edx] (vtable)
-            phys_vec3 neg_support_dir = {
-                -this->m_support_dir.x,
-                -this->m_support_dir.y,
-                -this->m_support_dir.z
-            };
-            d->gjk_cg1->support(
-                &neg_support_dir,
-                &this->m_a_verts[new_index],
-                &this->m_a_inds[new_index]);
+            // Grab a m_a_vert[] Support Vertex from CG_1 - in the negative support direction
+            d->gjk_cg1->support(-m_support_dir, &this->m_a_verts[new_index], &this->m_a_inds[new_index]);
 
             iassert(m_a_verts[new_index].GetX() == m_a_verts[new_index].GetX()
                 && m_a_verts[new_index].GetY() == m_a_verts[new_index].GetY()
                 && m_a_verts[new_index].GetZ() == m_a_verts[new_index].GetZ());
 
             // Support function for B (cg2): rotate support_dir into cg2 frame
-            // ASM: fld [esi+4]; fmul [esi+1E4h]; fld [esi]; fmul [esi+1E0h]; faddp ... (3x rows of mat44)
             phys_vec3 dir_b;
             dir_b.x = this->cg2_to_cg1_xform.x.y * this->m_support_dir.y
-                + this->cg2_to_cg1_xform.x.x * this->m_support_dir.x
-                + this->cg2_to_cg1_xform.x.z * this->m_support_dir.z;
+                    + this->cg2_to_cg1_xform.x.x * this->m_support_dir.x
+                    + this->cg2_to_cg1_xform.x.z * this->m_support_dir.z;
             dir_b.y = this->cg2_to_cg1_xform.y.y * this->m_support_dir.y
-                + this->cg2_to_cg1_xform.y.x * this->m_support_dir.x
-                + this->cg2_to_cg1_xform.y.z * this->m_support_dir.z;
+                    + this->cg2_to_cg1_xform.y.x * this->m_support_dir.x
+                    + this->cg2_to_cg1_xform.y.z * this->m_support_dir.z;
             dir_b.z = this->cg2_to_cg1_xform.z.y * this->m_support_dir.y
-                + this->cg2_to_cg1_xform.z.x * this->m_support_dir.x
-                + this->cg2_to_cg1_xform.z.z * this->m_support_dir.z;
+                    + this->cg2_to_cg1_xform.z.x * this->m_support_dir.x
+                    + this->cg2_to_cg1_xform.z.z * this->m_support_dir.z;
 
-            d->gjk_cg2->support(
-                &dir_b,
-                &this->m_b_verts[new_index],
-                &this->m_b_inds[new_index]);
+            // Grab a m_b_vert[] Support Vertex from CG_2 - in the support direction (local to cg2)
+            d->gjk_cg2->support(dir_b, &this->m_b_verts[new_index], &this->m_b_inds[new_index]);
 
-            // Transform b_vert into cg1 space: b_world = mat44 * b_vert + translation
-            // ASM: call phys_multiply; fld [eax]; fadd [esi+30h]; fstp [ebp-50h]; ...
+            // Transform the m_b_vert[] Support vertex we just got into cg1's local space. Reassign m_b_verts[] with this converted value.
             phys_vec3 b_world;
             phys_multiply(&b_world, &this->cg2_to_cg1_xform, &this->m_b_verts[new_index]);
             this->m_b_verts[new_index].x = b_world.x + this->cg2_to_cg1_xform.w.x;
@@ -771,9 +988,7 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
                 && m_b_verts[new_index].GetY() == m_b_verts[new_index].GetY()
                 && m_b_verts[new_index].GetZ() == m_b_verts[new_index].GetZ());
 
-            // Minkowski difference w = (a_vert - b_vert) - gjk_origin
-            // ASM: fld [eax]; fsub [edi]; fstp [ebp-70h] ... then fsub [esi+90h] etc.
-        // -------- 5. Minkowski-difference vertex w = a - b - origin ----------
+            // Calculate 1 vertex of the Minkowski difference (w = a - b - origin)
             const phys_vec3 w = {
                 (m_a_verts[new_index].x - m_b_verts[new_index].x) - m_gjk_origin.x,
                 (m_a_verts[new_index].y - m_b_verts[new_index].y) - m_gjk_origin.y,
@@ -781,36 +996,26 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
             };
 
             // v_dot_w = dot(support_dir, w)
-            // ASM: fld [esi+1E4h]; fld [ebp-2Ch]; fmulp ... sum 3 components
-            float v_dot_w = this->m_support_dir.x * w.x
-                + this->m_support_dir.y * w.y
-                + this->m_support_dir.z * w.z;
+            float support_dot_w = this->m_support_dir.x * w.x
+                                + this->m_support_dir.y * w.y
+                                + this->m_support_dir.z * w.z;
 
             // Lower-bound update and separation check
-            // ASM: fldz; fld [ebp-10h] (v_dot_w); fcom st(1); test ah,41h; jnz -> skip
             float candidate = 0.0f;
-            if (v_dot_w > 0.0f)
+            if (support_dot_w > 0.0f)
             {
-                // ASM: fcom [esi+210h] (upper_dist_sq); test 5; jp -> skip
                 if (this->m_upper_dist_sq > 0.0f)
                 {
-                    // Set positive-witness flag
                     this->m_flags |= 0x20u;
-
-                    // candidate = v_dot_w^2 / upper_dist_sq
-                    candidate = (v_dot_w * v_dot_w) / this->m_upper_dist_sq;
-
-                    // ASM: fld [esi+214h]; fcomp; test 5; jp -> skip update
-                    if (this->m_lower_dist_sq < candidate)
+                    float raw_candidate = (support_dot_w * support_dot_w) / this->m_upper_dist_sq;
+                    candidate = 0.0f;  // candidate used for convergence check stays 0
+                    if (this->m_lower_dist_sq < raw_candidate)
                     {
-                        this->m_lower_dist_sq = candidate;
-
-                        // If sep flag (bit 0) set, check against sep threshold
-                        // ASM: test cl,1; jz -> skip; fld [esi+208h]; fmul st,st; ... fcompp; test 5; jp -> continue
+                        this->m_lower_dist_sq = raw_candidate;
                         if (this->m_flags & 1)
                         {
                             float thresh_sq = this->m_gjk_sep_thresh * this->m_gjk_sep_thresh;
-                            if (thresh_sq < candidate)
+                            if (thresh_sq < raw_candidate)
                                 return GJK_SEPARATED;
                         }
                     }
@@ -818,20 +1023,18 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
             }
 
             // Convergence check — only after first iteration and if lower bound didn't grow
-            // ASM: cmp [esi+204h], 0; jz -> skip; fcomp [esi+214h]; test 5; jp -> skip
             bool has_converged = false;
             //if (this->m_gjk_iter != 0 && candidate <= this->m_lower_dist_sq)
-            if (this->m_gjk_iter != 0 && v_dot_w > 0.0f && this->m_upper_dist_sq > 0.0f && candidate < this->m_lower_dist_sq)
+            //if (this->m_gjk_iter != 0 && v_dot_w > 0.0f && this->m_upper_dist_sq > 0.0f && candidate < this->m_lower_dist_sq)
+            if (this->m_gjk_iter != 0 && candidate < this->m_lower_dist_sq)
             {
                 // has_converged = (lower > (1-CONV_THRESH)^2 * upper)
-                // ASM: fld CONV_THRESH; fld1; fsubrp; fmul st,st; fmul [esi+210h]; fld [esi+214h]; fcompp; test 41h
                 float thresh = 1.0f - CONV_THRESH;
                 thresh *= thresh;
                 if (this->m_lower_dist_sq > thresh * this->m_upper_dist_sq)
                     has_converged = true;
 
                 // Degeneracy check: is w already in the simplex?
-                // ASM: fld __real@358637be (=1e-7f); xor edi,edi; loop 0..3; test [esi+200h],mask; ...
                 if (!has_converged)
                 {
                     const float epsilon_sq = 1e-7f;
@@ -853,37 +1056,24 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
             }
 
             // Conservative advancement — only if flag 4 not set and v_dot_w > 0
-            // ASM: test byte [esi+1F8h], 4; jnz loc_A0D7D0; fldz; fld [ebp-10h]; fcom; test 41h; jnz loc_A0DA96
-            if (!(this->m_flags & 4) && v_dot_w > 0.0f)
+            if (!(this->m_flags & 4) && support_dot_w > 0.0f)
             {
-                // Block check: support_dir_moveback^2 * upper_dist_sq <= v_dot_w^2
-                // ASM: fld [ebp-18h] (move); fmul st(1); ... fmul [esi+210h]; fcompp; test 41h; jp loc_A0D7D0
                 float geom_block = support_dir_moveback * support_dir_moveback;
-                if (geom_block * this->m_upper_dist_sq <= v_dot_w * v_dot_w)
+                if (geom_block * this->m_upper_dist_sq <= support_dot_w * support_dot_w)
                 {
-                    // nsupport_dir_len = sqrt(upper_dist_sq)
-                    // ASM: fld [esi+210h]; call __CIsqrt; fstp [ebp-4]
                     nsupport_dir_len = sqrtf(this->m_upper_dist_sq);
                     iassert(nsupport_dir_len > 0.0f); // "nsupport_dir > 0.0f"
 
-                    // move = -dot(cg1_relative_translation_loc, support_dir)
-                    // ASM: fld [esi+44h]; fmul [esi+1E4h]; fld [esi+40h]; fmul [esi+1E0h]; faddp;
-                    //       fld [esi+48h]; fmul [esi+1E8h]; faddp; fchs
                     move = -(this->m_cg1_relative_translation_loc.x * this->m_support_dir.x
                         + this->m_cg1_relative_translation_loc.y * this->m_support_dir.y
                         + this->m_cg1_relative_translation_loc.z * this->m_support_dir.z);
 
                     // Adjust v_dot_w by subtracting the geom radii contribution
-                    // ASM: fld [ebp-10h]; fld [ebp-4] (nsupport_dir_len); fmul [ebp-18h] (support_dir_moveback); fsubp
-                    ray_end_dist_numer = v_dot_w - nsupport_dir_len * support_dir_moveback;
+                    ray_end_dist_numer = support_dot_w - nsupport_dir_len * support_dir_moveback;
 
-                    // ASM: fld [ebp-0Ch] (move=neg dot); fcom st(1); test ah,41h; jp -> loc_A0D876 (move<=0 path)
                     if (move <= 0.0f)
                     {
                         // Objects not approaching each other
-                        // ASM: fcomp [ebp-10h]; test 5; jp -> loc_A0D7C5 (fall through)
-                        //       fld [esi+208h]; fmul st,st; fcompp; test 5; jnp -> return GJK_SEPARATED
-                        //       or dword ptr [esi+1F8h], 5
                         if (ray_end_dist_numer > 0.0f)
                         {
                             float thresh_sq = this->m_gjk_sep_thresh * this->m_gjk_sep_thresh;
@@ -896,49 +1086,25 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
                     else
                     {
                         // move > 0: objects approaching, compute new lambda candidate
-                        // ASM: loc_A0D876 falls into here after fcom check
-                        // dot_origin = dot(support_dir, gjk_origin)
-                        // ASM: fld [edx+4]; fmul [esi+94h]; fld [edx]; fmul [esi+90h]; faddp; fld [edx+8]; fmul [esi+98h]; faddp
                         float dot_origin = this->m_support_dir.x * this->m_gjk_origin.x
                             + this->m_support_dir.y * this->m_gjk_origin.y
                             + this->m_support_dir.z * this->m_gjk_origin.z;
 
-                        // new_lambda = (dot_origin + ray_end_dist_numer) / move
-                        // ASM: fld [ebp-0Ch] (dot_origin); fadd st, st(2); fdiv st, st(3)
                         float new_lambda = (dot_origin + ray_end_dist_numer) / move;
 
-                        // Check: new_lambda > continuous_collision_lambda + 0.0001f
-                        // ASM: fld [esi+50h]; fld __real@3f1a36e2... (epsilon ~0.0001f); fadd st(1),st
-                        //       fxch; fcomp st(2); test ah,5; jp -> loc_A0DA85 (lambda didn't advance)
                         if (this->m_continuous_collision_lambda + 0.0001f < new_lambda)
                         {
                             // Lambda advanced enough — check against end_time before breaking
-                            // ASM: fld [edi+24h] (d->m_end_time); fcomp st(2); test ah,5; jp -> loc_A0D92A
                             if (d->m_end_time < new_lambda)
                             {
-                                // new_lambda > end_time
-                                // Compute: ray_end_dist_numer -= move * end_time
-                                // (i.e. what remains of v_dot_w at t=end_time)
-                                // ASM: dd d9; fld [edi+24h]; fmulp st(4),st; fxch st(2); fsubrp st(3),st; faddp st(2),st
-                                //  (complex FP stack manipulation, net effect shown below)
-                                // ray_end_dist_numer was already = v_dot_w - nsupport_dir_len*geom_radii
-                                // now subtract move * end_time
-                                // ASM equivalent: ray_end_dist_numer = ray_end_dist_numer - move * d->m_end_time
-                                //   then remaining = dot_origin + ray_end_dist_numer (same numerator formula)
                                 float end_numerator = ray_end_dist_numer - move * d->m_end_time;
 
                                 // Check: sep_thresh * nsupport_dir_len >= end_numerator
-                                // ASM: fld [esi+208h]; fstp [ebp-0Ch]; fld [ebp-0Ch]; fld [esi+214h]; fmulp st(2),st;
-                                //       fxch; fstp; fld; fcompp; test 5; jnp -> return GJK_SEPARATED
                                 float sep_limit = this->m_gjk_sep_thresh * nsupport_dir_len;
 
-                                // ASM: fld [ebp-4] (new_lambda stored as lower lambda candidate);
-                                //       fcomp st(1) (end_time); test ah,5; jp -> loc_A0D939
-                                //   If sep_thresh*nsqrt >= end_numer: clamp to end_time
                                 if (sep_limit >= end_numerator)
                                 {
                                     // Clamp: use end_time as lambda, set converged+sep flags
-                                    // ASM: mov ecx, 5; fstp [ebp-10h]; fld [ebp-10h]; loc_A0D939 path
                                     lambda = d->m_end_time;
                                     this->m_flags |= 5u;
                                     // Jump to outer-loop update (break inner)
@@ -947,7 +1113,6 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
                                 else
                                 {
                                     // Ray exits before contact — separated
-                                    // ASM: loc_A0DA9D: fcompp; test 41h; jz -> loc_A0DAC9 (return 0)
                                     iassert(end_numerator > 0.0f); // "ray_end_dist_numer > 0.0f"
                                     return GJK_SEPARATED;
                                 }
@@ -993,8 +1158,16 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
             if (this->m_gjk_iter >= 30)
             {
                 //tlWarning("gjk reached the maximum number of iterations.");
-                tlWarning("gjk reached the maximum number of iterations. cg1(type:%s) - cg2(type:%s)", 
-                    GjkTypeToString(d->gjk_cg1->get_type()), GjkTypeToString(d->gjk_cg2->get_type()));
+                //tlWarning("gjk reached the maximum number of iterations. cg1(type:%s) - cg2(type:%s)", 
+                //    GjkTypeToString(d->gjk_cg1->get_type()), GjkTypeToString(d->gjk_cg2->get_type()));
+                tlWarning("gjk_ray_cast reached the maximum number of iterations. cg1=%s cg2=%s "
+                    "lower=%.6f upper=%.6f lambda=%.6f flags=0x%X",
+                    GjkTypeToString(d->gjk_cg1->get_type()),
+                    GjkTypeToString(d->gjk_cg2->get_type()),
+                    this->m_lower_dist_sq,
+                    this->m_upper_dist_sq,
+                    this->m_continuous_collision_lambda,
+                    this->m_flags);
                 return (this->m_lower_dist_sq > 0.0f) ? GJK_VALID : GJK_PENETRATING;
             }
 
@@ -1003,10 +1176,6 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
         // -----------------------------------------------------------------
         // Lambda advanced into outer loop — update state and re-init GJK
         // -----------------------------------------------------------------
-        // loc_A0D939: store new lambda, update flags, reset gjk bounds
-        // ASM: fst [esi+50h]; fchs; fstp [ebp-0Ch]; fld [esi+40h]; ... (rebuild origin)
-        // Note: The FP stack at break contains new_lambda on top.
-        // "fld st; fsub [esi+50h]; fcomp st(2); test 41h; jp -> skip; or [esi+1F8h], ecx (flag 5)"
         // This checks: new_lambda - old_lambda <= 0 (didn't really advance)
         if (lambda - this->m_continuous_collision_lambda <= 0.0001f)
             this->m_flags |= 5u;
@@ -1106,7 +1275,7 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::collide(const phys_gjk_input *d)
         gjk_sep_dir::comp_sep_dir(&support_dir, d, this);
     }
 
-    float support_dir_sq = support_dir.x * support_dir.x + support_dir.y * support_dir.y + support_dir.z * support_dir.z;
+    float support_dir_sq = AbsSquared(support_dir);
 
     if (support_dir_sq < 0.0000000099999991f)
     {
@@ -1133,14 +1302,9 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::collide(const phys_gjk_input *d)
     {
         iters++;
 
-        phys_vec3 neg_support_dir;
-        neg_support_dir.x = -support_dir.x;
-        neg_support_dir.y = -support_dir.y;
-        neg_support_dir.z = -support_dir.z;
-
         phys_vec3 a_vert;
         phys_vec3 __;
-        d->gjk_cg1->support(&neg_support_dir, &a_vert, &__);
+        d->gjk_cg1->support(-support_dir, &a_vert, &__);
         phys_vec3 b_vert;
         d->gjk_cg2->support_only(&b_vert, &this->cg2_to_cg1_xform, &support_dir);
 
@@ -1177,7 +1341,14 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::collide(const phys_gjk_input *d)
                 break;
         }
 
+        phys_vec3 backup_supp_dir = support_dir;
         phys_gjk_info::comp_v(this->m_w_set, &support_dir);
+
+        support_dir = backup_supp_dir;
+
+        phys_gjk_info::comp_v(this->m_w_set, &support_dir);
+
+        support_dir_sq = AbsSquared(support_dir);
 
         iassert(AbsSquared(support_dir) >= m_gjk_pen_thresh_sq);
 
@@ -1577,15 +1748,169 @@ const phys_vec3 *phys_gjk_geom::support_only(
     local_dir.z = xform->z.x * v->x + xform->z.y * v->y + xform->z.z * v->z;
 
     phys_vec3 support_vert;
-    phys_vec3 support_ind_unused;
-    this->support(&local_dir, &support_vert, &support_ind_unused);
+    phys_vec3 __;
+    this->support(local_dir, &support_vert, &__);
 
     phys_full_multiply((phys_vec3*)result, xform, &support_vert);
     return result;
 }
 
-void phys_gjk_info::comp_v(int w_set, phys_vec3 *v)
+void phys_gjk_info::comp_v(int w_set, phys_vec3 *v) const
 {
+#if 0
+    char w_set_; // cl
+    int list_w_vert_count; // edi
+    phys_vec3 *v7; // eax
+    phys_vec3 *v8; // eax
+    phys_vec3 *v9; // eax
+    double z; // st7
+    double v11; // st7
+    double v12; // st7
+    int side_i; // esi
+    float *v14; // edi
+    int v15; // esi
+    phys_vec3 sides[3]; // [esp-Ch] [ebp-ACh] BYREF
+    phys_vec3 list_w_vert[3]; // [esp+24h] [ebp-7Ch] BYREF
+    float ne1_sq; // [esp+60h] [ebp-40h]
+    float nnormal_sq; // [esp+64h] [ebp-3Ch]
+    float v20; // [esp+68h] [ebp-38h]
+    float v21; // [esp+6Ch] [ebp-34h] OVERLAPPED
+    float v22; // [esp+70h] [ebp-30h]
+    phys_vec3 normal; // [esp+74h] [ebp-2Ch]
+    phys_vec3 nside_sq; // [esp+84h] [ebp-1Ch] BYREF
+
+    w_set_ = w_set;
+
+    iassert(w_set > 0 && w_set < 15);
+
+    list_w_vert_count = 0;
+    if ((w_set_ & 1) != 0)
+    {
+        list_w_vert_count = 1;
+        list_w_vert[0].x = this->m_w_verts[0].x;
+        list_w_vert[0].y = this->m_w_verts[0].y;
+        list_w_vert[0].z = this->m_w_verts[0].z;
+    }
+    if ((w_set_ & 2) != 0)
+    {
+        v7 = &list_w_vert[list_w_vert_count];
+        v7->x = this->m_w_verts[1].x;
+        ++list_w_vert_count;
+        v7->y = this->m_w_verts[1].y;
+        v7->z = this->m_w_verts[1].z;
+    }
+    if ((w_set_ & 4) != 0)
+    {
+        v8 = &list_w_vert[list_w_vert_count];
+        v8->x = this->m_w_verts[2].x;
+        ++list_w_vert_count;
+        v8->y = this->m_w_verts[2].y;
+        v8->z = this->m_w_verts[2].z;
+    }
+    if ((w_set_ & 8) != 0)
+    {
+        v9 = &list_w_vert[list_w_vert_count];
+        v9->x = this->m_w_verts[3].x;
+        ++list_w_vert_count;
+        v9->y = this->m_w_verts[3].y;
+        v9->z = this->m_w_verts[3].z;
+    }
+
+    iassert(list_w_vert_count > 0 && list_w_vert_count < 4);
+
+    if (list_w_vert_count == 1)
+    {
+        v->x = list_w_vert[0].x;
+        v->y = list_w_vert[0].y;
+        v->z = list_w_vert[0].z;
+        return;
+    }
+    nside_sq.x = list_w_vert[1].x - list_w_vert[0].x;
+    nside_sq.y = list_w_vert[1].y - list_w_vert[0].y;
+    nside_sq.z = list_w_vert[1].z - list_w_vert[0].z;
+    if (list_w_vert_count != 2)
+    {
+        iassert(list_w_vert_count == 3);
+
+        nnormal_sq = list_w_vert[2].x - list_w_vert[0].x;
+        v20 = list_w_vert[2].y - list_w_vert[0].y;
+        v21 = list_w_vert[2].z - list_w_vert[0].z;
+        v11 = v21;
+        normal.x = v21 * nside_sq.y - v20 * nside_sq.z;
+        normal.y = nside_sq.z * nnormal_sq - v21 * nside_sq.x;
+        normal.z = v20 * nside_sq.x - nside_sq.y * nnormal_sq;
+        *(double *)&v21 = normal.z;
+        v22 = normal.y * normal.y + normal.x * normal.x + *(double *)&v21 * *(double *)&v21;
+        if (v22 > 0.010000001)
+        {
+            v12 = v22;
+            v22 = normal.y * list_w_vert[0].y + normal.x * list_w_vert[0].x + normal.z * list_w_vert[0].z;
+            v22 = v22 / v12;
+            normal.x = normal.x * v22;
+            normal.y = normal.y * v22;
+            normal.z = v22 * normal.z;
+            v->x = normal.x;
+            v->y = normal.y;
+            v->z = normal.z;
+            return;
+        }
+        sides[0] = nside_sq;
+        sides[1].x = list_w_vert[2].x - list_w_vert[1].x;
+        sides[1].y = list_w_vert[2].y - list_w_vert[1].y;
+        sides[1].z = list_w_vert[2].z - list_w_vert[1].z;
+        sides[2].x = -nnormal_sq;
+        sides[2].y = -v20;
+        sides[2].z = -v11;
+        nside_sq.y = nside_sq.y * nside_sq.y + nside_sq.x * nside_sq.x + nside_sq.z * nside_sq.z;
+        nside_sq.z = sides[1].y * sides[1].y + sides[1].x * sides[1].x + sides[1].z * sides[1].z;
+        nside_sq.w = sides[2].y * sides[2].y + sides[2].x * sides[2].x + sides[2].z * sides[2].z;
+        if (nside_sq.z > (double)nside_sq.y)
+        {
+            side_i = 1;
+            if (nside_sq.w <= (double)nside_sq.z)
+                goto LABEL_35;
+        }
+        else if (nside_sq.w <= (double)nside_sq.y)
+        {
+            side_i = 0;
+            goto LABEL_35;
+        }
+        side_i = 2;
+    LABEL_35:
+        v14 = &nside_sq.y + side_i;
+        if (*v14 <= 0.0 && _tlAssert("source/phys_gjk.cpp", 137, "nside_sq[side_i] > 0.0f", ""))
+            __debugbreak();
+        v15 = side_i;
+        v22 = list_w_vert[v15].y * sides[v15].y + list_w_vert[v15].x * sides[v15].x + list_w_vert[v15].z * sides[v15].z;
+        v22 = v22 / *v14;
+        normal.x = v22 * sides[v15].x;
+        normal.y = sides[v15].y * v22;
+        normal.z = v22 * sides[v15].z;
+        nside_sq.x = list_w_vert[v15].x - normal.x;
+        nside_sq.y = list_w_vert[v15].y - normal.y;
+        z = list_w_vert[v15].z;
+        goto LABEL_39;
+    }
+    ne1_sq = nside_sq.y * nside_sq.y + nside_sq.x * nside_sq.x + nside_sq.z * nside_sq.z;
+    if (ne1_sq <= 0.0)
+    {
+        if (_tlAssert("source/phys_gjk.cpp", 98, "ne1_sq > 0.0f", ""))
+            __debugbreak();
+    }
+    v22 = nside_sq.x * list_w_vert[0].x + nside_sq.y * list_w_vert[0].y + nside_sq.z * list_w_vert[0].z;
+    v22 = v22 / ne1_sq;
+    normal.x = nside_sq.x * v22;
+    normal.y = nside_sq.y * v22;
+    normal.z = nside_sq.z * v22;
+    nside_sq.x = list_w_vert[0].x - normal.x;
+    nside_sq.y = list_w_vert[0].y - normal.y;
+    z = list_w_vert[0].z;
+LABEL_39:
+    nside_sq.z = z - normal.z;
+    v->x = nside_sq.x;
+    v->y = nside_sq.y;
+    v->z = nside_sq.z;
+#else
     iassert(w_set > 0 && w_set < 15);
 
     phys_vec3 list_w_vert[3];
@@ -1687,6 +2012,7 @@ void phys_gjk_info::comp_v(int w_set, phys_vec3 *v)
     v->x = list_w_vert[0].x - e01.x * t;
     v->y = list_w_vert[0].y - e01.y * t;
     v->z = list_w_vert[0].z - e01.z * t;
+#endif
 }
 
 int phys_gjk_info::init_gjk(
@@ -1712,6 +2038,7 @@ int phys_gjk_info::init_gjk(
                 phys_full_multiply(&transformed, &this->cg2_to_cg1_xform, &this->m_b_verts[i]);
                 this->m_b_verts[i] = transformed;
             }
+
         }
     }
 
@@ -1719,12 +2046,14 @@ int phys_gjk_info::init_gjk(
     {
         this->m_w_set = phys_gjk_info::seed_simplex(vert_count);
         phys_gjk_info::comp_v(this->m_w_set, &this->m_support_dir);
+
         this->m_last_w_set = this->m_w_set;
         return 1;
     }
 
     // No cached simplex
     this->m_support_dir = *initial_support_dir;
+
     this->m_last_w_set = 0;
     this->m_w_set = 0;
     return 0;

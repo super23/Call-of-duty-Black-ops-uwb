@@ -1196,7 +1196,6 @@ void __cdecl Flame_Phys_Update_Item_Chunk(
     float v5; // [esp+8h] [ebp-54h]
     float v6; // [esp+Ch] [ebp-50h]
     flameGeneric_s **v7; // [esp+14h] [ebp-48h]
-    flameGeneric_s **v8; // [esp+1Ch] [ebp-40h]
     flameTable *vars; // [esp+34h] [ebp-28h]
     float ageScale; // [esp+38h] [ebp-24h]
     float frametime; // [esp+3Ch] [ebp-20h]
@@ -1263,16 +1262,7 @@ void __cdecl Flame_Phys_Update_Item_Chunk(
             gen->phys.newPos[2] = (float)(frametime * gen->phys.velocity[2]) + gen->phys.origin[2];
             if ( flames->m_alloc_count != 1000 )
             {
-                if ( flames->m_alloc_count < 1000 )
-                {
-                    v8 = &flames->m_slot_array[flames->m_alloc_count++];
-                    v7 = v8;
-                }
-                else
-                {
-                    tlFatal("phys array add overflow.");
-                    v7 = 0;
-                }
+                v7 = flames->add(0, "phys array add overflow.");
                 *v7 = gen;
             }
         }
@@ -1419,7 +1409,6 @@ void __cdecl Flame_Phys_Update_Item_Drip(
     float v3; // [esp+0h] [ebp-48h]
     float v4; // [esp+4h] [ebp-44h]
     flameGeneric_s **v5; // [esp+Ch] [ebp-3Ch]
-    flameGeneric_s **v6; // [esp+14h] [ebp-34h]
     flameTable *vars; // [esp+28h] [ebp-20h]
     float frametime; // [esp+2Ch] [ebp-1Ch]
     float sizeAdd; // [esp+30h] [ebp-18h]
@@ -1477,16 +1466,7 @@ void __cdecl Flame_Phys_Update_Item_Drip(
             gen->phys.newPos[2] = (float)(frametime * gen->phys.velocity[2]) + gen->phys.origin[2];
             if ( flames->m_alloc_count != 1000 )
             {
-                if ( flames->m_alloc_count < 1000 )
-                {
-                    v6 = &flames->m_slot_array[flames->m_alloc_count++];
-                    v5 = v6;
-                }
-                else
-                {
-                    tlFatal("phys array add overflow.");
-                    v5 = 0;
-                }
+                v5 = flames->add(0, "phys array add overflow.");
                 *v5 = gen;
             }
         }

@@ -1118,6 +1118,7 @@
     <ClCompile Include="src\physics\phys_collision_multithreaded.cpp" />
     <ClCompile Include="src\physics\phys_constraint_solver_multithreaded.cpp" />
     <ClCompile Include="src\physics\phys_contact_manifold.cpp" />
+    <ClCompile Include="src\physics\phys_convex_hull.cpp" />
     <ClCompile Include="src\physics\phys_effects.cpp" />
     <ClCompile Include="src\physics\phys_gjk.cpp" />
     <ClCompile Include="src\physics\phys_gjk_collision_detection.cpp" />
@@ -1907,6 +1908,7 @@
     <ClInclude Include="src\physics\phys_collision_multithreaded.h" />
     <ClInclude Include="src\physics\phys_constraint_solver_multithreaded.h" />
     <ClInclude Include="src\physics\phys_contact_manifold.h" />
+    <ClInclude Include="src\physics\phys_convex_hull.h" />
     <ClInclude Include="src\physics\phys_effects.h" />
     <ClInclude Include="src\physics\phys_gjk.h" />
     <ClInclude Include="src\physics\phys_gjk_collision_detection.h" />

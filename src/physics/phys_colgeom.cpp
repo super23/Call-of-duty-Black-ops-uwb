@@ -69,6 +69,7 @@ unsigned int gjk_base_t::get_geom_id() const
 const phys_mat44 *__thiscall gjk_base_t::get_xform()
 {
     iassert(get_flag(FLAG_XFORM_VALID));
+    assert_mat44_initialized(*this->m_xform_);
     return this->m_xform_;
 }
 
@@ -97,6 +98,8 @@ void gjk_base_t::set_geom_id_new(unsigned int geom_id)
 void gjk_base_t::set_xform(const phys_mat44 *xform)
 {
     iassert(xform);
+
+    assert_mat44_initialized(*xform);
 
     this->m_flags |= FLAG_XFORM_VALID;
     this->m_xform_ = xform;
@@ -179,21 +182,21 @@ unsigned int gjk_unique_id_database_t::get_unique_id()
 }
 
 void gjk_aabb_t::support(
-                const phys_vec3 *v,
+                const phys_vec3 &dir,
                 phys_vec3 *support_vert,
                 phys_vec3 *support_ind) const
 {
-    if ( v->z >= 0.0 )
+    if ( dir.z >= 0.0 )
         support_ind->z = 1.0f;
     else
         support_ind->z = -1.0f;
 
-    if ( v->y >= 0.0 )
+    if ( dir.y >= 0.0 )
         support_ind->y = 1.0f;
     else
         support_ind->y = -1.0f;
 
-    if ( v->x >= 0.0 )
+    if ( dir.x >= 0.0 )
         support_ind->x = 1.0f;
     else
         support_ind->x = -1.0f;
@@ -308,6 +311,7 @@ void gjk_aabb_t::calc_aabb(
                 phys_vec3 *aabb_min,
                 phys_vec3 *aabb_max) const
 {
+    assert_mat44_initialized(*xform);
     phys_calc_world_aabb(&this->m_center_local, &this->m_dims, xform, aabb_min, aabb_max);
 }
 
@@ -364,20 +368,22 @@ gjk_obb_t *__cdecl gjk_obb_t::create(
     //phys_mat44::operator=(&obj->m_xform, xform);
     obj->m_xform = *xform;
 
+    assert_mat44_initialized(*xform);
+
     iassert(stype < SURF_TYPECOUNT);
     obj->stype = stype;
     return obj;
 }
 
 void gjk_obb_t::support(
-                const phys_vec3 *v,
+                const phys_vec3 &dir,
                 phys_vec3 *support_vert,
                 phys_vec3 *support_ind) const
 {
     phys_vec3 v7; // [esp-4Ch] [ebp-6Ch] BYREF
     phys_vec3 local_v; // [esp-Ch] [ebp-2Ch] BYREF
     
-    phys_inv_multiply(&local_v, &m_xform, v);
+    phys_inv_multiply(&local_v, &m_xform, &dir);
     if (local_v.z >= 0.0)
         support_ind->z = 1.0f;
     else
@@ -480,11 +486,12 @@ void gjk_obb_t::calc_aabb(
 {
     phys_vec3 v5; // [esp-30h] [ebp-BCh] BYREF
     const phys_vec3 *p_sign; // [esp-Ch] [ebp-98h]
-    const phys_mat44 *v11; // [esp-8h] [ebp-94h]
     const phys_vec3 *v12; // [esp-4h] [ebp-90h]
     phys_vec3 i; // [esp+0h] [ebp-8Ch] BYREF
     phys_vec3 v14; // [esp+10h] [ebp-7Ch] BYREF
     phys_mat44 mat; // [esp+30h] [ebp-5Ch] BYREF
+
+    assert_mat44_initialized(*xform);
 
     phys_full_multiply_mat(&mat, xform, &this->m_xform);
     v14.x = this->m_dims.x * g_phys_vec3_box_sgn[0].x;
@@ -613,12 +620,12 @@ gjk_brush_t * gjk_brush_t::create(
 }
 
 void gjk_brush_t::support(
-                const phys_vec3 *v,
+                const phys_vec3 &dir,
                 phys_vec3 *support_vert,
                 phys_vec3 *support_ind) const
 {
     float vec3_v[3]; // [esp+18h] [ebp-10h] BYREF
-    Phys_NitrousVecToVec3(v, vec3_v);
+    Phys_NitrousVecToVec3(&dir, vec3_v);
 
     int best_i = 0;
     float best_d = Vec3Dot(this->verts[0], vec3_v);
@@ -759,21 +766,21 @@ gjk_partition_t *__cdecl gjk_partition_t::create(const CollisionAabbTree *tree, 
 }
 
 void gjk_partition_t::support(
-                const phys_vec3 *v,
+                const phys_vec3 &dir,
                 phys_vec3 *support_vert,
                 phys_vec3 *support_ind) const
 {
     int best_i; // [esp+14h] [ebp-14h]
-    float vec3_v[3]; // [esp+18h] [ebp-10h] BYREF
+    float dir_v[3]; // [esp+18h] [ebp-10h] BYREF
     float best_d; // [esp+24h] [ebp-4h]
 
-    Phys_NitrousVecToVec3(v, vec3_v);
+    Phys_NitrousVecToVec3(&dir, dir_v);
     best_i = 0;
-    best_d = Vec3Dot(this->verts[this->inds[0]], vec3_v);
+    best_d = Vec3Dot(this->verts[this->inds[0]], dir_v);
 
     for ( int i = 1; i < this->ninds; ++i )
     {
-        float dot = Vec3Dot(this->verts[this->inds[i]], vec3_v);
+        float dot = Vec3Dot(this->verts[this->inds[i]], dir_v);
         if ( dot > best_d )
         {
             best_i = i;
@@ -874,7 +881,7 @@ void __cdecl gjk_partition_t::destroy(gjk_partition_t *geom)
 }
 
 void gjk_double_sphere_t::support(
-                const phys_vec3 *v,
+                const phys_vec3 &dir,
                 phys_vec3 *support_vert,
                 phys_vec3 *support_ind) const
 {
@@ -893,19 +900,20 @@ void gjk_double_sphere_t::support(
     }
     else
     {
-        nv = Abs(&v->x);
+        nv = Abs(dir);
         if ( nv <= 0.000001
             && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_colgeom.h", 449, 0, "%s", "nv > 0.000001f") )
         {
             __debugbreak();
         }
         v7 = this->m_list_radius[1];
-        v4 = this->m_list_center[1].x + (float)(v7 * (float)((float)(1.0 / nv) * v->x));
-        v5 = this->m_list_center[1].y + (float)(v7 * (float)((float)(1.0 / nv) * v->y));
-        v6 = this->m_list_center[1].z + (float)(v7 * (float)((float)(1.0 / nv) * v->z));
-        if ( (float)((float)((float)(v->x * (float)(this->m_list_center[0].x - v4))
-                                             + (float)(v->y * (float)(this->m_list_center[0].y - v5)))
-                             + (float)(v->z * (float)(this->m_list_center[0].z - v6))) < 0.0 )
+        v4 = this->m_list_center[1].x + (float)(v7 * (float)((float)(1.0 / nv) * dir.x));
+        v5 = this->m_list_center[1].y + (float)(v7 * (float)((float)(1.0 / nv) * dir.y));
+        v6 = this->m_list_center[1].z + (float)(v7 * (float)((float)(1.0 / nv) * dir.z));
+
+        if ( (float)((float)((float)(dir.x * (float)(this->m_list_center[0].x - v4))
+                                             + (float)(dir.y * (float)(this->m_list_center[0].y - v5)))
+                             + (float)(dir.z * (float)(this->m_list_center[0].z - v6))) < 0.0 )
         {
             support_vert->x = v4;
             support_vert->y = v5;
@@ -1226,13 +1234,15 @@ gjk_cylinder_t *__cdecl gjk_cylinder_t::create(
     //phys_mat44::operator=(&obj->xform, _xform);
     obj->xform = *_xform;
 
+    assert_mat44_initialized(*_xform);
+
     iassert(stype < SURF_TYPECOUNT);
     obj->stype = stype;
     return obj;
 }
 
 void gjk_cylinder_t::support(
-                const phys_vec3 *v,
+                const phys_vec3 &dir,
                 phys_vec3 *support_vert,
                 phys_vec3 *support_ind) const
 {
@@ -1245,41 +1255,41 @@ void gjk_cylinder_t::support(
     float v16; // [esp-Ch] [ebp-3Ch]
     float v18; // [esp-4h] [ebp-34h]
     int len; // [esp+0h] [ebp-30h]
-    phys_vec3 v_local; // [esp+4h] [ebp-2Ch] OVERLAPPED BYREF
+    phys_vec3 dir_local; // [esp+4h] [ebp-2Ch] OVERLAPPED BYREF
 
-    phys_inv_multiply(&v_local, &this->xform, v);
+    phys_inv_multiply(&dir_local, &this->xform, &dir);
     
-    v18 = v_local[this->direction];
-    v_local[this->direction] = 0.0f;
+    v18 = dir_local[this->direction];
+    dir_local[this->direction] = 0.0f;
 
-    v16 = Abs(&v_local.x);
+    v16 = Abs(&dir_local.x);
     if (v16 <= 0.001)
     {
-        v_local.x = PHYS_ZERO_VEC.x;
-        v_local.y = PHYS_ZERO_VEC.y;
-        v_local.z = PHYS_ZERO_VEC.z;
+        dir_local.x = PHYS_ZERO_VEC.x;
+        dir_local.y = PHYS_ZERO_VEC.y;
+        dir_local.z = PHYS_ZERO_VEC.z;
     }
     else
     {
-        v_local.x = v_local.x * (float)(1.0 / v16);
-        v_local.y = v_local.y * (float)(1.0 / v16);
-        v_local.z = v_local.z * (float)(1.0 / v16);
+        dir_local.x = dir_local.x * (float)(1.0 / v16);
+        dir_local.y = dir_local.y * (float)(1.0 / v16);
+        dir_local.z = dir_local.z * (float)(1.0 / v16);
     }
 
     if (v18 < 0.0)
-        v_local[this->direction] = -1.0f;
+        dir_local[this->direction] = -1.0f;
     else
-        v_local[this->direction] = 1.0f;
+        dir_local[this->direction] = 1.0f;
 
-    support_ind->x = v_local.x;
-    support_ind->y = v_local.y;
-    support_ind->z = v_local.z;
+    support_ind->x = dir_local.x;
+    support_ind->y = dir_local.y;
+    support_ind->z = dir_local.z;
 
     dims = this->get_dims(&v12);
 
-    v7.x = v_local.x * dims->x;
-    v7.y = v_local.y * dims->y;
-    v7.z = v_local.z * dims->z;
+    v7.x = dir_local.x * dims->x;
+    v7.y = dir_local.y * dims->y;
+    v7.z = dir_local.z * dims->z;
 
     //v5 = phys_full_multiply((int)v22, &v6, &v21->xform, &v7);
     v5 = phys_full_multiply(&v6, &this->xform, &v7);
@@ -1870,6 +1880,8 @@ gjk_cylinder_t * create_cylinder_gjk_geom(
     xform.w.y = trans_v.y;
     xform.w.z = trans_v.z;
 
+    assert_mat44_initialized(xform);
+
     return gjk_cylinder_t::create(0, halfHeight, radius, &xform, stype, allocator);
 }
 
@@ -2048,6 +2060,11 @@ void __cdecl create_xmodel_gjk_geom(
     PhysGeomList *geomList; // [esp+F4h] [ebp-8h]
     unsigned int geomIndex; // [esp+F8h] [ebp-4h]
     int savedregs; // [esp+FCh] [ebp+0h] BYREF
+
+    if (worldMat)
+    {
+        assert_mat44_initialized(*worldMat);
+    }
 
     if ( !allocator
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_colgeom.cpp", 562, 0, "%s", "allocator") )
@@ -2521,7 +2538,7 @@ gjk_polygon_cylinder_t::poly_verts::poly_verts()
     }
 }
 
-void gjk_polygon_cylinder_t::support(const phys_vec3 *v, phys_vec3 *support_vert, phys_vec3 *support_ind) const
+void gjk_polygon_cylinder_t::support(const phys_vec3 &dir, phys_vec3 *support_vert, phys_vec3 *support_ind) const
 {
     if (this->m_mode)
     {
@@ -2538,7 +2555,7 @@ void gjk_polygon_cylinder_t::support(const phys_vec3 *v, phys_vec3 *support_vert
         pt2[1] = m_center.y - 0.0;
         pt2[2] = m_center.z - capradius;
 
-        if (((((p1[0] - pt2[0]) * v->x) + ((p1[1] - pt2[1]) * v->y)) + ((p1[2] - pt2[2]) * v->z)) < 0.0)
+        if (((((p1[0] - pt2[0]) * dir.x) + ((p1[1] - pt2[1]) * dir.y)) + ((p1[2] - pt2[2]) * dir.z)) < 0.0)
         {
             LODWORD(support_ind->x) = 1;
             support_vert->x = pt2[0];
@@ -2558,8 +2575,8 @@ void gjk_polygon_cylinder_t::support(const phys_vec3 *v, phys_vec3 *support_vert
         float foot_or_head_z;
         float height; // [esp+F4h] [ebp-1Ch]
         int foot_or_head_ind; // [esp+ECh] [ebp-24h]
-        int best_i = gjk_polygon_cylinder_t::s_poly_verts.support(v);
-        if (v->z < 0.0)
+        int best_i = gjk_polygon_cylinder_t::s_poly_verts.support(&dir);
+        if (dir.z < 0.0)
         {
             LODWORD(support_ind->x) = best_i + 12;
             height = -this->m_half_height + this->m_foot_offset;
@@ -2588,9 +2605,9 @@ void gjk_polygon_cylinder_t::support(const phys_vec3 *v, phys_vec3 *support_vert
         foot_or_head[1] = this->m_center.y + 0.0;
         foot_or_head[2] = foot_or_head_z + this->m_center.z;
 
-        if (((((point[0] - foot_or_head[0]) * v->x) 
-            + ((point[1] - foot_or_head[1]) * v->y)) 
-            + ((point[2] - foot_or_head[2]) * v->z)) < 0.0)
+        if (((((point[0] - foot_or_head[0]) * dir.x) 
+            + ((point[1] - foot_or_head[1]) * dir.y)) 
+            + ((point[2] - foot_or_head[2]) * dir.z)) < 0.0)
         {
             LODWORD(support_ind->x) = foot_or_head_ind;
             support_vert->x = foot_or_head[0];
@@ -2795,6 +2812,9 @@ void gjk_polygon_cylinder_t::calc_aabb(
     //
     //v42 = a2;
     //xforma = aabb_maxa;
+
+    assert_mat44_initialized(*xform);
+
     thisa = this;
     calc_disc_aabb(&xform->z, this->m_polygon_cylinder_radius, aabb_min, aabb_max);
     p_z = &xform->z;

@@ -12,11 +12,6 @@
 #include "bg_jump.h"
 #include <qcommon/cm_load.h>
 
-bool CrazyFloat(float f) // lwss add
-{
-    return !(f < 50000.0f && f > -50000.0f);
-}
-
 bool do_push; // this supposed to have a value? (KISAKTODO)
 bool do_step_down = true;
 float WALKABLE_DIST_THRESH = 0.1f;
@@ -1908,7 +1903,6 @@ void    gjk_sentient_push(
     gjk_geom_info_t *v63; // [esp-196Ch] [ebp-1978h]
     gjk_geom_info_t *m_first; // [esp-1968h] [ebp-1974h]
     char v65; // [esp-1961h] [ebp-196Dh]
-    phys_static_array<geom_plane,128> v66; // [esp-1960h] [ebp-196Ch] BYREF
     gjk_trace_input_t v67; // [esp-150h] [ebp-15Ch] BYREF
     phys_vec3 v68; // [esp-A0h] [ebp-ACh] BYREF
     float v69; // [esp-90h] [ebp-9Ch]
@@ -1988,8 +1982,10 @@ void    gjk_sentient_push(
     gjk_query_cached(v67.m_query_input, v67.m_query_output);
     //gjk_query_output::query_epilog(v67.m_query_output);
     v67.m_query_output->query_epilog();
-    v66.m_slot_array = (geom_plane *const)&v66;
-    v66.m_alloc_count = 0;
+
+    phys_static_array<geom_plane, 128> v66; // [esp-1960h] [ebp-196Ch] BYREF
+    //v66.m_slot_array = (geom_plane *const)&v66;
+    //v66.m_alloc_count = 0;
     v65 = 0;
     m_first = v67.m_query_output->m_list_geom_info.m_first;
     v63 = m_first;
@@ -2111,8 +2107,6 @@ void    gjk_sentient_push(
         project(&v27, &v66, &v27);
         Phys_NitrousVecToVec3(&v27, pm->ps->velocity);
     }
-    for ( i = 0; i < v66.m_alloc_count; ++i )
-        ;
 }
 
 bool render_bounding_box = true;
@@ -2338,17 +2332,16 @@ void __thiscall phys_gjk_geom::set_simplex(
                 const phys_vec3 *normal,
                 cached_simplex_info *cache_info) const
 {
-    const phys_vec3 *v5; // [esp+4h] [ebp-Ch]
-
+    int outIdx = 0;
     for ( int i = 0; i < 4; ++i )
     {
         if ( (w_set & (1 << i)) != 0 )
         {
-            v5 = &simplex_inds[i];
-            cache_info->m_indices[0].x = v5->x;
-            cache_info->m_indices[0].y = v5->y;
-            cache_info->m_indices[0].z = v5->z;
-            cache_info = (cached_simplex_info *)((char *)cache_info + 16);
+            cache_info->m_indices[outIdx].x = simplex_inds[i].x;
+            cache_info->m_indices[outIdx].y = simplex_inds[i].y;
+            cache_info->m_indices[outIdx].z = simplex_inds[i].z;
+            outIdx++;
+            //cache_info = (cached_simplex_info *)((char *)cache_info + 16);
         }
     }
 }

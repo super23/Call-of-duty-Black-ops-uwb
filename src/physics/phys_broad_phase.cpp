@@ -807,7 +807,7 @@ void calc_largest_vel_sq(broad_phase_info *bpi)
             phys_inv_multiply(&perp_local, bpi->m_cg_to_world_xform, &perp);
 
             phys_vec3 support_local, support_unused;
-            bpi->m_gjk_geom->support(&perp_local, &support_local, &support_unused);
+            bpi->m_gjk_geom->support(perp_local, &support_local, &support_unused);
 
             phys_vec3 support_world;
             phys_full_multiply(&support_world, bpi->m_cg_to_world_xform, &support_local);

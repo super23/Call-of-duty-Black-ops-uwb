@@ -1,6 +1,7 @@
 #include "r_debug.h"
 #include <win32/win_common.h>
 #include "r_debug_alloc.h"
+#include <physics/phys_convex_hull.h>
 
 PolySet persistentPolySet;
 DebugGlobals debugGlobals;

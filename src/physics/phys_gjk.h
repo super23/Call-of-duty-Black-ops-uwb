@@ -1044,7 +1044,10 @@ struct phys_gjk_info // sizeof=0x3A0
         int m_candidate;
     };
 
-    phys_gjk_info() = default;
+    phys_gjk_info()
+    {
+        memset(this, 0, sizeof(*this)); // LWSS ADD
+    }
 
     gjk_retval_e gjk(const phys_gjk_input *d, const phys_vec3 *initial_support_dir, bool in_separation_loop);
 
@@ -1063,7 +1066,7 @@ struct phys_gjk_info // sizeof=0x3A0
     void gjk_cache_update_test_only_valid(const phys_gjk_input *d);
     void gjk_cache_update_colliding(const phys_gjk_input *d);
     void gjk_cache_update_test_only_penetrating(const phys_gjk_input *d);
-    void comp_v(int w_set, phys_vec3 *v);
+    void comp_v(int w_set, phys_vec3 *v) const;
     int init_gjk(
         const phys_gjk_input *d,
         const phys_vec3 *initial_support_dir,
@@ -1102,7 +1105,7 @@ struct phys_gjk_info // sizeof=0x3A0
     float m_gjk_pen_thresh_sq;
     float m_upper_dist_sq;
     float m_lower_dist_sq;
-    float m_dot_ij[4][4];
+    float m_dot_ij[4][4]; // unused
     phys_gjk_info::phys_gjk_set_info m_set_list[16];
     // padding byte
     // padding byte
