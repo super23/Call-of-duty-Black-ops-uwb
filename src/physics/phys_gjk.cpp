@@ -38,7 +38,7 @@ int    backup1(phys_gjk_info *gjk_info, int new_index, bool seed_simplex)
     // Per-vertex data accumulated during phase 1, used in phase 2
     int   w_inds[4] = {};   // index of each existing vert
     float ndifs_sq[4] = {};   // squared length of edge vector (w_i - new_vert)
-    float dotps[4] = {};   // dot(w_i - new_vert, w_i)  (projected distance helper)
+    float dotps[4] = {};   // dot(edge, new_vert) where edge = w_i - new_vert (used for barycentric projection)
 
     // Parallel arrays of (w_i - new_vert) direction vectors, one per existing vert
     phys_vec3 difs[4] = {};
@@ -58,23 +58,21 @@ int    backup1(phys_gjk_info *gjk_info, int new_index, bool seed_simplex)
         edge.z = wi->z - new_vert->z;
 
         float edge_sq = edge.x * edge.x + edge.y * edge.y + edge.z * edge.z;
-        // dot(edge, w_i) — used for barycentric projection onto the edge
-        float dot_edge_wi = edge.x * wi->x + edge.y * wi->y + edge.z * wi->z;
+        // dot(edge, new_vert) - used for barycentric projection of origin onto the edge
+        float dot_edge_new_vert = edge.x * new_vert->x + edge.y * new_vert->y + edge.z * new_vert->z;
 
         // Store for phase 2
         w_inds[w_count] = i;
         ndifs_sq[w_count] = edge_sq;
-        dotps[w_count] = dot_edge_wi;
+        dotps[w_count] = dot_edge_new_vert;
         difs[w_count] = edge;
 
         // Test the line segment [new_vert, w_i]:
-        // Find t = -dot(new_vert, edge) / |edge|^2, clamped to (0,1)
+        // closest point P(t) = new_vert + t*edge, perpendicular to edge gives
+        //   t = -dot(edge, new_vert) / |edge|^2
         if (edge_sq > 1e-10f)
         {
-            // dot(new_vert, edge)  =  dot_edge_wi - |new_vert|^2  ... but the
-            // compiler computed it as:  t = -dot_edge_wi / edge_sq
-            // which corresponds to the standard GJK edge projection formula.
-            float t = -dot_edge_wi / edge_sq;
+            float t = -dot_edge_new_vert / edge_sq;
             float one_minus_t = 1.0f - t;
 
             if (t > 0.0f && one_minus_t > 0.0f)
@@ -163,7 +161,6 @@ int    backup1(phys_gjk_info *gjk_info, int new_index, bool seed_simplex)
     // -----------------------------------------------------------------------
     // Phase 2: Test triangles formed by pairs of existing verts + new_index
     // -----------------------------------------------------------------------
-    float triangle_dist_sq = 0.0f; // best distance found in triangle tests
 
     if (w_count - 1 > 0)
     {
@@ -174,7 +171,7 @@ int    backup1(phys_gjk_info *gjk_info, int new_index, bool seed_simplex)
         {
             int   idx_a = w_inds[a];
             float a_sq = ndifs_sq[a];   // |dif_a|^2
-            float neg_dp_a = -dotps[a];     // -dot(dif_a, w_a)
+            float neg_dp_a = -dotps[a];     // -dot(dif_a, new_vert)
 
             for (int b = a + 1; b < w_count; ++b)
             {
@@ -234,8 +231,6 @@ int    backup1(phys_gjk_info *gjk_info, int new_index, bool seed_simplex)
                             s->m_lamda[idx_a] = lambda_a;
                             s->m_lamda[idx_b] = lambda_b;
                             s->m_lamda[new_index] = lambda_new;
-
-                            triangle_dist_sq = dist_sq;
                         }
                     }
                 }
@@ -244,65 +239,29 @@ int    backup1(phys_gjk_info *gjk_info, int new_index, bool seed_simplex)
     }
 
     // -----------------------------------------------------------------------
-    // Phase 3: If we have a full tetrahedron (3 existing + new_index),
-    // test whether the origin is inside it.  Only entered when w_count == 3
-    // and the triangle phase found a candidate that beats the lower bound.
+    // Phase 3: Tetrahedron-contains-origin test.
+    //
+    // Per ASM analysis at 0xa0caad-0xa0cae9, the binary computes the cross
+    // product of (new_vert, difs[2]) using actual difs[2] components from
+    // memory ([-C0h, -BCh, -B8h] = difs[2].x/.y/.z), NOT difs[1] as the AI
+    // rewrite originally used. The lambda_a sign convention also doesn't
+    // line up with a clean Cramer's-rule barycentric test - the binary's
+    // `lambda_a < 0` check actually rejects cases where origin would be
+    // inside (per derivation: binary's lambda_a == -lambda_1, so lambda_a<0
+    // means lambda_1>0, i.e. origin IS in the V_1 direction).
+    //
+    // Net effect: in the binary, Phase 3 almost never returns 15, even when
+    // origin is genuinely inside the tetrahedron. Penetration is detected
+    // instead through the m_gjk_pen_thresh_sq > m_upper_dist_sq guard in
+    // gjk()/gjk_ray_cast() once comp_v drives the search direction small
+    // enough. So Phase 3's "return 15" is effectively dead code, and the
+    // AI rewrite's version of it was hitting false positives that triggered
+    // the "m_continuous_collision_lambda problem" warning and stuck CC.
+    //
+    // We intentionally skip the entire tetrahedron test - matching the
+    // binary's effective behavior without inheriting its sign-convention
+    // landmines.
     // -----------------------------------------------------------------------
-    if (w_count == 3 && triangle_dist_sq >= gjk_info->m_lower_dist_sq)
-    {
-        // difs[0], difs[1], difs[2] are the three edge vectors (w_i - new_vert).
-        // Compute the normal of the face opposite new_vert (cross(dif[0], dif[1]))
-        phys_vec3 face_normal;
-        face_normal.x = difs[0].y * difs[1].z - difs[0].z * difs[1].y;
-        face_normal.y = difs[0].z * difs[1].x - difs[0].x * difs[1].z;
-        face_normal.z = difs[0].x * difs[1].y - difs[0].y * difs[1].x;
-
-        // Signed volume denominator: dot(face_normal, difs[2])
-        float denom = face_normal.x * difs[2].x
-            + face_normal.y * difs[2].y
-            + face_normal.z * difs[2].z;
-
-        float abs_denom = fabsf(denom);
-        if (abs_denom <= 1e-5f)
-            return best_set;
-
-        // Barycentric coord for new_vert:
-        // lambda_new = dot(face_normal, new_vert) / denom
-        float lambda_new_num = face_normal.x * new_vert->x
-            + face_normal.y * new_vert->y
-            + face_normal.z * new_vert->z;
-        float lambda_new = -lambda_new_num / denom;
-        if (lambda_new < 0.0f)
-            return best_set;
-
-        // Compute the normal of the face formed by new_vert and difs[1]
-        // (i.e. cross(new_vert, difs[1]))
-        phys_vec3 cross_nv_d1;
-        cross_nv_d1.x = new_vert->y * difs[1].z - difs[1].y * new_vert->z;
-        cross_nv_d1.y = difs[1].x * new_vert->z - new_vert->x * difs[1].z;
-        cross_nv_d1.z = difs[1].y * new_vert->x - new_vert->y * difs[1].x; // note: typo in orig — difs[1].y used
-
-        // lambda_a = dot(difs[0], cross_nv_d1) / denom
-        float lambda_a = (difs[0].x * cross_nv_d1.x
-            + difs[0].y * cross_nv_d1.y
-            + difs[0].z * cross_nv_d1.z) / denom;
-        if (lambda_a < 0.0f)
-            return best_set;
-
-        // lambda_b = -dot(difs[2], cross_nv_d1) / denom
-        float lambda_b_num = cross_nv_d1.x * difs[2].x
-            + cross_nv_d1.y * difs[2].y
-            + cross_nv_d1.z * difs[2].z;
-
-        float lambda_b = -lambda_b_num / denom;
-        if (lambda_b < 0.0f)
-            return best_set;
-
-        // lambda_c = 1 - lambda_new - lambda_a - lambda_b
-        float lambda_c = 1.0f - lambda_new - lambda_a - lambda_b;
-        if (lambda_c >= 0.0f)
-            return 15; // full tetrahedron set: all 4 bits set => origin is inside
-    }
 
     return best_set;
 }
@@ -891,7 +850,7 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
     iassert(support_dir_moveback < this->m_gjk_sep_thresh);
 
     // =========================================================
-    // Outer loop: conservative advancement — advances lambda
+    // Outer loop: conservative advancement â€” advances lambda
     // =========================================================
     while (true)
     {
@@ -919,7 +878,7 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
                 // Penetration threshold check
                 if (this->m_gjk_pen_thresh_sq > this->m_upper_dist_sq)
                 {
-                    // Penetrating — emit warning if in CC mode with nonzero lambda
+                    // Penetrating â€” emit warning if in CC mode with nonzero lambda
                     if ((this->m_flags & 8) &&
                         this->m_continuous_collision_lambda != 0.0f &&
                         !(this->m_flags & 2))
@@ -1012,7 +971,7 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
                 }
             }
 
-            // Convergence check — only after first iteration and if lower bound didn't grow
+            // Convergence check â€” only after first iteration and if lower bound didn't grow
             bool has_converged = false;
             //if (this->m_gjk_iter != 0 && candidate <= this->m_lower_dist_sq)
             //if (this->m_gjk_iter != 0 && v_dot_w > 0.0f && this->m_upper_dist_sq > 0.0f && candidate < this->m_lower_dist_sq)
@@ -1045,7 +1004,7 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
                 }
             }
 
-            // Conservative advancement — only if flag 4 not set and v_dot_w > 0
+            // Conservative advancement â€” only if flag 4 not set and v_dot_w > 0
             if (!(this->m_flags & 4) && support_dot_w > 0.0f)
             {
                 float geom_block = support_dir_moveback * support_dir_moveback;
@@ -1084,7 +1043,7 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
 
                         if (this->m_continuous_collision_lambda + 0.0001f < new_lambda)
                         {
-                            // Lambda advanced enough — check against end_time before breaking
+                            // Lambda advanced enough â€” check against end_time before breaking
                             if (d->m_end_time < new_lambda)
                             {
                                 //float end_numerator = ray_end_dist_numer - move * d->m_end_time;
@@ -1103,7 +1062,7 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
                                 }
                                 else
                                 {
-                                    // Ray exits before contact — separated
+                                    // Ray exits before contact â€” separated
                                     iassert(end_numerator > 0.0f); // "ray_end_dist_numer > 0.0f"
                                     return GJK_SEPARATED;
                                 }
@@ -1137,7 +1096,7 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
 
             if (m_w_set == 0xF)
             {
-                // Full simplex — origin enclosed, penetrating
+                // Full simplex â€” origin enclosed, penetrating
                 if ((this->m_flags & 8) && this->m_continuous_collision_lambda != 0.0f)
                     tlWarning("m_continuous_collision_lambda problem");
                 return GJK_PENETRATING;
@@ -1165,7 +1124,7 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
         } // end inner GJK loop
 
         // -----------------------------------------------------------------
-        // Lambda advanced into outer loop — update state and re-init GJK
+        // Lambda advanced into outer loop â€” update state and re-init GJK
         // -----------------------------------------------------------------
         // This checks: new_lambda - old_lambda <= 0 (didn't really advance)
         if (lambda - this->m_continuous_collision_lambda <= 0.0001f)
@@ -1276,7 +1235,7 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::collide(const phys_gjk_input *d)
 
         if (init_sq < 0.0000000099999991f)
         {
-            // Both degenerate — fatal
+            // Both degenerate â€” fatal
             iassert(0); // "initial support dir invalid." line 0x820
             return GJK_INVALID;
         }
