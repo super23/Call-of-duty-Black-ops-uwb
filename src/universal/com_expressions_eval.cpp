@@ -8269,6 +8269,7 @@ void __cdecl IsProfileSignedIn(int localClientNum, itemDef_s *item, OperandStack
 
 void __cdecl IsSignedIn(int localClientNum, itemDef_s *item, OperandStack *dataStack)
 {
+#ifdef KISAK_LIVE
     int ControllerIndex; // eax
     Operand result; // [esp+0h] [ebp-8h] BYREF
 
@@ -8278,10 +8279,22 @@ void __cdecl IsSignedIn(int localClientNum, itemDef_s *item, OperandStack *dataS
     if ( uiscript_debug && uiscript_debug->current.integer )
         Expression_TraceInternal("IsSignedIn() = %i\n", result.internals.intVal);
     AddOperandToStack(dataStack, &result);
+#else
+    int ControllerIndex; // eax
+    Operand result; // [esp+0h] [ebp-8h] BYREF
+
+    ControllerIndex = Com_LocalClient_GetControllerIndex(localClientNum);
+    result.internals.intVal = 0;// Live_IsSignedIn(ControllerIndex);
+    result.dataType = VAL_INT;
+    if (uiscript_debug && uiscript_debug->current.integer)
+        Expression_TraceInternal("IsSignedIn() = %i\n", result.internals.intVal);
+    AddOperandToStack(dataStack, &result);
+#endif
 }
 
 void __cdecl IsSignedInToLive(int localClientNum, itemDef_s *item, OperandStack *dataStack)
 {
+#ifdef KISAK_LIVE
     Operand result; // [esp+0h] [ebp-8h] BYREF
 
     Com_LocalClient_GetControllerIndex(localClientNum);
@@ -8290,6 +8303,16 @@ void __cdecl IsSignedInToLive(int localClientNum, itemDef_s *item, OperandStack 
     if ( uiscript_debug && uiscript_debug->current.integer )
         Expression_TraceInternal("IsSignedInToLive() = %i\n", result.internals.intVal);
     AddOperandToStack(dataStack, &result);
+#else
+    Operand result; // [esp+0h] [ebp-8h] BYREF
+
+    Com_LocalClient_GetControllerIndex(localClientNum);
+    result.internals.intVal = 0;// Live_IsSignedInToLive();
+    result.dataType = VAL_INT;
+    if (uiscript_debug && uiscript_debug->current.integer)
+        Expression_TraceInternal("IsSignedInToLive() = %i\n", result.internals.intVal);
+    AddOperandToStack(dataStack, &result);
+#endif
 }
 
 void __cdecl AnySignedIn(int localClientNum, itemDef_s *item, OperandStack *dataStack)

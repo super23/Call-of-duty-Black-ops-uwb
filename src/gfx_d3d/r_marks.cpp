@@ -2330,7 +2330,6 @@ char    R_MarkFragments_AnimatedXModel_VertList(
 }
 #endif
 
-// aislop
 bool R_MarkFragments_AnimatedXModel_VertList(
     MarkInfo *markInfo,
     unsigned int vertListIndex,
@@ -2339,95 +2338,73 @@ bool R_MarkFragments_AnimatedXModel_VertList(
     GfxMarkContext *markContext,
     XSurface *surface)
 {
-    float localMins[3], localMaxs[3];
-    float originalOrigin[3];
-    float markDir[3];
-
-    float invSurfaceMatrix[4][3];
-    float baseBoneMatrix[4][3];
-    float invPoseBoneMatrix[4][3];
-
+    DObjAnimMat poseBoneWithViewOffset;
     DObjSkelMat poseBoneSkelMat;
+    DObjSkelMat invBaseBoneSkelMat;
     DObjSkelMat baseBoneSkelMat;
     DObjSkelMat invPoseBoneSkelMat;
-    DObjSkelMat invBaseBoneSkelMat;
+
+    float poseBoneMatrix[4][3];
+    float invBaseBoneMatrix[4][3];
+    float baseBoneMatrix[4][3];
+    float invPoseBoneMatrix[4][3];
+    float surfaceMatrix[4][3];
+    float invSurfaceMatrix[4][3];
 
     MarkClipPlaneSet clipPlanes;
-    MarkModelCoreContext ctx;
+    float markDir[3];
+    float originalOrigin[3];
+    float localMins[3];
+    float localMaxs[3];
 
-    ConvertQuatToSkelMat(poseBone, &poseBoneSkelMat);
+    MarkModelCoreContext markModelCoreContext;
+
+    memcpy(&poseBoneWithViewOffset, poseBone, sizeof(poseBoneWithViewOffset));
+
+    ConvertQuatToSkelMat(&poseBoneWithViewOffset, &poseBoneSkelMat);
     ConvertQuatToInverseSkelMat(baseBone, &invBaseBoneSkelMat);
-
-    DObjSkelMatToMatrix43(&poseBoneSkelMat, invPoseBoneMatrix);
-    DObjSkelMatToMatrix43(&invBaseBoneSkelMat, invSurfaceMatrix);
-
-    MatrixMultiply43(invSurfaceMatrix, invPoseBoneMatrix, invSurfaceMatrix);
+    DObjSkelMatToMatrix43(&poseBoneSkelMat, poseBoneMatrix);
+    DObjSkelMatToMatrix43(&invBaseBoneSkelMat, invBaseBoneMatrix);
+    MatrixMultiply43(invBaseBoneMatrix, poseBoneMatrix, surfaceMatrix);
 
     iassert(markInfo->usedPointCount == 0);
 
-    R_Mark_TransformClipPlanes(
-        &markInfo->clipPlanes,
-        invSurfaceMatrix,
-        &clipPlanes);
-
-    MatrixTransposeTransformVector(
-        markInfo->axis[0],
-        invSurfaceMatrix,
-        markDir);
-
-    /* ------------------------------------------------------------
-       Build local space transform
-       ------------------------------------------------------------ */
+    R_Mark_TransformClipPlanes(&markInfo->clipPlanes, surfaceMatrix, &clipPlanes);
+    MatrixTransposeTransformVector(markInfo->axis[0], surfaceMatrix, markDir);
 
     ConvertQuatToSkelMat(baseBone, &baseBoneSkelMat);
-    ConvertQuatToInverseSkelMat(poseBone, &invPoseBoneSkelMat);
-
+    ConvertQuatToInverseSkelMat(&poseBoneWithViewOffset, &invPoseBoneSkelMat);
     DObjSkelMatToMatrix43(&invPoseBoneSkelMat, invPoseBoneMatrix);
     DObjSkelMatToMatrix43(&baseBoneSkelMat, baseBoneMatrix);
-
     MatrixMultiply43(invPoseBoneMatrix, baseBoneMatrix, invSurfaceMatrix);
 
     Vec3Copy(markInfo->origin, originalOrigin);
-    MatrixTransformVector43(
-        originalOrigin,
-        invSurfaceMatrix,
-        markInfo->localOrigin);
+    MatrixTransformVector43(originalOrigin, invSurfaceMatrix, markInfo->localOrigin);
 
-    Vec3AddScalar(
-        markInfo->localOrigin,
-        -markInfo->radius,
-        localMins);
+    Vec3AddScalar(markInfo->localOrigin, -markInfo->radius, localMins);
+    Vec3AddScalar(markInfo->localOrigin, markInfo->radius, localMaxs);
 
-    Vec3AddScalar(
-        markInfo->localOrigin,
-        markInfo->radius,
-        localMaxs);
-
-    /* ------------------------------------------------------------
-       Visitor setup
-       ------------------------------------------------------------ */
-
-    ctx.markInfo = markInfo;
-    ctx.markContext = markContext;
-    ctx.markOrigin = markInfo->localOrigin;
-    ctx.markDir = markDir;
-    ctx.clipPlanes = &clipPlanes;
+    markModelCoreContext.markInfo = markInfo;
+    markModelCoreContext.markContext = markContext;
+    markModelCoreContext.markOrigin = markInfo->localOrigin;
+    markModelCoreContext.markDir = markDir;
+    markModelCoreContext.clipPlanes = &clipPlanes;
 
     if (!XSurfaceVisitTrianglesInAabb(
-        surface,
-        vertListIndex,
-        localMins,
-        localMaxs,
-        R_MarkModelCoreCallback_0_,
-        &ctx))
+            surface,
+            vertListIndex,
+            localMins,
+            localMaxs,
+            R_MarkModelCoreCallback_0_,
+            &markModelCoreContext))
     {
         return false;
     }
 
     if (markInfo->usedPointCount)
     {
-        MatrixTransposeTransformVector(markInfo->axis[1], invSurfaceMatrix, markInfo->localTexCoordAxis);
-        MatrixTransposeTransformVector(markInfo->axis[0], invSurfaceMatrix, markInfo->localHitNormal);
+        MatrixTransposeTransformVector(markInfo->axis[1], surfaceMatrix, markInfo->localTexCoordAxis);
+        MatrixTransposeTransformVector(markInfo->axis[0], surfaceMatrix, markInfo->localHitNormal);
     }
 
     return true;
@@ -2624,7 +2601,7 @@ int __cdecl R_AddMarkFragment_1_(
     PackedUnitVec v18; // [esp+74h] [ebp-6Ch]
     PackedUnitVec v19; // [esp+78h] [ebp-68h]
     PackedUnitVec v20; // [esp+80h] [ebp-60h]
-    PackedUnitVec out; // [esp+84h] [ebp-5Ch] BYREF
+    float out[3]; // [esp+84h] [ebp-5Ch] BYREF
     PackedUnitVec v22; // [esp+88h] [ebp-58h]
     PackedUnitVec v23; // [esp+8Ch] [ebp-54h]
     PackedUnitVec in; // [esp+90h] [ebp-50h]
@@ -2663,38 +2640,42 @@ int __cdecl R_AddMarkFragment_1_(
     }
     if (clipPointCount > maxPoints || 3 * (clipPointCount - 2) > maxTris)
         return -1;
-    v20.packed = (*triNormals)->packed;
-    out.packed = v20.packed;
-    v22.packed = v20.packed;
-    v23.packed = v20.packed;
-    in.packed = v20.packed;
-    Vec3UnpackUnitVec(v20, (float*)&out.packed);
-    in.packed = 0.0f;
-    tempNormal[0] = *&out.packed;
-    tempNormal[1] = *&v22.packed;
-    tempNormal[2] = *&v23.packed;
+
+    //v20.packed = (*triNormals)->packed;
+    //out.packed = v20.packed;
+    //v22.packed = v20.packed;
+    //v23.packed = v20.packed;
+    //in.packed = v20.packed;
+    Vec3UnpackUnitVec(*triNormals[0], out);
+    //in.packed = 0.0f;
+    tempNormal[0] = out[0];
+    tempNormal[1] = out[1];
+    tempNormal[2] = out[2];
     MatrixTransformVector(tempNormal, transformNormalMatrix, normal[0]);
-    v15.packed = triNormals[1]->packed;
-    v16.packed = v15.packed;
-    v17.packed = v15.packed;
-    v18.packed = v15.packed;
-    v19.packed = v15.packed;
-    Vec3UnpackUnitVec(v15, (float *)&v16.packed);
-    v19.packed = 0.0f;
-    tempNormal[0] = *&v16.packed;
-    tempNormal[1] = *&v17.packed;
-    tempNormal[2] = *&v18.packed;
+
+    //v15.packed = triNormals[1]->packed;
+    //v16.packed = v15.packed;
+    //v17.packed = v15.packed;
+    //v18.packed = v15.packed;
+    //v19.packed = v15.packed;
+    Vec3UnpackUnitVec(*triNormals[1], out);
+    //v19.packed = 0.0f;
+    tempNormal[0] = out[0];
+    tempNormal[1] = out[1];
+    tempNormal[2] = out[2];
     MatrixTransformVector(tempNormal, transformNormalMatrix, normal[1]);
-    v11.packed = triNormals[2]->packed;
-    v12.packed = v11.packed;
-    v13.packed = v11.packed;
-    v14.packed = v11.packed;
-    Vec3UnpackUnitVec(v11, (float *)&v11.packed);
-    v14.packed = 0.0f;
-    tempNormal[0] = *&v11.packed;
-    tempNormal[1] = *&v12.packed;
-    tempNormal[2] = *&v13.packed;
+
+    //v11.packed = triNormals[2]->packed;
+    //v12.packed = v11.packed;
+    //v13.packed = v11.packed;
+    //v14.packed = v11.packed;
+    Vec3UnpackUnitVec(*triNormals[2], out);
+    //v14.packed = 0.0f;
+    tempNormal[0] = out[0];
+    tempNormal[1] = out[1];
+    tempNormal[2] = out[2];
     MatrixTransformVector(tempNormal, transformNormalMatrix, normal[2]);
+
     for (pointIndex = 0; pointIndex < clipPointCount; ++pointIndex)
     {
         point = &points[pointIndex];

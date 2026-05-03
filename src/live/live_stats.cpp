@@ -2499,11 +2499,13 @@ char __cdecl LiveStats_ProVersionUnlocked(int itemIndex, char *statsBuffer)
 
 void __cdecl LiveStats_CompareStatsVsStableBufferCmd()
 {
+#ifdef KISAK_LIVE
     if ( !s_statsalreadycompared )
     {
         s_statsalreadycompared = 1;
         LiveStats_CompareStatsVsStableBuffer(0);
     }
+#endif
 }
 
 void __cdecl LiveStats_SortPercentageCompleted(int type)

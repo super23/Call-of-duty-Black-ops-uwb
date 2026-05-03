@@ -2930,8 +2930,8 @@ LABEL_28:
                     __debugbreak();
                 }
                 cgs = CG_GetLocalClientStaticGlobals(localClientNum);
-                cia = (clientInfo_t *)&cgs->corpseinfo[1480 * corpseIndex];
-                *(float *)&cgs->corpseinfo[1480 * corpseIndex + 1092] = (float)cent->nextState.lerp.u.loopFx.period;
+                cia = &cgs->corpseinfo[corpseIndex];
+                cgs->corpseinfo[corpseIndex].lerpMoveDir = (float)cent->nextState.lerp.u.loopFx.period;
                 cia->playerAngles[0] = cent->pose.angles[0];
                 cia->playerAngles[1] = cent->pose.angles[1];
                 cia->playerAngles[2] = cent->pose.angles[2];

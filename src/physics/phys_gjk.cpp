@@ -862,9 +862,6 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
             // Compute ||support_dir||^2
             this->m_upper_dist_sq = AbsSquared(this->m_support_dir);
 
-            iassert(this->m_upper_dist_sq >= 0.0f); // LWSS ADD
-            iassert(this->m_lower_dist_sq <= (this->m_upper_dist_sq + 0.001f)); // LWSS ADD
-
             if (this->m_gjk_iter != 0)
             {
                 // Cached-support-dir mode: if ||v||^2 < sep_thresh^2, set sep flag

@@ -11602,6 +11602,7 @@ void __cdecl GScr_GetLoadoutItemFromProfile(scr_entref_t entref)
 
 void __cdecl GScr_GetDStat(scr_entref_t entref)
 {
+#ifdef KISAK_LIVE
     char *String; // eax
     char *v2; // eax
     const char *v3; // eax
@@ -11696,6 +11697,10 @@ void __cdecl GScr_GetDStat(scr_entref_t entref)
         Scr_Error("getdstat: could not find ddl member.", 0);
         Scr_AddInt(0, SCRIPTINSTANCE_SERVER);
     }
+#else
+    Scr_Error("Stats not implemented in Kisak Black.", 0);
+    Scr_AddInt(0, SCRIPTINSTANCE_SERVER);
+#endif
 }
 
 void GScr_GetMaxActiveContracts()

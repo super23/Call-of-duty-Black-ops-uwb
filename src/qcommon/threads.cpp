@@ -213,7 +213,7 @@ char __cdecl Sys_SpawnRenderThread(void (__cdecl *function)(unsigned int))
     Sys_CreateEvent(1, 0, &win32ScriptDebuggerDrawEvent);
     Sys_CreateEvent(1, 0, &rgRegisteredEvent);
     Sys_CreateEvent(1, 0, &renderEvent);
-    Sys_CreateThread(function, 1u);
+    Sys_CreateThread(function, THREAD_CONTEXT_BACKEND);
     if ( !threadHandle[1] )
         return 0;
     SetThreadPriority(threadHandle[1], 1);
@@ -221,7 +221,7 @@ char __cdecl Sys_SpawnRenderThread(void (__cdecl *function)(unsigned int))
         SetThreadIdealProcessor(threadHandle[1], 0);
     else
         SetThreadIdealProcessor(threadHandle[1], 1u);
-    Sys_ResumeThread(1u);
+    Sys_ResumeThread(THREAD_CONTEXT_BACKEND);
     return 1;
 }
 
@@ -349,10 +349,10 @@ char __cdecl Sys_SpawnServerThread(void (__cdecl *function)(unsigned int))
     Sys_CreateEvent(1, 0, &serverCompletedEvent);
     Sys_CreateEvent(1, 1, &allowServerNetworkEvent);
     Sys_CreateEvent(1, 1, &serverNetworkCompletedEvent);
-    Sys_CreateThread(function, 0xAu);
+    Sys_CreateThread(function, THREAD_CONTEXT_SERVER);
     if ( !threadHandle[10] )
         return 0;
-    Sys_ResumeThread(0xAu);
+    Sys_ResumeThread(THREAD_CONTEXT_SERVER);
     return 1;
 }
 
@@ -362,7 +362,7 @@ char __cdecl Sys_SpawnDatabaseThread(void (__cdecl *function)(unsigned int))
     Sys_CreateEvent(1, 1, &databaseCompletedEvent);
     Sys_CreateEvent(1, 1, &databaseCompletedEvent2);
     Sys_CreateEvent(1, 1, &resumedDatabaseEvent);
-    Sys_CreateThread(function, 0xDu);
+    Sys_CreateThread(function, THREAD_CONTEXT_DATABASE);
     if ( !threadHandle[13] )
         return 0;
     if ( s_cpuCount == 1 )
@@ -377,7 +377,7 @@ char __cdecl Sys_SpawnDatabaseThread(void (__cdecl *function)(unsigned int))
     {
         SetThreadIdealProcessor(threadHandle[13], 2u);
     }
-    Sys_ResumeThread(0xDu);
+    Sys_ResumeThread(THREAD_CONTEXT_DATABASE);
     return 1;
 }
 
@@ -869,14 +869,14 @@ char __cdecl Sys_SpawnStreamThread(void (__cdecl *function)(unsigned int))
     Sys_CreateEvent(1, 0, &sndInitializedEvent);
     Sys_CreateEvent(1, 0, &streamCompletedEvent);
     Sys_CreateEvent(0, 0, &streamEvent);
-    Sys_CreateThread(function, 0xEu);
+    Sys_CreateThread(function, THREAD_CONTEXT_STREAM);
     if ( !threadHandle[14] )
         return 0;
     if ( s_cpuCount && s_cpuCount <= 2 )
         SetThreadIdealProcessor(threadHandle[14], 0);
     else
         SetThreadIdealProcessor(threadHandle[14], 2u);
-    Sys_ResumeThread(0xEu);
+    Sys_ResumeThread(THREAD_CONTEXT_STREAM);
     return 1;
 }
 
@@ -906,30 +906,21 @@ bool __cdecl Sys_IsStreamThread()
 
 void __cdecl Sys_SpawnOcclusion(void (__cdecl *function)(unsigned int))
 {
-    if ( threadHandle[11] )
+    if ( threadHandle[THREAD_CONTEXT_OCCLUSION] )
     {
-        Sys_ResumeThread(0xBu);
+        Sys_ResumeThread(THREAD_CONTEXT_OCCLUSION);
     }
     else
     {
         Sys_CreateEvent(0, 0, &occlusionEvent);
-        Sys_CreateThread(function, 0xBu);
-        if ( !threadHandle[11]
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\threads.cpp",
-                        2937,
-                        0,
-                        "%s",
-                        "threadHandle[THREAD_CONTEXT_OCCLUSION]") )
-        {
-            __debugbreak();
-        }
+        Sys_CreateThread(function, THREAD_CONTEXT_OCCLUSION);
+        iassert(threadHandle[THREAD_CONTEXT_OCCLUSION]);
         if ( s_cpuCount && s_cpuCount <= 3 )
             SetThreadIdealProcessor(threadHandle[11], 0);
         else
             SetThreadIdealProcessor(threadHandle[11], 3u);
         SetThreadPriority(threadHandle[11], -1);
-        Sys_ResumeThread(0xBu);
+        Sys_ResumeThread(THREAD_CONTEXT_OCCLUSION);
     }
 }
 

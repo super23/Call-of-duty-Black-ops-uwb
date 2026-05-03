@@ -1943,130 +1943,76 @@ void __cdecl Phys_ObjAddCustomForce(
 
 void    Phys_ObjAddForce(int id, float *worldPos, float *impulse, bool relative)
 {
-    const phys_vec3 *v5; // eax
-    phys_vec3 *torque_mult; // [esp+0h] [ebp-C0h]
     phys_vec3 v7; // [esp+4h] [ebp-BCh] BYREF
-    float v8; // [esp+18h] [ebp-A8h]
-    float v9; // [esp+1Ch] [ebp-A4h]
-    float v10; // [esp+20h] [ebp-A0h]
     phys_vec3 v11; // [esp+24h] [ebp-9Ch] BYREF
-    float v12; // [esp+38h] [ebp-88h]
-    float v13; // [esp+3Ch] [ebp-84h]
-    float v14; // [esp+40h] [ebp-80h]
     phys_vec3 v15; // [esp+44h] [ebp-7Ch] BYREF
     phys_vec3 v16; // [esp+54h] [ebp-6Ch] BYREF
     phys_mat44 *p_m_mat; // [esp+70h] [ebp-50h]
-    float x; // [esp+74h] [ebp-4Ch] BYREF
-    float v19; // [esp+78h] [ebp-48h]
-    float v20; // [esp+7Ch] [ebp-44h]
-    phys_vec3 pos; // [esp+80h] [ebp-40h]
-    float v22; // [esp+90h] [ebp-30h]
-    float w; // [esp+94h] [ebp-2Ch] BYREF
-    float z; // [esp+98h] [ebp-28h]
-    float y; // [esp+9Ch] [ebp-24h]
-    phys_vec3 force; // [esp+A0h] [ebp-20h]
+    phys_vec3 pos; // [esp+74h] [ebp-4Ch] BYREF
+    phys_vec3 force; // [esp+94h] [ebp-2Ch] BYREF
     rigid_body *body; // [esp+B0h] [ebp-10h]
-    //int v28; // [esp+B4h] [ebp-Ch]
-    //void *v29; // [esp+B8h] [ebp-8h]
-    //void *retaddr; // [esp+C0h] [ebp+0h]
-    //
-    //v28 = a1;
-    //v29 = retaddr;
-    if ( id && id != -1 )
+
+    if (id && id != -1)
     {
         body = Phys_GetUserData(id)->body;
-        force.w = *impulse;
-        force.z = impulse[1];
-        force.y = impulse[2];
-        w = force.w;
-        z = force.z;
-        y = force.y;
-        v22 = *worldPos;
-        pos.w = worldPos[1];
+
+        force.x = impulse[0];
+        force.y = impulse[1];
+        force.z = impulse[2];
+
+        pos.x = worldPos[0];
+        pos.y = worldPos[1];
         pos.z = worldPos[2];
-        x = v22;
-        v19 = pos.w;
-        v20 = pos.z;
-        if ( relative )
+
+        if (relative)
         {
             p_m_mat = &body->m_mat;
-            torque_mult = &body->m_mat.w;
-            v5 = phys_multiply(&v16, &body->m_mat, (const phys_vec3 *)&x);
-            //operator+(&v15, v5, torque_mult);
-            v15 = *v5 + *torque_mult;
-            x = v15.x;
-            v19 = v15.y;
-            v20 = v15.z;
+            phys_multiply(&v16, &body->m_mat, &pos);
+            //operator+(&v15, v5, p_w);
+            v15 = v16 + body->m_mat.w;
+            pos.x = v15.x;
+            pos.y = v15.y;
+            pos.z = v15.z;
         }
-        if ( Abs(&w) >= 1000000.0
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp",
-                        1297,
-                        0,
-                        "%s",
-                        "Abs(force) < 1000000.0f") )
+
+        iassert(Abs(force) < 1000000.0f);
+
+        if ((float)((float)((float)(pos.x * pos.x) + (float)(pos.y * pos.y)) + (float)(pos.z * pos.z)) == 0.0)
         {
-            __debugbreak();
-        }
-        if ( (float)((float)((float)(x * x) + (float)(v19 * v19)) + (float)(v20 * v20)) == 0.0 )
-        {
-            v14 = 0.001 * w;
-            v13 = 0.001 * z;
-            v12 = 0.001 * y;
-            v11.x = 0.001 * w;
-            v11.y = 0.001 * z;
-            v11.z = 0.001 * y;
-            //rigid_body::add_force(body, &v11);
+            v11.x = 0.001 * force.x;
+            v11.y = 0.001 * force.y;
+            v11.z = 0.001 * force.z;
             body->add_force(&v11);
+            //rigid_body::add_force(body, &v11);
         }
         else
         {
-            v10 = 0.001 * w;
-            v9 = 0.001 * z;
-            v8 = 0.001 * y;
-            v7.x = 0.001 * w;
-            v7.y = 0.001 * z;
-            v7.z = 0.001 * y;
-            //rigid_body::add_force(body, &v7, (const phys_vec3 *)&x, 1.0);
-            body->add_force(&v7, (const phys_vec3 *)&x, 1.0);
+            v7.x = 0.001 * force.x;
+            v7.y = 0.001 * force.y;
+            v7.z = 0.001 * force.z;
+            body->add_force(&v7, &pos, 1.0f);
+            //rigid_body::add_force(body, &v7, &pos, 1.0);
         }
     }
 }
 
 void    Phys_ObjAddTorque(int id, float *torque)
 {
-    phys_vec3 v3; // [esp-2Ch] [ebp-4Ch] BYREF
-    float v4; // [esp-18h] [ebp-38h]
-    float v5; // [esp-14h] [ebp-34h]
-    float v6; // [esp-10h] [ebp-30h]
+    phys_vec3 torq; // [esp-2Ch] [ebp-4Ch] BYREF
     phys_vec3 _torque; // [esp-Ch] [ebp-2Ch] BYREF
     rigid_body *body; // [esp+10h] [ebp-10h]
-    //int v9; // [esp+14h] [ebp-Ch]
-    //void *v10; // [esp+18h] [ebp-8h]
-    //void *retaddr; // [esp+20h] [ebp+0h]
-    //
-    //v9 = a1;
-    //v10 = retaddr;
+
     body = Phys_GetUserData(id)->body;
     Phys_Vec3ToNitrousVec(torque, &_torque);
-    if (Abs(&_torque.x) >= 1000000.0
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp",
-            1309,
-            0,
-            "%s",
-            "Abs(_torque) < 1000000.0f"))
-    {
-        __debugbreak();
-    }
-    v6 = 0.001 * _torque.x;
-    v5 = 0.001 * _torque.y;
-    v4 = 0.001 * _torque.z;
-    v3.x = 0.001 * _torque.x;
-    v3.y = 0.001 * _torque.y;
-    v3.z = 0.001 * _torque.z;
+
+    iassert(Abs(_torque) < 1000000.0f);
+
+    torq.x = 0.001 * _torque.x;
+    torq.y = 0.001 * _torque.y;
+    torq.z = 0.001 * _torque.z;
+
     //rigid_body::add_torque(body, &v3);
-    body->add_torque(&v3);
+    body->add_torque(&torq);
 }
 
 void __thiscall rigid_body::add_torque(const phys_vec3 *torque)

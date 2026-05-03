@@ -1267,29 +1267,19 @@ void __cdecl CG_TransitionKillcam(int localClientNum)
                 {
                     __debugbreak();
                 }
-                pXAnimTree = *(XAnimTree_s **)&cgs->corpseinfo[1480 * corpseIndex + 1332];
-                anim = *(unsigned int *)&cgs->corpseinfo[1480 * corpseIndex + 1004] & 0xFFFFFBFF;
+                pXAnimTree = cgs->corpseinfo[corpseIndex].pXAnimTree;
+                anim = cgs->corpseinfo[corpseIndex].legs.animationNumber & 0xFFFFFBFF;
                 anims = XAnimGetAnims(pXAnimTree);
                 if ( anim && !XAnimIsLooped(anims, anim) && !XAnimGetNumChildren(anims, anim) )
                     XAnimSetTime(pXAnimTree, anim, 1.0, 0xFFFFu);
             }
-            if ( cent->nextState.eType == 19 )
+            if ( cent->nextState.eType == ET_ACTOR_CORPSE )
             {
-                if ( (unsigned int)(cent->nextState.number - 36) >= 8
-                    && !Assert_MyHandler(
-                                "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_snapshot_mp.cpp",
-                                616,
-                                0,
-                                "cent->nextState.number - ACTOR_CORPSES doesn't index MAX_ACTOR_CORPSES\n\t%i not in [0, %i)",
-                                cent->nextState.number - 36,
-                                8) )
-                {
-                    __debugbreak();
-                }
+                bcassert(cent->nextState.number - ACTOR_CORPSES, MAX_ACTOR_CORPSES);
                 BG_Actor_FastForwardAnimState(
                     localClientNum,
                     &cent->nextState,
-                    (actorInfo_t *)&cgs->corpseinfo[84 * cent->nextState.number + 2896]);
+                    &cgs->actorCorpseInfo[cent->nextState.number - ACTOR_CORPSES]);
             }
         }
         if ( cg_scr_mp_data.demo_jump )

@@ -2951,10 +2951,10 @@ void __cdecl DynEntCl_ExplosionEvent(
     }
 }
 
-//bool __cdecl DynEntCl_CompareDynEntsForExplosion(const DynEntSortStruct &ent1, const DynEntSortStruct &ent2)
-//{
-//    return ent2.distSq > ent1.distSq;
-//}
+static bool __cdecl DynEntCl_CompareDynEntsForExplosion(const DynEntSortStruct &ent1, const DynEntSortStruct &ent2)
+{
+    return ent2.distSq > ent1.distSq;
+}
 
 bool CompareMaterialMemory(const MaterialMemory &one, const MaterialMemory &two)
 {
@@ -2969,68 +2969,65 @@ unsigned int __cdecl DynEntCl_GetClosestEntities(
                 unsigned __int16 *hitEnts,
                 bool isCylinder)
 {
-    double CylindricalRadiusDistSqr; // st7
-    unsigned int unsignedInt_low; // [esp+C8h] [ebp-8014h]
-    MaterialMemory v9[4096]; // [esp+CCh] [ebp-8010h] BYREF
+    unsigned int hitCount; // [esp+C8h] [ebp-8014h]
+    DynEntSortStruct v9[4096]; // [esp+CCh] [ebp-8010h] BYREF
     DynEntityClient *ClientEntity; // [esp+80D0h] [ebp-Ch]
     unsigned int i; // [esp+80D4h] [ebp-8h]
     DynEntityColl *dynEntColl; // [esp+80D8h] [ebp-4h]
 
-    unsignedInt_low = DynEntCl_AreaEntities(
-                                            (DynEntityDrawType)drawType,
-                                            radiusMins,
-                                            radiusMaxs,
-                                            8396819,
-                                            0x1000u,
-                                            hitEnts);
-    if ( unsignedInt_low > dynEnt_explodeMaxEnts->current.integer )
+    hitCount = DynEntCl_AreaEntities(
+        (DynEntityDrawType)drawType,
+        radiusMins,
+        radiusMaxs,
+        8396819,
+        0x1000u,
+        hitEnts);
+    if (hitCount > dynEnt_explodeMaxEnts->current.integer)
     {
-        for ( i = 0; i < unsignedInt_low; ++i )
+        for (i = 0; i < hitCount; ++i)
         {
-            LOWORD(v9[i].memory) = hitEnts[i];
+            v9[i].id = hitEnts[i];
             ClientEntity = DynEnt_GetClientEntity(hitEnts[i], (DynEntityDrawType)drawType);
-            if ( (ClientEntity->flags & 1) == 0
+            if ((ClientEntity->flags & 1) == 0
                 && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\DynEntity\\DynEntity_client.cpp",
-                            2472,
-                            0,
-                            "%s",
-                            "dynEntClient->flags & DYNENT_CL_ACTIVE") )
+                    "C:\\projects_pc\\cod\\codsrc\\src\\DynEntity\\DynEntity_client.cpp",
+                    2472,
+                    0,
+                    "%s",
+                    "dynEntClient->flags & DYNENT_CL_ACTIVE"))
             {
                 __debugbreak();
             }
             dynEntColl = DynEnt_GetEntityColl(drawType, hitEnts[i]);
-            if ( isCylinder )
-                CylindricalRadiusDistSqr = DynEnt_GetCylindricalRadiusDistSqr(dynEntColl, origin);
+            if (isCylinder)
+                v9[i].distSq = DynEnt_GetCylindricalRadiusDistSqr(dynEntColl, origin);
             else
-                CylindricalRadiusDistSqr = DynEnt_GetRadiusDistSqr(dynEntColl, origin);
-            *(float *)&v9[i].material = CylindricalRadiusDistSqr;
+                v9[i].distSq = DynEnt_GetRadiusDistSqr(dynEntColl, origin);
         }
-
-        //std::_Sort<RagdollSortStruct *,int,bool (__cdecl *)(RagdollSortStruct const &,RagdollSortStruct const &)>(
-        //    v9,
-        //    &v9[unsignedInt_low],
+        //std::_Sort<RagdollSortStruct *, int, bool(__cdecl *)(RagdollSortStruct const &, RagdollSortStruct const &)>(
+        //    (MaterialMemory *)v9,
+        //    (MaterialMemory *)&v9[unsignedInt_low],
         //    (int)(8 * unsignedInt_low) >> 3,
-        //    (bool (__cdecl *)(const MaterialMemory *, const MaterialMemory *))DynEntCl_CompareDynEntsForExplosion);
+        //    (bool(__cdecl *)(const MaterialMemory *, const MaterialMemory *))DynEntCl_CompareDynEntsForExplosion);
 
-        //std::sort(&v9[0], &v9[unsignedInt_low], DynEntCl_CompareDynEntsForExplosion);
-        std::sort(&v9[0], &v9[unsignedInt_low], CompareMaterialMemory);
+        std::sort(v9, v9 + hitCount, DynEntCl_CompareDynEntsForExplosion);
 
-        unsignedInt_low = LOWORD(dynEnt_explodeMaxEnts->current.unsignedInt);
-        if ( unsignedInt_low != dynEnt_explodeMaxEnts->current.integer
+        hitCount = LOWORD(dynEnt_explodeMaxEnts->current.unsignedInt);
+        if (hitCount != dynEnt_explodeMaxEnts->current.integer
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\DynEntity\\DynEntity_client.cpp",
-                        2484,
-                        0,
-                        "%s",
-                        "hitCount == (uint)dynEnt_explodeMaxEnts->current.integer") )
+                "C:\\projects_pc\\cod\\codsrc\\src\\DynEntity\\DynEntity_client.cpp",
+                2484,
+                0,
+                "%s",
+                "hitCount == (uint)dynEnt_explodeMaxEnts->current.integer"))
         {
             __debugbreak();
         }
-        for ( i = 0; i < unsignedInt_low; ++i )
-            hitEnts[i] = v9[i].memory;
+
+        for (i = 0; i < hitCount; ++i)
+            hitEnts[i] = v9[i].id;
     }
-    return unsignedInt_low;
+    return hitCount;
 }
 
 void __cdecl DynEntCl_DestroyEvent(

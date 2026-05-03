@@ -9,6 +9,8 @@
 #include <gfx_d3d/r_shader_constant_set.h>
 #include <cgame_mp/cg_scoreboard_mp.h>
 
+#define ACTOR_CORPSES 36
+
 struct GfxSkinCacheEntry // sizeof=0xC
 {                                                                             // XREF: cpose_t/r
         unsigned int frameCount;

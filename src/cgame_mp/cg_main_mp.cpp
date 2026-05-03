@@ -3763,42 +3763,39 @@ void __cdecl CG_FreeAnimTreeInstances(int localClientNum)
     cg_s *cgameGlob; // [esp+0h] [ebp-Ch]
     cgs_t *cgs; // [esp+4h] [ebp-8h]
     int i; // [esp+8h] [ebp-4h]
-    int ia; // [esp+8h] [ebp-4h]
-    int ib; // [esp+8h] [ebp-4h]
-    int ic; // [esp+8h] [ebp-4h]
 
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
-    for ( i = 0; i < com_maxclients->current.integer; ++i )
+    for (i = 0; i < com_maxclients->current.integer; ++i)
     {
-        if ( cgameGlob->bgs.clientinfo[i].pXAnimTree )
+        if (cgameGlob->bgs.clientinfo[i].pXAnimTree)
         {
             XAnimFreeTree(cgameGlob->bgs.clientinfo[i].pXAnimTree, 0, SCRIPTINSTANCE_SERVER);
             cgameGlob->bgs.clientinfo[i].pXAnimTree = 0;
         }
     }
     cgs = CG_GetLocalClientStaticGlobals(localClientNum);
-    for ( ia = 0; ia < 4; ++ia )
+    for (i = 0; i < 4; ++i)
     {
-        if ( *(unsigned int *)&cgs->corpseinfo[1480 * ia + 1332] )
+        if (cgs->corpseinfo[i].pXAnimTree)
         {
-            XAnimFreeTree(*(XAnimTree_s **)&cgs->corpseinfo[1480 * ia + 1332], 0, SCRIPTINSTANCE_SERVER);
-            *(unsigned int *)&cgs->corpseinfo[1480 * ia + 1332] = 0;
+            XAnimFreeTree(cgs->corpseinfo[i].pXAnimTree, 0, SCRIPTINSTANCE_SERVER);
+            cgs->corpseinfo[i].pXAnimTree = 0;
         }
     }
-    for ( ib = 0; ib < 16; ++ib )
+    for (i = 0; i < 16; ++i)
     {
-        if ( cgameGlob->bgs.actorinfo[ib].pXAnimTree )
+        if (cgameGlob->bgs.actorinfo[i].pXAnimTree)
         {
-            XAnimFreeTree(cgameGlob->bgs.actorinfo[ib].pXAnimTree, 0, SCRIPTINSTANCE_SERVER);
-            cgameGlob->bgs.actorinfo[ib].pXAnimTree = 0;
+            XAnimFreeTree(cgameGlob->bgs.actorinfo[i].pXAnimTree, 0, SCRIPTINSTANCE_SERVER);
+            cgameGlob->bgs.actorinfo[i].pXAnimTree = 0;
         }
     }
-    for ( ic = 0; ic < 8; ++ic )
+    for (i = 0; i < 8; ++i)
     {
-        if ( cgs->actorCorpseInfo[ic + 1].animInfo.legs.yawing )
+        if (cgs->actorCorpseInfo[i].pXAnimTree)
         {
-            XAnimFreeTree((XAnimTree_s *)cgs->actorCorpseInfo[ic + 1].animInfo.legs.yawing, 0, SCRIPTINSTANCE_SERVER);
-            cgs->actorCorpseInfo[ic + 1].animInfo.legs.yawing = 0;
+            XAnimFreeTree(cgs->actorCorpseInfo[i].pXAnimTree, 0, SCRIPTINSTANCE_SERVER);
+            cgs->actorCorpseInfo[i].pXAnimTree = 0;
         }
     }
 }

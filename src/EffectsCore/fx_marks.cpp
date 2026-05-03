@@ -519,7 +519,7 @@ void __cdecl FX_ImpactMark_Generate(
                 bool isSeeThruDecal)
 {
     FxMarkPoint *FxMarkPointsBuffer; // eax
-    FxMarkTri tris; // [esp+230h] [ebp-10C8h] BYREF
+    FxMarkTri tris[256]; // [esp+230h] [ebp-10C8h] BYREF
     MarkInfo markInfo; // [esp+E28h] [ebp-4D0h] BYREF
     float *viewOffset; // [esp+12E0h] [ebp-18h]
     unsigned int callbackContext[5]; // [esp+12E4h] [ebp-14h] BYREF
@@ -566,10 +566,10 @@ void __cdecl FX_ImpactMark_Generate(
             FxMarkPointsBuffer = FX_GetFxMarkPointsBuffer();
             R_MarkFragments_Go(
                 &markInfo,
-                (void (__cdecl *)(void *, int, FxMarkTri *, int, FxMarkPoint *, const float *, const float *, const float *, const bool))FX_ImpactMark_Generate_Callback,
+                FX_ImpactMark_Generate_Callback,
                 callbackContext,
                 255,
-                &tris,
+                tris,
                 765,
                 FxMarkPointsBuffer);
         }

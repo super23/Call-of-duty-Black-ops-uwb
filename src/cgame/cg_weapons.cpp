@@ -1877,20 +1877,20 @@ void __cdecl FireBulletPenetrate(
         if ( !BG_AdvanceTrace(bp, br, 0.13500001) )
             break;
         traceHitb = BulletTrace(localClientNum, bp, weapDef, attacker, br, br->depthSurfaceType);
-        Com_Memcpy(&revBp, bp, 64);
+        //Com_Memcpy(&revBp, bp, 64);
+        revBp = *bp;
         revBp.dir[0] = -bp->dir[0];
         revBp.dir[1] = -bp->dir[1];
         revBp.dir[2] = -bp->dir[2];
         revBp.start[0] = bp->end[0];
         revBp.start[1] = bp->end[1];
         revBp.start[2] = bp->end[2];
-        revBp.end[0] = (float)(0.0099999998 * revBp.dir[0]) + lastHitPos[0];
-        revBp.end[1] = (float)(0.0099999998 * revBp.dir[1]) + lastHitPos[1];
-        revBp.end[2] = (float)(0.0099999998 * revBp.dir[2]) + lastHitPos[2];
-        Com_Memcpy(&revBr, br, 80);
-        //revBr.trace.normal.vec.u[0] ^= _mask__NegFloat_;
-        //revBr.trace.normal.vec.u[1] ^= _mask__NegFloat_;
-        //revBr.trace.normal.vec.u[2] ^= _mask__NegFloat_;
+
+        Vec3Mad(lastHitPos, 0.0099999998f, revBp.dir, revBp.end);
+
+        //Com_Memcpy(&revBr, br, 80);
+        revBr = *br;
+
         revBr.trace.normal.vec.v[0] = -revBr.trace.normal.vec.v[0];
         revBr.trace.normal.vec.v[1] = -revBr.trace.normal.vec.v[1];
         revBr.trace.normal.vec.v[2] = -revBr.trace.normal.vec.v[2];

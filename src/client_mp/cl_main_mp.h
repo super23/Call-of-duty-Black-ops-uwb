@@ -14,6 +14,8 @@
 #include <server/server.h>
 #include <gfx_d3d/r_init.h>
 
+#define MAX_ACTOR_CORPSES 8
+
 struct ClientArchiveData // sizeof=0x30
 {                                                                             // XREF: demoInitialStateBuffer_t/r
         int serverTime;
@@ -814,7 +816,7 @@ struct cgs_t // sizeof=0x31A4
     float compassY;
     char _pad[4];
     clientInfo_t corpseinfo[4];
-    actorInfo_t actorCorpseInfo[8];
+    actorInfo_t actorCorpseInfo[MAX_ACTOR_CORPSES];
     bool entUpdateToggleContextKey;
     // padding byte
     // padding byte

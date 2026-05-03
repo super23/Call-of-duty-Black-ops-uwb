@@ -466,7 +466,6 @@ void __cdecl G_TimedObjectThink(gentity_s *ent)
 // local variable allocation has failed, the output may be wrong!
 void    G_ExplodeMissile(gentity_s *ent)
 {
-    char *v2; // eax
     unsigned __int8 v3; // al
     unsigned __int8 v4; // al
     unsigned __int8 v5; // al
@@ -491,15 +490,11 @@ void    G_ExplodeMissile(gentity_s *ent)
     trace_t tr; // [esp+88h] [ebp-144h] BYREF
     gentity_s *groundEnt; // [esp+C0h] [ebp-10Ch]
     col_context_t explosionPos; // [esp+C4h] [ebp-108h] BYREF
-    float *currentOrigin; // [esp+F8h] [ebp-D4h]
-    int *p_clipAmmoCount; // [esp+FCh] [ebp-D0h]
-    float *v29; // [esp+100h] [ebp-CCh]
     const float *normal; // [esp+104h] [ebp-C8h]
     gentity_s *eventEnt; // [esp+108h] [ebp-C4h]
     unsigned __int8 surfType; // [esp+10Fh] [ebp-BDh]
     float waterSurfacePos[3]; // [esp+110h] [ebp-BCh] BYREF
     float waterNormal[3]; // [esp+11Ch] [ebp-B0h] BYREF
-    col_context_t context; // [esp+128h] [ebp-A4h] BYREF
     float end[4]; // [esp+150h] [ebp-7Ch] BYREF
     bool inWater; // [esp+163h] [ebp-69h]
     BOOL v38; // [esp+164h] [ebp-68h]
@@ -515,20 +510,15 @@ void    G_ExplodeMissile(gentity_s *ent)
     //
     //v45[0] = a1;
     //v45[1] = (_UNKNOWN *)vars0;
-    memset(&trace, 0, 16);
     other = ent;
-    if (!ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_missile.cpp", 1751, 0, "%s", "ent"))
-        __debugbreak();
-    if (!ent->s.weapon
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_missile.cpp", 1752, 0, "%s", "ent->s.weapon"))
-    {
-        __debugbreak();
-    }
+    iassert(ent);
+    iassert(ent->s.weapon);
     weapDef = BG_GetWeaponDef(ent->s.weapon);
-    if (!weapDef && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_missile.cpp", 1754, 0, "%s", "weapDef"))
-        __debugbreak();
+    iassert(weapDef);
+
     if (weapDef->guidedMissileType == MISSILE_GUIDANCE_TVGUIDED)
         G_UnlinkPlayerToRocket(ent);
+
     if (weapDef->bExplodeOnGround && ent->s.groundEntityNum == 1023 || ForcedDud(ent))
     {
         if (level.time - ent->item[0].index <= 60000)
@@ -558,11 +548,12 @@ void    G_ExplodeMissile(gentity_s *ent)
                 inWater = SV_PointContents(ent->r.currentOrigin, -1, 32) != 0;
             if (inWater)
             {
-                //LODWORD(end[3]) = ent->r.currentOrigin;
                 end[0] = ent->r.currentOrigin[0];
                 end[1] = ent->r.currentOrigin[1];
                 end[2] = ent->r.currentOrigin[2];
                 end[2] = end[2] + missileWaterMaxDepth->current.value;
+
+                col_context_t context; // [esp+128h] [ebp-A4h] BYREF
                 //col_context_t::col_context_t(&context);
                 G_TraceCapsule(&trace, end, vec3_origin, vec3_origin, ent->r.currentOrigin, ent->s.number, 32, &context);
                 if (trace.startsolid || trace.fraction >= 1.0)
@@ -571,7 +562,8 @@ void    G_ExplodeMissile(gentity_s *ent)
                 }
                 else
                 {
-                    *(_QWORD *)waterNormal = *(_QWORD *)trace.normal.vec.v;
+                    waterNormal[0] = trace.normal.vec.v[0];
+                    waterNormal[1] = trace.normal.vec.v[1];
                     waterNormal[2] = trace.normal.vec.v[2];
                     Vec3Lerp(end, ent->r.currentOrigin, trace.fraction, waterSurfacePos);
                 }
@@ -581,8 +573,7 @@ void    G_ExplodeMissile(gentity_s *ent)
                 surfType = 20;
             else
                 surfType = ent->s.surfType;
-            v2 = (char *)Com_SurfaceTypeToName(surfType);
-            Scr_AddString(v2, SCRIPTINSTANCE_SERVER);
+            Scr_AddString(Com_SurfaceTypeToName(surfType), SCRIPTINSTANCE_SERVER);
             Scr_AddVector(ent->r.currentOrigin, SCRIPTINSTANCE_SERVER);
             Scr_Notify(ent, scr_const.explode, 2u);
             eventEnt = 0;
@@ -607,20 +598,20 @@ void    G_ExplodeMissile(gentity_s *ent)
                     if ((weapDef->stickiness == WEAPSTICKINESS_ALL || weapDef->stickiness == WEAPSTICKINESS_ALL_NO_SENTIENTS)
                         && ent->s.groundEntityNum != 1023)
                     {
-                        p_clipAmmoCount = &ent->item[1].clipAmmoCount;
-                        currentOrigin = ent->r.currentOrigin;
                         end[0] = (float)(-16.0 * ent->mover.midTime) + ent->r.currentOrigin[0];
                         end[1] = (float)(-16.0 * ent->mover.aMidTime) + ent->r.currentOrigin[1];
                         end[2] = (float)(-16.0 * ent->trigger.exposureLerpToLighter) + ent->r.currentOrigin[2];
                     }
                     else
                     {
-                        v29 = ent->r.currentOrigin;
                         end[0] = ent->r.currentOrigin[0];
                         end[1] = ent->r.currentOrigin[1];
                         end[2] = ent->r.currentOrigin[2];
                         end[2] = end[2] - 16.0;
                     }
+
+                    col_context_t context; // [esp+128h] [ebp-A4h] BYREF
+
                     //col_context_t::col_context_t((col_context_t *)&explosionPos.ignoreEntParams);
                     G_TraceCapsule(
                         &trace,
@@ -630,7 +621,8 @@ void    G_ExplodeMissile(gentity_s *ent)
                         end,
                         ent->s.number,
                         2065,
-                        (col_context_t *)&explosionPos.ignoreEntParams);
+                        &context);
+                        //(col_context_t *)&explosionPos.ignoreEntParams);
                     if (weapDef->projExplosionEffectForceNormalUp)
                         normal = up;
                     else
@@ -887,7 +879,7 @@ int __cdecl ForcedDud(gentity_s *ent)
 {
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_missile.cpp", 329, 0, "%s", "ent") )
         __debugbreak();
-    return ent->s.lerp.u.turret.ownerNum;
+    return ent->s.lerp.u.missile.forcedDud;
 }
 
 int __cdecl GetSplashMethodOfDeath(gentity_s *ent)

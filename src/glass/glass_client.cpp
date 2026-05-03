@@ -310,7 +310,7 @@ void __thiscall GlassClient::Reset()
     if ( this->outlines )
     {
         //GlassRenderer::FreeShardMemory(clGlasses->renderer, &this->outlines->numOutlines
-        clGlasses->renderer->FreeShardMemory((unsigned int*)&this->outlines);
+        clGlasses->renderer->FreeShardMemory((unsigned int*)this->outlines);
         this->outlines = 0;
     }
 }

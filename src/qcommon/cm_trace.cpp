@@ -292,46 +292,29 @@ void __cdecl CM_Trace(
                 int brushmask,
                 col_context_t *context)
 {
-    float v8; // xmm0_4
-    unsigned int v10; // [esp+10h] [ebp-170h]
     cmodel_t *cmod; // [esp+5Ch] [ebp-124h]
     traceWork_t tw; // [esp+60h] [ebp-120h] BYREF
     float offset[3]; // [esp+144h] [ebp-3Ch]
     float oldFrac; // [esp+150h] [ebp-30h]
-    _QWORD start_[2]; // [esp+154h] [ebp-2Ch] BYREF
+    float start_[4]; // [esp+154h] [ebp-2Ch] BYREF
     int oldSurfaceFlags; // [esp+164h] [ebp-1Ch]
     int i; // [esp+168h] [ebp-18h]
-    _QWORD end_[2]; // [esp+170h] [ebp-10h] BYREF
+    float end_[4]; // [esp+170h] [ebp-10h] BYREF
 
     PROF_SCOPED("CM_Trace");
 
     ////traceWork_t::traceWork_t(&tw);
-    if ( !cm.numNodes
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp", 1499, 0, "%s", "cm.numNodes") )
-    {
-        __debugbreak();
-    }
-    if ( !mins && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp", 1500, 0, "%s", "mins") )
-        __debugbreak();
-    if ( !maxs && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp", 1501, 0, "%s", "maxs") )
-        __debugbreak();
 
+    iassert(cm.numNodes);
+    iassert(mins);
+    iassert(maxs);
     nanassertvec3(end);
 
     cmod = CM_ClipHandleToModel(model);
     tw.contents = brushmask;
     for ( i = 0; i < 3; ++i )
     {
-        if ( maxs[i] < mins[i]
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp",
-                        1515,
-                        0,
-                        "%s",
-                        "maxs[i] >= mins[i]") )
-        {
-            __debugbreak();
-        }
+        iassert(maxs[i] >= mins[i]);
         offset[i] = (float)(mins[i] + maxs[i]) * 0.5;
         tw.size.vec.v[i] = maxs[i] - offset[i];
         tw.extents.start.vec.v[i] = start[i] + offset[i];
@@ -339,39 +322,34 @@ void __cdecl CM_Trace(
         tw.midpoint.vec.v[i] = (float)(tw.extents.start.vec.v[i] + tw.extents.end.vec.v[i]) * 0.5;
         tw.delta.vec.v[i] = tw.extents.end.vec.v[i] - tw.extents.start.vec.v[i];
         tw.halfDelta.vec.v[i] = 0.5 * tw.delta.vec.v[i];
-        //tw.halfDeltaAbs.vec.u[i] = tw.halfDelta.vec.u[i] & _mask__AbsFloat_;
-        tw.halfDeltaAbs.vec.u[i] = fabs(tw.halfDelta.vec.u[i]);
+        tw.halfDeltaAbs.vec.v[i] = I_fabs(tw.halfDelta.vec.v[i]);
     }
     CM_CalcTraceExtents(&tw.extents);
-    tw.deltaLenSq = (float)((float)(tw.delta.vec.v[0] * tw.delta.vec.v[0]) + (float)(tw.delta.vec.v[1] * tw.delta.vec.v[1]))
-                                + (float)(tw.delta.vec.v[2] * tw.delta.vec.v[2]);
+    tw.deltaLenSq = Vec3LengthSq(tw.delta.vec.v);
     tw.deltaLen = sqrtf(tw.deltaLenSq);
+
     if ( tw.size.vec.v[0] <= tw.size.vec.v[2] )
-        v10 = tw.size.vec.u[0];
+        tw.radius = tw.size.vec.v[0];
     else
-        v10 = tw.size.vec.u[2];
-    LODWORD(tw.radius) = v10;
+        tw.radius = tw.size.vec.v[2];
+
     tw.boundingRadius = Abs(tw.size.vec.v);
     tw.offsetZ = tw.size.vec.v[2] - tw.radius;
+
     for ( i = 0; i < 2; ++i )
     {
         if ( tw.extents.end.vec.v[i] <= tw.extents.start.vec.v[i] )
         {
             tw.bounds[0].vec.v[i] = tw.extents.end.vec.v[i] - tw.radius;
-            v8 = tw.extents.start.vec.v[i] + tw.radius;
+            tw.bounds[1].vec.v[i] = tw.extents.start.vec.v[i] + tw.radius;
         }
         else
         {
             tw.bounds[0].vec.v[i] = tw.extents.start.vec.v[i] - tw.radius;
-            v8 = tw.extents.end.vec.v[i] + tw.radius;
+            tw.bounds[1].vec.v[i] = tw.extents.end.vec.v[i] + tw.radius;
         }
-        tw.bounds[1].vec.v[i] = v8;
     }
-    if ( tw.offsetZ < 0.0
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp", 1549, 0, "%s", "tw.offsetZ >= 0") )
-    {
-        __debugbreak();
-    }
+    iassert(tw.offsetZ >= 0);
     if ( tw.extents.end.vec.v[2] <= tw.extents.start.vec.v[2] )
     {
         tw.bounds[0].vec.v[2] = (float)(tw.extents.end.vec.v[2] - tw.offsetZ) - tw.radius;
@@ -397,16 +375,7 @@ void __cdecl CM_Trace(
             {
                 if ( (tw.contents & tw.threadInfo.box_brush->contents) != 0 )
                     CM_TestCapsuleInCapsule(&tw, results);
-                if ( (LODWORD(results->fraction) & 0x7F800000) == 0x7F800000
-                    && !Assert_MyHandler(
-                                "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp",
-                                1589,
-                                0,
-                                "%s",
-                                "!IS_NAN(results->fraction)") )
-                {
-                    __debugbreak();
-                }
+                iassert(!IS_NAN(results->fraction));
             }
             else if ( model == 0x4000 )
             {
@@ -417,16 +386,7 @@ void __cdecl CM_Trace(
             {
                 if ( !results->allsolid )
                     CM_TestInLeaf(&tw, &cmod->leaf, results);
-                if ( (LODWORD(results->fraction) & 0x7F800000) == 0x7F800000
-                    && !Assert_MyHandler(
-                                "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp",
-                                1601,
-                                0,
-                                "%s",
-                                "!IS_NAN(results->fraction)") )
-                {
-                    __debugbreak();
-                }
+                iassert(!IS_NAN(results->fraction));
             }
         }
         else
@@ -458,8 +418,8 @@ void __cdecl CM_Trace(
         {
             __debugbreak();
         }
-        tw.radiusOffset.vec.u[0] = LODWORD(tw.radius);
-        tw.radiusOffset.vec.u[1] = LODWORD(tw.radius);
+        tw.radiusOffset.vec.v[0] = tw.radius;
+        tw.radiusOffset.vec.v[1] = tw.radius;
         tw.radiusOffset.vec.v[2] = tw.radius + tw.offsetZ;
         if ( model )
         {
@@ -479,11 +439,15 @@ void __cdecl CM_Trace(
         }
         else
         {
-            start_[0] = *(_QWORD *)tw.extents.start.vec.v;
-            start_[1] = __PAIR64__(0, tw.extents.start.vec.u[2]);
-            end_[0] = *(_QWORD *)tw.extents.end.vec.v;
-            LODWORD(end_[1]) = tw.extents.end.vec.u[2];
-            HIDWORD(end_[1]) = LODWORD(results->fraction);
+            start_[0] = tw.extents.start.vec.v[0];
+            start_[1] = tw.extents.start.vec.v[1];
+            start_[2] = tw.extents.start.vec.v[2];
+            start_[3] = 0.0f;
+            end_[0] = tw.extents.end.vec.v[0];
+            end_[1] = tw.extents.end.vec.v[1];
+            end_[2] = tw.extents.end.vec.v[2];
+            end_[3] = results->fraction;
+
             if ( context->nprims )
                 CM_TraceThroughPrimitives(&tw, (const float *)start_, (const float *)end_, results, context);
             else
@@ -3941,10 +3905,10 @@ bool __cdecl is_inside(const float *a, const float *b, const float *n, const flo
     int i1; // [esp+58h] [ebp-8h]
     float denom; // [esp+5Ch] [ebp-4h]
 
-    if ( fabs(*(unsigned int *)n) <= fabs((unsigned int)n[1]) )
+    if ( fabs(n[0]) <= fabs(n[1]) )
     {
         i1 = 0;
-        if ( fabs((unsigned int)n[1]) <= fabs((unsigned int)n[2]) )
+        if ( fabs(n[1]) <= fabs(n[2]) )
             v9 = 1;
         else
             v9 = 2;
@@ -3953,7 +3917,7 @@ bool __cdecl is_inside(const float *a, const float *b, const float *n, const flo
     else
     {
         i1 = 1;
-        if ( fabs(*(unsigned int *)n) <= fabs((unsigned int)n[2]) )
+        if ( fabs(n[0]) <= fabs(n[2]) )
             v10 = 0;
         else
             v10 = 2;

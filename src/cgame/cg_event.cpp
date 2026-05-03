@@ -506,18 +506,20 @@ void __cdecl CG_EntityEvent(int localClientNum, centity_s *cent, int event)
                     return;
                 case EV_SOUND_ALIAS:
                 case EV_SOUND_ALIAS_NOTIFY:
-                    if (((LODWORD(p_nextState->lerp.pos.trBase[0]) & 0x7F800000) == 0x7F800000
-                        || (LODWORD(p_nextState->lerp.pos.trBase[1]) & 0x7F800000) == 0x7F800000
-                        || (LODWORD(p_nextState->lerp.pos.trBase[2]) & 0x7F800000) == 0x7F800000)
-                        && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_event.cpp",
-                            1917,
-                            0,
-                            "%s",
-                            "!IS_NAN((es->lerp.pos.trBase)[0]) && !IS_NAN((es->lerp.pos.trBase)[1]) && !IS_NAN((es->lerp.pos.trBase)[2])"))
-                    {
-                        __debugbreak();
-                    }
+                    nanassertvec3(p_nextState->lerp.pos.trBase);
+
+                    //if (((LODWORD(p_nextState->lerp.pos.trBase[0]) & 0x7F800000) == 0x7F800000
+                    //    || (LODWORD(p_nextState->lerp.pos.trBase[1]) & 0x7F800000) == 0x7F800000
+                    //    || (LODWORD(p_nextState->lerp.pos.trBase[2]) & 0x7F800000) == 0x7F800000)
+                    //    && !Assert_MyHandler(
+                    //        "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_event.cpp",
+                    //        1917,
+                    //        0,
+                    //        "%s",
+                    //        "!IS_NAN((es->lerp.pos.trBase)[0]) && !IS_NAN((es->lerp.pos.trBase)[1]) && !IS_NAN((es->lerp.pos.trBase)[2])"))
+                    //{
+                    //    __debugbreak();
+                    //}
                     soundPosition[0] = p_nextState->lerp.pos.trBase[0];
                     soundPosition[1] = p_nextState->lerp.pos.trBase[1];
                     soundPosition[2] = p_nextState->lerp.pos.trBase[2];
@@ -885,34 +887,13 @@ void __cdecl CG_EntityEvent(int localClientNum, centity_s *cent, int event)
                 case EV_MELEE_MISS:
                     if (p_nextState->eventParm == 2)
                     {
-                        if (((*(_DWORD *)position & 0x7F800000) == 0x7F800000
-                            || ((_DWORD)position[1] & 0x7F800000) == 0x7F800000
-                            || ((_DWORD)position[2] & 0x7F800000) == 0x7F800000)
-                            && !Assert_MyHandler(
-                                "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_event.cpp",
-                                1443,
-                                0,
-                                "%s",
-                                "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])"))
-                        {
-                            __debugbreak();
-                        }
+                        nanassertvec3(position);
+
                         CG_PlaySound(localClientNum, p_nextState->otherEntityNum, position, 0, 0, 1.0, cgMedia.meleeDogHitOther);
                     }
                     else
                     {
-                        if (((*(_DWORD *)position & 0x7F800000) == 0x7F800000
-                            || ((_DWORD)position[1] & 0x7F800000) == 0x7F800000
-                            || ((_DWORD)position[2] & 0x7F800000) == 0x7F800000)
-                            && !Assert_MyHandler(
-                                "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_event.cpp",
-                                1449,
-                                0,
-                                "%s",
-                                "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])"))
-                        {
-                            __debugbreak();
-                        }
+                        nanassertvec3(position);
                         if (meleeWeaponDef->meleeMissSound)
                         {
                             v21 = SND_FindAliasId((char *)meleeWeaponDef->meleeMissSound);
@@ -1025,18 +1006,7 @@ void __cdecl CG_EntityEvent(int localClientNum, centity_s *cent, int event)
                     {
                         __debugbreak();
                     }
-                    if (((*(_DWORD *)position & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[1] & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[2] & 0x7F800000) == 0x7F800000)
-                        && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_event.cpp",
-                            1558,
-                            0,
-                            "%s",
-                            "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])"))
-                    {
-                        __debugbreak();
-                    }
+                    nanassertvec3(position);
                     if (weaponDef->bounceSound)
                     {
                         v24 = SND_FindAliasId((char *)weaponDef->bounceSound[p_nextState->surfType]);
@@ -1103,18 +1073,7 @@ void __cdecl CG_EntityEvent(int localClientNum, centity_s *cent, int event)
                         position[2] = waterZ - 36.0;
                     }
                     CG_ImpactEffectForWeapon(weaponIdx, surfType, 0, &outFx, &outSnd);
-                    if (((*(_DWORD *)position & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[1] & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[2] & 0x7F800000) == 0x7F800000)
-                        && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_event.cpp",
-                            1608,
-                            0,
-                            "%s",
-                            "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])"))
-                    {
-                        __debugbreak();
-                    }
+                    nanassertvec3(position);
                     if (outFx)
                         FX_PlayOrientedEffect(localClientNum, outFx, cgameGlob->time, position, axis);
                     CG_PlaySound(localClientNum, 1022, position, 0, 0, 1.0, outSnd);
@@ -1169,18 +1128,7 @@ void __cdecl CG_EntityEvent(int localClientNum, centity_s *cent, int event)
                     }
                     ByteToDir(p_nextState->eventParm, axis[0]);
                     Vec3Basis_RightHanded(axis[0], axis[1], axis[2]);
-                    if (((*(_DWORD *)position & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[1] & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[2] & 0x7F800000) == 0x7F800000)
-                        && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_event.cpp",
-                            1649,
-                            0,
-                            "%s",
-                            "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])"))
-                    {
-                        __debugbreak();
-                    }
+                    nanassertvec3(position);
                     CG_ImpactEffectForWeapon(weaponIdx, p_nextState->surfType, 0, &def, &v86);
                     if (def)
                         FX_PlayOrientedEffect(localClientNum, def, cgameGlob->time, position, axis);
@@ -1192,18 +1140,7 @@ void __cdecl CG_EntityEvent(int localClientNum, centity_s *cent, int event)
                     cgameGlob->nomarks = 0;
                     return;
                 case EV_FLASHBANG_EXPLODE:
-                    if (((*(_DWORD *)position & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[1] & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[2] & 0x7F800000) == 0x7F800000)
-                        && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_event.cpp",
-                            1668,
-                            0,
-                            "%s",
-                            "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])"))
-                    {
-                        __debugbreak();
-                    }
+                    nanassertvec3(position);
                     ByteToDir(p_nextState->eventParm, axis[0]);
                     Vec3Basis_RightHanded(axis[0], axis[1], axis[2]);
                     if (weaponDef->projExplosionEffect)
@@ -1244,18 +1181,7 @@ void __cdecl CG_EntityEvent(int localClientNum, centity_s *cent, int event)
                         15);
                     ByteToDir(p_nextState->eventParm, axis[0]);
                     Vec3Basis_RightHanded(axis[0], axis[1], axis[2]);
-                    if (((*(_DWORD *)position & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[1] & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[2] & 0x7F800000) == 0x7F800000)
-                        && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_event.cpp",
-                            1698,
-                            0,
-                            "%s",
-                            "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])"))
-                    {
-                        __debugbreak();
-                    }
+                    nanassertvec3(position);
                     CG_ImpactEffectForWeapon(weaponIdx, p_nextState->surfType, 0, &v84, &v83);
                     if (v84)
                         FX_PlayOrientedEffect(localClientNum, v84, cgameGlob->time, position, axis);
@@ -1296,18 +1222,8 @@ void __cdecl CG_EntityEvent(int localClientNum, centity_s *cent, int event)
                     }
                     if (weaponDef->projExplosionSound)
                     {
-                        if (((*(_DWORD *)position & 0x7F800000) == 0x7F800000
-                            || ((_DWORD)position[1] & 0x7F800000) == 0x7F800000
-                            || ((_DWORD)position[2] & 0x7F800000) == 0x7F800000)
-                            && !Assert_MyHandler(
-                                "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_event.cpp",
-                                1743,
-                                0,
-                                "%s",
-                                "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])"))
-                        {
-                            __debugbreak();
-                        }
+                        nanassertvec3(position);
+
                         if ((p_nextState->lerp.eFlags & 0x4000) == 0
                             || cgameGlob->time - p_nextState->lerp.u.actor.actorNum < 200)
                         {
@@ -1339,18 +1255,8 @@ void __cdecl CG_EntityEvent(int localClientNum, centity_s *cent, int event)
                     }
                     ByteToDir(p_nextState->eventParm, axis[0]);
                     Vec3Basis_RightHanded(axis[0], axis[1], axis[2]);
-                    if (((*(_DWORD *)position & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[1] & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[2] & 0x7F800000) == 0x7F800000)
-                        && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_event.cpp",
-                            1766,
-                            0,
-                            "%s",
-                            "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])"))
-                    {
-                        __debugbreak();
-                    }
+                    nanassertvec3(position);
+
                     CG_PlaySound(localClientNum, 1022, position, 0, 0, 1.0, cgMedia.bulletHitLargeSound[p_nextState->surfType]);
                     if (cgMedia.fx->table[15].nonflesh[p_nextState->surfType])
                         FX_PlayOrientedEffect(
@@ -1380,18 +1286,8 @@ void __cdecl CG_EntityEvent(int localClientNum, centity_s *cent, int event)
                     }
                     ByteToDir(p_nextState->eventParm, axis[0]);
                     Vec3Basis_RightHanded(axis[0], axis[1], axis[2]);
-                    if (((*(_DWORD *)position & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[1] & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[2] & 0x7F800000) == 0x7F800000)
-                        && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_event.cpp",
-                            1787,
-                            0,
-                            "%s",
-                            "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])"))
-                    {
-                        __debugbreak();
-                    }
+                    nanassertvec3(position);
+
                     CG_PlaySound(localClientNum, 1022, position, 0, 0, 1.0, cgMedia.bulletHitLargeSound[p_nextState->surfType]);
                     if (cgMedia.fx->table[15].nonflesh[p_nextState->surfType])
                         FX_PlayOrientedEffect(
@@ -1452,18 +1348,8 @@ void __cdecl CG_EntityEvent(int localClientNum, centity_s *cent, int event)
                         (float)weaponDef->iExplosionOuterDamage,
                         (float)weaponDef->iExplosionRadius,
                         15);
-                    if (((*(_DWORD *)position & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[1] & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[2] & 0x7F800000) == 0x7F800000)
-                        && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_event.cpp",
-                            1883,
-                            0,
-                            "%s",
-                            "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])"))
-                    {
-                        __debugbreak();
-                    }
+                    nanassertvec3(position);
+
                     if (weaponDef->weapType == WEAPTYPE_PROJECTILE)
                         v31 = SND_FindAliasId((char *)weaponDef->projExplosionSound);
                     else
@@ -1858,18 +1744,8 @@ void __cdecl CG_EntityEvent(int localClientNum, centity_s *cent, int event)
                 case EV_BOLT_IMPACT:
                     ByteToDir(p_nextState->eventParm, axis[0]);
                     Vec3Basis_RightHanded(axis[0], axis[1], axis[2]);
-                    if (((*(_DWORD *)position & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[1] & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[2] & 0x7F800000) == 0x7F800000)
-                        && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_event.cpp",
-                            1805,
-                            0,
-                            "%s",
-                            "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])"))
-                    {
-                        __debugbreak();
-                    }
+                    nanassertvec3(position);
+
                     CG_ImpactEffectForWeapon(weaponIdx, p_nextState->surfType, 0, &fx, &snd);
                     if (fx)
                         FX_PlayOrientedEffect(localClientNum, fx, cgameGlob->time, cent->nextState.lerp.pos.trBase, axis);
@@ -1887,18 +1763,8 @@ void __cdecl CG_EntityEvent(int localClientNum, centity_s *cent, int event)
                 case EV_BOLT_IMPALE:
                     ByteToDir(p_nextState->eventParm, axis[0]);
                     Vec3Basis_RightHanded(axis[0], axis[1], axis[2]);
-                    if (((*(_DWORD *)position & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[1] & 0x7F800000) == 0x7F800000
-                        || ((_DWORD)position[2] & 0x7F800000) == 0x7F800000)
-                        && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_event.cpp",
-                            1828,
-                            0,
-                            "%s",
-                            "!IS_NAN((position)[0]) && !IS_NAN((position)[1]) && !IS_NAN((position)[2])"))
-                    {
-                        __debugbreak();
-                    }
+                    nanassertvec3(position);
+
                     CG_ImpactEffectForWeapon(weaponIdx, 7u, 0, &fx, &snd);
                     if (fx)
                         FX_PlayOrientedEffect(localClientNum, fx, cgameGlob->time, position, axis);

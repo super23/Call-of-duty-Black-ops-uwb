@@ -1008,7 +1008,7 @@ void __cdecl DynEntSv_RadiusDamage(
     }
 }
 
-bool __cdecl DynEntCl_CompareDynEntsForExplosion(const DynEntSortStruct &ent1, const DynEntSortStruct &ent2)
+static bool __cdecl DynEntCl_CompareDynEntsForExplosion(const DynEntSortStruct &ent1, const DynEntSortStruct &ent2)
 {
     return ent2.distSq > ent1.distSq;
 }
