@@ -1447,12 +1447,12 @@ void __cdecl G_LocationalTrace(
                 int (__cdecl *collide_entity_func)(int, col_context_t *))
 {
     IgnoreEntParams ignoreEntParams; // [esp+0h] [ebp-34h] BYREF
-    col_context_t context; // [esp+Ch] [ebp-28h] BYREF
 
     SV_SetupIgnoreEntParams(&ignoreEntParams, passEntityNum);
-    //col_context_t::col_context_t(&context, contentmask);
+
+    col_context_t context(contentmask);
+
     context.ignoreEntParams = &ignoreEntParams;
-    //col_context_t::init_locational(&context, passEntityNum);
     context.init_locational(passEntityNum);
     context.priorityMap = priorityMap;
     context.collide_entity_func = collide_entity_func;
@@ -1468,13 +1468,13 @@ void __cdecl G_LocationalTraceAllowChildren(
                 unsigned __int8 *priorityMap)
 {
     IgnoreEntParams ignoreEntParams; // [esp+0h] [ebp-34h] BYREF
-    col_context_t context; // [esp+Ch] [ebp-28h] BYREF
 
     SV_SetupIgnoreEntParams(&ignoreEntParams, passEntityNum);
     ignoreEntParams.ignoreChildren = 0;
-    //col_context_t::col_context_t(&context, contentmask);
+
+    col_context_t context(contentmask); // [esp+Ch] [ebp-28h] BYREF
+
     context.ignoreEntParams = &ignoreEntParams;
-    //col_context_t::init_locational(&context, passEntityNum);
     context.init_locational(passEntityNum);
     context.priorityMap = priorityMap;
     SV_TracePoint(results, start, end, &context);

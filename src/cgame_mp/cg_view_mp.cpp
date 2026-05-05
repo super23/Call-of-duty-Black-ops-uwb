@@ -3255,7 +3255,6 @@ void __cdecl CG_UpdateExplosiveKillCam(int localClientNum, KillCamEntityType kil
     float dir[3]; // [esp+10Ch] [ebp-110h] BYREF
     float bombEndPos[3]; // [esp+118h] [ebp-104h] BYREF
     float desiredStopDist; // [esp+124h] [ebp-F8h]
-    trace_t results; // [esp+128h] [ebp-F4h] BYREF
     float speed; // [esp+160h] [ebp-BCh]
     float time; // [esp+164h] [ebp-B8h]
     float decelFactor[3]; // [esp+168h] [ebp-B4h]
@@ -3434,32 +3433,10 @@ void __cdecl CG_UpdateExplosiveKillCam(int localClientNum, KillCamEntityType kil
         shouldStop = v14 * v14 > Vec3DistanceSq(lookAt, realBombOrigin);
         if ( shouldStop && !cgameGlob->killCamStoppedTime && cgameGlob->killCamFirstFrameRan )
         {
-            memset(&results, 0, 16);
-            if ( ((LODWORD(cgameGlob->killCamPrevBombOrigin[0]) & 0x7F800000) == 0x7F800000
-                 || (LODWORD(cgameGlob->killCamPrevBombOrigin[1]) & 0x7F800000) == 0x7F800000
-                 || (LODWORD(cgameGlob->killCamPrevBombOrigin[2]) & 0x7F800000) == 0x7F800000)
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
-                            2150,
-                            0,
-                            "%s",
-                            "!IS_NAN((cgameGlob->killCamPrevBombOrigin)[0]) && !IS_NAN((cgameGlob->killCamPrevBombOrigin)[1]) && !IS_NA"
-                            "N((cgameGlob->killCamPrevBombOrigin)[2])") )
-            {
-                __debugbreak();
-            }
-            if ( ((LODWORD(realBombOrigin[0]) & 0x7F800000) == 0x7F800000
-                 || (LODWORD(realBombOrigin[1]) & 0x7F800000) == 0x7F800000
-                 || (LODWORD(realBombOrigin[2]) & 0x7F800000) == 0x7F800000)
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
-                            2151,
-                            0,
-                            "%s",
-                            "!IS_NAN((realBombOrigin)[0]) && !IS_NAN((realBombOrigin)[1]) && !IS_NAN((realBombOrigin)[2])") )
-            {
-                __debugbreak();
-            }
+            trace_t results; // [esp+128h] [ebp-F4h] BYREF
+            nanassertvec3(cgameGlob->killCamPrevBombOrigin);
+            nanassertvec3(realBombOrigin);
+            
             cgameGlob->killCamStoppedTime = cgameGlob->time;
             killCamStoppedPos = cgameGlob->killCamStoppedPos;
             cgameGlob->killCamStoppedPos[0] = realBombOrigin[0];

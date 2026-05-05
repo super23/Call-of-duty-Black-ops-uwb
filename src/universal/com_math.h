@@ -82,10 +82,11 @@ struct vector4 : vector3 // sizeof=0x40
     float4 w;                           // XREF: CreateClipMatrix+94/r
 };
 
-struct hybrid_vector // sizeof=0x10
+struct alignas(16) hybrid_vector // sizeof=0x10
 {                                                                             // XREF: colgeom_visitor_t/r
         float4 vec;                                                 // XREF: AimTarget_IsTargetVisible+1B/w
 };
+static_assert(sizeof(hybrid_vector) == 16);
 
 struct orientation_t // sizeof=0x30
 {                                                                             // XREF: .rdata:orientation_t const orIdentity/r

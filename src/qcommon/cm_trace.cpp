@@ -3641,7 +3641,6 @@ int __cdecl CM_TracePointDown(
     trace_t results; // [esp+134h] [ebp-4Ch] BYREF
     _QWORD end_[2]; // [esp+170h] [ebp-10h] BYREF
 
-    memset(&results, 0, 16);
     //traceWork_t::traceWork_t(&tw);
     if ( !start && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp", 2990, 0, "%s", "start") )
         __debugbreak();

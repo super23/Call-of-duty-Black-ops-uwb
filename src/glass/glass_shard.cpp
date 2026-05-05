@@ -2978,7 +2978,7 @@ void __thiscall GlassShard::Update(float deltaTime)
             Sys_EnterCriticalSection(CRITSECT_PHYSICS);
             Phys_ObjGetPosition(this->physObjId, this->origin, this->axis);
             //isStable = rigid_body::is_stable(*(rigid_body **)this->physObjId) != 0;
-            isStable = (*(rigid_body **)this->physObjId)->is_stable() != 0;
+            isStable = Phys_GetUserData(this->physObjId)->body->is_stable() != 0;
             Sys_LeaveCriticalSection(CRITSECT_PHYSICS);
             Sys_LeaveCriticalSection(CRITSECT_PHYSICS_UPDATE);
         }

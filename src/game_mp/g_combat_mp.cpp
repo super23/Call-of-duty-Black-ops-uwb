@@ -932,11 +932,13 @@ double __cdecl CanDamage(
     {
         inflictorNum = 1023;
     }
+
     //col_context_t::col_context_t(&context, contentMask);
-    col_context_t context; // [esp+1ACh] [ebp-6Ch] BYREF
+    col_context_t context(contentMask); // [esp+1ACh] [ebp-6Ch] BYREF
 
     context.init_locational(targ->s.number, inflictorNum);
     //col_context_t::init_locational(&context, targ->s.number, inflictorNum);
+
     hitnum = -1;
     if ( targ->client )
     {
@@ -1215,7 +1217,6 @@ void __cdecl FlashbangBlastEnt(
     float percent_angle; // [esp+4Ch] [ebp-58h]
     float forward[3]; // [esp+50h] [ebp-54h] BYREF
     float toBlast[3]; // [esp+5Ch] [ebp-48h] BYREF
-    col_context_t context; // [esp+68h] [ebp-3Ch] BYREF
     float dist; // [esp+90h] [ebp-14h]
     int hitNum; // [esp+94h] [ebp-10h] BYREF
     float playerEyes[3]; // [esp+98h] [ebp-Ch] BYREF
@@ -1230,6 +1231,8 @@ void __cdecl FlashbangBlastEnt(
             {
                 GetFlashbangViewPos(ent, playerEyes);
                 //col_context_t::col_context_t(&context, 8419363);
+                col_context_t context(0x807823); // [esp+68h] [ebp-3Ch] BYREF
+
                 context.passEntityNum0 = ent->s.number;
                 SV_SightTracePoint(&hitNum, playerEyes, blastOrigin, &context);
                 if ( hitNum == -1 || !hitNum )

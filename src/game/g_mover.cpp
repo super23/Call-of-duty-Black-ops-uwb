@@ -231,7 +231,7 @@ void    CreateConstraint(PhysConstraint *constraint)
             {
                 __debugbreak();
             }
-            userData1 = (PhysObjUserData *)ent1->physObjId;
+            userData1 = Phys_GetUserData(ent1->physObjId);
             rb1 = userData1->body;
             //LODWORD(ent1_anchor_loc[3]) = constraint->pos;
             ent1_anchor_loc[0] = constraint->pos[0];
@@ -260,7 +260,7 @@ void    CreateConstraint(PhysConstraint *constraint)
         {
             ent2 = GetEntity(&constraint->target_ent2);
             constraint->target_index2 = ent2->s.number;
-            userData2 = (PhysObjUserData *)ent2->physObjId;
+            userData2 = Phys_GetUserData(ent2->physObjId);
             rb2 = userData1->body;
             //LODWORD(ent2_anchor_loc[3]) = constraint->pos2;
             ent2_anchor_loc[0] = constraint->pos2[0];
@@ -334,7 +334,7 @@ void __cdecl G_MoverTeam(gentity_s *ent, mover_info_t *mi)
     void(__cdecl * reacheda)(gentity_s *); // [esp+0h] [ebp-4h]
     int savedregs; // [esp+4h] [ebp+0h] BYREF
 
-    if (ent->s.lerp.pos.trType == 10)
+    if (ent->s.lerp.pos.trType == TR_PHYSICS)
     {
         GlassSv_PredictTouch(ent);
         G_CalcEntityPhysicsPositions(ent);
@@ -486,7 +486,8 @@ void __cdecl G_CalcEntityPhysicsPositions(gentity_s *ent)
         G_CreatePhysicsObject(ent);
         if ( ent->physObjId != -1 )
         {
-            *(_WORD *)(ent->physObjId + 244) = 0;
+            //*(_WORD *)(ent->physObjId + 244) = 0;
+            Phys_GetUserData(ent->physObjId)->trDuration = 0;
             ent->s.lerp.pos.trDuration = 0;
         }
     }
@@ -553,7 +554,6 @@ void __cdecl G_CreatePhysicsObject(gentity_s *ent)
     float quat[4]; // [esp+DCh] [ebp-4Ch] BYREF
     int brushModel; // [esp+ECh] [ebp-3Ch]
     float maxs[3]; // [esp+F0h] [ebp-38h] BYREF
-    create_gjk_geom_collision_visitor collision_visitor; // [esp+FCh] [ebp-2Ch] BYREF
     float speed; // [esp+104h] [ebp-24h]
     gjk_geom_list_t gjk_geom_list; // [esp+108h] [ebp-20h] BYREF
     float direction[3]; // [esp+110h] [ebp-18h] BYREF
@@ -632,6 +632,7 @@ void __cdecl G_CreatePhysicsObject(gentity_s *ent)
         Sys_EnterCriticalSection(CRITSECT_PHYSICS);
         gjk_geom_list.m_first_geom = 0;
         gjk_geom_list.m_geom_count = 0;
+        create_gjk_geom_collision_visitor collision_visitor; // [esp+FCh] [ebp-2Ch] BYREF
         //collision_visitor.__vftable = (create_gjk_geom_collision_visitor_vtbl *)&create_gjk_geom_collision_visitor::`vftable';
         collision_visitor.gjk_geom_list = &gjk_geom_list;
         create_gjk_geom(ent, &collision_visitor, 0, 0x280EC93, 1);
@@ -640,7 +641,7 @@ void __cdecl G_CreatePhysicsObject(gentity_s *ent)
         if ( physObjId )
         {
             userData = (PhysObjUserData *)physObjId;
-            if ( *(unsigned int *)(physObjId + 224) == 1 )
+            if ( userData->refcount == 1 )
             {
                 direction[0] = ent->s.lerp.apos.trDelta[0];
                 direction[1] = ent->s.lerp.apos.trDelta[1];
@@ -794,7 +795,7 @@ void __cdecl G_MoverTeam_New(gentity_s *ent)
             BG_EvaluateTrajectory(&ent->s.lerp.pos, level.time, origin);
             BG_EvaluateTrajectory(&ent->s.lerp.apos, level.time, angles);
             //mover_info_t::init(mover_info, origin, angles, ent->r.currentOrigin, ent->r.currentAngles, 1);
-            mover_info->init(origin, angles, 1); // KISAKTODO: sus ^^
+            mover_info->init(origin, angles, ent->r.currentAngles, ent->r.currentAngles, true);
             G_MoverTeam(ent, mover_info);
         }
     }
@@ -831,14 +832,14 @@ void __thiscall mover_info_t::init(
                 const float *prev_angles,
                 bool do_collision)
 {
-    float v7[9]; // [esp+18h] [ebp-48h] BYREF
+    float prevaxis[9]; // [esp+18h] [ebp-48h] BYREF
     float axis[9]; // [esp+3Ch] [ebp-24h] BYREF
 
     AnglesToAxis(angles, (float (*)[3])axis);
     Phys_AxisToNitrousMat((float (*)[3])axis, &this->m_mat);
     Phys_Vec3ToNitrousVec(origin, &this->m_mat.w);
-    AnglesToAxis(prev_angles, (float (*)[3])v7);
-    Phys_AxisToNitrousMat((float (*)[3])v7, &this->m_prev_mat);
+    AnglesToAxis(prev_angles, (float (*)[3])prevaxis);
+    Phys_AxisToNitrousMat((float (*)[3])prevaxis, &this->m_prev_mat);
     Phys_Vec3ToNitrousVec(prev_origin, &this->m_prev_mat.w);
     this->m_origin[0] = *origin;
     this->m_origin[1] = origin[1];

@@ -896,8 +896,7 @@ void __cdecl DynEnt_UpdateConstraints(int localClientNum, DynEntityClient *dynEn
                 {
                     if ( dynEntClient->physObjId )
                     {
-                        PhysObjUserData *userData = (PhysObjUserData *)dynEntClient->physObjId;
-                        userData->body->m_stable_min_contact_count = 3;
+                        Phys_GetUserData(dynEntClient->physObjId)->body->m_stable_min_contact_count = 3;
                         //*(unsigned int *)(*(unsigned int *)dynEntClient->physObjId + 272) = 3;
                         Phys_ObjAddCollFlags(dynEntClient->physObjId, 455);
                     }
@@ -2748,17 +2747,17 @@ void __cdecl DynEntCl_ExplosionEvent(
     unsigned int ClosestEntities; // [esp+48h] [ebp-206Ch]
     float radiusMaxs[3]; // [esp+4Ch] [ebp-2068h] BYREF
     //float v20; // [esp+54h] [ebp-2060h]
-    float v; // [esp+58h] [ebp-205Ch] BYREF
-    float v22; // [esp+5Ch] [ebp-2058h]
-    float v23; // [esp+60h] [ebp-2054h]
+    float v[3]; // [esp+58h] [ebp-205Ch] BYREF
+    //float v22; // [esp+5Ch] [ebp-2058h]
+    //float v23; // [esp+60h] [ebp-2054h]
     DynEntityDrawType drawType; // [esp+64h] [ebp-2050h]
     DynEntityClient *dynEntClient; // [esp+68h] [ebp-204Ch]
     float impulsea[3]; // [esp+6Ch] [ebp-2048h] BYREF
     const DynEntityDef *dynEntDef; // [esp+78h] [ebp-203Ch]
     float v28; // [esp+7Ch] [ebp-2038h]
-    float outPosition; // [esp+80h] [ebp-2034h] BYREF
-    float v30; // [esp+84h] [ebp-2030h]
-    float v31; // [esp+88h] [ebp-202Ch]
+    float outPosition[3]; // [esp+80h] [ebp-2034h] BYREF
+    //float v30; // [esp+84h] [ebp-2030h]
+    //float v31; // [esp+88h] [ebp-202Ch]
     unsigned __int16 hitEnts[4096]; // [esp+8Ch] [ebp-2028h] BYREF
     float v33; // [esp+2090h] [ebp-24h]
     unsigned int i; // [esp+2094h] [ebp-20h]
@@ -2896,25 +2895,25 @@ void __cdecl DynEntCl_ExplosionEvent(
                         {
                             __debugbreak();
                         }
-                        v = pose->pose.origin[0] - *origin;
-                        v22 = pose->pose.origin[1] - origin[1];
-                        v23 = pose->pose.origin[2] - origin[2];
-                        outPosition = pose->pose.origin[0];
-                        v30 = pose->pose.origin[1];
-                        v31 = pose->pose.origin[2];
+                        v[0] = pose->pose.origin[0] - *origin;
+                        v[1] = pose->pose.origin[1] - origin[1];
+                        v[2] = pose->pose.origin[2] - origin[2];
+                        outPosition[0] = pose->pose.origin[0];
+                        outPosition[1] = pose->pose.origin[1];
+                        outPosition[2] = pose->pose.origin[2];
                         if ( 0.0 == *impulse && impulse[1] == 0.0 && impulse[2] == 0.0 )
                         {
                             if ( isCylinder )
-                                v23 = 0.0f;
-                            Vec3Normalize(&v);
-                            v23 = v23 + dynEnt_explodeUpbias->current.value;
-                            Vec3Normalize(&v);
+                                v[2] = 0.0f;
+                            Vec3Normalize(v);
+                            v[2] += dynEnt_explodeUpbias->current.value;
+                            Vec3Normalize(v);
                         }
                         else
                         {
-                            v = *impulse;
-                            v22 = impulse[1];
-                            v23 = impulse[2];
+                            v[0] = impulse[0];
+                            v[1] = impulse[1];
+                            v[2] = impulse[2];
                         }
                         if ( DynEnt_GetEntityProps(dynEntDef->type)->usePhysics )
                         {
@@ -2928,23 +2927,23 @@ void __cdecl DynEntCl_ExplosionEvent(
                                 v33 = (float)(v38 * dynEntDef->physPreset->explosiveForceScale) * dynEnt_explodeForce->current.value;
                                 if ( v33 > dynEnt_explodeMinForce->current.value )
                                 {
-                                    impulsea[0] = v33 * v;
-                                    impulsea[1] = v33 * v22;
-                                    impulsea[2] = v33 * v23;
-                                    Phys_ObjGetCenterOfMass(dynEntClient->physObjId, &outPosition);
+                                    impulsea[0] = v33 * v[0];
+                                    impulsea[1] = v33 * v[1];
+                                    impulsea[2] = v33 * v[2];
+                                    Phys_ObjGetCenterOfMass(dynEntClient->physObjId, outPosition);
                                     v10 = flrand(-1.0, 1.0);
-                                    outPosition = v10 * dynEnt_explodeSpinScale->current.value + outPosition;
+                                    outPosition[0] += v10 * dynEnt_explodeSpinScale->current.value;
                                     v11 = flrand(-1.0, 1.0);
-                                    v30 = v11 * dynEnt_explodeSpinScale->current.value + v30;
+                                    outPosition[1] += v11 * dynEnt_explodeSpinScale->current.value;
                                     v12 = flrand(-1.0, 1.0);
-                                    v31 = v12 * dynEnt_explodeSpinScale->current.value + v31;
-                                    Phys_ObjAddForce(dynEntClient->physObjId, &outPosition, impulsea, 0);
+                                    outPosition[2] += v12 * dynEnt_explodeSpinScale->current.value;
+                                    Phys_ObjAddForce(dynEntClient->physObjId, outPosition, impulsea, 0);
                                 }
                             }
                         }
                         damage = (int)(float)((float)((float)(innerDamage - outerDamage) * v38) + (float)outerDamage);
                         if ( damage )
-                            DynEntCl_Damage(localClientNum, hitEnts[i], (DynEntityCollType)drawType, &outPosition, &v, damage);
+                            DynEntCl_Damage(localClientNum, hitEnts[i], (DynEntityCollType)drawType, outPosition, v, damage);
                     }
                 }
             }

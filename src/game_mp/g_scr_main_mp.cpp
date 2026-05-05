@@ -6471,7 +6471,6 @@ void Scr_BulletTracePassed()
 {
     bool v0; // eax
     int hitnum; // [esp+0h] [ebp-54h] BYREF
-    col_context_t context; // [esp+4h] [ebp-50h] BYREF
     float vEnd[3]; // [esp+2Ch] [ebp-28h] BYREF
     gentity_s *pIgnoreEnt; // [esp+38h] [ebp-1Ch]
     int iClipMask; // [esp+3Ch] [ebp-18h]
@@ -6490,7 +6489,9 @@ void Scr_BulletTracePassed()
         pIgnoreEnt = Scr_GetEntity(3u);
         iIgnoreEntNum = pIgnoreEnt->s.number;
     }
+
     //col_context_t::col_context_t(&context, iClipMask);
+    col_context_t context(iClipMask); // [esp+4h] [ebp-50h] BYREF
     //col_context_t::init_locational(&context, iIgnoreEntNum);
     context.init_locational(iIgnoreEntNum);
     hitnum = -1;
@@ -8335,7 +8336,6 @@ void __cdecl GScr_SightConeTrace(scr_entref_t entref)
 void __cdecl GScr_PlayerSightTrace(scr_entref_t entref)
 {
     gclient_s *client; // ecx
-    col_context_t context; // [esp+24h] [ebp-6Ch] BYREF
     float dist; // [esp+4Ch] [ebp-44h]
     int distance; // [esp+50h] [ebp-40h]
     float viewdir[3]; // [esp+54h] [ebp-3Ch] BYREF
@@ -8369,6 +8369,7 @@ void __cdecl GScr_PlayerSightTrace(scr_entref_t entref)
     if ( dot >= 0.70700002 && dist <= (float)distance || dist < 100.0 && dot > 0.0 )
     {
         //col_context_t::col_context_t(&context, (int)&loc_806823);
+        col_context_t context(0x806823); // [esp+24h] [ebp-6Ch] BYREF
         context.passEntityNum0 = ent->s.number;
         SV_SightTracePoint(&hitNum, playerEyes, itemPosition, &context);
         Scr_AddInt(hitNum, SCRIPTINSTANCE_SERVER);
@@ -8382,7 +8383,6 @@ void __cdecl GScr_PlayerSightTrace(scr_entref_t entref)
 void __cdecl GScr_HeliTurretSightTrace(scr_entref_t entref)
 {
     gclient_s *client; // edx
-    col_context_t context; // [esp+4h] [ebp-4Ch] BYREF
     gentity_s *copterEnt; // [esp+2Ch] [ebp-24h]
     float turretPosition[3]; // [esp+30h] [ebp-20h] BYREF
     int hitNum; // [esp+3Ch] [ebp-14h] BYREF
@@ -8399,6 +8399,7 @@ void __cdecl GScr_HeliTurretSightTrace(scr_entref_t entref)
     playerEyes[2] = playerEyes[2] + player->client->ps.viewHeightCurrent;
     hitNum = Scr_GetInt(2u, SCRIPTINSTANCE_SERVER);
     //col_context_t::col_context_t(&context, 14337);
+    col_context_t context(0x3801); // [esp+4h] [ebp-4Ch] BYREF
     context.passEntityNum0 = copterEnt->s.number;
     SV_SightTracePoint(&hitNum, playerEyes, turretPosition, &context);
     Scr_AddInt(hitNum, SCRIPTINSTANCE_SERVER);
@@ -8407,7 +8408,6 @@ void __cdecl GScr_HeliTurretSightTrace(scr_entref_t entref)
 void __cdecl GScr_HeliTurretDogTrace(scr_entref_t entref)
 {
     gentity_s *dog; // [esp+4h] [ebp-4Ch]
-    col_context_t context; // [esp+8h] [ebp-48h] BYREF
     gentity_s *copterEnt; // [esp+30h] [ebp-20h]
     float turretPosition[3]; // [esp+34h] [ebp-1Ch] BYREF
     int hitNum; // [esp+40h] [ebp-10h] BYREF
@@ -8422,6 +8422,7 @@ void __cdecl GScr_HeliTurretDogTrace(scr_entref_t entref)
     dogEyes[2] = dogEyes[2] + 24.0;
     hitNum = Scr_GetInt(2u, SCRIPTINSTANCE_SERVER);
     //col_context_t::col_context_t(&context, 14337);
+    col_context_t context(0x3801); // [esp+8h] [ebp-48h] BYREF
     context.passEntityNum0 = copterEnt->s.number;
     SV_SightTracePoint(&hitNum, dogEyes, turretPosition, &context);
     Scr_AddInt(hitNum, SCRIPTINSTANCE_SERVER);

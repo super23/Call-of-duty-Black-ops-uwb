@@ -2140,7 +2140,6 @@ void __cdecl CM_CheckForTraps(gentity_s *ent)
     int contentmask; // [esp+10E8h] [ebp-8h]
     int v25; // [esp+10ECh] [ebp-4h]
 
-    memset(&results, 0, 16);
     contentmask = 1;
     v12 = 1.0f;
     v13 = 1.0f;

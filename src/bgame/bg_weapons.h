@@ -299,6 +299,7 @@ struct BulletFireParams // sizeof=0x40
         float dir[3];                                             // XREF: FireBulletPenetrate+BF1/w
                                                                                 // FireBulletPenetrate+C08/w ...
 };
+static_assert(sizeof(BulletFireParams) == 64);
 
 struct BulletTraceResults;
 

@@ -2336,7 +2336,6 @@ pathnode_t *__cdecl Path_NearestNodeNotCrossPlanes(
     float adjustedOrigin[3]; // [esp+7Ch] [ebp-468h] BYREF
     int j; // [esp+88h] [ebp-45Ch]
     pathnode_t *node; // [esp+8Ch] [ebp-458h]
-    col_context_t context; // [esp+90h] [ebp-454h] BYREF
     int iNodeCount; // [esp+B8h] [ebp-42Ch]
     float mins[3]; // [esp+BCh] [ebp-428h] BYREF
     float maxs[3]; // [esp+C8h] [ebp-41Ch] BYREF
@@ -2346,6 +2345,7 @@ pathnode_t *__cdecl Path_NearestNodeNotCrossPlanes(
     int iFailedNodeCount; // [esp+4E0h] [ebp-4h]
 
     //col_context_t::col_context_t(&context, (int)&loc_82000C + 5);
+    col_context_t context(0x820011); // [esp+90h] [ebp-454h] BYREF
     if ( heightCheck )
     {
         iNodeCount = Path_NodesInRadius(vOrigin, fMaxDist, nodes, maxNodes, typeFlags);

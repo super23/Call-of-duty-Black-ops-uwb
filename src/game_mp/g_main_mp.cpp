@@ -3511,7 +3511,7 @@ LABEL_63:
             }
             if ( ent->physicsObject )
                 goto LABEL_63;
-            if ( ent->s.eType == 6 || ent->s.eType == 13 || ent->s.eType == 10 )
+            if ( ent->s.eType == ET_SCRIPTMOVER || ent->s.eType == ET_PLANE || ent->s.eType == ET_PRIMARY_LIGHT)
             {
                 SV_Flame_Apply_Damage(ent);
                 G_RunMover(ent);

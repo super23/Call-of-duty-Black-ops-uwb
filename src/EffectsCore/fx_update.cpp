@@ -1267,14 +1267,15 @@ int __cdecl FX_UpdateElementPosition_CollidingStep(
                 int msecUpdateEnd,
                 float *xyzWorldOld)
 {
-    col_context_t context; // [esp+4h] [ebp-6Ch] BYREF
     const FxElemDef *elemDef; // [esp+2Ch] [ebp-44h]
     int traceMask; // [esp+30h] [ebp-40h]
     trace_t trace; // [esp+34h] [ebp-3Ch] BYREF
 
-    memset(&trace, 0, 16);
     traceMask = 2065;
+
     //col_context_t::col_context_t(&context, 2065);
+    col_context_t context(traceMask);
+
     elemDef = FX_GetUpdateElemDef(update);
     if ( (elemDef->flags & 0x2000) != 0 )
         traceMask |= 0x400u;

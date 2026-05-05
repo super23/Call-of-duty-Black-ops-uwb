@@ -121,7 +121,6 @@ void __cdecl G_RunCorpseMove(gentity_s *ent)
     col_context_t v7; // [esp+6Ch] [ebp-128h] BYREF
     float DROP_CHECK_TRACE_START_HEIGHT; // [esp+94h] [ebp-100h]
     int hitnum; // [esp+98h] [ebp-FCh] BYREF
-    col_context_t v10; // [esp+9Ch] [ebp-F8h] BYREF
     float deltaChange[3]; // [esp+C8h] [ebp-CCh] BYREF
     bool isRagdoll; // [esp+D7h] [ebp-BDh]
     col_context_t context; // [esp+D8h] [ebp-BCh] BYREF
@@ -242,6 +241,8 @@ void __cdecl G_RunCorpseMove(gentity_s *ent)
                     ent->s.lerp.pos.trDelta[2] = 0.0f;
                     origin[2] = origin[2] - 1.0;
                     //col_context_t::col_context_t(&v10, mask);
+                    col_context_t v10(mask); //[esp+9Ch] [ebp-F8h] BYREF
+                    
                     //if ( EntHandle::isDefined(&ent->r.ownerNum) )
                     if (ent->r.ownerNum.isDefined())
                     {
@@ -249,7 +250,10 @@ void __cdecl G_RunCorpseMove(gentity_s *ent)
                         v2 = ent->r.ownerNum.entnum();
                     }
                     else
+                    {
                         v2 = 1023;
+                    }
+
                     v10.passEntityNum0 = v2;
                     hitnum = -1;
                     if ( SV_SightTraceCapsule(&hitnum, ent->r.currentOrigin, ent->r.mins, ent->r.maxs, origin, &v10) )

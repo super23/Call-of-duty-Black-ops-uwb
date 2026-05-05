@@ -1875,7 +1875,6 @@ char __cdecl SpawnSystem_IsSpawnPointVisible(
     int index; // [esp+28h] [ebp-74h]
     float diff_4; // [esp+30h] [ebp-6Ch]
     int hitnum; // [esp+3Ch] [ebp-60h] BYREF
-    col_context_t context; // [esp+40h] [ebp-5Ch] BYREF
     float point_dir[3]; // [esp+68h] [ebp-34h] BYREF
     float sight_point[3]; // [esp+74h] [ebp-28h] BYREF
     float player_sight_origin[3]; // [esp+80h] [ebp-1Ch] BYREF
@@ -1896,8 +1895,9 @@ char __cdecl SpawnSystem_IsSpawnPointVisible(
     sight_point[1] = v8;
     sight_point[2] = v9;
     //col_context_t::col_context_t(&context, iClipMask);
-    context.init_locational(iIgnoreEntNum);
+    col_context_t context(iClipMask); // [esp+40h] [ebp-5Ch] BYREF
     //col_context_t::init_locational(&context, iIgnoreEntNum);
+    context.init_locational(iIgnoreEntNum);
     hitnum = -1;
     for ( index = 0; index < com_maxclients->current.integer; ++index )
     {

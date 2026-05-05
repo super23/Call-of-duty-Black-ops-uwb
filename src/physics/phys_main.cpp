@@ -2189,7 +2189,6 @@ void __cdecl Phys_FindAndRenderBulletMesh(const float *start, const float *end)
 
     avgArea = 0.0f; // Is this a bug? I dont see this initialized?
 
-    memset(&results, 0, 16);
     results.staticModel = 0;
     bHitDynEnt = 0;
     memset(&resultsDyn, 0, 16);

@@ -879,7 +879,6 @@ int __cdecl MayMove_TraceCheck(actor_s *self, float *vStart, float *vEnd, int al
     trace_t results; // [esp+98h] [ebp-48h] BYREF
     float vPointLow[3]; // [esp+D4h] [ebp-Ch] BYREF
 
-    memset(&results, 0, 16);
     MAX_FALL_HEIGHT = 32.0f;
     if ( !self
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_script_cmd.cpp", 1360, 0, "%s", "self") )

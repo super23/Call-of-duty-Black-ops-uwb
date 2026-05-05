@@ -61,7 +61,6 @@ bool __cdecl CM_TraceStaticModelComplete(cStaticModel_s *sm, const float *start,
     float localEnd[3]; // [esp+20h] [ebp-48h] BYREF
     trace_t results; // [esp+2Ch] [ebp-3Ch] BYREF
 
-    memset(&results, 0, 16);
     delta[0] = *start - sm->origin[0];
     delta[1] = start[1] - sm->origin[1];
     delta[2] = start[2] - sm->origin[2];

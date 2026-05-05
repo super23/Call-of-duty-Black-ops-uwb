@@ -172,15 +172,15 @@ void Outdoor_ComputeTexels()
 
 double __cdecl Outdoor_TraceHeightInWorld(float worldX, float worldY)
 {
-    col_context_t context; // [esp+0h] [ebp-84h] BYREF
     float traceEndHeight; // [esp+28h] [ebp-5Ch]
     float traceStartHeight; // [esp+2Ch] [ebp-58h]
     trace_t results; // [esp+30h] [ebp-54h] BYREF
     float traceStart[3]; // [esp+6Ch] [ebp-18h] BYREF
     float traceEnd[3]; // [esp+78h] [ebp-Ch] BYREF
 
-    memset(&results, 0, 16);
     //col_context_t::col_context_t(&context, 8241);
+    col_context_t context(0x2031); // [esp+0h] [ebp-84h] BYREF
+
     traceStartHeight = outdoorGlob.bbox[1][2] + 1.0;
     traceEndHeight = outdoorGlob.bbox[0][2] - 1.0;
     traceStart[0] = worldX;

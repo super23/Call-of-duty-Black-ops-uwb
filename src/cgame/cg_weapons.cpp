@@ -1877,8 +1877,7 @@ void __cdecl FireBulletPenetrate(
         if ( !BG_AdvanceTrace(bp, br, 0.13500001) )
             break;
         traceHitb = BulletTrace(localClientNum, bp, weapDef, attacker, br, br->depthSurfaceType);
-        //Com_Memcpy(&revBp, bp, 64);
-        revBp = *bp;
+        Com_Memcpy(&revBp, bp, sizeof(BulletFireParams));
         revBp.dir[0] = -bp->dir[0];
         revBp.dir[1] = -bp->dir[1];
         revBp.dir[2] = -bp->dir[2];
@@ -1888,8 +1887,7 @@ void __cdecl FireBulletPenetrate(
 
         Vec3Mad(lastHitPos, 0.0099999998f, revBp.dir, revBp.end);
 
-        //Com_Memcpy(&revBr, br, 80);
-        revBr = *br;
+        Com_Memcpy(&revBr, br, sizeof(BulletTraceResults));
 
         revBr.trace.normal.vec.v[0] = -revBr.trace.normal.vec.v[0];
         revBr.trace.normal.vec.v[1] = -revBr.trace.normal.vec.v[1];

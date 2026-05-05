@@ -1066,31 +1066,31 @@ void __cdecl Turret_PredictPosition(const gentity_s *ent, const playerState_s *p
 
 int __cdecl turret_SightTrace(const float *start, const float *end, int passEnt1, int passEnt2, gentity_s *turret)
 {
-    col_context_t v6; // [esp+8h] [ebp-A4h] BYREF
-    col_context_t v7; // [esp+30h] [ebp-7Ch] BYREF
-    col_context_t v8; // [esp+58h] [ebp-54h] BYREF
-    col_context_t context; // [esp+80h] [ebp-2Ch] BYREF
     int hitNum; // [esp+A8h] [ebp-4h] BYREF
 
     //col_context_t::col_context_t(&context);
+    col_context_t context; // [esp+80h] [ebp-2Ch] BYREF
     hitNum = 0;
-    if ( turret )
+    if (turret)
     {
-        if ( (turret->pTurretInfo->flags & 0x20000) != 0 )
+        if ((turret->pTurretInfo->flags & 0x20000) != 0)
         {
-            //col_context_t::col_context_t(&v8, 0x280E893);
-            memcpy(&context, &v8, sizeof(context));
+            col_context_t v9(0x280E893); // [esp+58h] [ebp-54h] BYREF
+            //col_context_t::col_context_t(&v9, 0x280E893);
+            memcpy(&context, &v9, sizeof(context));
         }
         else
         {
-            //col_context_t::col_context_t(&v7, (int)&loc_810011);
-            memcpy(&context, &v7, sizeof(context));
+            col_context_t v8(0x810011); // [esp+30h] [ebp-7Ch] BYREF
+            //col_context_t::col_context_t(&v8, 0x810011);
+            memcpy(&context, &v8, sizeof(context));
         }
     }
     else
     {
-        //col_context_t::col_context_t(&v6, (int)&loc_801803);
-        memcpy(&context, &v6, sizeof(context));
+        col_context_t v7(0x801803); // [esp+8h] [ebp-A4h] BYREF
+        //col_context_t::col_context_t(&v7, 0x801803);
+        memcpy(&context, &v7, sizeof(context));
     }
     context.mask &= ~0x10u;
     context.passEntityNum0 = passEnt1;

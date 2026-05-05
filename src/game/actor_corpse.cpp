@@ -260,7 +260,6 @@ void __cdecl Actor_GetBodyPlantAngles(
 {
     double v7; // st7
     int hitnum; // [esp+10h] [ebp-68h] BYREF
-    col_context_t context; // [esp+14h] [ebp-64h] BYREF
     float vEnd[3]; // [esp+3Ch] [ebp-3Ch] BYREF
     float vRight[3]; // [esp+48h] [ebp-30h] BYREF
     float fEndDown; // [esp+54h] [ebp-24h]
@@ -311,6 +310,7 @@ void __cdecl Actor_GetBodyPlantAngles(
             vEnd[2] = vOrigin[2];
             vEnd[2] = vEnd[2] - 1.0;
             //col_context_t::col_context_t(&context, iClipMask);
+            col_context_t context(iClipMask); // [esp+14h] [ebp-64h] BYREF
             context.passEntityNum0 = iEntNum;
             hitnum = -1;
             if ( SV_SightTraceCapsule(&hitnum, vStart, actorMins, actorMaxs, vEnd, &context) )

@@ -1348,9 +1348,10 @@ void __cdecl CG_LocationalTrace(
                 col_context_t *context)
 {
     col_context_t *p_tempContext; // [esp+0h] [ebp-30h]
-    col_context_t tempContext; // [esp+8h] [ebp-28h] BYREF
 
     ////col_context_t::col_context_t(&tempContext, contentMask);
+    col_context_t tempContext(contentMask);
+
     if ( context )
         p_tempContext = context;
     else

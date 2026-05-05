@@ -5421,7 +5421,6 @@ void __cdecl VEH_UpdateAim(gentity_s *ent)
     float v1; // [esp+10h] [ebp-18Ch]
     float v2; // [esp+14h] [ebp-188h]
     gentity_s *v3; // [esp+18h] [ebp-184h]
-    col_context_t context; // [esp+5Ch] [ebp-140h] BYREF
     vehicle_physic_t *phys; // [esp+84h] [ebp-118h]
     const vehicle_info_t *info; // [esp+88h] [ebp-114h]
     float mtx[3][3]; // [esp+8Ch] [ebp-110h] BYREF
@@ -5569,6 +5568,8 @@ void __cdecl VEH_UpdateAim(gentity_s *ent)
                 if ( tgtEnt )
                 {
                     //col_context_t::col_context_t(&context, 2049);
+                    col_context_t context(0x801); // [esp+5Ch] [ebp-140h] BYREF
+
                     context.passEntityNum0 = ent->s.number;
                     context.passEntityNum1 = tgtEnt->s.number;
                     SV_SightTracePoint(&veh->turretHitNum, barrelPos, tgtPos, &context);
@@ -6227,7 +6228,6 @@ void __cdecl VEH_UpdateDriverWeapons(gentity_s *ent)
     float *v6; // [esp+18h] [ebp-10Ch]
     float *targetOrigin; // [esp+20h] [ebp-104h]
     int hitnum; // [esp+28h] [ebp-FCh] BYREF
-    col_context_t context; // [esp+2Ch] [ebp-F8h] BYREF
     float angles[3]; // [esp+54h] [ebp-D0h] BYREF
     const WeaponDef *gunnerWeapDef; // [esp+60h] [ebp-C4h]
     int driverControlledGunPos; // [esp+64h] [ebp-C0h]
@@ -6374,7 +6374,8 @@ void __cdecl VEH_UpdateDriverWeapons(gentity_s *ent)
                 if ( info->type != 3 )
                     G_DObjGetWorldBoneIndexPos(ent, veh->boneIndex.barrel, barrelPos);
                 hitnum = -1;
-                //col_context_t::col_context_t(&context, ent->clipmask);
+
+                col_context_t context(ent->clipmask); // [esp+2Ch] [ebp-F8h] BYREF
                 context.passEntityNum0 = ent->s.number;
                 if ( info->type != 3 && !SV_SightTracePoint(&hitnum, barrelPos, flashPos, &context) )
                     veh->turret.flags |= 1u;

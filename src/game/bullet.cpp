@@ -60,7 +60,7 @@ char __cdecl BulletTrace(
     {
         __debugbreak();
     }
-    Com_Memset((unsigned int *)br, 0, 80);
+    Com_Memset(br, 0, sizeof(BulletTraceResults));
     CG_LocationalTrace(
         &br->trace,
         bp->start,
@@ -427,7 +427,7 @@ char __cdecl Bullet_Trace(
         __debugbreak();
     }
     weapDef = weapVariantDef->weapDef;
-    Com_Memset((unsigned int *)br, 0, 80);
+    Com_Memset(br, 0, sizeof(BulletTraceResults));
     if ( weapDef->bRifleBullet )
         G_LocationalTraceAllowChildren(&br->trace, bp->start, bp->end, bp->ignoreEntIndex, 0x280E833, riflePriorityMap);
     else
@@ -974,7 +974,7 @@ void __cdecl Bullet_FirePenetrate(
                 if ( !BG_AdvanceTrace(bp, &br, 0.13500001) )
                     break;
                 traceHit = Bullet_Trace(bp, weapVariantDef, attacker, &br, br.depthSurfaceType);
-                Com_Memcpy(&revBp, bp, 64);
+                Com_Memcpy(&revBp, bp, sizeof(BulletFireParams));
                 revBp.dir[0] = -bp->dir[0];
                 revBp.dir[1] = -bp->dir[1];
                 revBp.dir[2] = -bp->dir[2];
@@ -984,7 +984,7 @@ void __cdecl Bullet_FirePenetrate(
                 revBp.end[0] = (float)(0.0099999998 * revBp.dir[0]) + lastHitPos[0];
                 revBp.end[1] = (float)(0.0099999998 * revBp.dir[1]) + lastHitPos[1];
                 revBp.end[2] = (float)(0.0099999998 * revBp.dir[2]) + lastHitPos[2];
-                Com_Memcpy(&revBr, &br, 80);
+                Com_Memcpy(&revBr, &br, sizeof(BulletTraceResults));
                 //revBr.trace.normal.vec.u[0] ^= _mask__NegFloat_;
                 //revBr.trace.normal.vec.u[1] ^= _mask__NegFloat_;
                 //revBr.trace.normal.vec.u[2] ^= _mask__NegFloat_;
