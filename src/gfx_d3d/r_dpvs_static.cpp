@@ -1046,72 +1046,61 @@ void __cdecl R_AddCellStaticSurfacesInFrustumCmd(DpvsStaticCellCmd *data)
 int __cdecl R_AddCellStaticSurfacesInFrustum(DpvsStaticCellCmd *dpvsCell)
 {
     unsigned int v2; // edx
-    float *v3; // [esp+0h] [ebp-15E4h]
-    float *v4; // [esp+4h] [ebp-15E0h]
+
     unsigned int v5; // [esp+8h] [ebp-15DCh]
     unsigned int bits; // [esp+10h] [ebp-15D4h]
     unsigned int k; // [esp+14h] [ebp-15D0h]
     int j; // [esp+18h] [ebp-15CCh]
-    int v9; // [esp+28h] [ebp-15BCh] BYREF
+    float planebuf[320][4];
     float (*occluderPlanes)[4]; // [esp+146Ch] [ebp-178h]
     const GfxCell *cell; // [esp+1470h] [ebp-174h]
     DpvsClipPlanes out; // [esp+1474h] [ebp-170h] BYREF
     GfxAabbTree *tree; // [esp+15C4h] [ebp-20h]
     unsigned int v14; // [esp+15C8h] [ebp-1Ch]
-    const DpvsPlane *planes; // [esp+15CCh] [ebp-18h]
-    signed int planeCount; // [esp+15D0h] [ebp-14h]
-    unsigned int v17; // [esp+15D4h] [ebp-10h]
+    DpvsPlanes planes; // [esp+15CCh] [ebp-18h]
+    unsigned int v16; // [esp+15D4h] [ebp-10h]
     GfxAabbTree *aabbTree; // [esp+15D8h] [ebp-Ch]
     unsigned int i; // [esp+15DCh] [ebp-8h]
-    int v20; // [esp+15E0h] [ebp-4h]
+    int v19; // [esp+15E0h] [ebp-4h]
 
-    v20 = 0;
+    v19 = 0;
     cell = dpvsCell->cell;
     aabbTree = cell->aabbTree;
     if (!aabbTree)
-        return v20;
-    planeCount = dpvsCell->planeCount;
-    if (planeCount > 16
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_dpvs_static.cpp",
-            1137,
-            0,
-            "%s\n\t(planes.count) = %i",
-            "(planes.count <= (10 + 4 + 2))",
-            planeCount))
-    {
-        __debugbreak();
-    }
-    if (!planeCount
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_dpvs_static.cpp", 1138, 0, "%s", "planes.count"))
-    {
-        __debugbreak();
-    }
-    planes = dpvsCell->planes;
+        return v19;
+
+    planes.count = dpvsCell->planeCount;
+
+    iassert(planes.count <= (10 + 4 + 2));
+    iassert(planes.count);
+
+    planes.planes = dpvsCell->planes;
     tree = aabbTree;
-    for (i = 0; i < planeCount; ++i)
-        R_CopyClipPlanes(&planes[i], &out.planes[i]);
-    out.count = planeCount;
+    for (i = 0; i < planes.count; ++i)
+        R_CopyClipPlanes(&planes.planes[i], &out.planes[i]);
+
+    out.count = planes.count;
+
     if (dpvsCell->viewIndex)
     {
-        v20 = R_AddAabbTreeSurfacesInFrustum_r(tree, &out, 1, 0, dpvsGlob.occluderPlanes);
+        v19 = R_AddAabbTreeSurfacesInFrustum_r(tree, &out, 1, 0, dpvsGlob.occluderPlanes);
     }
     else
     {
-        occluderPlanes = (float (*)[4]) & v9;
+        occluderPlanes = planebuf;
         for (j = 0; j < 5 * dpvsGlob.numOccluders; ++j)
         {
-            v3 = occluderPlanes[j];
-            v4 = dpvsGlob.occluderPlanes[j];
-            *v3 = *v4;
+            float *v3 = occluderPlanes[j];
+            float *v4 = dpvsGlob.occluderPlanes[j];
+            v3[0] = v4[0];
             v3[1] = v4[1];
             v3[2] = v4[2];
             v3[3] = v4[3];
         }
-        v20 = R_AddAabbTreeSurfacesInFrustum_r(tree, &out, 1, dpvsGlob.numOccluders, occluderPlanes);
+        v19 = R_AddAabbTreeSurfacesInFrustum_r(tree, &out, 1, dpvsGlob.numOccluders, occluderPlanes);
     }
-    v17 = g_worldDpvs->staticSurfaceCount >> 5;
-    for (k = 0; k < v17; ++k)
+    v16 = g_worldDpvs->staticSurfaceCount >> 5;
+    for (k = 0; k < v16; ++k)
     {
         bits = g_surfaceVisData[k];
         if (bits)
@@ -1125,7 +1114,7 @@ int __cdecl R_AddCellStaticSurfacesInFrustum(DpvsStaticCellCmd *dpvsCell)
         if (v2)
             R_CalcSurfaceNoDynamicShadow(v2, &g_worldDpvs->surfaces[32 * v5], &g_worldDpvs->surfaceMaterials[32 * v5]);
     }
-    return v20;
+    return v19;
 }
 
 int __cdecl R_AddAabbTreeSurfacesInFrustum_r(

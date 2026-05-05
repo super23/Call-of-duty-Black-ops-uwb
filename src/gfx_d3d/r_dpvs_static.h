@@ -6,6 +6,12 @@ struct DpvsStaticCellCmd;
 struct GfxSurface;
 union GfxDrawSurf;
 
+struct DpvsPlanes // sizeof=0x8
+{                                       // XREF: R_AddCellStaticSurfacesInFrustum/r
+    const DpvsPlane *planes;            // XREF: R_AddCellStaticSurfacesInFrustum+AF/w
+    int count;                          // XREF: R_AddCellStaticSurfacesInFrustum+4B/w
+};
+
 char __cdecl TestOccluders(const float (*bounds)[3], int numOccluders, float (*plane)[4]);
 float (*__cdecl TestOccludersPartial(const float (*bounds)[3], int *numOccludersPtr, float (*plane)[4]))[4];
 bool __cdecl R_CalcSurfaceNoDynamicShadow(unsigned int bits, GfxSurface *localSurfaces, GfxDrawSurf *localDrawSurfaces);

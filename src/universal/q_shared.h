@@ -332,7 +332,32 @@ inline int RETURN_ZERO32()
     return 0;
 }
 
-#define COERCE_FLOAT(x) (float(x))
+//#define COERCE_FLOAT(x) (*(float*)&(x))
+// KISAK ADDITION: pray that the optimizer doesn't shit the bed
+__forceinline static float COERCE_FLOAT(unsigned val) {
+    union {
+        unsigned v;
+        float f;
+    } lol = { val };
+    return lol.f;
+}
+
+__forceinline static unsigned int COERCE_UNSIGNED_INT(float val) {
+    union {
+        float f;
+        unsigned v;
+    } lol = { val };
+    return lol.v;
+}
+
+__forceinline static int COERCE_INT(float val) {
+    union {
+        float f;
+        int v;
+    } lol = { val };
+    return lol.v;
+}
+
 
 //=============================================
 
