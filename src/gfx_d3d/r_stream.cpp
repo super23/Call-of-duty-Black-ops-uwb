@@ -25,6 +25,8 @@
 #include <DynEntity/DynEntity_client.h>
 #include "r_rendercmds.h"
 
+#define TOTAL_IMAGE_PARTS 4608 // Same as POOLSIZE_IMAGE
+
 volatile unsigned int r_stream_sortLimit = 1;
 jqModule r_stream_sortModule =
 {
@@ -1004,17 +1006,7 @@ void __cdecl R_Stream_AddImagePartImportance(int imagePartIndex, float importanc
 {
     float v2; // [esp+0h] [ebp-8h]
 
-    if ((unsigned int)imagePartIndex >= 4224
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_stream.cpp",
-            3345,
-            0,
-            "imagePartIndex doesn't index TOTAL_IMAGE_PARTS\n\t%i not in [0, %i)",
-            imagePartIndex,
-            4224))
-    {
-        __debugbreak();
-    }
+    bcassert(imagePartIndex, TOTAL_IMAGE_PARTS);
 
     if ((float)(importance - *(float *)&streamFrontendGlob.imageImportanceBits[imagePartIndex - 4064]) < 0.0)
         v2 = *(float *)&streamFrontendGlob.imageImportanceBits[imagePartIndex - 4064];

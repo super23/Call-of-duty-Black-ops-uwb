@@ -4784,91 +4784,35 @@ void __cdecl DB_Cleanup()
 
 int __cdecl DB_GetImageIndex(const GfxImage *image)
 {
-    unsigned int index; // [esp+4h] [ebp-4h]
-
-    index = ((char *)image - (char *)g_GfxImagePool.entries) / 52;
-    if ( index >= 0x1080
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\database\\db_registry.cpp",
-                    5945,
-                    0,
-                    "index doesn't index ARRAY_COUNT( g_GfxImagePool.entries )\n\t%i not in [0, %i)",
-                    index,
-                    4224) )
-    {
-        __debugbreak();
-    }
-    return ((char *)image - (char *)g_GfxImagePool.entries) / 52;
+    unsigned int index = ((char *)image - (char *)g_GfxImagePool.entries) / sizeof(GfxImage);
+    bcassert(index, ARRAY_COUNT(g_GfxImagePool.entries));
+    return index;
 }
 
 XAssetPoolEntry<GfxImage> *__cdecl DB_GetImageAtIndex(unsigned int index)
 {
-    if ( index >= 0x1080
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\database\\db_registry.cpp",
-                    5951,
-                    0,
-                    "index doesn't index ARRAY_COUNT( g_GfxImagePool.entries )\n\t%i not in [0, %i)",
-                    index,
-                    4224) )
-    {
-        __debugbreak();
-    }
+    bcassert(index, ARRAY_COUNT(g_GfxImagePool.entries));
     return &g_GfxImagePool.entries[index];
 }
 
 int __cdecl DB_GetMaterialIndex(const Material *material)
 {
-    unsigned int index; // [esp+4h] [ebp-4h]
-
-    index = ((char *)material - (char *)g_MaterialPool.entries) / 192;
-    if ( index >= 0x1000
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\database\\db_registry.cpp",
-                    5970,
-                    0,
-                    "index doesn't index ARRAY_COUNT( g_MaterialPool.entries )\n\t%i not in [0, %i)",
-                    index,
-                    4096) )
-    {
-        __debugbreak();
-    }
-    return ((char *)material - (char *)g_MaterialPool.entries) / 192;
+    unsigned int index = ((char *)material - (char *)g_MaterialPool.entries) / sizeof(Material);
+    bcassert(index, ARRAY_COUNT(g_MaterialPool.entries));
+    return index;
 }
 
 XAssetPoolEntry<Material> *__cdecl DB_GetMaterialAtIndex(unsigned int index)
 {
-    if ( index >= 0x1000
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\database\\db_registry.cpp",
-                    5977,
-                    0,
-                    "index doesn't index ARRAY_COUNT( g_MaterialPool.entries )\n\t%i not in [0, %i)",
-                    index,
-                    4096) )
-    {
-        __debugbreak();
-    }
+    bcassert(index, ARRAY_COUNT(g_MaterialPool.entries));
     return &g_MaterialPool.entries[index];
 }
 
 int __cdecl DB_GetXModelIndex(const XModel *model)
 {
-    unsigned int index; // [esp+4h] [ebp-4h]
-
-    index = ((char *)model - (char *)g_XModelPool.entries) / 252;
-    if ( index >= 0x3E8
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\database\\db_registry.cpp",
-                    5990,
-                    0,
-                    "index doesn't index ARRAY_COUNT( g_XModelPool.entries )\n\t%i not in [0, %i)",
-                    index,
-                    1000) )
-    {
-        __debugbreak();
-    }
-    return ((char *)model - (char *)g_XModelPool.entries) / 252;
+    unsigned int index = ((char *)model - (char *)g_XModelPool.entries) / sizeof(XModel);
+    bcassert(index, ARRAY_COUNT(g_XModelPool.entries));
+    return index;
 }
 
 XAssetPoolEntry<XModel> *__cdecl DB_GetXModelAtIndex(unsigned int index)
