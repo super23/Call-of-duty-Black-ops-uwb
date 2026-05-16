@@ -420,7 +420,7 @@ unsigned int __cdecl UI_GetOffsetForTextureCoords(
                 GfxImage *img,
                 unsigned int bytesPerPixel)
 {
-    return bytesPerPixel * (unsigned int)Ragdoll_HandleBody((const cpose_t *)(xPos + yPos * img->width));
+    return bytesPerPixel * (xPos + yPos * img->width);
 }
 
 void __cdecl UI_GenerateHeatMapTextureCallback(GfxImage *param)

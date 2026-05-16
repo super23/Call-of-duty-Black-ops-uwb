@@ -44,7 +44,7 @@ void __cdecl Ragdoll_AnimMatToMat43(const DObjAnimMat *mat, float (*out)[3])
     (*out)[11] = mat->trans[2];
 }
 
-char __cdecl Ragdoll_RebindBody(const cpose_t *ragdollHandle)
+char __cdecl Ragdoll_RebindBody(int ragdollHandle)
 {
     RagdollDef *def; // [esp+0h] [ebp-1Ch]
     DObj *obj; // [esp+4h] [ebp-18h]
@@ -468,7 +468,7 @@ void __cdecl Ragdoll_GetTorsoPosition(RagdollBody *body, float *center)
     center[2] = v2->origin[2];
 }
 
-void __cdecl Ragdoll_Launch(int localClientNum, const cpose_t *ragdollHandle, const float *force, hitLocation_t hitloc)
+void __cdecl Ragdoll_Launch(int localClientNum, int ragdollHandle, const float *force, hitLocation_t hitloc)
 {
     float *v4; // [esp+0h] [ebp-10h]
     float v5; // [esp+4h] [ebp-Ch]
@@ -567,7 +567,7 @@ void __cdecl Ragdoll_LaunchUpdate(RagdollBody *body)
     }
 }
 
-void __cdecl Ragdoll_Attach(int localClientNum, const cpose_t *ragdollHandle, int attachEnt, hitLocation_t hitloc)
+void __cdecl Ragdoll_Attach(int localClientNum, int ragdollHandle, int attachEnt, hitLocation_t hitloc)
 {
     RagdollBody *body; // [esp+0h] [ebp-4h]
 
@@ -601,7 +601,7 @@ bool __cdecl Ragdoll_EnterTunnelTest(RagdollBody *body, RagdollBodyState prevSta
     BoneOrientation *v4; // eax
     DObj *obj; // [esp+Ch] [ebp-Ch]
     char tunnelPassed; // [esp+13h] [ebp-5h]
-    centity_s *pose; // [esp+14h] [ebp-4h]
+    const cpose_t *pose; // [esp+14h] [ebp-4h]
     int savedregs; // [esp+18h] [ebp+0h] BYREF
 
     obj = Ragdoll_BodyDObj(body);
@@ -613,9 +613,9 @@ bool __cdecl Ragdoll_EnterTunnelTest(RagdollBody *body, RagdollBodyState prevSta
         tunnelPassed = Ragdoll_TunnelTest(body);
         pose = Ragdoll_BodyPose(body);
         v3 = Ragdoll_BodyBoneOrientations(body);
-        body->poseOffset[0] = pose->pose.origin[0] - v3->origin[0];
-        body->poseOffset[1] = pose->pose.origin[1] - v3->origin[1];
-        body->poseOffset[2] = pose->pose.origin[2] - v3->origin[2];
+        body->poseOffset[0] = pose->origin[0] - v3->origin[0];
+        body->poseOffset[1] = pose->origin[1] - v3->origin[1];
+        body->poseOffset[2] = pose->origin[2] - v3->origin[2];
         v4 = Ragdoll_BodyBoneOrientations(body);
         Ragdoll_SnapshotBaseLerpBones(body, v4);
         if ( tunnelPassed )
@@ -1624,7 +1624,7 @@ char __cdecl Ragdoll_BoneTrace(trace_t *trace, trace_t *revTrace, const float *s
 void __cdecl Ragdoll_PrintTunnelFail(RagdollBody *body)
 {
     DObj *obj; // [esp+18h] [ebp-8h]
-    centity_s *pose; // [esp+1Ch] [ebp-4h]
+    const cpose_t*pose; // [esp+1Ch] [ebp-4h]
 
     if ( ragdoll_dump_anims->current.enabled )
     {
@@ -1643,9 +1643,9 @@ void __cdecl Ragdoll_PrintTunnelFail(RagdollBody *body)
         Com_Printf(
             20,
             "Ragdoll initial state in solid, using regular anim. Pos (%0.f %0.f %0.f)\n",
-            pose->pose.origin[0],
-            pose->pose.origin[1],
-            pose->pose.origin[2]);
+            pose->origin[0],
+            pose->origin[1],
+            pose->origin[2]);
         DObjDisplayAnim(obj, "Ragdoll anim tree: ");
     }
 }
@@ -1690,7 +1690,7 @@ void __cdecl Ragdoll_SnapshotAnimOrientations(RagdollBody *body, BoneOrientation
     RagdollDef *def; // [esp+0h] [ebp-18h]
     DObj *obj; // [esp+4h] [ebp-14h]
     BoneDef *boneDef; // [esp+8h] [ebp-10h]
-    centity_s *pose; // [esp+Ch] [ebp-Ch]
+    const cpose_t *pose; // [esp+Ch] [ebp-Ch]
     int i; // [esp+10h] [ebp-8h]
     Bone *bone; // [esp+14h] [ebp-4h]
 
@@ -1714,7 +1714,7 @@ void __cdecl Ragdoll_SnapshotAnimOrientations(RagdollBody *body, BoneOrientation
                 if ( bone->animBones[0] != 255 )
                     Ragdoll_GetDObjWorldBoneOriginQuat(
                         body->localClientNum,
-                        &pose->pose,
+                        pose,
                         obj,
                         bone->animBones[0],
                         snapshot->origin,

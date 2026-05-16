@@ -1785,7 +1785,7 @@ void __cdecl CG_EntityEvent(int localClientNum, centity_s *cent, int event)
                                 if (attachedCorpse->pose.isRagdoll && attachedCorpse->pose.ragdollHandle > 0)
                                     Ragdoll_Attach(
                                         localClientNum,
-                                        (const cpose_t *)attachedCorpse->pose.ragdollHandle,
+                                        attachedCorpse->pose.ragdollHandle,
                                         p_nextState->number,
                                         (hitLocation_t)p_nextState->index.bone);
                             }
@@ -2446,7 +2446,7 @@ void __cdecl CG_PhysLaunch(int localClientNum, centity_s *cent, const entityStat
             if ( cent->pose.isRagdoll && cent->pose.ragdollHandle > 0 )
                 Ragdoll_Launch(
                     localClientNum,
-                    (const cpose_t *)cent->pose.ragdollHandle,
+                    cent->pose.ragdollHandle,
                     es->lerp.pos.trBase,
                     (hitLocation_t)es->eventParm);
         }

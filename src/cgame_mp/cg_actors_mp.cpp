@@ -211,8 +211,10 @@ void __cdecl CG_Actor(int localClientNum, centity_s *cent)
             lightingOrigin[0] = cent->pose.origin[0];
             lightingOrigin[1] = cent->pose.origin[1];
             lightingOrigin[2] = cent->pose.origin[2] + 32.0;
-            if ( cent->pose.isRagdoll && cent->pose.ragdollHandle > 0 )
-                Ragdoll_GetRootOrigin((const cpose_t *)cent->pose.ragdollHandle, cent->pose.origin);
+            if (cent->pose.isRagdoll && cent->pose.ragdollHandle > 0)
+            {
+                Ragdoll_GetRootOrigin(cent->pose.ragdollHandle, cent->pose.origin);
+            }
             CG_DoFootsteps(localClientNum, cent);
             CG_GetEntityDobjBounds(cent, obj, mins, maxs, bounds[0], bounds[1]);
             if ( !R_CullBoxCurDpvs(bounds[0], localClientNum) )

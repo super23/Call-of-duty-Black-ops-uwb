@@ -76,12 +76,12 @@ void __cdecl CG_ShutdownEntity(int localClientNum, centity_s *cent, bool shutdow
         cent->pose.isRagdoll = 0;
         if ( cent->pose.ragdollHandle > 0 )
         {
-            Ragdoll_Remove((const cpose_t *)cent->pose.ragdollHandle);
+            Ragdoll_Remove(cent->pose.ragdollHandle);
             cent->pose.ragdollHandle = 0;
         }
         if ( cent->pose.killcamRagdollHandle > 0 )
         {
-            Ragdoll_Remove((const cpose_t *)cent->pose.killcamRagdollHandle);
+            Ragdoll_Remove(cent->pose.killcamRagdollHandle);
             cent->pose.killcamRagdollHandle = 0;
         }
         cent->currentState.pos.trType = 0;

@@ -2530,7 +2530,7 @@ int __cdecl CG_DObjGetWorldTagPos(const cpose_t *pose, DObj *obj, unsigned int t
     return 1;
 }
 
-centity_s *__cdecl CG_GetPose(int localClientNum, unsigned int handle)
+const cpose_t *__cdecl CG_GetPose(int localClientNum, unsigned int handle)
 {
     if ( handle > 0x600
         && !Assert_MyHandler(
@@ -2544,7 +2544,7 @@ centity_s *__cdecl CG_GetPose(int localClientNum, unsigned int handle)
         __debugbreak();
     }
     if ( (int)handle < 1536 )
-        return CG_GetEntity(localClientNum, handle);
+        return &CG_GetEntity(localClientNum, handle)->pose;
     if ( (int)(handle - 1536) >= 2048
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_ents_mp.cpp",
@@ -2556,7 +2556,7 @@ centity_s *__cdecl CG_GetPose(int localClientNum, unsigned int handle)
     {
         __debugbreak();
     }
-    return (centity_s *)&CG_GetLocalClientGlobals(localClientNum)->viewModelPose;
+    return &CG_GetLocalClientGlobals(localClientNum)->viewModelPose;
 }
 
 unsigned int __cdecl CG_StartFx(int localClientNum, centity_s *cent, int startAtTime)
@@ -2684,7 +2684,7 @@ bool __cdecl ShouldUpdateNitrousVehicleFromNetwork(const cg_s *cgameGlob)
 
 void __cdecl CG_CreateRagdollObject(int localClientNum, centity_s *cent)
 {
-    const cpose_t *RagdollForDObj; // eax
+    const RagdollBody *RagdollForDObj; // eax
     cg_s *cgameGlob; // [esp+4h] [ebp-8h]
     bool shareRagdoll; // [esp+Ah] [ebp-2h]
     bool reset; // [esp+Bh] [ebp-1h]
@@ -2697,7 +2697,7 @@ void __cdecl CG_CreateRagdollObject(int localClientNum, centity_s *cent)
         RagdollForDObj = Ragdoll_CreateRagdollForDObj(
                                              localClientNum,
                                              0,
-                                             (phys_free_list<RagdollBody>::T_internal_base *)cent->nextState.number,
+                                             cent->nextState.number,
                                              reset,
                                              0);
     }
@@ -2707,7 +2707,7 @@ void __cdecl CG_CreateRagdollObject(int localClientNum, centity_s *cent)
         RagdollForDObj = Ragdoll_CreateRagdollForDObj(
                                              localClientNum,
                                              0,
-                                             (phys_free_list<RagdollBody>::T_internal_base *)cent->nextState.number,
+                                             cent->nextState.number,
                                              reset,
                                              1);
     }
@@ -3219,7 +3219,7 @@ void __cdecl CG_CalcEntityRagdollPositions(int localClientNum, centity_s *cent)
     {
         if ( cent->pose.ragdollHandle )
         {
-            Ragdoll_Remove((const cpose_t *)cent->pose.ragdollHandle);
+            Ragdoll_Remove(cent->pose.ragdollHandle);
             cent->pose.ragdollHandle = 0;
         }
     }
@@ -3245,10 +3245,14 @@ void __cdecl CG_UpdateRagdollPose(centity_s *cent)
     {
         __debugbreak();
     }
-    if ( cent->pose.killcamRagdollHandle <= 0 )
-        Ragdoll_GetRootOrigin((const cpose_t *)cent->pose.ragdollHandle, cent->pose.origin);
+    if (cent->pose.killcamRagdollHandle <= 0)
+    {
+        Ragdoll_GetRootOrigin(cent->pose.ragdollHandle, cent->pose.origin);
+    }
     else
-        Ragdoll_GetRootOrigin((const cpose_t *)cent->pose.killcamRagdollHandle, cent->pose.origin);
+    {
+        Ragdoll_GetRootOrigin(cent->pose.killcamRagdollHandle, cent->pose.origin);
+    }
 }
 
 void __cdecl CG_UpdateTags(centity_s *ent)
@@ -3260,9 +3264,9 @@ void __cdecl CG_UpdateTags(centity_s *ent)
     if ( ent->pose.isRagdoll )
     {
         if ( ent->pose.killcamRagdollHandle > 0 )
-            Ragdoll_RebindBody((const cpose_t *)ent->pose.killcamRagdollHandle);
+            Ragdoll_RebindBody(ent->pose.killcamRagdollHandle);
         if ( ent->pose.ragdollHandle > 0 )
-            Ragdoll_RebindBody((const cpose_t *)ent->pose.ragdollHandle);
+            Ragdoll_RebindBody(ent->pose.ragdollHandle);
     }
     if ( ent->nextState.eType == 14 || ent->nextState.eType == 16 )
     {

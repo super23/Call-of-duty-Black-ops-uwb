@@ -259,7 +259,7 @@ struct minspec_mutex // sizeof=0x4
     {
         while (_InterlockedCompareExchange((volatile LONG *)&m_token, 1, 0) != 0)
             ;
-        // acquire barrier — no reads/writes below can move above this
+        // acquire barrier ï¿½ no reads/writes below can move above this
         _ReadWriteBarrier();
         MemoryBarrier();
     }
@@ -267,7 +267,7 @@ struct minspec_mutex // sizeof=0x4
     inline void Unlock()
     {
         iassert(m_token == 1);
-        // release barrier — no reads/writes above can move below this
+        // release barrier ï¿½ no reads/writes above can move below this
         _ReadWriteBarrier();
         MemoryBarrier();
         LONG prev = _InterlockedCompareExchange((volatile LONG *)&m_token, 0, 1);
@@ -903,23 +903,31 @@ public:
     };
     //static_assert(sizeof(T_internal_base) == 8);
 
-    struct iterator//phys_free_list<broad_phase_collision_pair>::iterator // sizeof=0x4
-    {
-        //phys_free_list<broad_phase_collision_pair>::T_internal_base *m_ptr;
-        T_internal_base *m_ptr;
-
-        iterator()
-        {
-            m_ptr = NULL;
-        }
-    };
-
     //struct __declspec(align(16)) T_internal : T_internal_base
     struct T_internal : T_internal_base // This struct itself is not align(16), it's whatever `m_data` is
     {
         T m_data;
         int m_ptr_list_index;
     };
+
+    struct iterator//phys_free_list<broad_phase_collision_pair>::iterator // sizeof=0x4
+    {
+        //phys_free_list<broad_phase_collision_pair>::T_internal_base *m_ptr;
+        T_internal_base *m_ptr;
+
+        iterator()                             : m_ptr(NULL) {}
+        iterator(T_internal_base *p)           : m_ptr(p)    {}
+
+        T   *operator*()  const { return &((T_internal *)m_ptr)->m_data; }
+        T   *operator->() const { return &((T_internal *)m_ptr)->m_data; }
+        iterator &operator++() { m_ptr = m_ptr->m_next_T_internal; return *this; }
+        bool operator==(const iterator &rhs) const { return m_ptr == rhs.m_ptr; }
+        bool operator!=(const iterator &rhs) const { return m_ptr != rhs.m_ptr; }
+    };
+
+    // lwss: add iterator (idk how accurate this is)
+    iterator begin() { return iterator(m_dummy_head.m_next_T_internal); }
+    iterator end()   { return iterator(&m_dummy_head); }
 
     T_internal_base m_dummy_head;
 
@@ -1108,7 +1116,7 @@ struct phys_inplace_avl_tree_node // sizeof=0xC
 
 // aislop for avl nodes
 // -----------------------------------------------------------------------
-// Default accessor helper — requires T2 to have m_avl_tree_node
+// Default accessor helper ï¿½ requires T2 to have m_avl_tree_node
 // Specialize for types that use a different field name (e.g. generic_avl_map_node_t)
 // -----------------------------------------------------------------------
 template<typename T2>
@@ -1131,7 +1139,7 @@ struct phys_inplace_avl_tree
 
     phys_inplace_avl_tree() { m_tree_root = nullptr; }
 
-    // Shorthand — routes all node pointer access through the specializable accessor
+    // Shorthand ï¿½ routes all node pointer access through the specializable accessor
     static phys_inplace_avl_tree_node<T2> *ni(T2 *n) { return phys_avl_node_accessor<T2>::get(n); }
 
     /* ------------------------------------------------------------ */
@@ -1233,7 +1241,7 @@ struct phys_inplace_avl_tree
         ni(data)->m_balance = 0;
         Accessor::set_key(data, key);
 
-        // Rebalance upward — continue while balance != 0 (subtree grew)
+        // Rebalance upward ï¿½ continue while balance != 0 (subtree grew)
         do
         {
             if (cur_item <= the_stack)
@@ -1341,7 +1349,7 @@ struct phys_inplace_avl_tree
 
             T2 *replace_node = *cur_item->m_node;
 
-            // Unlink successor — splice out replace_node, promoting its right child
+            // Unlink successor ï¿½ splice out replace_node, promoting its right child
             *cur_item->m_node = ni(replace_node)->m_right;
 
             // Copy victim's linkage to replace_node
@@ -1357,11 +1365,11 @@ struct phys_inplace_avl_tree
         }
         else
         {
-            // No right child — promote left child directly
+            // No right child ï¿½ promote left child directly
             *node_to_be_removed = ni(*node_to_be_removed)->m_left;
         }
 
-        // Rebalance upward — continue while balance == 0 (subtree shrank)
+        // Rebalance upward ï¿½ continue while balance == 0 (subtree shrank)
         do
         {
             if (cur_item <= the_stack)
@@ -1399,9 +1407,9 @@ struct phys_inplace_avl_tree
             }
             else if (ni(*m_node)->m_balance != 0)
             {
-                break; // ±1, height unchanged
+                break; // ï¿½1, height unchanged
             }
-            // 0 — subtree shrank, continue up
+            // 0 ï¿½ subtree shrank, continue up
         } while (ni(*cur_item->m_node)->m_balance == 0);
     }
 };

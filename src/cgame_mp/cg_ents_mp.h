@@ -107,7 +107,7 @@ int __cdecl CG_DObjGetWorldTagMatrix(
                 float *origin);
 DObjAnimMat *__cdecl CG_DObjGetLocalTagMatrix(const cpose_t *pose, DObj *obj, unsigned int tagName);
 int __cdecl CG_DObjGetWorldTagPos(const cpose_t *pose, DObj *obj, unsigned int tagName, float *pos);
-centity_s *__cdecl CG_GetPose(int localClientNum, unsigned int handle);
+const cpose_t *__cdecl CG_GetPose(int localClientNum, unsigned int handle);
 unsigned int __cdecl CG_StartFx(int localClientNum, centity_s *cent, int startAtTime);
 void __cdecl CG_Fx(int localClientNum, centity_s *cent);
 bool __cdecl IsLocalClientDriving(const cg_s *cgameGlob, int vehicleEntNum);

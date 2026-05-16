@@ -3513,12 +3513,12 @@ void __cdecl CG_CreateDObj(
     if ( ent && ent->pose.isRagdoll )
     {
         if ( ent->pose.killcamRagdollHandle > 0 )
-            Ragdoll_RebindBody((const cpose_t *)ent->pose.killcamRagdollHandle);
+            Ragdoll_RebindBody(ent->pose.killcamRagdollHandle);
         if ( ent->pose.ragdollHandle > 0 )
-            Ragdoll_RebindBody((const cpose_t *)ent->pose.ragdollHandle);
+            Ragdoll_RebindBody(ent->pose.ragdollHandle);
     }
     v6 = cg_entityOriginArray[localClientNum][ci->clientNum];
-    *v6 = 131072.0f;
+    v6[0] = 131072.0f;
     v6[1] = 131072.0f;
     v6[2] = 131072.0f;
 }
@@ -3712,7 +3712,7 @@ void __cdecl CG_Shutdown(int localClientNum)
         cent = CG_GetEntity(localClientNum, entnum);
         if ( cent->pose.ragdollHandle > 0 )
         {
-            Ragdoll_Remove((const cpose_t *)cent->pose.ragdollHandle);
+            Ragdoll_Remove(cent->pose.ragdollHandle);
             cent->pose.ragdollHandle = 0;
         }
         if ( cent->pose.physObjId )

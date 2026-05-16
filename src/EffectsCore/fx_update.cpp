@@ -708,7 +708,7 @@ bool __cdecl FX_GetBoltTemporalBits(int localClientNum, unsigned int dobjHandle)
 char __cdecl FX_GetBoneOrientation(int localClientNum, unsigned int dobjHandle, int boneIndex, orientation_t *orient)
 {
     DObj *remoteObj; // [esp+64h] [ebp-Ch]
-    centity_s *pose; // [esp+68h] [ebp-8h]
+    const cpose_t *pose; // [esp+68h] [ebp-8h]
 
     if ( dobjHandle >= 0x601
         && !Assert_MyHandler(
@@ -789,7 +789,7 @@ char __cdecl FX_GetBoneOrientation(int localClientNum, unsigned int dobjHandle, 
             if ( boneIndex < DObjNumBones(remoteObj) )
             {
                 pose = CG_GetPose(localClientNum, dobjHandle);
-                if ( CG_DObjGetWorldBoneMatrix(&pose->pose, remoteObj, boneIndex, orient->axis, orient->origin) )
+                if ( CG_DObjGetWorldBoneMatrix(pose, remoteObj, boneIndex, orient->axis, orient->origin) )
                 {
                     if ( ((LODWORD(orient->origin[0]) & 0x7F800000) == 0x7F800000
                          || (LODWORD(orient->origin[1]) & 0x7F800000) == 0x7F800000

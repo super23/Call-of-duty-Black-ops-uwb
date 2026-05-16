@@ -660,7 +660,8 @@ void __cdecl LaunchDobjLightingJobs(
                 __debugbreak();
             }
             useHeroLighting = (gfxEnt->renderFxFlags & 0x400000) != 0;
-            pose = (cpose_t *)Ragdoll_HandleBody(sceneEnt->info.pose);
+            //pose = (cpose_t *)Ragdoll_HandleBody(sceneEnt->info.pose);
+            pose = (cpose_t *)(sceneEnt->info.pose);
             if ( !R_AllocModelLighting_Box(
                             viewInfo,
                             sceneEnt->lightingOrigin,

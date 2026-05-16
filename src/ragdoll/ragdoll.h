@@ -5,6 +5,8 @@
 #include <physics/phys_main.h>
 #include <qcommon/common.h>
 
+#define RAGDOLL_MAX_DEFS 2
+
 enum RagdollBodyState : __int32
 {                                       // XREF: RagdollBody/r
     BS_DEAD             = 0x0,
@@ -173,26 +175,25 @@ void __cdecl Ragdoll_DebugDraw();
 bool __cdecl Ragdoll_BodyInUse(RagdollBody *body);
 RagdollDef *__cdecl Ragdoll_BodyDef(RagdollBody *body);
 DObj *__cdecl Ragdoll_BodyDObj(RagdollBody *body);
-centity_s *__cdecl Ragdoll_BodyPose(RagdollBody *body);
+const cpose_t *__cdecl Ragdoll_BodyPose(RagdollBody *body);
 void __cdecl Ragdoll_BodyRootOrigin(RagdollBody *body, float *origin);
 bool __cdecl Ragdoll_BodyPoseValid(RagdollBody *body);
-void __cdecl Ragdoll_GetRootOrigin(const cpose_t *ragdollHandle, float *origin);
+void __cdecl Ragdoll_GetRootOrigin(int ragdollHandle, float *origin);
 int __cdecl Ragdoll_CountPhysicsBodies();
 bool __cdecl Ragdoll_BodyHasPhysics(RagdollBody *body);
-const cpose_t *__cdecl Ragdoll_CreateRagdollForDObj(
+const RagdollBody *__cdecl Ragdoll_CreateRagdollForDObj(
                 int localClientNum,
                 int ragdollDef,
-                phys_free_list<RagdollBody>::T_internal_base *dobj,
+                int dobj,
                 bool reset,
                 bool share);
 RagdollBody *__cdecl Ragdoll_GetUnusedBody();
 void __cdecl Ragdoll_InitBody(RagdollBody *body);
-phys_free_list<RagdollBody>::T_internal_base *__cdecl Ragdoll_ReferenceDObjBody(
-                phys_free_list<RagdollBody>::T_internal_base *dobj);
+RagdollBody *__cdecl Ragdoll_ReferenceDObjBody(int dobj);
 char __cdecl Ragdoll_BindDef(unsigned int ragdollDef);
 bool __cdecl Ragdoll_ValidateDef(unsigned int ragdollDef);
-void __cdecl Ragdoll_Remove(const cpose_t *ragdoll);
-void __cdecl Ragdoll_FreeBody(const cpose_t *ragdollBody);
+void __cdecl Ragdoll_Remove(int ragdoll);
+void __cdecl Ragdoll_FreeBody(int ragdollBody);
 void __cdecl Ragdoll_InitDvars();
 void __cdecl Ragdoll_Register();
 void __cdecl Ragdoll_Init();
@@ -215,6 +216,6 @@ extern const dvar_t *ragdoll_self_collision_scale;
 extern const dvar_t *ragdoll_dump_anims;
 
 extern phys_free_list<RagdollBody> g_ragdoll_body_pool;
-extern RagdollDef ragdollDefs[2];
+extern RagdollDef ragdollDefs[RAGDOLL_MAX_DEFS];
 
 extern bool ragdollInited;

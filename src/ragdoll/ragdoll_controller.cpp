@@ -4,9 +4,9 @@
 #include <xanim/dobj_utils.h>
 
 //const cpose_t *__cdecl Ragdoll_HandleBody(const cpose_t *pose)
-const cpose_t *__cdecl Ragdoll_HandleBody(const cpose_t *pose)
+RagdollBody *__cdecl Ragdoll_HandleBody(int handle)
 {
-    return pose;
+    return (RagdollBody*)handle;
 }
 
 BoneOrientation *__cdecl Ragdoll_BodyBoneOrientations(RagdollBody *body)
@@ -81,8 +81,8 @@ void __cdecl Ragdoll_DoControllers(const cpose_t *pose, const DObj *obj, int *pa
     if ( pose->isRagdoll && (pose->ragdollHandle || pose->killcamRagdollHandle) )
     {
         v3 = (RagdollBody *)(pose->killcamRagdollHandle
-                                             ? Ragdoll_HandleBody((const cpose_t *)pose->killcamRagdollHandle)
-                                             : Ragdoll_HandleBody((const cpose_t *)pose->ragdollHandle));
+                                             ? Ragdoll_HandleBody(pose->killcamRagdollHandle)
+                                             : Ragdoll_HandleBody(pose->ragdollHandle));
         body = v3;
         if ( Ragdoll_BodyPoseValid(v3) )
         {

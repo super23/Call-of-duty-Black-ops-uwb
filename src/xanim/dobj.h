@@ -2,6 +2,8 @@
 
 #include <qcommon/bitarray.h>
 
+#define DOBJ_HANDLE_NONE -1
+
 #define NO_BONEINDEX 255
 
 struct SavedDObjModel // sizeof=0x2
