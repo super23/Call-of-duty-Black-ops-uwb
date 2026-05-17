@@ -6749,7 +6749,7 @@ void GScr_sin()
     Scr_AddFloat(*(float *)&value, v2);
 #endif
 
-    float value = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
+    float value = DEG2RAD(Scr_GetFloat(0, SCRIPTINSTANCE_SERVER));
     value = sin(value);
     Scr_AddFloat(value, SCRIPTINSTANCE_SERVER);
 }
@@ -6769,7 +6769,7 @@ void GScr_cos()
     Scr_AddFloat(*(float *)&value, v2);
 #endif
 
-    float value = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
+    float value = DEG2RAD(Scr_GetFloat(0, SCRIPTINSTANCE_SERVER));
     value = cos(value);
     Scr_AddFloat(value, SCRIPTINSTANCE_SERVER);
 }
