@@ -570,8 +570,8 @@ void __cdecl G_FreeEntities(bool clearTargets)
             G_FreeEntity(e);
         ++e;
     }
-    if ( g_entities[1022].r.inuse )
-        G_FreeEntity(&g_entities[1022]);
+    if ( g_entities[ENTITYNUM_WORLD].r.inuse )
+        G_FreeEntity(&g_entities[ENTITYNUM_WORLD]);
     if ( clearTargets )
         Targ_RemoveAll();
     if ( level.actors )

@@ -2395,7 +2395,7 @@ bool __cdecl IKImport_IsMoving(IKState *ikState)
     float velocity[3]; // [esp+4h] [ebp-Ch] BYREF
 
     IKImport_GetVelocity(ikState, velocity);
-    if ( Abs(velocity) >= 1.0 )
+    if (Vec3Length(velocity) >= 1.0 )
     {
         ikState->lastMovedTime = ikState->timeMS;
         return 1;

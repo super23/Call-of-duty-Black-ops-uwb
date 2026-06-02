@@ -5170,7 +5170,7 @@ void __cdecl DrawBulletImpacts(
                 velocity[1] = v15 * velocity[1];
                 velocity[2] = v15 * velocity[2];
             }
-            v14 = Abs(velocity);
+            v14 = Vec3Length(velocity);
             if ( (float)(v14 - 255.0) < 0.0 )
                 v8 = v14;
             else
@@ -5334,7 +5334,7 @@ LABEL_52:
                 velocity[1] = v11 * velocity[1];
                 velocity[2] = v11 * velocity[2];
             }
-            v10 = Abs(velocity);
+            v10 = Vec3Length(velocity);
             if ( (float)(v10 - 255.0) < 0.0 )
                 v7 = v10;
             else

@@ -71,7 +71,7 @@ void __cdecl R_FrustumClipPlanes(
                                                                                                          + (float)((float)(*sidePlanes)[4 * planeIndex + 2]
                                                                                                                          * viewProjMtx->m[term][2]))
                                                                                          + (float)((float)(*sidePlanes)[4 * planeIndex + 3] * viewProjMtx->m[term][3]);
-        length = Abs(frustumPlanes[planeIndex].coeffs);
+        length = Vec3Length(frustumPlanes[planeIndex].coeffs);
         if ( length <= 0.0
             && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_dpvs.cpp", 508, 0, "%s", "length > 0") )
         {

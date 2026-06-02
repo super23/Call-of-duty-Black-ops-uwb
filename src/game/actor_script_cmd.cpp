@@ -2111,6 +2111,7 @@ void __cdecl ActorCmd_SetEntityTarget(scr_entref_t entref)
     self = Actor_Get(entref);
     targetEnt = 0;
     targetThreat = AI_ENTITY_TARGET_MAX_THREAT;
+
     NumParam = Scr_GetNumParam(SCRIPTINSTANCE_SERVER);
     if ( NumParam != 1 )
     {
@@ -2134,27 +2135,18 @@ void __cdecl ActorCmd_SetEntityTarget(scr_entref_t entref)
             v1 = 0.0f;
         targetThreat = v1;
     }
+
     targetEnt = Scr_GetEntity(0);
 LABEL_14:
-    if ( !self->sentient
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_script_cmd.cpp",
-                    3622,
-                    0,
-                    "%s",
-                    "self->sentient") )
-    {
-        __debugbreak();
-    }
-    if ( !targetEnt
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_script_cmd.cpp", 3623, 0, "%s", "targetEnt") )
-    {
-        __debugbreak();
-    }
-    //EntHandle::setEnt(&self->sentient->scriptTargetEnt, targetEnt);
+    
+    iassert(self->sentient);
+    iassert(targetEnt);
+
     self->sentient->scriptTargetEnt.setEnt(targetEnt);
+
     self->sentient->entityTargetThreat = targetThreat;
-    if ( self->sentient->entityTargetThreat == 1.0 )
+
+    if ( self->sentient->entityTargetThreat == AI_ENTITY_TARGET_MAX_THREAT )
         Sentient_SetEnemy(self->sentient, targetEnt, 1);
 }
 

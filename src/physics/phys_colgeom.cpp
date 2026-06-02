@@ -1262,7 +1262,7 @@ void gjk_cylinder_t::support(
     v18 = dir_local[this->direction];
     dir_local[this->direction] = 0.0f;
 
-    v16 = Abs(&dir_local.x);
+    v16 = Vec3Length(&dir_local.x);
     if (v16 <= 0.001)
     {
         dir_local.x = PHYS_ZERO_VEC.x;
@@ -1483,7 +1483,7 @@ void gjk_cylinder_t::get_feature(phys_contact_manifold *cman) const
         }
         else
         {
-            v34 = 1.0 / Abs(&len.x);
+            v34 = 1.0 / Vec3Length(&len.x);
             len.x = len.x * v34;
             len.y = len.y * v34;
             len.z = len.z * v34;
@@ -1525,7 +1525,7 @@ void gjk_cylinder_t::get_feature(phys_contact_manifold *cman) const
     }
     else
     {
-        len_ = Abs(&len.x);
+        len_ = Vec3Length(&len.x);
         if (len_ <= 0.0000099999997
             && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_colgeom.h", 604, 0, "%s", "len > 0.00001f"))
         {

@@ -273,7 +273,7 @@ void __fastcall Actor_Exposed_FlashBanged(actor_s *self)
     Actor_SetAnimScript(
         self,
         &g_animScriptTable[self->species]->flashed,
-        0,
+        AI_MOVE_STOP,
         AI_ANIM_USE_BOTH_DELTAS,
         AI_ANIM_FUNCTION_STOP);
     Actor_SetOrientMode(self, AI_ORIENT_DONT_CHANGE);

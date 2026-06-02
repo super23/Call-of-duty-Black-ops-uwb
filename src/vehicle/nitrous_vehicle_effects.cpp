@@ -137,7 +137,7 @@ void NitrousVehicle::_update_wheel_effect_states(float delta_t)
                         p_vel.x = p_vel.x - (float)(v9 * rbc_wheel->m_b1_suspension_dir_loc.x);
                         p_vel.y = p_vel.y - skid_delta;
                         p_vel.z = p_vel.z - speed;
-                        v6 = Abs(&p_vel.x);
+                        v6 = Vec3Length(&p_vel.x);
                         if (v6 <= thisa->m_vehicle_info->skidSpeedMin)
                         {
                             thisa->m_wheel_state[i].m_state = WHEEL_STATE_ROLLING;
@@ -360,7 +360,7 @@ double NitrousVehicle::debug_render_wheel_effects(int wheel)
     v14.z = v18 * v20.z;
     //phys_vec3::operator-=(&p_vel, &v14);
     p_vel -= v14;
-    speed = Abs(&p_vel.x);
+    speed = Vec3Length(&p_vel.x);
     //operator/(&direction, &p_vel, speed);
     direction = p_vel / speed;
     skidSpeedMax = thisa->m_vehicle_info->skidSpeedMax;

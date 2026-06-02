@@ -208,14 +208,14 @@ void __cdecl InitScriptMover(gentity_s *pSelf)
 
 void __cdecl SP_script_brushmodel(gentity_s *self, SpawnVar *v)
 {
-    int savedregs; // [esp+18h] [ebp+0h] BYREF
-
     if ( SV_SetBrushModel(self) )
     {
         InitScriptMover(self);
         SV_LinkEntity(self);
         if ( (self->spawnflags & 1) != 0 )
-            self->flags |= 0x40000800u;
+            self->flags |= (FL_DYNAMICPATH | FL_AUTO_BLOCKPATHS);
+
+        static_assert(0x40000800u == (FL_DYNAMICPATH | FL_AUTO_BLOCKPATHS));
     }
     else
     {
@@ -245,19 +245,13 @@ void __cdecl SP_script_model(gentity_s *pSelf, SpawnVar *v)
         DObjCalcBounds(obj, pSelf->r.mins, pSelf->r.maxs);
     }
     SV_LinkEntity(pSelf);
-    if ( pSelf->handler != 8
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_mover.cpp",
-                    476,
-                    0,
-                    "%s",
-                    "pSelf->handler == ENT_HANDLER_SCRIPT_MOVER") )
-    {
-        __debugbreak();
-    }
-    pSelf->handler = 9;
+
+    iassert(pSelf->handler == ENT_HANDLER_SCRIPT_MOVER);
+    pSelf->handler = ENT_HANDLER_SCRIPT_MODEL;
     if ( (pSelf->spawnflags & 1) != 0 )
-        pSelf->flags |= 0x40000800u;
+        pSelf->flags |= (FL_DYNAMICPATH | FL_AUTO_BLOCKPATHS);
+
+    static_assert(0x40000800u == (FL_DYNAMICPATH | FL_AUTO_BLOCKPATHS));
 }
 
 void __cdecl SP_script_origin(gentity_s *pSelf, SpawnVar *v)
@@ -361,6 +355,7 @@ void __cdecl ScriptMover_Move(gentity_s *pEnt, const float *vPos, float fTotalTi
     origin[0] = pEnt->r.currentOrigin[0];
     origin[1] = pEnt->r.currentOrigin[1];
     origin[2] = pEnt->r.currentOrigin[2];
+
     ScriptMover_SetupMove(
         &pEnt->s.lerp.pos,
         vPos,
@@ -370,14 +365,11 @@ void __cdecl ScriptMover_Move(gentity_s *pEnt, const float *vPos, float fTotalTi
         origin,
         &pEnt->mover.speed,
         &pEnt->mover.midTime,
-        &pEnt->mover.aDecelTime,
+        &pEnt->mover.decelTime,
         pEnt->mover.pos1,
         pEnt->mover.pos2,
         pEnt->mover.pos3);
-        //(float *)&pEnt->540,
-        //&pEnt->trigger.exposureLerpToLighter,
-        //&pEnt->trigger.exposureFeather[1],
-        //pEnt->mover.pos3);
+
     SV_LinkEntity(pEnt);
 }
 
@@ -449,7 +441,7 @@ void __cdecl ScriptMover_SetupMove(
     {
         *pfMidTime = (float)(fTotalTime - fAccelTime) - fDecelTime;
         *pfDecelTime = fDecelTime;
-        fDist = Abs(vMove);
+        fDist = Vec3Length(vMove);
         if ( (float)((float)((float)(2.0 * fTotalTime) - fAccelTime) - fDecelTime) == 0.0
             && !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_mover.cpp",
@@ -1142,7 +1134,7 @@ void __cdecl ScriptMover_SetupMoveSpeed(
     {
         *pfMidTime = (float)(fTotalTime - fAccelTime) - fDecelTime;
         *pfDecelTime = fDecelTime;
-        *pfSpeed = Abs(vSpeed);
+        *pfSpeed = Vec3Length(vSpeed);
         if ( fAccelTime == 0.0 )
         {
             *vPos1 = *vCurrPos;

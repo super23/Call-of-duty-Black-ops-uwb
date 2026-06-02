@@ -411,7 +411,7 @@ void __cdecl Rope_Init(
     v[0] = *p1 - *p0;
     v[1] = p1[1] - p0[1];
     v[2] = p1[2] - p0[2];
-    vlen = Abs(v);
+    vlen = Vec3Length(v);
     if ( vlen < 0.001 )
     {
         v[0] = 0.0f;
@@ -866,7 +866,7 @@ LABEL_16:
         v[0] = *p2 - *p1;
         v[1] = p2[1] - p1[1];
         v[2] = p2[2] - p1[2];
-        vlen = Abs(v);
+        vlen = Vec3Length(v);
         targetd = rope->m_seglen;
         v[0] = (float)(1.0 / vlen) * v[0];
         v[1] = (float)(1.0 / vlen) * v[1];
@@ -1549,7 +1549,7 @@ void __cdecl Rope_Trace(const float *p0, const float *p1)
     ud[0] = *p1 - *p0;
     ud[1] = p1[1] - p0[1];
     ud[2] = p1[2] - p0[2];
-    vlen = Abs(ud);
+    vlen = Vec3Length(ud);
     if ( vlen >= 0.0099999998 )
     {
         ud[0] = (float)(1.0 / vlen) * ud[0];
@@ -1699,7 +1699,7 @@ void __cdecl Rope_CollideWorld(int rope_index)
                 dir[0] = p1[0] - p0[0];
                 dir[1] = p1[1] - p0[1];
                 dir[2] = p1[2] - p0[2];
-                len = Abs(dir);
+                len = Vec3Length(dir);
                 if ( len >= 0.001 )
                 {
                     hint = -1;

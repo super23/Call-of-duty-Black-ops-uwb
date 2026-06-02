@@ -13,6 +13,7 @@
 #include <ui/ui_shared.h>
 #include <server/server.h>
 #include <gfx_d3d/r_init.h>
+#include <server_mp/sv_init_mp.h>
 
 #define MAX_ACTOR_CORPSES 8
 

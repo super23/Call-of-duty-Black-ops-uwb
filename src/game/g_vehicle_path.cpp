@@ -1343,7 +1343,7 @@ int __cdecl VP_UpdatePathPosCustom(vehicle_pathpos_t *vpp, const float *dir, __i
             frac = 0.0f;
             goto LABEL_30;
         }
-        fraca = 1.0 - Abs(VPPToNNode) / clink->length;
+        fraca = 1.0 - Vec3Length(VPPToNNode) / clink->length;
         if ( (float)(fraca - 1.0) < 0.0 )
             v5 = fraca;
         else
@@ -1547,7 +1547,7 @@ int __cdecl VP_UpdatePathPos(vehicle_pathpos_t *vpp, const float *dir, __int16 n
                 frac = 0.0f;
                 break;
             }
-            v3 = Abs(VPPToNNode);
+            v3 = Vec3Length(VPPToNNode);
             frac = 1.0 - v3 / cnode->splineNode.length;
             if ( (float)(frac - 1.0) < 0.0 )
                 v6 = frac;

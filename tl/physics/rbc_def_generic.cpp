@@ -941,7 +941,7 @@ void rigid_body_constraint_distance::setup_constraint(pulse_sum_constraint_solve
                         //phys_vec3::operator-=(&damp_dir, v11);
                         damp_dir -= r1;
 
-                        ndamp_dir = Abs(&damp_dir.x);
+                        ndamp_dir = Vec3Length(&damp_dir.x);
                         v12 = ndamp_dir;
                         if (ndamp_dir < 0.00009999999747378752)
                         {
@@ -955,7 +955,7 @@ void rigid_body_constraint_distance::setup_constraint(pulse_sum_constraint_solve
                             r1 = ud * pos_adjustb;
                             //phys_vec3::operator-=(&damp_dir, v14);
                             damp_dir -= r1;
-                            ndamp_dir = Abs(&damp_dir.x);
+                            ndamp_dir = Vec3Length(&damp_dir.x);
                             v12 = ndamp_dir;
                         }
                         if (v12 > 0.00009999999747378752)

@@ -1430,7 +1430,7 @@ char phys_gjk_info::phys_collide_do_gjk_collide(const phys_gjk_input *d)
             phys_gjk_info::comp_v(this->m_w_set, &this->cg1_cinfo_loc.m_n);
 
             //phys_vec3::operator/=(&this->cg1_cinfo_loc.m_n, v14);
-            this->cg1_cinfo_loc.m_n /= Abs(&this->cg1_cinfo_loc.m_n.x);
+            this->cg1_cinfo_loc.m_n /= Vec3Length(&this->cg1_cinfo_loc.m_n.x);
 
             this->cg1_cinfo_loc.m_p1.x -= (this->cg1_cinfo_loc.m_n.x * d->cg1_radius);
             this->cg1_cinfo_loc.m_p1.y -= (this->cg1_cinfo_loc.m_n.y * d->cg1_radius);

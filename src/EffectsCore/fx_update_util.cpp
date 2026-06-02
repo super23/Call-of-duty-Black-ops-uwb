@@ -654,7 +654,7 @@ char __cdecl FX_CullSphere(const FxCamera *camera, unsigned int frustumPlaneCoun
     {
         if ( !Vec3IsNormalized(camera->frustum[planeIndex]) )
         {
-            v5 = Abs(camera->frustum[planeIndex]);
+            v5 = Vec3Length(camera->frustum[planeIndex]);
             v6 = va(
                          "(%g %g %g) len %g",
                          camera->frustum[planeIndex][0],

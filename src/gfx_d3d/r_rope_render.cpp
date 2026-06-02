@@ -287,7 +287,7 @@ void __cdecl R_Rope_GenerateVerts_Internal(
             stepVec[0] = basePos[0] - prevPos[0];
             stepVec[1] = basePos[1] - prevPos[1];
             stepVec[2] = basePos[2] - prevPos[2];
-            float stepLen = Abs(stepVec);
+            float stepLen = Vec3Length(stepVec);
             ropeTexU += stepLen * invHalfCircumTimes4;
 
             prevPos[0] = basePos[0];

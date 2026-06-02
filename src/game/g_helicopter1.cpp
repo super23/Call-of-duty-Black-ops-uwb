@@ -764,7 +764,7 @@ void __cdecl VEH_UpdateClientChopper(gentity_s *ent)
     VEH_CheckForPredictedCrash(ent);
     MatrixTransposeTransformVector43(phys->vel, axis, phys->bodyVel);
     VEH_UpdateVelocityWithRotation(ent);
-    v4 = Abs(phys->vel);
+    v4 = Vec3Length(phys->vel);
     veh->speed = v4;
     if ( veh->speed < 0.0
         && !Assert_MyHandler(
@@ -1694,7 +1694,7 @@ void __cdecl VEH_UpdateClientPlane(gentity_s *ent)
         phys->origin[0] = end[0];
         phys->origin[1] = end[1];
         phys->origin[2] = end[2];
-        v1 = Abs(phys->bodyVel);
+        v1 = Vec3Length(phys->bodyVel);
         veh->speed = v1;
         if ( veh->speed < 0.0
             && !Assert_MyHandler(

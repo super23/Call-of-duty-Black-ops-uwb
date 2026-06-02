@@ -24,7 +24,7 @@
 #include <server/sv_game.h>
 #include "g_bsp.h"
 
-node_field_t fields_3[12] =
+node_field_t fields_3[12] = // "fields"
 {
   { "targetname", 6, { 2 }, F_STRING, NULL },
   { "target", 12, { 2 }, F_STRING, NULL },
@@ -320,8 +320,6 @@ void __cdecl G_UpdateTrackExtraNodes()
 
 void __cdecl G_DropPathNodeToFloor(unsigned int nodeIndex)
 {
-    int savedregs; // [esp+4h] [ebp+0h] BYREF
-
     node_droptofloor(&gameWorldCurrent->path.nodes[nodeIndex]);
     G_InitPathBaseNode(&gameWorldCurrent->path.basenodes[nodeIndex], &gameWorldCurrent->path.nodes[nodeIndex]);
 }
@@ -346,33 +344,39 @@ void    node_droptofloor(pathnode_t *node)
     float vOrigin[4]; // [esp+F4h] [ebp-80h]
     col_context_t context; // [esp+104h] [ebp-70h] BYREF
     trace_t trace; // [esp+12Ch] [ebp-48h] BYREF
-    //_UNKNOWN *v20[2]; // [esp+168h] [ebp-Ch] BYREF
-    //int v21; // [esp+170h] [ebp-4h] BYREF
-    //int vars0; // [esp+174h] [ebp+0h]
-    //
-    //v20[0] = a1;
-    //v20[1] = (_UNKNOWN *)vars0;
-    //memset(&trace, 0, 16);
-    //col_context_t::col_context_t(&context);
-    //LODWORD(vOrigin[3]) = node->constant.vOrigin;
-    vOrigin[0] = node->constant.vOrigin[0];
-    vOrigin[1] = node->constant.vOrigin[1];
-    vOrigin[2] = node->constant.vOrigin[2];
-    vEnd[0] = vOrigin[0];
-    vEnd[1] = vOrigin[1];
-    vEnd[2] = vOrigin[2] - 256.0;
-    endpos[0] = vOrigin[0];
-    endpos[1] = vOrigin[1];
-    endpos[2] = vOrigin[2] + 1.0;
-    dropMins[0] = actorMins[0];
-    dropMins[1] = actorMins[1];
-    dropMins[2] = actorMins[2];
-    dropMaxs[0] = actorMaxs[0];
-    dropMaxs[1] = actorMaxs[1];
+
+    Vec3Copy(node->constant.vOrigin, vOrigin);
+
+    Vec3Copy(vOrigin, vEnd);
+    vEnd[2] -= 256.0f;
+
+    Vec3Copy(vOrigin, endpos);
+    endpos[2] += 1.0f;
+    
+    Vec3Copy(actorMins, dropMins);
+    Vec3Copy(actorMaxs, dropMaxs);
+
     dropMaxs[2] = (float)(15.0 - -15.0) + 0.0;
+
     G_TraceCapsule(&trace, endpos, dropMins, dropMaxs, vEnd, 1023, 0x820011, &context);
     if (trace.startsolid || trace.allsolid)
-        goto LABEL_3;
+    {
+        printf(
+            "ERROR: Pathnode (%s) at (%g %g %g) is in solid\n",
+            nodeStringTable[node->constant.type],
+            vOrigin[0],
+            vOrigin[1],
+            vOrigin[2]);
+        Com_PrintError(
+            1,
+            "ERROR: Pathnode (%s) at (%g %g %g) is in solid\n",
+            nodeStringTable[node->constant.type],
+            vOrigin[0],
+            vOrigin[1],
+            vOrigin[2]);
+        node->constant.type = NODE_BADNODE;
+        return;
+    }
     if (trace.fraction == 1.0)
     {
         printf(
@@ -398,7 +402,6 @@ void    node_droptofloor(pathnode_t *node)
         G_TraceCapsule(&trace, endpos, actorMins, actorMaxs, endpos, 1023, 0x820011, &context);
         if (trace.startsolid || trace.allsolid)
         {
-        LABEL_3:
             printf(
                 "ERROR: Pathnode (%s) at (%g %g %g) is in solid\n",
                 nodeStringTable[node->constant.type],
@@ -490,47 +493,35 @@ void __cdecl G_InitPathBaseNode(pathbasenode_t *pbnode, const pathnode_t *pnode)
 
 void __cdecl G_DropPathnodesToFloor()
 {
-    unsigned int nodeIndex; // [esp+8h] [ebp-100Ch]
-    unsigned int nodeIndexa; // [esp+8h] [ebp-100Ch]
-    unsigned int v2[1024]; // [esp+Ch] [ebp-1008h]
-    int i; // [esp+100Ch] [ebp-8h]
-    gentity_s *ent; // [esp+1010h] [ebp-4h]
+    unsigned int backupEntContents[MAX_GENTITIES]; // [esp+Ch] [ebp-1008h]
 
-    if ( g_path.actualNodeCount > gameWorldCurrent->path.nodeCount
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\pathnode.cpp",
-                    1467,
-                    0,
-                    "%s",
-                    "g_path.actualNodeCount <= gameWorldCurrent.path.nodeCount") )
+    iassert(g_path.actualNodeCount <= gameWorldCurrent->path.nodeCount);
+
+    for ( int i = 0; i < level.num_entities; ++i )
     {
-        __debugbreak();
-    }
-    for ( i = 0; i < level.num_entities; ++i )
-    {
-        ent = &level.gentities[i];
+        gentity_s *ent = &level.gentities[i];
         if ( ent->r.inuse )
         {
-            v2[i] = ent->r.contents;
+            backupEntContents[i] = ent->r.contents;
             if ( Path_IsDynamicBlockingEntity(ent) )
                 ent->r.contents = 0;
         }
     }
-    for ( nodeIndex = 0; nodeIndex < gameWorldCurrent->path.nodeCount; ++nodeIndex )
+    for ( unsigned int nodeIndex = 0; nodeIndex < gameWorldCurrent->path.nodeCount; ++nodeIndex )
     {
         if ( (gameWorldCurrent->path.nodes[nodeIndex].constant.spawnflags & 0x100) == 0 )
             G_DropPathNodeToFloor(nodeIndex);
     }
-    for ( i = 0; i < level.num_entities; ++i )
+    for ( int i = 0; i < level.num_entities; ++i )
     {
-        ent = &level.gentities[i];
+        gentity_s *ent = &level.gentities[i];
         if ( ent->r.inuse )
-            ent->r.contents = v2[i];
+            ent->r.contents = backupEntContents[i];
     }
-    for ( nodeIndexa = 0; nodeIndexa < gameWorldCurrent->path.nodeCount; ++nodeIndexa )
+    for (unsigned int nodeIndex = 0; nodeIndex < gameWorldCurrent->path.nodeCount; ++nodeIndex )
     {
-        if ( (gameWorldCurrent->path.nodes[nodeIndexa].constant.spawnflags & 0x100) != 0 )
-            G_DropPathNodeToFloor(nodeIndexa);
+        if ( (gameWorldCurrent->path.nodes[nodeIndex].constant.spawnflags & 0x100) != 0 )
+            G_DropPathNodeToFloor(nodeIndex);
     }
 }
 
@@ -756,10 +747,9 @@ void __cdecl PathNode_UpdateFloatField(const char *destKey, float *destFloat, co
 {
     float floatValue; // [esp+0h] [ebp-4h] BYREF
 
-    if ( !key && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\pathnode.cpp", 852, 0, "%s", "key") )
-        __debugbreak();
-    if ( !destKey && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\pathnode.cpp", 853, 0, "%s", "destKey") )
-        __debugbreak();
+    iassert(key);
+    iassert(destKey);
+
     if ( !I_stricmp(key, destKey) )
     {
         if ( sscanf(value, "%f", &floatValue) != 1 )
@@ -780,43 +770,26 @@ void __cdecl PathNode_OriginMatches(const char *value, const float *nodeOrigin)
 
 void __cdecl GScr_AddFieldsForPathnode()
 {
-    node_field_t *f; // [esp+4h] [ebp-4h]
-
-    for ( f = fields_3; f->name; ++f )
+    for ( node_field_t *f = fields_3; f->name; ++f )
     {
-        if ( f - fields_3 != (unsigned __int16)(f - fields_3)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game\\pathnode.cpp",
-                        1604,
-                        0,
-                        "%s",
-                        "(f - fields) == (unsigned short)( f - fields )") )
-        {
-            __debugbreak();
-        }
-        Scr_AddClassField(2u, (char *)f->name, (unsigned __int16)(f - fields_3), SCRIPTINSTANCE_SERVER);
+        iassert((f - fields_3) == (unsigned short)(f - fields_3));
+        Scr_AddClassField(2, (char *)f->name, (unsigned __int16)(f - fields_3), SCRIPTINSTANCE_SERVER);
     }
 }
 
 void __cdecl Scr_FreePathnode(pathnode_t *node)
 {
-    unsigned int v1; // eax
-
     if ( !useFastFile->current.enabled )
         Scr_FreePathnodeFields(node);
 
     iassert(!node->dynamic.pOwner.isDefined());
 
-    v1 = Path_ConvertNodeToIndex(node);
-    Scr_FreeEntityNum(v1, 2u, SCRIPTINSTANCE_SERVER);
+    Scr_FreeEntityNum(Path_ConvertNodeToIndex(node), 2u, SCRIPTINSTANCE_SERVER);
 }
 
 void __cdecl Scr_AddPathnode(pathnode_t *node)
 {
-    unsigned int v1; // eax
-
-    v1 = Path_ConvertNodeToIndex(node);
-    Scr_AddEntityNum(v1, 2u, SCRIPTINSTANCE_SERVER, 0);
+    Scr_AddEntityNum(Path_ConvertNodeToIndex(node), 2u, SCRIPTINSTANCE_SERVER, 0);
 }
 
 void __cdecl Scr_GetNode()
@@ -1636,7 +1609,7 @@ double __cdecl Path_GetDebugStringScale(const float *cameraPos, const float *ori
         delta[1] = cameraPos[1] - origin[1];
         delta[2] = cameraPos[2] - origin[2];
         delta[2] = delta[2] + player->client->ps.viewHeightCurrent;
-        v2 = Abs(delta);
+        v2 = Vec3Length(delta);
         scale = v2 / 3600.0 * scale;
     }
     if ( (float)(scale - 0.5) < 0.0 )

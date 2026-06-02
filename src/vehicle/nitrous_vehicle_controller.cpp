@@ -79,7 +79,7 @@ void NitrousVehicleController::UpdateScriptVehicleControl(
     to_goal.x = v23;
     to_goal.y = v22;
     to_goal.z = 0.0f;
-    to_goal_dist = Abs(&to_goal.x);
+    to_goal_dist = Vec3Length(&to_goal.x);
     if (to_goal_dist <= 0.0)
     {
         yaw = 0.0f;
@@ -1259,7 +1259,7 @@ void NitrousVehicleController::UpdateApplyBoatAccel(
             / (float)(vehParams->m_water_speed_max * rbveh->m_speed_scale);
         if (forwardProportion > 1.0)
             forwardProportion = 1.0f;
-        v4 = Abs(&body->m_a_vel.x);
+        v4 = Vec3Length(&body->m_a_vel.x);
         turnProportion = v4 / vehParams->m_water_turn_speed_max;
         if (turnProportion > 1.0)
             turnProportion = 1.0f;

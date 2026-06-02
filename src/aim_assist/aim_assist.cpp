@@ -2285,7 +2285,7 @@ void __cdecl AimAssist_DrawTargets(int localClientNum, const playerState_s *ps, 
                     colorWhite,
                     0);
                 yc = yb - 10.0;
-                v6 = Abs(aaGlob->screenTargets[targetIndex].velocity);
+                v6 = Vec3Length(aaGlob->screenTargets[targetIndex].velocity);
                 v7 = va("Speed: %.2f", v6);
                 CL_DrawText(
                     &scrPlaceView[localClientNum],

@@ -2184,7 +2184,7 @@ void __cdecl Actor_EntInfo(gentity_s *self, float *source)
         delta[0] = *source - self->r.currentOrigin[0];
         delta[1] = source[1] - self->r.currentOrigin[1];
         delta[2] = source[2] - self->r.currentOrigin[2];
-        dist = Abs(delta);
+        dist = Vec3Length(delta);
         if ( g_entinfo_maxdist->current.value <= 0.0 || dist <= g_entinfo_maxdist->current.value )
         {
             infoScale = G_GetEntInfoScale();
@@ -2492,7 +2492,7 @@ void __cdecl Actor_EntInfo(gentity_s *self, float *source)
                             v[0] = myPos[0] - enemyPos[0];
                             v[1] = myPos[1] - enemyPos[1];
                             v[2] = myPos[2] - enemyPos[2];
-                            range = Abs(v);
+                            range = Vec3Length(v);
                         }
                         if ( target )
                             v28 = colorRed;

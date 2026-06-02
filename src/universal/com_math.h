@@ -299,8 +299,6 @@ void __cdecl Vec4Copy(const float *from, float *to);
 
 float AngleNormalize180(float angle);
 
-float    __cdecl Abs(const float *v);
-
 #define Vec3Clear(a)			((a)[0]=(a)[1]=(a)[2]=0)
 
 inline void MatrixTransformVector(const float *in1, const float (*in2)[3], float *out)

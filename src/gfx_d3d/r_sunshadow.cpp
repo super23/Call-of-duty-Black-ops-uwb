@@ -861,7 +861,7 @@ void __cdecl R_SetupNearRegionPlane(const float *partitionFraction)
     scene.shadowNearPlane[0].coeffs[2] = partitionFraction[2];
     scene.shadowNearPlane[0].coeffs[3] = partitionFraction[3];
 
-    length = Abs(scene.shadowNearPlane[0].coeffs);
+    length = Vec3Length(scene.shadowNearPlane[0].coeffs);
     if ( length <= 0.0
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_sunshadow.cpp", 391, 0, "%s", "length > 0") )
     {
@@ -877,7 +877,7 @@ void __cdecl R_SetupNearRegionPlane(const float *partitionFraction)
     scene.shadowNearPlane[1].coeffs[2] = partitionFraction[2];
     scene.shadowNearPlane[1].coeffs[3] = partitionFraction[3];
     scene.shadowNearPlane[1].coeffs[3] = scene.shadowNearPlane[1].coeffs[3] - 0.75;
-    lengtha = Abs(scene.shadowNearPlane[1].coeffs);
+    lengtha = Vec3Length(scene.shadowNearPlane[1].coeffs);
     if ( lengtha <= 0.0
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_sunshadow.cpp", 401, 0, "%s", "length > 0") )
     {
@@ -897,7 +897,7 @@ void __cdecl R_SetupNearRegionPlane(const float *partitionFraction)
         shadowFarPlane->coeffs[2] = partitionFraction[2];
         shadowFarPlane->coeffs[3] = partitionFraction[3];
         shadowFarPlane->coeffs[3] = shadowFarPlane->coeffs[3] - size;
-        lengthb = Abs(shadowFarPlane->coeffs);
+        lengthb = Vec3Length(shadowFarPlane->coeffs);
         if ( lengthb <= 0.0
             && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_sunshadow.cpp", 414, 0, "%s", "length > 0") )
         {

@@ -387,7 +387,7 @@ void __cdecl R_ChangeObjectPlacement_Core(GfxCmdBufSourceState *source, const Gf
     UnitQuatToAxis(placement->base.quat, axis);
     if (!Vec3IsNormalized(axis[0]))
     {
-        v3 = Abs(axis[0]);
+        v3 = Vec3Length(axis[0]);
         v4 = va("(%g %g %g) len %g", axis[0][0], axis[0][1], axis[0][2], v3);
         if (!Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
@@ -400,7 +400,7 @@ void __cdecl R_ChangeObjectPlacement_Core(GfxCmdBufSourceState *source, const Gf
     }
     if (!Vec3IsNormalized(axis[1]))
     {
-        v5 = Abs(axis[1]);
+        v5 = Vec3Length(axis[1]);
         v6 = va("(%g %g %g) len %g", axis[1][0], axis[1][1], axis[1][2], v5);
         if (!Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",
@@ -413,7 +413,7 @@ void __cdecl R_ChangeObjectPlacement_Core(GfxCmdBufSourceState *source, const Gf
     }
     if (!Vec3IsNormalized(axis[2]))
     {
-        v7 = Abs(axis[2]);
+        v7 = Vec3Length(axis[2]);
         v8 = va("(%g %g %g) len %g", axis[2][0], axis[2][1], axis[2][2], v7);
         if (!Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.cpp",

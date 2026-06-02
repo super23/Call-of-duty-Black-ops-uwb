@@ -11,7 +11,7 @@ FX_WindInfo g_fxGlobalWind = { { 0.0, 0.0, 0.0 }, 0.0, 1.0, 0.0, 0.0 };
 void __cdecl FX_SetGlobalWind(const FX_WindInfo *windInput)
 {
     memcpy(&g_fxGlobalWind, windInput, sizeof(g_fxGlobalWind));
-    g_fxGlobalWind.windVectorMagnitude = Abs(g_fxGlobalWind.windVector);
+    g_fxGlobalWind.windVectorMagnitude = Vec3Length(g_fxGlobalWind.windVector);
 }
 
 const FX_WindInfo *__cdecl FX_GetGlobalWind()

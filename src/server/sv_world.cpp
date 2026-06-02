@@ -639,8 +639,8 @@ void __cdecl SV_TracePointToEntity(const pointtrace_t *clip, svEntity_s *check, 
     trace->boneIndex = objTrace.localBoneIndex;
     trace->partGroup = objTrace.partGroup;
     MatrixTransformVector(objTrace.normal, entAxis, trace->normal.vec.v);
-    v6 = Abs(trace->normal.vec.v) - 1.0;
-    if ( fabs(v6) >= 0.01 && Abs(trace->normal.vec.v) >= 0.01 )
+    v6 = Vec3Length(trace->normal.vec.v) - 1.0;
+    if ( fabs(v6) >= 0.01 && Vec3Length(trace->normal.vec.v) >= 0.01 )
     {
         v3 = va("%g %g %g", trace->normal.vec.v[0], trace->normal.vec.v[1], trace->normal.vec.v[2]);
         if ( !Assert_MyHandler(

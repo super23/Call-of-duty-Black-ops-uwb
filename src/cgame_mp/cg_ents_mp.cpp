@@ -2146,7 +2146,7 @@ void __cdecl CG_ClampPrimaryLightDir(GfxLight *light, const ComPrimaryLight *ref
         light->dir[2] = (float)(rotationLimit * refLight->dir[2]) + (float)(perpScale * perpendicular_8);
         if ( !Vec3IsNormalized(light->dir) )
         {
-            v2 = Abs(light->dir);
+            v2 = Vec3Length(light->dir);
             v3 = va("(%g %g %g) len %g", light->dir[0], light->dir[1], light->dir[2], v2);
             if ( !Assert_MyHandler(
                             "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_ents_mp.cpp",

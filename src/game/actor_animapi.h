@@ -48,7 +48,7 @@ void __fastcall Actor_KillAnimScript(actor_s *self);
 void __fastcall Actor_SetAnimScript(
                 actor_s *self,
                 scr_animscript_t *pAnimScriptFunc,
-                unsigned __int8 moveMode,
+                ai_movemode_t moveMode,
                 ai_animmode_t animMode,
                 scriptAnimAIFunctionTypes_t animScript);
 void __fastcall Actor_AnimStop(actor_s *self, scr_animscript_t *pAnimScriptFunc);

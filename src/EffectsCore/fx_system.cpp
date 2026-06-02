@@ -3131,7 +3131,7 @@ void FX_RandomlyRotateAxis(const float (*axisIn)[3], int randomSeed, float (*axi
     Vec3Cross((const float *)axisOut, &(*axisOut)[3], &(*axisOut)[6]);
     if (!Vec3IsNormalized((const float *)axisOut))
     {
-        v4 = Abs((const float *)axisOut);
+        v4 = Vec3Length((const float *)axisOut);
         v5 = va("(%g %g %g) len %g", (*axisOut)[0], (*axisOut)[1], (*axisOut)[2], v4);
         if (!Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",
@@ -3144,7 +3144,7 @@ void FX_RandomlyRotateAxis(const float (*axisIn)[3], int randomSeed, float (*axi
     }
     if (!Vec3IsNormalized(&(*axisOut)[3]))
     {
-        v6 = Abs(&(*axisOut)[3]);
+        v6 = Vec3Length(&(*axisOut)[3]);
         v7 = va("(%g %g %g) len %g", (*axisOut)[3], (*axisOut)[4], (*axisOut)[5], v6);
         if (!Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",
@@ -3157,7 +3157,7 @@ void FX_RandomlyRotateAxis(const float (*axisIn)[3], int randomSeed, float (*axi
     }
     if (!Vec3IsNormalized(&(*axisOut)[6]))
     {
-        v8 = Abs(&(*axisOut)[6]);
+        v8 = Vec3Length(&(*axisOut)[6]);
         v9 = va("(%g %g %g) len %g", (*axisOut)[6], (*axisOut)[7], (*axisOut)[8], v8);
         if (!Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",

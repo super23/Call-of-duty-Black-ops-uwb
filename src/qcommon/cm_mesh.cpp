@@ -330,7 +330,7 @@ void __cdecl CM_TraceCapsuleThroughTriangle(
             trace->normal.vec.v[2] = normal[2];
             if ( !Vec3IsNormalized(trace->normal.vec.v) )
             {
-                v4 = Abs(trace->normal.vec.v);
+                v4 = Vec3Length(trace->normal.vec.v);
                 v5 = va("(%g %g %g) len %g", trace->normal.vec.v[0], trace->normal.vec.v[1], trace->normal.vec.v[2], v4);
                 if ( !Assert_MyHandler(
                                 "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_mesh.cpp",
@@ -604,7 +604,7 @@ void __cdecl CM_TraceSphereThroughVertex(
                     {
                         epsilon = (float)((-((float)((float)((float)(trace->normal.vec.v[0] * trace->normal.vec.v[0]) + (float)(trace->normal.vec.v[1] * trace->normal.vec.v[1]))+ (float)(trace->normal.vec.v[2] * trace->normal.vec.v[2])) - 1.0)) / 2.0);
                         v7 = (float)(tw->radius + 0.125);
-                        v5 = Abs(trace->normal.vec.v);
+                        v5 = Vec3Length(trace->normal.vec.v);
                         v6 = va(
                                      "Vec3IsNormalized (%g %g %g) %g, %g %g",
                                      trace->normal.vec.v[0],
@@ -740,7 +740,7 @@ void __cdecl CM_TraceCapsuleThroughBorder(const traceWork_t *tw, const Collision
                 trace->normal.vec.u[2] = 0;
                 if ( !Vec3IsNormalized(trace->normal.vec.v) )
                 {
-                    v4 = Abs(trace->normal.vec.v);
+                    v4 = Vec3Length(trace->normal.vec.v);
                     v5 = va("(%g %g %g) len %g", trace->normal.vec.v[0], trace->normal.vec.v[1], trace->normal.vec.v[2], v4);
                     if ( !Assert_MyHandler(
                                     "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_mesh.cpp",
@@ -819,7 +819,7 @@ LABEL_55:
                 trace->normal.vec.u[2] = 0;
                 if ( !Vec3IsNormalized(trace->normal.vec.v) )
                 {
-                    v10 = Abs(trace->normal.vec.v);
+                    v10 = Vec3Length(trace->normal.vec.v);
                     v11 = va("(%g %g %g) len %g", trace->normal.vec.v[0], trace->normal.vec.v[1], trace->normal.vec.v[2], v10);
                     if ( !Assert_MyHandler(
                                     "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_mesh.cpp",
@@ -887,7 +887,7 @@ LABEL_55:
             trace->normal.vec.u[2] = 0;
             if ( !Vec3IsNormalized(trace->normal.vec.v) )
             {
-                v7 = Abs(trace->normal.vec.v);
+                v7 = Vec3Length(trace->normal.vec.v);
                 v8 = va("(%g %g %g) len %g", trace->normal.vec.v[0], trace->normal.vec.v[1], trace->normal.vec.v[2], v7);
                 if ( !Assert_MyHandler(
                                 "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_mesh.cpp",

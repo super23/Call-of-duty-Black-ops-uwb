@@ -758,7 +758,7 @@ void NitrousVehicle::update_parms(
         v63[0] = v66;
         v63[1] = v65;
         v63[2] = v64;
-        wheel_to_wheel_length = Abs(v63);
+        wheel_to_wheel_length = Vec3Length(v63);
         for (i = 0; i < 6; ++i)
         {
             y = thisa->m_wheel_orig_relpo[i].w.y;
@@ -2809,7 +2809,7 @@ void NitrousVehicle::update_steering(float delta_t)
         }
         turning_center_radius_vec.y = width;
         turning_center_radius_vec.z = 0.0f;
-        turning_center_radius = Abs(&turning_center_radius_vec.x);
+        turning_center_radius = Vec3Length(&turning_center_radius_vec.x);
         p_m_steer_front_pt_loc = &thisa->m_steer_front_pt_loc;
         v27 = thisa->m_steer_front_pt_loc.x + turning_center_radius_vec.x;
         v26 = thisa->m_steer_front_pt_loc.y + turning_center_radius_vec.y;
@@ -2835,7 +2835,7 @@ void NitrousVehicle::update_steering(float delta_t)
                 wheel_axis.x = turning_center.x - x;
                 wheel_axis.y = turning_center.y - y;
                 wheel_axis.z = 0.0f;
-                nwheel_axis = Abs(&wheel_axis.x);
+                nwheel_axis = Vec3Length(&wheel_axis.x);
                 if ((thisa->m_wheels[k]->m_wheel_flags & 8) != 0)
                 {
                     if (thisa->m_steer_current_angle < 0.0)

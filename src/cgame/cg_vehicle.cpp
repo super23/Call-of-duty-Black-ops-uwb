@@ -1243,7 +1243,7 @@ void __cdecl CG_UpdateVehicleSounds(int localClientNum, centity_s *cent)
 
     info = CG_GetVehicleInfo(cent->nextState.vehicleState.vehicleInfoIndex);
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
-    speedIPS = Abs(cent->currentState.pos.trDelta);
+    speedIPS = Vec3Length(cent->currentState.pos.trDelta);
     if ( cent->nitrousVeh )
         speedIPS = fabs(cent->nitrousVeh->m_forward_vel);
     isLocalPlayersVehicle = cgameGlob->bgs.clientinfo[cgameGlob->clientNum].attachedVehEntNum == cent->nextState.number;
@@ -1698,7 +1698,7 @@ void CG_UpdateTankSurfaceSounds(
     rightOrigin[2] = cent->pose.origin[2] - 35.0f * axis[0][2];
 
     // --- speed ---
-    speedIPS = Abs(cent->currentState.pos.trDelta);
+    speedIPS = Vec3Length(cent->currentState.pos.trDelta);
     speedRatio = speedIPS / info->engineSndSpeed;
     if (speedRatio < 0.0f) speedRatio = 0.0f;
     else if (speedRatio > 1.0f) speedRatio = 1.0f;
@@ -2059,7 +2059,7 @@ void CG_UpdateVehicleEngineSounds(
         throttle = cent->nitrousVeh->m_throttle;
 
     // ---- speed ----
-    speedIPS = Abs(cent->currentState.pos.trDelta);//fabsf(cent->currentState.pos.trDelta);
+    speedIPS = Vec3Length(cent->currentState.pos.trDelta);//fabsf(cent->currentState.pos.trDelta);
     speedRatio = speedIPS / info->engineSndSpeed;
     if (speedRatio < 0.0f) speedRatio = 0.0f;
     else if (speedRatio > 1.0f) speedRatio = 1.0f;

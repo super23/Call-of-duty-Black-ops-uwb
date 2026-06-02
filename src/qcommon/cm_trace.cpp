@@ -333,7 +333,7 @@ void __cdecl CM_Trace(
     else
         tw.radius = tw.size.vec.v[2];
 
-    tw.boundingRadius = Abs(tw.size.vec.v);
+    tw.boundingRadius = Vec3Length(tw.size.vec.v);
     tw.offsetZ = tw.size.vec.v[2] - tw.radius;
 
     for ( i = 0; i < 2; ++i )
@@ -3140,7 +3140,7 @@ int __cdecl CM_BoxSightTrace(
     else
         v9 = tw.size.vec.u[2];
     LODWORD(tw.radius) = v9;
-    tw.boundingRadius = Abs(tw.size.vec.v);
+    tw.boundingRadius = Vec3Length(tw.size.vec.v);
     tw.offsetZ = tw.size.vec.v[2] - tw.radius;
     for ( i = 0; i < 2; ++i )
     {

@@ -1309,7 +1309,7 @@ void __cdecl G_RunMissileInternal(gentity_s *ent)
                     entityHandlers[ent->handler].methodOfDeath);
             if ( tr.fraction == 1.0 )
             {
-                if ( Abs(ent->s.lerp.pos.trDelta) != 0.0 )
+                if (Vec3Length(ent->s.lerp.pos.trDelta) != 0.0 )
                 {
                     ent->s.groundEntityNum = 1023;
                     if ( weapDef->weapType == WEAPTYPE_PROJECTILE
@@ -1699,7 +1699,7 @@ void    MissileImpact(gentity_s *ent, trace_t *trace, float *dir, float *endpos)
                 if (LogAccuracyHit(other, v61))
                     hitClient = 1;
                 BG_EvaluateTrajectoryDelta(&ent->s.lerp.pos, level.time, velocity);
-                speed = Abs(velocity);
+                speed = Vec3Length(velocity);
                 if (speed == 0.0)
                     velocity[2] = 1.0f;
                 if (weapDef->weapType != WEAPTYPE_GRENADE && weapDef->weapType != WEAPTYPE_MINE
@@ -2147,7 +2147,7 @@ bool __cdecl CheckCrumpleMissile(gentity_s *ent, trace_t *trace)
         return 0;
     hitTime = level.previousTime + (int)(float)((float)(level.time - level.previousTime) * trace->fraction);
     BG_EvaluateTrajectoryDelta(&ent->s.lerp.pos, hitTime, velocity);
-    speed = Abs(velocity);
+    speed = Vec3Length(velocity);
     MIN_CRUMPLE_SPEED = 500.0f;
     if ( speed < 500.0 )
         return 0;
@@ -2405,7 +2405,7 @@ bool    BounceMissile(gentity_s *ent, trace_t *trace)
             v24[1] = (float)(v23 * side[1]) + v22[1];
             v24[2] = (float)(v23 * side[2]) + v22[2];
         }
-        linearSpeed = Abs(ent->s.lerp.pos.trDelta);
+        linearSpeed = Vec3Length(ent->s.lerp.pos.trDelta);
         revolutions = linearSpeed / (float)((float)(3.1415901 * rollRadius) * 2.0);
         vectoangles(ent->s.lerp.pos.trDelta, targetAngles);
         ent->s.lerp.apos.trBase[1] = targetAngles[1];
@@ -2446,7 +2446,7 @@ bool    BounceMissile(gentity_s *ent, trace_t *trace)
         && (trace->normal.vec.v[2] <= 0.69999999
             || weapDef->stickiness != WEAPSTICKINESS_GROUND
             && weapDef->stickiness != WEAPSTICKINESS_GROUND_WITH_YAW
-            && grenadeRestThreshold->current.value <= Abs(ent->s.lerp.pos.trDelta)))
+            && grenadeRestThreshold->current.value <= Vec3Length(ent->s.lerp.pos.trDelta)))
     {
     LABEL_103:
         vDelta[0] = 0.1 * trace->normal.vec.v[0];
@@ -2498,7 +2498,7 @@ bool    BounceMissile(gentity_s *ent, trace_t *trace)
                 velocity[0] = ent->s.lerp.pos.trDelta[0] - velocity[0];
                 velocity[1] = ent->s.lerp.pos.trDelta[1] - velocity[1];
                 velocity[2] = ent->s.lerp.pos.trDelta[2] - velocity[2];
-                dot = Abs(velocity);
+                dot = Vec3Length(velocity);
                 return dot > 100.0;
             }
             if (weapDef->rotateType == WEAPROTATE_CYLINDER_ROTATE)
@@ -2774,7 +2774,7 @@ char __cdecl GrenadeBounceVelocity(
     float bounceFactor; // [esp+80h] [ebp-8h]
     bool shouldRoll; // [esp+87h] [ebp-1h]
 
-    bounceFactor = Abs(preBounceVelocity);
+    bounceFactor = Vec3Length(preBounceVelocity);
     if ( bounceFactor <= 0.0 || dot > 0.0 )
         goto LABEL_30;
     v12 = grenadeRollingEnabled->current.enabled && weapDef->isRollingGrenade;
@@ -2783,7 +2783,7 @@ char __cdecl GrenadeBounceVelocity(
     {
         par = weapDef->parallelBounce[surfType];
         per = weapDef->perpendicularBounce[surfType];
-        if ( weapDef->bKeepRolling && !isDud && grenadeRollThreshold > Abs(pos->trDelta) )
+        if ( weapDef->bKeepRolling && !isDud && grenadeRollThreshold > Vec3Length(pos->trDelta) )
             par = (float)(par * rollFrac_0) + par;
         tr_n = (float)((float)(pos->trDelta[0] * *normal) + (float)(pos->trDelta[1] * normal[1]))
                  + (float)(pos->trDelta[2] * normal[2]);
@@ -3512,7 +3512,7 @@ void    Missile_ApplyAttractorsRepulsors(gentity_s *missile)
                     perpDir[1] = -1.0f;
                     totalDist = 0.0f;
                 }
-                force = Abs(delta);
+                force = Vec3Length(delta);
                 if (force <= attrGlob.attractors[attractorIndex].maxDist)
                 {
                     if (attrGlob.attractors[attractorIndex].maxDist <= 0.0
@@ -5016,7 +5016,7 @@ void __cdecl PredictBounceMissile(
     }
     if ((ent->s.lerp.eFlags & 0x1000000) == 0)
         goto LABEL_27;
-    bounceFactor = Abs(velocity);
+    bounceFactor = Vec3Length(velocity);
     if ( bounceFactor > 0.0 && dot <= 0.0 )
     {
         dot = dot / (-(bounceFactor));
@@ -5043,7 +5043,7 @@ void __cdecl PredictBounceMissile(
         || trace->normal.vec.v[2] > 0.69999999
         && (weapDef->stickiness == WEAPSTICKINESS_GROUND
          || weapDef->stickiness == WEAPSTICKINESS_GROUND_WITH_YAW
-         || Abs(pos->trDelta) < 20.0) )
+         || Vec3Length(pos->trDelta) < 20.0) )
     {
         pos->trBase[0] = *endpos;
         pos->trBase[1] = endpos[1];
@@ -5270,7 +5270,7 @@ gentity_s *__cdecl G_FireGrenade(
         G_InitGrenadeMovement(grenade, start, dir, 0, weapDef->rotateType);
     if ( parent->client )
     {
-        speed = Abs(dir);
+        speed = Vec3Length(dir);
         grenade->s.lerp.u.actor.actorNum += CalcMissileNoDrawTime(speed);
     }
     InitGrenadeTimer(parent, grenade, weapDef, time);

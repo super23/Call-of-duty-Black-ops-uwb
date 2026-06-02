@@ -97,7 +97,7 @@ void __cdecl EntinfoPosAndScale(gentity_s *self, float *source, float *pos, floa
     delta[0] = *source - self->r.currentOrigin[0];
     delta[1] = source[1] - self->r.currentOrigin[1];
     delta[2] = source[2] - self->r.currentOrigin[2];
-    *dist = Abs(delta);
+    *dist = Vec3Length(delta);
     if ( g_entinfo->current.integer >= 2
         || g_entinfo_maxdist->current.value <= 0.0
         || *dist <= g_entinfo_maxdist->current.value )

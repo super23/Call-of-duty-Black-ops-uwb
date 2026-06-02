@@ -3315,7 +3315,7 @@ float __cdecl Vec3Distance(const float *v1, const float *v2)
     dir[0] = *v2 - *v1;
     dir[1] = v2[1] - v1[1];
     dir[2] = v2[2] - v1[2];
-    return Abs(dir);
+    return Vec3Length(dir);
 }
 
 float __cdecl Vec3DistanceSq(const float *p1, const float *p2)
@@ -3397,11 +3397,6 @@ float AngleNormalize180(float angle)
         if (angle < 0.0f)
                 angle += 360.0f;
         return angle - 180.0f;
-}
-
-float    __cdecl Abs(const float *v)
-{
-        return (float)sqrt((float)((float)((float)(*v * *v) + (float)(v[1] * v[1])) + (float)(v[2] * v[2])));
 }
 
 void __cdecl Vec3Scale(const float *v, float scale, float *result)

@@ -594,16 +594,16 @@ void __cdecl ActorScr_GetMoveMode(actor_s *pSelf, const actor_fields_s *pField)
     }
     switch ( pSelf->moveMode )
     {
-        case 0u:
+        case AI_MOVE_STOP:
             Scr_AddConstString(scr_const.stop, SCRIPTINSTANCE_SERVER);
             break;
-        case 1u:
+        case AI_MOVE_STOP_SOON:
             Scr_AddConstString(scr_const.stop_soon, SCRIPTINSTANCE_SERVER);
             break;
-        case 2u:
+        case AI_MOVE_WALK:
             Scr_AddConstString(scr_const.walk, SCRIPTINSTANCE_SERVER);
             break;
-        case 3u:
+        case AI_MOVE_RUN:
             Scr_AddConstString(scr_const.run, SCRIPTINSTANCE_SERVER);
             break;
         default:

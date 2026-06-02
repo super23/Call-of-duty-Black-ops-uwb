@@ -1,6 +1,8 @@
 #pragma once
 #include <bgame/bg_public.h>
 
+#define MAX_TARGETS 32
+
 struct target_t // sizeof=0x1C
 {                                       // XREF: $A5C519FFED38118F396585C413DE405F/r
     gentity_s *ent;                     // XREF: G_InitTargets(void)+2C/w
@@ -11,14 +13,6 @@ struct target_t // sizeof=0x1C
     int flags;
 };
 
-struct $A5C519FFED38118F396585C413DE405F // sizeof=0x384
-{                                       // XREF: .data:targGlob/r
-    target_t targets[32];               // XREF: G_InitTargets(void)+2C/w
-                                        // Scr_Target_SetShader(void)+6B/r ...
-    unsigned int targetCount;           // XREF: G_InitTargets(void)+4/w
-                                        // Scr_Target_Set(void)+87/r ...
-};
-
 void __cdecl G_InitTargets();
 void __cdecl Scr_Target_SetShader();
 void __cdecl Scr_Target_SetOffscreenShader();
@@ -27,7 +21,7 @@ unsigned int __cdecl Target_GetTargetIndex(gentity_s *ent);
 void __cdecl Scr_Target_IsTarget();
 void __cdecl Scr_Target_SetTurretAquire();
 void __cdecl Scr_Target_Set();
-char __cdecl Targ_Remove(gentity_s *ent);
+bool Targ_Remove(gentity_s *ent);
 void __cdecl Targ_RemoveAll();
 void __cdecl Scr_Target_Remove();
 void __cdecl Scr_Target_IsInCircle();

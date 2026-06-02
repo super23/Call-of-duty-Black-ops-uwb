@@ -161,14 +161,14 @@ actor_think_result_t __fastcall Actor_Dog_Exposed_Think(actor_s *self)
                 Actor_SetAnimScript(
                     self,
                     &g_animScriptTable[self->species]->jump,
-                    3u,
+                    AI_MOVE_RUN,
                     AI_ANIM_USE_BOTH_DELTAS_NOCLIP,
                     AI_ANIM_FUNCTION_MOVE);
             }
             else if ( Actor_IsMoving(self) && Actor_Dog_ShouldTurn(self) )
             {
                 Actor_SetOrientMode(self, AI_ORIENT_TO_MOTION);
-                Actor_SetAnimScript(self, &g_animScriptTable[self->species]->turn, 3u, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_MOVE);
+                Actor_SetAnimScript(self, &g_animScriptTable[self->species]->turn, AI_MOVE_RUN, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_MOVE);
             }
             else if ( (self->pAnimScriptFunc != &g_scr_data.dogAnim.jump
                             || !Actor_IsAnimScriptAlive(self)
@@ -222,7 +222,7 @@ void __cdecl Actor_Dog_Attack(actor_s *self)
     {
         if ( (AnimScriptList *)self->pAnimScriptFunc == &g_scr_data.dogAnim && !Actor_IsAnimScriptAlive(self) )
             Actor_KillAnimScript(self);
-        Actor_SetAnimScript(self, &g_animScriptTable[self->species]->combat, 0, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_STOP);
+        Actor_SetAnimScript(self, &g_animScriptTable[self->species]->combat, AI_MOVE_STOP, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_STOP);
     }
 }
 

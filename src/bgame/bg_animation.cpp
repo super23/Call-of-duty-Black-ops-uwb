@@ -4341,7 +4341,7 @@ void __cdecl BG_FinalizePlayerAnims(const char *levelName)
                     pCurrAnim->duration = (int)(float)(duration * 1000.0);
                     XAnimGetRelDelta(pXAnims, i, vRot, vDelta, 0.0, 1.0);
                     if ( (float)(vDelta[0] + vDelta[1]) <= (float)(vDelta[2] * 0.80000001) )
-                        pCurrAnim->moveSpeed = Abs(vDelta) / duration;
+                        pCurrAnim->moveSpeed = Vec3Length(vDelta) / duration;
                     else
                         pCurrAnim->moveSpeed = Vec2Length(vDelta) / duration;
                     if ( XAnimGetParamValue(pXAnims, i, "turn", &rotate) )
@@ -4352,7 +4352,7 @@ void __cdecl BG_FinalizePlayerAnims(const char *levelName)
                     {
                         if ( pCurrAnim->moveSpeed <= 1.0 )
                         {
-                            v7 = Abs(vDelta);
+                            v7 = Vec3Length(vDelta);
                             Com_Printf(19, "Anim '%s' moves %f units over %fms\n", pCurrAnim->name, v7, duration);
                         }
                         else
@@ -4401,7 +4401,7 @@ void __cdecl BG_FinalizePlayerAnims(const char *levelName)
                             }
                             v9 = (float)((float)(fullspeeda * 100.0) / pCurrAnim->moveSpeed);
                             moveSpeed = pCurrAnim->moveSpeed;
-                            v6 = Abs(vDelta);
+                            v6 = Vec3Length(vDelta);
                             Com_Printf(
                                 19,
                                 "Anim '%s' moves %f units over %ims (%f units/s), will play back at %.1f%% speed when player moves at ful"

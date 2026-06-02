@@ -76,7 +76,7 @@ void    make_rotate(
     phys_vec3 v8; // [esp+18h] [ebp-3Ch] BYREF
     float len; // [esp+44h] [ebp-10h]
 
-    len = Abs(&v->x);
+    len = Vec3Length(&v->x);
     if (len >= 0.0000099999997)
     {
         v8.x = (1.0 / len) * v->x;
@@ -1299,7 +1299,7 @@ void    init_winding(const plane_lt *plane, phys_static_array<phys_vec3,512> *wi
     up.x = up.x - (float)(proj * normal.x);
     up.y = up.y - (float)(proj * normal.y);
     up.z = v3 - (float)(proj * normal.z);
-    len = Abs(&up.x);
+    len = Vec3Length(&up.x);
     if (len != 0.0)
     {
         v38 = 1.0 / len;

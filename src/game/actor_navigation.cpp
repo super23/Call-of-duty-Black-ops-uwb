@@ -4757,7 +4757,6 @@ void __fastcall Path_CalcLookahead(
                 int bReduceLookaheadAmount,
                 int bAllowRestore)
 {
-    const char *v4; // eax
     pathpoint_t *vCurrPoint; // [esp+10h] [ebp-58h]
     float fCurrLength; // [esp+14h] [ebp-54h]
     float vLookaheadPos[3]; // [esp+38h] [ebp-30h] BYREF
@@ -4771,79 +4770,18 @@ void __fastcall Path_CalcLookahead(
     int i; // [esp+60h] [ebp-8h]
     float lookaheadAmount; // [esp+64h] [ebp-4h]
 
-    if ( !pPath
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_navigation.cpp", 3308, 0, "%s", "pPath") )
-    {
-        __debugbreak();
-    }
-    if ( pPath->wPathLen <= 0
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_navigation.cpp",
-                    3309,
-                    0,
-                    "%s",
-                    "pPath->wPathLen > 0") )
-    {
-        __debugbreak();
-    }
-    if ( pPath->wNegotiationStartNode < 0
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_navigation.cpp",
-                    3310,
-                    0,
-                    "%s",
-                    "pPath->wNegotiationStartNode >= 0") )
-    {
-        __debugbreak();
-    }
-    if ( pPath->wNegotiationStartNode >= pPath->wPathLen
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_navigation.cpp",
-                    3311,
-                    0,
-                    "%s",
-                    "pPath->wNegotiationStartNode < pPath->wPathLen") )
-    {
-        __debugbreak();
-    }
-    if ( pPath->wPathLen > 1 && pPath->pts[pPath->wPathLen - 2].fOrigLength < pPath->fCurrLength )
-    {
-        v4 = va(
-                     "pPath->fCurrLength: %g, pPath->pts[pPath->wPathLen - 2].fOrigLength: %g",
-                     pPath->fCurrLength,
-                     pPath->pts[pPath->wPathLen - 2].fOrigLength);
-        if ( !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_navigation.cpp",
-                        3312,
-                        0,
-                        "%s\n\t%s",
-                        "pPath->wPathLen <= 1 || pPath->fCurrLength <= pPath->pts[pPath->wPathLen - 2].fOrigLength",
-                        v4) )
-            __debugbreak();
-    }
+    iassert(pPath);
+    iassert(pPath->wPathLen > 0);
+    iassert(pPath->wNegotiationStartNode >= 0);
+    iassert(pPath->wNegotiationStartNode < pPath->wPathLen);
+    iassert(pPath->wPathLen <= 1 || pPath->fCurrLength <= pPath->pts[pPath->wPathLen - 2].fOrigLength);
+
     totalArea = 0.0f;
     lookaheadAmount = pPath->fLookaheadAmount;
-    if ( (LODWORD(lookaheadAmount) & 0x7F800000) == 0x7F800000
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_navigation.cpp",
-                    3317,
-                    0,
-                    "%s",
-                    "!IS_NAN(lookaheadAmount)") )
-    {
-        __debugbreak();
-    }
-    if ( lookaheadAmount <= 0.0
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_navigation.cpp",
-                    3318,
-                    0,
-                    "%s\n\t(lookaheadAmount) = %g",
-                    "(lookaheadAmount > 0)",
-                    lookaheadAmount) )
-    {
-        __debugbreak();
-    }
+
+    iassert(!IS_NAN(lookaheadAmount));
+    iassert(lookaheadAmount > 0);
+
     bAtStart = 1;
     i = pPath->wPathLen - 2;
     while ( 1 )
@@ -4854,34 +4792,15 @@ void __fastcall Path_CalcLookahead(
             return;
         }
         pt = &pPath->pts[i];
-        if ( ((LODWORD(pt->vOrigPoint[0]) & 0x7F800000) == 0x7F800000
-             || (LODWORD(pt->vOrigPoint[1]) & 0x7F800000) == 0x7F800000
-             || (LODWORD(pt->vOrigPoint[2]) & 0x7F800000) == 0x7F800000)
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_navigation.cpp",
-                        3330,
-                        0,
-                        "%s",
-                        "!IS_NAN((pt->vOrigPoint)[0]) && !IS_NAN((pt->vOrigPoint)[1]) && !IS_NAN((pt->vOrigPoint)[2])") )
-        {
-            __debugbreak();
-        }
+        nanassertvec3(pt->vOrigPoint);
         height = Path_GetDistToPathSegment(vStartPos, pt);
         if ( bAtStart )
             fCurrLength = pPath->fCurrLength;
         else
             fCurrLength = pt->fOrigLength;
         fLength = fCurrLength;
-        if ( fCurrLength <= 0.0
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_navigation.cpp",
-                        3334,
-                        0,
-                        "%s",
-                        "fLength > 0") )
-        {
-            __debugbreak();
-        }
+        iassert(fLength > 0);
+
         totalArea = (float)(height * fLength) + totalArea;
         if ( pPath->minLookAheadNodes == 2 )
             PathCalcLookahead_CheckMinLookaheadNodes(pPath, pt, i);
@@ -4891,17 +4810,8 @@ void __fastcall Path_CalcLookahead(
         bAtStart = 0;
     }
     dist = (float)(totalArea - lookaheadAmount) / height;
-    if ( pt->fOrigLength < fLength
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_navigation.cpp",
-                    3352,
-                    0,
-                    "fLength <= pt->fOrigLength\n\t%g, %g",
-                    fLength,
-                    pt->fOrigLength) )
-    {
-        __debugbreak();
-    }
+    iassert(fLength <= pt->fOrigLength);
+
     if ( dist > fLength )
         dist = fLength;
     vLookaheadPos[0] = (float)((-(dist)) * pt->fDir2D[0]) + pt->vOrigPoint[0];

@@ -3440,7 +3440,7 @@ camera->frustum[4][1] = (float)((float)(tanHalfFovY * cosHalfFova) * (float)(*vi
     {
         if ( !Vec3IsNormalized(camera->frustum[planeIndex]) )
         {
-            v6 = Abs(camera->frustum[planeIndex]);
+            v6 = Vec3Length(camera->frustum[planeIndex]);
             v7 = va(
                          "(%g %g %g) len %g",
                          camera->frustum[planeIndex][0],

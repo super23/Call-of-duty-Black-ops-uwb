@@ -2692,7 +2692,6 @@ void __cdecl ScrCmd_PlayerLinkToDelta(scr_entref_t entref)
     float v3; // [esp+4h] [ebp-8Ch]
     float v4; // [esp+8h] [ebp-88h]
     float v5; // [esp+Ch] [ebp-84h]
-    float Float; // [esp+10h] [ebp-80h]
     float v7; // [esp+18h] [ebp-78h]
     float v8; // [esp+1Ch] [ebp-74h]
     float v9; // [esp+20h] [ebp-70h]
@@ -2714,16 +2713,9 @@ void __cdecl ScrCmd_PlayerLinkToDelta(scr_entref_t entref)
         Scr_ParamError(0, "not an entity", SCRIPTINSTANCE_SERVER);
     if ( !ent->client )
         Scr_ObjectError("not a player entity", SCRIPTINSTANCE_SERVER);
-    if ( (ent->flags & 0x1000) == 0
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_scr_main_mp.cpp",
-                    2741,
-                    0,
-                    "%s",
-                    "ent->flags & FL_SUPPORTS_LINKTO") )
-    {
-        __debugbreak();
-    }
+
+    iassert(ent->flags & FL_SUPPORTS_LINKTO);
+
     parent = Scr_GetEntity(0);
     numParam = Scr_GetNumParam(SCRIPTINSTANCE_SERVER);
     tagName.intValue = 0;
@@ -2736,11 +2728,8 @@ void __cdecl ScrCmd_PlayerLinkToDelta(scr_entref_t entref)
                 tagName.intValue = 0;
         }
     }
-    if ( numParam <= 2 )
-        Float = 0.0f;
-    else
-        Float = Scr_GetFloat(2u, SCRIPTINSTANCE_SERVER);
-    ent->client->linkAnglesFrac = Float;
+
+    ent->client->linkAnglesFrac = (numParam > 2) ? Scr_GetFloat(2, SCRIPTINSTANCE_SERVER) : 0.0f;
     ent->client->linkAnglesLocked = 0;
     if ( numParam <= 3 )
         v13 = 180.0f;
@@ -2823,10 +2812,7 @@ void __cdecl ScrCmd_PlayerLinkToDelta(scr_entref_t entref)
     }
     else
     {
-        linkAngles = ent->client->ps.linkAngles;
-        *linkAngles = 0.0f;
-        linkAngles[1] = 0.0f;
-        linkAngles[2] = 0.0f;
+        Vec3Clear(ent->client->ps.linkAngles);
     }
 }
 
@@ -7116,7 +7102,7 @@ void Scr_Length()
     float v[3]; // [esp+Ch] [ebp-Ch] BYREF
 
     Scr_GetVector(0, v, SCRIPTINSTANCE_SERVER);
-    value = Abs(v);
+    value = Vec3Length(v);
     Scr_AddFloat(value, SCRIPTINSTANCE_SERVER);
 }
 
@@ -8355,7 +8341,7 @@ void __cdecl GScr_PlayerSightTrace(scr_entref_t entref)
     objdir[0] = itemPosition[0] - playerEyes[0];
     objdir[1] = itemPosition[1] - playerEyes[1];
     objdir[2] = itemPosition[2] - playerEyes[2];
-    dist = Abs(objdir);
+    dist = Vec3Length(objdir);
     objdir[0] = (float)(1.0 / dist) * objdir[0];
     objdir[1] = (float)(1.0 / dist) * objdir[1];
     objdir[2] = (float)(1.0 / dist) * objdir[2];
@@ -8666,12 +8652,10 @@ void GScr_GetAngleDelta()
 
 void GScr_GetNorthYaw()
 {
-    float value; // [esp+8h] [ebp-28h]
     char northYawString[32]; // [esp+Ch] [ebp-24h] BYREF
 
-    SV_GetConfigstring(0x60Cu, northYawString, 32);
-    value = atof(northYawString);
-    Scr_AddFloat(value, SCRIPTINSTANCE_SERVER);
+    SV_GetConfigstring(CS_NORTHYAW, northYawString, 32);
+    Scr_AddFloat(atof(northYawString), SCRIPTINSTANCE_SERVER);
 }
 
 void Scr_LoadFX()
@@ -8705,16 +8689,9 @@ void Scr_PlayFX()
     fxId = Scr_GetInt(0, SCRIPTINSTANCE_SERVER);
     Scr_GetVector(1u, pos, SCRIPTINSTANCE_SERVER);
     ent = G_TempEntity(pos, EV_PLAY_FX);
-    if ( ent->s.lerp.apos.trType
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_scr_main_mp.cpp",
-                    9314,
-                    1,
-                    "%s",
-                    "ent->s.lerp.apos.trType == TR_STATIONARY") )
-    {
-        __debugbreak();
-    }
+
+    iassert(ent->s.lerp.apos.trType == TR_STATIONARY);
+
     ent->s.eventParm = (unsigned __int8)fxId;
     if ( numParams == 2 )
     {
@@ -8722,18 +8699,8 @@ void Scr_PlayFX()
     }
     else
     {
-        if ( numParams != 3
-            && numParams != 4
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_scr_main_mp.cpp",
-                        9322,
-                        1,
-                        "%s\n\t(numParams) = %i",
-                        "(numParams == 3 || numParams == 4)",
-                        numParams) )
-        {
-            __debugbreak();
-        }
+        iassert(numParams == 3 || numParams == 4);
+
         Scr_GetVector(2u, axis[0], SCRIPTINSTANCE_SERVER);
         vecLength = Vec3Normalize(axis[0]);
         if ( vecLength == 0.0 )
@@ -8744,17 +8711,8 @@ void Scr_PlayFX()
         }
         else
         {
-            if ( numParams != 4
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_scr_main_mp.cpp",
-                            9335,
-                            1,
-                            "%s\n\t(numParams) = %i",
-                            "(numParams == 4)",
-                            numParams) )
-            {
-                __debugbreak();
-            }
+            iassert(numParams == 4);
+
             Scr_GetVector(3u, axis[2], SCRIPTINSTANCE_SERVER);
             vecLength = Vec3Normalize(axis[2]);
             if ( vecLength == 0.0 )
@@ -8931,16 +8889,8 @@ LABEL_13:
     ent->s.eType = ET_LOOP_FX;
     ent->r.svFlags |= 8u;
     ent->s.un1.scale = fxId;
-    if ( ent->s.un1.scale != fxId
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_scr_main_mp.cpp",
-                    9428,
-                    0,
-                    "%s",
-                    "ent->s.un1.eventParm2 == fxId") )
-    {
-        __debugbreak();
-    }
+    iassert(ent->s.un1.eventParm2 == fxId);
+
     G_SetOrigin(ent, pos);
     Scr_SetFxAngles(givenAxisCount, axis, ent->s.lerp.apos.trBase);
     ent->s.lerp.u.turret.gunAngles[0] = cullDist;
@@ -9002,17 +8952,8 @@ LABEL_12:
     pos[2] = (float)(int)pos[2];
     G_SetOrigin(ent, pos);
     Scr_SetFxAngles(givenAxisCount, axis, ent->s.lerp.apos.trBase);
-    if ( ent->s.time2
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_scr_main_mp.cpp",
-                    9480,
-                    1,
-                    "%s\n\t(ent->s.time2) = %i",
-                    "(ent->s.time2 == 0)",
-                    ent->s.time2) )
-    {
-        __debugbreak();
-    }
+    iassert(ent->s.time2 == 0);
+
     SV_LinkEntity(ent);
     Scr_AddEntity(ent, SCRIPTINSTANCE_SERVER);
 }
@@ -12897,9 +12838,7 @@ void __cdecl GScr_Launch(scr_entref_t entref)
 
 void __cdecl GScr_MagicBullet()
 {
-    const char *v0; // eax
     const char *WeaponTypeName; // eax
-    const char *v2; // eax
     weapType_t weapType; // [esp+14h] [ebp-BCh]
     float source[3]; // [esp+24h] [ebp-ACh] BYREF
     gentity_s *tempEnt; // [esp+30h] [ebp-A0h]
@@ -12918,12 +12857,12 @@ void __cdecl GScr_MagicBullet()
 
     if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) < 3 )
         Scr_Error("MagicBullet weaponName sourceLoc destLoc.\n", 0);
+
     weapName = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
     weapon = G_GetWeaponIndexForName((char *)weapName);
     if ( !weapon )
     {
-        v0 = va("MagicBullet called with unknown weapon name %s\n", weapName);
-        Scr_Error(v0, 0);
+        Scr_Error(va("MagicBullet called with unknown weapon name %s\n", weapName), 0);
     }
     Scr_GetVector(1u, vecIn, SCRIPTINSTANCE_SERVER);
     source[0] = vecIn[0];
@@ -12948,7 +12887,7 @@ void __cdecl GScr_MagicBullet()
     memset(targetOffset, 0, sizeof(targetOffset));
     if ( wp.weapDef->weapType == WEAPTYPE_GRENADE || wp.weapDef->weapType == WEAPTYPE_MINE )
         Scr_Error("MagicBullet() does not work with grenade-type weapons.\n", 0);
-    attacker = &g_entities[1022];
+    attacker = &g_entities[ENTITYNUM_WORLD];
     if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) >= 4 && Scr_GetType(3u, SCRIPTINSTANCE_SERVER) )
         attacker = Scr_GetEntity(3u);
     targetEnt = 0;
@@ -12995,8 +12934,7 @@ LABEL_22:
         else
         {
             WeaponTypeName = BG_GetWeaponTypeName(wp.weapDef->weapType);
-            v2 = va("MagicBullet(): Unhandled weapType \"%s\".\n", WeaponTypeName);
-            Scr_Error(v2, 0);
+            Scr_Error(va("MagicBullet(): Unhandled weapType \"%s\".\n", WeaponTypeName), 0);
         }
     }
     else
@@ -13292,12 +13230,10 @@ void __cdecl GScr_SetLightFovRange(scr_entref_t entref)
 
     ent = GScr_SetupLightEntity(entref);
     refLight = Com_GetPrimaryLight(ent->s.index.brushmodel);
-    if ( !refLight
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_scr_main_mp.cpp", 15091, 0, "%s", "refLight") )
-    {
-        __debugbreak();
-    }
+    iassert(refLight);
+
     fovOuter = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
+
     if ( fovOuter < 0.99900001 || fovOuter >= 136.00101 )
         Scr_ParamError(0, "outer fov must be in the range of 1 to 136", SCRIPTINSTANCE_SERVER);
     //__libm_sse2_cos(v2);
@@ -13313,6 +13249,8 @@ void __cdecl GScr_SetLightFovRange(scr_entref_t entref)
         v6 = v8;
     else
         v6 = refLight->cosHalfFovOuter;
+
+
     if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) == 2 )
     {
         fovInner = Scr_GetFloat(1u, SCRIPTINSTANCE_SERVER);

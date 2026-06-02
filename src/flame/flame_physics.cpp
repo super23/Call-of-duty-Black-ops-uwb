@@ -621,7 +621,7 @@ void __cdecl Flame_Phys_Collision_Response(bool is_server, trace_t *trace, flame
     {
         *(_QWORD *)trace->normal.vec.v = *(_QWORD *)dir;
         trace->normal.vec.v[2] = dir[2];
-        len = Abs(dir);
+        len = Vec3Length(dir);
         if ( len <= 0.000099999997 )
         {
             gen->phys.origin[0] = startPos[0];
@@ -1234,7 +1234,7 @@ void __cdecl Flame_Phys_Update_Item_Chunk(
                             * (float)(gen->size.rate * frametime);
             v5 = 1.0 - speedScale;
             v4 = 2.0 * speedScale;
-            sizeAdda = ((1.0 - Abs(gen->phys.velocity) * gen->phys.invStartSpeed) * v4 + v5) * sizeAdd;
+            sizeAdda = ((1.0 - Vec3Length(gen->phys.velocity) * gen->phys.invStartSpeed) * v4 + v5) * sizeAdd;
             gen->phys.rotation = (float)(gen->phys.rotVel * frametime) + gen->phys.rotation;
             gen->size.current = gen->size.current + sizeAdda;
             if ( (LODWORD(gen->size.current) & 0x7F800000) == 0x7F800000

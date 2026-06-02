@@ -56,7 +56,7 @@ void __fastcall Actor_TeamMoveBlockedClear(actor_s *self);
 char __cdecl Actor_TeamMoveCalcMovementDir(team_move_context_t *context, ai_teammove_t *result);
 void __cdecl Actor_MoveAlongPathWithTeam(actor_s *self, bool bRun, bool bUseInterval, bool bAllowGoalPileUp);
 ai_teammove_t __fastcall Actor_GetTeamMoveStatus(actor_s *self, bool bUseInterval, bool bAllowGoalPileUp);
-char __cdecl Actor_TeamMoveCheckWaitTimer(actor_s *self, ai_teammove_t *result);
+bool Actor_TeamMoveCheckWaitTimer(actor_s *self, ai_teammove_t *result);
 char __cdecl Actor_TeamMoveNeedToCheckWait(unsigned __int8 moveMode, path_t *pPath);
 bool __cdecl Actor_IsEnemy(actor_s *self, sentient_s *other);
 void __cdecl Actor_TeamMoveSetDodge(team_move_context_t *context, team_move_other_context_t *context_other);

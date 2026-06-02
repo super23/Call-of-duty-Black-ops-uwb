@@ -27,7 +27,7 @@ phys_vec3 *__cdecl phys_Unitize(phys_vec3 *result, const phys_vec3 *a)
 {
     float na; // [esp+14h] [ebp-4h]
 
-    na = Abs(&a->x);
+    na = Vec3Length(&a->x);
 
     iassert(na > 0.0f);
 
@@ -2177,7 +2177,7 @@ bool    is_walkable(
 
         Vec3Cross(v0_v2, v0_v1, triNormalScaledByAreaX2);
         Phys_Vec3ToNitrousVec(triNormalScaledByAreaX2, &plane_dist);
-        walk_normal = Abs(&plane_dist.x);
+        walk_normal = Vec3Length(&plane_dist.x);
         if (walk_normal > 0.000099999997)
         {
             v9 = (float)((float)((float)(hit_point_loc->x * plane_dist.x) + (float)(hit_point_loc->y * plane_dist.y))

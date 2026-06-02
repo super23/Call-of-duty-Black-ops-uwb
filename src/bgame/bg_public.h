@@ -15,6 +15,79 @@ enum pmoveVehAnimState_t : __int32
         PMOVE_VEH_ANIM_STATE_COMPLETE    = 0x2,
 };
 
+//enum $E02F86DF661B70747453867A72DA739A : __int32
+enum gentityFlags_t : uint32_t // LWSS: not a real enum name, used to force usage
+{
+    FL_GODMODE              = 0x1,
+    FL_DEMI_GODMODE         = 0x2,
+    FL_NOTARGET             = 0x4,
+    FL_NO_KNOCKBACK         = 0x8,
+    FL_DROPPED_ITEM         = 0x10,
+    FL_NO_BOTS              = 0x20,
+    FL_NO_HUMANS            = 0x40,
+    FL_TOGGLE               = 0x80,
+    FL_SOFTACTIVATE         = 0x100,
+    FL_LOW_PRIORITY_USEABLE = 0x200,
+    FL_NO_HEADCHECK         = 0x400,
+    FL_DYNAMICPATH          = 0x800,
+    FL_SUPPORTS_LINKTO      = 0x1000,
+    FL_NO_AUTO_ANIM_UPDATE  = 0x2000,
+    FL_GRENADE_TOUCH_DAMAGE = 0x4000,
+    FL_GRENADE_MARTYRDOM    = 0x8000,
+    FL_MISSILE_DESTABILIZED = 0x10000,
+    FL_STABLE_MISSILES      = 0x20000,
+    FL_REPEAT_ANIM_UPDATE   = 0x40000,
+    FL_VEHICLE_TARGET       = 0x80000,
+    FL_GROUND_ENT           = 0x100000,
+    FL_CURSOR_HINT          = 0x200000,
+    FL_USE_TURRET           = 0x400000,
+    FL_MISSILE_ATTRACTOR    = 0x800000,
+    FL_TARGET               = 0x1000000,
+    FL_WEAPON_BEING_GRABBED = 0x2000000,
+    FL_OBSTACLE             = 0x4000000,
+    FL_DODGE_LEFT           = 0x8000000,
+    FL_DODGE_RIGHT          = 0x10000000,
+    FL_BADPLACE_VOLUME      = 0x20000000,
+    FL_AUTO_BLOCKPATHS      = 0x40000000,
+};
+
+//enum $5313C8230143BA0EE39E1AA1829F5562 : __int32
+enum EntHandler_t : uint8_t // (not a real enum name)
+{
+    ENT_HANDLER_NULL               = 0x0,
+    ENT_HANDLER_ACTOR_INIT         = 0x1,
+    ENT_HANDLER_ACTOR              = 0x2,
+    ENT_HANDLER_ACTOR_CORPSE       = 0x3,
+    ENT_HANDLER_TRIGGER_MULTIPLE   = 0x4,
+    ENT_HANDLER_TRIGGER_HURT       = 0x5,
+    ENT_HANDLER_TRIGGER_HURT_TOUCH = 0x6,
+    ENT_HANDLER_TRIGGER_DAMAGE     = 0x7,
+    ENT_HANDLER_SCRIPT_MOVER       = 0x8,
+    ENT_HANDLER_SCRIPT_MODEL       = 0x9,
+    ENT_HANDLER_GRENADE            = 0xA,
+    ENT_HANDLER_TIMED_OBJECT       = 0xB,
+    ENT_HANDLER_ROCKET             = 0xC,
+    ENT_HANDLER_CLIENT             = 0xD,
+    ENT_HANDLER_CLIENT_SPECTATOR   = 0xE,
+    ENT_HANDLER_CLIENT_DEAD        = 0xF,
+    ENT_HANDLER_PLAYER_CLONE       = 0x10,
+    ENT_HANDLER_TURRET_INIT        = 0x11,
+    ENT_HANDLER_TURRET             = 0x12,
+    ENT_HANDLER_DROPPED_ITEM       = 0x13,
+    ENT_HANDLER_ITEM_INIT          = 0x14,
+    ENT_HANDLER_ITEM               = 0x15,
+    ENT_HANDLER_TRIGGER_USE        = 0x16,
+    ENT_HANDLER_PRIMARY_LIGHT      = 0x17,
+    ENT_HANDLER_PLAYER_BLOCK       = 0x18,
+    ENT_HANDLER_VEHICLE_INIT       = 0x19,
+    ENT_HANDLER_VEHICLE            = 0x1A,
+    ENT_HANDLER_VEHICLE_FREE       = 0x1B,
+    ENT_HANDLER_HELICOPTER         = 0x1C,
+    ENT_HANDLER_IK_PLAYERCLIP_TERRAIN = 0x1D,
+    ENT_HANDLER_IK_DISABLE_TERRAIN_MAPPING = 0x1E,
+    ENT_HANDLER_COUNT              = 0x1F,
+};
+
 struct entityShared_t // sizeof=0x64
 {                                       // XREF: gentity_s/r
     unsigned __int8 linked;

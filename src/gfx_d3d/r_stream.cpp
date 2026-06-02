@@ -2445,7 +2445,7 @@ void __cdecl R_StreamUpdateForXModel(const XModel *remoteModel, float distSq)
             bounds = &highMipBounds[surf];
             if (bounds->himipRadiusSq != 0.0)
             {
-                v4 = distNotSq - Abs(bounds->center);
+                v4 = distNotSq - Vec3Length(bounds->center);
                 if ((float)((float)(v4 * v4) - 0.0) < 0.0)
                     v3 = 0.0f;
                 else

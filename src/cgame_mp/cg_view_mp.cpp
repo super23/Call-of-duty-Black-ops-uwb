@@ -291,7 +291,7 @@ void __cdecl CG_DrawWaterTrail(int localClientNum, centity_s *cent)
                 in_water = 1;
                 CG_DrawWaterTrail(localClientNum, cent->pose.origin, waterHeight);
             }
-            speed = Abs(velocity);
+            speed = Vec3Length(velocity);
             CG_SetNextRippleTime(cent, cgameGlob->time, speed, in_water);
         }
     }
@@ -328,7 +328,7 @@ void __cdecl CG_DrawWaterTrail(int localClientNum)
                         CG_DrawWaterTrail(localClientNum, cgameGlob->predictedPlayerState.origin, cent->pose.player.waterHeight);
                         in_water = 1;
                     }
-                    speed = Abs(cgameGlob->predictedPlayerState.velocity);
+                    speed = Vec3Length(cgameGlob->predictedPlayerState.velocity);
                     CG_SetNextRippleTime(cent, cgameGlob->time, speed, in_water);
                 }
             }
@@ -1353,7 +1353,7 @@ double __cdecl LookAtAxisAndDistance(const float *origin, const float *lookAt, f
     Vec3Cross((const float *)axis, &(*axis)[3], &(*axis)[6]);
     if ( !Vec3IsNormalized(&(*axis)[6]) )
     {
-        v3 = Abs(&(*axis)[6]);
+        v3 = Vec3Length(&(*axis)[6]);
         v4 = va("(%g %g %g) len %g", (*axis)[6], (*axis)[7], (*axis)[8], v3);
         if ( !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
@@ -1441,7 +1441,7 @@ void __cdecl CG_UpdateDestructibleKillCam(int localClientNum)
     Vec3Cross(cgameGlob->refdef.viewaxis[0], cgameGlob->refdef.viewaxis[1], cgameGlob->refdef.viewaxis[2]);
     if ( !Vec3IsNormalized(cgameGlob->refdef.viewaxis[2]) )
     {
-        v1 = Abs(cgameGlob->refdef.viewaxis[2]);
+        v1 = Vec3Length(cgameGlob->refdef.viewaxis[2]);
         v2 = va(
                      "(%g %g %g) len %g",
                      cgameGlob->refdef.viewaxis[2][0],
@@ -1554,7 +1554,7 @@ void __cdecl CG_UpdateArtilleryKillCam(int localClientNum)
     Vec3Cross(delta, left, up);
     if ( !Vec3IsNormalized(up) )
     {
-        v1 = Abs(up);
+        v1 = Vec3Length(up);
         v2 = va("(%g %g %g) len %g", up[0], up[1], up[2], v1);
         if ( !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
@@ -1572,7 +1572,7 @@ void __cdecl CG_UpdateArtilleryKillCam(int localClientNum)
         deltaProjectedToWall[0] = (float)(v18 * wallNormal[0]) + delta[0];
         deltaProjectedToWall[1] = (float)(v18 * wallNormal[1]) + delta[1];
         deltaProjectedToWall[2] = (float)(v18 * wallNormal[2]) + delta[2];
-        v17 = -(cg_artilleryKillCamWallSideDist->current.value / Abs(deltaProjectedToWall));
+        v17 = -(cg_artilleryKillCamWallSideDist->current.value / Vec3Length(deltaProjectedToWall));
         campos[0] = (float)(v17 * deltaProjectedToWall[0]) + bombOrigin[0];
         campos[1] = (float)(v17 * deltaProjectedToWall[1]) + bombOrigin[1];
         campos[2] = (float)(v17 * deltaProjectedToWall[2]) + bombOrigin[2];
@@ -1746,7 +1746,7 @@ void __cdecl CG_UpdateArtilleryKillCam(int localClientNum)
     Vec3Cross(cgameGlob->refdef.viewaxis[0], cgameGlob->refdef.viewaxis[1], cgameGlob->refdef.viewaxis[2]);
     if ( !Vec3IsNormalized(cgameGlob->refdef.viewaxis[2]) )
     {
-        v3 = Abs(cgameGlob->refdef.viewaxis[2]);
+        v3 = Vec3Length(cgameGlob->refdef.viewaxis[2]);
         v4 = va(
                      "(%g %g %g) len %g",
                      cgameGlob->refdef.viewaxis[2][0],
@@ -1872,7 +1872,7 @@ void __cdecl CG_UpdateDogKillCam(int localClientNum)
     Vec3Cross(cgameGlob->refdef.viewaxis[0], cgameGlob->refdef.viewaxis[1], cgameGlob->refdef.viewaxis[2]);
     if ( !Vec3IsNormalized(cgameGlob->refdef.viewaxis[2]) )
     {
-        v1 = Abs(cgameGlob->refdef.viewaxis[2]);
+        v1 = Vec3Length(cgameGlob->refdef.viewaxis[2]);
         v2 = va(
                      "(%g %g %g) len %g",
                      cgameGlob->refdef.viewaxis[2][0],
@@ -3180,7 +3180,7 @@ void __cdecl CG_UpdateHelicopterKillCam(KillCamEntityType killCamEntityType, int
     Vec3Cross(delta, right, up);
     if ( !Vec3IsNormalized(up) )
     {
-        v2 = Abs(up);
+        v2 = Vec3Length(up);
         v3 = va("(%g %g %g) len %g", up[0], up[1], up[2], v2);
         if ( !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
@@ -3362,7 +3362,7 @@ void __cdecl CG_UpdateExplosiveKillCam(int localClientNum, KillCamEntityType kil
     Vec3Normalize(delta);
     if ( !Vec3IsNormalized(delta) )
     {
-        v2 = Abs(delta);
+        v2 = Vec3Length(delta);
         v3 = va("(%g %g %g) len %g", delta[0], delta[1], delta[2], v2);
         if ( !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
@@ -3382,7 +3382,7 @@ void __cdecl CG_UpdateExplosiveKillCam(int localClientNum, KillCamEntityType kil
     Vec3Cross(delta, left, up);
     if ( !Vec3IsNormalized(up) )
     {
-        v4 = Abs(up);
+        v4 = Vec3Length(up);
         v5 = va("(%g %g %g) len %g", up[0], up[1], up[2], v4);
         if ( !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
@@ -3587,7 +3587,7 @@ double __cdecl LookAtBothPoints(const float *point1, const float *point2, const 
     Vec3Cross((const float *)lookaxis, &(*lookaxis)[3], &(*lookaxis)[6]);
     if ( !Vec3IsNormalized(&(*lookaxis)[6]) )
     {
-        v4 = Abs(&(*lookaxis)[6]);
+        v4 = Vec3Length(&(*lookaxis)[6]);
         v5 = va("(%g %g %g) len %g", (*lookaxis)[6], (*lookaxis)[7], (*lookaxis)[8], v4);
         if ( !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",

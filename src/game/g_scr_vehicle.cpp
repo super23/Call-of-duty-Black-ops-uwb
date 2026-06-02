@@ -6603,7 +6603,7 @@ void __cdecl VEH_GroundMove(gentity_s *ent)
     float oldvel_8; // [esp+34h] [ebp-4h]
 
     veh = ent->scr_vehicle;
-    vel = Abs(veh->phys.vel);
+    vel = Vec3Length(veh->phys.vel);
     oldvel = veh->phys.vel[0];
     oldvel_4 = veh->phys.vel[1];
     oldvel_8 = veh->phys.vel[2];
@@ -7137,7 +7137,7 @@ void __cdecl VEH_UpdateMoveToGoal(gentity_s *ent, const float *goalPos)
         VEH_DebugLine(phys->origin, realGoalPos, 0.5, 1.0, 0.5);
     if ( info->type != 6 )
         vecToGoal[2] = 0.0f;
-    distToGoal = Abs(vecToGoal);
+    distToGoal = Vec3Length(vecToGoal);
     desiredDir[0] = (float)(1.0 / distToGoal) * vecToGoal[0];
     desiredDir[1] = (float)(1.0 / distToGoal) * vecToGoal[1];
     desiredDir[2] = (float)(1.0 / distToGoal) * vecToGoal[2];
@@ -7234,7 +7234,7 @@ void __cdecl VEH_UpdateMoveToGoal(gentity_s *ent, const float *goalPos)
         phys->vel[0] = prevVel[0] + accelVec[0];
         v10[1] = prevVel[1] + accelVec[1];
         v10[2] = prevVel[2] + accelVec[2];
-        v2 = Abs(phys->vel);
+        v2 = Vec3Length(phys->vel);
         veh->speed = v2;
         if ( info->type == 2 )
         {
@@ -7248,7 +7248,7 @@ void __cdecl VEH_UpdateMoveToGoal(gentity_s *ent, const float *goalPos)
             v8[2] = alignedVel_8;
         }
         Vec3Lerp(phys->accel, accelVec, 0.5, phys->accel);
-        accelMagnitude = Abs(phys->accel);
+        accelMagnitude = Vec3Length(phys->accel);
         if ( accelMagnitude > accelMaxDt && !veh->stopAtGoal )
         {
             accel = phys->accel;
@@ -7702,7 +7702,7 @@ void __cdecl VEH_CheckHorizontalVelocityToGoal(
                 vel = phys->vel;
                 *accelVec = newVel[0] - phys->vel[0];
                 accelVec[1] = newVel[1] - vel[1];
-                actualDecel = Abs(accelVec);
+                actualDecel = Vec3Length(accelVec);
                 if ( actualDecel > accelMax )
                 {
                     *accelVec = (float)(accelMax / actualDecel) * *accelVec;
@@ -8081,7 +8081,7 @@ void __cdecl VEH_UpdatePlaneOnCurve(gentity_s *ent)
         diff[0] = pos[0] - prevPos[0];
         diff[1] = pos[1] - prevPos[1];
         diff[2] = pos[2] - prevPos[2];
-        v1 = Abs(diff);
+        v1 = Vec3Length(diff);
         length = v1 + length;
         prevPos[0] = pos[0];
         prevPos[1] = pos[1];
@@ -9721,7 +9721,7 @@ void __cdecl VEH_GenerateCurveForPlane(gentity_s *ent, float (*goals)[3], int nu
     vecToGoal[0] = (*goals)[0] - veh->phys.origin[0];
     vecToGoal[1] = (*goals)[1] - veh->phys.origin[1];
     vecToGoal[2] = (*goals)[2] - veh->phys.origin[2];
-    distToGoal = Abs(vecToGoal);
+    distToGoal = Vec3Length(vecToGoal);
     *(_QWORD *)&nodes[0][0] = *(_QWORD *)veh->phys.origin;
     nodes[0][2] = veh->phys.origin[2];
     AngleVectors(veh->phys.angles, nodes[1], 0, 0);
@@ -9761,7 +9761,7 @@ void __cdecl VEH_GenerateCurveForPlane(gentity_s *ent, float (*goals)[3], int nu
     distance[0] = (*goals)[0] - nodes[2][0];
     distance[1] = (*goals)[1] - nodes[2][1];
     distance[2] = (*goals)[2] - nodes[2][2];
-    distBetweenGoals = Abs(distance);
+    distBetweenGoals = Vec3Length(distance);
     for ( i = 0; i < numGoals; ++i )
     {
         timeStep = (float)(distBetweenGoals / veh->manualSpeed) * tweaker;
@@ -9770,7 +9770,7 @@ void __cdecl VEH_GenerateCurveForPlane(gentity_s *ent, float (*goals)[3], int nu
         distance[0] = (*goals)[v4] - (*goals)[3 * i];
         distance[1] = (*goals)[v4 + 1] - (*goals)[3 * i + 1];
         distance[2] = (*goals)[v4 + 2] - (*goals)[3 * i + 2];
-        distBetweenGoals = Abs(distance);
+        distBetweenGoals = Vec3Length(distance);
     }
     if ( veh->hasGoalYaw )
         cCurveManager::AddNodeToCurve(phys->curveID, nodes[4], 1.0);
@@ -9781,7 +9781,7 @@ void __cdecl VEH_GenerateCurveForPlane(gentity_s *ent, float (*goals)[3], int nu
         distNodes[0] = nodes[4][0] - nodes[3][0];
         distNodes[1] = nodes[4][1] - nodes[3][1];
         distNodes[2] = nodes[4][2] - nodes[3][2];
-        v5 = Abs(distNodes);
+        v5 = Vec3Length(distNodes);
         phys->curveLength = phys->curveLength - v5;
     }
     if ( g_vehicleDebug->current.enabled )

@@ -519,7 +519,7 @@ unsigned int CMod_LoadSubmodels()
                 v1 = fabs(out->mins[j]);
             extent[j] = v1;
         }
-        out->radius = Abs(extent);
+        out->radius = Vec3Length(extent);
         if ( bmodelIndex )
         {
             collAabbCount = *((unsigned int *)in + 8);

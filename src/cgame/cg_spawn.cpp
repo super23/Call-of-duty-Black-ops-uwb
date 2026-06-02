@@ -677,7 +677,7 @@ LABEL_55:
                             if ( *forceString )
                                 sscanf(forceString, "%f %f %f", force, &force[1], &force[2]);
                         }
-                        fmag = Abs(force);
+                        fmag = Vec3Length(force);
                         v2 = undertow_forces[num_undertow_volumes];
                         v3 = 1.0 / fmag;
                         *v2 = (float)(1.0 / fmag) * force[0];

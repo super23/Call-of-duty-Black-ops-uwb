@@ -598,7 +598,7 @@ void __cdecl Ragdoll_SnapshotBaseLerpBones(RagdollBody *body, BoneOrientation *s
                 currentOffset[0] = relMat[3][0];
                 currentOffset[1] = relMat[3][1];
                 currentOffset[2] = relMat[3][2];
-                if ( Abs(currentOffset) <= 400.0 )
+                if (Vec3Length(currentOffset) <= 400.0 )
                 {
                     Ragdoll_QuatLerp(currentLocalRot, baseOffsetOrientation->orientation, lerp, newLocalRot);
                     Vec3Lerp(currentOffset, baseOffsetOrientation->origin, lerp, bodyOffset);
@@ -1323,7 +1323,7 @@ char    Ragdoll_TunnelTest(RagdollBody *body)
             dif.x = last_position.x - sphere_center.x;
             dif.y = last_position.y - sphere_center.y;
             dif.z = last_position.z - sphere_center.z;
-            ndif = Abs(&dif.x);
+            ndif = Vec3Length(&dif.x);
             if (ndif > sphere_radius)
             {
                 v4 = (float)(ndif - sphere_radius) / ndif;

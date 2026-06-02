@@ -1843,7 +1843,7 @@ void    Phys_AddCacheImpulses()
         {
             Phys_Vec3ToNitrousVec(impulse->hitp, &pos);
             Phys_Vec3ToNitrousVec(impulse->hitd, &force);
-            if (Abs(&force.x) >= 1000000.0
+            if (Vec3Length(&force.x) >= 1000000.0
                 && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp",
                     1206,

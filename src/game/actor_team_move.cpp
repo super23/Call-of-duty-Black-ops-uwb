@@ -81,7 +81,7 @@ void __cdecl Actor_MoveAlongPathWithTeam(actor_s *self, bool bRun, bool bUseInte
         if ( !wasMoving )
         {
             self->eAnimMode = AI_ANIM_MOVE_CODE;
-            self->moveMode = 0;
+            self->moveMode = AI_MOVE_STOP;
             if ( self->stateLevel < 6 && self->eState[self->stateLevel + 1] != AIS_NEGOTIATION )
             {
                 self->prevMoveDir[0] = 0.0f;
@@ -444,15 +444,11 @@ LABEL_104:
     return eResult;
 }
 
-char __cdecl Actor_TeamMoveCheckWaitTimer(actor_s *self, ai_teammove_t *result)
+bool Actor_TeamMoveCheckWaitTimer(actor_s *self, ai_teammove_t *result)
 {
-    if ( !self && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_team_move.cpp", 83, 0, "%s", "self") )
-        __debugbreak();
-    if ( !result
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_team_move.cpp", 84, 0, "%s", "result") )
-    {
-        __debugbreak();
-    }
+    iassert(self);
+    iassert(result);
+
     if ( level.time >= self->iTeamMoveWaitTime )
     {
         //if ( EntHandle::isDefined(&self->pCloseEnt) )

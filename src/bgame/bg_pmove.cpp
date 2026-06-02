@@ -2467,7 +2467,7 @@ void __cdecl PM_Friction(playerState_s *ps, pml_t *pml, pmove_t *pm)
     vec[2] = ps->velocity[2];
     if ( pml->walking )
         vec[2] = 0.0f;
-    speed = Abs(vec);
+    speed = Vec3Length(vec);
     if ( speed >= 1.0 )
     {
         drop = 0.0f;
@@ -2712,7 +2712,7 @@ void __cdecl PM_DoSlideAdjustments(playerState_s *ps, const pml_t *pml)
         wishspeed = player_sliding_wishspeed->current.value;
         PM_Accelerate(ps, pml, dir, wishspeed, accel);
         vel_cap = player_sliding_velocity_cap->current.value;
-        len2 = Abs(ps->velocity);
+        len2 = Vec3Length(ps->velocity);
         if ( len2 > (float)(vel_cap * vel_cap) )
         {
             Vec3NormalizeTo(ps->velocity, nvel);
@@ -2758,7 +2758,7 @@ void __cdecl PM_SetMovementDir(pmove_t *pm, pml_t *pml)
             moved[2] = ps->origin[2] - pml->previous_origin[2];
             if ( !pm->cmd.forwardmove && !pm->cmd.rightmove
                 || ps->groundEntityNum == 1023
-                || (speed = Abs(moved), speed == 0.0)
+                || (speed = Vec3Length(moved), speed == 0.0)
                 || speed <= (float)(pml->frametime * 5.0)
                 || zombietron->current.enabled )
             {
@@ -3062,7 +3062,7 @@ void __cdecl PM_DeadMove(playerState_s *ps, pml_t *pml)
         __debugbreak();
     if ( pml->walking )
     {
-        forwarda = Abs(ps->velocity);
+        forwarda = Vec3Length(ps->velocity);
         forward = forwarda - 20.0;
         if ( forward > 0.0 )
         {
@@ -3111,7 +3111,7 @@ void __cdecl PM_NoclipMove(pmove_t *pm, pml_t *pml)
     if ( !ps && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp", 1934, 0, "%s", "ps") )
         __debugbreak();
     ps->viewHeightTarget = 60;
-    speed = Abs(ps->velocity);
+    speed = Vec3Length(ps->velocity);
     if ( speed >= 1.0 )
     {
         drop = 0.0f;
@@ -3208,7 +3208,7 @@ void __cdecl PM_UFOMove(pmove_t *pm, pml_t *pml)
     if ( fmove == 0.0 && smove == 0.0 && umove == 0.0 )
         speed = 0.0f;
     else
-        speed = Abs(ps->velocity);
+        speed = Vec3Length(ps->velocity);
     if ( speed >= 1.0 )
     {
         drop = 0.0f;

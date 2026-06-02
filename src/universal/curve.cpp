@@ -147,7 +147,7 @@ void cCurve::AddNode(float *p)
         diff[0] = v3->pos[0] - *p;
         diff[1] = v3->pos[1] - p[1];
         diff[2] = v3->pos[2] - p[2];
-        this->mNodes[this->mNumNodes - 1].dist = Abs(diff);
+        this->mNodes[this->mNumNodes - 1].dist = Vec3Length(diff);
         this->mDistance = this->mDistance + this->mNodes[this->mNumNodes - 1].dist;
         this->mNodes[this->mNumNodes].totalDist = this->mDistance;
     }
@@ -355,7 +355,7 @@ void __thiscall cCurve::Sort(float *p, bool is_increasing_sort_order)
             diff[0] = this->mNodes[v3].pos[0] - this->mNodes[i].pos[0];
             diff[1] = this->mNodes[v3].pos[1] - this->mNodes[i].pos[1];
             diff[2] = this->mNodes[v3].pos[2] - this->mNodes[i].pos[2];
-            v4 = Abs(diff);
+            v4 = Vec3Length(diff);
             this->mNodes[i - 1].dist = v4;
             this->mDistance = this->mDistance + this->mNodes[i - 1].dist;
             this->mNodes[i].totalDist = this->mDistance;
@@ -510,13 +510,13 @@ void __thiscall cCurve::Constrain()
         delta[0] = this->mNodes[i].pos[0] - this->mNodes[i - 1].pos[0];
         delta[1] = this->mNodes[i].pos[1] - this->mNodes[i - 1].pos[1];
         delta[2] = this->mNodes[i].pos[2] - this->mNodes[i - 1].pos[2];
-        v1 = Abs(delta);
+        v1 = Vec3Length(delta);
         r0 = v1 / this->mNodes[i - 1].dist;
         v2 = i + 1;
         delta[0] = this->mNodes[v2].pos[0] - this->mNodes[i].pos[0];
         delta[1] = this->mNodes[v2].pos[1] - this->mNodes[i].pos[1];
         delta[2] = this->mNodes[v2].pos[2] - this->mNodes[i].pos[2];
-        v3 = Abs(delta);
+        v3 = Vec3Length(delta);
         r1 = v3 / this->mNodes[i].dist;
         vel = this->mNodes[i].vel;
         v6 = (float)((float)(4.0 * r0) * r1) / (float)((float)(r0 + r1) * (float)(r0 + r1));
@@ -580,7 +580,7 @@ double __thiscall cCurve::GetLength()
             diff[0] = endPos[0] - startPos[0];
             diff[1] = endPos[1] - startPos[1];
             diff[2] = endPos[2] - startPos[2];
-            v1 = Abs(diff);
+            v1 = Vec3Length(diff);
             curveLength = v1 + curveLength;
             startPos[0] = endPos[0];
             startPos[1] = endPos[1];

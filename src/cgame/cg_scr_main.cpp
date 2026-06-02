@@ -1473,7 +1473,7 @@ void CScr_Length()
     float v[3]; // [esp+10h] [ebp-Ch] BYREF
 
     Scr_GetVector(0, v, SCRIPTINSTANCE_CLIENT);
-    value = Abs(v);
+    value = Vec3Length(v);
     Scr_AddFloat(value, SCRIPTINSTANCE_CLIENT);
 }
 
@@ -6354,7 +6354,7 @@ void __cdecl CScrCmd_GetSpeed(scr_entref_t entref)
         if ( pSelf->nitrousVeh )
             speed = pSelf->nitrousVeh->m_forward_vel;
         else
-            speed = Abs(pSelf->nextState.lerp.pos.trDelta);
+            speed = Vec3Length(pSelf->nextState.lerp.pos.trDelta);
     }
     else if ( CG_IsLocalPlayer(entref.entnum) )
     {
@@ -6382,7 +6382,7 @@ void __cdecl CScrCmd_GetSpeed(scr_entref_t entref)
             {
                 if ( cgg->nextSnap )
                 {
-                    speed = Abs(cgg->predictedPlayerState.velocity);
+                    speed = Vec3Length(cgg->predictedPlayerState.velocity);
                     if ( (LODWORD(speed) & 0x7F800000) == 0x7F800000
                         && !Assert_MyHandler(
                                     "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_scr_main.cpp",
@@ -6410,7 +6410,7 @@ void __cdecl CScrCmd_GetSpeed(scr_entref_t entref)
             time = LocalClientGlobals->nextSnap->serverTime - LocalClientGlobals->snap->serverTime;
             if ( time )
             {
-                v1 = Abs(velocity_out);
+                v1 = Vec3Length(velocity_out);
                 speed = v1 / (double)time * 1000.0;
             }
             if ( (LODWORD(speed) & 0x7F800000) == 0x7F800000
@@ -7434,7 +7434,7 @@ void __cdecl CScriptMover_SetupMove(
     {
         *pfMidTime = (float)(fTotalTime - fAccelTime) - fDecelTime;
         *pfDecelTime = fDecelTime;
-        fDist = Abs(vMove);
+        fDist = Vec3Length(vMove);
         if ((float)((float)((float)(2.0 * fTotalTime) - fAccelTime) - fDecelTime) == 0.0
             && !Assert_MyHandler(
                 "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_scr_main.cpp",
@@ -7886,7 +7886,7 @@ void __cdecl CScriptMover_SetupMoveSpeed(
     {
         *pfMidTime = (float)(fTotalTime - fAccelTime) - fDecelTime;
         *pfDecelTime = fDecelTime;
-        *pfSpeed = Abs(vSpeed);
+        *pfSpeed = Vec3Length(vSpeed);
         if (fAccelTime == 0.0)
         {
             *vPos1 = *vCurrPos;

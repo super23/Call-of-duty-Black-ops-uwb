@@ -2318,7 +2318,7 @@ void __cdecl BG_EvaluateTrajectory(const trajectory_t *tr, int atTime, float *re
             }
             if ( tr->trDuration )
             {
-                v9 = Abs(tr->trDelta) / ((double)tr->trDuration * 0.001);
+                v9 = Vec3Length(tr->trDelta) / ((double)tr->trDuration * 0.001);
                 Vec3NormalizeTo(tr->trDelta, result);
                 v8 = (float)((float)(v9 * 0.5) * v15) * v15;
                 *result = (float)(v8 * *result) + tr->trBase[0];
@@ -2349,7 +2349,7 @@ void __cdecl BG_EvaluateTrajectory(const trajectory_t *tr, int atTime, float *re
             }
             if ( tr->trDuration )
             {
-                v10 = Abs(tr->trDelta) / ((double)tr->trDuration * 0.001);
+                v10 = Vec3Length(tr->trDelta) / ((double)tr->trDuration * 0.001);
                 Vec3NormalizeTo(tr->trDelta, result);
                 v6 = (float)(v16 * tr->trDelta[1]) + tr->trBase[1];
                 v7 = (float)(v16 * tr->trDelta[2]) + tr->trBase[2];

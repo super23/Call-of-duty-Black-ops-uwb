@@ -223,7 +223,7 @@ double __cdecl R_ShadowedSpotLightScore(const GfxViewParms *viewParms, const Gfx
                                     + (float)(light->origin[0] - (float)((float)(value * viewParms->axis[0][0]) + viewParms->origin[0]));
     deltaToFocus[1] = (float)(v3 * light->dir[1]) + deltaToLight_4;
     deltaToFocus[2] = (float)(v3 * light->dir[2]) + deltaToLight_8;
-    distToLightFocus = Abs(deltaToFocus);
+    distToLightFocus = Vec3Length(deltaToFocus);
     return light->radius
              * (float)((float)((float)(light->color[0] * 0.29899999) + (float)(light->color[1] * 0.58700001))
                              + (float)(light->color[2] * 0.114))

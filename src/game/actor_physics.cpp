@@ -119,7 +119,7 @@ void __cdecl AIPhys_FoliageSounds(actor_physics_t *pPhys)
     vVel[0] = pPhys->vVelocity[0];
     vVel[1] = pPhys->vVelocity[1];
     vVel[2] = 0.0f;
-    xyspeed = Abs(vVel);
+    xyspeed = Vec3Length(vVel);
     if ( bg_foliagesnd_minspeed->current.value <= xyspeed )
     {
         if ( (float)(bg_foliagesnd_maxspeed->current.value - bg_foliagesnd_minspeed->current.value) <= 0.0
@@ -496,15 +496,12 @@ int __cdecl AIPhys_SlideMove(actor_physics_t *pPhys, int gravity, int zonly)
 LABEL_66:
             if ( gravity )
             {
-                pPhys->vVelocity[0] = vEndVelocity[0];
-                pPhys->vVelocity[1] = vEndVelocity[1];
-                pPhys->vVelocity[2] = vEndVelocity[2];
+                Vec3Copy(vEndVelocity, g_pPhys->vVelocity);
             }
             return iBumpCount != 0;
         }
-        vEnd[0] = (float)(fTimeLeft * pPhys->vVelocity[0]) + pPhys->vOrigin[0];
-        vEnd[1] = (float)(fTimeLeft * pPhys->vVelocity[1]) + pPhys->vOrigin[1];
-        vEnd[2] = (float)(fTimeLeft * pPhys->vVelocity[2]) + pPhys->vOrigin[2];
+        Vec3Mad(pPhys->vOrigin, fTimeLeft, pPhys->vVelocity, vEnd);
+
         ai_physics_trace(&trace, pPhys->vOrigin, pPhys->vMins, pPhys->vMaxs, vEnd, pPhys->iEntNum, g_apl.iTraceMask, pPhys);
         if ( trace.fraction <= 0.0 )
             break;
@@ -526,10 +523,8 @@ LABEL_23:
         fTimeLeft = fTimeLeft - (float)(fTimeLeft * trace.fraction);
         if ( iNumPlanes >= 5 )
         {
-            pPhys->vVelocity[0] = 0.0f;
-            pPhys->vVelocity[1] = 0.0f;
-            pPhys->vVelocity[2] = 0.0f;
-            return 1;
+            Vec3Clear(pPhys->vVelocity);
+            return SLIDEMOVE_CLIPPED;
         }
         for ( i = 0; i < iNumPlanes; ++i )
         {

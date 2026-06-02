@@ -2017,7 +2017,7 @@ void __cdecl CG_Calc3rdPersonSpringDamp(
     velocity = deltaTime * (float)(*prevTrgPos - *trgPos);
     velocity_4 = deltaTime * (float)(prevTrgPos[1] - trgPos[1]);
     velocity_8 = deltaTime * (float)(prevTrgPos[2] - trgPos[2]);
-    dispLength = Abs(disp);
+    dispLength = Vec3Length(disp);
     forceMag = (float)((float)(springLen - dispLength) * springConst)
                      + (float)((float)((float)((float)((float)(disp[0] * velocity) + (float)(disp[1] * velocity_4))
                                                                      + (float)(disp[2] * velocity_8))
