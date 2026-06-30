@@ -2397,7 +2397,7 @@ void __cdecl R_InitialEntityCulling()
 {
     int v0; // [esp+18h] [ebp-C0h]
     int v1; // [esp+1Ch] [ebp-BCh]
-    float *minmax; // [esp+20h] [ebp-B8h]
+    const float *minmax; // [esp+20h] [ebp-B8h]
     const DpvsPlane *v3; // [esp+28h] [ebp-B0h]
     int v4; // [esp+2Ch] [ebp-ACh]
     int v5; // [esp+30h] [ebp-A8h]
@@ -2552,7 +2552,8 @@ LABEL_51:
     for ( glassIndex = 0; glassIndex < glassBrushCount; ++glassIndex )
     {
         v1 = views->frustumPlaneCount;
-        minmax = *(float **)&scene.glassBrushVisData[40 * glassIndex - 40932];
+        //minmax = *(float **)&scene.glassBrushVisData[40 * glassIndex - 40932];
+        minmax = scene.glassBrush[glassIndex].bmodel->writable.mins;
         v4 = 0;
         v3 = views->frustumPlanes;
         while ( v4 < v1 )
