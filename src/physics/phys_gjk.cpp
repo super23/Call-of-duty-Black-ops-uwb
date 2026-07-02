@@ -252,29 +252,66 @@ int    backup1(phys_gjk_info *gjk_info, int new_index, bool seed_simplex)
     }
 
     // -----------------------------------------------------------------------
-    // Phase 3: Tetrahedron-contains-origin test.
+    // Phase 3: Tetrahedron-contains-origin test (binary @ 0xa0c9a6..0xa0cb9c).
     //
-    // Per ASM analysis at 0xa0caad-0xa0cae9, the binary computes the cross
-    // product of (new_vert, difs[2]) using actual difs[2] components from
-    // memory ([-C0h, -BCh, -B8h] = difs[2].x/.y/.z), NOT difs[1] as the AI
-    // rewrite originally used. The lambda_a sign convention also doesn't
-    // line up with a clean Cramer's-rule barycentric test - the binary's
-    // `lambda_a < 0` check actually rejects cases where origin would be
-    // inside (per derivation: binary's lambda_a == -lambda_1, so lambda_a<0
-    // means lambda_1>0, i.e. origin IS in the V_1 direction).
+    // An earlier pass deleted this as "dead code with sign-convention
+    // landmines" - that analysis was wrong. Hex-rays displays every local of
+    // this function shifted by -12 bytes (frame re-alignment prologue:
+    // `and esp, 0FFFFFFF0h` + pushes after `mov ebp, esp`), so the
+    // pseudocode's difs[]/w_inds[] names point one slot off while the math
+    // itself is fine. Per the raw disasm the real slots are
+    //   difs[0] @ ebp-E0h, difs[1] @ ebp-D0h, difs[2] @ ebp-C0h
+    // and the test below is plain Cramer's rule on
+    //   -new_vert = t1*difs[0] + t0*difs[1] + t2*difs[2]
+    // If all three coefficients and the new_vert weight (1 - t1 - t0 - t2)
+    // are non-negative, the origin lies inside the tetrahedron spanned by
+    // new_vert and the three existing verts -> return 15 (full simplex,
+    // penetrating). This is the intended termination path for deep contacts;
+    // without it gjk()/gjk_ray_cast() can only exit penetrating cases via
+    // the pen-thresh check or the 30-iteration cap (= warning spam).
     //
-    // Net effect: in the binary, Phase 3 almost never returns 15, even when
-    // origin is genuinely inside the tetrahedron. Penetration is detected
-    // instead through the m_gjk_pen_thresh_sq > m_upper_dist_sq guard in
-    // gjk()/gjk_ray_cast() once comp_v drives the search direction small
-    // enough. So Phase 3's "return 15" is effectively dead code, and the
-    // AI rewrite's version of it was hitting false positives that triggered
-    // the "m_continuous_collision_lambda problem" warning and stuck CC.
-    //
-    // We intentionally skip the entire tetrahedron test - matching the
-    // binary's effective behavior without inheriting its sign-convention
-    // landmines.
+    // Only runs when no positive separation lower bound exists yet: the
+    // binary compares a literal fldz against m_lower_dist_sq (hex-rays'
+    // `v22 >= m_lower_dist_sq` with v22 == 0.0).
     // -----------------------------------------------------------------------
+    if (w_count == 3 && gjk_info->m_lower_dist_sq <= 0.0f)
+    {
+        // cross = difs[0] x difs[1]   (0xa0c9c1..0xa0ca1d)
+        phys_vec3 cross;
+        cross.x = difs[0].y * difs[1].z - difs[1].y * difs[0].z;
+        cross.y = difs[0].z * difs[1].x - difs[0].x * difs[1].z;
+        cross.z = difs[0].x * difs[1].y - difs[0].y * difs[1].x;
+
+        // det = dot(cross, difs[2]) - signed volume spanned by the edges
+        float det = cross.x * difs[2].x + cross.y * difs[2].y + cross.z * difs[2].z;
+        if (fabs(det) <= 1e-5f)
+            return best_set;                    // degenerate tetrahedron
+
+        // t2 = coefficient of difs[2]   (0xa0ca74..0xa0caa7)
+        float t2 = -(cross.x * new_vert->x + cross.y * new_vert->y + cross.z * new_vert->z) / det;
+        if (t2 < 0.0f)
+            return best_set;
+
+        // wxd2 = new_vert x difs[2]   (0xa0caad..0xa0cae9)
+        phys_vec3 wxd2;
+        wxd2.x = new_vert->y * difs[2].z - difs[2].y * new_vert->z;
+        wxd2.y = difs[2].x * new_vert->z - new_vert->x * difs[2].z;
+        wxd2.z = difs[2].y * new_vert->x - new_vert->y * difs[2].x;
+
+        // t1 = coefficient of difs[0]
+        float t1 = (difs[1].x * wxd2.x + difs[1].y * wxd2.y + difs[1].z * wxd2.z) / det;
+        if (t1 < 0.0f)
+            return best_set;
+
+        // t0 = coefficient of difs[1]
+        float t0 = -(difs[0].x * wxd2.x + difs[0].y * wxd2.y + difs[0].z * wxd2.z) / det;
+        if (t0 < 0.0f)
+            return best_set;
+
+        // weight of new_vert itself; >= 0 (binary accepts equality) -> inside
+        if (1.0f - t1 - t0 - t2 >= 0.0f)
+            return 15;
+    }
 
     return best_set;
 }
@@ -434,225 +471,6 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk(
                 const phys_vec3 *initial_support_dir,
                 bool in_separation_loop)
 {
-#if 0
-    bool v9; // zf
-    double v10; // st7
-    phys_gjk_info::gjk_retval_e result; // eax
-    int m_w_set; // eax
-    const phys_gjk_geom *gjk_cg1; // ecx
-    const phys_gjk_geom *gjk_cg2; // ecx
-    double v15; // st7
-    double v16; // st6
-    const phys_vec3 *v17; // eax
-    float *p_x; // ecx
-    double z; // st7
-    const phys_vec3 *v20; // eax
-    double v21; // st6
-    double v22; // st5
-    double v23; // st7
-    double v24; // st4
-    double v25; // st3
-    int v26; // ecx
-    int v27; // edx
-    int v28; // ecx
-    phys_vec3 *v29; // eax
-    int v30; // eax
-    phys_vec3 *v33; // [esp-54h] [ebp-94h]
-    phys_vec3 v34; // [esp-4Ch] [ebp-8Ch] BYREF
-    float v35[4]; // [esp-3Ch] [ebp-7Ch] BYREF
-    float v36[4]; // [esp-2Ch] [ebp-6Ch] BYREF
-    float v37; // [esp-1Ch] [ebp-5Ch]
-    float v38; // [esp-18h] [ebp-58h]
-    float v39; // [esp-14h] [ebp-54h]
-    float v40; // [esp-Ch] [ebp-4Ch]
-    float v41; // [esp-8h] [ebp-48h]
-    float v42; // [esp-4h] [ebp-44h]
-    phys_vec3 w; // [esp+0h] [ebp-40h]
-    float v44; // [esp+14h] [ebp-2Ch]
-    float v45; // [esp+18h] [ebp-28h]
-    float v46; // [esp+1Ch] [ebp-24h]
-    phys_vec3 *m_gjk_sep_thresh_low; // [esp+28h] [ebp-18h]
-    //const phys_vec3 *v48; // [esp+2Ch] [ebp-14h]
-    unsigned int v49; // [esp+30h] [ebp-10h]
-    float lower_dist_sq[2]; // [esp+34h] [ebp-Ch] BYREF
-    float retaddr; // [esp+40h] [ebp+0h]
-    phys_vec3 neg_support_dir;
-    phys_vec3 v_in_cg2;
-
-    this->m_lower_dist_sq = -34.0;
-    this->m_upper_dist_sq = 34.0;
-
-    this->m_gjk_iter = phys_gjk_info::init_gjk(d, initial_support_dir, in_separation_loop);
-
-    while (1)
-    {
-        v9 = this->m_gjk_iter == 0;
-        v10 = this->m_support_dir.y * this->m_support_dir.y
-            + this->m_support_dir.x * this->m_support_dir.x
-            + this->m_support_dir.z * this->m_support_dir.z;
-        this->m_upper_dist_sq = v10;
-        if (!v9 && this->m_gjk_pen_thresh_sq > v10)
-            return GJK_PENETRATING;
-        m_w_set = this->m_w_set;
-        if ((m_w_set & 1) != 0)
-        {
-            if ((m_w_set & 2) != 0)
-                v49 = (this->m_w_set & 4 | 8u) >> 2;
-            else
-                v49 = 1;
-        }
-        else
-        {
-            v49 = 0;
-        }
-        gjk_cg1 = d->gjk_cg1;
-        //v36[0] = -this->m_support_dir.x;
-        //v36[1] = -this->m_support_dir.y;
-        //v36[2] = -this->m_support_dir.z;
-        //m_gjk_sep_thresh_low = &this->m_a_verts[v49];
-        //((void(__thiscall *)(const phys_gjk_geom *, float *, phys_vec3 *, phys_vec3 *, float *, const phys_vec3 *, phys_vec3 *))gjk_cg1->support)(
-        //    gjk_cg1,
-        //    v36,
-        //    m_gjk_sep_thresh_low,
-        //    &this->m_a_inds[v49],
-        //    a3,
-        //    a4,
-        //    v33);
-        neg_support_dir = { -m_support_dir.x,
-                          -m_support_dir.y,
-                          -m_support_dir.z };
-        gjk_cg1->support(&neg_support_dir, &m_a_verts[v49], &m_a_inds[v49]);
-
-        gjk_cg2 = d->gjk_cg2;
-        v15 = this->cg2_to_cg1_xform.x.y * this->m_support_dir.y + this->m_support_dir.x * this->cg2_to_cg1_xform.x.x;
-        v16 = this->cg2_to_cg1_xform.x.z * this->m_support_dir.z;
-        //v48 = &this->m_b_verts[v49];
-        v33 = &this->m_b_inds[v49];
-        ////a4 = v48;
-        //v35[0] = v15 + v16;
-        ////a3 = v35;
-        //v35[1] = this->cg2_to_cg1_xform.y.y * this->m_support_dir.y
-        //    + this->m_support_dir.x * this->cg2_to_cg1_xform.y.x
-        //    + this->cg2_to_cg1_xform.y.z * this->m_support_dir.z;
-        //v35[2] = this->cg2_to_cg1_xform.z.y * this->m_support_dir.y
-        //    + this->cg2_to_cg1_xform.z.x * this->m_support_dir.x
-        //    + this->cg2_to_cg1_xform.z.z * this->m_support_dir.z;
-
-        v_in_cg2.x = m_support_dir.x * cg2_to_cg1_xform.x.x
-            + m_support_dir.y * cg2_to_cg1_xform.x.y
-            + m_support_dir.z * cg2_to_cg1_xform.x.z;
-        v_in_cg2.y = m_support_dir.x * cg2_to_cg1_xform.y.x
-            + m_support_dir.y * cg2_to_cg1_xform.y.y
-            + m_support_dir.z * cg2_to_cg1_xform.y.z;
-        v_in_cg2.z = m_support_dir.x * cg2_to_cg1_xform.z.x
-            + m_support_dir.y * cg2_to_cg1_xform.z.y
-            + m_support_dir.z * cg2_to_cg1_xform.z.z;
-
-        //((void(__thiscall *)(const phys_gjk_geom *))gjk_cg2->support)(gjk_cg2);
-        gjk_cg2->support(&v_in_cg2, &m_b_verts[v49], &m_b_inds[v49]);
-
-        v17 = phys_multiply(&v34, &this->cg2_to_cg1_xform, &this->m_b_verts[v49]);
-        //p_x = &m_gjk_sep_thresh_low->x;
-        v44 = v17->x + this->cg2_to_cg1_xform.w.x;
-        v45 = v17->y + this->cg2_to_cg1_xform.w.y;
-        z = v17->z;
-        //v20 = v48;
-        v46 = z + this->cg2_to_cg1_xform.w.z;
-        //v48->x = v44;
-        //v20->y = v45;
-        //v20->z = v46;
-        this->m_b_verts[v49].x = v44;
-        this->m_b_verts[v49].y = v45;
-        this->m_b_verts[v49].z = v46;
-        //w.y = *p_x -   this->m_b_verts[v49].x;
-        //w.z = p_x[1] - this->m_b_verts[v49].y;
-        //w.w = p_x[2] - this->m_b_verts[v49].z;
-
-        w.y = (m_a_verts[v49].x - m_b_verts[v49].x);
-        w.z = (m_a_verts[v49].y - m_b_verts[v49].y);
-        w.w = (m_a_verts[v49].z - m_b_verts[v49].z);
-        v40 = w.y - this->m_gjk_origin.x;
-        v41 = w.z - this->m_gjk_origin.y;
-        v42 = w.w - this->m_gjk_origin.z;
-        v21 = v41;
-        v22 = v40;
-        v23 = v42;
-        *(float *)&m_gjk_sep_thresh_low = this->m_support_dir.z * v42
-            + this->m_support_dir.y * v41
-            + v40 * this->m_support_dir.x;
-        v24 = 0.0;
-        if (*(float *)&m_gjk_sep_thresh_low > 0.0)
-        {
-            if (this->m_upper_dist_sq <= 0.0)
-            {
-                v24 = 0.0;
-            }
-            else
-            {
-                v24 = 0.0;
-                *(float *)&m_gjk_sep_thresh_low = *(float *)&m_gjk_sep_thresh_low * *(float *)&m_gjk_sep_thresh_low;
-                *(float *)&m_gjk_sep_thresh_low = *(float *)&m_gjk_sep_thresh_low / this->m_upper_dist_sq;
-                v25 = *(float *)&m_gjk_sep_thresh_low;
-                if (this->m_lower_dist_sq < (double)*(float *)&m_gjk_sep_thresh_low)
-                {
-                    v9 = (this->m_flags & 1) == 0;
-                    this->m_lower_dist_sq = *(float *)&m_gjk_sep_thresh_low;
-                    if (!v9)
-                    {
-                        m_gjk_sep_thresh_low = (phys_vec3 *)LODWORD(this->m_gjk_sep_thresh);
-                        *(float *)&m_gjk_sep_thresh_low = *(float *)&m_gjk_sep_thresh_low * *(float *)&m_gjk_sep_thresh_low;
-                        if (*(float *)&m_gjk_sep_thresh_low < v25)
-                            return GJK_SEPARATED;
-                    }
-                }
-            }
-        }
-        if (this->m_gjk_iter && v24 < this->m_lower_dist_sq)
-            break;
-    LABEL_24:
-        v28 = v49;
-        v29 = &this->m_w_verts[v49];
-        v29->x = v22;
-        v29->y = v21;
-        v29->z = v23;
-        this->m_w_set |= 1 << v28;
-        this->m_last_w_set = this->m_w_set;
-        v30 = backup1(this, v28, 0);
-        this->m_w_set = v30;
-        if (v30 == 15)
-            return GJK_PENETRATING;
-        phys_gjk_info::comp_v(v30, &this->m_support_dir);
-        result = GJK_VALID;
-        if (++this->m_gjk_iter >= 30)
-        {
-            tlWarning("gjk reached the maximum number of iterations.");
-            return result;
-        }
-    }
-    *(float *)&m_gjk_sep_thresh_low = 1.0 - CONV_THRESH;
-    *(float *)&m_gjk_sep_thresh_low = *(float *)&m_gjk_sep_thresh_low * *(float *)&m_gjk_sep_thresh_low;
-    if (this->m_lower_dist_sq > *(float *)&m_gjk_sep_thresh_low * this->m_upper_dist_sq)
-        return GJK_VALID;
-    v26 = 0;
-    v27 = 1;
-    m_gjk_sep_thresh_low = (phys_vec3 *)&this->m_w_verts[0].z;
-    while (1)
-    {
-        if ((v27 & this->m_last_w_set) != 0)
-        {
-            v37 = v22 - m_gjk_sep_thresh_low[-1].z;
-            v38 = v21 - m_gjk_sep_thresh_low[-1].w;
-            v39 = v23 - m_gjk_sep_thresh_low->x;
-            if ((v38 * v38 + v37 * v37 + v39 * v39) < 0.0000010000001)
-                return GJK_VALID;
-        }
-        ++m_gjk_sep_thresh_low;
-        ++v26;
-        v27 *= 2;
-        if (v26 >= 4)
-            goto LABEL_24;
-    }
-#else
     // Bounds on the squared distance from origin to the Minkowski difference
     // (A - B):
     //   m_upper_dist_sq = |v|^2          (current closest-point candidate)
@@ -810,7 +628,6 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk(
             return GJK_VALID;
         }
     }
-#endif
 }
 
 // aislop used here, manual was about the same
@@ -1042,9 +859,12 @@ phys_gjk_info::gjk_retval_e phys_gjk_info::gjk_ray_cast(
                         }
                         // Fall through to add w to simplex
                     }
-                    else
+                    else if (ray_end_dist_numer >= 0.0f)
                     {
-                        // move > 0: objects approaching, compute new lambda candidate
+                        // move > 0: objects approaching, compute new lambda candidate.
+                        // IDA gates the advance on ray_end_dist_numer >= 0 as well -
+                        // once the support point is inside the moveback radius the
+                        // binary stops advancing lambda and just refines the simplex.
                         float dot_origin = this->m_support_dir.x * this->m_gjk_origin.x
                             + this->m_support_dir.y * this->m_gjk_origin.y
                             + this->m_support_dir.z * this->m_gjk_origin.z;
@@ -1712,160 +1532,6 @@ const phys_vec3 *phys_gjk_geom::support_only(
 
 void phys_gjk_info::comp_v(int w_set, phys_vec3 *v) const
 {
-#if 0
-    char w_set_; // cl
-    int list_w_vert_count; // edi
-    phys_vec3 *v7; // eax
-    phys_vec3 *v8; // eax
-    phys_vec3 *v9; // eax
-    double z; // st7
-    double v11; // st7
-    double v12; // st7
-    int side_i; // esi
-    float *v14; // edi
-    int v15; // esi
-    phys_vec3 sides[3]; // [esp-Ch] [ebp-ACh] BYREF
-    phys_vec3 list_w_vert[3]; // [esp+24h] [ebp-7Ch] BYREF
-    float ne1_sq; // [esp+60h] [ebp-40h]
-    float nnormal_sq; // [esp+64h] [ebp-3Ch]
-    float v20; // [esp+68h] [ebp-38h]
-    float v21; // [esp+6Ch] [ebp-34h] OVERLAPPED
-    float v22; // [esp+70h] [ebp-30h]
-    phys_vec3 normal; // [esp+74h] [ebp-2Ch]
-    phys_vec3 nside_sq; // [esp+84h] [ebp-1Ch] BYREF
-
-    w_set_ = w_set;
-
-    iassert(w_set > 0 && w_set < 15);
-
-    list_w_vert_count = 0;
-    if ((w_set_ & 1) != 0)
-    {
-        list_w_vert_count = 1;
-        list_w_vert[0].x = this->m_w_verts[0].x;
-        list_w_vert[0].y = this->m_w_verts[0].y;
-        list_w_vert[0].z = this->m_w_verts[0].z;
-    }
-    if ((w_set_ & 2) != 0)
-    {
-        v7 = &list_w_vert[list_w_vert_count];
-        v7->x = this->m_w_verts[1].x;
-        ++list_w_vert_count;
-        v7->y = this->m_w_verts[1].y;
-        v7->z = this->m_w_verts[1].z;
-    }
-    if ((w_set_ & 4) != 0)
-    {
-        v8 = &list_w_vert[list_w_vert_count];
-        v8->x = this->m_w_verts[2].x;
-        ++list_w_vert_count;
-        v8->y = this->m_w_verts[2].y;
-        v8->z = this->m_w_verts[2].z;
-    }
-    if ((w_set_ & 8) != 0)
-    {
-        v9 = &list_w_vert[list_w_vert_count];
-        v9->x = this->m_w_verts[3].x;
-        ++list_w_vert_count;
-        v9->y = this->m_w_verts[3].y;
-        v9->z = this->m_w_verts[3].z;
-    }
-
-    iassert(list_w_vert_count > 0 && list_w_vert_count < 4);
-
-    if (list_w_vert_count == 1)
-    {
-        v->x = list_w_vert[0].x;
-        v->y = list_w_vert[0].y;
-        v->z = list_w_vert[0].z;
-        return;
-    }
-    nside_sq.x = list_w_vert[1].x - list_w_vert[0].x;
-    nside_sq.y = list_w_vert[1].y - list_w_vert[0].y;
-    nside_sq.z = list_w_vert[1].z - list_w_vert[0].z;
-    if (list_w_vert_count != 2)
-    {
-        iassert(list_w_vert_count == 3);
-
-        nnormal_sq = list_w_vert[2].x - list_w_vert[0].x;
-        v20 = list_w_vert[2].y - list_w_vert[0].y;
-        v21 = list_w_vert[2].z - list_w_vert[0].z;
-        v11 = v21;
-        normal.x = v21 * nside_sq.y - v20 * nside_sq.z;
-        normal.y = nside_sq.z * nnormal_sq - v21 * nside_sq.x;
-        normal.z = v20 * nside_sq.x - nside_sq.y * nnormal_sq;
-        *(double *)&v21 = normal.z;
-        v22 = normal.y * normal.y + normal.x * normal.x + *(double *)&v21 * *(double *)&v21;
-        if (v22 > 0.010000001)
-        {
-            v12 = v22;
-            v22 = normal.y * list_w_vert[0].y + normal.x * list_w_vert[0].x + normal.z * list_w_vert[0].z;
-            v22 = v22 / v12;
-            normal.x = normal.x * v22;
-            normal.y = normal.y * v22;
-            normal.z = v22 * normal.z;
-            v->x = normal.x;
-            v->y = normal.y;
-            v->z = normal.z;
-            return;
-        }
-        sides[0] = nside_sq;
-        sides[1].x = list_w_vert[2].x - list_w_vert[1].x;
-        sides[1].y = list_w_vert[2].y - list_w_vert[1].y;
-        sides[1].z = list_w_vert[2].z - list_w_vert[1].z;
-        sides[2].x = -nnormal_sq;
-        sides[2].y = -v20;
-        sides[2].z = -v11;
-        nside_sq.y = nside_sq.y * nside_sq.y + nside_sq.x * nside_sq.x + nside_sq.z * nside_sq.z;
-        nside_sq.z = sides[1].y * sides[1].y + sides[1].x * sides[1].x + sides[1].z * sides[1].z;
-        nside_sq.w = sides[2].y * sides[2].y + sides[2].x * sides[2].x + sides[2].z * sides[2].z;
-        if (nside_sq.z > (double)nside_sq.y)
-        {
-            side_i = 1;
-            if (nside_sq.w <= (double)nside_sq.z)
-                goto LABEL_35;
-        }
-        else if (nside_sq.w <= (double)nside_sq.y)
-        {
-            side_i = 0;
-            goto LABEL_35;
-        }
-        side_i = 2;
-    LABEL_35:
-        v14 = &nside_sq.y + side_i;
-        if (*v14 <= 0.0 && _tlAssert("source/phys_gjk.cpp", 137, "nside_sq[side_i] > 0.0f", ""))
-            __debugbreak();
-        v15 = side_i;
-        v22 = list_w_vert[v15].y * sides[v15].y + list_w_vert[v15].x * sides[v15].x + list_w_vert[v15].z * sides[v15].z;
-        v22 = v22 / *v14;
-        normal.x = v22 * sides[v15].x;
-        normal.y = sides[v15].y * v22;
-        normal.z = v22 * sides[v15].z;
-        nside_sq.x = list_w_vert[v15].x - normal.x;
-        nside_sq.y = list_w_vert[v15].y - normal.y;
-        z = list_w_vert[v15].z;
-        goto LABEL_39;
-    }
-    ne1_sq = nside_sq.y * nside_sq.y + nside_sq.x * nside_sq.x + nside_sq.z * nside_sq.z;
-    if (ne1_sq <= 0.0)
-    {
-        if (_tlAssert("source/phys_gjk.cpp", 98, "ne1_sq > 0.0f", ""))
-            __debugbreak();
-    }
-    v22 = nside_sq.x * list_w_vert[0].x + nside_sq.y * list_w_vert[0].y + nside_sq.z * list_w_vert[0].z;
-    v22 = v22 / ne1_sq;
-    normal.x = nside_sq.x * v22;
-    normal.y = nside_sq.y * v22;
-    normal.z = nside_sq.z * v22;
-    nside_sq.x = list_w_vert[0].x - normal.x;
-    nside_sq.y = list_w_vert[0].y - normal.y;
-    z = list_w_vert[0].z;
-LABEL_39:
-    nside_sq.z = z - normal.z;
-    v->x = nside_sq.x;
-    v->y = nside_sq.y;
-    v->z = nside_sq.z;
-#else
     iassert(w_set > 0 && w_set < 15);
 
     phys_vec3 list_w_vert[3];
@@ -1967,7 +1633,6 @@ LABEL_39:
     v->x = list_w_vert[0].x - e01.x * t;
     v->y = list_w_vert[0].y - e01.y * t;
     v->z = list_w_vert[0].z - e01.z * t;
-#endif
 }
 
 int phys_gjk_info::init_gjk(
