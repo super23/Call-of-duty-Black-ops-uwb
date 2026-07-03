@@ -364,7 +364,7 @@ bool __cdecl R_HW_IsFencePending(IDirect3DQuery9 *const *fence)
     unsigned int data; // [esp+8h] [ebp-8h] BYREF
     int sem; // [esp+Ch] [ebp-4h]
 
-    sem = R_AcquireDXDeviceOwnership(0);
+    sem = (r_multithreaded_device->current.enabled) ? 0 : R_AcquireDXDeviceOwnership(0);
     if ( *fence )
     {
         //hr = (*(int (__stdcall **)(unsigned int, unsigned int *, int, int))(**(unsigned int **)fence + 28))(*fence, &data, 4, 1);

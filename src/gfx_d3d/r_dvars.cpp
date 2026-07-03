@@ -2624,7 +2624,8 @@ void __cdecl R_RegisterDvars()
                                                              1u,
                                                              "Use the driver convergence values instead of the game defined values.");
     r_convergence = _Dvar_RegisterFloat("r_convergence", 6.06253, -3.4028235e38, 3.4028235e38, 0, "Stereo convergence.");
-    r_multithreaded_device = _Dvar_RegisterBool("r_multithreaded_device", 0, 1u, "Create a multithreaded d3d device.");
+    // LWSS: changed to 1 by default (2011 BLOPS default)
+    r_multithreaded_device = _Dvar_RegisterBool("r_multithreaded_device", 1, 0x21u, "Create a multithreaded d3d device.");
     r_warm_dpvs = _Dvar_RegisterBool("r_warm_dpvs", 0, 0, "shader warming: disable dpvs culling");
     r_warm_bsp = _Dvar_RegisterBool("r_warm_bsp", 0, 0, "shader warming: bsp objects");
     r_warm_static = _Dvar_RegisterBool("r_warm_static", 0, 0, "shader warming: static objects");

@@ -47,26 +47,10 @@ int __cdecl R_ReleaseDXDeviceOwnership()
     Sys_EnterCriticalSection(CRITSECT_DXDEVICE_GLOB);
     if ( g_DXDeviceThread == GetCurrentThreadId() )
     {
-        if ( g_DXDeviceThread != GetCurrentThreadId()
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_singlethreaded_device_pc.cpp",
-                        67,
-                        0,
-                        "%s",
-                        "g_DXDeviceThread == tlGetCurrentThreadId()") )
-        {
-            __debugbreak();
-        }
-        if ( g_AcquisitionCount != 1
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_singlethreaded_device_pc.cpp",
-                        68,
-                        0,
-                        "%s",
-                        "g_AcquisitionCount == 1") )
-        {
-            __debugbreak();
-        }
+        //iassert(g_DXDeviceThread == tlGetCurrentThreadId());
+        iassert(g_DXDeviceThread == GetCurrentThreadId());
+        iassert(g_AcquisitionCount == 1);
+
         if ( !--g_AcquisitionCount )
             g_DXDeviceThread = 0;
         Sys_LeaveCriticalSection(CRITSECT_DXDEVICE);
@@ -82,27 +66,9 @@ int __cdecl R_ReleaseDXDeviceOwnership()
 
 void __cdecl R_AssertDXDeviceOwnership()
 {
-    if ( !Sys_IsRenderThread()
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_singlethreaded_device_pc.cpp",
-                    89,
-                    0,
-                    "%s",
-                    "Sys_IsRenderThread()") )
-    {
-        __debugbreak();
-    }
+    iassert(Sys_IsRenderThread());
     Sys_EnterCriticalSection(CRITSECT_DXDEVICE_GLOB);
-    if ( g_DXDeviceThread != GetCurrentThreadId()
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_singlethreaded_device_pc.cpp",
-                    94,
-                    0,
-                    "%s",
-                    "g_DXDeviceThread == GetCurrentThreadId()") )
-    {
-        __debugbreak();
-    }
+    iassert(g_DXDeviceThread == GetCurrentThreadId());
     Sys_LeaveCriticalSection(CRITSECT_DXDEVICE_GLOB);
 }
 

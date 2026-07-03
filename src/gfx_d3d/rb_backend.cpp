@@ -1717,17 +1717,9 @@ unsigned int __cdecl R_RenderDrawSurfListMaterial(const GfxDrawSurfListArgs *lis
         isPixelCostEnabled = pixelCostMode != GFX_PIXEL_COST_MODE_OFF;
         if ( pixelCostMode )
             R_PixelCost_BeginSurface(listArgs->context);
-        if ( prepassContext.state
-            && prepassContext.state->technique->passCount != 1
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_backend.cpp",
-                        2128,
-                        0,
-                        "%s",
-                        "!prepassContext.state || (prepassContext.state->technique->passCount == 1)") )
-        {
-            __debugbreak();
-        }
+
+        iassert(!prepassContext.state || (prepassContext.state->technique->passCount == 1));
+
         passPrepassContext = prepassContext.source;
         subListCount = 0;
         passCount = listArgs->context.state->technique->passCount;
@@ -1749,20 +1741,17 @@ unsigned int __cdecl R_RenderDrawSurfListMaterial(const GfxDrawSurfListArgs *lis
                                              passPrepassContext,
                                              passPrepassContext_4);
         }
+
         if ( isPixelCostEnabled )
             R_PixelCost_EndSurface(listArgs->context);
         R_EndPixMaterial(listArgs->context.state);
         if ( prepassContext.state )
             R_EndPixMaterial(prepassContext.state);
-        v5 = subListCount;
-        //ScopedShaderConstantSetUndo::~ScopedShaderConstantSetUndo(&shaderConstantUndo);
-        return v5;
+        return subListCount;
     }
     else
     {
-        v6 = R_SkipDrawSurfListMaterial(drawSurfList, drawSurfCount);
-        //ScopedShaderConstantSetUndo::~ScopedShaderConstantSetUndo(&shaderConstantUndo);
-        return v6;
+        return R_SkipDrawSurfListMaterial(drawSurfList, drawSurfCount);
     }
 }
 
@@ -4789,10 +4778,6 @@ void __cdecl RB_EndFrame(char drawType)
 
 void RB_SwapBuffers()
 {
-    const char *v0; // eax
-    const char *v1; // eax
-    HRESULT v2; // [esp+18h] [ebp-44h]
-    HRESULT v3; // [esp+18h] [ebp-44h]
     unsigned __int8 stereoActivated; // [esp+2Fh] [ebp-2Dh] BYREF
     int semaphore; // [esp+30h] [ebp-2Ch]
     int actualShow; // [esp+34h] [ebp-28h]
@@ -4812,7 +4797,8 @@ void RB_SwapBuffers()
         else
             hr = dx.windows[dx.targetWindowIndex].swapChain->Present(0, 0, 0, 0, 0);
     }
-    
+
+    FrameMark; // backend thread Frame marker
 
     mjpeg_draw();
 
@@ -4901,9 +4887,7 @@ void RB_SwapBuffers()
             }
             else if ( hr )
             {
-                v2 = hr;
-                v0 = R_ErrorDescription(hr);
-                Com_Error(ERR_FATAL, "Direct3DDevice9::Present failed: %s (%d)\n", v0, v2);
+                Com_Error(ERR_FATAL, "Direct3DDevice9::Present failed: %s (%d)\n", R_ErrorDescription(hr), hr);
             }
 
             PROF_SCOPED("(#2) Win32 Msg Pump"); // LWSS ADD
@@ -4924,12 +4908,9 @@ void RB_SwapBuffers()
         R_ReleaseDXDeviceOwnership();
         if ( r_glob.isRenderingRemoteUpdate )
             Sys_LeaveCriticalSection(CRITSECT_DBHASH);
-        v3 = hr;
-        v1 = R_ErrorDescription(hr);
-        Com_Error(ERR_FATAL, "Direct3DDevice9::Present failed: %s (%d)\n", v1, v3);
+        Com_Error(ERR_FATAL, "Direct3DDevice9::Present failed: %s (%d)\n", R_ErrorDescription(hr), hr);
     }
 
-    //R_HW_InsertFence(&dx.swapFence[r_glob.backEndFrameCount % dx.gpuCount + 2]);
     R_HW_InsertFence(&dx.swapFence[r_glob.backEndFrameCount % dx.gpuCount]);
     gfxBuf.dynamicIndexBuffer->used = 0;
 }
@@ -5359,13 +5340,20 @@ void     RB_RenderThread(unsigned int threadContext)
     R_ReleaseDXDeviceOwnership();
     while ( 1 )
     {
-        R_StreamAlloc_Lock();
-        R_StreamUpdate_ProcessFileCallbacks();
-        R_StreamAlloc_Unlock();
-        RB_Resource_Update(5);
+        {
+            PROF_SCOPED("R_StreamUpdate_ProcessFileCallbacks"); // LWSS ADD
+            R_StreamAlloc_Lock();
+            R_StreamUpdate_ProcessFileCallbacks();
+            R_StreamAlloc_Unlock();
+        }
+        {
+            PROF_SCOPED("RB_Resource_Update"); // LWSS ADD
+            RB_Resource_Update(5);
+        }
         Sys_StopRenderer();
         Sys_StartRenderer();
-        if ( Sys_WaitBackendEvent(0) )
+
+        if ( Sys_WaitBackendEvent(1) )
         {
             data = (GfxBackEndData *)Sys_RendererSleep();
             if (data)
@@ -5507,14 +5495,6 @@ void __cdecl RB_RenderCommandFrame(const GfxBackEndData *data)
     {
         PROF_SCOPED("Sys_RenderCompleted()");
         Sys_RenderCompleted();
-    }
-
-    while (!RB_BackendTimeout((r_glob.backEndFrameCount + dx.gpuCount - 1) % dx.gpuCount))
-    {
-        semaphore = R_ReleaseDXDeviceOwnership();
-        NET_Sleep(1);
-        if (semaphore)
-            R_AcquireDXDeviceOwnership(0);
     }
 
     {

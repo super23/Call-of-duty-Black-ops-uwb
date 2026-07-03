@@ -1,4 +1,5 @@
 #include "snd_occlusion.h"
+#include <universal/profile.h>
 #include <qcommon/cm_trace.h>
 #include <cgame/cg_world.h>
 #include "snd.h"
@@ -621,7 +622,10 @@ void __cdecl SND_LosOcclusionThreadMain()
             Sys_EnterCriticalSection(CRITSEC_SOUND_OCCLUSION);
             Sys_LeaveCriticalSection(CRITSEC_SOUND_OCCLUSION);
             if ( snd_losOcclusion->current.enabled )
+            {
+                PROF_SCOPED("SND_LosOcclusionCmd");
                 SND_LosOcclusionCmd();
+            }
         }
         NET_Sleep(0xAu);
     }

@@ -268,7 +268,8 @@ void __cdecl SetThreadName(unsigned int dwThreadID, const char *szThreadName)
     //ms_exc.registration.TryLevel = 0;
     //RaiseException(0x406D1388u, 0, 4u, &info.dwType);
 
-    PROF_THREADNAME(szThreadName);
+    if ( dwThreadID == 0xFFFFFFFF || dwThreadID == GetCurrentThreadId() )
+        PROF_THREADNAME(szThreadName);
 
     // LWSS: this try/except needs to be here, otherwise it wont run without a debugger :D
     __try {

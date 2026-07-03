@@ -895,6 +895,7 @@ unsigned int __cdecl jqGetBatchDataAvailable()
 
 int __cdecl jqExecuteBatch(jqWorker *Worker, jqBatch *Batch)
 {
+  PROF_SCOPED_RUNTIME_NAME(Batch->Module->Name); // LWSS ADD (worker batch visibility)
   return Batch->Module->Code(Batch);
 }
 
@@ -1541,7 +1542,10 @@ void __cdecl jqWorkerLoop(jqWorker *Worker, jqBatchGroup *GroupID, bool BreakWhe
                         CachedConditionalAddress = CurBatch.ConditionalAddress;
                         CachedConditionalValue = CurBatch.ConditionalValue;
                         CurBatch.ConditionalAddress = 0;
-                        ret = CurBatch.Module->Code(&CurBatch);
+                        {
+                            PROF_SCOPED_RUNTIME_NAME(CurBatch.Module->Name); // LWSS ADD (worker batch visibility)
+                            ret = CurBatch.Module->Code(&CurBatch);
+                        }
                     }
                     lastConditionalCheckTime = tick64;
                     goto LABEL_10;
@@ -1635,7 +1639,10 @@ void __cdecl jqWorkerLoop(jqWorker *Worker, jqBatchGroup *GroupID, bool BreakWhe
             }
             CurBatch.ConditionalAddress = 0;
         LABEL_9:
-            ret = CurBatch.Module->Code(&CurBatch);
+            {
+                PROF_SCOPED_RUNTIME_NAME(CurBatch.Module->Name); // LWSS ADD (worker batch visibility)
+                ret = CurBatch.Module->Code(&CurBatch);
+            }
         LABEL_10:
             if (ret)
             {
@@ -1706,7 +1713,10 @@ void __cdecl jqTempWorkerLoop(jqWorker *Worker, jqBatchGroup *GroupID, bool (__c
       {
         Module = CurBatch.Module;
         jqCurBatch = &CurBatch;
-        ret = Module->Code(&CurBatch);
+        {
+            PROF_SCOPED_RUNTIME_NAME(Module->Name); // LWSS ADD (main-thread assist batch visibility)
+            ret = Module->Code(&CurBatch);
+        }
         jqCurBatch = 0;
         if ( !ret)
           goto LABEL_15;

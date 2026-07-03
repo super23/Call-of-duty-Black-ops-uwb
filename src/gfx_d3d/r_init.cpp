@@ -240,7 +240,7 @@ void __cdecl R_ReleaseForShutdownOrReset()
                 1392);
         } while (alwaysfails);
     }
-    for (fenceIter = 0; fenceIter < 8; ++fenceIter)
+    for (fenceIter = 0; fenceIter < ARRAY_COUNT(dx.fencePool); ++fenceIter)
     {
         if (dx.fencePool[fenceIter])
         {
@@ -258,11 +258,13 @@ void __cdecl R_ReleaseForShutdownOrReset()
             } while (alwaysfails);
         }
     }
-    for (gpuIdx = 0; gpuIdx < 4; ++gpuIdx)
+
+    for (gpuIdx = 0; gpuIdx < ARRAY_COUNT(dx.swapFence); ++gpuIdx)
     {
         if (dx.swapFence[gpuIdx])
-            dx.swapFence[gpuIdx] = 0;
+            dx.swapFence[gpuIdx] = NULL;
     }
+
     RB_FreeSuperFlareQueries();
     RB_FreeSunSpriteQueries();
     RB_FreeCoronaSpriteQueries();
@@ -331,9 +333,15 @@ char __cdecl R_CreateDevice(const GfxWindowParms *wndParms)
     }
     dx.depthStencilFormat = (D3DFORMAT)R_GetDepthStencilFormat(D3DFMT_A8R8G8B8);
     R_SetD3DPresentParameters(&d3dpp, wndParms);
-    behavior = 64;
+    // LWSS: r_multithreaded_device is latched; apply any pending value here, at the
+    // one place behavior flags can actually change (device CREATION — a Reset keeps
+    // the old flags, so the resize path must NOT make it current).
+    Dvar_MakeLatchedValueCurrent((dvar_s*)r_multithreaded_device);
+    behavior = D3DCREATE_HARDWARE_VERTEXPROCESSING;
+
     if (r_multithreaded_device->current.enabled)
-        behavior |= 4u;
+        behavior |= D3DCREATE_MULTITHREADED;
+
     hr = R_CreateDeviceInternal(hwnd, behavior, &d3dpp);
     if (hr >= 0)
     {

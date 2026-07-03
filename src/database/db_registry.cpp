@@ -1,4 +1,5 @@
 #include "db_registry.h"
+#include <universal/profile.h>
 #include <clientscript/cscr_parsetree.h>
 #include <gfx_d3d/rb_resource.h>
 #include <qcommon/cm_load.h>
@@ -3591,6 +3592,7 @@ void DB_TryLoadXFile()
         }
         for ( j = 0; j < zoneInfoCount; ++j )
         {
+            PROF_SCOPED_RUNTIME_NAME(g_zoneInfo[j].name);
             if ( !DB_TryLoadXFileInternal(g_zoneInfo[j].name, g_zoneInfo[j].flags) )
             {
                 v0 = strstr(g_zoneInfo[j].name, "_xpatch");

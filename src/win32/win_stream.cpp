@@ -1,5 +1,6 @@
 #include "win_stream.h"
 #include <universal/assertive.h>
+#include <universal/profile.h>
 #include <qcommon/threads.h>
 #include <gfx_d3d/r_stream.h>
 #include <sound/snd_stream.h>
@@ -38,8 +39,14 @@ void __cdecl    Stream_Thread(unsigned int threadContext)
     while ( 1 )
     {
         Sys_StreamSleep();
-        R_StreamUpdate_ReadTextures();
-        Snd_StreamUpdate();
+        {
+            PROF_SCOPED("R_StreamUpdate_ReadTextures"); // LWSS ADD
+            R_StreamUpdate_ReadTextures();
+        }
+        {
+            PROF_SCOPED("Snd_StreamUpdate"); // LWSS ADD
+            Snd_StreamUpdate();
+        }
     }
 }
 
