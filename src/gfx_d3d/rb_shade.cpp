@@ -1,5 +1,4 @@
 #include "rb_shade.h"
-#include "r_singlethreaded_device_pc.h"
 #include "r_dvars.h"
 #include "rb_logfile.h"
 #include "rb_pixelcost.h"
@@ -17,7 +16,6 @@ void __cdecl R_HW_SetPixelShader(IDirect3DDevice9 *device, const MaterialPixelSh
 {
     HRESULT v2; // eax
     const char *v3; // eax
-    int semaphore; // [esp+4h] [ebp-8h]
     int hr; // [esp+8h] [ebp-4h]
 
     if ( !device
@@ -25,17 +23,13 @@ void __cdecl R_HW_SetPixelShader(IDirect3DDevice9 *device, const MaterialPixelSh
     {
         __debugbreak();
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetPixelShader( mtlShader ? mtlShader->prog.ps : 0 )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     if ( mtlShader )
         v2 = device->SetPixelShader(mtlShader->prog.ps);
     else
         v2 = device->SetPixelShader(0);
     hr = v2;
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -60,7 +54,6 @@ void __cdecl R_HW_SetVertexShader(IDirect3DDevice9 *device, const MaterialVertex
 {
     HRESULT v2; // eax
     const char *v3; // eax
-    int semaphore; // [esp+4h] [ebp-8h]
     int hr; // [esp+8h] [ebp-4h]
 
     if ( !device
@@ -68,17 +61,13 @@ void __cdecl R_HW_SetVertexShader(IDirect3DDevice9 *device, const MaterialVertex
     {
         __debugbreak();
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetVertexShader( mtlShader ? mtlShader->prog.vs : 0 )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     if ( mtlShader )
         v2 = device->SetVertexShader(mtlShader->prog.vs);
     else
         v2 = device->SetVertexShader(0);
     hr = v2;
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -112,7 +101,6 @@ void __cdecl R_SetVertexDecl(GfxCmdBufPrimState *primState, const MaterialVertex
 {
     const char *v2; // eax
     IDirect3DVertexDeclaration9 *v3; // [esp+0h] [ebp-14h]
-    int semaphore; // [esp+4h] [ebp-10h]
     int hr; // [esp+8h] [ebp-Ch]
     IDirect3DDevice9 *device; // [esp+10h] [ebp-4h]
 
@@ -130,17 +118,13 @@ void __cdecl R_SetVertexDecl(GfxCmdBufPrimState *primState, const MaterialVertex
         }
         if ( v3 )
         {
-            R_AssertDXDeviceOwnership();
             if ( r_logFile && r_logFile->current.integer )
                 RB_LogPrint("device->SetVertexDeclaration( decl )\n");
-            semaphore = R_AcquireDXDeviceOwnership(0);
             //hr = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, IDirect3DVertexDeclaration9 *))device->SetVertexDeclaration)(
             //             device,
             //             device,
             //             v3);
             hr = device->SetVertexDeclaration(v3);
-            if ( semaphore )
-                R_ReleaseDXDeviceOwnership();
             if ( hr < 0 )
             {
                 ++g_disableRendering;

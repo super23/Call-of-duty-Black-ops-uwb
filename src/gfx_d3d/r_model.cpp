@@ -11,7 +11,6 @@
 #include "r_debug.h"
 #include "r_buffers.h"
 #include <qcommon/threads.h>
-#include "r_singlethreaded_device_pc.h"
 #include "r_rendercmds.h"
 #include <win32/win_net.h>
 #include "r_model_lod.h"

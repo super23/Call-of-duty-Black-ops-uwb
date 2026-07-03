@@ -1,7 +1,6 @@
 #include "r_state.h"
 #include "r_bsp.h"
 #include "r_dvars.h"
-#include "r_singlethreaded_device_pc.h"
 #include "rb_logfile.h"
 #include "r_state_utils.h"
 #include <ik/ik_math.h>
@@ -275,25 +274,18 @@ void __cdecl R_SetInitialContextState(IDirect3DDevice9 *device)
     const char *v1; // eax
     const char *v2; // eax
     const char *v3; // eax
-    int v4; // [esp+0h] [ebp-18h]
     int v5; // [esp+4h] [ebp-14h]
-    int v6; // [esp+8h] [ebp-10h]
     int v7; // [esp+Ch] [ebp-Ch]
-    int semaphore; // [esp+10h] [ebp-8h]
     int hr; // [esp+14h] [ebp-4h]
 
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_SEPARATEALPHABLENDENABLE, 1 )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     //hr = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, int, int))device->SetRenderState)(
     //             device,
     //             device,
     //             206,
     //             1);
     hr = device->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, 1);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -305,13 +297,9 @@ void __cdecl R_SetInitialContextState(IDirect3DDevice9 *device)
             885,
             v1);
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_TWOSIDEDSTENCILMODE, 1 )\n");
-    v6 = R_AcquireDXDeviceOwnership(0);
     v7 = device->SetRenderState(D3DRS_TWOSIDEDSTENCILMODE, 1u);
-    if ( v6 )
-        R_ReleaseDXDeviceOwnership();
     if ( v7 < 0 )
     {
         ++g_disableRendering;
@@ -322,13 +310,9 @@ void __cdecl R_SetInitialContextState(IDirect3DDevice9 *device)
             886,
             v2);
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_ZENABLE, D3DZB_FALSE )\n");
-    v4 = R_AcquireDXDeviceOwnership(0);
     v5 = device->SetRenderState(D3DRS_ZENABLE, 0);
-    if ( v4 )
-        R_ReleaseDXDeviceOwnership();
     if ( v5 < 0 )
     {
         ++g_disableRendering;
@@ -871,7 +855,6 @@ void __cdecl R_ChangeDepthRange(GfxCmdBufState *state, GfxDepthRangeType depthRa
 void __cdecl R_HW_SetViewport(IDirect3DDevice9 *device, const GfxViewport *viewport, float nearValue, float farValue)
 {
     const char *v4; // eax
-    int semaphore; // [esp+10h] [ebp-20h]
     int hr; // [esp+14h] [ebp-1Ch]
     _D3DVIEWPORT9 d3dViewport; // [esp+18h] [ebp-18h] BYREF
 
@@ -892,13 +875,9 @@ void __cdecl R_HW_SetViewport(IDirect3DDevice9 *device, const GfxViewport *viewp
     {
         __debugbreak();
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetViewport( &d3dViewport )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetViewport(&d3dViewport);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -940,7 +919,6 @@ int __cdecl R_BeginMaterial(GfxCmdBufState *state, const Material *material, uns
 void __cdecl R_ChangeIndices(GfxCmdBufPrimState *state, IDirect3DIndexBuffer9 *ib)
 {
     const char *v2; // eax
-    int semaphore; // [esp+0h] [ebp-Ch]
     int hr; // [esp+4h] [ebp-8h]
     IDirect3DDevice9 *device; // [esp+8h] [ebp-4h]
 
@@ -961,13 +939,9 @@ void __cdecl R_ChangeIndices(GfxCmdBufPrimState *state, IDirect3DIndexBuffer9 *i
     {
         __debugbreak();
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetIndices( ib )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetIndices(ib);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -988,7 +962,6 @@ void __cdecl R_ChangeStreamSource(
                 unsigned int vertexStride)
 {
     const char *v5; // eax
-    int semaphore; // [esp+0h] [ebp-Ch]
     int hr; // [esp+4h] [ebp-8h]
     IDirect3DDevice9 *device; // [esp+8h] [ebp-4h]
 
@@ -1014,13 +987,9 @@ void __cdecl R_ChangeStreamSource(
     state->streams[streamIndex].vb = vb;
     state->streams[streamIndex].offset = vertexOffset;
     state->streams[streamIndex].stride = vertexStride;
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetStreamSource( streamIndex, vb, vertexOffset, vertexStride )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetStreamSource(streamIndex, vb, vertexOffset, vertexStride);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -1047,7 +1016,6 @@ void __cdecl R_ClearAllStreamSources(GfxCmdBufPrimState *state)
 void __cdecl R_DrawIndexedPrimitive(GfxCmdBufPrimState *state, const GfxDrawPrimArgs *args)
 {
     const char *v2; // eax
-    int semaphore; // [esp+0h] [ebp-10h]
     int hr; // [esp+4h] [ebp-Ch]
     int triCount; // [esp+8h] [ebp-8h]
     IDirect3DDevice9 *device; // [esp+Ch] [ebp-4h]
@@ -1065,13 +1033,9 @@ void __cdecl R_DrawIndexedPrimitive(GfxCmdBufPrimState *state, const GfxDrawPrim
             __debugbreak();
         }
         RB_TrackDrawPrimCall(state, triCount);
-        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint("device->DrawIndexedPrimitive( D3DPT_TRIANGLELIST, 0, 0, args->vertexCount, args->baseIndex, triCount )\n");
-        semaphore = R_AcquireDXDeviceOwnership(0);
         hr = device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, args->vertexCount, args->baseIndex, triCount);
-        if ( semaphore )
-            R_ReleaseDXDeviceOwnership();
         if ( hr < 0 )
         {
             ++g_disableRendering;
@@ -1089,7 +1053,6 @@ void __cdecl R_DrawIndexedPrimitive(GfxCmdBufPrimState *state, const GfxDrawPrim
 void __cdecl R_SetAlphaAntiAliasingState(IDirect3DDevice9 *device, __int16 stateBits0)
 {
     const char *v2; // eax
-    int semaphore; // [esp+0h] [ebp-10h]
     int hr; // [esp+4h] [ebp-Ch]
     _D3DFORMAT aaAlphaFormat; // [esp+8h] [ebp-8h]
 
@@ -1105,13 +1068,9 @@ void __cdecl R_SetAlphaAntiAliasingState(IDirect3DDevice9 *device, __int16 state
     {
         aaAlphaFormat = (_D3DFORMAT)1129272385;
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_ADAPTIVETESS_Y, aaAlphaFormat )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetRenderState(D3DRS_ADAPTIVETESS_Y, aaAlphaFormat);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -1246,16 +1205,11 @@ void __cdecl R_ChangeState_0(GfxCmdBufState *state, unsigned int stateBits0)
 void __cdecl R_HW_SetAlphaTestEnable(IDirect3DDevice9 *device, __int16 stateBits0)
 {
     const char *v2; // eax
-    int semaphore; // [esp+0h] [ebp-8h]
     int hr; // [esp+4h] [ebp-4h]
 
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_ALPHATESTENABLE, (stateBits0 & GFXS0_ATEST_DISABLE) ? 0 : 1 )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetRenderState(D3DRS_ALPHATESTENABLE, (stateBits0 & 0x800) == 0);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -1272,21 +1226,16 @@ void __cdecl R_HW_SetAlphaTestEnable(IDirect3DDevice9 *device, __int16 stateBits
 void __cdecl R_HW_SetColorMask(IDirect3DDevice9 *device, unsigned int stateBits0)
 {
     const char *v2; // eax
-    int semaphore; // [esp+0h] [ebp-Ch]
     int hr; // [esp+4h] [ebp-8h]
 
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_COLORWRITEENABLE, mask )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetRenderState(D3DRS_COLORWRITEENABLE, ((stateBits0 & 0x8000000) != 0 ? 7 : 0) | ((stateBits0 & 0x10000000) != 0 ? 8 : 0));
     //hr = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, int, int))device->SetRenderState)(
     //             device,
     //             device,
     //             168,
     //             ((stateBits0 & 0x8000000) != 0 ? 7 : 0) | ((stateBits0 & 0x10000000) != 0 ? 8 : 0));
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -1303,7 +1252,6 @@ void __cdecl R_HW_SetColorMask(IDirect3DDevice9 *device, unsigned int stateBits0
 void __cdecl R_HW_SetCullFace(IDirect3DDevice9 *device, __int16 stateBits0)
 {
     const char *v2; // eax
-    int semaphore; // [esp+0h] [ebp-8h]
     int hr; // [esp+4h] [ebp-4h]
 
     if ( (stateBits0 & 0xC000) != 0x4000
@@ -1319,13 +1267,9 @@ void __cdecl R_HW_SetCullFace(IDirect3DDevice9 *device, __int16 stateBits0)
     {
         __debugbreak();
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_CULLMODE, s_cullTable[(stateBits0 & GFXS0_CULL_MASK) >> GFXS0_CULL_SHIFT] )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetRenderState(D3DRS_CULLMODE, s_cullTable_64[(unsigned __int16)(stateBits0 & 0xC000) >> 14]);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -1342,17 +1286,12 @@ void __cdecl R_HW_SetCullFace(IDirect3DDevice9 *device, __int16 stateBits0)
 void __cdecl R_HW_SetPolygonMode(IDirect3DDevice9 *device, signed int stateBits0)
 {
     const char *v2; // eax
-    int semaphore; // [esp+0h] [ebp-8h]
     int hr; // [esp+4h] [ebp-4h]
 
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint(
             "device->SetRenderState( D3DRS_FILLMODE, (stateBits0 & GFXS0_POLYMODE_LINE) ? D3DFILL_WIREFRAME : D3DFILL_SOLID )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetRenderState(D3DRS_FILLMODE, 3 - (stateBits0 < 0));
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -1369,13 +1308,10 @@ void __cdecl R_HW_SetPolygonMode(IDirect3DDevice9 *device, signed int stateBits0
 void __cdecl R_HW_DisableBlend(IDirect3DDevice9 *device)
 {
     const char *v1; // eax
-    int semaphore; // [esp+0h] [ebp-8h]
     int hr; // [esp+4h] [ebp-4h]
 
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_ALPHABLENDENABLE, 0 )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
 
     hr = device->SetRenderState(D3DRS_ALPHABLENDENABLE, 0);
     //hr = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, int, unsigned int))device->SetRenderState)(
@@ -1383,8 +1319,6 @@ void __cdecl R_HW_DisableBlend(IDirect3DDevice9 *device)
     //             device,
     //             27,
     //             0);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -1411,30 +1345,19 @@ void __cdecl R_HW_SetBlend(
     const char *v8; // eax
     const char *v9; // eax
     const char *v10; // eax
-    int v11; // [esp+0h] [ebp-38h]
     int v12; // [esp+4h] [ebp-34h]
-    int v13; // [esp+8h] [ebp-30h]
     int v14; // [esp+Ch] [ebp-2Ch]
-    int v15; // [esp+10h] [ebp-28h]
     int v16; // [esp+14h] [ebp-24h]
-    int v17; // [esp+18h] [ebp-20h]
     int v18; // [esp+1Ch] [ebp-1Ch]
-    int v19; // [esp+20h] [ebp-18h]
     int v20; // [esp+24h] [ebp-14h]
-    int v21; // [esp+28h] [ebp-10h]
     int v22; // [esp+2Ch] [ebp-Ch]
-    int semaphore; // [esp+30h] [ebp-8h]
     int hr; // [esp+34h] [ebp-4h]
 
     if ( !blendWasEnabled )
     {
-        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint("device->SetRenderState( D3DRS_ALPHABLENDENABLE, 1 )\n");
-        semaphore = R_AcquireDXDeviceOwnership(0);
         hr = device->SetRenderState(D3DRS_ALPHABLENDENABLE, 1u);
-        if ( semaphore )
-            R_ReleaseDXDeviceOwnership();
         if ( hr < 0 )
         {
             ++g_disableRendering;
@@ -1449,19 +1372,15 @@ void __cdecl R_HW_SetBlend(
     }
     if ( (changedBits & 0x700) != 0 )
     {
-        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint(
                 "device->SetRenderState( D3DRS_BLENDOP, s_blendOpTable[(stateBits0 >> GFXS0_BLENDOP_RGB_SHIFT) & GFXS_BLENDOP_MASK] )\n");
-        v21 = R_AcquireDXDeviceOwnership(0);
         v22 = device->SetRenderState(D3DRS_BLENDOP, s_blendOpTable_64[(stateBits0 >> 8) & 7]);
         //v22 = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, int, const unsigned int))device->SetRenderState)(
         //                device,
         //                device,
         //                171,
         //                s_blendOpTable_64[(stateBits0 >> 8) & 7]);
-        if ( v21 )
-            R_ReleaseDXDeviceOwnership();
         if ( v22 < 0 )
         {
             ++g_disableRendering;
@@ -1476,14 +1395,10 @@ void __cdecl R_HW_SetBlend(
     }
     if ( (changedBits & 0xF) != 0 )
     {
-        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint(
                 "device->SetRenderState( D3DRS_SRCBLEND, s_blendTable[(stateBits0 >> GFXS0_SRCBLEND_RGB_SHIFT) & GFXS_BLEND_MASK] )\n");
-        v19 = R_AcquireDXDeviceOwnership(0);
         v20 = device->SetRenderState(D3DRS_SRCBLEND, s_blendTable_64[stateBits0 & 0xF]);
-        if ( v19 )
-            R_ReleaseDXDeviceOwnership();
         if ( v20 < 0 )
         {
             ++g_disableRendering;
@@ -1498,14 +1413,10 @@ void __cdecl R_HW_SetBlend(
     }
     if ( (changedBits & 0xF0) != 0 )
     {
-        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint(
                 "device->SetRenderState( D3DRS_DESTBLEND, s_blendTable[(stateBits0 >> GFXS0_DSTBLEND_RGB_SHIFT) & GFXS_BLEND_MASK] )\n");
-        v17 = R_AcquireDXDeviceOwnership(0);
         v18 = device->SetRenderState(D3DRS_DESTBLEND, s_blendTable_64[(unsigned __int8)stateBits0 >> 4]);
-        if ( v17 )
-            R_ReleaseDXDeviceOwnership();
         if ( v18 < 0 )
         {
             ++g_disableRendering;
@@ -1520,19 +1431,15 @@ void __cdecl R_HW_SetBlend(
     }
     if ( (changedBits & 0x7000000) != 0 )
     {
-        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint(
                 "device->SetRenderState( D3DRS_BLENDOPALPHA, s_blendOpTable[(stateBits0 >> GFXS0_BLENDOP_ALPHA_SHIFT) & GFXS_BLENDOP_MASK] )\n");
-        v15 = R_AcquireDXDeviceOwnership(0);
         v16 = device->SetRenderState(D3DRS_BLENDOPALPHA, s_blendOpTable_64[HIBYTE(stateBits0) & 7]);
         //v16 = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, int, const unsigned int))device->SetRenderState)(
         //                device,
         //                device,
         //                209,
         //                s_blendOpTable_64[HIBYTE(stateBits0) & 7]);
-        if ( v15 )
-            R_ReleaseDXDeviceOwnership();
         if ( v16 < 0 )
         {
             ++g_disableRendering;
@@ -1547,14 +1454,10 @@ void __cdecl R_HW_SetBlend(
     }
     if ( (changedBits & 0xF0000) != 0 )
     {
-        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint(
                 "device->SetRenderState( D3DRS_SRCBLENDALPHA, s_blendTable[(stateBits0 >> GFXS0_SRCBLEND_ALPHA_SHIFT) & GFXS_BLEND_MASK] )\n");
-        v13 = R_AcquireDXDeviceOwnership(0);
         v14 = device->SetRenderState(D3DRS_SRCBLENDALPHA, s_blendTable_64[HIWORD(stateBits0) & 0xF]);
-        if ( v13 )
-            R_ReleaseDXDeviceOwnership();
         if ( v14 < 0 )
         {
             ++g_disableRendering;
@@ -1569,14 +1472,10 @@ void __cdecl R_HW_SetBlend(
     }
     if ((changedBits & 0xF00000) != 0)
     {
-        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint(
                 "device->SetRenderState( D3DRS_DESTBLENDALPHA, s_blendTable[(stateBits0 >> GFXS0_DSTBLEND_ALPHA_SHIFT) & GFXS_BLEND_MASK] )\n");
-        v11 = R_AcquireDXDeviceOwnership(0);
         v12 = device->SetRenderState(D3DRS_DESTBLENDALPHA, s_blendTable_64[(stateBits0 >> 20) & 0xF]);
-        if ( v11 )
-            R_ReleaseDXDeviceOwnership();
         if ( v12 < 0 )
         {
             ++g_disableRendering;
@@ -1595,9 +1494,7 @@ void __cdecl R_SetAlphaTestFunction(GfxCmdBufState *state, __int16 stateBits0)
 {
     const char *v2; // eax
     const char *v3; // eax
-    int v4; // [esp+0h] [ebp-1Ch]
     int v5; // [esp+4h] [ebp-18h]
-    int semaphore; // [esp+8h] [ebp-14h]
     int hr; // [esp+Ch] [ebp-10h]
     unsigned __int8 ref; // [esp+13h] [ebp-9h]
     IDirect3DDevice9 *device; // [esp+14h] [ebp-8h]
@@ -1631,13 +1528,9 @@ void __cdecl R_SetAlphaTestFunction(GfxCmdBufState *state, __int16 stateBits0)
     device = state->prim.device;
     if ( !device && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.h", 1996, 0, "%s", "device") )
         __debugbreak();
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_ALPHAFUNC, function )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetRenderState(D3DRS_ALPHAFUNC, function);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -1650,13 +1543,9 @@ void __cdecl R_SetAlphaTestFunction(GfxCmdBufState *state, __int16 stateBits0)
     }
     if ( state->alphaRef != ref )
     {
-        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint("device->SetRenderState( D3DRS_ALPHAREF, ref )\n");
-        v4 = R_AcquireDXDeviceOwnership(0);
         v5 = device->SetRenderState(D3DRS_ALPHAREF, ref);
-        if ( v4 )
-            R_ReleaseDXDeviceOwnership();
         if ( v5 < 0 )
         {
             ++g_disableRendering;
@@ -1775,16 +1664,11 @@ void __cdecl R_ChangeState_1(GfxCmdBufState *state, unsigned int stateBits1)
 void __cdecl R_HW_SetDepthWriteEnable(IDirect3DDevice9 *device, char stateBits1)
 {
     const char *v2; // eax
-    int semaphore; // [esp+0h] [ebp-8h]
     int hr; // [esp+4h] [ebp-4h]
 
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState(D3DRS_ZWRITEENABLE, (stateBits1 & GFXS1_DEPTHWRITE) ? 1 : 0)\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetRenderState(D3DRS_ZWRITEENABLE, (stateBits1 & 1) != 0);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -1801,16 +1685,11 @@ void __cdecl R_HW_SetDepthWriteEnable(IDirect3DDevice9 *device, char stateBits1)
 void __cdecl R_HW_SetDepthTestEnable(IDirect3DDevice9 *device, char stateBits1)
 {
     const char *v2; // eax
-    int semaphore; // [esp+0h] [ebp-8h]
     int hr; // [esp+4h] [ebp-4h]
 
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState(D3DRS_ZENABLE, (stateBits1 & GFXS1_DEPTHTEST_DISABLE) ? D3DZB_FALSE : D3DZB_TRUE)\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetRenderState(D3DRS_ZENABLE, (stateBits1 & 2) == 0);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -1827,17 +1706,12 @@ void __cdecl R_HW_SetDepthTestEnable(IDirect3DDevice9 *device, char stateBits1)
 void __cdecl R_HW_SetDepthTestFunction(IDirect3DDevice9 *device, char stateBits1)
 {
     const char *v2; // eax
-    int semaphore; // [esp+0h] [ebp-8h]
     int hr; // [esp+4h] [ebp-4h]
 
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint(
             "device->SetRenderState( D3DRS_ZFUNC, s_depthTestTable[(stateBits1 & GFXS1_DEPTHTEST_MASK) >> GFXS1_DEPTHTEST_SHIFT] )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetRenderState(D3DRS_ZFUNC, s_depthTestTable_64[(unsigned __int8)(stateBits1 & 0xC) >> 2]);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -1854,21 +1728,16 @@ void __cdecl R_HW_SetDepthTestFunction(IDirect3DDevice9 *device, char stateBits1
 void __cdecl R_HW_EnableStencil(IDirect3DDevice9 *device)
 {
     const char *v1; // eax
-    int semaphore; // [esp+0h] [ebp-8h]
     int hr; // [esp+4h] [ebp-4h]
 
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_STENCILENABLE, 1 )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetRenderState(D3DRS_STENCILENABLE, 1);
     //hr = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, int, int))device->SetRenderState)(
     //             device,
     //             device,
     //             52,
     //             1);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -1884,13 +1753,10 @@ void __cdecl R_HW_EnableStencil(IDirect3DDevice9 *device)
 void __cdecl R_HW_DisableStencil(IDirect3DDevice9 *device)
 {
     const char *v1; // eax
-    int semaphore; // [esp+0h] [ebp-8h]
     int hr; // [esp+4h] [ebp-4h]
 
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_STENCILENABLE, 0 )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
 
     hr = device->SetRenderState(D3DRS_STENCILENABLE, 0);
     //hr = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, int, unsigned int))device->SetRenderState)(
@@ -1898,8 +1764,6 @@ void __cdecl R_HW_DisableStencil(IDirect3DDevice9 *device)
     //             device,
     //             52,
     //             0);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -1921,20 +1785,13 @@ void __cdecl R_HW_SetFrontStencilOp(
     const char *v4; // eax
     const char *v5; // eax
     const char *v6; // eax
-    int v7; // [esp+0h] [ebp-18h]
     int v8; // [esp+4h] [ebp-14h]
-    int v9; // [esp+8h] [ebp-10h]
     int v10; // [esp+Ch] [ebp-Ch]
-    int semaphore; // [esp+10h] [ebp-8h]
     int hr; // [esp+14h] [ebp-4h]
 
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_STENCILPASS, s_stencilOpTable[stencilOpPass] )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetRenderState(D3DRS_STENCILPASS, s_stencilOpTable_64[stencilOpPass]);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -1946,10 +1803,8 @@ void __cdecl R_HW_SetFrontStencilOp(
             634,
             v4);
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_STENCILFAIL, s_stencilOpTable[stencilOpFail] )\n");
-    v9 = R_AcquireDXDeviceOwnership(0);
 
     v10 = device->SetRenderState(D3DRS_STENCILFAIL, s_stencilOpTable_64[stencilOpFail]);
     //v10 = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, int, const unsigned int))device->SetRenderState)(
@@ -1957,8 +1812,6 @@ void __cdecl R_HW_SetFrontStencilOp(
     //                device,
     //                53,
     //                s_stencilOpTable_64[stencilOpFail]);
-    if ( v9 )
-        R_ReleaseDXDeviceOwnership();
     if ( v10 < 0 )
     {
         ++g_disableRendering;
@@ -1970,13 +1823,9 @@ void __cdecl R_HW_SetFrontStencilOp(
             635,
             v5);
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_STENCILZFAIL, s_stencilOpTable[stencilOpZFail] )\n");
-    v7 = R_AcquireDXDeviceOwnership(0);
     v8 = device->SetRenderState(D3DRS_STENCILZFAIL, s_stencilOpTable_64[stencilOpZFail]);
-    if ( v7 )
-        R_ReleaseDXDeviceOwnership();
     if ( v8 < 0 )
     {
         ++g_disableRendering;
@@ -1999,20 +1848,13 @@ void __cdecl R_HW_SetBackStencilOp(
     const char *v4; // eax
     const char *v5; // eax
     const char *v6; // eax
-    int v7; // [esp+0h] [ebp-18h]
     int v8; // [esp+4h] [ebp-14h]
-    int v9; // [esp+8h] [ebp-10h]
     int v10; // [esp+Ch] [ebp-Ch]
-    int semaphore; // [esp+10h] [ebp-8h]
     int hr; // [esp+14h] [ebp-4h]
 
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_CCW_STENCILPASS, s_stencilOpTable[stencilOpPass] )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetRenderState(D3DRS_CCW_STENCILPASS, s_stencilOpTable_64[stencilOpPass]);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -2024,18 +1866,14 @@ void __cdecl R_HW_SetBackStencilOp(
             642,
             v4);
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_CCW_STENCILFAIL, s_stencilOpTable[stencilOpFail] )\n");
-    v9 = R_AcquireDXDeviceOwnership(0);
     v10 = device->SetRenderState(D3DRS_CCW_STENCILFAIL, s_stencilOpTable_64[stencilOpFail]);
     //v10 = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, int, const unsigned int))device->SetRenderState)(
     //                device,
     //                device,
     //                186,
     //                s_stencilOpTable_64[stencilOpFail]);
-    if ( v9 )
-        R_ReleaseDXDeviceOwnership();
     if ( v10 < 0 )
     {
         ++g_disableRendering;
@@ -2047,13 +1885,9 @@ void __cdecl R_HW_SetBackStencilOp(
             643,
             v5);
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_CCW_STENCILZFAIL, s_stencilOpTable[stencilOpZFail] )\n");
-    v7 = R_AcquireDXDeviceOwnership(0);
     v8 = device->SetRenderState(D3DRS_CCW_STENCILZFAIL, s_stencilOpTable_64[stencilOpZFail]);
-    if ( v7 )
-        R_ReleaseDXDeviceOwnership();
     if ( v8 < 0 )
     {
         ++g_disableRendering;
@@ -2070,16 +1904,11 @@ void __cdecl R_HW_SetBackStencilOp(
 void __cdecl R_HW_SetFrontStencilFunc(IDirect3DDevice9 *device, unsigned int stencilFunc)
 {
     const char *v2; // eax
-    int semaphore; // [esp+0h] [ebp-8h]
     int hr; // [esp+4h] [ebp-4h]
 
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_STENCILFUNC, s_stencilFuncTable[stencilFunc] )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetRenderState(D3DRS_STENCILFUNC, s_stencilFuncTable_64[stencilFunc]);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -2096,16 +1925,11 @@ void __cdecl R_HW_SetFrontStencilFunc(IDirect3DDevice9 *device, unsigned int ste
 void __cdecl R_HW_SetBackStencilFunc(IDirect3DDevice9 *device, unsigned int stencilFunc)
 {
     const char *v2; // eax
-    int semaphore; // [esp+0h] [ebp-8h]
     int hr; // [esp+4h] [ebp-4h]
 
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_CCW_STENCILFUNC, s_stencilFuncTable[stencilFunc] )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetRenderState(D3DRS_CCW_STENCILFUNC, s_stencilFuncTable_64[stencilFunc]);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -2145,17 +1969,13 @@ void __cdecl R_HW_SetPolygonOffset(IDirect3DDevice9 *device, float scale, float 
 {
     const char *v3; // eax
     const char *v4; // eax
-    int v5; // [esp+8h] [ebp-10h]
     int v6; // [esp+Ch] [ebp-Ch]
-    int semaphore; // [esp+10h] [ebp-8h]
     int hr; // [esp+14h] [ebp-4h]
 
     if ( gfxMetrics.slopeScaleDepthBias )
     {
-        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint("device->SetRenderState( D3DRS_SLOPESCALEDEPTHBIAS, FloatAsInt( &scale ) )\n");
-        semaphore = R_AcquireDXDeviceOwnership(0);
 
         hr = device->SetRenderState(D3DRS_SLOPESCALEDEPTHBIAS, LODWORD(scale));
         //hr = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, int, unsigned int))device->SetRenderState)(
@@ -2163,8 +1983,6 @@ void __cdecl R_HW_SetPolygonOffset(IDirect3DDevice9 *device, float scale, float 
         //             device,
         //             175,
         //             LODWORD(scale));
-        if ( semaphore )
-            R_ReleaseDXDeviceOwnership();
         if ( hr < 0 )
         {
             ++g_disableRendering;
@@ -2181,13 +1999,9 @@ void __cdecl R_HW_SetPolygonOffset(IDirect3DDevice9 *device, float scale, float 
     {
         bias = bias * 2.0;
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_DEPTHBIAS, FloatAsInt( &bias ) )\n");
-    v5 = R_AcquireDXDeviceOwnership(0);
     v6 = device->SetRenderState(D3DRS_DEPTHBIAS, LODWORD(bias));
-    if ( v5 )
-        R_ReleaseDXDeviceOwnership();
     if ( v6 < 0 )
     {
         ++g_disableRendering;
@@ -2231,19 +2045,12 @@ unsigned int __cdecl R_HW_SetSamplerState(
     const char *v8; // eax
     const char *v9; // eax
     const char *v10; // eax
-    int v12; // [esp+0h] [ebp-54h]
     int v13; // [esp+4h] [ebp-50h]
-    int v14; // [esp+8h] [ebp-4Ch]
     int v15; // [esp+Ch] [ebp-48h]
-    int v16; // [esp+10h] [ebp-44h]
     int v17; // [esp+14h] [ebp-40h]
-    int v18; // [esp+18h] [ebp-3Ch]
     int v19; // [esp+1Ch] [ebp-38h]
-    int v20; // [esp+20h] [ebp-34h]
     int v21; // [esp+24h] [ebp-30h]
-    int v22; // [esp+28h] [ebp-2Ch]
     int v23; // [esp+2Ch] [ebp-28h]
-    int semaphore; // [esp+30h] [ebp-24h]
     int hr; // [esp+34h] [ebp-20h]
     unsigned int finalSamplerState; // [esp+38h] [ebp-1Ch]
     unsigned int diffSamplerState; // [esp+48h] [ebp-Ch]
@@ -2262,13 +2069,9 @@ unsigned int __cdecl R_HW_SetSamplerState(
     }
     if ( (diffSamplerState & 0xF00) != 0 )
     {
-        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint("device->SetSamplerState( samplerIndex, D3DSAMP_MINFILTER, minFilter )\n");
-        semaphore = R_AcquireDXDeviceOwnership(0);
         hr = device->SetSamplerState(samplerIndex, D3DSAMP_MINFILTER, (unsigned __int16)(samplerState & 0xF00) >> 8);
-        if ( semaphore )
-            R_ReleaseDXDeviceOwnership();
         if ( hr < 0 )
         {
             ++g_disableRendering;
@@ -2283,16 +2086,12 @@ unsigned int __cdecl R_HW_SetSamplerState(
     }
     if ( (diffSamplerState & 0xF000) != 0 )
     {
-        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint("device->SetSamplerState( samplerIndex, D3DSAMP_MAGFILTER, magFilter )\n");
-        v22 = R_AcquireDXDeviceOwnership(0);
         v23 = device->SetSamplerState(
                         samplerIndex,
                         D3DSAMP_MAGFILTER,
                         (unsigned __int16)(samplerState & 0xF000) >> 12);
-        if ( v22 )
-            R_ReleaseDXDeviceOwnership();
         if ( v23 < 0 )
         {
             ++g_disableRendering;
@@ -2313,13 +2112,9 @@ unsigned int __cdecl R_HW_SetSamplerState(
         }
         else
         {
-            R_AssertDXDeviceOwnership();
             if ( r_logFile && r_logFile->current.integer )
                 RB_LogPrint("device->SetSamplerState( samplerIndex, D3DSAMP_MAXANISOTROPY, anisotropy )\n");
-            v20 = R_AcquireDXDeviceOwnership(0);
             v21 = device->SetSamplerState(samplerIndex, D3DSAMP_MAXANISOTROPY, (unsigned __int8)samplerState);
-            if ( v20 )
-                R_ReleaseDXDeviceOwnership();
             if ( v21 < 0 )
             {
                 ++g_disableRendering;
@@ -2335,13 +2130,9 @@ unsigned int __cdecl R_HW_SetSamplerState(
     }
     if ( (diffSamplerState & 0xF0000) != 0 )
     {
-        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint("device->SetSamplerState( samplerIndex, D3DSAMP_MIPFILTER, mipFilter )\n");
-        v18 = R_AcquireDXDeviceOwnership(0);
         v19 = device->SetSamplerState(samplerIndex, D3DSAMP_MIPFILTER, (samplerState & 0xF0000) >> 16);
-        if ( v18 )
-            R_ReleaseDXDeviceOwnership();
         if ( v19 < 0 )
         {
             ++g_disableRendering;
@@ -2358,13 +2149,9 @@ unsigned int __cdecl R_HW_SetSamplerState(
     {
         if ( (diffSamplerState & 0x300000) != 0 )
         {
-            R_AssertDXDeviceOwnership();
             if ( r_logFile && r_logFile->current.integer )
                 RB_LogPrint("device->SetSamplerState( samplerIndex, D3DSAMP_ADDRESSU, address )\n");
-            v16 = R_AcquireDXDeviceOwnership(0);
             v17 = device->SetSamplerState(samplerIndex, D3DSAMP_ADDRESSU, (samplerState & 0x300000) >> 20);
-            if ( v16 )
-                R_ReleaseDXDeviceOwnership();
             if ( v17 < 0 )
             {
                 ++g_disableRendering;
@@ -2379,16 +2166,12 @@ unsigned int __cdecl R_HW_SetSamplerState(
         }
         if ( (0xC00000 & diffSamplerState) != 0 )
         {
-            R_AssertDXDeviceOwnership();
             if ( r_logFile && r_logFile->current.integer )
                 RB_LogPrint("device->SetSamplerState( samplerIndex, D3DSAMP_ADDRESSV, address )\n");
-            v14 = R_AcquireDXDeviceOwnership(0);
             v15 = device->SetSamplerState(
                             samplerIndex,
                             D3DSAMP_ADDRESSV,
                             (0xC00000 & samplerState) >> 22);
-            if ( v14 )
-                R_ReleaseDXDeviceOwnership();
             if ( v15 < 0 )
             {
                 ++g_disableRendering;
@@ -2403,13 +2186,9 @@ unsigned int __cdecl R_HW_SetSamplerState(
         }
         if ( (diffSamplerState & 0x3000000) != 0 )
         {
-            R_AssertDXDeviceOwnership();
             if ( r_logFile && r_logFile->current.integer )
                 RB_LogPrint("device->SetSamplerState( samplerIndex, D3DSAMP_ADDRESSW, address )\n");
-            v12 = R_AcquireDXDeviceOwnership(0);
             v13 = device->SetSamplerState(samplerIndex, D3DSAMP_ADDRESSW, (samplerState & 0x3000000) >> 24);
-            if ( v12 )
-                R_ReleaseDXDeviceOwnership();
             if ( v13 < 0 )
             {
                 ++g_disableRendering;
@@ -2474,7 +2253,6 @@ void __cdecl R_SetSampler(
 void __cdecl R_HW_SetSamplerTexture(IDirect3DDevice9 *device, unsigned int samplerIndex, const GfxTexture *texture)
 {
     const char *v3; // eax
-    int semaphore; // [esp+0h] [ebp-8h]
     int hr; // [esp+4h] [ebp-4h]
 
     if ( !texture
@@ -2482,13 +2260,9 @@ void __cdecl R_HW_SetSamplerTexture(IDirect3DDevice9 *device, unsigned int sampl
     {
         __debugbreak();
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetTexture( samplerIndex, texture->basemap )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetTexture(samplerIndex, texture->basemap);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -2934,16 +2708,11 @@ void __cdecl R_DisableSampler(GfxCmdBufState *state, unsigned int samplerIndex)
 void __cdecl R_HW_DisableSampler(IDirect3DDevice9 *device, unsigned int samplerIndex)
 {
     const char *v2; // eax
-    int semaphore; // [esp+0h] [ebp-8h]
     int hr; // [esp+4h] [ebp-4h]
 
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetTexture( samplerIndex, 0 )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetTexture(samplerIndex, 0);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -3127,9 +2896,7 @@ void R_HW_SetRenderTarget(GfxCmdBufState *state, GfxRenderTargetId newTargetId)
 {
     const char *v3; // eax
     const char *v4; // eax
-    int v5; // [esp+0h] [ebp-14h]
     int v6; // [esp+4h] [ebp-10h]
-    int semaphore; // [esp+8h] [ebp-Ch]
     int hr; // [esp+Ch] [ebp-8h]
     IDirect3DDevice9 *device; // [esp+10h] [ebp-4h]
 
@@ -3142,13 +2909,9 @@ void R_HW_SetRenderTarget(GfxCmdBufState *state, GfxRenderTargetId newTargetId)
     }
     if (gfxRenderTargets[state->renderTargetId].surface.color != gfxRenderTargets[newTargetId].surface.color)
     {
-        R_AssertDXDeviceOwnership();
         if (r_logFile && r_logFile->current.integer)
             RB_LogPrint("device->SetRenderTarget( 0, gfxRenderTargets[newTargetId].surface.color )\n");
-        semaphore = R_AcquireDXDeviceOwnership(0);
         hr = device->SetRenderTarget(0, gfxRenderTargets[newTargetId].surface.color);
-        if (semaphore)
-            R_ReleaseDXDeviceOwnership();
         if (hr < 0)
         {
             ++g_disableRendering;
@@ -3170,17 +2933,13 @@ void R_HW_SetRenderTarget(GfxCmdBufState *state, GfxRenderTargetId newTargetId)
     }
     if (gfxRenderTargets[state->renderTargetId].surface.depthStencil != gfxRenderTargets[newTargetId].surface.depthStencil)
     {
-        R_AssertDXDeviceOwnership();
         if (r_logFile && r_logFile->current.integer)
             RB_LogPrint("device->SetDepthStencilSurface( gfxRenderTargets[newTargetId].surface.depthStencil )\n");
-        v5 = R_AcquireDXDeviceOwnership(0);
         v6 = device->SetDepthStencilSurface(gfxRenderTargets[newTargetId].surface.depthStencil);
         //v6 = ((int(__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, IDirect3DSurface9 *))device->SetDepthStencilSurface)(
         //    device,
         //    device,
         //    gfxRenderTargets[newTargetId].surface.depthStencil);
-        if (v5)
-            R_ReleaseDXDeviceOwnership();
         if (v6 < 0)
         {
             ++g_disableRendering;
@@ -3216,15 +2975,12 @@ void __cdecl R_UnbindImage(GfxCmdBufState *state, const GfxImage *image)
 void R_ClearRenderTargetForMultiGpu(GfxCmdBufContext context, GfxRenderTargetId targetId)
 {
     const char *v3; // eax
-    int semaphore; // [esp+8h] [ebp-8h]
     int hr; // [esp+Ch] [ebp-4h]
 
     if (dx.gpuCount >= 2 && !gfxRenderTargets[targetId].cleared)
     {
-        R_AssertDXDeviceOwnership();
         if (r_logFile && r_logFile->current.integer)
             RB_LogPrint("context.state->prim.device->Clear(0, 0, 0x00000001l, 0x00000000, 0, 0)\n");
-        semaphore = R_AcquireDXDeviceOwnership(0);
 
         hr = context.state->prim.device->Clear(0, 0, 1, 0, 0.0f, 0);
         //hr = ((int(__stdcall *)(IDirect3DDevice9 *, _DWORD, _DWORD, int, _DWORD, _DWORD, _DWORD))context.state->prim.device->Clear)(
@@ -3235,8 +2991,6 @@ void R_ClearRenderTargetForMultiGpu(GfxCmdBufContext context, GfxRenderTargetId 
         //    0,
         //    0.0,
         //    0);
-        if (semaphore)
-            R_ReleaseDXDeviceOwnership();
         if (hr < 0)
         {
             ++g_disableRendering;
@@ -3265,9 +3019,7 @@ void __cdecl R_ClearScreenInternal(
     const char *v8; // eax
     const char *v9; // eax
     const char *v10; // eax
-    int v11; // [esp+9Ch] [ebp-24h]
     int v12; // [esp+A0h] [ebp-20h]
-    int semaphore; // [esp+A4h] [ebp-1Ch]
     int hr; // [esp+A8h] [ebp-18h]
     _D3DRECT rect; // [esp+ACh] [ebp-14h] BYREF
     GfxColor nativeColor; // [esp+BCh] [ebp-4h] BYREF
@@ -3316,10 +3068,8 @@ void __cdecl R_ClearScreenInternal(
         rect.x2 = viewport->width + rect.x1;
         rect.y1 = viewport->y;
         rect.y2 = viewport->height + rect.y1;
-        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint("device->Clear( 1, &rect, whichToClear, nativeColor.packed, depth, stencil )\n");
-        semaphore = R_AcquireDXDeviceOwnership(0);
 
         hr = device->Clear(1, &rect, whichToClear, (D3DCOLOR)nativeColor.packed, depth, stencil);
         //hr = ((int (__stdcall *)(unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int))device->Clear)(
@@ -3330,8 +3080,6 @@ void __cdecl R_ClearScreenInternal(
         //             (GfxColor)nativeColor.packed,
         //             LODWORD(depth),
         //             stencil);
-        if ( semaphore )
-            R_ReleaseDXDeviceOwnership();
         if ( hr < 0 )
         {
             ++g_disableRendering;
@@ -3346,10 +3094,8 @@ void __cdecl R_ClearScreenInternal(
     }
     else
     {
-        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint("device->Clear( 0, 0, whichToClear, nativeColor.packed, depth, stencil )\n");
-        v11 = R_AcquireDXDeviceOwnership(0);
         v12 = device->Clear(0, 0, whichToClear, nativeColor.packed, depth, stencil);
         //v12 = ((int (__stdcall *)(unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int))device->Clear)(
         //                device,
@@ -3359,8 +3105,6 @@ void __cdecl R_ClearScreenInternal(
         //                (GfxColor)nativeColor.packed,
         //                LODWORD(depth),
         //                stencil);
-        if ( v11 )
-            R_ReleaseDXDeviceOwnership();
         if ( v12 < 0 )
         {
             ++g_disableRendering;

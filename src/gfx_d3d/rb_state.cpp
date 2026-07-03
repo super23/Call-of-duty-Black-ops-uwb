@@ -5,7 +5,6 @@
 #include "r_state.h"
 #include "r_rendertarget.h"
 #include "rb_backend.h"
-#include "r_singlethreaded_device_pc.h"
 
 GfxCmdBufState gfxCmdBufState;
 GfxCmdBufInput gfxCmdBufInput;
@@ -57,15 +56,11 @@ void __cdecl RB_SetInitialState()
 void __cdecl RB_UnbindAllImages()
 {
     unsigned int samplerIndex; // [esp+0h] [ebp-8h]
-    int semaphore; // [esp+4h] [ebp-4h]
 
     if ( dx.device )
     {
-        semaphore = R_AcquireDXDeviceOwnership(0);
         for ( samplerIndex = 0; samplerIndex < vidConfig.maxTextureMaps; ++samplerIndex )
             R_DisableSampler(&gfxCmdBufState, samplerIndex);
-        if ( semaphore )
-            R_ReleaseDXDeviceOwnership();
     }
 }
 
@@ -90,12 +85,8 @@ void __cdecl RB_BindDefaultImages()
 
 void __cdecl RB_InitImages()
 {
-    int semaphore; // [esp+0h] [ebp-4h]
 
     RB_InitCodeImages();
-    semaphore = R_AcquireDXDeviceOwnership(0);
     RB_BindDefaultImages();
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
 }
 

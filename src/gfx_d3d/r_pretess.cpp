@@ -1,7 +1,6 @@
 #include "r_pretess.h"
 #include <universal/q_shared.h>
 #include "r_warn.h"
-#include "r_singlethreaded_device_pc.h"
 #include <win32/win_net.h>
 
 void __cdecl R_InitDrawSurfListInfo(GfxDrawSurfListInfo *info)
@@ -156,17 +155,13 @@ unsigned int __cdecl R_GetKeyCount(
 
 void __cdecl R_BeginPreTess(bool lockBuffer)
 {
-    int semaphore; // [esp+0h] [ebp-4h]
 
     if ( lockBuffer )
     {
         while ( *frontEndDataOut->dynamicBufferCurrentFrame
                  && *frontEndDataOut->dynamicBufferCurrentFrame < frontEndDataOut->frameCount )
         {
-            semaphore = R_ReleaseDXDeviceOwnership();
             NET_Sleep(0);
-            if ( semaphore )
-                R_AcquireDXDeviceOwnership(0);
         }
         *frontEndDataOut->dynamicBufferCurrentFrame = frontEndDataOut->frameCount;
     }

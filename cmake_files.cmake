@@ -1015,8 +1015,6 @@ set(SRC_GFX_D3D
 	"${SRC_DIR}/gfx_d3d/r_shade.h"
 	"${SRC_DIR}/gfx_d3d/r_shader_constant_set.cpp"
 	"${SRC_DIR}/gfx_d3d/r_shader_constant_set.h"
-	"${SRC_DIR}/gfx_d3d/r_singlethreaded_device_pc.cpp"
-	"${SRC_DIR}/gfx_d3d/r_singlethreaded_device_pc.h"
 	"${SRC_DIR}/gfx_d3d/r_sky.cpp"
 	"${SRC_DIR}/gfx_d3d/r_sky.h"
 	"${SRC_DIR}/gfx_d3d/r_sky_load_obj.cpp"

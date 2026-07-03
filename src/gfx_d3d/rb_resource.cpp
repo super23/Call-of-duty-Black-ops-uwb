@@ -1,5 +1,4 @@
 #include "rb_resource.h"
-#include "r_singlethreaded_device_pc.h"
 #include <qcommon/threads.h>
 #include <universal/timing.h>
 #include "r_image.h"
@@ -32,9 +31,7 @@ void __cdecl RB_Resource_CreateTexture(
                 _D3DFORMAT imageFormat)
 {
     r_resource_action *action; // [esp+0h] [ebp-8h]
-    int semaphore; // [esp+4h] [ebp-4h]
 
-    semaphore = R_ReleaseDXDeviceOwnership();
     RB_Resource_Lock();
     action = RB_Resource_AllocEntry();
     if ( !action
@@ -49,8 +46,6 @@ void __cdecl RB_Resource_CreateTexture(
     action->p2 = imageFormat;
     action->p3 = flags;
     RB_Resource_Unlock();
-    if ( semaphore )
-        R_AcquireDXDeviceOwnership(0);
 }
 
 r_resource_action *__cdecl RB_Resource_AllocEntry()
@@ -72,9 +67,7 @@ r_resource_action *__cdecl RB_Resource_AllocEntry()
 void __cdecl RB_Resource_Release(IUnknown *resource)
 {
     r_resource_action *action; // [esp+0h] [ebp-8h]
-    int semaphore; // [esp+4h] [ebp-4h]
 
-    semaphore = R_ReleaseDXDeviceOwnership();
     RB_Resource_Lock();
     action = RB_Resource_AllocEntry();
     if ( !action
@@ -85,16 +78,12 @@ void __cdecl RB_Resource_Release(IUnknown *resource)
     action->action = ACTION_RELEASE;
     action->resource = resource;
     RB_Resource_Unlock();
-    if ( semaphore )
-        R_AcquireDXDeviceOwnership(0);
 }
 
 void __cdecl RB_Resource_ReloadTexture(GfxImage *image, void *data)
 {
     r_resource_action *action; // [esp+0h] [ebp-8h]
-    int semaphore; // [esp+4h] [ebp-4h]
 
-    semaphore = R_ReleaseDXDeviceOwnership();
     RB_Resource_Lock();
     action = RB_Resource_AllocEntry();
     if ( !action
@@ -106,16 +95,12 @@ void __cdecl RB_Resource_ReloadTexture(GfxImage *image, void *data)
     action->resource = image;
     action->data = data;
     RB_Resource_Unlock();
-    if ( semaphore )
-        R_AcquireDXDeviceOwnership(0);
 }
 
 void __cdecl RB_Resource_Callback(void (__cdecl *callback)())
 {
     r_resource_action *action; // [esp+0h] [ebp-8h]
-    int semaphore; // [esp+4h] [ebp-4h]
 
-    semaphore = R_ReleaseDXDeviceOwnership();
     RB_Resource_Lock();
     action = RB_Resource_AllocEntry();
     if ( !action
@@ -126,16 +111,12 @@ void __cdecl RB_Resource_Callback(void (__cdecl *callback)())
     action->action = ACTION_CALLBACK;
     action->resource = callback;
     RB_Resource_Unlock();
-    if ( semaphore )
-        R_AcquireDXDeviceOwnership(0);
 }
 
 void __cdecl RB_Resource_CallbackParam(void (__cdecl *callback)(void *), void *data)
 {
     r_resource_action *action; // [esp+0h] [ebp-8h]
-    int semaphore; // [esp+4h] [ebp-4h]
 
-    semaphore = R_ReleaseDXDeviceOwnership();
     RB_Resource_Lock();
     action = RB_Resource_AllocEntry();
     if ( !action
@@ -147,8 +128,6 @@ void __cdecl RB_Resource_CallbackParam(void (__cdecl *callback)(void *), void *d
     action->resource = callback;
     action->data = data;
     RB_Resource_Unlock();
-    if ( semaphore )
-        R_AcquireDXDeviceOwnership(0);
 }
 
 void __cdecl RB_Resource_CreateVertexDeclaration(
@@ -156,9 +135,7 @@ void __cdecl RB_Resource_CreateVertexDeclaration(
                 IDirect3DVertexDeclaration9 **declaration)
 {
     r_resource_action *action; // [esp+0h] [ebp-8h]
-    int semaphore; // [esp+4h] [ebp-4h]
 
-    semaphore = R_ReleaseDXDeviceOwnership();
     RB_Resource_Lock();
     action = RB_Resource_AllocEntry();
     if ( !action
@@ -170,16 +147,12 @@ void __cdecl RB_Resource_CreateVertexDeclaration(
     action->resource = declaration;
     action->data = elements;
     RB_Resource_Unlock();
-    if ( semaphore )
-        R_AcquireDXDeviceOwnership(0);
 }
 
 void __cdecl RB_Resource_CreateVertexShader(unsigned int *function, IDirect3DVertexShader9 **shader)
 {
     r_resource_action *action; // [esp+0h] [ebp-8h]
-    int semaphore; // [esp+4h] [ebp-4h]
 
-    semaphore = R_ReleaseDXDeviceOwnership();
     RB_Resource_Lock();
     action = RB_Resource_AllocEntry();
     if ( !action
@@ -191,16 +164,12 @@ void __cdecl RB_Resource_CreateVertexShader(unsigned int *function, IDirect3DVer
     action->resource = shader;
     action->data = function;
     RB_Resource_Unlock();
-    if ( semaphore )
-        R_AcquireDXDeviceOwnership(0);
 }
 
 void __cdecl RB_Resource_CreatePixelShader(unsigned int *function, IDirect3DPixelShader9 **shader)
 {
     r_resource_action *action; // [esp+0h] [ebp-8h]
-    int semaphore; // [esp+4h] [ebp-4h]
 
-    semaphore = R_ReleaseDXDeviceOwnership();
     RB_Resource_Lock();
     action = RB_Resource_AllocEntry();
     if ( !action
@@ -212,16 +181,12 @@ void __cdecl RB_Resource_CreatePixelShader(unsigned int *function, IDirect3DPixe
     action->resource = shader;
     action->data = function;
     RB_Resource_Unlock();
-    if ( semaphore )
-        R_AcquireDXDeviceOwnership(0);
 }
 
 void __cdecl RB_Resource_LoadVertexBuffer(IDirect3DVertexBuffer9 **vb, void *bufferData, int sizeInBytes)
 {
     r_resource_action *action; // [esp+0h] [ebp-8h]
-    int semaphore; // [esp+4h] [ebp-4h]
 
-    semaphore = R_ReleaseDXDeviceOwnership();
     RB_Resource_Lock();
     action = RB_Resource_AllocEntry();
     if ( !action
@@ -234,8 +199,6 @@ void __cdecl RB_Resource_LoadVertexBuffer(IDirect3DVertexBuffer9 **vb, void *buf
     action->data = bufferData;
     action->p1 = sizeInBytes;
     RB_Resource_Unlock();
-    if ( semaphore )
-        R_AcquireDXDeviceOwnership(0);
 }
 
 void __cdecl RB_Resource_Update(int msec)
@@ -433,7 +396,6 @@ LABEL_2:
 
 void __cdecl RB_Resource_Flush()
 {
-    int semaphore; // [esp+0h] [ebp-4h]
 
     if ( Sys_IsRenderThread()
         && !Assert_MyHandler(
@@ -445,7 +407,6 @@ void __cdecl RB_Resource_Flush()
     {
         __debugbreak();
     }
-    semaphore = R_ReleaseDXDeviceOwnership();
     RB_Resource_Lock();
     if ( numResourceActions )
     {
@@ -457,7 +418,5 @@ void __cdecl RB_Resource_Flush()
     {
         RB_Resource_Unlock();
     }
-    if ( semaphore )
-        R_AcquireDXDeviceOwnership(0);
 }
 

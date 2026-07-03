@@ -2,7 +2,6 @@
 #include "rb_state.h"
 #include <universal/assertive.h>
 #include "r_state.h"
-#include "r_singlethreaded_device_pc.h"
 #include "r_dvars.h"
 #include "rb_logfile.h"
 #include "r_init.h"
@@ -101,25 +100,16 @@ void __cdecl R_HW_ForceSamplerState(IDirect3DDevice9 *device, unsigned int sampl
     const char *v7; // eax
     const char *v8; // eax
     const char *v9; // eax
-    int v10; // [esp+0h] [ebp-4Ch]
     int v11; // [esp+4h] [ebp-48h]
-    int v12; // [esp+8h] [ebp-44h]
     int v13; // [esp+Ch] [ebp-40h]
-    int v14; // [esp+10h] [ebp-3Ch]
     int v15; // [esp+14h] [ebp-38h]
-    int v16; // [esp+18h] [ebp-34h]
     int v17; // [esp+1Ch] [ebp-30h]
-    int v18; // [esp+20h] [ebp-2Ch]
     int v19; // [esp+24h] [ebp-28h]
-    int v20; // [esp+28h] [ebp-24h]
     int v21; // [esp+2Ch] [ebp-20h]
-    int semaphore; // [esp+30h] [ebp-1Ch]
     int hr; // [esp+34h] [ebp-18h]
 
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetSamplerState( samplerIndex, D3DSAMP_MINFILTER, minFilter )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetSamplerState(samplerIndex, (D3DSAMPLERSTATETYPE)6, (unsigned __int16)(samplerState & 0xF00) >> 8);
     //hr = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, unsigned int, int, int))device->SetSamplerState)(
     //             device,
@@ -127,8 +117,6 @@ void __cdecl R_HW_ForceSamplerState(IDirect3DDevice9 *device, unsigned int sampl
     //             samplerIndex,
     //             6,
     //             (unsigned __int16)(samplerState & 0xF00) >> 8);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -140,16 +128,12 @@ void __cdecl R_HW_ForceSamplerState(IDirect3DDevice9 *device, unsigned int sampl
             288,
             v3);
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetSamplerState( samplerIndex, D3DSAMP_MAGFILTER, magFilter )\n");
-    v20 = R_AcquireDXDeviceOwnership(0);
     v21 = device->SetSamplerState(
                     samplerIndex,
                     D3DSAMP_MAGFILTER,
                     (unsigned __int16)(samplerState & 0xF000) >> 12);
-    if ( v20 )
-        R_ReleaseDXDeviceOwnership();
     if ( v21 < 0 )
     {
         ++g_disableRendering;
@@ -163,13 +147,9 @@ void __cdecl R_HW_ForceSamplerState(IDirect3DDevice9 *device, unsigned int sampl
     }
     if ( (unsigned __int8)samplerState > 1u )
     {
-        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint("device->SetSamplerState( samplerIndex, D3DSAMP_MAXANISOTROPY, anisotropy )\n");
-        v18 = R_AcquireDXDeviceOwnership(0);
         v19 = device->SetSamplerState(samplerIndex, D3DSAMP_MAXANISOTROPY, (unsigned __int8)samplerState);
-        if ( v18 )
-            R_ReleaseDXDeviceOwnership();
         if ( v19 < 0 )
         {
             ++g_disableRendering;
@@ -182,10 +162,8 @@ void __cdecl R_HW_ForceSamplerState(IDirect3DDevice9 *device, unsigned int sampl
                 v5);
         }
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetSamplerState( samplerIndex, D3DSAMP_MIPFILTER, mipFilter )\n");
-    v16 = R_AcquireDXDeviceOwnership(0);
     //v17 = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, unsigned int, int, unsigned int))device->SetSamplerState)(
     //                device,
     //                device,
@@ -193,8 +171,6 @@ void __cdecl R_HW_ForceSamplerState(IDirect3DDevice9 *device, unsigned int sampl
     //                7,
     //                (samplerState & 0xF0000) >> 16);
     v17 = device->SetSamplerState(samplerIndex, (D3DSAMPLERSTATETYPE)7, (samplerState & 0xF0000) >> 16);
-    if ( v16 )
-        R_ReleaseDXDeviceOwnership();
     if ( v17 < 0 )
     {
         ++g_disableRendering;
@@ -206,13 +182,9 @@ void __cdecl R_HW_ForceSamplerState(IDirect3DDevice9 *device, unsigned int sampl
             298,
             v6);
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetSamplerState( samplerIndex, D3DSAMP_ADDRESSU, address )\n");
-    v14 = R_AcquireDXDeviceOwnership(0);
     v15 = device->SetSamplerState(samplerIndex, D3DSAMP_ADDRESSU, (samplerState & 0x300000) >> 20);
-    if ( v14 )
-        R_ReleaseDXDeviceOwnership();
     if ( v15 < 0 )
     {
         ++g_disableRendering;
@@ -224,16 +196,12 @@ void __cdecl R_HW_ForceSamplerState(IDirect3DDevice9 *device, unsigned int sampl
             305,
             v7);
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetSamplerState( samplerIndex, D3DSAMP_ADDRESSV, address )\n");
-    v12 = R_AcquireDXDeviceOwnership(0);
     v13 = device->SetSamplerState(
                     samplerIndex,
                     D3DSAMP_ADDRESSV,
                     (0xC00000 & samplerState) >> 22);
-    if ( v12 )
-        R_ReleaseDXDeviceOwnership();
     if ( v13 < 0 )
     {
         ++g_disableRendering;
@@ -245,10 +213,8 @@ void __cdecl R_HW_ForceSamplerState(IDirect3DDevice9 *device, unsigned int sampl
             308,
             v8);
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetSamplerState( samplerIndex, D3DSAMP_ADDRESSW, address )\n");
-    v10 = R_AcquireDXDeviceOwnership(0);
     //v11 = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, unsigned int, int, unsigned int))device->SetSamplerState)(
     //                device,
     //                device,
@@ -256,8 +222,6 @@ void __cdecl R_HW_ForceSamplerState(IDirect3DDevice9 *device, unsigned int sampl
     //                3,
     //                (samplerState & 0x3000000) >> 24);
     v11 = device->SetSamplerState(samplerIndex, (D3DSAMPLERSTATETYPE)3, (samplerState & 0x3000000) >> 24);
-    if ( v10 )
-        R_ReleaseDXDeviceOwnership();
     if ( v11 < 0 )
     {
         ++g_disableRendering;
@@ -274,20 +238,15 @@ void __cdecl R_HW_ForceSamplerState(IDirect3DDevice9 *device, unsigned int sampl
 void __cdecl R_SetDefaultAlphaTestFunction(GfxCmdBufState *state)
 {
     const char *v1; // eax
-    int semaphore; // [esp+0h] [ebp-Ch]
     int hr; // [esp+4h] [ebp-8h]
     IDirect3DDevice9 *device; // [esp+8h] [ebp-4h]
 
     device = state->prim.device;
     if ( !device && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_state.h", 2011, 0, "%s", "device") )
         __debugbreak();
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_ALPHAREF, 0 )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetRenderState(D3DRS_ALPHAREF, 0);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;

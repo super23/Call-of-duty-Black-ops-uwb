@@ -37,7 +37,6 @@
 #include "r_sunshadow.h"
 #include "r_add_staticmodel.h"
 #include <DynEntity/DynEntity_pieces.h>
-#include "r_singlethreaded_device_pc.h"
 #include "r_spotshadow.h"
 #include "r_foliage.h"
 #include "r_water_sim.h"
@@ -3449,7 +3448,6 @@ void __cdecl R_GenerateSortedDrawSurfs(
     GfxViewInfo *viewInfo; // [esp+240h] [ebp-50h]
     int viewInfoIndex; // [esp+244h] [ebp-4Ch]
     bool forStereoRightEyeView; // [esp+24Bh] [ebp-45h]
-    int semaphore; // [esp+24Ch] [ebp-44h]
     ShadowType dynamicShadowType; // [esp+250h] [ebp-40h]
     SceneEntCmd sceneEntCmd; // [esp+254h] [ebp-3Ch] BYREF
     FxCmd cmd; // [esp+258h] [ebp-38h] BYREF
@@ -3748,7 +3746,6 @@ void __cdecl R_GenerateSortedDrawSurfs(
             R_AddAllStaticModelSurfacesSunShadow(viewInfoIndex);
         }
     }
-    semaphore = R_ReleaseDXDeviceOwnership();
     FX_BeginMarks(viewInfo->localClientNum);
     memset((unsigned __int8 *)&cmd, 0, sizeof(cmd));
     cmd.localClientNum = viewInfo->localClientNum;
@@ -3764,11 +3761,6 @@ void __cdecl R_GenerateSortedDrawSurfs(
     {
         PROF_SCOPED("wait for r_spot_shadow_ent");
         Sys_WaitWorkerCmdInternal(&r_spot_shadow_entWorkerCmd);
-    }
-    
-    if (semaphore)
-    {
-        R_AcquireDXDeviceOwnership(0);
     }
 
     {

@@ -11,7 +11,6 @@
 #include <qcommon/com_profilemapload.h>
 #include <win32/win_shared.h>
 #include "db_file_load.h"
-#include <gfx_d3d/r_singlethreaded_device_pc.h>
 #include <win32/win_net.h>
 #include <algorithm>
 #include <win32/win_local.h>
@@ -1286,7 +1285,6 @@ XAssetHeader __cdecl DB_FindXAssetHeader(XAssetType type, char *name, bool error
     signed int v16; // [esp+40h] [ebp-ACh]
     signed int v17; // [esp+50h] [ebp-9Ch]
     BOOL suspendedThread; // [esp+78h] [ebp-74h]
-    int semaphore; // [esp+7Ch] [ebp-70h]
     const char *basename; // [esp+80h] [ebp-6Ch]
     DWORD start; // [esp+90h] [ebp-5Ch]
     char so_name[64]; // [esp+94h] [ebp-58h] BYREF
@@ -1373,10 +1371,7 @@ XAssetHeader __cdecl DB_FindXAssetHeader(XAssetType type, char *name, bool error
             suspendedThread = Sys_HaveSuspendedDiscReads(THREAD_OWNER_DATABASE);
             if (suspendedThread)
                 Sys_ResumeDiscReads(THREAD_OWNER_DATABASE);
-            semaphore = R_ReleaseDXDeviceOwnership();
             DB_Sleep(0);
-            if (semaphore)
-                R_AcquireDXDeviceOwnership(0);
             if (suspendedThread)
                 Sys_SuspendDiscReads(THREAD_OWNER_DATABASE);
         }
@@ -2017,7 +2012,6 @@ int __cdecl DB_GetAllXAssetOfType_FastFile(XAssetType type, XAssetHeader *assets
 
 void __cdecl DB_BeginRecoverLostDevice()
 {
-    int semaphore; // [esp+0h] [ebp-4h]
 
     if ( !Sys_IsRenderThread()
         && !Assert_MyHandler(
@@ -2039,12 +2033,9 @@ void __cdecl DB_BeginRecoverLostDevice()
     {
         __debugbreak();
     }
-    semaphore = R_ReleaseDXDeviceOwnership();
     g_isRecoveringLostDevice = 1;
     while ( !g_mayRecoverLostAssets )
         NET_Sleep(0);
-    if ( semaphore )
-        R_AcquireDXDeviceOwnership(0);
 }
 
 void __cdecl DB_EndRecoverLostDevice()
@@ -3562,7 +3553,6 @@ void __cdecl    DB_Thread(unsigned int threadContext)
     //if ( _setjmp3(Value, 0) )
     if ( _setjmp(Value) )
         Com_ErrorAbort();
-    R_ReleaseDXDeviceOwnership();
     while ( 1 )
     {
         Sys_WaitStartDatabase();
@@ -4540,16 +4530,12 @@ void __cdecl DB_ReplaceXAsset(XAssetType type, const char *original, const char 
 
 void __cdecl DB_SyncExternalAssetsInternal()
 {
-    int semaphore; // [esp+0h] [ebp-4h]
 
-    semaphore = R_AcquireDXDeviceOwnership(0);
     RB_UnbindAllImages();
     R_ShutdownStreams();
     RB_ClearPixelShader();
     RB_ClearVertexShader();
     RB_ClearVertexDecl();
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
 }
 
 void DB_SyncExternalAssets() // inlined in retail

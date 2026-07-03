@@ -18,7 +18,6 @@
 #include <cgame/cg_compass.h>
 #include <bgame/bg_misc.h>
 #include <ui_mp/ui_main_mp.h>
-#include <gfx_d3d/r_singlethreaded_device_pc.h>
 #include <qcommon/threads.h>
 #include <win32/win_main.h>
 #include <sound/snd_public_async.h>

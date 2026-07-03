@@ -4,7 +4,6 @@
 #include <universal/q_shared.h>
 #include "common.h"
 #include <tl/jobqueue/jobqueue_all.h>
-#include <gfx_d3d/r_singlethreaded_device_pc.h>
 #include <live/live_win_common.h>
 #include <gfx_d3d/r_cinematic.h>
 #include <gfx_d3d/rb_resource.h>
@@ -476,13 +475,9 @@ void __cdecl Sys_RenderCompleted()
 
 void __cdecl Sys_FrontEndSleep()
 {
-    int semaphore; // [esp+8h] [ebp-4h]
 
-    semaphore = R_ReleaseDXDeviceOwnership();
     PROF_SCOPED("frontend sleep");
     Sys_WaitForSingleObject(&rendererRunningEvent);
-    if ( semaphore )
-        R_AcquireDXDeviceOwnership(0);
 }
 
 int __cdecl Sys_WaitRenderer()
@@ -602,9 +597,7 @@ bool __cdecl Sys_IsDatabaseReady()
 
 void __cdecl Sys_SyncDatabase()
 {
-    int semaphore; // [esp+4h] [ebp-4h]
 
-    semaphore = R_ReleaseDXDeviceOwnership();
     while ( !Sys_WaitForSingleObjectTimeout(&databaseCompletedEvent, 1u) )
     {
         R_Cinematic_ForceRelinquishIO();
@@ -612,8 +605,6 @@ void __cdecl Sys_SyncDatabase()
             RB_Resource_Update(5);
         SocketRouter_EmergencyFrame();
     }
-    if ( semaphore )
-        R_AcquireDXDeviceOwnership(0);
 }
 
 void __cdecl Sys_WakeDatabase()

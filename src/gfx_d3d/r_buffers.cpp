@@ -1,6 +1,5 @@
 #include "r_buffers.h"
 #include <universal/assertive.h>
-#include "r_singlethreaded_device_pc.h"
 #include "r_init.h"
 #include "r_dvars.h"
 #include <universal/q_shared.h>
@@ -22,31 +21,23 @@ void *__cdecl R_LockVertexBuffer(
                 unsigned int lockFlags)
 {
     int hr; // [esp+0h] [ebp-Ch]
-    int semaphore; // [esp+4h] [ebp-8h]
     void *bufferData; // [esp+8h] [ebp-4h] BYREF
 
     if ( !handle && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_buffers.cpp", 134, 0, "%s", "handle") )
         __debugbreak();
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = handle->Lock(offset, bytes, &bufferData, lockFlags);
     if ( hr < 0 )
         R_FatalLockError(hr);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     return bufferData;
 }
 
 void __cdecl R_UnlockVertexBuffer(IDirect3DVertexBuffer9 *handle)
 {
-    int semaphore; // [esp+0h] [ebp-4h]
 
     if ( !handle && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_buffers.cpp", 146, 0, "%s", "handle") )
         __debugbreak();
-    semaphore = R_AcquireDXDeviceOwnership(0);
     handle->Unlock();
     //((void (__thiscall *)(IDirect3DVertexBuffer9 *, IDirect3DVertexBuffer9 *))handle->Unlock)(handle, handle);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
 }
 
 void *__cdecl R_LockIndexBuffer(
@@ -56,31 +47,23 @@ void *__cdecl R_LockIndexBuffer(
                 unsigned int lockFlags)
 {
     int hr; // [esp+0h] [ebp-Ch]
-    int semaphore; // [esp+4h] [ebp-8h]
     void *bufferData; // [esp+8h] [ebp-4h] BYREF
 
     if ( !handle && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_buffers.cpp", 157, 0, "%s", "handle") )
         __debugbreak();
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = handle->Lock(offset, bytes, &bufferData, lockFlags);
     if ( hr < 0 )
         R_FatalLockError(hr);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     return bufferData;
 }
 
 void __cdecl R_UnlockIndexBuffer(IDirect3DIndexBuffer9 *handle)
 {
-    int semaphore; // [esp+0h] [ebp-4h]
 
     if ( !handle && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_buffers.cpp", 169, 0, "%s", "handle") )
         __debugbreak();
-    semaphore = R_AcquireDXDeviceOwnership(0);
     //((void (__thiscall *)(IDirect3DIndexBuffer9 *, IDirect3DIndexBuffer9 *))handle->Unlock)(handle, handle);
     handle->Unlock();
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
 }
 
 void *__cdecl R_AllocDynamicVertexBuffer(IDirect3DVertexBuffer9 **vb, int sizeInBytes)
@@ -88,7 +71,6 @@ void *__cdecl R_AllocDynamicVertexBuffer(IDirect3DVertexBuffer9 **vb, int sizeIn
     const char *v3; // eax
     const char *v4; // eax
     int hr; // [esp+0h] [ebp-8h]
-    int semaphore; // [esp+4h] [ebp-4h]
 
     if ( !vb && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_buffers.cpp", 180, 0, "%s", "vb") )
         __debugbreak();
@@ -105,7 +87,6 @@ void *__cdecl R_AllocDynamicVertexBuffer(IDirect3DVertexBuffer9 **vb, int sizeIn
     }
     if ( !r_loadForRenderer->current.enabled )
         return 0;
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = dx.device->CreateVertexBuffer(sizeInBytes, 520u, 0, D3DPOOL_DEFAULT, vb, 0);
     if ( hr < 0 )
     {
@@ -113,8 +94,6 @@ void *__cdecl R_AllocDynamicVertexBuffer(IDirect3DVertexBuffer9 **vb, int sizeIn
         v4 = va("DirectX didn't create a %i-byte dynamic vertex buffer: %s\n", sizeInBytes, v3);
         R_FatalInitError(v4);
     }
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     return 0;
 }
 
@@ -127,7 +106,6 @@ void *__cdecl R_AllocStaticVertexBuffer(IDirect3DVertexBuffer9 **vb, int sizeInB
     int hr; // [esp+0h] [ebp-Ch]
     int hra; // [esp+0h] [ebp-Ch]
     void *vertexBufferData; // [esp+4h] [ebp-8h] BYREF
-    int semaphore; // [esp+8h] [ebp-4h]
 
     if ( !vb && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_buffers.cpp", 206, 0, "%s", "vb") )
         __debugbreak();
@@ -142,7 +120,6 @@ void *__cdecl R_AllocStaticVertexBuffer(IDirect3DVertexBuffer9 **vb, int sizeInB
     {
         __debugbreak();
     }
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = dx.device->CreateVertexBuffer(sizeInBytes, 8u, 0, D3DPOOL_DEFAULT, vb, 0);
     if ( hr < 0 )
     {
@@ -157,27 +134,18 @@ void *__cdecl R_AllocStaticVertexBuffer(IDirect3DVertexBuffer9 **vb, int sizeInB
         v5 = va("DirectX didn't lock a vertex buffer: %s\n", v4);
         R_FatalInitError(v5);
     }
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     return vertexBufferData;
 }
 
 void __cdecl R_FinishStaticVertexBuffer(IDirect3DVertexBuffer9 *vb)
 {
     const char *v1; // eax
-    int v2; // [esp+0h] [ebp-Ch]
     int hr; // [esp+4h] [ebp-8h]
-    int semaphore; // [esp+8h] [ebp-4h]
 
-    semaphore = R_AcquireDXDeviceOwnership(0);
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("vb->Unlock()\n");
-    v2 = R_AcquireDXDeviceOwnership(0);
     //hr = ((int (__thiscall *)(IDirect3DVertexBuffer9 *, IDirect3DVertexBuffer9 *))vb->Unlock)(vb, vb);
     hr = vb->Unlock();
-    if ( v2 )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -188,8 +156,6 @@ void __cdecl R_FinishStaticVertexBuffer(IDirect3DVertexBuffer9 *vb)
             229,
             v1);
     }
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
 }
 
 void __cdecl R_FreeStaticVertexBuffer(IDirect3DVertexBuffer9 *vb)
@@ -219,11 +185,9 @@ void *__cdecl R_AllocDynamicIndexBuffer(IDirect3DIndexBuffer9 **ib, unsigned int
     const char *v3; // eax
     const char *v4; // eax
     int hr; // [esp+0h] [ebp-8h]
-    int semaphore; // [esp+4h] [ebp-4h]
 
     if ( !r_loadForRenderer->current.enabled )
         return 0;
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = dx.device->CreateIndexBuffer(sizeInBytes, 520u, D3DFMT_INDEX16, D3DPOOL_DEFAULT, ib, 0);
     if ( hr < 0 )
     {
@@ -231,8 +195,6 @@ void *__cdecl R_AllocDynamicIndexBuffer(IDirect3DIndexBuffer9 **ib, unsigned int
         v4 = va("Couldn't create a %i-byte dynamic index buffer: %s", sizeInBytes, v3);
         R_FatalInitError(v4);
     }
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     return 0;
 }
 
@@ -240,7 +202,6 @@ void *__cdecl R_AllocStaticIndexBuffer(IDirect3DIndexBuffer9 **ib, int sizeInByt
 {
     HRESULT hr; // [esp+0h] [ebp-Ch]
     void *indexBufferData; // [esp+4h] [ebp-8h] BYREF
-    int semaphore; // [esp+8h] [ebp-4h]
 
     if ( !ib && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_buffers.cpp", 266, 0, "%s", "ib") )
         __debugbreak();
@@ -255,10 +216,7 @@ void *__cdecl R_AllocStaticIndexBuffer(IDirect3DIndexBuffer9 **ib, int sizeInByt
     {
         __debugbreak();
     }
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = dx.device->CreateIndexBuffer(sizeInBytes, 8u, D3DFMT_INDEX16, D3DPOOL_DEFAULT, ib, 0);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
         return 0;
     if ( (*ib)->Lock(0, 0, &indexBufferData, 0) >= 0 )
@@ -271,19 +229,12 @@ void *__cdecl R_AllocStaticIndexBuffer(IDirect3DIndexBuffer9 **ib, int sizeInByt
 void __cdecl R_FinishStaticIndexBuffer(IDirect3DIndexBuffer9 *ib)
 {
     const char *v1; // eax
-    int v2; // [esp+0h] [ebp-Ch]
     int hr; // [esp+4h] [ebp-8h]
-    int semaphore; // [esp+8h] [ebp-4h]
 
-    semaphore = R_AcquireDXDeviceOwnership(0);
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("ib->Unlock()\n");
-    v2 = R_AcquireDXDeviceOwnership(0);
     //hr = ((int (__thiscall *)(IDirect3DIndexBuffer9 *, IDirect3DIndexBuffer9 *))ib->Unlock)(ib, ib);
     hr = ib->Unlock();
-    if ( v2 )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -294,8 +245,6 @@ void __cdecl R_FinishStaticIndexBuffer(IDirect3DIndexBuffer9 *ib)
             294,
             v1);
     }
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
 }
 
 void __cdecl R_FreeStaticIndexBuffer(IDirect3DIndexBuffer9 *ib)

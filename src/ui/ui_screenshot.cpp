@@ -78,18 +78,14 @@ void __cdecl UI_ScreenshotDecompressCallback(void *data)
 
     s_image = (GfxImage *)Z_VirtualAlloc(52, "TempImage", 23);
     Image_Create2DTexture_PC(s_image, *((_WORD *)data + 2), *((_WORD *)data + 4), 1u, 0, *((_D3DFORMAT *)data + 3));
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("s_image->texture.map->LockRect(0, &rect, 0, 0x00002000L)\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = ((int (__stdcall *)(unsigned int, unsigned int, unsigned int, unsigned int, unsigned int))s_image->texture.basemap->__vftable[1].Release)(
                  (GfxTexture)s_image->texture.basemap,
                  0,
                  &rect,
                  0,
                  0x2000);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -102,13 +98,9 @@ void __cdecl UI_ScreenshotDecompressCallback(void *data)
             v1);
     }
     memcpy((unsigned __int8 *)rect.pBits, *(unsigned __int8 **)data, 4 * *((unsigned int *)data + 2) * *((unsigned int *)data + 1));
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("s_image->texture.map->UnlockRect(0)\n");
-    v3 = R_AcquireDXDeviceOwnership(0);
     v4 = s_image->texture.basemap->__vftable[1].GetDevice(s_image->texture.basemap, 0);
-    if ( v3 )
-        R_ReleaseDXDeviceOwnership();
     if ( v4 < 0 )
     {
         ++g_disableRendering;

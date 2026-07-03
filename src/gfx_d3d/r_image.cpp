@@ -4,7 +4,6 @@
 #include <qcommon/threads.h>
 #include "rb_resource.h"
 #include "r_dvars.h"
-#include "r_singlethreaded_device_pc.h"
 #include "rb_logfile.h"
 #include "r_image_load_common.h"
 #include "r_image_load_obj.h"
@@ -373,10 +372,8 @@ void __cdecl Image_Create2DTexture_PC(
                 _D3DFORMAT imageFormat)
 {
     const char *v6; // eax
-    int v7; // [esp+0h] [ebp-14h]
     int hr; // [esp+4h] [ebp-10h]
     unsigned int usage; // [esp+8h] [ebp-Ch]
-    int semaphore; // [esp+Ch] [ebp-8h]
     _D3DPOOL memPool; // [esp+10h] [ebp-4h]
 
     if ( !image && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_image.cpp", 646, 0, "%s", "image") )
@@ -412,11 +409,8 @@ void __cdecl Image_Create2DTexture_PC(
     {
         __debugbreak();
     }
-    semaphore = R_AcquireDXDeviceOwnership(0);
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("dx.device->CreateTexture( width, height, mipmapCount, usage, imageFormat, memPool, &image->texture.map, 0 )\n");
-    v7 = R_AcquireDXDeviceOwnership(0);
     hr = dx.device->CreateTexture(
                  width,
                  height,
@@ -426,8 +420,6 @@ void __cdecl Image_Create2DTexture_PC(
                  memPool,
                  (IDirect3DTexture9 **)image,
                  0);
-    if ( v7 )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -439,8 +431,6 @@ void __cdecl Image_Create2DTexture_PC(
             679,
             v6);
     }
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
 }
 
 unsigned int __cdecl Image_GetUsage(int imageFlags, _D3DFORMAT imageFormat)
@@ -472,9 +462,7 @@ void __cdecl Image_Create3DTexture_PC(
                 _D3DFORMAT imageFormat)
 {
     const char *v7; // eax
-    int v8; // [esp+0h] [ebp-14h]
     int hr; // [esp+4h] [ebp-10h]
-    int semaphore; // [esp+Ch] [ebp-8h]
 
     if ( !image && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_image.cpp", 701, 0, "%s", "image") )
         __debugbreak();
@@ -503,12 +491,9 @@ void __cdecl Image_Create3DTexture_PC(
     {
         __debugbreak();
     }
-    semaphore = R_AcquireDXDeviceOwnership(0);
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint(
             "dx.device->CreateVolumeTexture( width, height, depth, mipmapCount, 0, imageFormat, D3DPOOL_MANAGED, &image->texture.volmap, 0 )\n");
-    v8 = R_AcquireDXDeviceOwnership(0);
     hr = dx.device->CreateVolumeTexture(
                  width,
                  height,
@@ -519,8 +504,6 @@ void __cdecl Image_Create3DTexture_PC(
                  D3DPOOL_MANAGED,
                  (IDirect3DVolumeTexture9 **)image,
                  0);
-    if ( v8 )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -532,8 +515,6 @@ void __cdecl Image_Create3DTexture_PC(
             721,
             v7);
     }
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
 }
 
 void __cdecl Image_CreateCubeTexture_PC(
@@ -543,9 +524,7 @@ void __cdecl Image_CreateCubeTexture_PC(
                 _D3DFORMAT imageFormat)
 {
     const char *v4; // eax
-    int v5; // [esp+0h] [ebp-Ch]
     int hr; // [esp+4h] [ebp-8h]
-    int semaphore; // [esp+8h] [ebp-4h]
 
     if ( !image && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_image.cpp", 741, 0, "%s", "image") )
         __debugbreak();
@@ -575,12 +554,9 @@ void __cdecl Image_CreateCubeTexture_PC(
     {
         __debugbreak();
     }
-    semaphore = R_AcquireDXDeviceOwnership(0);
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint(
             "dx.device->CreateCubeTexture( edgeLen, mipmapCount, 0, imageFormat, D3DPOOL_MANAGED, &image->texture.cubemap, 0 )\n");
-    v5 = R_AcquireDXDeviceOwnership(0);
     hr = dx.device->CreateCubeTexture(
                  edgeLen,
                  mipmapCount,
@@ -589,8 +565,6 @@ void __cdecl Image_CreateCubeTexture_PC(
                  D3DPOOL_MANAGED,
                  (IDirect3DCubeTexture9 **)image,
                  0);
-    if ( v5 )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -602,8 +576,6 @@ void __cdecl Image_CreateCubeTexture_PC(
             758,
             v4);
     }
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
 }
 
 void __cdecl Image_SetupRenderTarget(
@@ -1141,7 +1113,6 @@ void __cdecl R_EnumImages(void (__cdecl *func)(GfxImage *, void *), void *data)
 IDirect3DSurface9 *__cdecl Image_GetSurface(GfxImage *image)
 {
     const char *v1; // eax
-    int semaphore; // [esp+0h] [ebp-Ch]
     int hr; // [esp+4h] [ebp-8h]
     IDirect3DSurface9 *surface; // [esp+8h] [ebp-4h] BYREF
 
@@ -1162,17 +1133,13 @@ IDirect3DSurface9 *__cdecl Image_GetSurface(GfxImage *image)
     {
         __debugbreak();
     }
-    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("image->texture.map->GetSurfaceLevel( 0, &surface )\n");
-    semaphore = R_AcquireDXDeviceOwnership(0);
     //hr = ((int (__stdcall *)(unsigned int, unsigned int, unsigned int))image->texture.basemap->__vftable[1].AddRef)(
     //             (GfxTexture)image->texture.basemap,
     //             0,
     //             &surface);
     hr = image->texture.map->GetSurfaceLevel(0, &surface);
-    if ( semaphore )
-        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;

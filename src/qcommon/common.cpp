@@ -22,7 +22,6 @@
 #include <glass/glass_client.h>
 #include <demo/demo_playback.h>
 #include <stringed/stringed_hooks.h>
-#include <gfx_d3d/r_singlethreaded_device_pc.h>
 #include <universal/com_tasks.h>
 #include <csetjmp>
 #include <win32/win_splash.h>
@@ -728,7 +727,6 @@ void Com_Error(errorParm_t code, const char *fmt, ...)
             Com_Printf(16, "\n====================================================\n");
             Com_Printf(16, "Com_ERROR: %s", com_errorMessage);
             Com_Printf(16, "\n====================================================\n\n");
-            R_ReleaseDXDeviceOwnership();
             if ( G_ExitOnComError(code) )
             {
                 printf("Fatal Error: %s\n", com_errorMessage);
@@ -768,7 +766,6 @@ void __cdecl Com_CheckError()
     Sys_LeaveCriticalSection(CRITSECT_COM_ERROR);
     if ( errorEntered )
     {
-        R_ReleaseDXDeviceOwnership();
         Value = (int *)Sys_GetValue(2);
         longjmp(Value, -1);
     }
@@ -2776,7 +2773,6 @@ void __cdecl Com_Frame()
     //if ( !_setjmp3(Value, 0) )
     if ( !_setjmp((int*)Value) )
     {
-        R_ReleaseDXDeviceOwnership();
         Com_CheckSyncFrame();
         Com_Frame_Try_Block_Function();
         ++com_frameNumber;

@@ -1,6 +1,5 @@
 #include "rb_sky.h"
 #include "rb_shade.h"
-#include "r_singlethreaded_device_pc.h"
 #include "r_dvars.h"
 #include "rb_logfile.h"
 #include "r_state.h"
@@ -18,13 +17,9 @@ unsigned int __cdecl RB_CalcSunSpriteSamples()
   const char *v2; // eax
   const char *v3; // eax
   const char *v4; // eax
-  int v5; // [esp+38h] [ebp-2Ch]
   int v6; // [esp+3Ch] [ebp-28h]
-  int v7; // [esp+40h] [ebp-24h]
   int v8; // [esp+44h] [ebp-20h]
-  int v9; // [esp+48h] [ebp-1Ch]
   int v10; // [esp+4Ch] [ebp-18h]
-  int semaphore; // [esp+50h] [ebp-14h]
   int v12; // [esp+54h] [ebp-10h]
   IDirect3DQuery9 *occlusionQuery; // [esp+58h] [ebp-Ch]
   HRESULT hr; // [esp+5Ch] [ebp-8h]
@@ -58,13 +53,9 @@ unsigned int __cdecl RB_CalcSunSpriteSamples()
   RB_ResetStatTracking(0);
   if ( tess.indexCount )
     RB_EndTessSurface();
-  R_AssertDXDeviceOwnership();
   if ( r_logFile && r_logFile->current.integer )
     RB_LogPrint("dx.device->BeginScene()\n");
-  semaphore = R_AcquireDXDeviceOwnership(0);
   v12 = dx.device->BeginScene();
-  if ( semaphore )
-    R_ReleaseDXDeviceOwnership();
   if ( v12 < 0 )
   {
     ++g_disableRendering;
@@ -77,13 +68,9 @@ unsigned int __cdecl RB_CalcSunSpriteSamples()
   }
   R_ClearScreenInternal(gfxCmdBufState.prim.device, 2u, colorWhite, 1.0, 0, 0);
   R_SetCodeConstantFromVec4(&gfxCmdBufSourceState, CONST_SRC_CODE_MATERIAL_COLOR, (float*)colorWhite);
-  R_AssertDXDeviceOwnership();
   if ( r_logFile && r_logFile->current.integer )
     RB_LogPrint("occlusionQuery->Issue( (1 << 1) )\n");
-  v9 = R_AcquireDXDeviceOwnership(0);
   v10 = occlusionQuery->Issue(2);
-  if ( v9 )
-    R_ReleaseDXDeviceOwnership();
   if ( v10 < 0 )
   {
     ++g_disableRendering;
@@ -107,17 +94,13 @@ unsigned int __cdecl RB_CalcSunSpriteSamples()
     __debugbreak();
   }
   RB_EndTessSurface();
-  R_AssertDXDeviceOwnership();
   if ( r_logFile && r_logFile->current.integer )
     RB_LogPrint("occlusionQuery->Issue( (1 << 0) )\n");
-  v7 = R_AcquireDXDeviceOwnership(0);
   //v8 = ((int (__thiscall *)(IDirect3DQuery9 *, IDirect3DQuery9 *, int))occlusionQuery->Issue)(
   //       occlusionQuery,
   //       occlusionQuery,
   //       1);
   v8 = occlusionQuery->Issue(1);
-  if ( v7 )
-    R_ReleaseDXDeviceOwnership();
   if ( v8 < 0 )
   {
     ++g_disableRendering;
@@ -128,13 +111,9 @@ unsigned int __cdecl RB_CalcSunSpriteSamples()
       70,
       v3);
   }
-  R_AssertDXDeviceOwnership();
   if ( r_logFile && r_logFile->current.integer )
     RB_LogPrint("dx.device->EndScene()\n");
-  v5 = R_AcquireDXDeviceOwnership(0);
   v6 = dx.device->EndScene();
-  if ( v5 )
-    R_ReleaseDXDeviceOwnership();
   if ( v6 < 0 )
   {
     ++g_disableRendering;
