@@ -13,6 +13,8 @@ struct XAnim_s;
 struct hudelem_s;
 union hudelem_color_t;
 
+#define EVENT_PARM_MAX 2047
+
 enum entity_event_t : __int32
 {
     EV_NONE                        = 0x0,

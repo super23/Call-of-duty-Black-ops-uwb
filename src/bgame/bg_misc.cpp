@@ -2564,7 +2564,6 @@ bool __cdecl BG_ValidateOriginValue(float val, char bits, float mapCenterValue)
             && (int)val >= (int)(float)(mapCenterValue - (float)maxVal);
 }
 
-// (aislop)
 template<typename EventType, typename EventParmType>
 void BG_AddEvent(
     unsigned int newEvent,
@@ -2578,47 +2577,13 @@ void BG_AddEvent(
     if (!newEvent)
         return;
 
-    if (newEvent >= 0x100 &&
-        !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_misc.cpp",
-            1708, 0,
-            "newEvent doesn't index 256\n\t%i not in [0, %i)",
-            newEvent, 256))
-    {
-        __debugbreak();
-    }
+    bcassert(newEvent, 256);
 
-    if (eventParm > 0x7FF &&
-        !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_misc.cpp",
-            1709, 0, "%s", "eventParm <= EVENT_PARM_MAX"))
-    {
-        __debugbreak();
-    }
-
-    if (eventParm != static_cast<EventParmType>(eventParm) &&
-        !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_misc.cpp",
-            1710, 0, "%s",
-            "eventParm == static_cast<EventParm>(eventParm)"))
-    {
-        __debugbreak();
-    }
-
-    if (!events && !Assert_MyHandler(
-        "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_misc.cpp",
-        1711, 0, "%s", "events"))
-        __debugbreak();
-
-    if (!eventParms && !Assert_MyHandler(
-        "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_misc.cpp",
-        1712, 0, "%s", "eventParms"))
-        __debugbreak();
-
-    if (!eventSequence && !Assert_MyHandler(
-        "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_misc.cpp",
-        1713, 0, "%s", "eventSequence"))
-        __debugbreak();
+    iassert(eventParm <= EVENT_PARM_MAX);
+    iassert(eventParm == static_cast<EventParm>(eventParm));
+    iassert(events);
+    iassert(eventParms);
+    iassert(eventSequence);
 
     if (Dvar_GetBool("showevents"))
         Com_Printf(
@@ -2634,25 +2599,10 @@ void BG_AddEvent(
     events[sequence] = static_cast<EventType>(newEvent);
     eventParms[sequence] = static_cast<EventParmType>(eventParm);
 
-    if (newEvent != events[sequence] &&
-        !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_misc.cpp",
-            1725, 0, "%s",
-            "newEvent == (EventType)events[sequence]"))
-    {
-        __debugbreak();
-    }
+    iassert(newEvent == (EventType)events[sequence]);
+    iassert(eventParm == (EventParmType)eventParms[sequence]);
 
-    if (eventParm != eventParms[sequence] &&
-        !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_misc.cpp",
-            1726, 0, "%s",
-            "eventParm == (EventParmType)eventParms[sequence]"))
-    {
-        __debugbreak();
-    }
-
-    *eventSequence = static_cast<__int16>(*eventSequence + 1);
+    *eventSequence = static_cast<unsigned __int8>(*eventSequence + 1);
 }
 
 
