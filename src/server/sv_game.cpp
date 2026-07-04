@@ -618,16 +618,8 @@ void __cdecl SV_XModelDebugBoxes(gentity_s *ent, const float *color, int *partBi
     if ( !obj && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_game.cpp", 887, 0, "%s", "obj") )
         __debugbreak();
     numBones = DObjNumBones(obj);
-    if ( numBones > 160
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_game.cpp",
-                    890,
-                    0,
-                    "%s",
-                    "numBones <= DOBJ_MAX_PARTS") )
-    {
-        __debugbreak();
-    }
+    iassert(numBones <= DOBJ_MAX_PARTS);
+
     DObjGetBoneInfo(obj, boneInfoArray);
     boneMatrix = DObjGetRotTransArray(obj);
     AnglesToAxis(ent->r.currentAngles, axis);

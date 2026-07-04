@@ -198,16 +198,7 @@ void __cdecl R_XModelDebugBoxes(const DObj *obj, int *partBits)
     if ( boneMatrix )
     {
         boneCount = DObjNumBones(obj);
-        if ( boneCount > 160
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_model.cpp",
-                        232,
-                        0,
-                        "%s",
-                        "boneCount <= DOBJ_MAX_PARTS") )
-        {
-            __debugbreak();
-        }
+        iassert(boneCount <= DOBJ_MAX_PARTS);
         DObjGetBoneInfo(obj, boneInfoArray);
         color[0] = 1.0f;
         color[1] = 1.0f;

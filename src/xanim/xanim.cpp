@@ -49,7 +49,7 @@ void __cdecl XAnimInit()
     g_xAnimInfo[0].state.rate = 0.0;
     *(unsigned int *)&g_xAnimInfo[0].state.instantWeightChange = 0;
     g_endNotetrackName = SL_GetString_(SCRIPTINSTANCE_SERVER, "end", 0, 3);
-    g_anim_developer = 1;
+    g_anim_developer = com_developer->current.integer != 0;
 }
 
 void __cdecl XAnimShutdown()
@@ -525,11 +525,7 @@ void __cdecl XAnimInitModelMap(XModel *const *models, unsigned int numModels, XM
         for ( localBoneIndex = 0; localBoneIndex < boneCount; ++localBoneIndex )
         {
             boneName = boneNames[localBoneIndex];
-            if ( !boneName
-                && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\xanim\\xanim.cpp", 938, 0, "%s", "boneName") )
-            {
-                __debugbreak();
-            }
+            iassert(boneName);
             for ( hash = boneName & 0x1FF; modelMap[hash].name; hash = ((_WORD)hash + 1) & 0x1FF )
                 ;
             modelMap[hash].index = boneIndex;
@@ -3508,7 +3504,7 @@ unsigned int __cdecl XAnimAllocInfoWithParent(
         {
             parts = anim->parts;
             v6 = useFastFile->current.enabled ? DB_IsXAssetDefault(ASSET_TYPE_XANIMPARTS, parts->name) : parts->isDefault;
-            if ( v6 && !tree->anims->wasLoggedIfMissing[animIndex] )
+            if ( v6 && tree->anims->wasLoggedIfMissing && !tree->anims->wasLoggedIfMissing[animIndex] )
             {
                 DB_LogMissingAsset(ASSET_TYPE_XANIMPARTS, anim->parts->name);
                 tree->anims->wasLoggedIfMissing[animIndex] = 1;

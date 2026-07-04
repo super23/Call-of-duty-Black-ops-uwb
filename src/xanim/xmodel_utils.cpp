@@ -288,16 +288,9 @@ int __cdecl XModelGetBoneIndex(const XModel *model, unsigned int name, unsigned 
         __debugbreak();
     boneNames = model->localBoneNames;
     numBones = model->numBones;
-    if ( numBones >= 0xA0
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\xanim\\xmodel_utils.cpp",
-                    388,
-                    0,
-                    "%s",
-                    "numBones < DOBJ_MAX_PARTS") )
-    {
-        __debugbreak();
-    }
+
+    iassert(numBones < DOBJ_MAX_PARTS);
+
     for ( localBoneIndex = 0; ; ++localBoneIndex )
     {
         if ( localBoneIndex >= numBones )
@@ -327,16 +320,9 @@ int __cdecl XModelGetParentBoneName(const XModel *model, unsigned int name)
 
     boneNames = model->localBoneNames;
     numBones = model->numBones;
-    if ( numBones >= 0xA0
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\xanim\\xmodel_utils.cpp",
-                    422,
-                    0,
-                    "%s",
-                    "numBones < DOBJ_MAX_PARTS") )
-    {
-        __debugbreak();
-    }
+
+    iassert(numBones < DOBJ_MAX_PARTS);
+
     if ( !model->localParentList )
         return 0;
     for ( boneIndex = 0; boneIndex < numBones; ++boneIndex )

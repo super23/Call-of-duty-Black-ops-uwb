@@ -6,6 +6,8 @@
 
 #define NO_BONEINDEX 255
 
+#define DOBJ_MAX_PARTS 160
+
 struct SavedDObjModel // sizeof=0x2
 {                                       // XREF: SavedDObj/r
     unsigned __int16 boneName;

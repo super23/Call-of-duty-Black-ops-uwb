@@ -349,7 +349,7 @@ XAnimParts *__cdecl XAnimLoadFile(char *name, void *(__cdecl *Alloc)(int), bool 
     unsigned __int16 v37; // [esp+5Eh] [ebp-196Eh]
     float v38; // [esp+A4h] [ebp-1928h]
     unsigned __int16 v39; // [esp+A8h] [ebp-1924h]
-    __int16 v40; // [esp+ACh] [ebp-1920h]
+    __int16 numBones; // [esp+ACh] [ebp-1920h]
     unsigned __int16 v41; // [esp+B0h] [ebp-191Ch]
     __int16 v42; // [esp+B4h] [ebp-1918h]
     unsigned __int8 *pos; // [esp+C0h] [ebp-190Ch] BYREF
@@ -448,19 +448,9 @@ XAnimParts *__cdecl XAnimLoadFile(char *name, void *(__cdecl *Alloc)(int), bool 
                     v41 = *(_WORD *)pos;
                     pos += 2;
                     v67 = v41;
-                    v40 = *(_WORD *)pos;
+                    numBones = *(_WORD *)pos;
                     pos += 2;
-                    if ( (unsigned int)v40 > 0xA0
-                        && !Assert_MyHandler(
-                                    "C:\\projects_pc\\cod\\codsrc\\src\\xanim\\xanim_load_obj.cpp",
-                                    937,
-                                    0,
-                                    "%s\n\t(numBones) = %i",
-                                    "(numBones <= DOBJ_MAX_PARTS)",
-                                    v40) )
-                    {
-                        __debugbreak();
-                    }
+                    iassert(numBones <= DOBJ_MAX_PARTS);
                     v90 = *pos++;
                     if ( (v90 & 8) != 0 )
                     {
@@ -480,7 +470,7 @@ XAnimParts *__cdecl XAnimLoadFile(char *name, void *(__cdecl *Alloc)(int), bool 
                         {
                             __debugbreak();
                         }
-                        parts->boneCount[9] = v40;
+                        parts->boneCount[9] = numBones;
                         parts->bLoop = (v90 & 1) != 0;
                         parts->bDelta = (v90 & 2) != 0;
                         parts->bLeftHandGripIK = (v90 & 4) != 0;
@@ -536,16 +526,16 @@ XAnimParts *__cdecl XAnimLoadFile(char *name, void *(__cdecl *Alloc)(int), bool 
                             pos = GetDeltaQuaternions(parts->deltaPart, Alloc, pos, v89, v44);
                             pos = GetDeltaTranslations(name, parts->deltaPart, Alloc, pos, v89, v44);
                         }
-                        if ( v40 )
+                        if ( numBones )
                         {
-                            count = ((unsigned int)(v40 - 1) >> 3) + 1;
+                            count = ((unsigned int)(numBones - 1) >> 3) + 1;
                             v77 = pos;
                             pos += count;
                             memcpy(dst, pos, count);
                             pos += count;
-                            memset((unsigned __int8 *)part, 0, 8 * v40);
-                            memset((unsigned __int8 *)v87, 0, 8 * v40);
-                            for ( j = 0; j < v40; ++j )
+                            memset((unsigned __int8 *)part, 0, 8 * numBones);
+                            memset((unsigned __int8 *)v87, 0, 8 * numBones);
+                            for ( j = 0; j < numBones; ++j )
                             {
                                 part[j].partIndex = j;
                                 v87[j].partIndex = j;
@@ -555,7 +545,7 @@ XAnimParts *__cdecl XAnimLoadFile(char *name, void *(__cdecl *Alloc)(int), bool 
                         {
                             v77 = 0;
                         }
-                        for ( j = 0; j < v40; ++j )
+                        for ( j = 0; j < numBones; ++j )
                         {
                             count = strlen((const char *)pos) + 1;
                             StringOfSize = SL_GetStringOfSize(SCRIPTINSTANCE_SERVER, (char *)pos, 0, count, 9);
@@ -575,7 +565,7 @@ XAnimParts *__cdecl XAnimLoadFile(char *name, void *(__cdecl *Alloc)(int), bool 
                             __debugbreak();
                         }
                         g_animUser = Hunk_UserCreate(0x40000, HU_SCHEME_DEFAULT, 0, 0, "XAnimLoadFile", 13);
-                        for ( j = 0; j < v40; ++j )
+                        for ( j = 0; j < numBones; ++j )
                         {
                             Quaternions = GetQuaternions(
                                                             &part[j],
@@ -599,14 +589,14 @@ XAnimParts *__cdecl XAnimLoadFile(char *name, void *(__cdecl *Alloc)(int), bool 
                             __debugbreak();
                         }
                         FS_FreeFile(buffer);
-                        if ( v40 )
+                        if ( numBones )
                         {
-                            for ( j = 0; j < v40; ++j )
+                            for ( j = 0; j < numBones; ++j )
                                 base[j] = j;
                             g_partQuatArray = part;
                             g_partTransArray = v87;
                             g_simpleQuatBits = (char *)dst;
-                            parts->names = (unsigned __int16 *)Alloc(2 * v40);
+                            parts->names = (unsigned __int16 *)Alloc(2 * numBones);
                             i = 0;
                             v56 = 0;
                             v57 = 0;
@@ -617,8 +607,8 @@ XAnimParts *__cdecl XAnimLoadFile(char *name, void *(__cdecl *Alloc)(int), bool 
                             v62 = 0;
                             v63 = 0;
                             v64 = 0;
-                            qsort(base, v40, 2u, (int (__cdecl *)(const void *, const void *))XAnimCompareQuatParts);
-                            for ( j = 0; j < v40; ++j )
+                            qsort(base, numBones, 2u, (int (__cdecl *)(const void *, const void *))XAnimCompareQuatParts);
+                            for ( j = 0; j < numBones; ++j )
                             {
                                 animPartIndex = (unsigned __int16)base[j];
                                 part[animPartIndex].partIndex = j;
@@ -661,9 +651,9 @@ XAnimParts *__cdecl XAnimLoadFile(char *name, void *(__cdecl *Alloc)(int), bool 
                             parts->boneCount[3] = v12;
                             v13 = truncate_cast<unsigned char>(v59 - v58);
                             parts->boneCount[4] = v13;
-                            memcpy(v86, (unsigned __int8 *)base, 2 * v40);
-                            qsort(v86, v40, 2u, (int (__cdecl *)(const void *, const void *))XAnimCompareTransParts);
-                            for ( j = 0; j < v40; ++j )
+                            memcpy(v86, (unsigned __int8 *)base, 2 * numBones);
+                            qsort(v86, numBones, 2u, (int (__cdecl *)(const void *, const void *))XAnimCompareTransParts);
+                            for ( j = 0; j < numBones; ++j )
                             {
                                 animPartIndex = *(unsigned __int16 *)&v86[2 * j];
                                 v14 = *(unsigned int *)&v87[animPartIndex].partIndex;

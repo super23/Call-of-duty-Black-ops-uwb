@@ -2580,7 +2580,7 @@ void BG_AddEvent(
     bcassert(newEvent, 256);
 
     iassert(eventParm <= EVENT_PARM_MAX);
-    iassert(eventParm == static_cast<EventParm>(eventParm));
+    iassert(eventParm == static_cast<EventParmType>(eventParm));
     iassert(events);
     iassert(eventParms);
     iassert(eventSequence);

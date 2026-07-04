@@ -1031,16 +1031,9 @@ int __cdecl XModelGetBoneIndex(const XModel *model, unsigned int name, unsigned 
     }
     boneNames = model->localBoneNames;
     numBones = model->numBones;
-    if ( numBones >= 0xA0
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\physics\\destructibledef_load_obj.cpp",
-                    1087,
-                    0,
-                    "%s",
-                    "numBones < DOBJ_MAX_PARTS") )
-    {
-        __debugbreak();
-    }
+
+    iassert(numBones < DOBJ_MAX_PARTS);
+
     for ( localBoneIndex = 0; ; ++localBoneIndex )
     {
         if ( localBoneIndex >= numBones )

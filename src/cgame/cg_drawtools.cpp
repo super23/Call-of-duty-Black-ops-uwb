@@ -732,16 +732,9 @@ void __cdecl CG_XModelDebugBoxes(
     if ( !obj && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_drawtools.cpp", 900, 0, "%s", "obj") )
         __debugbreak();
     numBones = DObjNumBones(obj);
-    if ( numBones > 160
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_drawtools.cpp",
-                    903,
-                    0,
-                    "%s",
-                    "numBones <= DOBJ_MAX_PARTS") )
-    {
-        __debugbreak();
-    }
+
+    iassert(numBones <= DOBJ_MAX_PARTS);
+
     DObjGetBoneInfo(obj, boneInfoArray);
     boneMatrix = DObjGetRotTransArray(obj);
     AnglesToAxis(cent->pose.angles, axis);
