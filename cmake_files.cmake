@@ -715,6 +715,8 @@ set(SRC_GAME
 	"${SRC_DIR}/game/actor_animapi.h"
 	"${SRC_DIR}/game/actor_badplace.cpp"
 	"${SRC_DIR}/game/actor_badplace.h"
+	"${SRC_DIR}/game/actor_cover.cpp"
+	"${SRC_DIR}/game/actor_cover.h"
 	"${SRC_DIR}/game/actor_corpse.cpp"
 	"${SRC_DIR}/game/actor_corpse.h"
 	"${SRC_DIR}/game/actor_death.cpp"
@@ -730,8 +732,11 @@ set(SRC_GAME
 	"${SRC_DIR}/game/actor_fields.cpp"
 	"${SRC_DIR}/game/actor_fields.h"
 	"${SRC_DIR}/game/actor_function_table.cpp"
+	"${SRC_DIR}/game/actor_custom_anim.cpp"
 	"${SRC_DIR}/game/actor_generic.cpp"
 	"${SRC_DIR}/game/actor_generic.h"
+	"${SRC_DIR}/game/actor_grenade.cpp"
+	"${SRC_DIR}/game/actor_grenade.h"
 	"${SRC_DIR}/game/actor_lookat.cpp"
 	"${SRC_DIR}/game/actor_lookat.h"
 	"${SRC_DIR}/game/actor_navigation.cpp"
@@ -746,6 +751,8 @@ set(SRC_GAME
 	"${SRC_DIR}/game/actor_physics.h"
 	"${SRC_DIR}/game/actor_script_cmd.cpp"
 	"${SRC_DIR}/game/actor_script_cmd.h"
+	"${SRC_DIR}/game/actor_turret.cpp"
+	"${SRC_DIR}/game/actor_turret.h"
 	"${SRC_DIR}/game/actor_senses.cpp"
 	"${SRC_DIR}/game/actor_senses.h"
 	"${SRC_DIR}/game/actor_spawner.cpp"
@@ -1015,6 +1022,8 @@ set(SRC_GFX_D3D
 	"${SRC_DIR}/gfx_d3d/r_shade.h"
 	"${SRC_DIR}/gfx_d3d/r_shader_constant_set.cpp"
 	"${SRC_DIR}/gfx_d3d/r_shader_constant_set.h"
+	"${SRC_DIR}/gfx_d3d/r_singlethreaded_device_pc.cpp"
+	"${SRC_DIR}/gfx_d3d/r_singlethreaded_device_pc.h"
 	"${SRC_DIR}/gfx_d3d/r_sky.cpp"
 	"${SRC_DIR}/gfx_d3d/r_sky.h"
 	"${SRC_DIR}/gfx_d3d/r_sky_load_obj.cpp"
@@ -2904,7 +2913,6 @@ add_executable(${BIN_NAME}
 	${SPEEX_FILES}
 	${STEAM_FILES}
 	${STRINGED_FILES}
-	${TRACY_FILES}
 	${TURRET_FILES}
 	${UI_FILES}
 	${UI_MP_FILES}
