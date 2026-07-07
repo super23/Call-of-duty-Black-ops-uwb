@@ -106,9 +106,11 @@ inline int CG_PlaySoundWithHandle(
         (char *)name);
 }
 void __cdecl CG_PumpEntityLoopSound(int localClientNum, const centity_s *cent);
+void __cdecl CG_PumpEntitySoundBlend(int localClientNum, const centity_s *cent);
 void __cdecl CG_PlayAnimScriptSoundAlias(int clientIndex, snd_alias_list_t *aliasList);
 void __cdecl CG_SubtitlePrint(int msec, const char *subtitle);
 void __cdecl CG_SubtitleSndLengthNotify(int msec, const char *lengthNotifyData);
+void __cdecl CG_ScriptSndLengthNotify(unsigned int entNum, unsigned int lengthMs);
 int __cdecl CG_SoundGetUseCount(SndEntHandle sndEnt);
 bool __cdecl CG_SoundEntInUse(SndEntHandle sndEnt);
 void __cdecl CG_GetSoundEntityOrientation(

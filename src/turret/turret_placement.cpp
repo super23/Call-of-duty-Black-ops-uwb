@@ -109,6 +109,7 @@ int __cdecl Turret_PlaceTurret_Internal(
     float traceStart[3]; // [esp+ECh] [ebp-18h] BYREF
     float traceEnd[3]; // [esp+F8h] [ebp-Ch] BYREF
 
+    memset(&trace, 0, 16);
     if ( moverEntNum >= 0x20
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\turret\\turret_placement.cpp",

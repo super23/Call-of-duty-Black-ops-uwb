@@ -1011,6 +1011,26 @@ void __cdecl BG_EmblemsInit()
 
     if ( !G_ExitAfterToolComplete() )
     {
+#ifdef KISAK_SP
+        static EmblemSet s_spEmblemStub;
+
+        if (!IsDedicatedServer())
+        {
+            s_missingEmblemMaterial = Material_RegisterHandle("emblem_bg_nocod", 7);
+        }
+
+        s_emblemSet = DB_FindXAssetHeader(ASSET_TYPE_EMBLEMSET, (char*)"emblemset", 0, 0).emblemSet;
+        if (!s_emblemSet)
+        {
+            memset(&s_spEmblemStub, 0, sizeof(s_spEmblemStub));
+            s_spEmblemStub.colorCount = 1;
+            s_emblemSet = &s_spEmblemStub;
+        }
+
+        memset((unsigned __int8 *)s_resultCache, 0, sizeof(s_resultCache));
+        return;
+#endif
+
         if (!IsDedicatedServer())
         {
             s_missingEmblemMaterial = Material_RegisterHandle("emblem_bg_nocod", 7);

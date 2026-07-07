@@ -9,6 +9,7 @@
 #include "r_dvars.h"
 #include <qcommon/threads.h>
 #include <universal/com_workercmds.h>
+#include "r_singlethreaded_device_pc.h"
 #include "rb_backend.h"
 #include <win32/win_net.h>
 #include "r_ui3d.h"
@@ -431,6 +432,7 @@ GfxCmdArray *R_ClearCmdList()
 
 void __cdecl R_IssueRenderCommands(unsigned int type)
 {
+    int semaphore; // [esp+4h] [ebp-4h]
 
     if ( !Sys_IsMainThread()
         && !Sys_IsRenderThread()
@@ -453,12 +455,15 @@ void __cdecl R_IssueRenderCommands(unsigned int type)
         R_UpdateSkinCacheUsage();
         R_UnlockSkinnedCache();
         Sys_WaitRenderer();
+        semaphore = R_AcquireDXDeviceOwnership(0);
         RB_BeginFrame(frontEndDataOut);
         RB_Draw3D();
         RB_CallExecuteRenderCommands();
         if ( Sys_IsRenderThread() )
             Sys_RenderCompleted();
         RB_EndFrame(frontEndDataOut->drawType);
+        if ( semaphore )
+            R_ReleaseDXDeviceOwnership();
         R_ToggleSmpFrame();
     }
 }
@@ -510,7 +515,10 @@ char __cdecl R_HandOffToBackend(char type)
 
 void __cdecl R_ToggleSmpFrameCmd(char type)
 {
+    int v1; // [esp+10h] [ebp-10h]
     GfxBackEndData *front_end_data; // [esp+14h] [ebp-Ch]
+    int semaphore; // [esp+18h] [ebp-8h]
+    int sem; // [esp+1Ch] [ebp-4h]
 
     if ( !Sys_IsMainThread()
         && !Assert_MyHandler(
@@ -525,7 +533,10 @@ void __cdecl R_ToggleSmpFrameCmd(char type)
     //BLOPS_NULLSUB();
     {
         PROF_SCOPED("wait renderer");
+        sem = R_ReleaseDXDeviceOwnership();
         Sys_WaitRenderer();
+        if (sem)
+            R_AcquireDXDeviceOwnership(0);
     }
     
     RB_CopyBackendStats();
@@ -536,17 +547,23 @@ void __cdecl R_ToggleSmpFrameCmd(char type)
 
     {
         PROF_SCOPED("wait frontend workercmds");
+        semaphore = R_ReleaseDXDeviceOwnership();
         while (!R_FinishedFrontendWorkerCmds())
             NET_Sleep(1u);
+        if (semaphore)
+            R_AcquireDXDeviceOwnership(0);
     }
 
     R_UpdateSkinCacheUsage();
     //BLOPS_NULLSUB();
     R_UnlockSkinnedCache();
+    v1 = R_AcquireDXDeviceOwnership(0);
     front_end_data = frontEndDataOut;
     R_ToggleSmpFrame();
     //PIXSetMarker(-1, "wake renderer");
     Sys_WakeRenderer((void *)front_end_data);
+    if ( v1 )
+        R_ReleaseDXDeviceOwnership();
 }
 
 void __cdecl R_AbortRenderCommands()
@@ -1899,6 +1916,7 @@ void __cdecl R_BeginFrame()
     const char *v0; // eax
     bool v1; // [esp+0h] [ebp-468h]
     bool v2; // [esp+4h] [ebp-464h]
+    int semaphore; // [esp+Ch] [ebp-45Ch]
     _D3DADAPTER_IDENTIFIER9 id; // [esp+10h] [ebp-458h] BYREF
     int n; // [esp+464h] [ebp-4h]
 
@@ -1920,7 +1938,10 @@ void __cdecl R_BeginFrame()
             rgp.needMaterialPreload = 1;
             if ( Sys_IsMainThread() )
                 R_SyncRenderThread();
+            semaphore = R_ReleaseDXDeviceOwnership();
             Sys_WaitRenderer();
+            if ( semaphore )
+                R_AcquireDXDeviceOwnership(0);
             Material_Sort();
             R_SortWorldSurfaces();
             dx.d3d9->GetAdapterIdentifier(dx.adapterIndex, 0, &id);
@@ -2407,6 +2428,7 @@ void __cdecl R_BeginRemoteScreenUpdate()
 
 void __cdecl R_EndRemoteScreenUpdate(void (__cdecl *pumpfunc)())
 {
+    int semaphore; // [esp+4h] [ebp-4h]
 
     if ( useFastFile->current.enabled && Sys_IsMainThread() && sys_smp_allowed->current.enabled )
     {
@@ -2436,6 +2458,7 @@ void __cdecl R_EndRemoteScreenUpdate(void (__cdecl *pumpfunc)())
                 }
                 if ( r_glob.remoteScreenUpdateNesting == 1 )
                 {
+                    semaphore = R_ReleaseDXDeviceOwnership();
                     while ( !r_glob.screenUpdateNotify )
                     {
                         NET_Sleep(1u);
@@ -2464,6 +2487,8 @@ void __cdecl R_EndRemoteScreenUpdate(void (__cdecl *pumpfunc)())
                         Sys_WaitRenderer();
                         --g_mainThreadBlocked;
                     }
+                    if ( semaphore )
+                        R_AcquireDXDeviceOwnership(0);
                     r_glob.screenUpdateNotify = 0;
                 }
                 else

@@ -2,7 +2,7 @@
 
 #include <string.h>
 #include <qcommon/common.h>
-#include <game_mp/g_main_mp.h>
+#include <game/g_main_wrapper.h>
 
 EntHandleInfo g_entHandleInfoArray[1024];
 EntHandleList g_entitiesHandleList[1024];

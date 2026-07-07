@@ -1,6 +1,10 @@
 #include "phys_effects.h"
 #include <sound/snd_bank.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
+#endif
 #include <client/splitscreen.h>
 #include <bgame/bg_slidemove.h>
 

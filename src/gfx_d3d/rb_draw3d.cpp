@@ -6,6 +6,7 @@
 #include "r_adszscale.h"
 #include "r_foliage.h"
 #include "rb_logfile.h"
+#include "r_singlethreaded_device_pc.h"
 #include "r_draw_method.h"
 #include "r_cmdbuf.h"
 #include "rb_sky.h"
@@ -119,16 +120,21 @@ void __cdecl R_DrawEmissiveCallback(const void *userData, GfxCmdBufContext conte
 void __cdecl R_HW_DisableScissor(IDirect3DDevice9 *device)
 {
     const char *v1; // eax
+    int semaphore; // [esp+0h] [ebp-8h]
     int hr; // [esp+4h] [ebp-4h]
 
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_SCISSORTESTENABLE, 0 )\n");
+    semaphore = R_AcquireDXDeviceOwnership(0);
     //hr = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, int, unsigned int))device->SetRenderState)(
     //             device,
     //             device,
     //             174,
     //             0);
     hr = device->SetRenderState(D3DRS_SCISSORTESTENABLE, 0);
+    if ( semaphore )
+        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -374,7 +380,9 @@ void __cdecl R_HW_EnableScissor(
 {
     const char *v5; // eax
     const char *v6; // eax
+    int v7; // [esp+0h] [ebp-20h]
     int v8; // [esp+4h] [ebp-1Ch]
+    int semaphore; // [esp+8h] [ebp-18h]
     int hr; // [esp+Ch] [ebp-14h]
     tagRECT scissor; // [esp+10h] [ebp-10h] BYREF
 
@@ -382,9 +390,13 @@ void __cdecl R_HW_EnableScissor(
     scissor.top = y;
     scissor.right = w + x;
     scissor.bottom = h + y;
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetRenderState( D3DRS_SCISSORTESTENABLE, 1 )\n");
+    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = device->SetRenderState(D3DRS_SCISSORTESTENABLE, 1u);
+    if ( semaphore )
+        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -396,9 +408,13 @@ void __cdecl R_HW_EnableScissor(
             694,
             v5);
     }
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetScissorRect( &scissor )\n");
+    v7 = R_AcquireDXDeviceOwnership(0);
     v8 = device->SetScissorRect(&scissor);
+    if ( v7 )
+        R_ReleaseDXDeviceOwnership();
     if ( v8 < 0 )
     {
         ++g_disableRendering;
@@ -669,10 +685,10 @@ void __cdecl RB_StandardDrawCommands(GfxViewInfo *viewInfo)
       R_ClearScreen(gfxCmdBufState.prim.device, 7u, clearColor, 1.0, 0, 0);
   }
   memcpy(gfxCmdBufState.refSamplerState, gfxCmdBufState.refSamplerState, sizeof(gfxCmdBufState));
-  //if ( needsDepthPrepass )
-  // LWSS: wire up this dvar, it's in the game but removed. 
-  // It appears at one point that this was optional but it is now mandatory for some rendering (trees on `mp_mountain`)
-  if ( needsDepthPrepass && r_depthPrepass->current.enabled ) 
+  // Retail (CoDMPServer / BlackOpsMP): always run z-prepass for the main view. r_depthPrepass is
+  // registered but not consulted here. Alpha-tested foliage (trees, bushes) only get correct depth
+  // occlusion from this pass; without it, lit draws see-through other foliage.
+  if ( needsDepthPrepass )
   {
     PROF_SCOPED("R_DepthPrepass");
     R_InitContext(data, &cmdBuf);

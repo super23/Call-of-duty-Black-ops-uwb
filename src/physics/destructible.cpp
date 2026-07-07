@@ -1,25 +1,39 @@
 #include "destructible.h"
+#ifdef KISAK_SP
+#include <game/g_utils_wrapper.h>
+#include <game/g_main.h>
+#include <cgame_sp/cg_local_sp.h>
+#include <server_sp/sv_init_sp.h>
+#include <cgame_sp/cg_main_sp.h>
+#include <game/g_spawn_wrapper.h>
+#include <cgame_sp/cg_pose_sp.h>
+#include <cgame_sp/cg_ents_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <cgame_sp/cg_animtree_sp.h>
+#else
 #include <game_mp/g_utils_mp.h>
 #include <game_mp/g_main_mp.h>
 #include <cgame_mp/cg_local_mp.h>
+#include <server_mp/sv_init_mp.h>
+#include <cgame_mp/cg_main_mp.h>
+#include <game_mp/g_spawn_mp.h>
+#include <cgame_mp/cg_pose_mp.h>
+#include <cgame_mp/cg_ents_mp.h>
+#include <client_mp/cl_cgame_mp.h>
+#include <cgame_mp/cg_animtree_mp.h>
+#endif
 #include "xdoll.h"
 #include <universal/mem_userhunk.h>
 #include <xanim/xmodel_utils.h>
-#include <server_mp/sv_init_mp.h>
 #include <sound/snd_bank.h>
 #include <xanim/dobj.h>
 #include <xanim/xmodel.h>
-#include <cgame_mp/cg_main_mp.h>
 #include <clientscript/scr_const.h>
-#include <game_mp/g_spawn_mp.h>
 #include <bgame/bg_public.h>
 #include <game/g_scr_vehicle.h>
 #include <DynEntity/DynEntity_client.h>
 #include <game/g_scr_mover.h>
 #include <universal/com_math_anglevectors.h>
-#include <cgame_mp/cg_pose_mp.h>
-#include <cgame_mp/cg_ents_mp.h>
-#include <client_mp/cl_cgame_mp.h>
 #include <qcommon/dobj_management.h>
 #include <client/splitscreen.h>
 #include <EffectsCore/fx_system.h>
@@ -28,7 +42,6 @@
 #include <EffectsCore/fx_unique_handle.h>
 #include <xanim/dobj_utils.h>
 #include <EffectsCore/fx_marks.h>
-#include <cgame_mp/cg_animtree_mp.h>
 #include <clientscript/cscr_vm.h>
 #include <cgame/cg_main.h>
 #include <universal/com_memory.h>
@@ -52,8 +65,8 @@ destructible_event_t g_destructible_events[64];
 int g_destructible_events_count;
 
 unsigned __int8 g_cgPieceArrayBuffer[73728];
-int s_num_destructible_gamestates[1];
-destructible_gamestate s_destructible_gamestates[1][32];
+int s_num_destructible_gamestates[MAX_LOCAL_CLIENTS];
+destructible_gamestate s_destructible_gamestates[MAX_LOCAL_CLIENTS][32];
 
 int g_numDisabledLables;
 int g_disabledLabels[10];
@@ -63,19 +76,45 @@ unsigned int s_numDestructibles;
 int cg_numDisabledLables;
 
 int cg_disabledLabels[10];
-Destructible *cg_destructibles[1];
+Destructible *cg_destructibles[MAX_LOCAL_CLIENTS];
 
 HunkUser *g_pieceArrayHunk;
 HunkUser *g_cgPieceArrayHunk;
 
-int cg_updateTime[1];
-unsigned int cg_numDestructibles[1];
+int cg_updateTime[MAX_LOCAL_CLIENTS];
+unsigned int cg_numDestructibles[MAX_LOCAL_CLIENTS];
 
 unsigned __int8 g_pieceArrayBuffer[73728];
 
 bool __cdecl hasLabel(DestructibleDef *ddef, unsigned __int16 label)
 {
     return Destructible_GetPieceIndexForLabel(ddef, label) >= 0;
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (Destructible_HasNotify)
+bool __cdecl Destructible_HasNotify(const DestructibleDef *ddef, unsigned int notifyName)
+{
+    const char *notifyStr;
+    int i;
+    int j;
+
+    if ( !ddef )
+        return false;
+    if ( !ddef->pieces )
+        return false;
+    notifyStr = SL_ConvertToString(notifyName, SCRIPTINSTANCE_SERVER);
+    for ( i = 0; i < ddef->numPieces; ++i )
+    {
+        for ( j = 0; j < 5; ++j )
+        {
+            if ( ddef->pieces[i].stages[j].breakNotify
+                && !I_strcmp(notifyStr, ddef->pieces[i].stages[j].breakNotify) )
+            {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 int __cdecl Destructible_GetPieceIndexForLabel(DestructibleDef *ddef, unsigned __int16 enableLabel)
@@ -1814,6 +1853,7 @@ unsigned __int16 __cdecl CG_DestructibleSpawnDynEnt(
                 int mod)
 {
     col_context_t context; // [esp+1Ch] [ebp-A8h] BYREF
+    trace_t result; // [esp+44h] [ebp-80h] BYREF
     float dir[3]; // [esp+80h] [ebp-44h] BYREF
     float start[3]; // [esp+8Ch] [ebp-38h] BYREF
     float end[3]; // [esp+98h] [ebp-2Ch] BYREF
@@ -1835,7 +1875,7 @@ unsigned __int16 __cdecl CG_DestructibleSpawnDynEnt(
     {
         if ( cent->vehicle )
         {
-            trace_t trace; // [esp+44h] [ebp-80h] BYREF
+            memset(&result, 0, 16);
             start[0] = cent->pose.origin[0];
             start[1] = cent->pose.origin[1];
             start[2] = cent->pose.origin[2];
@@ -1849,7 +1889,7 @@ unsigned __int16 __cdecl CG_DestructibleSpawnDynEnt(
             end[2] = (float)(10.0 * dir[2]) + origin[2];
             //col_context_t::col_context_t(&context);
             CG_TraceCapsule(
-                &trace,
+                &result,
                 start,
                 vec3_origin,
                 vec3_origin,
@@ -1857,7 +1897,7 @@ unsigned __int16 __cdecl CG_DestructibleSpawnDynEnt(
                 cent->nextState.number,
                 0x280EC93,
                 &context);
-            if ( trace.startsolid || trace.fraction < 1.0 )
+            if ( result.startsolid || result.fraction < 1.0 )
                 return -1;
         }
     }

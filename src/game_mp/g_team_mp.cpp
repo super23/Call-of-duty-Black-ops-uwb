@@ -1,6 +1,7 @@
 #include "g_team_mp.h"
 #include "g_main_mp.h"
 
+// Decomp: CoDMPServer.c:446476
 bool __cdecl OnSameTeam(gentity_s *ent1, gentity_s *ent2)
 {
     if ( !ent1->client || !ent2->client )
@@ -10,15 +11,17 @@ bool __cdecl OnSameTeam(gentity_s *ent1, gentity_s *ent2)
     return 0;
 }
 
+// Decomp: CoDMPServer.c:446486
 void __cdecl TeamplayInfoMessage(gentity_s *ent)
 {
     ent->client->ps.stats[3] = -1;
 }
 
+// Decomp: CoDMPServer.c:446491
 void __cdecl CheckTeamStatus()
 {
-    gentity_s *ent; // [esp+0h] [ebp-8h]
-    int i; // [esp+4h] [ebp-4h]
+    gentity_s *ent;
+    int i;
 
     if ( level.time - level.lastTeammateHealthTime > 0 )
     {

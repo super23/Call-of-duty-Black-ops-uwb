@@ -22,14 +22,20 @@
 #include <cgame/cg_world.h>
 #include <qcommon/dobj_management.h>
 #include <xanim/dobj_utils.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_pose_sp.h>
+#include <game/g_main.h>
+#include <game/g_utils_wrapper.h>
+#else
 #include <cgame_mp/cg_pose_mp.h>
+#include <game_mp/g_main_mp.h>
+#include <game_mp/g_utils_mp.h>
+#endif
 #include <qcommon/cm_staticmodel.h>
 #include <qcommon/cm_load.h>
 #include <qcommon/cm_world.h>
-#include <game_mp/g_main_mp.h>
 #include <gfx_d3d/r_debug.h>
 #include <client/cl_keys.h>
-#include <game_mp/g_utils_mp.h>
 #include <game/g_debug.h>
 #include <cgame/cg_drawtools.h>
 #include "xdoll.h"
@@ -1430,7 +1436,16 @@ PhysObjUserData *__cdecl Phys_ObjCreateAxis(
     nanassertvec3(position);
     nanassertvec3(velocity);
     iassert(physInited);
-    iassert(physPreset);
+    // LinkerMod-style hardening: in stock T5 a missing/invalid physpreset
+    // segfaults here. With mods loaded a number of map ents (rcbomb, briefcase,
+    // motion_sensor, etc.) can reference a physPreset that didn't get loaded
+    // into the mod fastfile. Drop a Com_Error rather than crashing so the
+    // player gets a useful message and the rest of the level still spawns.
+    if (!physPreset || physPreset == (const PhysPreset *)0xFFFFFFFF)
+    {
+        Com_PrintError(1, "Phys_ObjCreateAxis: invalid physPreset, skipping object\n");
+        return 0;
+    }
 
     AxisCopy(axis, state.rotation);
 
@@ -1843,7 +1858,7 @@ void    Phys_AddCacheImpulses()
         {
             Phys_Vec3ToNitrousVec(impulse->hitp, &pos);
             Phys_Vec3ToNitrousVec(impulse->hitd, &force);
-            if (Vec3Length(&force.x) >= 1000000.0
+            if (Abs(&force.x) >= 1000000.0
                 && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_main.cpp",
                     1206,
@@ -2191,6 +2206,7 @@ void __cdecl Phys_FindAndRenderBulletMesh(const float *start, const float *end)
 
     results.staticModel = 0;
     bHitDynEnt = 0;
+    memset(&resultsDyn, 0, 16);
     //TraceExtents::TraceExtents(&clip.extents);
     memset((unsigned __int8 *)&resultsDyn, 0, sizeof(resultsDyn));
     resultsDyn.fraction = 1.0f;
@@ -3007,6 +3023,10 @@ int __cdecl SortSModelsByDist(float *a, float *b)
     return -1;
 }
 
+static PhysObjUserData *PhysObj_UserDataFromListNode(phys_free_list<PhysObjUserData>::T_internal_base *node)
+{
+    return &reinterpret_cast<phys_free_list<PhysObjUserData>::T_internal *>(node)->m_data;
+}
 
 int __cdecl buoyancy_worker()
 {
@@ -3018,7 +3038,7 @@ int __cdecl buoyancy_worker()
                                                                                                                              (volatile unsigned __int32 *)&g_pop_iter,
                                                                                                                              (signed __int32)i->m_next_T_internal,
                                                                                                                              (signed __int32)i) == i )
-            Phys_BodyGrabSnapshotNitrous((PhysObjUserData *)&i[2], g_delta_t);
+            Phys_BodyGrabSnapshotNitrous(PhysObj_UserDataFromListNode(i), g_delta_t);
     }
     return 0;
 }
@@ -3330,161 +3350,130 @@ user_rigid_body *__cdecl GetTraceResultsRigidBody(const trace_t *traceResults)
 
 void collide_vehicle_wheels(PhysObjUserData *userData)
 {
-    float v2; // [esp+2Ch] [ebp-578h] BYREF
-    float v3; // [esp+30h] [ebp-574h] BYREF
-    rigid_body_constraint_wheel *v5; // [esp+38h] [ebp-56Ch]
-    int k; // [esp+3Ch] [ebp-568h]
-    int v7; // [esp+40h] [ebp-564h]
-    float m_current_front_side_fric_scale; // [esp+44h] [ebp-560h]
-    float m_current_front_fwd_fric_scale; // [esp+48h] [ebp-55Ch]
-    float m_current_rear_side_fric_scale; // [esp+4Ch] [ebp-558h]
-    float m_current_rear_fwd_fric_scale; // [esp+50h] [ebp-554h]
-    float v12; // [esp+54h] [ebp-550h]
-    float v13; // [esp+58h] [ebp-54Ch]
-    phys_vec3 v14; // [esp+5Ch] [ebp-548h] BYREF
-    phys_vec3 *v15; // [esp+84h] [ebp-520h]
-    phys_vec3 v16; // [esp+88h] [ebp-51Ch] BYREF
-    phys_vec3 *p_m_ground_vel; // [esp+9Ch] [ebp-508h]
-    phys_vec3 *p_m_t_vel; // [esp+A0h] [ebp-504h]
-    environment_rigid_body *TraceResultsRigidBody; // [esp+A4h] [ebp-500h]
-    phys_vec3 v20; // [esp+A8h] [ebp-4FCh] BYREF
-    phys_vec3 v21; // [esp+B8h] [ebp-4ECh] BYREF
-    int v22; // [esp+CCh] [ebp-4D8h] BYREF
-    int m_entnum; // [esp+D8h] [ebp-4CCh]
-    col_context_t v24; // [esp+DCh] [ebp-4C8h] BYREF
-    float zero[3]; // [esp+13Ch] [ebp-468h] BYREF
-    float p1[3]; // [esp+148h] [ebp-45Ch] BYREF
-    float p0[4]; // [esp+154h] [ebp-450h] BYREF
-    float v29; // [esp+164h] [ebp-440h]
-    phys_vec3 v30; // [esp+168h] [ebp-43Ch] BYREF
-    phys_vec3 v31; // [esp+178h] [ebp-42Ch] BYREF
-    phys_vec3 phys_zerovec; // [esp+188h] [ebp-41Ch] BYREF
-    rigid_body_constraint_wheel *v33; // [esp+19Ch] [ebp-408h]
-    int j; // [esp+1A0h] [ebp-404h]
-    int v35; // [esp+1A4h] [ebp-400h]
-    NitrousVehicle *vehicle; // [esp+1A8h] [ebp-3FCh]
-    rigid_body *rb; // [esp+438h] [ebp-16Ch]
-    trace_t *i; // [esp+43Ch] [ebp-168h]
-    trace_t traces[6]; // [esp+440h] [ebp-164h] BYREF
-    int v40; // [esp+590h] [ebp-14h]
-    //_UNKNOWN *v41[2]; // [esp+598h] [ebp-Ch] BYREF
-    //int vars0; // [esp+5A4h] [ebp+0h]
-    //
-    //v41[0] = a1;
-    //v41[1] = (_UNKNOWN *)vars0;
-    
+    float accel_desired;
+    float accel_factor;
+    rigid_body_constraint_wheel *wheel;
+    int k;
+    const int min_wheels_grounded = 3;
+    float side_fric_scaled;
+    float fwd_fric_scaled;
+    phys_vec3 hitnorm_world;
+    phys_vec3 hitpoint_world;
+    float hit_lerp[3];
+    int m_entnum;
+    col_context_t clip_ctx{};
+    trace_t traceResults;
+    float zero[3];
+    float p1[3];
+    float p0[3];
+    float wheel_trace_extend;
+    phys_vec3 seg_a;
+    phys_vec3 seg_b;
+    phys_vec3 phys_zero;
+    rigid_body_constraint_wheel *wheel_j;
+    int wheel_index;
+    int wheels_grounded;
+    NitrousVehicle *vehicle;
+    rigid_body *rb;
+    trace_t *trace_it;
+    trace_t traces[6];
+    int trace_init_i;
+
     PROF_SCOPED("phys_wheel_collision");
 
-    v40 = 6;
-    for (i = traces; --v40 >= 0; ++i)
+    trace_init_i = 6;
+    for (trace_it = traces; --trace_init_i >= 0; ++trace_it)
     {
-        i->normal.vec.v[0] = 0.0f;
-        i->normal.vec.v[1] = 0.0f;
-        i->normal.vec.v[2] = 0.0f;
-        i->normal.vec.v[3] = 0.0f;
+        trace_it->normal.vec.v[0] = 0.0f;
+        trace_it->normal.vec.v[1] = 0.0f;
+        trace_it->normal.vec.v[2] = 0.0f;
+        trace_it->normal.vec.v[3] = 0.0f;
     }
     rb = userData->body;
     if (!rb || (rb->m_flags & 0x20) != 0)
-    {
         return;
-    }
-    if (userData->vehicle)
-    {
-        vehicle = userData->vehicle;
-        v35 = 0;
-        for (j = 0; j < 6; ++j)
-        {
-            v33 = vehicle->m_wheels[j];
-            if (v33)
-            {
-                memset(&phys_zerovec, 0, 12);
-                //rigid_body_constraint_wheel::get_wheel_collide_segment(v33, v41, &rb->m_mat, &v30, &v31);
-                v33->get_wheel_collide_segment(&rb->m_mat, &v30, &v31);
-                v29 = (float)(v30.z - v31.z) * 0.30000001;
-                LODWORD(p0[3]) = (DWORD)&v30.z;
-                v30.z = v30.z + v29;
-                Phys_NitrousVecToVec3(&v30, p0);
-                Phys_NitrousVecToVec3(&v31, p1);
-                Phys_NitrousVecToVec3(&phys_zerovec, zero);
+    vehicle = userData->vehicle;
+    if (!vehicle)
+        return;
 
-                trace_t traceResults; // [esp+104h] [ebp-4A0h] BYREF
-                //col_context_t::col_context_t(&v24);
-                m_entnum = vehicle->m_entnum;
-                CG_TraceCapsule(&traceResults, p0, zero, zero, p1, m_entnum, 529, &v24);
-                if (traceResults.fraction == 1.0 || traceResults.fraction == 0.0)
-                {
-                    //rigid_body_constraint_wheel::set_no_collision(v33);
-                    v33->set_no_collision();
-                    vehicle->m_wheel_surf_types[j] = 0;
-                }
-                else
-                {
-                    ++v35;
-                    Vec3Lerp(p0, p1, traceResults.fraction, (float *)&v22);
-                    Phys_Vec3ToNitrousVec((float *)&v22, &v21);
-                    Phys_Vec3ToNitrousVec(traceResults.normal.vec.v, &v20);
-                    TraceResultsRigidBody = (environment_rigid_body*)GetTraceResultsRigidBody(&traceResults);
-                    p_m_t_vel = &TraceResultsRigidBody->m_t_vel;
-                    p_m_ground_vel = &vehicle->m_ground_vel;
-                    vehicle->m_ground_vel.x = TraceResultsRigidBody->m_t_vel.x;
-                    p_m_ground_vel->y = p_m_t_vel->y;
-                    p_m_ground_vel->z = p_m_t_vel->z;
-                    v15 = phys_full_inv_multiply(&v16, &TraceResultsRigidBody->m_mat, &v21);
-                    v21.x = v15->x;
-                    v21.y = v15->y;
-                    v21.z = v15->z;
-                    LODWORD(v14.z) = (DWORD)phys_inv_multiply((phys_vec3 *)&v14.w, &TraceResultsRigidBody->m_mat, &v20);
-                    v20.x = *(float *)LODWORD(v14.z);
-                    v20.y = *(float *)(LODWORD(v14.z) + 4);
-                    v20.z = *(float *)(LODWORD(v14.z) + 8);
-                    //rigid_body_constraint_wheel::set_collision(v33, TraceResultsRigidBody, &v21, &v20);
-                    v33->set_collision(TraceResultsRigidBody, &v21, &v20);
-                    LODWORD(v14.y) = (traceResults.sflags & 0x3F00000) >> 20;
-                    vehicle->m_wheel_surf_types[j] = LODWORD(v14.y);
-                    v14.x = Com_SurfaceFrictionScale(SLODWORD(v14.y));
-                    v13 = 0.0f;
-                    v12 = 0.0f;
-                    if (j == 3 || j == 2)
-                    {
-                        m_current_rear_fwd_fric_scale = vehicle->m_current_rear_fwd_fric_scale;
-                        v13 = v14.x * m_current_rear_fwd_fric_scale;
-                        m_current_rear_side_fric_scale = vehicle->m_current_rear_side_fric_scale;
-                        v12 = v14.x * m_current_rear_side_fric_scale;
-                    }
-                    else
-                    {
-                        m_current_front_fwd_fric_scale = vehicle->m_current_front_fwd_fric_scale;
-                        v13 = v14.x * m_current_front_fwd_fric_scale;
-                        m_current_front_side_fric_scale = vehicle->m_current_front_side_fric_scale;
-                        v12 = v14.x * m_current_front_side_fric_scale;
-                    }
-                    if ((vehicle->m_flags & 0x80) == 0)
-                    {
-                        v33->m_fwd_fric_k = v13;
-                        v33->m_side_fric_k = v12;
-                    }
-                }
+    wheels_grounded = 0;
+    for (wheel_index = 0; wheel_index < 6; ++wheel_index)
+    {
+        wheel_j = vehicle->m_wheels[wheel_index];
+        if (!wheel_j)
+            continue;
+
+        memset(&phys_zero, 0, sizeof(phys_zero));
+        wheel_j->get_wheel_collide_segment(&rb->m_mat, &seg_a, &seg_b);
+        /* Extend trace start slightly along segment (decomp: (seg_a.z - seg_b.z) * 0.3) */
+        wheel_trace_extend = (seg_a.z - seg_b.z) * 0.30000001f;
+        seg_a.z = seg_a.z + wheel_trace_extend;
+        Phys_NitrousVecToVec3(&seg_a, p0);
+        Phys_NitrousVecToVec3(&seg_b, p1);
+        Phys_NitrousVecToVec3(&phys_zero, zero);
+        memset(&traceResults, 0, sizeof(traceResults));
+        m_entnum = vehicle->m_entnum;
+        CG_TraceCapsule(&traceResults, p0, zero, zero, p1, m_entnum, 529, &clip_ctx);
+
+        if (traceResults.fraction == 1.0f || traceResults.fraction == 0.0f)
+        {
+            wheel_j->set_no_collision();
+            vehicle->m_wheel_surf_types[wheel_index] = 0;
+        }
+        else
+        {
+            ++wheels_grounded;
+            Vec3Lerp(p0, p1, traceResults.fraction, hit_lerp);
+            Phys_Vec3ToNitrousVec(hit_lerp, &hitpoint_world);
+            Phys_Vec3ToNitrousVec(traceResults.normal.vec.v, &hitnorm_world);
+            hitpoint_world.w = 0.0f;
+            hitnorm_world.w = 0.0f;
+
+            environment_rigid_body *ground_body =
+                (environment_rigid_body *)GetTraceResultsRigidBody(&traceResults);
+            vehicle->m_ground_vel.x = ground_body->m_t_vel.x;
+            vehicle->m_ground_vel.y = ground_body->m_t_vel.y;
+            vehicle->m_ground_vel.z = ground_body->m_t_vel.z;
+
+            /* Hit point / normal in ground body's local space (matches retail wheel constraint setup). */
+            phys_full_inv_multiply(&hitpoint_world, &ground_body->m_mat, &hitpoint_world);
+            phys_inv_multiply(&hitnorm_world, &ground_body->m_mat, &hitnorm_world);
+
+            wheel_j->set_collision(ground_body, &hitpoint_world, &hitnorm_world);
+
+            const int surf_type = (traceResults.sflags & 0x3F00000) >> 20;
+            vehicle->m_wheel_surf_types[wheel_index] = surf_type;
+            const float surf_friction_scale = static_cast<float>(Com_SurfaceFrictionScale(surf_type));
+
+            if (wheel_index == 3 || wheel_index == 2)
+            {
+                fwd_fric_scaled = surf_friction_scale * vehicle->m_current_rear_fwd_fric_scale;
+                side_fric_scaled = surf_friction_scale * vehicle->m_current_rear_side_fric_scale;
+            }
+            else
+            {
+                fwd_fric_scaled = surf_friction_scale * vehicle->m_current_front_fwd_fric_scale;
+                side_fric_scaled = surf_friction_scale * vehicle->m_current_front_side_fric_scale;
+            }
+            if ((vehicle->m_flags & 0x80) == 0)
+            {
+                wheel_j->m_fwd_fric_k = fwd_fric_scaled;
+                wheel_j->m_side_fric_k = side_fric_scaled;
             }
         }
-        v7 = 3;
-        if (v35 < 3 && userData->underwater > 0 && userData->vehicle->m_parameter->m_buoyancybox_min[0] != 0.0)
+    }
+
+    if (wheels_grounded < min_wheels_grounded && userData->underwater > 0
+        && userData->vehicle->m_parameter->m_buoyancybox_min[0] != 0.0f)
+    {
+        static const float acceleration_proportion = 0.1f;
+        for (k = 0; k < 6; ++k)
         {
-            for (k = 0; k < 6; ++k)
+            wheel = vehicle->m_wheels[k];
+            if (wheel && !wheel->m_wheel_state)
             {
-                v5 = vehicle->m_wheels[k];
-                if (v5)
-                {
-                    if (!v5->m_wheel_state)
-                    {
-                        static const float acceleration_proportion = 0.1;
-
-
-                        //rigid_body_constraint_wheel::get_wheel_state_accelerating(v5, &v2, &v3);
-                        v5->get_wheel_state_accelerating(&v2, &v3);
-                        //rigid_body_constraint_wheel::set_wheel_state_accelerating(v5, v2, v3 * acceleration_proportion);
-                        v5->set_wheel_state_accelerating(v2, v3 *acceleration_proportion);
-                    }
-                }
+                wheel->get_wheel_state_accelerating(&accel_desired, &accel_factor);
+                wheel->set_wheel_state_accelerating(accel_desired, accel_factor * acceleration_proportion);
             }
         }
     }
@@ -3518,7 +3507,7 @@ int __cdecl wheel_collision_worker(jqBatch *__)
             (volatile unsigned __int32 *)&g_wpop_iter,
             (signed __int32)i->m_next_T_internal,
             (signed __int32)i) == i)
-            collide_vehicle_wheels((PhysObjUserData *)&i[2]);
+            collide_vehicle_wheels(PhysObj_UserDataFromListNode(i));
     }
     return 0;
 }

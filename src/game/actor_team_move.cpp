@@ -1,10 +1,14 @@
 #include "actor_team_move.h"
-#include <game_mp/g_main_mp.h>
+#include <game/g_main_wrapper.h>
 #include "actor_navigation.h"
-#include <game_mp/actor_mp.h>
+#include <game/actor_wrapper.h>
 #include "bullet.h"
 
-const float g_actorAssumedSpeed[1] = { 300.0 };
+#ifdef KISAK_SP
+const float g_actorAssumedSpeed[4] = { 300.0f, 300.0f, 300.0f, 300.0f };
+#else
+const float g_actorAssumedSpeed[1] = { 300.0f };
+#endif
 
 
 void __fastcall Actor_TeamMoveBlocked(actor_s *self)
@@ -81,7 +85,7 @@ void __cdecl Actor_MoveAlongPathWithTeam(actor_s *self, bool bRun, bool bUseInte
         if ( !wasMoving )
         {
             self->eAnimMode = AI_ANIM_MOVE_CODE;
-            self->moveMode = AI_MOVE_STOP;
+            self->moveMode = 0;
             if ( self->stateLevel < 6 && self->eState[self->stateLevel + 1] != AIS_NEGOTIATION )
             {
                 self->prevMoveDir[0] = 0.0f;
@@ -444,11 +448,15 @@ LABEL_104:
     return eResult;
 }
 
-bool Actor_TeamMoveCheckWaitTimer(actor_s *self, ai_teammove_t *result)
+char __cdecl Actor_TeamMoveCheckWaitTimer(actor_s *self, ai_teammove_t *result)
 {
-    iassert(self);
-    iassert(result);
-
+    if ( !self && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_team_move.cpp", 83, 0, "%s", "self") )
+        __debugbreak();
+    if ( !result
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_team_move.cpp", 84, 0, "%s", "result") )
+    {
+        __debugbreak();
+    }
     if ( level.time >= self->iTeamMoveWaitTime )
     {
         //if ( EntHandle::isDefined(&self->pCloseEnt) )

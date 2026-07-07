@@ -35,4 +35,5 @@ struct actor_prone_info_s // sizeof=0x18
 };
 
 int __cdecl BG_ActorIsProne(actor_prone_info_s *pInfo, int iCurrentTime);
+int __cdecl BG_ActorGoalIsProne(actor_prone_info_s *pInfo);
 double __cdecl BG_GetActorProneFraction(actor_prone_info_s *pInfo, int iCurrentTime);

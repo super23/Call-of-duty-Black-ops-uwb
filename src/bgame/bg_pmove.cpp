@@ -531,6 +531,7 @@ bool __cdecl is_not_penetrating(pmove_t *pm, float *start, float *mins, float *m
     trace_t trace; // [esp+4h] [ebp-40h] BYREF
     playerState_s *ps; // [esp+40h] [ebp-4h]
 
+    memset(&trace, 0, 16);
     ps = pm->ps;
     PM_playerTrace(pm, &trace, start, mins, maxs, end, ps->clientNum, contentMask);
     return phys_player_collision_mode->current.integer == 1 && !trace.startsolid
@@ -658,6 +659,7 @@ void __cdecl PM_FootstepEvent(pmove_t *pm, pml_t *pml, int iOldBobCycle, int iNe
         {
             if ( bFootStep && (ps->pm_flags & 8) != 0 )
             {
+                memset(&trace, 0, 16);
                 mins[0] = pm->mins[0];
                 mins[1] = pm->mins[1];
                 mins[0] = mins[0] + 6.0;
@@ -798,6 +800,7 @@ void __cdecl PM_UpdateLean(
 
     leaning = 0;
     leanofs = 0.0f;
+    memset(&trace, 0, 16);
     //col_context_t::col_context_t(&context);
     if ( ps->weaponstate != 35
         && (cmd->button_bits.testBit(6u) || cmd->button_bits.testBit(7u))
@@ -1801,6 +1804,13 @@ void __cdecl PmoveSingle(pmove_t *pm)
     {
         pm->cmd.forwardmove = 0;
         pm->cmd.rightmove = 0;
+        // BlackOpsMP.retail.c:~813233 PM freezecontrolsallowlook path: pm_flags 0x10 &&
+        // weaponstate 1 clears usercmd pitchmove/yawmove (blocks look input, not just WASD).
+        if ( ps->weaponstate == 1 )
+        {
+            pm->cmd.pitchmove = 0;
+            pm->cmd.yawmove = 0;
+        }
     }
     if ( !pm->cmd.button_bits.testBit(0x1Du) || ps->locationSelectionType )
         ps->eFlags &= ~0x200000u;
@@ -1929,6 +1939,8 @@ void __cdecl PmoveSingle(pmove_t *pm)
             v5[2] = 0.0f;
             PM_UpdateScriptedAnim(pm, &pml);
             PM_UpdateAimDownSightFlag(pm, &pml);
+            if ( (ps->eFlags & 0x4000) != 0 || (ps->eFlags2 & 0x10000000) != 0 )
+                PM_UpdateAimDownSightLerp(pm, &pml);
             PM_UpdateSprint(pm, &pml);
             PM_UpdatePlayerWalkingFlag(pm);
             PM_DropTimers(ps, &pml);
@@ -2467,7 +2479,7 @@ void __cdecl PM_Friction(playerState_s *ps, pml_t *pml, pmove_t *pm)
     vec[2] = ps->velocity[2];
     if ( pml->walking )
         vec[2] = 0.0f;
-    speed = Vec3Length(vec);
+    speed = Abs(vec);
     if ( speed >= 1.0 )
     {
         drop = 0.0f;
@@ -2712,7 +2724,7 @@ void __cdecl PM_DoSlideAdjustments(playerState_s *ps, const pml_t *pml)
         wishspeed = player_sliding_wishspeed->current.value;
         PM_Accelerate(ps, pml, dir, wishspeed, accel);
         vel_cap = player_sliding_velocity_cap->current.value;
-        len2 = Vec3Length(ps->velocity);
+        len2 = Abs(ps->velocity);
         if ( len2 > (float)(vel_cap * vel_cap) )
         {
             Vec3NormalizeTo(ps->velocity, nvel);
@@ -2758,7 +2770,7 @@ void __cdecl PM_SetMovementDir(pmove_t *pm, pml_t *pml)
             moved[2] = ps->origin[2] - pml->previous_origin[2];
             if ( !pm->cmd.forwardmove && !pm->cmd.rightmove
                 || ps->groundEntityNum == 1023
-                || (speed = Vec3Length(moved), speed == 0.0)
+                || (speed = Abs(moved), speed == 0.0)
                 || speed <= (float)(pml->frametime * 5.0)
                 || zombietron->current.enabled )
             {
@@ -3062,7 +3074,7 @@ void __cdecl PM_DeadMove(playerState_s *ps, pml_t *pml)
         __debugbreak();
     if ( pml->walking )
     {
-        forwarda = Vec3Length(ps->velocity);
+        forwarda = Abs(ps->velocity);
         forward = forwarda - 20.0;
         if ( forward > 0.0 )
         {
@@ -3111,7 +3123,7 @@ void __cdecl PM_NoclipMove(pmove_t *pm, pml_t *pml)
     if ( !ps && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp", 1934, 0, "%s", "ps") )
         __debugbreak();
     ps->viewHeightTarget = 60;
-    speed = Vec3Length(ps->velocity);
+    speed = Abs(ps->velocity);
     if ( speed >= 1.0 )
     {
         drop = 0.0f;
@@ -3208,7 +3220,7 @@ void __cdecl PM_UFOMove(pmove_t *pm, pml_t *pml)
     if ( fmove == 0.0 && smove == 0.0 && umove == 0.0 )
         speed = 0.0f;
     else
-        speed = Vec3Length(ps->velocity);
+        speed = Abs(ps->velocity);
     if ( speed >= 1.0 )
     {
         drop = 0.0f;
@@ -3263,6 +3275,7 @@ void __cdecl PM_GroundTrace(pmove_t *pm, pml_t *pml)
     float v2; // xmm0_4
     unsigned __int16 EntityHitId; // ax
     unsigned __int16 v4; // ax
+    trace_t airTrace; // [esp+Ch] [ebp-9Ch] BYREF
     unsigned int eventParm; // [esp+44h] [ebp-64h]
     int stype; // [esp+48h] [ebp-60h]
     float start[3]; // [esp+4Ch] [ebp-5Ch] BYREF
@@ -3272,6 +3285,7 @@ void __cdecl PM_GroundTrace(pmove_t *pm, pml_t *pml)
     const gjkcc_input_t *gjkcc_in; // [esp+A4h] [ebp-4h]
     int savedregs; // [esp+A8h] [ebp+0h] BYREF
 
+    memset(&trace, 0, 16);
     if ( !pm && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp", 2548, 0, "%s", "pm") )
         __debugbreak();
     ps = pm->ps;
@@ -3415,7 +3429,7 @@ void __cdecl PM_GroundTrace(pmove_t *pm, pml_t *pml)
             else
             {
                 point[2] = point[2] - 32.0;
-                trace_t airTrace; // [esp+Ch] [ebp-9Ch] BYREF
+                memset(&airTrace, 0, 16);
                 if ( phys_player_collision_mode->current.integer == 1 )
                     PM_gjk_ground_trace(
                         gjkcc_in,
@@ -3711,6 +3725,7 @@ void __cdecl PM_GroundTraceMissed(pmove_t *pm, pml_t *pml)
     playerState_s *ps; // [esp+4Ch] [ebp-10h]
     float point[3]; // [esp+50h] [ebp-Ch] BYREF
 
+    memset(&trace, 0, 16);
     if ( !pm && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp", 2485, 0, "%s", "pm") )
         __debugbreak();
     ps = pm->ps;
@@ -3823,6 +3838,7 @@ void __cdecl PM_CheckDuck(pmove_t *pm, pml_t *pml)
     trace_t trace; // [esp+1F0h] [ebp-40h] BYREF
     playerState_s *ps; // [esp+22Ch] [ebp-4h]
 
+    memset(&trace, 0, 16);
     //col_context_t::col_context_t(&context);
     if ( !pm && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp", 3168, 0, "%s", "pm") )
         __debugbreak();
@@ -5069,6 +5085,7 @@ void __cdecl PM_FoliageSounds(pmove_t *pm)
     int interval; // [esp+60h] [ebp-8h]
     playerState_s *ps; // [esp+64h] [ebp-4h]
 
+    memset(&trace, 0, 16);
     ps = pm->ps;
     if ( !ps && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp", 4652, 0, "%s", "ps") )
         __debugbreak();
@@ -5223,6 +5240,7 @@ void __cdecl PM_CheckLadderMove(pmove_t *pm, pml_t *pml)
     trace_t trace; // [esp+64h] [ebp-40h] BYREF
     playerState_s *ps; // [esp+A0h] [ebp-4h]
 
+    memset(&trace, 0, 16);
     if ( !pm && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_pmove.cpp", 5574, 0, "%s", "pm") )
         __debugbreak();
     ps = pm->ps;

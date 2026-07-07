@@ -1,13 +1,21 @@
 #include "cg_draw_indicators.h"
 #include <demo/demo_playback.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_cgame_sp.h>
+#include <cgame_sp/cg_main_sp.h>
+#include <cgame_sp/cg_view_sp.h>
+#include <cgame_sp/cg_draw_sp.h>
+#include <cgame_sp/cg_ents_sp.h>
+#else
 #include <client_mp/cl_cgame_mp.h>
-#include <ui/ui_atoms.h>
-#include "cg_draw_reticles.h"
 #include <cgame_mp/cg_main_mp.h>
-#include "cg_drawtools.h"
 #include <cgame_mp/cg_view_mp.h>
 #include <cgame_mp/cg_draw_mp.h>
 #include <cgame_mp/cg_ents_mp.h>
+#endif
+#include <ui/ui_atoms.h>
+#include "cg_draw_reticles.h"
+#include "cg_drawtools.h"
 #include <bgame/bg_weapons_def.h>
 #include <bgame/bg_misc.h>
 #include <gfx_d3d/r_rendercmds.h>
@@ -103,15 +111,14 @@ void __cdecl CG_DrawDamageDirectionIndicators(int localClientNum)
         v2 = cg_hudDamageIconOffset->current.value;
         v3 = ScrPlace_HiResGetScale() * v2;
         radius = v3 * scrPlace->scaleVirtualToReal[1];
-        LODWORD(xy[0][0]) = halfWidth;
+        xy[0][0] = halfWidth;
         xy[0][1] = radius + height;
-        //LODWORD(xy[1][0]) = halfWidth ^ _mask__NegFloat_;
         xy[1][0] = -halfWidth;
         xy[1][1] = radius + height;
-        //LODWORD(xy[2][0]) = halfWidth ^ _mask__NegFloat_;
         xy[2][0] = -halfWidth;
-        LODWORD(xy[2][1]) = radius;
-        *(_QWORD *)&xy[3][0] = __PAIR64__(radius, halfWidth);
+        xy[2][1] = radius;
+        xy[3][0] = halfWidth;
+        xy[3][1] = radius;
         color[0] = colorWhite[0];
         color[1] = 1.0;
         color[2] = 1.0;

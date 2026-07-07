@@ -3,13 +3,19 @@
 #include <bgame/bg_weapons_def.h>
 #include <universal/com_loadutils.h>
 #include <bgame/bg_misc.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_main_sp.h>
+#include <cgame_sp/cg_vehicles_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#else
 #include <cgame_mp/cg_main_mp.h>
 #include <cgame_mp/cg_vehicles_mp.h>
 #include <client_mp/cl_cgame_mp.h>
+#endif
 #include <bgame/bg_misctables.h>
 
 ViewModelInfo *cg_viewModelArray;
-weaponInfo_s *cg_weaponsArray[1];
+weaponInfo_s *cg_weaponsArray[MAX_LOCAL_CLIENTS];
 
 bool cgHasClientSystemBeenInitialzed;
 

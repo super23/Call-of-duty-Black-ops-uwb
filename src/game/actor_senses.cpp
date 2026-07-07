@@ -1,12 +1,15 @@
 #include "actor_senses.h"
-#include <game_mp/g_main_mp.h>
+#include <game/g_main_wrapper.h>
 #include <server/sv_world.h>
-#include <game_mp/actor_mp.h>
-#include <game_mp/g_spawn_mp.h>
+#include <game/actor_wrapper.h>
+#include <game/g_spawn_wrapper.h>
 #include <clientscript/scr_const.h>
-#include <game_mp/g_utils_mp.h>
+#include <game/g_utils_wrapper.h>
 #include "bullet.h"
 #include <qcommon/dobj_management.h>
+#include <game/g_combat_wrapper.h>
+#include <game/g_main_wrapper.h>
+#include <bgame/bg_public.h>
 
 colgeom_visitor_inlined_t<200> *g_visitor;
 float g_viewPos[3];
@@ -688,5 +691,46 @@ int __fastcall Actor_GetMuzzleInfo(actor_s *self, float *vOrigin, float *vForwar
         vForward[2] = self->muzzleInfo.dir[2];
     }
     return 1;
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (Actor_CanShootFrom ~5995028)
+int __fastcall Actor_CanShootFrom(actor_s *self, const float *targetPos, const float *muzzlePos)
+{
+    float delta[3];
+    float distSq;
+    float maxDist;
+    trace_t trace;
+    col_context_t context(33605729);
+    int hitEntId;
+    gentity_s *hitEnt;
+
+    iassert(self);
+    iassert(self->ent);
+    iassert(self->sentient);
+    delta[0] = muzzlePos[0] - targetPos[0];
+    delta[1] = muzzlePos[1] - targetPos[1];
+    delta[2] = muzzlePos[2] - targetPos[2];
+    distSq = (float)((float)(delta[0] * delta[0]) + (float)(delta[1] * delta[1])) + (float)(delta[2] * delta[2]);
+    maxDist = ai_playerFarRange->current.value;
+    if ( distSq > (float)(maxDist * maxDist) )
+        return 0;
+    G_TraceCapsule(
+        &trace,
+        muzzlePos,
+        vec3_origin,
+        vec3_origin,
+        targetPos,
+        self->ent->s.number,
+        33605729,
+        &context);
+    if ( trace.fraction >= 1.0f )
+        return 1;
+    hitEntId = Trace_GetEntityHitId(&trace);
+    if ( self->sentient->targetEnt.isDefined() && self->sentient->targetEnt.entnum() == hitEntId )
+        return 1;
+    hitEnt = &g_entities[hitEntId];
+    if ( hitEnt->sentient && hitEnt->sentient != self->sentient )
+        return 1;
+    return 0;
 }
 

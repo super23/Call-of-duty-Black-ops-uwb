@@ -1,5 +1,9 @@
 #include "live.h"
+#ifdef KISAK_SP
+#include <cgame_sp/cg_consolecmds_sp.h>
+#else
 #include <cgame_mp/cg_consolecmds_mp.h>
+#endif
 #include <cgame/cg_compass.h>
 #include "live_win.h"
 #include "live_storage_pub.h"

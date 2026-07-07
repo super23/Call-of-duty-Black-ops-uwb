@@ -35,6 +35,7 @@ int __cdecl CG_CompareSndInfoDistance(snd_overlay_info *va, snd_overlay_info *vb
 int __cdecl CG_CompareSndInfoEntity(snd_overlay_info *va, snd_overlay_info *vb);
 void __cdecl CG_DrawPerformanceWarnings();
 void __cdecl CG_DrawDebugOverlays(int localClientNum);
+void __cdecl CG_DrawDebugPositionInfo(int localClientNum);
 void __cdecl CG_DrawModelBoneAxis(int localClientNum);
 void __cdecl CG_DrawDebugPlayerHealth(int localClientNum);
 void __cdecl CG_DrawDebugPlayerSprint(int localClientNum);
@@ -51,6 +52,8 @@ bool __cdecl CG_Flash(int timeMs);
 void __cdecl CG_DrawVersion();
 void CG_QuickPrint(const char *fmt, ...);
 void __cdecl CG_QuickPrintFlush();
+void __cdecl CG_SetDebugOrigin(const float *origin);
+void __cdecl CG_SetDebugAngles(const float *angles);
 
 
 extern float g_TagColors[6][4];

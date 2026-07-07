@@ -4,52 +4,69 @@
 #include "demo_ui.h"
 #include <live/live_win.h>
 #include <live/live_fileshare.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#include <client_sp/cl_scrn_sp.h>
+#include <cgame_sp/cg_ui_animate_sp.h>
+#include <cgame_sp/cg_newDraw_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <cgame_sp/cg_scr_main_sp.h>
+#include <cgame_sp/cg_consolecmds_sp.h>
+#include <client_sp/cl_parse_sp.h>
+#include <server_sp/sv_main_sp.h>
+#include <cgame_sp/cg_servercmds_sp.h>
+#include <cgame_sp/cg_snapshot_sp.h>
+#include <game/g_main.h>
+#include <ui_sp/ui_main_sp.h>
+#include <ui_sp/ui_gametype_custom_sp.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
+#include <client_mp/cl_scrn_mp.h>
+#include <cgame_mp/cg_ui_animate_mp.h>
+#include <cgame_mp/cg_newDraw_mp.h>
+#include <client_mp/cl_cgame_mp.h>
+#include <cgame_mp/cg_scr_main_mp.h>
+#include <cgame_mp/cg_consolecmds_mp.h>
+#include <client_mp/cl_parse_mp.h>
+#include <server_mp/sv_main_mp.h>
+#include <cgame_mp/cg_servercmds_mp.h>
+#include <cgame_mp/cg_snapshot_mp.h>
+#include <game_mp/g_main_mp.h>
+#include <ui_mp/ui_main_mp.h>
+#include <ui_mp/ui_gametype_custom_mp.h>
+#endif
 #include <win32/win_shared.h>
 #include "demo_files.h"
 #include <client/client.h>
 #include <gfx_d3d/r_dvars.h>
-#include <client_mp/cl_scrn_mp.h>
 #include <universal/com_memory.h>
 #include <mjpeg/yuv.h>
 #include <win32/win_net.h>
 #include <cgame/cg_draw_names.h>
 #include <qcommon/com_clients.h>
 #include <DW/dwRecordEvent.h>
-#include <cgame_mp/cg_ui_animate_mp.h>
-#include <cgame_mp/cg_newDraw_mp.h>
 #include <client/cl_keys.h>
 #include "demo_recording.h"
-#include <client_mp/cl_cgame_mp.h>
 #include <cgame/cg_camerashake.h>
 #include <gfx_d3d/r_dpvs.h>
 #include <client/cl_console.h>
 #include <ik/ik.h>
-#include <cgame_mp/cg_scr_main_mp.h>
 #include <clientscript/cscr_vm.h>
-#include <cgame_mp/cg_consolecmds_mp.h>
 #include <EffectsCore/fx_marks.h>
 #include "demo_profile.h"
 #include <glass/glass_client.h>
 #include <universal/com_files.h>
 #include <universal/com_files.h>
-#include <client_mp/cl_parse_mp.h>
 #include <universal/q_parse.h>
-#include <server_mp/sv_main_mp.h>
 #include <qcommon/msg.h>
 #include <qcommon/sv_msg_write.h>
-#include <cgame_mp/cg_servercmds_mp.h>
 #include <cgame/cg_main.h>
-#include <cgame_mp/cg_snapshot_mp.h>
-#include <game_mp/g_main_mp.h>
 #include <qcommon/dobj_management.h>
 #include <cgame/cg_scr_main.h>
 #include <universal/com_constantconfigstrings.h>
 #include <qcommon/dvar_cmds.h>
 #include <cgame/cg_drawtools.h>
-#include <ui_mp/ui_main_mp.h>
 #include <physics/rope_gamestate.h>
-#include <ui_mp/ui_gametype_custom_mp.h>
 #include <live/live_counter.h>
 #include <sound/snd_public_async.h>
 #include <win32/win_gamepad.h>
@@ -2051,7 +2068,7 @@ void __cdecl Demo_ParseSnapshot(int localClientNum, msg_t *msg)
     int Bit; // eax
     const char *v9; // eax
     playerState_s result; // [esp+0h] [ebp-4D68h] BYREF
-    unsigned __int8 dst[9892]; // [esp+26ACh] [ebp-26BCh] BYREF
+    unsigned __int8 dst[sizeof(playerState_s)]; // playerState_s scratch
     clientActive_t *LocalClientGlobals; // [esp+4D50h] [ebp-18h]
     int v13; // [esp+4D54h] [ebp-14h]
     clientConnection_t *LocalClientConnection; // [esp+4D58h] [ebp-10h]

@@ -4028,34 +4028,23 @@ int __cdecl Scr_HitBreakpoint(
     kill_thread = gScrDebuggerGlob[inst].kill_thread;
     if (kill_thread)
     {
+        char *killPos;
+
         gScrDebuggerGlob[inst].kill_thread = 0;
         opcode = 0;
-        if (gScrDebuggerGlob[inst].killThreadCodePos)
+        killPos = gScrDebuggerGlob[inst].killThreadCodePos;
+        if (killPos)
         {
-            if (gScrDebuggerGlob[inst].killThreadCodePos != codePos
-                && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\clientscript\\cscr_debugger.cpp",
-                    8581,
-                    0,
-                    "%s",
-                    "gScrDebuggerGlob[inst].killThreadCodePos == codePos"))
-            {
-                __debugbreak();
-            }
-            Scr_RemoveManualBreakpoint(inst, (unsigned __int8 *)gScrDebuggerGlob[inst].killThreadCodePos);
+            Scr_RemoveManualBreakpoint(inst, (unsigned __int8 *)killPos);
             gScrDebuggerGlob[inst].killThreadCodePos = 0;
-            existsBreakpoint = 1;
+            if (killPos == pos || killPos == codePos)
+                existsBreakpoint = 1;
         }
     }
-    else if (gScrDebuggerGlob[inst].killThreadCodePos
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\clientscript\\cscr_debugger.cpp",
-            8590,
-            0,
-            "%s",
-            "!gScrDebuggerGlob[inst].killThreadCodePos"))
+    else if (gScrDebuggerGlob[inst].killThreadCodePos)
     {
-        __debugbreak();
+        Scr_RemoveManualBreakpoint(inst, (unsigned __int8 *)gScrDebuggerGlob[inst].killThreadCodePos);
+        gScrDebuggerGlob[inst].killThreadCodePos = 0;
     }
     gScrVmPub[inst].top = top;
     if (gScrVarPub[inst].evaluate
@@ -4369,16 +4358,6 @@ void __cdecl Scr_DebugKillThread(scriptInstance_t inst, unsigned int threadId, c
             {
                 if (gScrDebuggerGlob[inst].killThreadCodePos)
                 {
-                    if (gScrDebuggerGlob[inst].killThreadCodePos != gScrVmPub[inst].function_frame->fs.pos
-                        && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\clientscript\\cscr_debugger.cpp",
-                            8749,
-                            0,
-                            "%s",
-                            "gScrDebuggerGlob[inst].killThreadCodePos == gScrVmPub[inst].function_frame->fs.pos"))
-                    {
-                        __debugbreak();
-                    }
                     Scr_RemoveManualBreakpoint(inst, (unsigned __int8 *)gScrDebuggerGlob[inst].killThreadCodePos);
                     gScrDebuggerGlob[inst].killThreadCodePos = 0;
                 }

@@ -6,6 +6,18 @@
 struct GfxWorld;
 struct XModel;
 
+// Native LinkerMod streaming limits (game_mod/r_stream.h).
+// POOLSIZE_IMAGE is 6000; streaming tracks 6048 image-part slots for headroom.
+#define STREAM_MAX_IMAGE_PARTS 1
+#define STREAM_MAX_MATERIALS 4096
+#define STREAM_MAX_MATERIAL_BITS (STREAM_MAX_MATERIALS / 32)
+#define STREAM_MAX_MODELS 2048
+#define STREAM_MAX_MODEL_BITS (STREAM_MAX_MODELS / 32)
+#define STREAM_MAX_IMAGES 6048
+#define STREAM_MAX_IMAGE_BITS (STREAM_MAX_IMAGES / 32)
+#define TOTAL_IMAGE_PARTS STREAM_MAX_IMAGES
+#define IMAGE_STREAM_BITWORDS STREAM_MAX_IMAGE_BITS
+
 enum stream_status : __int32
 {                                       // XREF: pendingRequest/r
                                         // pendingRequest/r
@@ -39,56 +51,48 @@ struct distance_data // sizeof=0x8
                                         // R_StreamUpdateForBModel+E8/w ...
 };
 
-struct StreamFrontendGlob
+struct __declspec(align(128)) StreamFrontendGlob
 {
     void *mainBuffer;
     int mainBufferSize;
     void *extraBuffer;
     int extraBufferSize;
     unsigned int frame;
-    _BYTE gap14[108];
-    float materialImportance[4096];
-    unsigned int materialImportanceBits[128];
-    unsigned int materialTouchBits[128];
-    unsigned int materialPreventBits[128];
-    float modelDistance[1000];
-    _BYTE gap5620[96];
-    unsigned int modelDistanceBits[32];
-    float dynamicModelDistance[1000];
-    _BYTE gap66A0[96];
-    unsigned int dynamicModelDistanceBits[32];
-    unsigned int modelTouchBits[32];
-    unsigned int imageInSortedListBits[128];
-    float imageImportance[4096];
-    unsigned int imageImportanceBits[128];
-    float dynamicImageImportance[4096];
-    unsigned int dynamicImageImportanceBits[128];
-    unsigned int dummy;
-    _BYTE gapEE04[1440];
-    unsigned int imageLoading[128];
-    unsigned int imageUseBits[128];
-    unsigned int imageForceBits[128];
-    _BYTE gapF9A4[16];
-    unsigned int imageInitialBits[128];
-    _BYTE gapFBB4[16];
-    unsigned int imageTouchBits[2][132];
+    char _pad0[108];
+    float materialImportance[STREAM_MAX_MATERIALS];
+    unsigned int materialImportanceBits[STREAM_MAX_MATERIAL_BITS];
+    unsigned int materialTouchBits[STREAM_MAX_MATERIAL_BITS];
+    unsigned int materialPreventBits[STREAM_MAX_MATERIAL_BITS];
+    float modelDistance[STREAM_MAX_MODELS];
+    char _pad1[96];
+    unsigned int modelDistanceBits[STREAM_MAX_MODEL_BITS];
+    float dynamicModelDistance[STREAM_MAX_MODELS];
+    char _pad2[96];
+    unsigned int dynamicModelDistanceBits[STREAM_MAX_MODEL_BITS];
+    unsigned int modelTouchBits[STREAM_MAX_MODEL_BITS];
+    unsigned int imageInSortedListBits[STREAM_MAX_IMAGE_BITS];
+    char _pad3[112];
+    float imageImportance[STREAM_MAX_IMAGES];
+    unsigned int imageImportanceBits[STREAM_MAX_IMAGE_BITS];
+    char _pad4[0x4AC4];
+    unsigned int imageLoading[STREAM_MAX_IMAGE_BITS];
+    unsigned int imageUseBits[STREAM_MAX_IMAGE_BITS];
+    unsigned int imageForceBits[STREAM_MAX_IMAGE_BITS];
+    unsigned int imageInitialBits[STREAM_MAX_IMAGE_BITS];
+    unsigned int imageTouchBits[STREAM_MAX_IMAGE_BITS][2];
     int activeImageTouchBits;
     float touchedImageImportance;
     float initialImageImportance;
     float forcedImageImportance;
     bool imageInitialBitsSet;
-    _BYTE gapFFF5[3];
     int initialLoadAllocFailures;
     bool preloadCancelled;
     bool diskOrderImagesNeedSorting;
-    __declspec(align(1)) int sortedImages[4096];
-    _declspec(align(1)) int sortedImageCount;
+    char _pad5[0x62];
+    int sortedImages[STREAM_MAX_IMAGES];
+    int sortedImageCount;
     bool calculateTotalBytesWanted;
-    _BYTE gap14003[74];
-    _BYTE gap1400311[435];
     int totalBytesWanted;
-    char syncThing;
-    __declspec(align(4)) _BYTE gap14208[4];
     volatile int queryClient;
     volatile int queryInProgress;
     bool diskOrder;
@@ -203,6 +207,7 @@ char __cdecl R_StreamUpdate_TryBeginQuery();
 void R_StreamUpdateTouchedModels();
 void __cdecl R_StreamUpdateForXModelTouched(const XModel *model);
 void __cdecl R_StreamUpdateForcedModels();
+void __cdecl R_Stream_ForceEntityTexturesToLoad(unsigned int entnum, bool enable);
 void __cdecl R_StreamTouchImagesFromMaterial(const Material *remoteMaterial, float importance);
 void __cdecl R_StreamUpdatePerClient(const float *viewPos);
 void __cdecl R_StreamUpdateDynamicModels(

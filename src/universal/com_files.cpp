@@ -5,6 +5,7 @@
 #include <ShlObj.h>
 #include <qcommon/threads.h>
 #include <qcommon/common.h>
+#include <qcommon/com_sp_map_mp.h>
 
 #include <qcommon/unzip.h>
 #include "com_fileaccess.h"
@@ -2832,8 +2833,177 @@ void __cdecl FS_Flush(int f)
     fflush(v1);
 }
 
+#if KISAK_MP_SP_MAP_SUPPORT
+// Changed-For-SP-Map: campaign BSPs live at maps/<mapname>.d3dbsp; MP maps at maps/mp/<mapname>.d3dbsp.
+static bool Com_GetBspFilename_TrySpCampaignPath(char *filename, unsigned int size, const char *mapname)
+{
+    char spBsp[256];
+    char mpBsp[256];
+
+    Com_sprintf(spBsp, sizeof(spBsp), "maps/%s.d3dbsp", mapname);
+    Com_sprintf(mpBsp, sizeof(mpBsp), "maps/mp/%s.d3dbsp", mapname);
+    if ( FS_FileExists(spBsp) && !FS_FileExists(mpBsp) )
+    {
+        Com_sprintf(filename, size, "maps/%s.d3dbsp", mapname);
+        return true;
+    }
+    return false;
+}
+#endif
+
+bool __cdecl Com_IsBspMapPath(const char *name)
+{
+    size_t len;
+
+    if ( !name || !*name )
+        return false;
+    len = strlen(name);
+    return len >= 7 && !I_stricmp(name + len - 7, ".d3dbsp");
+}
+
+void __cdecl Com_StripMapBaseFromBspPath(const char *bspPath, char *mapBase, unsigned int size)
+{
+    const char *p;
+
+    if ( !mapBase || size < 2 )
+        return;
+    mapBase[0] = 0;
+    if ( !bspPath || !*bspPath )
+        return;
+    p = bspPath;
+    if ( !I_strncmp(p, "maps/mp/", 8) )
+        p += 8;
+    else if ( !I_strncmp(p, "maps/", 5) )
+        p += 5;
+    I_strncpyz(mapBase, p, size);
+    {
+        char *ext = strstr(mapBase, ".d3dbsp");
+        if ( ext )
+            *ext = 0;
+    }
+}
+
 void __cdecl Com_GetBspFilename(char *filename, unsigned int size, const char *mapname)
 {
-    Com_sprintf(filename, size, "maps/mp/%s.d3dbsp", mapname);
+    // MP retail always resolves BSP under maps/mp/ unless the spec-op path transform applies.
+    //
+    // BlackOpsMP.retail.c sub_4C86C0 @ 004C86C0:
+    //   Com_sprintf(buf, n, "maps/mp/%s.d3dbsp", mapname);
+    //
+    // BlackOpsMP.retail.c sub_493A60 @ 00493A60 (when opening a path starting with "maps/so_" and
+    // ending in ".d3dbsp"): walk to the first '_' after "maps/so_", then if the remainder at that
+    // underscore begins with "_mp_" emit "maps/mp/%s" else "maps/%s", where %s is the substring after
+    // that first underscore.
+    //
+    // Changed-For-SP-Map: see Com_GetBspFilename_TrySpCampaignPath (maps/<name> when only SP BSP exists).
+    // Bare "so_*" mapname form below matches retail spec-op on-disk layout.
+    //
+    // Level fastfile: retail queues both a stripped-name zone and <full mapname>.ff when that
+    // overlay exists; Com_LoadLevelFastFiles falls back to the stripped name alone if the overlay is absent.
+
+    const char *v11;
+    char v12;
+    const char *v26;
+
+    if ( !filename || size == 0 )
+        return;
+    *filename = 0;
+    if ( !mapname || !*mapname )
+        return;
+
+    if ( Com_IsBspMapPath(mapname) )
+    {
+        char normalized[256];
+        size_t normLen;
+
+        // Decomp: CoDSP_rdBlackOps.map.c — fastfile assets use maps/<map>.d3dbsp; reject double .d3dbsp suffix.
+        I_strncpyz(normalized, mapname, sizeof(normalized));
+        normLen = strlen(normalized);
+        while ( normLen > 14 && !I_stricmp(normalized + normLen - 14, ".d3dbsp.d3dbsp") )
+        {
+            normalized[normLen - 7] = 0;
+            normLen -= 7;
+        }
+        I_strncpyz(filename, normalized, (int)size);
+        return;
+    }
+
+    static const char kMapsSo[] = "maps/so_";
+    const int kMapsSoLen = sizeof(kMapsSo) - 1;
+
+    if ( I_strncmp(mapname, kMapsSo, kMapsSoLen) == 0 )
+    {
+        const size_t len = strlen(mapname);
+        if ( len > 7u && I_strncmp(mapname + len - 7, ".d3dbsp", 7) == 0 )
+        {
+            v11 = mapname + kMapsSoLen;
+            v12 = *v11;
+            if ( !v12 )
+                Com_Error(ERR_DROP, "Bad specop level name\n");
+            while ( v12 != '_' )
+            {
+                v12 = *++v11;
+                if ( !v12 )
+                    Com_Error(ERR_DROP, "Bad specop level name\n");
+            }
+            if ( !v11[0] )
+                Com_Error(ERR_DROP, "Bad specop level name\n");
+            v26 = v11 + 1;
+            if ( !v26[0] )
+                Com_Error(ERR_DROP, "Bad specop level name\n");
+            if ( I_strncmp(v11, "_mp_", 4) != 0 )
+                Com_sprintf(filename, size, "maps/%s", v26);
+            else
+                Com_sprintf(filename, size, "maps/mp/%s", v26);
+            return;
+        }
+    }
+
+    if ( I_strncmp(mapname, "so_", 3) == 0 )
+    {
+        v11 = mapname + 3;
+        v12 = *v11;
+        if ( !v12 )
+            Com_Error(ERR_DROP, "Bad specop level name\n");
+        while ( v12 != '_' )
+        {
+            v12 = *++v11;
+            if ( !v12 )
+                Com_Error(ERR_DROP, "Bad specop level name\n");
+        }
+        if ( !v11[0] )
+            Com_Error(ERR_DROP, "Bad specop level name\n");
+        v26 = v11 + 1;
+        if ( !v26[0] )
+            Com_Error(ERR_DROP, "Bad specop level name\n");
+        if ( I_strncmp(v11, "_mp_", 4) != 0 )
+            Com_sprintf(filename, size, "maps/%s.d3dbsp", v26);
+        else
+            Com_sprintf(filename, size, "maps/mp/%s.d3dbsp", v26);
+        return;
+    }
+
+#if KISAK_MP_SP_MAP_SUPPORT
+    if ( Com_GetBspFilename_TrySpCampaignPath(filename, size, mapname) )
+        return;
+#endif
+
+    {
+        char leaf[256];
+        size_t leafLen;
+
+        I_strncpyz(leaf, mapname, sizeof(leaf));
+        leafLen = strlen(leaf);
+        while ( leafLen > 7 && !I_stricmp(leaf + leafLen - 7, ".d3dbsp") )
+        {
+            leaf[leafLen - 7] = 0;
+            leafLen -= 7;
+        }
+#ifdef KISAK_SP
+        Com_sprintf(filename, size, "maps/%s.d3dbsp", leaf);
+#else
+        Com_sprintf(filename, size, "maps/mp/%s.d3dbsp", leaf);
+#endif
+    }
 }
 

@@ -36,6 +36,9 @@ colgeom_visitor_t::colgeom_visitor_t()
     this->m_rvec.vec.u[1] = 0;
     this->m_rvec.vec.u[2] = 0;
     this->m_rvec.vec.u[3] = 0;
+    this->m_radius = 0.0f;
+    this->m_mask = 0;
+    this->m_threadInfo = nullptr;
 }
 
 colgeom_visitor_t::colgeom_visitor_t(const colgeom_visitor_t *__that)
@@ -56,6 +59,8 @@ colgeom_visitor_t::colgeom_visitor_t(const colgeom_visitor_t *__that)
 
 void static_colgeom_visitor_t::visit(const CollisionAabbTree *tree)
 {
+    if ( !tree )
+        return;
     if ( this->ntrees < 512 )
         this->trees[this->ntrees++] = tree;
 }
@@ -64,6 +69,8 @@ void static_colgeom_visitor_t::visit(const cbrush_t *brush)
 {
     int i; // [esp+4h] [ebp-4h]
 
+    if ( !brush )
+        return;
     if ( this->nbrushes < 512 )
     {
         for ( i = 0; i < this->nbrushes; ++i )

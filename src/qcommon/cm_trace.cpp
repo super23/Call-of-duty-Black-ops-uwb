@@ -9,7 +9,11 @@
 #include <gfx_d3d/r_water_sim.h>
 #include <server/sv_world.h>
 #include <bgame/bg_misc.h>
+#ifdef KISAK_SP
+#include <server_sp/sv_main_sp.h>
+#else
 #include <server_mp/sv_main_mp.h>
+#endif
 #include <game/g_scr_helicopter.h>
 
 col_context_t::col_context_t()
@@ -198,10 +202,17 @@ unsigned int __cdecl CM_TempBoxModel(const float *mins, const float *maxs, int c
 void __cdecl CM_GetBox(cbrush_t **box_brush, cmodel_t **box_model, PhysGeomList ***geoms)
 {
     TraceThreadInfo *value; // [esp+0h] [ebp-4h]
+    unsigned int threadContext;
 
     value = (TraceThreadInfo *)Sys_GetValue(3);
     if ( !value && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp", 152, 0, "%s", "value") )
         __debugbreak();
+    if ( !value->box_model )
+    {
+        threadContext = (unsigned int)(value - g_traceThreadInfo);
+        if ( threadContext < 0xC )
+            CM_InitThreadData(threadContext);
+    }
     if ( value->box_model->leaf.brushContents != -1
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp",
@@ -333,7 +344,7 @@ void __cdecl CM_Trace(
     else
         tw.radius = tw.size.vec.v[2];
 
-    tw.boundingRadius = Vec3Length(tw.size.vec.v);
+    tw.boundingRadius = Abs(tw.size.vec.v);
     tw.offsetZ = tw.size.vec.v[2] - tw.radius;
 
     for ( i = 0; i < 2; ++i )
@@ -831,12 +842,13 @@ void __cdecl CM_PositionTest(traceWork_t *tw, trace_t *trace, col_context_t *con
                     __debugbreak();
                 }
                 brush = prim->brush;
-                if ( (tw->contents & brush->contents) != 0 )
+                if ( brush && (tw->contents & brush->contents) != 0 )
                     CM_TestBoxInBrush(tw, brush, trace);
             }
             else
             {
-                CM_MeshTest(tw, prim->tree, trace);
+                if ( prim->tree )
+                    CM_MeshTest(tw, prim->tree, trace);
             }
             ++i;
             ++prim;
@@ -1985,12 +1997,18 @@ void __cdecl CM_TraceThroughPrimitives(
                     __debugbreak();
                 }
                 brush = prim->brush;
-                if ( (tw->contents & brush->contents) != 0 )
+                if ( brush && (tw->contents & brush->contents) != 0 )
                     CM_TraceThroughBrush(tw, brush, trace);
             }
             else
             {
                 tree = prim->tree;
+                if ( !tree )
+                {
+                    ++i;
+                    ++prim;
+                    continue;
+                }
                 materialInfo = &cm.materials[tree->materialIndex];
                 if ( (materialInfo->contentFlags & tw->contents) != 0 )
                 {
@@ -3096,6 +3114,7 @@ int __cdecl CM_BoxSightTrace(
     int oldHitNuma; // [esp+194h] [ebp+8h]
 
     //traceWork_t::traceWork_t(&tw);
+    memset(&trace, 0, 16);
     if ( !cm.numNodes
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_trace.cpp", 2687, 0, "%s", "cm.numNodes") )
     {
@@ -3140,7 +3159,7 @@ int __cdecl CM_BoxSightTrace(
     else
         v9 = tw.size.vec.u[2];
     LODWORD(tw.radius) = v9;
-    tw.boundingRadius = Vec3Length(tw.size.vec.v);
+    tw.boundingRadius = Abs(tw.size.vec.v);
     tw.offsetZ = tw.size.vec.v[2] - tw.radius;
     for ( i = 0; i < 2; ++i )
     {
@@ -3477,6 +3496,7 @@ int __cdecl CM_SightTracePoint(int oldHitNum, const float *start, const float *e
 
     //traceWork_t::traceWork_t(&tw);
     hitNum = 0;
+    memset(&trace, 0, 16);
     brushmask = context->mask;
     *(_QWORD *)tw.extents.start.vec.v = *(_QWORD *)start;
     tw.extents.start.vec.v[2] = start[2];
@@ -3529,13 +3549,17 @@ int __cdecl CM_SightTracePoint(int oldHitNum, const float *start, const float *e
     if ( !context->nprims )
         return CM_SightTraceThroughTree(&tw, 0, tw.extents.start.vec.v, tw.extents.end.vec.v, &trace);
     prim = context->prims;
-    _mm_prefetch((const char *)prim, 1);
-    _mm_prefetch((const char *)prim->tree, 1);
     for ( j = 0; j < context->nprims; ++j )
     {
-        _mm_prefetch((const char *)context->prims[j + 1].tree, 1);
+        if ( j + 1 < context->nprims )
+            _mm_prefetch((const char *)&context->prims[j + 1], 1);
         if ( prim->type )
         {
+            if ( !prim->brush )
+            {
+                ++prim;
+                continue;
+            }
             if ( (brushmask & *(unsigned int *)&prim->tree->materialIndex) != 0 )
             {
                 hitNum = CM_SightTraceThroughBrush(&tw, prim->brush, ((char *)prim->tree - (char *)cm.brushes) / 96, &trace);
@@ -3546,6 +3570,11 @@ int __cdecl CM_SightTracePoint(int oldHitNum, const float *start, const float *e
         else
         {
             tree = prim->tree;
+            if ( !tree )
+            {
+                ++prim;
+                continue;
+            }
             materialInfo = &cm.materials[tree->materialIndex];
             mn[0] = tree->origin[0] - tree->halfSize[0];
             mn[1] = tree->origin[1] - tree->halfSize[1];
@@ -4827,7 +4856,8 @@ void __cdecl trace_point_vs_env(
         if ( prim->type )
         {
             v12 = prim->brush;
-            if ( v12->maxs[0] >= bounds[0][0]
+            if ( v12
+                && v12->maxs[0] >= bounds[0][0]
                 && v12->maxs[1] >= bounds[0][1]
                 && v12->maxs[2] >= bounds[0][2]
                 && bounds[1][0] >= v12->mins[0]
@@ -4843,6 +4873,11 @@ void __cdecl trace_point_vs_env(
         else
         {
             tree = prim->tree;
+            if ( !tree )
+            {
+                ++prim;
+                continue;
+            }
             mn[0] = tree->origin[0] - tree->halfSize[0];
             mn[1] = tree->origin[1] - tree->halfSize[1];
             mn[2] = tree->origin[2] - tree->halfSize[2];
@@ -5032,7 +5067,8 @@ void __cdecl trace_sphere_vs_env(
         if ( prim->type )
         {
             brush = prim->brush;
-            if ( brush->maxs[0] >= bounds[0][0]
+            if ( brush
+                && brush->maxs[0] >= bounds[0][0]
                 && brush->maxs[1] >= bounds[0][1]
                 && brush->maxs[2] >= bounds[0][2]
                 && bounds[1][0] >= brush->mins[0]
@@ -5048,6 +5084,11 @@ void __cdecl trace_sphere_vs_env(
         else
         {
             tree = prim->tree;
+            if ( !tree )
+            {
+                ++prim;
+                continue;
+            }
             mn[0] = tree->origin[0] - tree->halfSize[0];
             mn[1] = tree->origin[1] - tree->halfSize[1];
             mn[2] = tree->origin[2] - tree->halfSize[2];
@@ -5388,11 +5429,21 @@ int __cdecl collide_segment(const float *p0, const float *p1, col_context_t *con
     {
         if ( prim->type )
         {
+            if ( !prim->brush )
+            {
+                ++prim;
+                continue;
+            }
             if ( collide_segment_brush(p0, p1, prim->brush) )
                 return 1;
         }
         else
         {
+            if ( !prim->tree )
+            {
+                ++prim;
+                continue;
+            }
             halfSize = prim->tree->halfSize;
             tree = prim->tree;
             mn[0] = tree->origin[0] - *halfSize;

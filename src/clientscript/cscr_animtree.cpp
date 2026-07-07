@@ -770,24 +770,23 @@ XAnim_s *__cdecl Scr_GetAnims(unsigned int index, scriptInstance_t inst)
 
 void __cdecl Scr_UsingTree(scriptInstance_t inst, const char *filename, unsigned int sourcePos)
 {
-    if (com_sv_running->current.enabled)
+    if ( !com_sv_running->current.enabled )
     {
-        if (inst == SCRIPTINSTANCE_CLIENT)
-        {
-            Scr_ClientUsingTree(SCRIPTINSTANCE_CLIENT, filename);
-        }
-        else if (Scr_IsIdentifier(filename))
-        {
-            gScrAnimPub[inst].animTreeNames = Scr_UsingTreeInternal(inst, filename, &gScrAnimPub[inst].animTreeIndex, 1);
-        }
-        else
-        {
-            CompileError(inst, sourcePos, "bad anim tree name");
-        }
+        Scr_ClientUsingTree(inst, filename);
+        return;
+    }
+    if ( inst == SCRIPTINSTANCE_CLIENT )
+    {
+        Scr_ClientUsingTree(SCRIPTINSTANCE_CLIENT, filename);
+        return;
+    }
+    if ( Scr_IsIdentifier(filename) )
+    {
+        gScrAnimPub[inst].animTreeNames = Scr_UsingTreeInternal(inst, filename, &gScrAnimPub[inst].animTreeIndex, 1);
     }
     else
     {
-        Scr_ClientUsingTree(inst, filename);
+        CompileError(inst, sourcePos, "bad anim tree name");
     }
 }
 

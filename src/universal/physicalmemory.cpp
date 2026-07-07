@@ -23,8 +23,11 @@ void __cdecl PMem_Init()
     if ( !g_physicalMemoryInit )
     {
         g_physicalMemoryInit = 1;
-        memory = (unsigned __int8 *)VirtualAlloc(0, 0x14800000u, 0x1000u, 4u);
-        PMem_InitPhysicalMemory(&g_mem, "main", memory, 0x14800000u);
+        // Retail T5 used a smaller arena; modded maps / extra zones need more headroom before
+        // low/high prim[0]/prim[1] collide. Reserve larger VA (committed region — ensure system RAM).
+        static constexpr unsigned int kPhysicalMemoryBytes = 0x28000000;
+        memory = (unsigned __int8 *)VirtualAlloc(0, kPhysicalMemoryBytes, 0x1000u, 4u);
+        PMem_InitPhysicalMemory(&g_mem, "main", memory, kPhysicalMemoryBytes);
     }
 }
 
@@ -131,32 +134,151 @@ void __cdecl PMem_EndAllocInPrim(PhysicalMemoryPrim *prim, const char *name)
     prim->allocName = 0;
 }
 
+static int PMem_Abs32(int value)
+{
+    return (value >> 31) - (value ^ (value >> 31));
+}
+
+bool __cdecl PMem_SafeToFree(const char *name)
+{
+    bool safe; // [esp+0h] [ebp-10h]
+    unsigned int allocIndex; // [esp+4h] [ebp-Ch]
+    int primIndex; // [esp+8h] [ebp-8h]
+    PhysicalMemoryPrim *prim; // [esp+Ch] [ebp-4h]
+
+    safe = 1;
+    for ( primIndex = 0; primIndex < 2; ++primIndex )
+    {
+        prim = &g_mem.prim[primIndex];
+        if ( !prim->allocListCount )
+            continue;
+        for ( allocIndex = 0; allocIndex < prim->allocListCount; ++allocIndex )
+        {
+            if ( prim->allocList[allocIndex].name == name )
+            {
+                safe = safe && allocIndex == prim->allocListCount - 1;
+                break;
+            }
+        }
+    }
+    return safe;
+}
+
+unsigned __int8 *__cdecl PMem_Shrink(
+                const char *name,
+                unsigned int size,
+                unsigned int alignment,
+                signed int type,
+                unsigned __int8 trackResize)
+{
+    BOOL locationNegative; // [esp+0h] [ebp-18h]
+    unsigned int alignmentMask; // [esp+4h] [ebp-14h]
+    unsigned int newPos; // [esp+8h] [ebp-10h]
+    unsigned int allocIndex; // [esp+Ch] [ebp-Ch]
+    unsigned int allocType; // [esp+10h] [ebp-8h]
+    PhysicalMemoryPrim *prim; // [esp+14h] [ebp-4h]
+    PhysicalMemoryAllocation *allocEntry; // [esp+14h] [ebp-4h]
+
+    PMem_Init();
+    locationNegative = type < 0;
+    alignmentMask = alignment - 1;
+    for ( allocType = 0; allocType < 2; ++allocType )
+    {
+        prim = &g_mem.prim[allocType];
+        for ( allocIndex = 0; allocIndex < prim->allocListCount; ++allocIndex )
+        {
+            if ( prim->allocList[allocIndex].name == name )
+                goto found;
+        }
+    }
+    return 0;
+
+found:
+    allocEntry = &prim->allocList[allocIndex];
+    if ( trackResize )
+    {
+        track_flush_physical_alloc(name, prim->memTrack);
+        if ( allocIndex != prim->allocListCount - 1 )
+        {
+            track_PrintInfo();
+            Com_Error(ERR_FATAL, "Resize fragments pmem");
+        }
+        track_physical_alloc(
+            -PMem_Abs32((int)(prim->pos - allocEntry->pos)),
+            name,
+            prim->memTrack,
+            locationNegative);
+    }
+    if ( allocType )
+    {
+        newPos = (unsigned int)&g_mem.buf[allocEntry->pos - size] & ~alignmentMask;
+        newPos -= (unsigned int)g_mem.buf;
+        if ( trackResize )
+        {
+            prim->pos = newPos;
+            track_physical_alloc(
+                PMem_Abs32((int)(prim->pos - allocEntry->pos)),
+                name,
+                prim->memTrack,
+                locationNegative);
+            tlPrintf("Resized %s to %.2f\n", name, (float)((float)size / 1048576.0));
+        }
+        return &g_mem.buf[newPos];
+    }
+    else
+    {
+        newPos = ~alignmentMask & (alignmentMask + allocEntry->pos + size);
+        if ( trackResize )
+        {
+            prim->pos = newPos;
+            track_physical_alloc(
+                PMem_Abs32((int)(prim->pos - allocEntry->pos)),
+                name,
+                prim->memTrack,
+                locationNegative);
+            tlPrintf("Resized %s to %.2f\n", name, (float)((float)size / 1048576.0));
+        }
+        return &g_mem.buf[allocEntry->pos];
+    }
+}
+
 void __cdecl PMem_Free(const char *name)
 {
+    bool freed; // [esp+0h] [ebp-8h]
     int i; // [esp+4h] [ebp-4h]
 
+    freed = 0;
     for ( i = 0; i < 2; ++i )
     {
         if ( i )
             Com_Printf(16, "PMem_Free( %s, %s )\n", name, "High");
         else
             Com_Printf(16, "PMem_Free( %s, %s )\n", name, "Low");
-        PMem_FreeInPrim(&g_mem.prim[i], name, 0);
+        if ( PMem_FreeInPrim(&g_mem.prim[i], name, 0) )
+            freed = 1;
     }
+    if ( name && name[0] && !freed )
+        Com_PrintWarning(
+            16,
+            "PMem_Free: no allocator slot matched '%s' — PMem may leak until restart\n",
+            name);
 }
 
-void __cdecl PMem_FreeInPrim(PhysicalMemoryPrim *prim, const char *name, int location)
+bool __cdecl PMem_FreeInPrim(PhysicalMemoryPrim *prim, const char *name, int location)
 {
-    unsigned int allocIndex; // [esp+0h] [ebp-8h]
+    const char *slot; // [esp+0h] [ebp-8h]
+    unsigned int last; // [esp+4h] [ebp-4h]
 
-    for ( allocIndex = 0; allocIndex < prim->allocListCount; ++allocIndex )
+    if ( !prim->allocListCount || !name || !name[0] )
+        return 0;
+    last = prim->allocListCount - 1;
+    slot = prim->allocList[last].name;
+    if ( slot == name || (slot && !I_stricmp(slot, name)) )
     {
-        if ( prim->allocList[allocIndex].name == name )
-        {
-            PMem_FreeIndex(prim, allocIndex, location);
-            return;
-        }
+        PMem_FreeIndex(prim, last, location);
+        return 1;
     }
+    return 0;
 }
 
 void __cdecl PMem_FreeIndex(PhysicalMemoryPrim *prim, unsigned int allocIndex, int location)
@@ -207,7 +329,7 @@ void __cdecl PMem_FreeIndex(PhysicalMemoryPrim *prim, unsigned int allocIndex, i
             }
             if ( !--prim->allocListCount )
                 break;
-            allocEntry = (PhysicalMemoryAllocation *)(&prim->allocListCount + 2 * prim->allocListCount);
+            allocEntry = &prim->allocList[prim->allocListCount - 1];
         }
         while ( !allocEntry->name );
     }

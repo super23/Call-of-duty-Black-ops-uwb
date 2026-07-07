@@ -1,6 +1,10 @@
 #include "msg.h"
 #include "common.h"
+#ifdef KISAK_SP
+#include <client_sp/cl_main_sp.h>
+#else
 #include <client_mp/cl_main_mp.h>
+#endif
 #include "sv_msg_write.h"
 
 #include <cstring>

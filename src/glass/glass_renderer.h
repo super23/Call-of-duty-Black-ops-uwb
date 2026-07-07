@@ -8,54 +8,53 @@
 struct GlassClient;
 struct Glasses;
 
+// Interlocked lock used around the deferred glass action queue (CRITSECT_GLASS_ACTIONS).
 struct GlassLock // sizeof=0x4
-{                                       // XREF: GlassRenderer/r
+{
     volatile unsigned int lock;
 };
 
+// Client-side glass shard simulation, maintenance, and vertex generation.
 struct GlassRenderer // sizeof=0x4DF8
 {
-    enum ActionType_t : __int32 // not a real enum name
-    {                                       // XREF: GlassRenderer::Action/r
+    // Deferred events queued from gameplay / FX and drained on the glass update thread.
+    enum ActionType_t : __int32
+    {
         SHATTER     = 0x0,
         TRACE_POINT = 0x1,
         EXPLOSION   = 0x2,
         MELEE       = 0x3,
-        MAX_ACTIONS = 0x64,
+        MAX_ACTIONS = 0x64, // action-type sentinel (not the ring capacity)
     };
 
     struct Action // sizeof=0x38
-    {                                       // XREF: GlassRenderer/r
+    {
         ActionType_t type;
-        //$F8734D8CD8D5548044E567214B041690 ___u1;
-        union //$F8734D8CD8D5548044E567214B041690 // sizeof=0x34
-        {                                       // XREF: GlassRenderer::Action/r
-            struct //GlassRenderer::Action::<unnamed_tag>::<unnamed_type_shatter> // sizeof=0x20
-            {                                       // XREF: $F8734D8CD8D5548044E567214B041690/r
+        union // sizeof=0x34
+        {
+            struct // sizeof=0x20
+            {
                 GlassClient *glass;
                 bool gameState;
-                // padding byte
-                // padding byte
-                // padding byte
+                char pad[3];
                 float hitPos[3];
                 float hitDir[3];
             } shatter;
-            struct //GlassRenderer::Action::<unnamed_tag>::<unnamed_type_trace> // sizeof=0x18
-            {                                       // XREF: $F8734D8CD8D5548044E567214B041690/r
+            struct // sizeof=0x18
+            {
                 float p0[3];
                 float p1[3];
             } trace;
-            struct //GlassRenderer::Action::<unnamed_tag>::<unnamed_type_explosion> // sizeof=0x1C
-            {                                       // XREF: $F8734D8CD8D5548044E567214B041690/r
+            struct // sizeof=0x1C
+            {
                 float origin[3];
                 float damageInner;
                 float damageOuter;
                 float radius;
                 int mod;
             } explosion;
-
-            struct //GlassRenderer::Action::<unnamed_tag>::<unnamed_type_melee> // sizeof=0x34
-            {                                       // XREF: $F8734D8CD8D5548044E567214B041690/r
+            struct // sizeof=0x34
+            {
                 float eyePos[3];
                 float forward[3];
                 float right[3];
@@ -65,43 +64,42 @@ struct GlassRenderer // sizeof=0x4DF8
         };
     };
 
-    struct SortedShardsList : std::list<GlassShard *,SmallAllocatorTemplate<GlassShard *> > // sizeof=0x1C
+    // std::list of shard pointers sorted by GlassShard::Outline::Area (see Insert / InsertReverse).
+    struct SortedShardsList : std::list<GlassShard *, SmallAllocatorTemplate<GlassShard *>> // sizeof=0x1C
     {
-        // aislop
-
         SortedShardsList() = default;
 
-        // pass allocator down to SmallAllocatorTemplate
-        explicit SortedShardsList(SmallAllocator *alloc) 
-            : std::list<GlassShard *, SmallAllocatorTemplate<GlassShard *>>(SmallAllocatorTemplate<GlassShard *>(alloc))
+        explicit SortedShardsList(SmallAllocator *shardListAllocator)
+            : std::list<GlassShard *, SmallAllocatorTemplate<GlassShard *>>(
+                SmallAllocatorTemplate<GlassShard *>(shardListAllocator))
         {
         }
 
-        // new/delete operators here are inlined in the bin
-        //static void *operator new(size_t size, SmallAllocator *alloc);
-        //static void *operator new(size_t size);
-        //static void operator delete(void *ptr);
-
-        void *operator new(size_t size, SmallAllocator *alloc)
-        {
-            return GlassesClient::Allocate(size, "C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_renderer.cpp", 72);
-        }
-
-        void *operator new(size_t size)
+        void *operator new(size_t listByteSize, SmallAllocator * /*shardListAllocator*/)
         {
             return GlassesClient::Allocate(
-                size,
+                listByteSize,
                 "C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_renderer.cpp",
                 72);
         }
 
-        void operator delete(void *ptr)
+        void *operator new(size_t listByteSize)
         {
-            GlassesClient::Free((char *)ptr);
+            return GlassesClient::Allocate(
+                listByteSize,
+                "C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_renderer.cpp",
+                72);
         }
 
-        void InsertReverse(GlassShard *shard);
+        void operator delete(void *listMemory)
+        {
+            GlassesClient::Free((char *)listMemory);
+        }
+
+        // Insert ascending by outline area (smallest shards first).
         void Insert(GlassShard *shard);
+        // Insert descending by outline area (largest shards first).
+        void InsertReverse(GlassShard *shard);
     };
 
     void *operator new(size_t size);
@@ -115,42 +113,30 @@ struct GlassRenderer // sizeof=0x4DF8
     const dvar_s *debugSplit;
     const dvar_s *freezeShards;
     const dvar_s *broom;
-    struct //GlassRenderer::<unnamed_type_stat> // sizeof=0x10
-    {                                       // XREF: GlassRenderer/r
+
+    // Per-frame counters for PrintHwm / maintenance (current and previous frame).
+    struct GlassRendererStat // sizeof=0x10
+    {
         int numMovingShards;
         int numVisGroups;
         int numVisShards;
         int numOOMGroups;
     } stat;
-    struct //GlassRenderer::<unnamed_type_stat> // sizeof=0x10
-    {                                       // XREF: GlassRenderer/r
-        int numMovingShards;
-        int numVisGroups;
-        int numVisShards;
-        int numOOMGroups;
-    } prevStat;
+    GlassRendererStat prevStat;
+
     int minFreeVertsMemory;
     int minFreeIndicesMemory;
     int minFreeShardsMemory;
     int maxCrashShards;
     unsigned int numShatters;
-    // padding byte
-    // padding byte
-    // padding byte
-    // padding byte
+    char padAfterNumShatters[4];
     unsigned __int64 shatterTimer;
     unsigned int numSplits;
-    // padding byte
-    // padding byte
-    // padding byte
-    // padding byte
+    char padAfterNumSplits[4];
     unsigned __int64 splitTimer;
     unsigned __int64 triangulateTimer;
     unsigned int genVertsCount;
-    // padding byte
-    // padding byte
-    // padding byte
-    // padding byte
+    char padAfterGenVertsCount[4];
     unsigned __int64 genVertsTimer;
     const dvar_s *maxShardSplit;
     const dvar_s *shardShatterSizeLimitScale;
@@ -178,11 +164,11 @@ struct GlassRenderer // sizeof=0x4DF8
     GlassLock rendererLock;
     SmallAllocator smallAllocator;
     Allocator shardMemoryAllocator;
-    FixedSizeAllocator<ShardGroup*> *groupsAllocator;
-    FixedSizeAllocator<GlassShard*> *shardsAllocator;
-    FixedSizeAllocator<GlassPhysics*> *physicsAllocator;
-    GlassRenderer::SortedShardsList *colidingShards;
-    GlassRenderer::SortedShardsList *tempShardsList;
+    FixedSizeAllocator<ShardGroup *> *groupsAllocator;
+    FixedSizeAllocator<GlassShard *> *shardsAllocator;
+    FixedSizeAllocator<GlassPhysics *> *physicsAllocator;
+    SortedShardsList *colidingShards;   // retail spelling: shards eligible for collision eviction
+    SortedShardsList *tempShardsList;   // scratch list for maintenance / visibility passes
     Material *usedMaterials[32];
     unsigned int numUsedMaterials;
     float allBBoxMin[3];
@@ -192,7 +178,7 @@ struct GlassRenderer // sizeof=0x4DF8
     int numGroupChanges;
     int maxNumGroupChanges;
     GlassShardMeshVertex *vertexList[22];
-    GlassRenderer::Action actions[200];
+    Action actions[200];                // SPSC ring; slot index = index % 0xC8
     volatile unsigned int actionInputIndex;
     volatile unsigned int actionOutputIndex;
 
@@ -281,8 +267,3 @@ struct GlassRenderer // sizeof=0x4DF8
     void __thiscall DrawDebug();
     void __thiscall BeginUpdate();
 };
-
-
-
-
-//void __cdecl Sys_WaitInterlockedCompareExchange(volatile int *destination, int value, int comperand);

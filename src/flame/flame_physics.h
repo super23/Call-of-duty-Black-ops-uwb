@@ -50,7 +50,7 @@ void __cdecl Flame_Server_Trace(
                 int *close_characters_count,
                 int *close_triggers,
                 int *close_triggers_count);
-double __cdecl point_aabb_dist2(float *a, const float *mn, float *mx);
+double __cdecl point_aabb_dist2(const float *point, const float *boxMin, const float *boxMax);
 void __cdecl Flame_Client_Trace(
                 trace_t *trace,
                 flameGeneric_s *gen,

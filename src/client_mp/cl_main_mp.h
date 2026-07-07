@@ -13,7 +13,6 @@
 #include <ui/ui_shared.h>
 #include <server/server.h>
 #include <gfx_d3d/r_init.h>
-#include <server_mp/sv_init_mp.h>
 
 #define MAX_ACTOR_CORPSES 8
 
@@ -895,6 +894,7 @@ void __cdecl CL_SteamServerAuth(unsigned __int64 serverSteamID);
 void __cdecl CL_AllocatePerLocalClientMemory();
 void __cdecl AllocatePerLocalClientMemory(int maxLocalClients, int maxClients, unsigned int flags);
 void __cdecl CL_FreePerLocalClientMemory();
+unsigned int __cdecl CL_ShrinkPerLocalClientMemory();
 void    CL_InitLoad(char *mapname, const char *gametype);
 bool __cdecl CL_PacketEvent(int localClientNum, netadr_t from, msg_t *msg, int time, bool connectionlesss_packets_only);
 void __cdecl CL_WriteNewDemoClientArchive(int localClientNum);

@@ -185,10 +185,10 @@ void __cdecl DB_RemoveSound(XAssetHeader header);
 void __cdecl DB_RemoveSoundPatch(XAssetHeader header);
 void __cdecl Load_ClipMapAsset(XAssetHeader *clipMap);
 void __cdecl Mark_ClipMapAsset(clipMap_t *clipMap);
-void __cdecl DB_RemoveClipMap(XAssetHeader);
+void __cdecl DB_RemoveClipMap(XAssetHeader header);
 void __cdecl Load_ComWorldAsset(XAssetHeader *comWorld);
 void __cdecl Mark_ComWorldAsset(ComWorld *comWorld);
-void __cdecl DB_RemoveComWorld(XAssetHeader);
+void __cdecl DB_RemoveComWorld(XAssetHeader header);
 void __cdecl Load_GameWorldSpAsset(XAssetHeader *gameWorldSp);
 void __cdecl Mark_GameWorldSpAsset(GameWorldSp *gameWorldSp);
 void __cdecl Load_GameWorldMpAsset(XAssetHeader *gameWorldMp);
@@ -199,7 +199,7 @@ void __cdecl Load_DDLAsset(XAssetHeader *ddlRoot);
 void __cdecl Mark_DDLAsset(ddlRoot_t *ddlRoot);
 void __cdecl Load_GfxWorldAsset(XAssetHeader *gfxWorld);
 void __cdecl Mark_GfxWorldAsset(GfxWorld *gfxWorld);
-void __cdecl DB_RemoveGfxWorld(XAssetHeader);
+void __cdecl DB_RemoveGfxWorld(XAssetHeader header);
 void __cdecl Load_LightDefAsset(XAssetHeader *lightDef);
 void __cdecl Mark_LightDefAsset(GfxLightDef *lightDef);
 void __cdecl Load_FontAsset(XAssetHeader *font);
@@ -208,7 +208,7 @@ void __cdecl Load_MenuListAsset(XAssetHeader *menuList);
 void __cdecl Mark_MenuListAsset(MenuList *menuList);
 void __cdecl Load_MenuAsset(XAssetHeader *menu);
 void __cdecl Mark_MenuAsset(menuDef_t *menu);
-void __cdecl DB_DynamicCloneMenu(const XAssetHeader from, XAssetHeader to, DBCloneMethod __formal);
+void __cdecl DB_DynamicCloneMenu(const XAssetHeader from, XAssetHeader to, DBCloneMethod cloneMethod);
 void __cdecl DB_RemoveWindowFocus(windowDef_t *window);
 void __cdecl Load_LocalizeEntryAsset(XAssetHeader *localize);
 void __cdecl Mark_LocalizeEntryAsset(LocalizeEntry *localize);
@@ -244,7 +244,7 @@ void __cdecl DB_GetAssetTypeUsageInfo(XAssetType assetType, const char **outName
 void __cdecl DB_PrintXAssetsForType_FastFile(XAssetType type, void *inData, bool includeOverride);
 void __cdecl DB_PrintXAssetsForType(
                 XAssetType type,
-                void (__cdecl *func)(XAssetHeader, void *),
+                void (__cdecl *func)(XAssetHeader assetHeader, void *data),
                 void *inData,
                 bool includeOverride);
 GfxImage *__cdecl DB_AllocTempImage();
@@ -255,7 +255,7 @@ unsigned int __cdecl DB_HashForName(const char *name, XAssetType type);
 void __cdecl DB_LogMissingAsset(XAssetType type, const char *name);
 void __cdecl DB_EnumXAssets_FastFile(
                 XAssetType type,
-                void (__cdecl *func)(XAssetHeader, void *),
+                void (__cdecl *func)(XAssetHeader assetHeader, void *data),
                 void *inData,
                 bool includeOverride);
 void __cdecl DB_LoadDelayedImages();
@@ -271,6 +271,10 @@ void DB_SetReorderIncludeSequence();
 char __cdecl DB_RegisterAllReorderAssetsOfType(int type, XAssetEntry *assetEntry);
 void __cdecl DB_Sleep(unsigned int msec);
 XAssetEntryPoolEntry *__cdecl DB_FindXAssetEntry(XAssetType type, const char *name);
+#ifdef KISAK_SP
+bool __cdecl DB_FindMapAssetNameForFrontend(char *outMapName, int outMapNameSize);
+void __cdecl DB_LogFrontendMapAssetsOnce();
+#endif
 XAssetEntry *__cdecl DB_CreateDefaultEntry(XAssetType type, const char *name);
 XAssetEntryPoolEntry *__cdecl DB_AllocXAssetEntry(XAssetType type, unsigned __int8 zoneIndex);
 void __cdecl DB_CloneXAssetInternal(const XAsset *from, XAsset *to);
@@ -355,6 +359,7 @@ char *__cdecl DB_ReferencedFFNameList();
 int __cdecl DB_FileSize(const char *zoneName, FF_DIR source);
 char __cdecl DB_FileExists(const char *zoneName, FF_DIR source);
 char __cdecl DB_ModFileExists();
+char __cdecl DB_ModZoneFileExists(const char *zoneName);
 void __cdecl DB_AddUserMapDir(char *zoneName);
 void __cdecl DB_LoadFastFilesForPC();
 void __cdecl DB_LoadGraphicsAssetsForPC();

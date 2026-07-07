@@ -11,6 +11,7 @@
 #include <physics/physconstraints_load_obj.h>
 #include <database/db_registry.h>
 #include <physics/rope.h>
+#include <universal/com_files.h>
 
 clipMap_t cm;
 
@@ -26,12 +27,22 @@ extern TraceThreadInfo g_traceThreadInfo[15];
 cbrush_t g_box_brush[12];
 cmodel_t g_box_model[12];
 
+int g_entsWithRopes[64];
 int g_entsWithRopesCount;
 
 void __cdecl CM_LoadMap(const char *name, int *checksum)
 {
     if ( !name || !*name )
         Com_Error(ERR_DROP, "CM_LoadMap: NULL name");
+#ifdef KISAK_SP
+    // Decomp: BlackOps.singleplayer.c — frontend.ff ui_3d uses gfx+com only; no col_map_sp bind.
+    if ( useFastFile->current.enabled && Com_SP_IsMenuMapName(name) && !Com_SP_MenuLevelHasClipmap(name) )
+    {
+        CM_InitAllThreadData();
+        *checksum = 0;
+        return;
+    }
+#endif
     CM_LoadMapData(name);
     CM_InitAllThreadData();
     cm.isInUse = 1;
@@ -68,13 +79,25 @@ void __cdecl CM_InitThreadData(unsigned int threadContext)
     }
     traceThreadInfo = &g_traceThreadInfo[threadContext];
     traceThreadInfo->checkcount.global = 0;
+    // Decomp: CoDSP_rdBlackOps.map.c (826FFC48) — always alloc partition stamps from cm.partitionCount.
     traceThreadInfo->checkcount.partitions = (int *)Hunk_Alloc(4 * cm.partitionCount, "CM_InitThreadData", 29);
     traceThreadInfo->box_brush = &g_box_brush[threadContext];
-    memcpy((void *)traceThreadInfo->box_brush, cm.box_brush, sizeof(cbrush_t));
     traceThreadInfo->box_model = &g_box_model[threadContext];
-    memcpy(traceThreadInfo->box_model, &cm.box_model, sizeof(cmodel_t));
     traceThreadInfo->geoms = &g_geoms[threadContext];
     *traceThreadInfo->geoms = 0;
+    if ( cm.partitionCount > 0 )
+    {
+        memcpy((void *)traceThreadInfo->box_brush, cm.box_brush, sizeof(cbrush_t));
+        memcpy(traceThreadInfo->box_model, &cm.box_model, sizeof(cmodel_t));
+    }
+    else
+    {
+        memset(traceThreadInfo->box_brush, 0, sizeof(cbrush_t));
+        traceThreadInfo->box_brush->contents = -1;
+        memset(traceThreadInfo->box_model, 0, sizeof(cmodel_t));
+        traceThreadInfo->box_model->leaf.brushContents = -1;
+        traceThreadInfo->box_model->leaf.terrainContents = 0;
+    }
 }
 
 void __cdecl CM_LoadMapData(const char *name)
@@ -101,13 +124,66 @@ void __cdecl CM_LoadMapData_LoadObj(const char *name)
     }
 }
 
+#ifdef KISAK_SP
+static bool CM_SP_TryBindClipmapName(const char *lookupName)
+{
+    XAssetHeader header;
+
+    if ( !lookupName || !*lookupName )
+        return false;
+    header = DB_FindXAssetHeader(ASSET_TYPE_CLIPMAP, (char *)lookupName, false, -1);
+    if ( header.clipMap == &cm )
+        return true;
+    header = DB_FindXAssetHeader(ASSET_TYPE_CLIPMAP_PVS, (char *)lookupName, false, -1);
+    if ( header.clipMap == &cm )
+        return true;
+    if ( !DB_FindXAssetEntry(ASSET_TYPE_CLIPMAP, lookupName)
+        && !DB_FindXAssetEntry(ASSET_TYPE_CLIPMAP_PVS, lookupName) )
+    {
+        return false;
+    }
+    header = DB_FindXAssetHeader(ASSET_TYPE_CLIPMAP, (char *)lookupName, true, -1);
+    if ( header.clipMap == &cm )
+        return true;
+    header = DB_FindXAssetHeader(ASSET_TYPE_CLIPMAP_PVS, (char *)lookupName, true, -1);
+    return header.clipMap == &cm;
+}
+#endif
+
 void __cdecl CM_LoadMapData_FastFile(const char *name)
 {
-    if ( DB_FindXAssetHeader(ASSET_TYPE_CLIPMAP_PVS, (char*)name, 1, -1).clipMap != &cm
+#ifdef KISAK_SP
+    char altName[256];
+    char mapBase[64];
+
+    // Decomp: CoDSP_rdBlackOps.map.c — bind col_map_sp singleton (&cm) via DB_FindXAssetHeader when zone has clipmap.
+    if ( CM_SP_TryBindClipmapName(name) )
+        return;
+    if ( Com_IsBspMapPath(name) )
+    {
+        Com_StripMapBaseFromBspPath(name, mapBase, sizeof(mapBase));
+        if ( mapBase[0] && CM_SP_TryBindClipmapName(mapBase) )
+            return;
+    }
+    else
+    {
+        Com_GetBspFilename(altName, sizeof(altName), name);
+        if ( I_stricmp(altName, name) && CM_SP_TryBindClipmapName(altName) )
+            return;
+    }
+    if ( Com_SP_IsMenuMapName(name) )
+        return;
+    Com_Error(
+        ERR_DROP,
+        "CM_LoadMapData_FastFile: missing clipmap for map '%s'",
+        name);
+#else
+    if ( DB_FindXAssetHeader(ASSET_TYPE_CLIPMAP_PVS, (char *)name, 1, -1).clipMap != &cm
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\cm_load.cpp", 168, 0, "%s", "clipMap == &cm") )
     {
         __debugbreak();
     }
+#endif
 }
 
 void __cdecl Rope_InitRopes()

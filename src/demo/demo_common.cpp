@@ -3,11 +3,26 @@
 #include <qcommon/cmd.h>
 #include <ui/ui_shared.h>
 #include <live/live_fileshare.h>
+#ifdef KISAK_SP
+#include <client_sp/sv_client_sp.h>
+#include <server_sp/sv_main_sp.h>
+#include <ui_sp/ui_gametype_custom_sp.h>
+#include <game/g_cmds_sp.h>
+#include <cgame_sp/cg_main_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <game/g_main.h>
+#else
 #include <client_mp/sv_client_mp.h>
+#include <server_mp/sv_main_mp.h>
+#include <ui_mp/ui_gametype_custom_mp.h>
+#include <game_mp/g_cmds_mp.h>
+#include <cgame_mp/cg_main_mp.h>
+#include <client_mp/cl_cgame_mp.h>
+#include <game_mp/g_main_mp.h>
+#endif
 #include <live/live_win.h>
 #include <qcommon/common.h>
 #include <live/live_stats.h>
-#include <server_mp/sv_main_mp.h>
 #include <qcommon/com_clients.h>
 #include <DW/MatchRecorder.h>
 #include "demo_recording.h"
@@ -16,22 +31,17 @@
 
 #include <cstring>
 #include <new>
-#include <ui_mp/ui_gametype_custom_mp.h>
 #include <live/live_sessions.h>
-#include <game_mp/g_cmds_mp.h>
 #include <client/client.h>
 #include "demo_playback.h"
-#include <cgame_mp/cg_main_mp.h>
 #include <win32/win_shared.h>
 #include "demo_files.h"
 #include <client/cl_console.h>
 #include <sound/snd_public_async.h>
-#include <client_mp/cl_cgame_mp.h>
 #include "demo_ui.h"
 #include <client/cl_keys.h>
 #include <ctime>
 #include <live/live_counter.h>
-#include <game_mp/g_main_mp.h>
 #include <qcommon/com_gamemodes.h>
 #include <mjpeg/mjpeg.h>
 #include "demo_profile.h"

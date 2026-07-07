@@ -4,6 +4,8 @@
 #include <bgame/bg_local.h>
 #include <game/g_hudelem.h>
 
+struct cg_s;
+
 struct cg_hudelem_t // sizeof=0x23C
 {                                       // XREF: DrawSingleHudElem2d/r
                                         // DrawOffscreenViewableWaypoint/r

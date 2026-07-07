@@ -65,6 +65,7 @@ struct compare_spawnpoint_sort
     }
 };
 
+// Decomp: CoDMPServer.c:441977
 void __cdecl SpawnSystem_SortPoints()
 {
     //std::sort(&g_spawnPoints[0], &g_spawnPoints[g_spawnPointCount], NULL);
@@ -93,9 +94,10 @@ struct compare_spawnpoint_score_sort
     }
 };
 
+// Decomp: CoDMPServer.c:441988
 void __cdecl SpawnSystem_SortPointsForTeamByScore(int team)
 {
-    //int *_Last; // [esp+E8h] [ebp-Ch]
+    //int *_Last;
     //
     //_Last = &g_sortedTeamSpawnPoints[team].spawnPointsByIndex[g_sortedTeamSpawnPoints[team].count];
     ////std::_Sort<int *, int, compare_spawnpoint_score_sort>(
@@ -118,10 +120,11 @@ void __cdecl SpawnSystem_SortPointsForTeamByScore(int team)
     );
 }
 
+// Decomp: CoDMPServer.c:442002
 void __cdecl SpawnSystem_Init()
 {
-    int j; // [esp+0h] [ebp-8h]
-    int i; // [esp+4h] [ebp-4h]
+    int j;
+    int i;
 
     SpawnSystem_RegisterDvars();
     g_spawnRandomVariation = 0.0f;
@@ -145,7 +148,7 @@ void __cdecl SpawnSystem_Init()
 
 const dvar_s *SpawnSystem_RegisterDvars()
 {
-    const dvar_s *result; // eax
+    const dvar_s *result;
 
     spawnsystem_debug = _Dvar_RegisterBool("spawnsystem_debug", 0, 0x80u, "Debug and rendering for the spawn system");
     spawnsystem_debug_best_points = _Dvar_RegisterBool(
@@ -278,9 +281,10 @@ const dvar_s *SpawnSystem_RegisterDvars()
     return result;
 }
 
+// Decomp: CoDMPServer.c:442169
 int __cdecl SpawnSystem_FindPointByEnt(int entNum)
 {
-    int i; // [esp+0h] [ebp-4h]
+    int i;
 
     for ( i = 0; i < g_spawnPointCount; ++i )
     {
@@ -290,11 +294,13 @@ int __cdecl SpawnSystem_FindPointByEnt(int entNum)
     return -1;
 }
 
+// Decomp: CoDMPServer.c:442182
 void __cdecl SpawnSystem_SetRandomVariation(float variation)
 {
     g_spawnRandomVariation = variation;
 }
 
+// Decomp: CoDMPServer.c:422700
 void __cdecl SpawnSystem_ClearPoints()
 {
     g_spawnPointCount = 0;
@@ -302,12 +308,13 @@ void __cdecl SpawnSystem_ClearPoints()
     g_spawnPointsArchived = 0;
 }
 
+// Decomp: CoDMPServer.c:442199
 char __cdecl SpawnSystem_AddPoint(unsigned int team, gentity_s *ent)
 {
-    float *weight; // ecx
-    float *baseWeight; // eax
-    SpawnPoint *v5; // [esp+0h] [ebp-Ch]
-    int index; // [esp+8h] [ebp-4h]
+    float *weight;
+    float *baseWeight;
+    SpawnPoint *tmp5;
+    int index;
 
     if ( team >= 3
         && !Assert_MyHandler(
@@ -325,10 +332,10 @@ char __cdecl SpawnSystem_AddPoint(unsigned int team, gentity_s *ent)
     {
         if ( g_spawnPointCount + 1 >= 200 )
             return 0;
-        v5 = &g_spawnPoints[g_spawnPointCount];
-        v5->origin[0] = ent->r.currentOrigin[0];
-        v5->origin[1] = ent->r.currentOrigin[1];
-        v5->origin[2] = ent->r.currentOrigin[2];
+        tmp5 = &g_spawnPoints[g_spawnPointCount];
+        tmp5->origin[0] = ent->r.currentOrigin[0];
+        tmp5->origin[1] = ent->r.currentOrigin[1];
+        tmp5->origin[2] = ent->r.currentOrigin[2];
         g_spawnPoints[g_spawnPointCount].yaw = ent->r.currentAngles[1];
         g_spawnPoints[g_spawnPointCount].origin[2] = g_spawnPoints[g_spawnPointCount].origin[2]
                                                                                              + g_legacySpawnPointRaiseHeight;
@@ -348,9 +355,10 @@ char __cdecl SpawnSystem_AddPoint(unsigned int team, gentity_s *ent)
     return 1;
 }
 
+// Decomp: CoDMPServer.c:442247
 void __cdecl SpawnSystem_ClearPointsBaseWeight(int teammask)
 {
-    int i; // [esp+4h] [ebp-4h]
+    int i;
 
     if ( !teammask )
         teammask = 7;
@@ -358,6 +366,7 @@ void __cdecl SpawnSystem_ClearPointsBaseWeight(int teammask)
         SpawnSystem_SetPointBaseWeight(&g_spawnPoints[i], teammask, 0.0);
 }
 
+// Decomp: CoDMPServer.c:442258
 void __cdecl SpawnSystem_SetPointBaseWeight(SpawnPoint *point, char teammask, float weight)
 {
     if ( !point
@@ -373,24 +382,25 @@ void __cdecl SpawnSystem_SetPointBaseWeight(SpawnPoint *point, char teammask, fl
         point->baseWeight[2] = weight;
 }
 
+// Decomp: CoDMPServer.c:442280
 void __cdecl SpawnSystem_SetPointsBaseWeight(int teammask, float *objective_position, float angle, float score)
 {
-    double v4; // xmm0_8
-    double v5; // xmm0_8
-    long double v6; // [esp+8h] [ebp-58h]
-    long double v7; // [esp+8h] [ebp-58h]
-    float axis[3][3]; // [esp+14h] [ebp-4Ch] BYREF
-    float forward[3]; // [esp+38h] [ebp-28h] BYREF
-    float angle_cos; // [esp+44h] [ebp-1Ch]
-    float direction[3]; // [esp+48h] [ebp-18h] BYREF
-    int i; // [esp+54h] [ebp-Ch]
-    float dot; // [esp+58h] [ebp-8h]
-    SpawnPoint *point; // [esp+5Ch] [ebp-4h]
+    double tmp4; // xmm0_8
+    double tmp5; // xmm0_8
+    long double tmp6;
+    long double tmp7;
+    float axis[3][3];
+    float forward[3];
+    float angle_cos;
+    float direction[3];
+    int i;
+    float dot;
+    SpawnPoint *point;
 
     if ( !teammask )
         teammask = 7;
     point = 0;
-    //__libm_sse2_cos(v6);
+    //__libm_sse2_cos(tmp6);
     //angle_cos = angle * 0.017453292;
     angle_cos = cos(angle * 0.017453292);
     dot = 0.0f;
@@ -416,10 +426,10 @@ void __cdecl SpawnSystem_SetPointsBaseWeight(int teammask, float *objective_posi
         if ( dot < angle_cos )
         {
             iassert((acosf(dot) * 180.f / M_PI) > angle);
-            //v5 = dot;
-            //__libm_sse2_acos(v7);
-            //*(float *)&v5 = v5;
-            //if ( (float)((float)(*(float *)&v5 * 180.0) / 3.1415927) <= angle
+            //tmp5 = dot;
+            //__libm_sse2_acos(tmp7);
+            //*(float *)&tmp5 = tmp5;
+            //if ( (float)((float)(*(float *)&tmp5 * 180.0) / 3.1415927) <= angle
             //    && !Assert_MyHandler(
             //                "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
             //                994,
@@ -434,10 +444,10 @@ void __cdecl SpawnSystem_SetPointsBaseWeight(int teammask, float *objective_posi
         else
         {
             iassert((acosf(dot) * 180.f / M_PI) <= angle);
-            //v4 = dot;
-            //__libm_sse2_acos(v7);
-            //*(float *)&v4 = v4;
-            //if ( angle < (float)((float)(*(float *)&v4 * 180.0) / 3.1415927)
+            //tmp4 = dot;
+            //__libm_sse2_acos(tmp7);
+            //*(float *)&tmp4 = tmp4;
+            //if ( angle < (float)((float)(*(float *)&tmp4 * 180.0) / 3.1415927)
             //    && !Assert_MyHandler(
             //                "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp",
             //                989,
@@ -461,7 +471,7 @@ SpawnInfluencerPreset *__cdecl SpawnSystem_SetPresetData(
                 float score,
                 eInfluencerScoreCurve score_curve)
 {
-    SpawnInfluencerPreset *preset; // [esp+0h] [ebp-4h]
+    SpawnInfluencerPreset *preset;
 
     preset = &g_spawnInfluencerPresets[influencerIndex];
     preset->index = influencerIndex;
@@ -474,6 +484,7 @@ SpawnInfluencerPreset *__cdecl SpawnSystem_SetPresetData(
     return preset;
 }
 
+// Decomp: CoDMPServer.c:442383
 void __cdecl SpawnSystem_InitInfluencer(
                 SpawnInfluencer *influencer,
                 eInfluencerType type,
@@ -489,8 +500,8 @@ void __cdecl SpawnSystem_InitInfluencer(
                 unsigned int entNum,
                 int timeout)
 {
-    float right[3]; // [esp+3Ch] [ebp-30h] BYREF
-    float axis[3][3]; // [esp+48h] [ebp-24h] BYREF
+    float right[3];
+    float axis[3][3];
 
     if ( entNum >= 0x400
         && !Assert_MyHandler(
@@ -594,6 +605,7 @@ void __cdecl SpawnSystem_InitInfluencer(
         influencer->expireTime = 0;
 }
 
+// Decomp: CoDMPServer.c:442517
 int __cdecl SpawnSystem_AddSphereInfluencer(
                 eInfluencerType type,
                 float *origin,
@@ -604,10 +616,10 @@ int __cdecl SpawnSystem_AddSphereInfluencer(
                 unsigned int entNum,
                 int timeout)
 {
-    SpawnInfluencer *influencer; // [esp+20h] [ebp-20h]
-    float forward[3]; // [esp+24h] [ebp-1Ch] BYREF
-    int index; // [esp+30h] [ebp-10h]
-    float up[3]; // [esp+34h] [ebp-Ch] BYREF
+    SpawnInfluencer *influencer;
+    float forward[3];
+    int index;
+    float up[3];
 
     index = SpawnSystem_FindFreeInfluencer();
     if ( index == -1 )
@@ -640,9 +652,10 @@ int __cdecl SpawnSystem_AddSphereInfluencer(
     return index;
 }
 
+// Decomp: CoDMPServer.c:442561
 int __cdecl SpawnSystem_FindFreeInfluencer()
 {
-    int i; // [esp+4h] [ebp-4h]
+    int i;
 
     for ( i = 0; i < 328; ++i )
     {
@@ -652,6 +665,7 @@ int __cdecl SpawnSystem_FindFreeInfluencer()
     return -1;
 }
 
+// Decomp: CoDMPServer.c:442574
 void __cdecl SpawnSystem_ComputeInfluencerBounds(SpawnInfluencer *influencer)
 {
     if ( !influencer
@@ -668,9 +682,10 @@ void __cdecl SpawnSystem_ComputeInfluencerBounds(SpawnInfluencer *influencer)
     influencer->bounds[1] = influencer->origin[g_sortAxis] + influencer->boundingRadius;
 }
 
+// Decomp: CoDMPServer.c:442592
 void __cdecl SpawnSystem_InsertSortedInfluencer(SpawnInfluencer *influencer)
 {
-    int low; // [esp+0h] [ebp-4h]
+    int low;
 
     iassert(influencer);
 
@@ -692,6 +707,7 @@ void __cdecl SpawnSystem_InsertSortedInfluencer(SpawnInfluencer *influencer)
     g_sortedSpawnInfluencers[g_sortedSpawnInfluencerCount++] = influencer;
 }
 
+// Decomp: CoDMPServer.c:442646
 int __cdecl SpawnSystem_AddCylinderInfluencer(
                 eInfluencerType type,
                 float *origin,
@@ -705,8 +721,8 @@ int __cdecl SpawnSystem_AddCylinderInfluencer(
                 unsigned int entNum,
                 int timeout)
 {
-    SpawnInfluencer *influencer; // [esp+24h] [ebp-Ch]
-    int index; // [esp+2Ch] [ebp-4h]
+    SpawnInfluencer *influencer;
+    int index;
 
     index = SpawnSystem_FindFreeInfluencer();
     if ( index == -1 )
@@ -766,9 +782,10 @@ int __cdecl SpawnSystem_AddCylinderInfluencer(
     return index;
 }
 
+// Decomp: CoDMPServer.c:442715
 void __cdecl SpawnSystem_UpdateCylinderInfluencer(SpawnInfluencer *influencer)
 {
-    gentity_s *ent; // [esp+0h] [ebp-4h]
+    gentity_s *ent;
 
     if ( !influencer
         && !Assert_MyHandler(
@@ -802,15 +819,17 @@ LABEL_13:
     }
 }
 
+// Decomp: CoDMPServer.c:442754
 void __cdecl SpawnSystem_CalculateCylinderLength(SpawnInfluencer *influencer)
 {
-    float originalLength; // [esp+4h] [ebp-88h]
-    float end[3]; // [esp+Ch] [ebp-80h] BYREF
-    float fraction; // [esp+18h] [ebp-74h]
-    gentity_s *player; // [esp+58h] [ebp-34h]
-    float speedIPS; // [esp+5Ch] [ebp-30h]
-    gentity_s *ent; // [esp+60h] [ebp-2Ch]
-    col_context_t context; // [esp+64h] [ebp-28h] BYREF
+    float originalLength;
+    float end[3];
+    float fraction;
+    trace_t trace;
+    gentity_s *player;
+    float speedIPS;
+    gentity_s *ent;
+    col_context_t context;
 
     if ( !influencer
         && !Assert_MyHandler(
@@ -869,7 +888,7 @@ void __cdecl SpawnSystem_CalculateCylinderLength(SpawnInfluencer *influencer)
             {
                 __debugbreak();
             }
-            trace_t trace; // [esp+1Ch] [ebp-70h] BYREF
+            memset(&trace, 0, 16);
             originalLength = influencer->preset->originalLength;
             end[0] = (float)(originalLength * influencer->up[0]) + influencer->origin[0];
             end[1] = (float)(originalLength * influencer->up[1]) + influencer->origin[1];
@@ -902,21 +921,22 @@ void __cdecl SpawnSystem_CalculateCylinderLength(SpawnInfluencer *influencer)
     }
 }
 
+// Decomp: CoDMPServer.c:442875
 void __cdecl SpawnSystem_CalculateCylinderAxis(SpawnInfluencer *influencer)
 {
-    gclient_s *client; // ecx
-    int eType; // [esp+4h] [ebp-ACh]
-    float v3; // [esp+8h] [ebp-A8h]
-    float v4; // [esp+Ch] [ebp-A4h]
-    float v5; // [esp+3Ch] [ebp-74h]
-    float v6; // [esp+40h] [ebp-70h]
-    float v7; // [esp+48h] [ebp-68h]
-    float v8; // [esp+4Ch] [ebp-64h]
-    float tempAxis[3][3]; // [esp+5Ch] [ebp-54h] BYREF
-    float angles[3]; // [esp+80h] [ebp-30h] BYREF
-    gentity_s *ent; // [esp+8Ch] [ebp-24h]
-    float ent_quat[4]; // [esp+90h] [ebp-20h] BYREF
-    float current_quat[4]; // [esp+A0h] [ebp-10h] BYREF
+    gclient_s *client;
+    int eType;
+    float tmp3;
+    float tmp4;
+    float tmp5;
+    float tmp6;
+    float tmp7;
+    float tmp8;
+    float tempAxis[3][3];
+    float angles[3];
+    gentity_s *ent;
+    float ent_quat[4];
+    float current_quat[4];
 
     if ( !influencer
         && !Assert_MyHandler(
@@ -956,29 +976,29 @@ void __cdecl SpawnSystem_CalculateCylinderAxis(SpawnInfluencer *influencer)
         }
         if ( ent->s.eType == 12 )
         {
-            v7 = AngleNormalize180(angles[0]) + heliPitchAdjust;
-            if ( (float)(v7 - 90.0) < 0.0 )
-                v8 = v7;
+            tmp7 = AngleNormalize180(angles[0]) + heliPitchAdjust;
+            if ( (float)(tmp7 - 90.0) < 0.0 )
+                tmp8 = tmp7;
             else
-                v8 = 90.0f;
-            if ( (float)(-90.0 - v7) < 0.0 )
-                v4 = v8;
+                tmp8 = 90.0f;
+            if ( (float)(-90.0 - tmp7) < 0.0 )
+                tmp4 = tmp8;
             else
-                v4 = -90.0f;
-            angles[0] = v4;
+                tmp4 = -90.0f;
+            angles[0] = tmp4;
         }
         else if ( ent->s.eType == 4 )
         {
-            v5 = AngleNormalize180(angles[0]) + missilePitchAdjust;
-            if ( (float)(v5 - 90.0) < 0.0 )
-                v6 = v5;
+            tmp5 = AngleNormalize180(angles[0]) + missilePitchAdjust;
+            if ( (float)(tmp5 - 90.0) < 0.0 )
+                tmp6 = tmp5;
             else
-                v6 = 90.0f;
-            if ( (float)(-90.0 - v5) < 0.0 )
-                v3 = v6;
+                tmp6 = 90.0f;
+            if ( (float)(-90.0 - tmp5) < 0.0 )
+                tmp3 = tmp6;
             else
-                v3 = -90.0f;
-            angles[0] = v3;
+                tmp3 = -90.0f;
+            angles[0] = tmp3;
         }
         AnglesToQuat(angles, ent_quat);
         Vec4Normalize(ent_quat);
@@ -1009,6 +1029,7 @@ void __cdecl SpawnSystem_CalculateCylinderAxis(SpawnInfluencer *influencer)
     }
 }
 
+// Decomp: CoDMPServer.c:443009
 void __cdecl QuatMultiply(const float *in1, const float *in2, float *out)
 {
     if ( in1 == out
@@ -1031,9 +1052,10 @@ void __cdecl QuatMultiply(const float *in1, const float *in2, float *out)
                  - (float)(in1[2] * in2[2]);
 }
 
+// Decomp: CoDMPServer.c:443044
 void __cdecl SpawnSystem_CalculateCylinderAxisMidpoint(SpawnInfluencer *influencer)
 {
-    float half_cylinder_height; // [esp+Ch] [ebp-4h]
+    float half_cylinder_height;
 
     if ( !influencer
         && !Assert_MyHandler(
@@ -1061,6 +1083,7 @@ void __cdecl SpawnSystem_CalculateCylinderAxisMidpoint(SpawnInfluencer *influenc
     influencer->midPoint[2] = (float)(half_cylinder_height * influencer->up[2]) + influencer->origin[2];
 }
 
+// Decomp: CoDMPServer.c:443080
 char __cdecl SpawnSystem_RemoveInfluencer(unsigned int influencer_index)
 {
     if ( influencer_index >= 0x148
@@ -1081,9 +1104,10 @@ char __cdecl SpawnSystem_RemoveInfluencer(unsigned int influencer_index)
     return 1;
 }
 
+// Decomp: CoDMPServer.c:443102
 void __cdecl SpawnSystem_RemoveSortedInfluencer(SpawnInfluencer *influencer)
 {
-    signed int low; // [esp+0h] [ebp-4h]
+    signed int low;
 
     if ( g_spawnSystemDebugMode == SS_DEBUG_OFF )
     {
@@ -1129,6 +1153,7 @@ void __cdecl SpawnSystem_RemoveSortedInfluencer(SpawnInfluencer *influencer)
     }
 }
 
+// Decomp: CoDMPServer.c:443154
 void __cdecl SpawnSystem_RemoveSortedInfluencerByIndex(unsigned int influencer_index)
 {
     if ( g_spawnSystemDebugMode == SS_DEBUG_OFF )
@@ -1146,6 +1171,7 @@ void __cdecl SpawnSystem_RemoveSortedInfluencerByIndex(unsigned int influencer_i
     }
 }
 
+// Decomp: CoDMPServer.c:443180
 char __cdecl SpawnSystem_EnableInfluencer(unsigned int influencer_index, bool enabled)
 {
     if (influencer_index >= 0x148
@@ -1165,6 +1191,7 @@ char __cdecl SpawnSystem_EnableInfluencer(unsigned int influencer_index, bool en
     return 1;
 }
 
+// Decomp: CoDMPServer.c:443201
 char __cdecl SpawnSystem_SetInfluencerTeamMask(unsigned int influencer_index, int team_mask)
 {
     if (influencer_index >= 0x148
@@ -1184,9 +1211,10 @@ char __cdecl SpawnSystem_SetInfluencerTeamMask(unsigned int influencer_index, in
     return 1;
 }
 
+// Decomp: CoDMPServer.c:443223
 void __cdecl SpawnSystem_ClearEntityInfluencers(gentity_s *ent)
 {
-    int i; // [esp+0h] [ebp-4h]
+    int i;
 
     if (!ent
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawnsystem_mp.cpp", 1555, 0, "%s", "ent"))
@@ -1220,9 +1248,10 @@ void __cdecl SpawnSystem_ClearEntityInfluencers(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:443267
 void __cdecl SpawnSystem_ClearTimedOutInfluencers()
 {
-    int i; // [esp+0h] [ebp-4h]
+    int i;
 
     for (i = 0; i < 328; ++i)
     {
@@ -1239,6 +1268,7 @@ SpawnInfluencer *__cdecl SpawnSystem_GetInfluencerList()
     return g_spawnInfluencers;
 }
 
+// Decomp: CoDMPServer.c:443292
 void __cdecl SpawnSystem_Update()
 {
     if ( g_spawnSystemDebugMode == SS_DEBUG_OFF )
@@ -1259,6 +1289,7 @@ struct compare_spawninfluencer_sort
     }
 };
 
+// Decomp: CoDMPServer.c:443304
 void SpawnSystem_SortInfluencers()
 {
     //if (g_lastInfluencerSortTime < level.time)
@@ -1285,9 +1316,10 @@ void SpawnSystem_SortInfluencers()
     }
 }
 
+// Decomp: CoDMPServer.c:443319
 void SpawnSystem_UpdateInfluencerBounds()
 {
-    int i; // [esp+0h] [ebp-4h]
+    int i;
 
     for ( i = 0; i < g_sortedSpawnInfluencerCount; ++i )
     {
@@ -1320,11 +1352,12 @@ void SpawnSystem_UpdateInfluencerBounds()
     }
 }
 
+// Decomp: CoDMPServer.c:443357
 void SpawnSystem_UpdateInfluencerOriginAngles()
 {
-    float *origin; // [esp+0h] [ebp-10h]
-    gentity_s *ent; // [esp+8h] [ebp-8h]
-    int i; // [esp+Ch] [ebp-4h]
+    float *origin;
+    gentity_s *ent;
+    int i;
 
     for ( i = 0; i < g_sortedSpawnInfluencerCount; ++i )
     {
@@ -1382,14 +1415,15 @@ void SpawnSystem_UpdateInfluencerOriginAngles()
     }
 }
 
+// Decomp: CoDMPServer.c:443423
 double __cdecl SpawnSystem_InfluenceWeight(
                 eInfluencerScoreCurve curve_type,
                 float influencer_radius_sq,
                 float distance_sq,
                 float score)
 {
-    double result; // st7
-    float dist_over_radius; // [esp+8h] [ebp-4h]
+    double result;
+    float dist_over_radius;
 
     if ( influencer_radius_sq <= 0.001
         && !Assert_MyHandler(
@@ -1423,10 +1457,11 @@ double __cdecl SpawnSystem_InfluenceWeight(
     return result;
 }
 
+// Decomp: CoDMPServer.c:443463
 double __cdecl SpawnSystem_ComputeSphereInfluence(SpawnInfluencer *influencer, SpawnPoint *point)
 {
-    float influencer_radius_sq; // [esp+18h] [ebp-8h]
-    float distanceSq; // [esp+1Ch] [ebp-4h]
+    float influencer_radius_sq;
+    float distanceSq;
 
     if ( !influencer
         && !Assert_MyHandler(
@@ -1455,16 +1490,17 @@ double __cdecl SpawnSystem_ComputeSphereInfluence(SpawnInfluencer *influencer, S
                          influencer->preset->score);
 }
 
+// Decomp: CoDMPServer.c:443506
 double __cdecl SpawnSystem_ComputeCylinderInfluence(SpawnInfluencer *influencer, SpawnPoint *point)
 {
-    float cylinder_radius_squared; // [esp+30h] [ebp-2Ch]
-    float rsquared; // [esp+34h] [ebp-28h]
-    float amp; // [esp+3Ch] [ebp-20h]
-    float amp_4; // [esp+40h] [ebp-1Ch]
-    float amp_8; // [esp+44h] [ebp-18h]
-    float udir[3]; // [esp+48h] [ebp-14h] BYREF
-    float distanceSq; // [esp+54h] [ebp-8h]
-    float midpoint_axial_distance; // [esp+58h] [ebp-4h]
+    float cylinder_radius_squared;
+    float rsquared;
+    float amp;
+    float amp_4;
+    float amp_8;
+    float udir[3];
+    float distanceSq;
+    float midpoint_axial_distance;
 
     if ( !influencer
         && !Assert_MyHandler(
@@ -1502,6 +1538,7 @@ double __cdecl SpawnSystem_ComputeCylinderInfluence(SpawnInfluencer *influencer,
                          influencer->preset->score);
 }
 
+// Decomp: CoDMPServer.c:443571
 void __cdecl SpawnSystem_ComputePointWeight(
                 gentity_s *player,
                 unsigned int point_team,
@@ -1509,17 +1546,17 @@ void __cdecl SpawnSystem_ComputePointWeight(
                 SpawnPoint *point,
                 bool bIsArchiveCall)
 {
-    eInfluencerType type; // [esp+4h] [ebp-50h]
-    eInfluencerShape shape; // [esp+8h] [ebp-4Ch]
-    int influencer_type; // [esp+14h] [ebp-40h]
-    int index; // [esp+18h] [ebp-3Ch]
-    int sortedCount; // [esp+1Ch] [ebp-38h]
-    SpawnInfluencer *influencer; // [esp+20h] [ebp-34h]
-    float friendly_player_influencer_score; // [esp+24h] [ebp-30h]
-    float influencer_scores[8]; // [esp+28h] [ebp-2Ch] BYREF
-    int axis; // [esp+48h] [ebp-Ch]
-    int teamMask; // [esp+4Ch] [ebp-8h]
-    float influencer_score; // [esp+50h] [ebp-4h]
+    eInfluencerType type;
+    eInfluencerShape shape;
+    int influencer_type;
+    int index;
+    int sortedCount;
+    SpawnInfluencer *influencer;
+    float friendly_player_influencer_score;
+    float influencer_scores[8];
+    int axis;
+    int teamMask;
+    float influencer_score;
 
     if ( point_team >= 3
         && !Assert_MyHandler(
@@ -1647,11 +1684,12 @@ LABEL_48:
     }
 }
 
+// Decomp: CoDMPServer.c:443740
 void __cdecl SpawnSystem_ComputePointWeights(gentity_s *player, unsigned int point_team, unsigned int influencer_team)
 {
-    int index; // [esp+0h] [ebp-10h]
-    SpawnPoint *spList; // [esp+4h] [ebp-Ch]
-    int spCount; // [esp+8h] [ebp-8h]
+    int index;
+    SpawnPoint *spList;
+    int spCount;
 
     if (point_team >= 3
         && !Assert_MyHandler(
@@ -1694,11 +1732,13 @@ SpawnPoint *__cdecl SpawnSystem_GetSpawnPoints()
     return g_spawnPoints;
 }
 
+// Decomp: CoDMPServer.c:443792
 int __cdecl SpawnSystem_GetSpawnPointCount()
 {
     return g_spawnPointCount;
 }
 
+// Decomp: CoDMPServer.c:443798
 void __cdecl SpawnSystem_SortPointsByScore(unsigned int team)
 {
     if ( team >= 3
@@ -1715,6 +1755,7 @@ void __cdecl SpawnSystem_SortPointsByScore(unsigned int team)
     SpawnSystem_SortPointsForTeamByScore(team);
 }
 
+// Decomp: CoDMPServer.c:443816
 int __cdecl SpawnSystem_UpdateSpawnPointsForTeam(unsigned int point_team, unsigned int influencer_team)
 {
     if (point_team >= 3
@@ -1750,6 +1791,7 @@ int __cdecl SpawnSystem_UpdateSpawnPointsForTeam(unsigned int point_team, unsign
     return g_sortedTeamSpawnPoints[point_team].count;
 }
 
+// Decomp: CoDMPServer.c:443855
 int __cdecl SpawnSystem_UpdateSpawnPointsForPlayer(
                 gentity_s *ent,
                 unsigned int point_team,
@@ -1803,6 +1845,7 @@ int __cdecl SpawnSystem_UpdateSpawnPointsForPlayer(
     return g_sortedTeamSpawnPoints[point_team].count;
 }
 
+// Decomp: CoDMPServer.c:443916
 int __cdecl SpawnSystem_GetSortedPointEntNum(unsigned int team, unsigned int index)
 {
     if (team >= 3
@@ -1852,6 +1895,7 @@ int __cdecl SpawnSystem_GetSortedPointEntNum(unsigned int team, unsigned int ind
     return g_spawnPoints[g_sortedTeamSpawnPoints[team].spawnPointsByIndex[index]].entNum;
 }
 
+// Decomp: CoDMPServer.c:443982
 char __cdecl SpawnSystem_IsSpawnPointVisible(float *origin, float *angles, int other_team, gentity_s *ignore_entity)
 {
     if ( SpawnSystem_IsSpawnPointVisible(origin, angles, other_team, ignore_entity, 0) )
@@ -1860,6 +1904,7 @@ char __cdecl SpawnSystem_IsSpawnPointVisible(float *origin, float *angles, int o
     return 0;
 }
 
+// Decomp: CoDMPServer.c:443982
 char __cdecl SpawnSystem_IsSpawnPointVisible(
                 float *origin,
                 float *angles,
@@ -1867,20 +1912,20 @@ char __cdecl SpawnSystem_IsSpawnPointVisible(
                 gentity_s *ignore_entity,
                 bool render_mode_success)
 {
-    float v6; // [esp+10h] [ebp-8Ch]
-    float v7; // [esp+14h] [ebp-88h]
-    float v8; // [esp+20h] [ebp-7Ch]
-    float v9; // [esp+24h] [ebp-78h]
-    int index; // [esp+28h] [ebp-74h]
-    float diff_4; // [esp+30h] [ebp-6Ch]
-    int hitnum; // [esp+3Ch] [ebp-60h] BYREF
-    float point_dir[3]; // [esp+68h] [ebp-34h] BYREF
-    float sight_point[3]; // [esp+74h] [ebp-28h] BYREF
-    float player_sight_origin[3]; // [esp+80h] [ebp-1Ch] BYREF
-    int iClipMask; // [esp+8Ch] [ebp-10h]
-    int iIgnoreEntNum; // [esp+90h] [ebp-Ch]
-    gentity_s *player; // [esp+94h] [ebp-8h]
-    float squared_visibility_distance; // [esp+98h] [ebp-4h]
+    float tmp6;
+    float tmp7;
+    float tmp8;
+    float tmp9;
+    int index;
+    float diff_4;
+    int hitnum;
+    float point_dir[3];
+    float sight_point[3];
+    float player_sight_origin[3];
+    int iClipMask;
+    int iIgnoreEntNum;
+    gentity_s *player;
+    float squared_visibility_distance;
 
     player = 0;
     iIgnoreEntNum = 1023;
@@ -1888,13 +1933,13 @@ char __cdecl SpawnSystem_IsSpawnPointVisible(
     squared_visibility_distance = spawnsystem_sight_check_max_distance->current.value
                                                             * spawnsystem_sight_check_max_distance->current.value;
     AngleVectors(angles, point_dir, 0, 0);
-    v8 = origin[1];
-    v9 = origin[2] + 60.0;
+    tmp8 = origin[1];
+    tmp9 = origin[2] + 60.0;
     sight_point[0] = *origin;
-    sight_point[1] = v8;
-    sight_point[2] = v9;
+    sight_point[1] = tmp8;
+    sight_point[2] = tmp9;
     //col_context_t::col_context_t(&context, iClipMask);
-    col_context_t context(iClipMask); // [esp+40h] [ebp-5Ch] BYREF
+    col_context_t context(iClipMask);
     //col_context_t::init_locational(&context, iIgnoreEntNum);
     context.init_locational(iIgnoreEntNum);
     hitnum = -1;
@@ -1914,11 +1959,11 @@ char __cdecl SpawnSystem_IsSpawnPointVisible(
                                                      + (float)(diff_4 * diff_4))
                                      + (float)(0.0 * 0.0)) <= squared_visibility_distance )
                 {
-                    v6 = player->client->ps.origin[1];
-                    v7 = player->client->ps.origin[2] + 60.0;
+                    tmp6 = player->client->ps.origin[1];
+                    tmp7 = player->client->ps.origin[2] + 60.0;
                     player_sight_origin[0] = player->client->ps.origin[0];
-                    player_sight_origin[1] = v6;
-                    player_sight_origin[2] = v7;
+                    player_sight_origin[1] = tmp6;
+                    player_sight_origin[2] = tmp7;
                     if ( !render_mode_success && SV_SightTracePoint(&hitnum, player_sight_origin, sight_point, &context) )
                     {
                         if ( spawnsystem_debug->current.enabled && spawnsystem_debug_visibility->current.enabled )
@@ -1959,11 +2004,12 @@ char __cdecl SpawnSystem_IsSpawnPointVisible(
     return 0;
 }
 
+// Decomp: CoDMPServer.c:444088
 void __cdecl SpawnSystem_DebugRenderVisibilityBox(float *point1, float *angles1, const float *color)
 {
-    float mins[3]; // [esp+10h] [ebp-1Ch] BYREF
-    float maxs[3]; // [esp+1Ch] [ebp-10h] BYREF
-    int time; // [esp+28h] [ebp-4h]
+    float mins[3];
+    float maxs[3];
+    int time;
 
     mins[0] = -16.0f;
     mins[1] = -16.0f;
@@ -1977,6 +2023,7 @@ void __cdecl SpawnSystem_DebugRenderVisibilityBox(float *point1, float *angles1,
     CG_DebugBox(point1, mins, maxs, angles1[1], color, 1, time);
 }
 
+// Decomp: CoDMPServer.c:444113
 void __cdecl SpawnSystem_DebugRenderVisibilityCheck(
                 float *point1,
                 float *angles1,
@@ -1987,10 +2034,11 @@ void __cdecl SpawnSystem_DebugRenderVisibilityCheck(
                 gentity_s *ignore_entity,
                 bool collision_test)
 {
-    col_context_t context; // [esp+4Ch] [ebp-44h] BYREF
-    float end[3]; // [esp+74h] [ebp-1Ch] BYREF
-    float start[3]; // [esp+80h] [ebp-10h] BYREF
-    int time; // [esp+8Ch] [ebp-4h]
+    trace_t trace;
+    col_context_t context;
+    float end[3];
+    float start[3];
+    int time;
 
     //col_context_t::col_context_t(&context);
     time = 500;
@@ -2006,7 +2054,7 @@ void __cdecl SpawnSystem_DebugRenderVisibilityCheck(
     end[2] = end[2] + height_offset;
     if ( collision_test )
     {
-        trace_t trace; // [esp+10h] [ebp-80h] BYREF
+        memset(&trace, 0, 16);
         if ( ignore_entity )
             G_TraceCapsule(&trace, start, vec3_origin, vec3_origin, end, ignore_entity->s.number, 0x806833, &context);
         else
@@ -2016,23 +2064,25 @@ void __cdecl SpawnSystem_DebugRenderVisibilityCheck(
     CG_DebugLine(start, end, color, 1, time);
 }
 
+// Decomp: CoDMPServer.c:444175
 void __cdecl SpawnSystem_DebugSideSwitch(bool enabled)
 {
     Dvar_SetBool((dvar_s *)spawnsystem_debug_sideswitched, enabled);
 }
 
+// Decomp: CoDMPServer.c:444181
 void SpawnSystem_DebugRender()
 {
-    float diff; // [esp+Ch] [ebp-2Ch]
-    float newSizeScale; // [esp+10h] [ebp-28h]
-    SpawnInfluencer *influencerList; // [esp+14h] [ebp-24h]
-    int j; // [esp+18h] [ebp-20h]
-    gentity_s *ent; // [esp+1Ch] [ebp-1Ch]
-    int i; // [esp+20h] [ebp-18h]
-    int influencer_team; // [esp+24h] [ebp-14h]
-    int point_team; // [esp+2Ch] [ebp-Ch]
-    gentity_s *localPlayer; // [esp+30h] [ebp-8h]
-    gentity_s *player; // [esp+34h] [ebp-4h]
+    float diff;
+    float newSizeScale;
+    SpawnInfluencer *influencerList;
+    int j;
+    gentity_s *ent;
+    int i;
+    int influencer_team;
+    int point_team;
+    gentity_s *localPlayer;
+    gentity_s *player;
 
     if ( spawnsystem_debug->current.enabled )
     {
@@ -2161,22 +2211,23 @@ void SpawnSystem_DebugRender()
     }
 }
 
+// Decomp: CoDMPServer.c:444325
 void __cdecl SpawnSystem_DebugRenderTeamPointWeights(int teamMask)
 {
-    char *v1; // eax
-    char *v2; // eax
-    char *v3; // eax
-    float *v4; // [esp+14h] [ebp-34h]
-    float *v5; // [esp+18h] [ebp-30h]
-    float *color; // [esp+1Ch] [ebp-2Ch]
-    int index; // [esp+20h] [ebp-28h]
-    float origin[3]; // [esp+24h] [ebp-24h] BYREF
-    float baseScore; // [esp+30h] [ebp-18h]
-    float start_height; // [esp+34h] [ebp-14h]
-    int spCount; // [esp+38h] [ebp-10h]
-    float height_inc; // [esp+3Ch] [ebp-Ch]
-    SpawnPoint *SpawnPoints; // [esp+40h] [ebp-8h]
-    float score; // [esp+44h] [ebp-4h]
+    char *fmtMsg;
+    char *fmtMsg2;
+    char *fmtMsg3;
+    float *tmp4;
+    float *tmp5;
+    float *color;
+    int index;
+    float origin[3];
+    float baseScore;
+    float start_height;
+    int spCount;
+    float height_inc;
+    SpawnPoint *SpawnPoints;
+    float score;
 
     start_height = 45.0f;
     height_inc = 12.0f;
@@ -2198,8 +2249,8 @@ void __cdecl SpawnSystem_DebugRenderTeamPointWeights(int teamMask)
                     color = (float *)colorGreen;
                 else
                     color = (float *)colorRed;
-                v1 = va("%.0f\\%.0f", score, baseScore);
-                CL_AddDebugString(origin, color, font_height, v1, 1);
+                fmtMsg = va("%.0f\\%.0f", score, baseScore);
+                CL_AddDebugString(origin, color, font_height, fmtMsg, 1);
                 origin[2] = origin[2] + height_inc;
             }
             if ( (teamMask & 2) != 0 )
@@ -2207,11 +2258,11 @@ void __cdecl SpawnSystem_DebugRenderTeamPointWeights(int teamMask)
                 score = SpawnPoints->weight[1];
                 baseScore = SpawnPoints->baseWeight[1];
                 if ( score >= 0.0 )
-                    v5 = (float *)colorGreen;
+                    tmp5 = (float *)colorGreen;
                 else
-                    v5 = (float *)colorRed;
-                v2 = va("%.0f\\%.0f", score, baseScore);
-                CL_AddDebugString(origin, v5, font_height, v2, 1);
+                    tmp5 = (float *)colorRed;
+                fmtMsg2 = va("%.0f\\%.0f", score, baseScore);
+                CL_AddDebugString(origin, tmp5, font_height, fmtMsg2, 1);
                 origin[2] = origin[2] + height_inc;
             }
             if ( (teamMask & 4) != 0 )
@@ -2219,11 +2270,11 @@ void __cdecl SpawnSystem_DebugRenderTeamPointWeights(int teamMask)
                 score = SpawnPoints->weight[2];
                 baseScore = SpawnPoints->baseWeight[2];
                 if ( score >= 0.0 )
-                    v4 = (float *)colorGreen;
+                    tmp4 = (float *)colorGreen;
                 else
-                    v4 = (float *)colorRed;
-                v3 = va("%.0f\\%.0f", score, baseScore);
-                CL_AddDebugString(origin, v4, font_height, v3, 1);
+                    tmp4 = (float *)colorRed;
+                fmtMsg3 = va("%.0f\\%.0f", score, baseScore);
+                CL_AddDebugString(origin, tmp4, font_height, fmtMsg3, 1);
                 origin[2] = origin[2] + height_inc;
             }
         }
@@ -2231,13 +2282,14 @@ void __cdecl SpawnSystem_DebugRenderTeamPointWeights(int teamMask)
     }
 }
 
+// Decomp: CoDMPServer.c:444402
 void __cdecl SpawnSystem_DebugRenderTeamPoints(int teamMask)
 {
-    float yaw; // [esp+4h] [ebp-1Ch]
-    float angles[3]; // [esp+8h] [ebp-18h] BYREF
-    int index; // [esp+14h] [ebp-Ch]
-    int spCount; // [esp+18h] [ebp-8h]
-    SpawnPoint *SpawnPoints; // [esp+1Ch] [ebp-4h]
+    float yaw;
+    float angles[3];
+    int index;
+    int spCount;
+    SpawnPoint *SpawnPoints;
 
     spCount = SpawnSystem_GetSpawnPointCount();
     SpawnPoints = SpawnSystem_GetSpawnPoints();
@@ -2266,16 +2318,17 @@ void __cdecl SpawnSystem_DebugRenderTeamPoints(int teamMask)
     }
 }
 
+// Decomp: CoDMPServer.c:444438
 void __cdecl SpawnSystem_DebugRenderSpawnPointBox(SpawnPoint *sp, const float *color, int bDepthTest)
 {
-    float origin[3]; // [esp+10h] [ebp-58h] BYREF
-    float mins[3]; // [esp+1Ch] [ebp-4Ch] BYREF
-    float end[3]; // [esp+28h] [ebp-40h] BYREF
-    float start[3]; // [esp+34h] [ebp-34h] BYREF
-    float forward[3]; // [esp+40h] [ebp-28h] BYREF
-    float angles[3]; // [esp+4Ch] [ebp-1Ch] BYREF
-    float maxs[3]; // [esp+58h] [ebp-10h] BYREF
-    float height_offset; // [esp+64h] [ebp-4h]
+    float origin[3];
+    float mins[3];
+    float end[3];
+    float start[3];
+    float forward[3];
+    float angles[3];
+    float maxs[3];
+    float height_offset;
 
     mins[0] = -16.0f;
     mins[1] = -16.0f;
@@ -2301,16 +2354,18 @@ void __cdecl SpawnSystem_DebugRenderSpawnPointBox(SpawnPoint *sp, const float *c
     G_DebugLine(start, end, color, 1);
 }
 
+// Decomp: CoDMPServer.c:444494
 void __cdecl SpawnSystem_SetSpawnPointsOrder(int team)
 {
-    int index; // [esp+4h] [ebp-8h]
-    SpawnPoint *SpawnPoints; // [esp+8h] [ebp-4h]
+    int index;
+    SpawnPoint *SpawnPoints;
 
     SpawnPoints = SpawnSystem_GetSpawnPoints();
     for (index = 0; index < g_sortedTeamSpawnPoints[team].count; ++index)
         SpawnPoints[g_sortedTeamSpawnPoints[team].spawnPointsByIndex[index]].orderNum = index;
 }
 
+// Decomp: CoDMPServer.c:444506
 void __cdecl SpawnSystem_DebugUpdateSpawnPoints(
                 gentity_s *player,
                 unsigned int point_team,

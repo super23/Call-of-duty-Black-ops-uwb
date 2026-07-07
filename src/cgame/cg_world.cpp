@@ -1,17 +1,24 @@
 #include "cg_world.h"
 #include <qcommon/dobj_management.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#include <cgame_sp/cg_ents_sp.h>
+#include <cgame_sp/cg_pose_sp.h>
+#include <game/g_combat_sp.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
+#include <cgame_mp/cg_ents_mp.h>
+#include <cgame_mp/cg_pose_mp.h>
+#include <game_mp/g_combat_mp.h>
+#endif
 #include "cg_colltree.h"
 #include <universal/com_math_anglevectors.h>
-#include <cgame_mp/cg_ents_mp.h>
 #include <bgame/bg_slidemove.h>
 #include <qcommon/cm_load.h>
 #include <qcommon/cm_tracebox.h>
-#include <cgame_mp/cg_pose_mp.h>
 #include <glass/glass_client.h>
 #include <bgame/bg_misc.h>
 #include <qcommon/cm_world.h>
-#include <game_mp/g_combat_mp.h>
 #include <physics/rope.h>
 #include <xanim/xmodel.h>
 #include <xanim/dobj_utils.h>

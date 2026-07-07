@@ -7,9 +7,11 @@
 #include <cgame/cg_draw_debug.h>
 #include <server_mp/sv_init_mp.h>
 
+#ifndef KISAK_SP
 int g_entsClientOnce;
 int g_entsDeltaCompared;
 int g_entsTransmitted;
+#endif
 
 bool __cdecl MSG_EntityIsLinked(const entityState_s *ent)
 {
@@ -540,6 +542,7 @@ void __cdecl MSG_WriteDeltaHudElems(
     int i; // [esp+Ch] [ebp-Ch]
     int inuse; // [esp+10h] [ebp-8h]
     int bitsUsedAtStart; // [esp+14h] [ebp-4h]
+    const NetField *hudFields; // hud netfield table (live or demo)
 
     if ( msg->readOnly
         && !Assert_MyHandler(
@@ -563,6 +566,7 @@ void __cdecl MSG_WriteDeltaHudElems(
     }
     for ( inuse = 0; inuse < count && to[inuse].type; ++inuse )
         ;
+    hudFields = MSG_GetNetFieldList(NET_FIELD_TYPE_HUDELEMS, snapInfo->demoSnapshot)->array;
     MSG_WriteBits(msg, inuse, 5u);
     for ( i = 0; i < inuse; ++i )
     {
@@ -579,7 +583,7 @@ void __cdecl MSG_WriteDeltaHudElems(
                          time,
                          (const unsigned __int8 *)&from[i],
                          (const unsigned __int8 *)&to[i],
-                         &hudElemFields[j],
+                         &hudFields[j],
                          j,
                          0,
                          1,

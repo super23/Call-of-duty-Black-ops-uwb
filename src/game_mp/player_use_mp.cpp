@@ -16,16 +16,18 @@
 #include <bgame/bg_weapons_def.h>
 
 
+// Decomp: CoDMPServer.c:453589
 bool __cdecl compare_use(const useList_t &a, const useList_t &b)
 {
     return b.score > a.score;
 }
 
 static const float turretScanRadiusSq = 16384.0;
+// Decomp: CoDMPServer.c:452611
 char __cdecl Player_IsPlayerUsingTurretNearby(gentity_s *ent)
 {
-    gentity_s *clEnt; // [esp+Ch] [ebp-8h]
-    int i; // [esp+10h] [ebp-4h]
+    gentity_s *clEnt;
+    int i;
 
     i = 0;
     clEnt = g_entities;
@@ -46,9 +48,10 @@ char __cdecl Player_IsPlayerUsingTurretNearby(gentity_s *ent)
     return 0;
 }
 
+// Decomp: CoDMPServer.c:452634
 void __cdecl Player_UpdateActivate(gentity_s *ent)
 {
-    char useSucceeded; // [esp+3h] [ebp-1h]
+    char useSucceeded;
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp", 259, 0, "%s", "ent") )
         __debugbreak();
@@ -93,6 +96,7 @@ void __cdecl Player_UpdateActivate(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:452700
 char __cdecl Player_ActivateCmd(gentity_s *ent)
 {
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp", 81, 0, "%s", "ent") )
@@ -174,10 +178,11 @@ char __cdecl Player_ActivateCmd(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:452807
 void __cdecl Player_ActivateHoldCmd(gentity_s *ent)
 {
-    int v1; // eax
-    gentity_s *useEnt; // [esp+0h] [ebp-4h]
+    int useHoldEntNum;
+    gentity_s *useEnt;
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp", 170, 0, "%s", "ent") )
         __debugbreak();
@@ -214,14 +219,14 @@ void __cdecl Player_ActivateHoldCmd(gentity_s *ent)
             useEnt = ent->client->useHoldEntity.ent();
             if ( useEnt->s.number != ent->client->useHoldEntity.entnum() )
             {
-                v1 = ent->client->useHoldEntity.entnum();
+                useHoldEntNum = ent->client->useHoldEntity.entnum();
                 if ( !Assert_MyHandler(
                                 "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp",
                                 205,
                                 0,
                                 "useEnt->s.number == (int)ent->client->useHoldEntity.entnum()\n\t%i, %i",
                                 useEnt->s.number,
-                                v1) )
+                                useHoldEntNum) )
                     __debugbreak();
             }
             if ( !useEnt->r.inuse
@@ -240,10 +245,11 @@ void __cdecl Player_ActivateHoldCmd(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:452891
 void __cdecl Player_UseEntity(gentity_s *playerEnt, gentity_s *useEnt)
 {
-    void(__cdecl * touch)(gentity_s *, gentity_s *, int); // [esp+0h] [ebp-8h]
-    void(__cdecl * use)(gentity_s *, gentity_s *, gentity_s *); // [esp+4h] [ebp-4h]
+    void(__cdecl * touch)(gentity_s *, gentity_s *, int);
+    void(__cdecl * use)(gentity_s *, gentity_s *, gentity_s *);
 
     if (!playerEnt
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp", 40, 0, "%s", "playerEnt"))
@@ -295,10 +301,11 @@ void __cdecl Player_UseEntity(gentity_s *playerEnt, gentity_s *useEnt)
     playerEnt->client->useHoldEntity.setEnt(0);
 }
 
+// Decomp: CoDMPServer.c:452963
 void __cdecl Player_ActivateDoubleTapCmd(gentity_s *ent)
 {
-    int v1; // eax
-    gentity_s *useEnt; // [esp+0h] [ebp-4h]
+    int useHoldEntNum;
+    gentity_s *useEnt;
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp", 220, 0, "%s", "ent") )
         __debugbreak();
@@ -319,14 +326,14 @@ void __cdecl Player_ActivateDoubleTapCmd(gentity_s *ent)
         useEnt = ent->client->useHoldEntity.ent();
         if ( useEnt->s.number != ent->client->useHoldEntity.entnum() )
         {
-            v1 = ent->client->useHoldEntity.entnum();
+            useHoldEntNum = ent->client->useHoldEntity.entnum();
             if ( !Assert_MyHandler(
                             "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp",
                             244,
                             0,
                             "useEnt->s.number == (int)ent->client->useHoldEntity.entnum()\n\t%i, %i",
                             useEnt->s.number,
-                            v1) )
+                            useHoldEntNum) )
                 __debugbreak();
         }
         if ( !useEnt->r.inuse
@@ -347,18 +354,19 @@ void __cdecl Player_ActivateDoubleTapCmd(gentity_s *ent)
 
 int Player_GetUseList(gentity_s *ent, useList_t *useList, int prevHintEntIndex);
 
+// Decomp: CoDMPServer.c:453031
 void __cdecl Player_UpdateCursorHints(gentity_s *ent)
 {
-    int v2; // [esp+14h] [ebp-202Ch]
-    int IsVehicleUsable; // [esp+18h] [ebp-2028h]
-    int scale; // [esp+1Ch] [ebp-2024h]
-    int ItemCursorHint; // [esp+20h] [ebp-2020h]
-    int item; // [esp+2Ch] [ebp-2014h]
-    useList_t useList[1024]; // [esp+30h] [ebp-2010h] BYREF
-    int v8; // [esp+2030h] [ebp-10h]
-    int v9; // [esp+2034h] [ebp-Ch]
-    playerState_s *ps; // [esp+2038h] [ebp-8h]
-    gentity_s *self; // [esp+203Ch] [ebp-4h]
+    int perkTeamIndex;
+    int IsVehicleUsable;
+    int scale;
+    int ItemCursorHint;
+    int item;
+    useList_t useList[1024];
+    int useListCount;
+    int useListIndex;
+    playerState_s *ps;
+    gentity_s *self;
 
     self = 0;
     if ( !ent->client
@@ -403,17 +411,17 @@ void __cdecl Player_UpdateCursorHints(gentity_s *ent)
                 && (ent->client->flags & 4) == 0
                 && (ent->client->flags & 8) == 0 )
             {
-                v8 = Player_GetUseList(ent, useList, ps->cursorHintEntIndex);
-                if ( v8 )
+                useListCount = Player_GetUseList(ent, useList, ps->cursorHintEntIndex);
+                if ( useListCount )
                 {
                     item = 0;
                     scale = -1;
-                    v9 = 0;
+                    useListIndex = 0;
                     while ( 1 )
                     {
-                        if ( v9 >= v8 )
+                        if ( useListIndex >= useListCount )
                             return;
-                        self = useList[v9].ent;
+                        self = useList[useListIndex].ent;
                         if ( !self
                             && !Assert_MyHandler(
                                         "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp",
@@ -473,8 +481,8 @@ void __cdecl Player_UpdateCursorHints(gentity_s *ent)
                                     scale = self->s.un1.scale;
                                 if ( !self->s.un3.item )
                                     goto LABEL_85;
-                                v2 = (self->s.eventParm & 0xC000) >> 14;
-                                if ( !v2 || v2 == ent->client->sess.cs.team )
+                                perkTeamIndex = (self->s.eventParm & 0xC000) >> 14;
+                                if ( !perkTeamIndex || perkTeamIndex == ent->client->sess.cs.team )
                                 {
                                     if ( (self->s.eventParm & 0x3FFF) != 0 && BG_HasPerk(ps->perks, (self->s.eventParm & 0x3FFF) >> 8) )
                                         scale = (unsigned __int8)self->s.eventParm;
@@ -507,7 +515,7 @@ LABEL_85:
                                 item = 0;
                                 scale = -1;
 LABEL_39:
-                                ++v9;
+                                ++useListIndex;
                                 break;
                             case 0xB:
                                 if ( !G_IsTurretUsable(self, ent) )
@@ -538,117 +546,111 @@ LABEL_39:
     }
 }
 
+// Decomp: CoDMPServer.c:453236
 int Player_GetUseList(gentity_s *ent, useList_t *useList, int prevHintEntIndex)
 {
-    int eType; // [esp+0h] [ebp-13A4h]
-    int integer; // [esp+10h] [ebp-1394h]
-    float v7; // [esp+14h] [ebp-1390h]
-    float value; // [esp+18h] [ebp-138Ch]
-    float v9; // [esp+280h] [ebp-1124h]
-    float v10; // [esp+284h] [ebp-1120h]
-    float v11[3]; // [esp+2A0h] [ebp-1104h] BYREF
-    BOOL v12; // [esp+2ACh] [ebp-10F8h]
-    float v13[3]; // [esp+2B0h] [ebp-10F4h] BYREF
-    float v14; // [esp+2BCh] [ebp-10E8h]
-    BOOL v15; // [esp+2C0h] [ebp-10E4h]
-    float v16; // [esp+2C4h] [ebp-10E0h]
-    gentity_s *ent1; // [esp+2C8h] [ebp-10DCh]
-    float v18; // [esp+2CCh] [ebp-10D8h]
-    float v[3]; // [esp+2D0h] [ebp-10D4h] BYREF
-    //float v20; // [esp+2D4h] [ebp-10D0h]
-    //float v21; // [esp+2D8h] [ebp-10CCh]
-    int entityList[1025]; // [esp+2DCh] [ebp-10C8h] BYREF
-    int hitNum; // [esp+12E0h] [ebp-C4h] BYREF
-    float origin[3]; // [esp+130Ch] [ebp-98h] BYREF
-    //float v26; // [esp+1310h] [ebp-94h]
-    //float v27; // [esp+1314h] [ebp-90h]
-    float v28; // [esp+1318h] [ebp-8Ch] BYREF
-    float v29; // [esp+131Ch] [ebp-88h]
-    float v30; // [esp+1320h] [ebp-84h]
-    float v31; // [esp+1324h] [ebp-80h]
-    float mins[3]; // [esp+1328h] [ebp-7Ch] BYREF
-    float v33; // [esp+1334h] [ebp-70h]
-    float v34; // [esp+1338h] [ebp-6Ch]
-    float v35; // [esp+133Ch] [ebp-68h]
-    float v36; // [esp+1340h] [ebp-64h]
-    int v37; // [esp+1344h] [ebp-60h]
-    float v38; // [esp+1348h] [ebp-5Ch]
-    gentity_s *gEnt; // [esp+134Ch] [ebp-58h]
-    float forward[3]; // [esp+1350h] [ebp-54h] BYREF
-    float v41; // [esp+135Ch] [ebp-48h]
-    int v42; // [esp+1360h] [ebp-44h]
-    int v43; // [esp+1364h] [ebp-40h]
-    float maxs[3]; // [esp+1368h] [ebp-3Ch] BYREF
-    float pos[3]; // [esp+1374h] [ebp-30h] BYREF
-    //float v46; // [esp+1378h] [ebp-2Ch]
-    //float v47; // [esp+137Ch] [ebp-28h]
-    int v48; // [esp+1380h] [ebp-24h]
-    int v49; // [esp+1384h] [ebp-20h]
-    int i; // [esp+1388h] [ebp-1Ch]
-    playerState_s *ps; // [esp+138Ch] [ebp-18h]
-    team_t team; // [esp+1390h] [ebp-14h]
-    float v53; // [esp+1394h] [ebp-10h]
-    float v54; // [esp+1398h] [ebp-Ch] BYREF
-    float v55; // [esp+139Ch] [ebp-8h]
-    float v56; // [esp+13A0h] [ebp-4h]
-    gentity_s *ent2; // [esp+13ACh] [ebp+8h]
+    int eType;
+    int integer;
+    float mgRadiusClamped;
+    float value;
+    float deltaX;
+    float deltaY;
+    float contactMins[3];
+    BOOL hasEntContact;
+    float contactMaxs[3];
+    float throwbackInnerRadius;
+    BOOL sameTeam;
+    float heightDelta;
+    gentity_s *ent1;
+    float forwardDot;
+    float v[3];
+    int entityList[1025];
+    int hitNum;
+    float origin[3];
+    float touchMaxX;
+    float touchMaxY;
+    float touchMaxZ;
+    float baseScore;
+    float mins[3];
+    float distNorm;
+    float useRadiusHoriz;
+    float useRadiusHorizY;
+    float useRadiusVert;
+    
+    float useRadius;
+    gentity_s *gEnt;
+    float forward[3];
+    float dotScore;
+    int useListCount;
+    int blockedSightCount;
+    float maxs[3];
+    float pos[3];
+    int blockedPickupCount;
+    int areaEntCount;
+    int i;
+    playerState_s *ps;
+    team_t team;
+    float lookAtDotMin;
+    float touchMinX;
+    float touchMinY;
+    float touchMinZ;
+    gentity_s *ent2;
 
-    v31 = 256.0f;
-    v53 = 0.75999999f;
-    v48 = 0;
+    baseScore = 256.0f;
+    lookAtDotMin = 0.75999999f;
+    blockedPickupCount = 0;
     if ((float)(192.0 - player_throwbackOuterRadius->current.value) < 0.0)
         value = player_throwbackOuterRadius->current.value;
     else
         value = 192.0f;
-    v34 = value;
+    useRadiusHoriz = value;
     if ((float)(value - player_MGUseRadius->current.value) < 0.0)
-        v7 = player_MGUseRadius->current.value;
+        mgRadiusClamped = player_MGUseRadius->current.value;
     else
-        v7 = v34;
-    v34 = v7;
-    if ((float)(v7 - player_useRadius->current.value) < 0.0)
+        mgRadiusClamped = useRadiusHoriz;
+    useRadiusHoriz = mgRadiusClamped;
+    if ((float)(mgRadiusClamped - player_useRadius->current.value) < 0.0)
         integer = player_useRadius->current.integer;
     else
-        integer = LODWORD(v34);
-    v34 = *(float *)&integer;
-    v35 = *(float *)&integer;
-    v36 = 96.0f;
+        integer = LODWORD(useRadiusHoriz);
+    useRadiusHoriz = *(float *)&integer;
+    useRadiusHorizY = *(float *)&integer;
+    useRadiusVert = 96.0f;
     ps = &ent->client->ps;
-    v37 = 0;
     G_GetPlayerViewOrigin(ps, origin);
     BG_GetPlayerViewDirection(ps, forward, 0, 0);
-    v54 = ps->origin[0] + -15.0;
-    v55 = ps->origin[1] + -15.0;
-    v56 = ps->origin[2] + 0.0;
-    v28 = ps->origin[0] + 15.0;
-    v29 = ps->origin[1] + 15.0;
-    v30 = ps->origin[2] + 70.0;
-    mins[0] = origin[0] - v34;
-    mins[1] = origin[1] - v35;
-    mins[2] = origin[2] - v36;
-    maxs[0] = origin[0] + v34;
-    maxs[1] = origin[1] + v35;
-    maxs[2] = origin[2] + v36;
-    v49 = CM_AreaEntities(mins, maxs, entityList, 1024, 0x200000);
-    v42 = 0;
-    for (i = 0; i < v49; ++i)
+    touchMinX = ps->origin[0] + -15.0;
+    touchMinY = ps->origin[1] + -15.0;
+    touchMinZ = ps->origin[2] + 0.0;
+    touchMaxX = ps->origin[0] + 15.0;
+    touchMaxY = ps->origin[1] + 15.0;
+    touchMaxZ = ps->origin[2] + 70.0;
+    mins[0] = origin[0] - useRadiusHoriz;
+    mins[1] = origin[1] - useRadiusHorizY;
+    mins[2] = origin[2] - useRadiusVert;
+    maxs[0] = origin[0] + useRadiusHoriz;
+    maxs[1] = origin[1] + useRadiusHorizY;
+    maxs[2] = origin[2] + useRadiusVert;
+    areaEntCount = CM_AreaEntities(mins, maxs, entityList, 1024, 0x200000);
+    useListCount = 0;
+    for (i = 0; i < areaEntCount; ++i)
     {
         gEnt = &g_entities[entityList[i]];
         if (ent != gEnt && (gEnt->s.eType == 3 || (gEnt->r.contents & 0x200000) != 0))
         {
             if (gEnt->classname == scr_const.trigger_use_touch)
             {
-                if (gEnt->r.absmin[0] <= v28
-                    && v54 <= gEnt->r.absmax[0]
-                    && gEnt->r.absmin[1] <= v29
-                    && v55 <= gEnt->r.absmax[1]
-                    && gEnt->r.absmin[2] <= v30
-                    && v56 <= gEnt->r.absmax[2])
+                if (gEnt->r.absmin[0] <= touchMaxX
+                    && touchMinX <= gEnt->r.absmax[0]
+                    && gEnt->r.absmin[1] <= touchMaxY
+                    && touchMinY <= gEnt->r.absmax[1]
+                    && gEnt->r.absmin[2] <= touchMaxZ
+                    && touchMinZ <= gEnt->r.absmax[2])
                 {
-                    if (SV_EntityContact(&v54, &v28, gEnt))
+                    if (SV_EntityContact(&touchMinX, &touchMaxX, gEnt))
                     {
-                        useList[v42].score = -256.0f;
-                        useList[v42++].ent = gEnt;
+                        useList[useListCount].score = -256.0f;
+                        useList[useListCount++].ent = gEnt;
                     }
                 }
             }
@@ -662,22 +664,22 @@ int Player_GetUseList(gentity_s *ent, useList_t *useList, int prevHintEntIndex)
                     {
                         //ent1 = EntHandle::ent(&gEnt->parent);
                         ent1 = gEnt->parent.ent();
-                        v15 = OnSameTeam(ent1, ent);
-                        if ((!v15
+                        sameTeam = OnSameTeam(ent1, ent);
+                        if ((!sameTeam
                             || ent->client->sess.cs.team == TEAM_FREE
                             || ent1->s.clientNum == ent->s.clientNum
                             || BG_GetFriendlyFireStatus())
                             && !gEnt->tagInfo)
                         {
-                            v16 = gEnt->r.currentOrigin[2] - ent->r.currentOrigin[2];
+                            heightDelta = gEnt->r.currentOrigin[2] - ent->r.currentOrigin[2];
                             if (prevHintEntIndex == gEnt->s.number)
                                 goto LABEL_41;
-                            v14 = player_throwbackInnerRadius->current.value;
+                            throwbackInnerRadius = player_throwbackInnerRadius->current.value;
                             if ((ps->perks[1] & 0x10) != 0)
-                                v14 = perk_throwbackInnerRadius->current.value;
-                            v9 = ent->r.currentOrigin[0] - gEnt->r.currentOrigin[0];
-                            v10 = ent->r.currentOrigin[1] - gEnt->r.currentOrigin[1];
-                            if ((float)((float)(v9 * v9) + (float)(v10 * v10)) <= (float)(v14 * v14))
+                                throwbackInnerRadius = perk_throwbackInnerRadius->current.value;
+                            deltaX = ent->r.currentOrigin[0] - gEnt->r.currentOrigin[0];
+                            deltaY = ent->r.currentOrigin[1] - gEnt->r.currentOrigin[1];
+                            if ((float)((float)(deltaX * deltaX) + (float)(deltaY * deltaY)) <= (float)(throwbackInnerRadius * throwbackInnerRadius))
                             {
                             LABEL_41:
                                 if ((float)((float)((float)(gEnt->s.lerp.pos.trDelta[0] * gEnt->s.lerp.pos.trDelta[0])
@@ -689,16 +691,16 @@ int Player_GetUseList(gentity_s *ent, useList_t *useList, int prevHintEntIndex)
                                     switch (eType)
                                     {
                                     case 4:
-                                        v38 = player_throwbackOuterRadius->current.value;
+                                        useRadius = player_throwbackOuterRadius->current.value;
                                         break;
                                     case 11:
-                                        v38 = player_MGUseRadius->current.value;
+                                        useRadius = player_MGUseRadius->current.value;
                                         break;
                                     case 14:
-                                        v38 = vehicle_useRadius->current.value;
+                                        useRadius = vehicle_useRadius->current.value;
                                         break;
                                     default:
-                                        v38 = player_useRadius->current.value;
+                                        useRadius = player_useRadius->current.value;
                                         break;
                                     }
                                     pos[0] = gEnt->r.absmin[0] + gEnt->r.absmax[0];
@@ -710,15 +712,15 @@ int Player_GetUseList(gentity_s *ent, useList_t *useList, int prevHintEntIndex)
                                     v[0] = pos[0] - origin[0];
                                     v[1] = pos[1] - origin[1];
                                     v[2] = pos[2] - origin[2];
-                                    v33 = Vec3Normalize(v);
-                                    if (v33 <= v38)
+                                    distNorm = Vec3Normalize(v);
+                                    if (distNorm <= useRadius)
                                     {
-                                        if ((v18 = (float)((float)(v[0] * forward[0]) + (float)(v[1] * forward[1])) + (float)(v[2] * forward[2]),
+                                        if ((forwardDot = (float)((float)(v[0] * forward[0]) + (float)(v[1] * forward[1])) + (float)(v[2] * forward[2]),
                                             gEnt->classname != scr_const.trigger_use)
                                             && gEnt->classname != scr_const.trigger_radius
                                             && gEnt->classname != scr_const.trigger_radius_use
                                             || !gEnt->trigger.requireLookAt
-                                            || v53 <= v18)
+                                            || lookAtDotMin <= forwardDot)
                                         {
                                             if (gEnt->classname != scr_const.trigger_radius
                                                 && gEnt->classname != scr_const.trigger_radius_use)
@@ -728,57 +730,57 @@ int Player_GetUseList(gentity_s *ent, useList_t *useList, int prevHintEntIndex)
                                             team = level_bgs.clientinfo[ent->client->ps.clientNum].team;
                                             if (gEnt->team != 255 && gEnt->team == team)
                                             {
-                                                v12 = 0;
-                                                v11[0] = gEnt->r.currentOrigin[0] + gEnt->r.mins[0];
-                                                v11[1] = gEnt->r.currentOrigin[1] + gEnt->r.mins[1];
-                                                v11[2] = gEnt->r.currentOrigin[2] + gEnt->r.mins[2];
-                                                v13[0] = gEnt->r.currentOrigin[0] + gEnt->r.maxs[0];
-                                                v13[1] = gEnt->r.currentOrigin[1] + gEnt->r.maxs[1];
-                                                v13[2] = gEnt->r.currentOrigin[2] + gEnt->r.maxs[2];
-                                                ExpandBoundsToWidth(v11, v13);
-                                                v12 = SV_EntityContact(v11, v13, ent);
-                                                if (v12)
+                                                hasEntContact = 0;
+                                                contactMins[0] = gEnt->r.currentOrigin[0] + gEnt->r.mins[0];
+                                                contactMins[1] = gEnt->r.currentOrigin[1] + gEnt->r.mins[1];
+                                                contactMins[2] = gEnt->r.currentOrigin[2] + gEnt->r.mins[2];
+                                                contactMaxs[0] = gEnt->r.currentOrigin[0] + gEnt->r.maxs[0];
+                                                contactMaxs[1] = gEnt->r.currentOrigin[1] + gEnt->r.maxs[1];
+                                                contactMaxs[2] = gEnt->r.currentOrigin[2] + gEnt->r.maxs[2];
+                                                ExpandBoundsToWidth(contactMins, contactMaxs);
+                                                hasEntContact = SV_EntityContact(contactMins, contactMaxs, ent);
+                                                if (hasEntContact)
                                                 {
                                                 LABEL_61:
-                                                    v41 = 1.0 - (float)((float)(v18 + 1.0) * 0.5);
-                                                    useList[v42].score = v41 * v31;
+                                                    dotScore = 1.0 - (float)((float)(forwardDot + 1.0) * 0.5);
+                                                    useList[useListCount].score = dotScore * baseScore;
                                                     if ((gEnt->flags & 0x200) != 0)
                                                     {
-                                                        useList[v42].score = useList[v42].score - (float)(v31 * 0.55000001);
+                                                        useList[useListCount].score = useList[useListCount].score - (float)(baseScore * 0.55000001);
                                                     }
                                                     else
                                                     {
                                                         if (gEnt->s.eType == 4)
-                                                            useList[v42].score = useList[v42].score - (float)(v31 * 2.0);
+                                                            useList[useListCount].score = useList[useListCount].score - (float)(baseScore * 2.0);
                                                         if (gEnt->s.eType == 14)
-                                                            useList[v42].score = useList[v42].score - (float)(v31 * 2.0);
+                                                            useList[useListCount].score = useList[useListCount].score - (float)(baseScore * 2.0);
                                                         if (gEnt->classname == scr_const.trigger_radius
                                                             || gEnt->classname == scr_const.trigger_radius_use && gEnt->s.un3.item > 0)
                                                         {
-                                                            useList[v42].score = useList[v42].score - (float)(v31 * 1.5);
+                                                            useList[useListCount].score = useList[useListCount].score - (float)(baseScore * 1.5);
                                                         }
                                                         if (gEnt->classname == scr_const.trigger_use || gEnt->classname == scr_const.trigger_radius)
-                                                            useList[v42].score = useList[v42].score - v31;
+                                                            useList[useListCount].score = useList[useListCount].score - baseScore;
                                                         if (gEnt->s.eType == 6)
-                                                            useList[v42].score = useList[v42].score - (float)(v31 * 0.75);
+                                                            useList[useListCount].score = useList[useListCount].score - (float)(baseScore * 0.75);
                                                     }
                                                     if (gEnt->s.eType == 11)
                                                     {
                                                         if (G_IsTurretUsable(gEnt, ent))
-                                                            useList[v42].score = useList[v42].score - (float)(v31 * 0.5);
+                                                            useList[useListCount].score = useList[useListCount].score - (float)(baseScore * 0.5);
                                                         else
-                                                            useList[v42].score = useList[v42].score + 10000.0;
+                                                            useList[useListCount].score = useList[useListCount].score + 10000.0;
                                                     }
                                                     if (gEnt->s.eType == 3
                                                         && (!BG_CanItemBeGrabbed(&gEnt->s, &ent->client->ps, 0)
                                                             || BG_PlayerWeaponBlockPickupWeapon(&ent->client->ps, ent->client->ps.weapon)))
                                                     {
-                                                        useList[v42].score = useList[v42].score + 10000.0;
-                                                        ++v48;
+                                                        useList[useListCount].score = useList[useListCount].score + 10000.0;
+                                                        ++blockedPickupCount;
                                                     }
-                                                    useList[v42].ent = gEnt;
-                                                    useList[v42].score = useList[v42].score + v33;
-                                                    ++v42;
+                                                    useList[useListCount].ent = gEnt;
+                                                    useList[useListCount].score = useList[useListCount].score + distNorm;
+                                                    ++useListCount;
                                                 }
                                             }
                                         }
@@ -791,23 +793,17 @@ int Player_GetUseList(gentity_s *ent, useList_t *useList, int prevHintEntIndex)
             }
         }
     }
-    //std::_Sort<RagdollSortStruct *, int, bool(__cdecl *)(RagdollSortStruct const &, RagdollSortStruct const &)>(
-    //    (MaterialMemory *)useList,
-    //    (MaterialMemory *)&useList[v42],
-    //    (8 * v42) >> 3,
-    //    (bool(__cdecl *)(const MaterialMemory *, const MaterialMemory *))compare_use);
+    std::sort(useList, useList + useListCount, compare_use);
 
-    std::sort(useList, useList + v42, compare_use);
-
-    v42 -= v48;
-    v43 = 0;
-    col_context_t context(17); // [esp+12E4h] [ebp-C0h] BYREF
+    useListCount -= blockedPickupCount;
+    blockedSightCount = 0;
+    col_context_t context(17);
 
     //col_context_t::col_context_t(&context, 17);
     context.passEntityNum0 = ps->clientNum;
     context.passEntityNum1 = ps->clientNum;
     hitNum = -1;
-    for (i = 0; i < v42; ++i)
+    for (i = 0; i < useListCount; ++i)
     {
         ent2 = useList[i].ent;
         if (ent2->classname != scr_const.trigger_use_touch && ent2->classname != scr_const.trigger_radius)
@@ -829,23 +825,18 @@ int Player_GetUseList(gentity_s *ent, useList_t *useList, int prevHintEntIndex)
             if (!SV_SightTracePoint(&hitNum, origin, pos, &context))
             {
                 useList[i].score = useList[i].score + 10000.0;
-                ++v43;
+                ++blockedSightCount;
             }
         }
     }
-    //std::_Sort<RagdollSortStruct *, int, bool(__cdecl *)(RagdollSortStruct const &, RagdollSortStruct const &)>(
-    //    (MaterialMemory *)useList,
-    //    (MaterialMemory *)&useList[v42],
-    //    (8 * v42) >> 3,
-    //    (bool(__cdecl *)(const MaterialMemory *, const MaterialMemory *))compare_use);
-
-    std::sort(useList, useList + v42, compare_use);
-    return v42 - v43;
+    std::sort(useList, useList + useListCount, compare_use);
+    return useListCount - blockedSightCount;
 }
 
+// Decomp: CoDMPServer.c:453564
 bool __cdecl BG_PlayerWeaponBlockPickupWeapon(const playerState_s *ps, unsigned int weaponIndex)
 {
-    const PlayerHeldWeapon *heldWeapon; // [esp+8h] [ebp-4h]
+    const PlayerHeldWeapon *heldWeapon;
 
     if ( !ps && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../bgame/bg_weapons.h", 394, 0, "%s", "ps") )
         __debugbreak();
@@ -853,11 +844,12 @@ bool __cdecl BG_PlayerWeaponBlockPickupWeapon(const playerState_s *ps, unsigned 
     return heldWeapon && heldWeapon->blockWeaponPickup;
 }
 
+// Decomp: CoDMPServer.c:453595
 int __cdecl Player_GetItemCursorHint(const gclient_s *client, const gentity_s *traceEnt)
 {
-    const WeaponDef *weapDefItem; // [esp+Ch] [ebp-14h]
-    const WeaponDef *weapDefPlayer; // [esp+14h] [ebp-Ch]
-    int index; // [esp+18h] [ebp-8h]
+    const WeaponDef *weapDefItem;
+    const WeaponDef *weapDefPlayer;
+    int index;
 
     if ( !traceEnt
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp", 654, 0, "%s", "traceEnt") )
@@ -905,10 +897,11 @@ int __cdecl Player_GetItemCursorHint(const gclient_s *client, const gentity_s *t
     return 0;
 }
 
+// Decomp: CoDMPServer.c:453662
 void __cdecl Player_SetTurretDropHint(gentity_s *ent)
 {
-    gentity_s *turret; // [esp+0h] [ebp-8h]
-    gclient_s *ps; // [esp+4h] [ebp-4h]
+    gentity_s *turret;
+    gclient_s *ps;
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\player_use_mp.cpp", 689, 0, "%s", "ent") )
         __debugbreak();

@@ -19,27 +19,30 @@ struct SmallAllocator // sizeof=0x18
 };
 
 template <typename T>
-struct SmallAllocatorTemplate//<GlassPhysics * *> // sizeof=0x4
+struct SmallAllocatorTemplate // sizeof=0x4
 {
     using value_type = T;
 
     SmallAllocator *alloc;
 
-    SmallAllocatorTemplate(SmallAllocator *a) noexcept : alloc(a) {}
+    // Decomp: CoDMPServer.c:859036 (inlined in FixedSizeAllocator ctor list setup)
+    SmallAllocatorTemplate(SmallAllocator *allocator) noexcept : alloc(allocator) {}
 
     template<class U>
     SmallAllocatorTemplate(const SmallAllocatorTemplate<U> &other) noexcept
         : alloc(other.alloc) {
     }
 
-    T *allocate(std::size_t n)
+    // Decomp: CoDMPServer.c:853899 via SmallAllocator::Allocate
+    T *allocate(std::size_t count)
     {
-        return reinterpret_cast<T *>(alloc->Allocate(sizeof(T) * n));
+        return reinterpret_cast<T *>(alloc->Allocate(sizeof(T) * count));
     }
 
-    void deallocate(T *p, std::size_t)
+    // Decomp: CoDMPServer.c:853939 via SmallAllocator::Free
+    void deallocate(T *ptr, std::size_t)
     {
-        alloc->Free(reinterpret_cast<void **>(p), 1);
+        alloc->Free(reinterpret_cast<void **>(ptr), 1);
     }
 
     template<class U>
@@ -49,61 +52,93 @@ struct SmallAllocatorTemplate//<GlassPhysics * *> // sizeof=0x4
     };
 };
 
-// aislop
 template <typename T>
 struct FixedSizeAllocator
 {
-    //void *memory;
+    // Retail MSVC2005 lists use SmallAllocatorTemplate<T**> in decomp names; modern STL requires value_type == T.
+    using ListAllocator = SmallAllocatorTemplate<T>;
 
-    std::list<T, SmallAllocatorTemplate<T>> used;
-    std::list<T, SmallAllocatorTemplate<T>> free;
-
-    unsigned int maxUsed;
     void *memory;
-    // ...
+    std::list<T, ListAllocator> used;
+    std::list<T, ListAllocator> free;
+    unsigned int maxUsed;
 
+    // Decomp: CoDMPServer.c:855843 (GlassesClient::Allocate for 64-byte pool object)
     void *operator new(size_t size)
     {
-        return GlassesClient::Allocate(size, "C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_client.cpp", 69);
+        return GlassesClient::Allocate(size, "C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_renderer.cpp", 75);
     }
+
+    // Decomp: CoDMPServer.c:855741 via GlassesClient::Free
     void operator delete(void *ptr)
     {
         GlassesClient::Free((char *)ptr);
     }
 
-    FixedSizeAllocator(T mem, unsigned int numObjects, SmallAllocator *allocator)
-        : used(SmallAllocatorTemplate<T>(allocator))
-        , free(SmallAllocatorTemplate<T>(allocator))
+    // Decomp: CoDMPServer.c:859027
+    FixedSizeAllocator(void *objectBuffer, unsigned int numObjects, SmallAllocator *allocator)
+        : memory(nullptr)
+        , used(ListAllocator(allocator))
+        , free(ListAllocator(allocator))
         , maxUsed(0)
-        , memory(mem)
     {
-        for (unsigned int i = 0; i < numObjects; ++i)
-            free.push_front(&mem[i]);
+        used.clear();
+        free.clear();
+
+        T objectPtr = static_cast<T>(objectBuffer);
+        for (unsigned int objectIndex = 0; objectIndex < numObjects; ++objectIndex)
+        {
+            free.push_front(objectPtr);
+            ++objectPtr;
+        }
+
+        memory = objectBuffer;
     }
 
+    // Decomp: CoDMPServer.c:859068
     T Allocate()
     {
-        T ret = nullptr;
+        T allocatedObject = nullptr;
 
         if (!free.empty())
         {
-            ret = free.front();
+            allocatedObject = free.front();
             free.erase(free.begin());
-            used.push_front(ret);
+            used.push_front(allocatedObject);
         }
 
         if ((unsigned int)used.size() > maxUsed)
             maxUsed = (unsigned int)used.size();
 
-        return ret;
+        return allocatedObject;
     }
 
+    // Decomp: CoDMPServer.c:859520
+    bool IsValidUsedPtr(T ptr)
+    {
+        if (!ptr)
+            return true;
+
+        for (typename std::list<T, ListAllocator>::iterator usedIt = used.begin(); usedIt != used.end(); ++usedIt)
+        {
+            if (*usedIt == ptr)
+                return true;
+        }
+
+        return false;
+    }
+
+    // Decomp: CoDMPServer.c:859168
     void Free(T obj)
     {
-        used.remove(obj);
-        free.push_front(obj);
+        if (obj)
+        {
+            used.remove(obj);
+            free.push_front(obj);
+        }
     }
 
+    // Decomp: CoDMPServer.c:859243
     void FreeAll()
     {
         while (!used.empty())

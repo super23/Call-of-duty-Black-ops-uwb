@@ -3,6 +3,7 @@
 #include <gfx_d3d/r_material_load_obj.h>
 #include <gfx_d3d/r_drawsurf.h>
 #include <gfx_d3d/r_scene.h>
+#include <universal/com_math.h>
 
 const unsigned __int16 templateIndices[12] =
 { 0u, 2u, 1u, 2u, 4u, 1u, 1u, 4u, 3u, 3u, 4u, 5u };
@@ -196,7 +197,11 @@ void __cdecl FX_Beam_GenerateVerts(FxGenerateVertsCmd *cmd)
 
     beamInfo = cmd->beamInfo;
 
-    CreateClipMatrix(&clipMtx, cmd->vieworg, cmd->viewaxis);
+    // Frontend/menu frames can queue beam work before viewaxis is valid (UIViewer).
+    if ( Vec3Length(cmd->viewaxis[0]) < 0.001f || Vec3Length(cmd->viewaxis[1]) < 0.001f )
+        return;
+
+    CreateClipMatrix(&clipMtx, cmd->vieworg, cmd->viewaxis, cmd->localClientNum);
     MatrixInverse44(clipMtx.mat, invClipMtx.mat);
 
     viewAxis.v[0] = cmd->viewaxis[0][0];
@@ -885,16 +890,40 @@ void __cdecl FX_Beam_GenerateVerts(FxGenerateVertsCmd *cmd)
     }
 }
 
-void __cdecl CreateClipMatrix(float4x4 *clipMtx, const float *vieworg, const float (*viewaxis)[3])
+static float FX_BeamDefaultTanHalfFov()
+{
+    const float dxDzAtDefaultAspectRatio = tan(DEG2RAD(65.0f) * 0.5f);
+
+    return dxDzAtDefaultAspectRatio * 0.75f;
+}
+
+void __cdecl CreateClipMatrix(
+    float4x4 *clipMtx,
+    const float *vieworg,
+    const float (*viewaxis)[3],
+    int localClientNum)
 {
     float4x4 viewMtx; // [esp+Ch] [ebp-88h] BYREF
     float4x4 projMtx; // [esp+4Ch] [ebp-48h] BYREF
+    cg_s *cgameGlob;
+    float tanHalfFovX;
+    float tanHalfFovY;
+
+    // Decomp: CoDSP_rdBlackOps.map.c CreateClipMatrix — read live refdef FOV at generation time.
+    cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+    tanHalfFovX = cgameGlob->refdef.tanHalfFovX;
+    tanHalfFovY = cgameGlob->refdef.tanHalfFovY;
+    if ( !(tanHalfFovX > 0.0f) )
+        tanHalfFovX = FX_BeamDefaultTanHalfFov();
+    if ( !(tanHalfFovY > 0.0f) )
+        tanHalfFovY = FX_BeamDefaultTanHalfFov();
 
     Float4x4ForViewer(&viewMtx, vieworg, viewaxis);
 
-    Float4x4InfinitePerspectiveMatrix(&projMtx,
-        CG_GetLocalClientGlobals(R_GetLocalClientNum())->refdef.tanHalfFovX,
-        CG_GetLocalClientGlobals(R_GetLocalClientNum())->refdef.tanHalfFovY,
+    Float4x4InfinitePerspectiveMatrix(
+        &projMtx,
+        tanHalfFovX,
+        tanHalfFovY,
         1.0);
 
     clipMtx->x.v[0] = viewMtx.x.v[0] * projMtx.x.v[0]

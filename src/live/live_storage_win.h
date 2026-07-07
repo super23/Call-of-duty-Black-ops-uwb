@@ -37,10 +37,16 @@ enum day_t : __int32
 
 int __cdecl SystemTimeToInt();
 void __cdecl LiveStorage_ResetStats(unsigned __int8 *buffer);
-void __cdecl LiveStorage_ReadStats(int __formal, bool validate, bool silent);
+void __cdecl LiveStorage_ReadStats(int controllerIndex, bool validate, bool silent);
 void LiveStorage_InitCustomClassesNames();
 void __cdecl LiveStorage_ReadStatsIfDirChanged();
 void __cdecl LiveStorage_UploadStats();
+
+// KISAK: persist controllerNetworkData[i].playerStats + basicTrainingStats
+// to/from a local profile file (players/userstats_<i>.bin). LoadStats is
+// implicit in LiveStorage_ReadStats above; SaveStats can be called
+// explicitly when needing to flush (e.g. on app exit).
+void LiveStorage_LocalSaveStats(int controllerIndex);
 void __cdecl LiveStorage_UploadStatsForController();
 void __cdecl SV_ResetFileOp(dwFileOperationInfo *data);
 dwFileOperationInfo *__cdecl SV_GetFreeFileOp();

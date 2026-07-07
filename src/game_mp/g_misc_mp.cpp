@@ -16,17 +16,18 @@
 #include <clientscript/cscr_vm.h>
 
 static const float color[4] = { 0.5, 0.5, 0.5, 1.0 };
+// Decomp: CoDMPServer.c:397456
 void __cdecl misc_EntInfo(gentity_s *self, float *source)
 {
-    char *v2; // eax
-    char *v3; // eax
-    const char *v4; // [esp+10h] [ebp-3Ch]
-    float xyz[3]; // [esp+1Ch] [ebp-30h] BYREF
-    float mins[3]; // [esp+28h] [ebp-24h] BYREF
-    float dist; // [esp+34h] [ebp-18h] BYREF
-    float maxs[3]; // [esp+38h] [ebp-14h] BYREF
-    const char *classname; // [esp+44h] [ebp-8h]
-    float infoScale; // [esp+48h] [ebp-4h] BYREF
+    char *fmtMsg;
+    char *fmtMsg2;
+    const char *slStr;
+    float xyz[3];
+    float mins[3];
+    float dist;
+    float maxs[3];
+    const char *classname;
+    float infoScale;
 
     if ( !self && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_misc_mp.cpp", 61, 0, "%s", "self") )
         __debugbreak();
@@ -39,17 +40,17 @@ void __cdecl misc_EntInfo(gentity_s *self, float *source)
     classname = SL_ConvertToString(self->classname, SCRIPTINSTANCE_SERVER);
     if ( g_entinfo->current.integer == 4 || g_entinfo->current.integer == 5 )
     {
-        v2 = va("%i", self->s.number);
-        G_AddDebugString(xyz, color, infoScale * 0.75, v2, 0);
+        fmtMsg = va("%i", self->s.number);
+        G_AddDebugString(xyz, color, infoScale * 0.75, fmtMsg, 0);
     }
     else
     {
         if ( self->targetname )
-            v4 = SL_ConvertToString(self->targetname, SCRIPTINSTANCE_SERVER);
+            slStr = SL_ConvertToString(self->targetname, SCRIPTINSTANCE_SERVER);
         else
-            v4 = "<noname>";
-        v3 = va("%i : %s : %i : %s", self->s.number, v4, self->health, classname);
-        G_AddDebugString(xyz, color, infoScale * 0.75, v3, 0);
+            slStr = "<noname>";
+        fmtMsg2 = va("%i : %s : %i : %s", self->s.number, slStr, self->health, classname);
+        G_AddDebugString(xyz, color, infoScale * 0.75, fmtMsg2, 0);
     }
     if ( I_stristr(classname, "_spawn") || I_stristr(classname, "_uspawn") )
     {
@@ -72,9 +73,10 @@ void __cdecl misc_EntInfo(gentity_s *self, float *source)
     CG_DebugBox(self->r.currentOrigin, mins, maxs, self->r.currentAngles[1], colorMagenta, 1, 0);
 }
 
+// Decomp: CoDMPServer.c:397534
 void __cdecl EntinfoPosAndScale(gentity_s *self, float *source, float *pos, float *textScale, float *dist)
 {
-    float delta[3]; // [esp+14h] [ebp-Ch] BYREF
+    float delta[3];
 
     if ( !self && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_misc_mp.cpp", 26, 0, "%s", "self") )
         __debugbreak();
@@ -97,7 +99,7 @@ void __cdecl EntinfoPosAndScale(gentity_s *self, float *source, float *pos, floa
     delta[0] = *source - self->r.currentOrigin[0];
     delta[1] = source[1] - self->r.currentOrigin[1];
     delta[2] = source[2] - self->r.currentOrigin[2];
-    *dist = Vec3Length(delta);
+    *dist = Abs(delta);
     if ( g_entinfo->current.integer >= 2
         || g_entinfo_maxdist->current.value <= 0.0
         || *dist <= g_entinfo_maxdist->current.value )
@@ -106,6 +108,7 @@ void __cdecl EntinfoPosAndScale(gentity_s *self, float *source, float *pos, floa
     }
 }
 
+// Decomp: CoDMPServer.c:397581
 void __cdecl EntInfo_Vehicle(gentity_s *self, float *source)
 {
     misc_EntInfo(self, source);
@@ -117,17 +120,18 @@ float MY_MAX_DIST_HALF;
 static const float MY_MAX_DIST = 500.0f;
 static const float MY_NEXTLINE = -3.0f;
 static const float MY_RGB[3] = { 0.6f, 0.5f, 0.5f };
+// Decomp: CoDMPServer.c:397588
 void __cdecl EntInfo_Item(gentity_s *self, float *source)
 {
-    const char *v2; // eax
-    char *v3; // eax
-    int scale; // [esp+4h] [ebp-34h]
-    int ammoCount; // [esp+8h] [ebp-30h]
-    float pos[3]; // [esp+10h] [ebp-28h] BYREF
-    float textScale; // [esp+1Ch] [ebp-1Ch] BYREF
-    float dist; // [esp+20h] [ebp-18h] BYREF
-    int idx; // [esp+24h] [ebp-14h]
-    float color[4]; // [esp+28h] [ebp-10h] BYREF
+    const char *weaponName;
+    char *fmtMsg;
+    int scale;
+    int ammoCount;
+    float pos[3];
+    float textScale;
+    float dist;
+    int idx;
+    float color[4];
 
     if ((_S1_8 & 1) == 0)
     {
@@ -153,9 +157,9 @@ void __cdecl EntInfo_Item(gentity_s *self, float *source)
             {
                 ammoCount = self->item[idx].ammoCount;
                 scale = self->item[idx].clipAmmoCount;
-                v2 = BG_WeaponName(self->item[idx].index);
-                v3 = va("%i: %s (%i + %i)", self->s.number, v2, scale, ammoCount);
-                G_AddDebugString(pos, color, textScale * 0.80000001, v3, 0);
+                weaponName = BG_WeaponName(self->item[idx].index);
+                fmtMsg = va("%i: %s (%i + %i)", self->s.number, weaponName, scale, ammoCount);
+                G_AddDebugString(pos, color, textScale * 0.80000001, fmtMsg, 0);
                 CG_DebugBox(self->r.currentOrigin, self->r.mins, self->r.maxs, self->r.currentAngles[1], colorRedFaded, 1, 0);
                 pos[2] = pos[2] + MY_NEXTLINE;
             }
@@ -163,28 +167,30 @@ void __cdecl EntInfo_Item(gentity_s *self, float *source)
     }
 }
 
+// Decomp: CoDMPServer.c:397655
 float __cdecl G_GetEntInfoScale()
 {
     return CG_GetViewZoomScale() * g_entinfo_scale->current.value;
 }
 
+// Decomp: CoDMPServer.c:397667
 void __cdecl SP_info_notnull(gentity_s *self, SpawnVar *v)
 {
     G_SetOrigin(self, self->r.currentOrigin);
 }
 
+// Decomp: CoDMPServer.c:397673
 void __cdecl SP_light(gentity_s *self, SpawnVar *spawnVar)
 {
-    float radius; // [esp+8h] [ebp-CCh]
-    float v3; // [esp+18h] [ebp-BCh]
-    int primaryLightIndex; // [esp+A0h] [ebp-34h] BYREF
-    const ComPrimaryLight *light; // [esp+A4h] [ebp-30h]
-    float facingDir[3]; // [esp+A8h] [ebp-2Ch] BYREF
-    float facingAngles[3]; // [esp+B4h] [ebp-20h] BYREF
-    float normalizedColor[3]; // [esp+C0h] [ebp-14h] BYREF
-    unsigned int flags; // [esp+CCh] [ebp-8h]
-    const char *spawnFlags; // [esp+D0h] [ebp-4h] BYREF
-    int savedregs; // [esp+D4h] [ebp+0h] BYREF
+    float radius;
+    float tmp3;
+    int primaryLightIndex;
+    const ComPrimaryLight *light;
+    float facingDir[3];
+    float facingAngles[3];
+    float normalizedColor[3];
+    unsigned int flags;
+    const char *spawnFlags;
 
     if ( !spawnVar->spawnVarsValid
         && !Assert_MyHandler(
@@ -225,10 +231,10 @@ void __cdecl SP_light(gentity_s *self, SpawnVar *spawnVar)
         vectoangles(facingDir, facingAngles);
         G_SetAngle(self, facingAngles);
         G_SetOrigin(self, light->origin);
-        v3 = -light->radius;
-        self->r.mins[0] = v3;
-        self->r.mins[1] = v3;
-        self->r.mins[2] = v3;
+        tmp3 = -light->radius;
+        self->r.mins[0] = tmp3;
+        self->r.mins[1] = tmp3;
+        self->r.mins[2] = tmp3;
         radius = light->radius;
         self->r.maxs[0] = radius;
         self->r.maxs[1] = radius;
@@ -254,12 +260,12 @@ void __cdecl SP_light(gentity_s *self, SpawnVar *spawnVar)
     }
 }
 
+// Decomp: CoDMPServer.c:397776
 void __cdecl TeleportPlayer(gentity_s *player, float *origin, float *angles)
 {
-    float *v3; // [esp+4h] [ebp-Ch]
-    float *v4; // [esp+8h] [ebp-8h]
-    int linked; // [esp+Ch] [ebp-4h]
-    int savedregs; // [esp+10h] [ebp+0h] BYREF
+    float *tmp3;
+    float *tmp4;
+    int linked;
 
     if ( !player->client
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_misc_mp.cpp", 229, 0, "%s", "player->client") )
@@ -278,27 +284,28 @@ void __cdecl TeleportPlayer(gentity_s *player, float *origin, float *angles)
     }
     linked = player->r.linked;
     SV_UnlinkEntity(player);
-    v4 = player->client->ps.origin;
-    *v4 = *origin;
-    v4[1] = origin[1];
-    v4[2] = origin[2];
+    tmp4 = player->client->ps.origin;
+    *tmp4 = *origin;
+    tmp4[1] = origin[1];
+    tmp4[2] = origin[2];
     player->client->ps.origin[2] = player->client->ps.origin[2] + 1.0;
     player->client->ps.eFlags ^= 2u;
     SetClientViewAngle(player, angles);
     if ( !player->tagInfo )
         player->r.currentAngles[0] = 0.0f;
     BG_PlayerStateToEntityState(&player->client->ps, &player->s, 1, 1u);
-    v3 = player->client->ps.origin;
-    player->r.currentOrigin[0] = *v3;
-    player->r.currentOrigin[1] = v3[1];
-    player->r.currentOrigin[2] = v3[2];
+    tmp3 = player->client->ps.origin;
+    player->r.currentOrigin[0] = *tmp3;
+    player->r.currentOrigin[1] = tmp3[1];
+    player->r.currentOrigin[2] = tmp3[2];
     if ( linked )
         SV_LinkEntity(player);
 }
 
+// Decomp: CoDMPServer.c:397828
 void __cdecl ScrNotify_FaceEvent(gentity_s *self, unsigned __int16 face_event)
 {
-    unsigned __int16 t; // [esp+0h] [ebp-4h]
+    unsigned __int16 t;
 
     Scr_AddEntity(self, SCRIPTINSTANCE_SERVER);
     Scr_AddConstString(face_event, SCRIPTINSTANCE_SERVER);

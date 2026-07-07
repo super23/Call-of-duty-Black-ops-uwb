@@ -1,6 +1,6 @@
 #include "actor_generic.h"
-#include <game_mp/g_main_mp.h>
-#include <game_mp/actor_mp.h>
+#include <game/g_main_wrapper.h>
+#include <game/actor_wrapper.h>
 
 void __fastcall Actor_Generic_Suspend(actor_s *self, ai_state_t eNextState)
 {

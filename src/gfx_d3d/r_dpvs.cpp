@@ -71,7 +71,7 @@ void __cdecl R_FrustumClipPlanes(
                                                                                                          + (float)((float)(*sidePlanes)[4 * planeIndex + 2]
                                                                                                                          * viewProjMtx->m[term][2]))
                                                                                          + (float)((float)(*sidePlanes)[4 * planeIndex + 3] * viewProjMtx->m[term][3]);
-        length = Vec3Length(frustumPlanes[planeIndex].coeffs);
+        length = Abs(frustumPlanes[planeIndex].coeffs);
         if ( length <= 0.0
             && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_dpvs.cpp", 508, 0, "%s", "length > 0") )
         {
@@ -2397,7 +2397,7 @@ void __cdecl R_InitialEntityCulling()
 {
     int v0; // [esp+18h] [ebp-C0h]
     int v1; // [esp+1Ch] [ebp-BCh]
-    const float *minmax; // [esp+20h] [ebp-B8h]
+    float *minmax; // [esp+20h] [ebp-B8h]
     const DpvsPlane *v3; // [esp+28h] [ebp-B0h]
     int v4; // [esp+2Ch] [ebp-ACh]
     int v5; // [esp+30h] [ebp-A8h]
@@ -2552,8 +2552,7 @@ LABEL_51:
     for ( glassIndex = 0; glassIndex < glassBrushCount; ++glassIndex )
     {
         v1 = views->frustumPlaneCount;
-        //minmax = *(float **)&scene.glassBrushVisData[40 * glassIndex - 40932];
-        minmax = scene.glassBrush[glassIndex].bmodel->writable.mins;
+        minmax = *(float **)&scene.glassBrushVisData[40 * glassIndex - 40932];
         v4 = 0;
         v3 = views->frustumPlanes;
         while ( v4 < v1 )
@@ -4840,6 +4839,22 @@ unsigned int __cdecl R_CellIsForcedInvisible(const GfxCell *cell)
                  & (1 << ((cell - rgp.world->cells) & 0x1F));
     else
         return 0;
+}
+
+bool __cdecl R_ForcedInvisibleCell_TurnOn(int cellIndex)
+{
+    if ( cellIndex < 0 || !rgp.world || cellIndex >= (int)rgp.world->dpvsPlanes.cellCount )
+        return false;
+    dpvsGlob.cellForceInvisibleBits[cellIndex >> 5] |= 1 << (cellIndex & 0x1F);
+    return true;
+}
+
+bool __cdecl R_ForcedInvisibleCell_TurnOff(int cellIndex)
+{
+    if ( cellIndex < 0 || !rgp.world || cellIndex >= (int)rgp.world->dpvsPlanes.cellCount )
+        return false;
+    dpvsGlob.cellForceInvisibleBits[cellIndex >> 5] &= ~(1 << (cellIndex & 0x1F));
+    return true;
 }
 
 void __cdecl R_VisitPortals(const GfxCell *cell, const DpvsPlane *parentPlane, DpvsPlane *planes, int planeCount)

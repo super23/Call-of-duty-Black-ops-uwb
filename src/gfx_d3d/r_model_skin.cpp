@@ -3,8 +3,12 @@
 #include <win32/win_common.h>
 #include "r_dobj_skin.h"
 #include <qcommon/threads.h>
+#include <qcommon/common.h>
 #include <EffectsCore/fx_marks.h>
 #include <win32/win_main.h>
+
+// Matches retail skin cmd workspace / surfacePartBits coverage (5 x 32 bits).
+enum { R_SKIN_XMODEL_MAX_BONES = 160 };
 
 bool TensionUsage[4];
 float TensionBuffer[4][4000];
@@ -1168,7 +1172,7 @@ void R_SkinXModelCmd(SkinXModelCmd *data)
     GfxPackedVertexNormal *normalIn; // [esp-28CCh] [ebp-28D8h]
     GfxPackedVertex *skinVerticesOut; // [esp-28C8h] [ebp-28D4h]
     const XSurface *xsurf; // [esp-28C4h] [ebp-28D0h]
-    DObjSkelMat alignas(16) boneSkelMats[DOBJ_MAX_PARTS]; // [esp-28C0h] [ebp-28CCh] BYREF
+    DObjSkelMat alignas(16) boneSkelMats[R_SKIN_XMODEL_MAX_BONES]; // [esp-28C0h] [ebp-28CCh] BYREF
     int j; // [esp-30h] [ebp-3Ch]
     GfxModelSkinnedSurface *skinnedSurf; // [esp-24h] [ebp-30h]
     unsigned int i; // [esp-20h] [ebp-2Ch]
@@ -1194,12 +1198,12 @@ void R_SkinXModelCmd(SkinXModelCmd *data)
     v23 = 0;
     fastSkin = gfxBuf.fastSkin;
     skinCmd = data;
-    modelSurfs = (GfxModelSkinnedSurface *)data->modelSurfs;
-    mat = data->mat;
+    if (!skinCmd || !skinCmd->modelSurfs || !skinCmd->mat || !skinCmd->surfCount)
+        return;
 
-    iassert(skinCmd);
-    iassert(skinCmd->surfCount);
-        
+    modelSurfs = (GfxModelSkinnedSurface *)skinCmd->modelSurfs;
+    mat = skinCmd->mat;
+
     surfPos = modelSurfs;
     boneIndex = -1;
     for (i = 0; i < skinCmd->surfCount; ++i)
@@ -1215,6 +1219,17 @@ void R_SkinXModelCmd(SkinXModelCmd *data)
         {
             boneIndex = skinnedSurf->info.boneIndex;
             const int totalBones = boneIndex + skinnedSurf->info.boneCount;
+            if (boneIndex < 0 || boneIndex >= R_SKIN_XMODEL_MAX_BONES || totalBones > R_SKIN_XMODEL_MAX_BONES)
+            {
+                Com_PrintWarning(
+                    8,
+                    "R_SkinXModelCmd: invalid boneIndex/boneCount (surf %u/%u boneIdx %d boneCnt %u); skipping batch — xmodel/skin cmd mismatch\n",
+                    i,
+                    (unsigned int)skinCmd->surfCount,
+                    boneIndex,
+                    (unsigned int)skinnedSurf->info.boneCount);
+                return;
+            }
             const DObjAnimMat *baseMats = &skinnedSurf->info.baseMat[-boneIndex];
             for (j = boneIndex; j < totalBones; ++j)
             {
@@ -1252,18 +1267,23 @@ void R_SkinXModelCmd(SkinXModelCmd *data)
 
         surfPos = skinnedSurf + 1;
         xsurf = skinnedSurf->xsurf;
-        iassert(xsurf);
+        if (!xsurf)
+            return;
 
         if (skinnedSurf->skinnedCachedOffset < 0)
         {
-            iassert(((reinterpret_cast<uint>(skinnedSurf->skinnedVert) & 15) == 0));
+            if ((reinterpret_cast<uint>(skinnedSurf->skinnedVert) & 15) != 0)
+                return;
             skinVerticesOut = skinnedSurf->skinnedVert;
         }
         else
         {
-            iassert(gfxBuf.skinnedCacheLockAddr);
-            iassert((reinterpret_cast<uint>(gfxBuf.skinnedCacheLockAddr) & 15) == 0);
-            iassert((skinnedSurf->skinnedCachedOffset & 15) == 0);
+            if (!gfxBuf.skinnedCacheLockAddr)
+                return;
+            if ((reinterpret_cast<uint>(gfxBuf.skinnedCacheLockAddr) & 15) != 0)
+                return;
+            if ((skinnedSurf->skinnedCachedOffset & 15) != 0)
+                return;
 
             skinVerticesOut = (GfxPackedVertex *)&gfxBuf.skinnedCacheLockAddr[skinnedSurf->skinnedCachedOffset];
         }

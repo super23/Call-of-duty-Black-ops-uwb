@@ -49,7 +49,7 @@ void __cdecl XAnimInit()
     g_xAnimInfo[0].state.rate = 0.0;
     *(unsigned int *)&g_xAnimInfo[0].state.instantWeightChange = 0;
     g_endNotetrackName = SL_GetString_(SCRIPTINSTANCE_SERVER, "end", 0, 3);
-    g_anim_developer = com_developer->current.integer != 0;
+    g_anim_developer = 1;
 }
 
 void __cdecl XAnimShutdown()
@@ -525,7 +525,11 @@ void __cdecl XAnimInitModelMap(XModel *const *models, unsigned int numModels, XM
         for ( localBoneIndex = 0; localBoneIndex < boneCount; ++localBoneIndex )
         {
             boneName = boneNames[localBoneIndex];
-            iassert(boneName);
+            if ( !boneName
+                && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\xanim\\xanim.cpp", 938, 0, "%s", "boneName") )
+            {
+                __debugbreak();
+            }
             for ( hash = boneName & 0x1FF; modelMap[hash].name; hash = ((_WORD)hash + 1) & 0x1FF )
                 ;
             modelMap[hash].index = boneIndex;
@@ -923,6 +927,34 @@ int __cdecl XAnimGetFrameCount(const XAnim_s *anims, unsigned int animIndex)
     if ( !parts && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\xanim\\xanim.cpp", 2773, 0, "%s", "parts") )
         __debugbreak();
     return parts->numframes;
+}
+
+unsigned __int8 __cdecl XAnimGetAssetType(const XAnim_s *anims, unsigned int animIndex)
+{
+    const XAnimParts *parts;
+
+    if ( !anims && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\xanim\\xanim.cpp", 2785, 0, "%s", "anims") )
+        __debugbreak();
+    if ( animIndex >= anims->size
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\xanim\\xanim.cpp",
+                    2786,
+                    0,
+                    "animIndex < anims->size\n\t%i, %i",
+                    animIndex,
+                    anims->size) )
+    {
+        __debugbreak();
+    }
+    if ( !IsLeafNode(&anims->entries[animIndex])
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\xanim\\xanim.cpp", 2789, 0, "%s", "IsLeafNode( entry )") )
+    {
+        __debugbreak();
+    }
+    parts = anims->entries[animIndex].parts;
+    if ( !parts && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\xanim\\xanim.cpp", 2792, 0, "%s", "parts") )
+        __debugbreak();
+    return parts->assetType;
 }
 
 int __cdecl XAnimGetLengthMsec(const XAnim_s *anims, unsigned int anim)
@@ -3504,7 +3536,7 @@ unsigned int __cdecl XAnimAllocInfoWithParent(
         {
             parts = anim->parts;
             v6 = useFastFile->current.enabled ? DB_IsXAssetDefault(ASSET_TYPE_XANIMPARTS, parts->name) : parts->isDefault;
-            if ( v6 && tree->anims->wasLoggedIfMissing && !tree->anims->wasLoggedIfMissing[animIndex] )
+            if ( v6 && !tree->anims->wasLoggedIfMissing[animIndex] )
             {
                 DB_LogMissingAsset(ASSET_TYPE_XANIMPARTS, anim->parts->name);
                 tree->anims->wasLoggedIfMissing[animIndex] = 1;
@@ -4097,16 +4129,10 @@ int __cdecl XAnimSetGoalWeightNode(
     {
         __debugbreak();
     }
-    if ( (notifyName || notifyType)
-        && goalWeight == 0.0
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\xanim\\xanim.cpp",
-                    4556,
-                    0,
-                    "%s",
-                    "(!notifyName && !notifyType) || goalWeight") )
+    if ( (notifyName || notifyType) && goalWeight == 0.0 )
     {
-        __debugbreak();
+        notifyName = 0;
+        notifyType = 0;
     }
     if ( (!infoIndex || infoIndex >= 0x1000)
         && !Assert_MyHandler(
@@ -4731,6 +4757,46 @@ void __cdecl XAnimAddNotetrackTimesToScriptArray(const XAnim_s *anims, unsigned 
             }
             ++notify;
         }
+    }
+}
+
+void __cdecl XAnimAddNotetracksInDeltaToScriptArray(
+    const XAnim_s *anims,
+    unsigned int animIndex,
+    float startDelta,
+    float endDelta)
+{
+    const XAnimNotifyInfo *notify;
+    int notifyIndex;
+    XAnimParts *parts;
+    float startTime;
+    float endTime;
+
+    parts = anims->entries[animIndex].parts;
+    if ( !parts )
+        return;
+    notify = parts->notify;
+    if ( !notify )
+        return;
+    startTime = startDelta;
+    endTime = endDelta > 1.0f ? 1.0f : endDelta;
+    Scr_MakeArray(SCRIPTINSTANCE_SERVER);
+    for ( notifyIndex = 0; notifyIndex < parts->notifyCount; ++notifyIndex )
+    {
+        if ( notify->time < startTime || notify->time > endTime )
+        {
+            ++notify;
+            continue;
+        }
+        Scr_MakeArray(SCRIPTINSTANCE_SERVER);
+        Scr_AddInt(notifyIndex, SCRIPTINSTANCE_SERVER);
+        Scr_AddArray(SCRIPTINSTANCE_SERVER);
+        Scr_AddConstString(notify->name, SCRIPTINSTANCE_SERVER);
+        Scr_AddArray(SCRIPTINSTANCE_SERVER);
+        Scr_AddFloat(notify->time, SCRIPTINSTANCE_SERVER);
+        Scr_AddArray(SCRIPTINSTANCE_SERVER);
+        Scr_AddArray(SCRIPTINSTANCE_SERVER);
+        ++notify;
     }
 }
 

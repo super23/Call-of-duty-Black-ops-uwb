@@ -6,7 +6,11 @@
 #include <DemonWare/bdCore/bdContainers/bdByteBuffer.h>
 #include <DemonWare/bdCore/bdSocket/bdAddr.h>
 #include <cstring>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_scoreboard_sp.h>
+#else
 #include <cgame_mp/cg_scoreboard_mp.h>
+#endif
 
 
 struct bdDownloadInterceptor // sizeof=0x4

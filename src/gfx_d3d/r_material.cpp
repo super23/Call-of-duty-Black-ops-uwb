@@ -3,6 +3,7 @@
 #include "r_dvars.h"
 #include <qcommon/com_profilemapload.h>
 #include <qcommon/threads.h>
+#include "r_singlethreaded_device_pc.h"
 #include "r_init.h"
 #include "rb_resource.h"
 #include <database/db_file_load.h>
@@ -454,6 +455,7 @@ unsigned __int8 *__cdecl Material_Alloc(unsigned int size)
 void __cdecl Load_CreateMaterialPixelShader(GfxPixelShaderLoadDef *loadDef, MaterialPixelShader *mtlShader)
 {
     HRESULT hr; // [esp+0h] [ebp-8h]
+    int semaphore; // [esp+4h] [ebp-4h]
 
     if ( loadDef != &mtlShader->prog.loadDef
         && !Assert_MyHandler(
@@ -470,12 +472,15 @@ void __cdecl Load_CreateMaterialPixelShader(GfxPixelShaderLoadDef *loadDef, Mate
         ProfLoad_Begin("Create pixel shader");
         if ( Sys_IsRenderThread() )
         {
+            semaphore = R_AcquireDXDeviceOwnership(0);
             hr = dx.device->CreatePixelShader((DWORD*)loadDef->program, (IDirect3DPixelShader9 **)&mtlShader->prog);
             if ( hr < 0 )
             {
                 g_hr = hr;
                 mem = dx.device->GetAvailableTextureMem();
             }
+            if ( semaphore )
+                R_ReleaseDXDeviceOwnership();
         }
         else
         {
@@ -494,7 +499,9 @@ void __cdecl Load_CreateMaterialPixelShader(GfxPixelShaderLoadDef *loadDef, Mate
 void __cdecl Load_CreateMaterialVertexShader(GfxVertexShaderLoadDef *loadDef, MaterialVertexShader *mtlShader)
 {
     const char *v2; // eax
+    int v3; // [esp+0h] [ebp-Ch]
     int hr; // [esp+4h] [ebp-8h]
+    int semaphore; // [esp+8h] [ebp-4h]
 
     if ( loadDef != &mtlShader->prog.loadDef
         && !Assert_MyHandler(
@@ -511,9 +518,14 @@ void __cdecl Load_CreateMaterialVertexShader(GfxVertexShaderLoadDef *loadDef, Ma
         ProfLoad_Begin("Create vertex shader");
         if ( Sys_IsRenderThread() )
         {
+            semaphore = R_AcquireDXDeviceOwnership(0);
+            R_AssertDXDeviceOwnership();
             if ( r_logFile && r_logFile->current.integer )
                 RB_LogPrint("dx.device->CreateVertexShader( loadDef->program, &mtlShader->prog.vs )\n");
+            v3 = R_AcquireDXDeviceOwnership(0);
             hr = dx.device->CreateVertexShader(loadDef->program, (IDirect3DVertexShader9 **)&mtlShader->prog);
+            if ( v3 )
+                R_ReleaseDXDeviceOwnership();
             if ( hr < 0 )
             {
                 ++g_disableRendering;
@@ -525,6 +537,8 @@ void __cdecl Load_CreateMaterialVertexShader(GfxVertexShaderLoadDef *loadDef, Ma
                     829,
                     v2);
             }
+            if ( semaphore )
+                R_ReleaseDXDeviceOwnership();
         }
         else
         {
@@ -570,7 +584,9 @@ IDirect3DVertexDeclaration9 *__cdecl Material_BuildVertexDecl(
     int v4; // edx
     int v5; // edx
     const char *v6; // eax
+    int v7; // [esp+0h] [ebp-82Ch]
     int hr; // [esp+4h] [ebp-828h]
+    int semaphore; // [esp+8h] [ebp-824h]
     int elemIndexInsert; // [esp+Ch] [ebp-820h]
     const stream_source_info_t *sourceInfo; // [esp+10h] [ebp-81Ch]
     _D3DVERTEXELEMENT9 declEnd; // [esp+14h] [ebp-818h]
@@ -629,9 +645,14 @@ IDirect3DVertexDeclaration9 *__cdecl Material_BuildVertexDecl(
     {
         if ( Sys_IsRenderThread() )
         {
+            semaphore = R_AcquireDXDeviceOwnership(0);
+            R_AssertDXDeviceOwnership();
             if ( r_logFile && r_logFile->current.integer )
                 RB_LogPrint("dx.device->CreateVertexDeclaration( elemTable, &decl )\n");
+            v7 = R_AcquireDXDeviceOwnership(0);
             hr = dx.device->CreateVertexDeclaration(elemTable, &decl);
+            if ( v7 )
+                R_ReleaseDXDeviceOwnership();
             if ( hr < 0 )
             {
                 ++g_disableRendering;
@@ -643,6 +664,8 @@ IDirect3DVertexDeclaration9 *__cdecl Material_BuildVertexDecl(
                     952,
                     v6);
             }
+            if ( semaphore )
+                R_ReleaseDXDeviceOwnership();
         }
         else
         {
@@ -1162,6 +1185,8 @@ Material *__cdecl Material_MakeDefault(char *name)
         }
         Com_Error(ERR_FATAL, "couldn't load material '$default'");
     }
+    // Decomp SP: BlackOps.singleplayer.c sub_6D3FC0 @642862-642864 -> sub_6D3E70 (Material_MakeDefault);
+    // Material_Load prints error @684324-684331, no ERR_DROP for missing assets.
     Com_PrintWarning(8, "WARNING: Could not find material '%s'\n", name);
     return Material_Duplicate(rgp.defaultMaterial, name);
 }

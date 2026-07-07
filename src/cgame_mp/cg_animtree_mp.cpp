@@ -14,7 +14,7 @@ void __cdecl CGScr_LoadAnimTrees()
     char *string; // [esp+18h] [ebp-4h]
 
     Scr_BeginLoadAnimTrees(SCRIPTINSTANCE_SERVER, 0);
-    for ( i = 3244; i < MAX_CONFIGSTRINGS; ++i )
+    for ( i = 2738; i < 2754; ++i )
     {
         string = CL_GetConfigString(i);
         if ( *string )
@@ -82,4 +82,3 @@ void __cdecl CG_FreeEntityDObjInfo(int localClientNum)
     for ( i = 32; i < 1024; ++i )
         CG_SafeDObjFree(localClientNum, i);
 }
-

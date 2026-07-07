@@ -4,7 +4,11 @@
 
 // local variable allocation has failed, the output may be wrong!
 void __cdecl FX_Beam_GenerateVerts(FxGenerateVertsCmd *cmd);
-void __cdecl CreateClipMatrix(float4x4 *clipMtx, const float *vieworg, const float (*viewaxis)[3]);
+void __cdecl CreateClipMatrix(
+    float4x4 *clipMtx,
+    const float *vieworg,
+    const float (*viewaxis)[3],
+    int localClientNum);
 void __cdecl Float4x4ForViewer(float4x4 *mtx, const float *origin3, const float axis3[3][3]);
 void __cdecl Float4x4InfinitePerspectiveMatrix(float4x4 *mtx, float tanHalfFovX, float tanHalfFovY, float zNear);
 // local variable allocation has failed, the output may be wrong!

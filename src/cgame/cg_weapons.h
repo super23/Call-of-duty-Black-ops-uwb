@@ -1,6 +1,9 @@
 #pragma once
 #include <sound/snd.h>
 #include <bgame/bg_weapons_def.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_compassfriendlies_sp.h>
+#endif
 
 struct gentity_s;
 struct XModel;

@@ -153,7 +153,7 @@ void IK_Layer_TerrainMapping(IKState *ikState)
     }
 
     // Velocity-based scaling
-    float velSpeed = Vec3Length(ikState->velocity);
+    float velSpeed = Abs(ikState->velocity);
     float velRatio = velSpeed / IK_TERRAIN_MAPPING_VELOCITY_MAX;
     float velSpeedScale;
     if ((float)(1.0 - velRatio) < 0.0)
@@ -248,7 +248,7 @@ void IK_Layer_TerrainMapping(IKState *ikState)
             IKImport_DrawLine(startPos, endPos, i);
 
         // Initialize foot trace normals from cached goal normals
-        float goalNormalLen = Vec3Length(ikState->lastFootTraceGoalNormals[i]) - 1.0;
+        float goalNormalLen = Abs(ikState->lastFootTraceGoalNormals[i]) - 1.0;
         if ((fabs(goalNormalLen)) >= 0.1)
         {
             // Goal normal is invalid, reset to up
@@ -328,7 +328,7 @@ void IK_Layer_TerrainMapping(IKState *ikState)
                     tracePos[1] = thisTracePos[1];
                     tracePos[2] = thisTracePos[2];
 
-                    float normalLenDelta = Vec3Length(thisNormal) - 1.0;
+                    float normalLenDelta = Abs(thisNormal) - 1.0;
                     if ((fabs(normalLenDelta)) < 0.1)
                     {
                         footTraceNormals[i][0] = thisNormal[0];
@@ -690,7 +690,7 @@ void IK_Layer_TerrainMapping(IKState *ikState)
         // Determine whether to lerp normals or snap
         float *lastNormal = ikState->lastFootTraceNormals[i];
         bool lastNormalIsZero = (lastNormal[0] == 0.0f && lastNormal[1] == 0.0f && lastNormal[2] == 0.0f);
-        float lastNormalLenDelta = Vec3Length(ikState->lastFootTraceNormals[i]) - 1.0;
+        float lastNormalLenDelta = Abs(ikState->lastFootTraceNormals[i]) - 1.0;
         bool lastNormalInvalid = (fabs(lastNormalLenDelta)) >= 0.1;
 
         if (!doLerping || lastNormalIsZero || lastNormalInvalid)

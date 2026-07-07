@@ -2458,6 +2458,7 @@ void __cdecl PM_StepSlideMove(pmove_t *pm, pml_t *pml, int gravity)
     float fStepAmount; // [esp+15Ch] [ebp-4h]
     int savedregs; // [esp+160h] [ebp+0h] BYREF
 
+    memset(&trace, 0, 16);
     fStepAmount = 0.0f;
     ps = pm->ps;
     if ( !ps && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_slidemove.cpp", 2239, 0, "%s", "ps") )

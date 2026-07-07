@@ -1,5 +1,5 @@
 #pragma once
-#include <game_mp/g_main_mp.h>
+#include <game/g_main_wrapper.h>
 
 struct client_fields_s // sizeof=0x1C
 {                                       // XREF: .rdata:fields/r

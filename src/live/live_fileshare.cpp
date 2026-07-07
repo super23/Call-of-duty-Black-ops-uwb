@@ -7,9 +7,14 @@
 #include <ui/ui_feeders.h>
 #include <universal/com_shared.h>
 #include <ui/ui_atoms.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_cgame_sp.h>
+#include <server_sp/sv_main_pc_sp.h>
+#else
 #include <client_mp/cl_cgame_mp.h>
-#include <qcommon/com_clients.h>
 #include <server_mp/sv_main_pc_mp.h>
+#endif
+#include <qcommon/com_clients.h>
 #include <client/cl_keys.h>
 
 const char *fileShareKeyNames[30] =

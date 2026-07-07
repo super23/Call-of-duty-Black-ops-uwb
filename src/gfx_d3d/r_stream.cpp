@@ -19,13 +19,18 @@
 #include <cgame/cg_compass.h>
 #include <win32/win_shared.h>
 #include <xanim/xmodel.h>
+#include <qcommon/dobj_management.h>
 
 #include <algorithm>
 #include <DynEntity/DynEntity_load_obj.h>
 #include <DynEntity/DynEntity_client.h>
 #include "r_rendercmds.h"
 
-#define TOTAL_IMAGE_PARTS 4608 // Same as POOLSIZE_IMAGE
+#define BIT_INDEX_32(bits) ((unsigned int)(bits) >> 5)
+#define BIT_MASK_32(bits) (1u << ((bits) & 0x1F))
+#define IMAGE_BIT_IS_SET(var, bits) ((var)[BIT_INDEX_32(bits)] & BIT_MASK_32(bits))
+#define IMAGE_BIT_SET(var, bits) ((var)[BIT_INDEX_32(bits)] |= BIT_MASK_32(bits))
+#define IMAGE_BIT_UNSET(var, bits) ((var)[BIT_INDEX_32(bits)] &= ~BIT_MASK_32(bits))
 
 volatile unsigned int r_stream_sortLimit = 1;
 jqModule r_stream_sortModule =
@@ -150,8 +155,8 @@ void __cdecl R_StreamSetDefaultConfig(bool clear)
     streamFrontendGlob.forcedImageImportance = 8.5070587e37f;
     if (clear)
     {
-        memset((unsigned __int8 *)streamFrontendGlob.imageInitialBits, 0, 528u);
-        memset((unsigned __int8 *)streamFrontendGlob.imageForceBits, 0, 528u);
+        memset((unsigned __int8 *)streamFrontendGlob.imageInitialBits, 0, IMAGE_STREAM_BITWORDS * sizeof(unsigned int));
+        memset((unsigned __int8 *)streamFrontendGlob.imageForceBits, 0, IMAGE_STREAM_BITWORDS * sizeof(unsigned int));
         streamFrontendGlob.imageInitialBitsSet = 0;
         streamFrontendGlob.initialLoadAllocFailures = 0;
         streamFrontendGlob.preloadCancelled = 0;
@@ -167,8 +172,8 @@ void __cdecl R_StreamSetUIConfig(bool clear)
     streamFrontendGlob.initialImageImportance = 8.5070587e37f;
     if (clear)
     {
-        memset((unsigned __int8 *)streamFrontendGlob.imageInitialBits, 0, 528u);
-        memset((unsigned __int8 *)streamFrontendGlob.imageForceBits, 0, 528u);
+        memset((unsigned __int8 *)streamFrontendGlob.imageInitialBits, 0, IMAGE_STREAM_BITWORDS * sizeof(unsigned int));
+        memset((unsigned __int8 *)streamFrontendGlob.imageForceBits, 0, IMAGE_STREAM_BITWORDS * sizeof(unsigned int));
         streamFrontendGlob.imageInitialBitsSet = 0;
         streamFrontendGlob.initialLoadAllocFailures = 0;
         streamFrontendGlob.preloadCancelled = 0;
@@ -191,11 +196,11 @@ double __cdecl R_Stream_GetProgress()
         return 0.0;
     total = 0;
     complete = 0;
-    for (idx = 0; idx < 132; ++idx)
+    for (idx = 0; idx < IMAGE_STREAM_BITWORDS; ++idx)
     {
         bits = streamFrontendGlob.imageInitialBits[idx] | streamFrontendGlob.imageForceBits[idx];
         total += CountBitsEnabled(bits);
-        complete += CountBitsEnabled(streamFrontendGlob.imageUseBits[idx - 4] & bits);
+        complete += CountBitsEnabled(streamFrontendGlob.imageUseBits[idx] & bits);
     }
     if (total)
         return (double)complete / (double)total + 0.001;
@@ -262,7 +267,7 @@ bool __cdecl R_StreamUpdate_ProcessFileCallbacks()
                 __debugbreak();
             }
             imageIndex = DB_GetImageIndex(image);
-            if ((streamFrontendGlob.imageLoading[(imageIndex >> 5) - 8] & (1 << (imageIndex & 0x1F))) == 0
+            if ((streamFrontendGlob.imageLoading[imageIndex >> 5] & (1 << (imageIndex & 0x1F))) == 0
                 && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_stream.cpp",
                     1192,
@@ -276,7 +281,7 @@ bool __cdecl R_StreamUpdate_ProcessFileCallbacks()
                 || request->status == STREAM_STATUS_READFAILED
                 || request->status == STREAM_STATUS_EOF)
             {
-                streamFrontendGlob.imageLoading[(imageIndex >> 5) - 8] &= ~(1 << (imageIndex & 0x1F));
+                streamFrontendGlob.imageLoading[imageIndex >> 5] &= ~(1 << (imageIndex & 0x1F));
                 Z_VirtualFree(request->buffer, 20);
                 R_Stream_InvalidateRequest(request);
             }
@@ -317,7 +322,7 @@ bool __cdecl R_StreamUpdate_ProcessFileCallbacks()
                 }
                 if (request->highMip)
                 {
-                    if ((streamFrontendGlob.imageUseBits[(imageIndex >> 5) - 4] & (1 << (imageIndex & 0x1F))) != 0
+                    if ((streamFrontendGlob.imageUseBits[imageIndex >> 5] & (1 << (imageIndex & 0x1F))) != 0
                         && !Assert_MyHandler(
                             "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_stream.cpp",
                             1227,
@@ -327,11 +332,11 @@ bool __cdecl R_StreamUpdate_ProcessFileCallbacks()
                     {
                         __debugbreak();
                     }
-                    streamFrontendGlob.imageUseBits[(imageIndex >> 5) - 4] |= 1 << (imageIndex & 0x1F);
+                    streamFrontendGlob.imageUseBits[imageIndex >> 5] |= 1 << (imageIndex & 0x1F);
                 }
                 else
                 {
-                    if ((streamFrontendGlob.imageUseBits[(imageIndex >> 5) - 4] & (1 << (imageIndex & 0x1F))) == 0
+                    if ((streamFrontendGlob.imageUseBits[imageIndex >> 5] & (1 << (imageIndex & 0x1F))) == 0
                         && !Assert_MyHandler(
                             "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_stream.cpp",
                             1232,
@@ -341,9 +346,9 @@ bool __cdecl R_StreamUpdate_ProcessFileCallbacks()
                     {
                         __debugbreak();
                     }
-                    streamFrontendGlob.imageUseBits[(imageIndex >> 5) - 4] &= ~(1 << (imageIndex & 0x1F));
+                    streamFrontendGlob.imageUseBits[imageIndex >> 5] &= ~(1 << (imageIndex & 0x1F));
                 }
-                streamFrontendGlob.imageLoading[(imageIndex >> 5) - 8] &= ~(1 << (imageIndex & 0x1F));
+                streamFrontendGlob.imageLoading[imageIndex >> 5] &= ~(1 << (imageIndex & 0x1F));
                 R_Stream_InvalidateRequest(request);
             }
         }
@@ -365,7 +370,7 @@ void __cdecl R_StreamUpdate_SetupInitialImageList()
     }
     else
     {
-        memset((unsigned __int8 *)streamFrontendGlob.imageForceBits, 0, 0x210u);
+        memset((unsigned __int8 *)streamFrontendGlob.imageForceBits, 0, IMAGE_STREAM_BITWORDS * sizeof(unsigned int));
     }
     streamFrontendGlob.diskOrderImagesNeedSorting = 1;
     streamFrontendGlob.imageInitialBitsSet = 1;
@@ -651,9 +656,10 @@ void __cdecl R_StreamTouchImage(GfxImage *image)
     if (image->streaming)
     {
         imagePartIndex = DB_GetImageIndex(image);
+        bcassert(imagePartIndex, STREAM_MAX_IMAGES);
         for (part = 0; part < 1; ++part)
         {
-            streamFrontendGlob.imageTouchBits[streamFrontendGlob.activeImageTouchBits][imagePartIndex >> 5] |= 1 << (imagePartIndex & 0x1F);
+            streamFrontendGlob.imageTouchBits[imagePartIndex >> 5][streamFrontendGlob.activeImageTouchBits] |= 1 << (imagePartIndex & 0x1F);
             ++imagePartIndex;
         }
     }
@@ -684,13 +690,14 @@ bool __cdecl R_StreamTouchImageAndCheck(GfxImage *image, int level)
     else
         v3 = level;
     imagePartIndex = DB_GetImageIndex(image);
+    bcassert(imagePartIndex, STREAM_MAX_IMAGES);
     levelPartIndex = imagePartIndex - v3;
     for (part = 0; part < 1; ++part)
     {
-        streamFrontendGlob.imageTouchBits[streamFrontendGlob.activeImageTouchBits][imagePartIndex >> 5] |= 1 << (imagePartIndex & 0x1F);
+        streamFrontendGlob.imageTouchBits[imagePartIndex >> 5][streamFrontendGlob.activeImageTouchBits] |= 1 << (imagePartIndex & 0x1F);
         ++imagePartIndex;
     }
-    return (streamFrontendGlob.imageUseBits[(levelPartIndex >> 5) - 4] & (1 << (levelPartIndex & 0x1F))) != 0;
+    return (streamFrontendGlob.imageUseBits[levelPartIndex >> 5] & (1 << (levelPartIndex & 0x1F))) != 0;
 }
 
 bool __cdecl R_StreamImageCheck(GfxImage *image, int level)
@@ -716,7 +723,7 @@ bool __cdecl R_StreamImageCheck(GfxImage *image, int level)
     else
         v3 = level;
     imagePartIndex = DB_GetImageIndex(image);
-    return (streamFrontendGlob.imageUseBits[((imagePartIndex - v3) >> 5) - 4] & (1 << ((imagePartIndex - v3) & 0x1F))) != 0;
+    return (streamFrontendGlob.imageUseBits[(imagePartIndex - v3) >> 5] & (1 << ((imagePartIndex - v3) & 0x1F))) != 0;
 }
 
 void __cdecl R_Stream_ResetHintEntities()
@@ -735,9 +742,9 @@ void __cdecl R_StreamInit()
     streamFrontendGlob.queryClient = -1;
     for (i = 0; i < 10; ++i)
         R_Stream_InvalidateRequest(&s_pendingRequests[i]);
-    memset((unsigned __int8 *)streamFrontendGlob.imageInSortedListBits, 0, 0x210u);
+    memset((unsigned __int8 *)streamFrontendGlob.imageInSortedListBits, 0, IMAGE_STREAM_BITWORDS * sizeof(unsigned int));
     memset((unsigned __int8 *)s_preventMaterials, 0, sizeof(s_preventMaterials));
-    streamFrontendGlob.totalBytesWanted = 0;
+    streamFrontendGlob.sortedImageCount = 0;
     streamFrontendGlob.diskOrderImagesNeedSorting = 1;
     streamIsInitialized = 1;
 }
@@ -746,8 +753,8 @@ void __cdecl R_StreamShutdown()
 {
     R_StreamSetDefaultConfig(1);
     memset((unsigned __int8 *)s_preventMaterials, 0, sizeof(s_preventMaterials));
-    memset((unsigned __int8 *)streamFrontendGlob.imageInSortedListBits, 0, 0x210u);
-    streamFrontendGlob.totalBytesWanted = 0;
+    memset((unsigned __int8 *)streamFrontendGlob.imageInSortedListBits, 0, IMAGE_STREAM_BITWORDS * sizeof(unsigned int));
+    streamFrontendGlob.sortedImageCount = 0;
     streamFrontendGlob.diskOrderImagesNeedSorting = 1;
 }
 
@@ -805,7 +812,6 @@ void __cdecl R_StreamSyncThenFlush(bool flushAll)
         }
         streamFrontendGlob.frame = 0;
         streamFrontendGlob.queryInProgress = 0;
-        streamFrontendGlob.syncThing = 0;
         Sys_EnterCriticalSection(CRITSECT_STREAM_FORCE_LOAD_COMMAND);
         s_numForcedLoadEntities = 0;
         for (i = 0; i < 4; ++i)
@@ -865,7 +871,7 @@ void R_Stream_Sync()
         case STREAM_STATUS_PRE:
         case STREAM_STATUS_QUEUED:
             imageIndex = DB_GetImageIndex(request->image);
-            streamFrontendGlob.imageLoading[(imageIndex >> 5) - 8] &= ~(1 << (imageIndex & 0x1F));
+            streamFrontendGlob.imageLoading[imageIndex >> 5] &= ~(1 << (imageIndex & 0x1F));
             R_Stream_InvalidateRequest(request);
             break;
         case STREAM_STATUS_FINISHED:
@@ -985,7 +991,7 @@ char __cdecl R_StreamUpdate(const float *viewPos)
         }
         else
         {
-            memset((unsigned __int8 *)streamFrontendGlob.imageForceBits, 0, 0x210u);
+            memset((unsigned __int8 *)streamFrontendGlob.imageForceBits, 0, IMAGE_STREAM_BITWORDS * sizeof(unsigned int));
         }
         Dvar_ClearModified(r_streamLowDetail);
         streamFrontendGlob.diskOrderImagesNeedSorting = 1;
@@ -1004,22 +1010,20 @@ char __cdecl R_StreamUpdate(const float *viewPos)
 
 void __cdecl R_Stream_AddImagePartImportance(int imagePartIndex, float importance)
 {
-    float v2; // [esp+0h] [ebp-8h]
+    bcassert(imagePartIndex, STREAM_MAX_IMAGES);
 
-    bcassert(imagePartIndex, TOTAL_IMAGE_PARTS);
+    if (importance < streamFrontendGlob.imageImportance[imagePartIndex])
+        importance = streamFrontendGlob.imageImportance[imagePartIndex];
+    streamFrontendGlob.imageImportance[imagePartIndex] = importance;
 
-    if ((float)(importance - *(float *)&streamFrontendGlob.imageImportanceBits[imagePartIndex - 4064]) < 0.0)
-        v2 = *(float *)&streamFrontendGlob.imageImportanceBits[imagePartIndex - 4064];
-    else
-        v2 = importance;
-    *(float *)&streamFrontendGlob.imageImportanceBits[imagePartIndex - 4064] = v2;
-    if ((streamFrontendGlob.dynamicImageImportanceBits[(imagePartIndex >> 5) - 4064] & (1 << (imagePartIndex & 0x1F))) == 0)
+    if (!IMAGE_BIT_IS_SET(streamFrontendGlob.imageImportanceBits, imagePartIndex))
     {
-        streamFrontendGlob.dynamicImageImportanceBits[(imagePartIndex >> 5) - 4064] |= 1 << (imagePartIndex & 0x1F);
-        if ((streamFrontendGlob.imageInSortedListBits[imagePartIndex >> 5] & (1 << (imagePartIndex & 0x1F))) == 0)
+        IMAGE_BIT_SET(streamFrontendGlob.imageImportanceBits, imagePartIndex);
+
+        if (!IMAGE_BIT_IS_SET(streamFrontendGlob.imageInSortedListBits, imagePartIndex))
         {
-            streamFrontendGlob.imageInSortedListBits[imagePartIndex >> 5] |= 1 << (imagePartIndex & 0x1F);
-            *(int *)((char *)&streamFrontendGlob.sortedImages[streamFrontendGlob.totalBytesWanted++] + 2) = (__int16)imagePartIndex;
+            IMAGE_BIT_SET(streamFrontendGlob.imageInSortedListBits, imagePartIndex);
+            streamFrontendGlob.sortedImages[streamFrontendGlob.sortedImageCount++] = (__int16)imagePartIndex;
         }
     }
 }
@@ -1035,7 +1039,10 @@ void __cdecl importance_swap_func(void **a, void **b)
 
 bool __cdecl importance_compare_func(void *a, void *b)
 {
-    return (signed int)streamFrontendGlob.imageImportanceBits[(unsigned int)a - 4064] > (signed int)streamFrontendGlob.imageImportanceBits[(unsigned int)b - 4064];
+    const int indexA = (int)a;
+    const int indexB = (int)b;
+
+    return *(int *)&streamFrontendGlob.imageImportance[indexA] > *(int *)&streamFrontendGlob.imageImportance[indexB];
 }
 
 void *aux_buffer[2113];
@@ -1113,7 +1120,7 @@ void  R_StreamUpdate_EndQuery_Internal()
     if (Sys_IsRenderThread())
         R_StreamUpdate_ProcessFileCallbacks();
 LABEL_3:
-    while (sortedIndex != streamFrontendGlob.totalBytesWanted)
+    while (sortedIndex != streamFrontendGlob.sortedImageCount)
     {
         movesPending = CG_IsShowingZombieMap();
         request = 0;
@@ -1133,16 +1140,16 @@ LABEL_3:
         {
             return;
         }
-        while (sortedIndex < streamFrontendGlob.totalBytesWanted)
+        while (sortedIndex < streamFrontendGlob.sortedImageCount)
         {
-            imagePartIndex = *(int *)((char *)&streamFrontendGlob.sortedImages[sortedIndex] + 2);
-            if ((streamFrontendGlob.imageUseBits[(imagePartIndex >> 5) - 4] & (1 << (imagePartIndex & 0x1F))) == 0)
+            imagePartIndex = streamFrontendGlob.sortedImages[sortedIndex];
+            if ((streamFrontendGlob.imageUseBits[imagePartIndex >> 5] & (1 << (imagePartIndex & 0x1F))) == 0)
             {
                 v0 = imagePartIndex & 0x80000000;
                 if (imagePartIndex < 0)
                     v0 = 0;
                 imagePart = v0;
-                if ((streamFrontendGlob.imageLoading[(imagePartIndex >> 5) - 8] & (1 << (imagePartIndex & 0x1F))) == 0)
+                if ((streamFrontendGlob.imageLoading[imagePartIndex >> 5] & (1 << (imagePartIndex & 0x1F))) == 0)
                 {
                     image = DB_GetImageAtIndex(imagePartIndex);
                     if (image->entry.streaming)
@@ -1154,7 +1161,7 @@ LABEL_3:
                                 &image->entry,
                                 1,
                                 imagePart,
-                                *(float *)&streamFrontendGlob.imageImportanceBits[imagePartIndex - 4064]))
+                                streamFrontendGlob.imageImportance[imagePartIndex]))
                             {
                                 streamFrontendGlob.initialLoadAllocFailures = 0;
                                 if (CG_IsShowingZombieMap() || R_StreamRequestImageRead(request))
@@ -1241,7 +1248,7 @@ char __cdecl R_StreamRequestImageAllocation(
         Com_PrintMessage(16, v6, 0);
     }
     imageIndex = DB_GetImageIndex(image);
-    if ((streamFrontendGlob.imageLoading[(imageIndex >> 5) - 8] & (1 << (imageIndex & 0x1F))) != 0
+    if ((streamFrontendGlob.imageLoading[imageIndex >> 5] & (1 << (imageIndex & 0x1F))) != 0
         && !Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_stream.cpp",
             786,
@@ -1251,7 +1258,7 @@ char __cdecl R_StreamRequestImageAllocation(
     {
         __debugbreak();
     }
-    streamFrontendGlob.imageLoading[(imageIndex >> 5) - 8] |= 1 << (imageIndex & 0x1F);
+    streamFrontendGlob.imageLoading[imageIndex >> 5] |= 1 << (imageIndex & 0x1F);
     request->status = STREAM_STATUS_PRE;
     request->id[0] = -1;
     return 1;
@@ -1286,7 +1293,7 @@ char __cdecl R_StreamRequestImageRead(pendingRequest *request)
             if (unloadRequest)
             {
                 unloadImagePartIndex = DB_GetImageIndex(unloadImage);
-                if ((streamFrontendGlob.imageUseBits[(unloadImagePartIndex >> 5) - 4] & (1 << (unloadImagePartIndex & 0x1F))) == 0
+                if ((streamFrontendGlob.imageUseBits[unloadImagePartIndex >> 5] & (1 << (unloadImagePartIndex & 0x1F))) == 0
                     && !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_stream.cpp",
                         890,
@@ -1301,7 +1308,7 @@ char __cdecl R_StreamRequestImageRead(pendingRequest *request)
                     unloadImage,
                     0,
                     0,
-                    *(float *)&streamFrontendGlob.imageImportanceBits[unloadImagePartIndex - 4064])
+                    streamFrontendGlob.imageImportance[unloadImagePartIndex])
                     && R_StreamRequestImageRead(unloadRequest))
                 {
                     unloadImage = 0;
@@ -1310,7 +1317,7 @@ char __cdecl R_StreamRequestImageRead(pendingRequest *request)
         }
         if (unloadImage)
         {
-            streamFrontendGlob.imageLoading[(imageIndex >> 5) - 8] &= ~(1 << (imageIndex & 0x1F));
+            streamFrontendGlob.imageLoading[imageIndex >> 5] &= ~(1 << (imageIndex & 0x1F));
             R_Stream_InvalidateRequest(request);
             return 0;
         }
@@ -1431,7 +1438,7 @@ void __cdecl R_StreamUpdate_AddInitialImages(float importance)
 {
     int imagePartIndex; // [esp+4h] [ebp-4h]
 
-    for (imagePartIndex = 0; imagePartIndex < 4224; ++imagePartIndex)
+    for (imagePartIndex = 0; imagePartIndex < STREAM_MAX_IMAGES; ++imagePartIndex)
     {
         if ((streamFrontendGlob.imageInitialBits[imagePartIndex >> 5] & (1 << (imagePartIndex & 0x1F))) != 0)
             R_Stream_AddImagePartImportance(imagePartIndex, importance);
@@ -1443,11 +1450,11 @@ void R_StreamUpdate_AddForcedImages(float forceImportance, float touchImportance
 {
     streamFrontendGlob.activeImageTouchBits ^= 1u;
 
-    for (int index = 0; index < 132; ++index)
+    for (int index = 0; index < IMAGE_STREAM_BITWORDS; ++index)
     {
-        unsigned int touchBits = streamFrontendGlob.imageTouchBits[1][index] | streamFrontendGlob.imageTouchBits[0][index];
+        unsigned int touchBits = streamFrontendGlob.imageTouchBits[index][0] | streamFrontendGlob.imageTouchBits[index][1];
         unsigned int forceBits = streamFrontendGlob.imageForceBits[index] | touchBits;
-        unsigned int useBits = streamFrontendGlob.imageUseBits[index - 4] & ~forceBits;
+        unsigned int useBits = streamFrontendGlob.imageUseBits[index] & ~forceBits;
 
         // process forced/touched bits
         for (int bitIndex = 0; bitIndex < 32; ++bitIndex)
@@ -1475,10 +1482,9 @@ void R_StreamUpdate_AddForcedImages(float forceImportance, float touchImportance
     }
 
     memset(
-        streamFrontendGlob.imageTouchBits[streamFrontendGlob.activeImageTouchBits ^ 1],
+        &streamFrontendGlob.imageTouchBits[0][streamFrontendGlob.activeImageTouchBits ^ 1],
         0,
-        sizeof(streamFrontendGlob.imageTouchBits[streamFrontendGlob.activeImageTouchBits ^ 1])
-    );
+        STREAM_MAX_IMAGE_BITS * sizeof(unsigned int));
 }
 
 
@@ -1617,8 +1623,8 @@ char __cdecl R_StreamUpdate_TryBeginQuery()
         sizeof(streamFrontendGlob.materialImportanceBits));
     memset((unsigned __int8 *)streamFrontendGlob.modelDistance, 0, sizeof(streamFrontendGlob.modelDistance));
     memset((unsigned __int8 *)streamFrontendGlob.modelDistanceBits, 0, sizeof(streamFrontendGlob.modelDistanceBits));
-    memset((unsigned __int8 *)&streamFrontendGlob.imageImportance[32], 0, 0x4200u);
-    memset((unsigned __int8 *)&streamFrontendGlob.dynamicImageImportance[32], 0, 528u);
+    memset((unsigned __int8 *)streamFrontendGlob.imageImportance, 0, sizeof(streamFrontendGlob.imageImportance));
+    memset((unsigned __int8 *)streamFrontendGlob.imageImportanceBits, 0, sizeof(streamFrontendGlob.imageImportanceBits));
     memset((unsigned __int8 *)streamFrontendGlob.dynamicModelDistance, 0, sizeof(streamFrontendGlob.dynamicModelDistance));
     memset(
         (unsigned __int8 *)streamFrontendGlob.dynamicModelDistanceBits,
@@ -1632,7 +1638,7 @@ void R_StreamUpdateTouchedModels()
     XAssetPoolEntry<XModel> *model; // [esp+0h] [ebp-8h]
     signed int modelIndex; // [esp+4h] [ebp-4h]
 
-    for (modelIndex = 0; (unsigned int)modelIndex < 0x3E8; ++modelIndex)
+    for (modelIndex = 0; (unsigned int)modelIndex < STREAM_MAX_MODELS; ++modelIndex)
     {
         if ((streamFrontendGlob.modelTouchBits[modelIndex >> 5] & (1 << (modelIndex & 0x1F))) != 0)
         {
@@ -1670,6 +1676,45 @@ void __cdecl R_StreamUpdateForXModelTouched(const XModel *model)
             }
         }
     }
+}
+
+void __cdecl R_Stream_ForceEntityTexturesToLoad(unsigned int entnum, bool enable)
+{
+    DObj *serverDObj;
+    int i;
+    int j;
+
+    Sys_EnterCriticalSection(CRITSECT_STREAM_FORCE_LOAD_COMMAND);
+    serverDObj = Com_GetServerDObj(entnum);
+    if ( enable )
+    {
+        if ( s_numForcedLoadEntities >= 4
+            && !Assert_MyHandler(
+                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_stream.cpp",
+                        1876,
+                        0,
+                        "%s\n\t%s",
+                        "s_numForcedLoadEntities < MAX_FORCED_LOAD_ENTITIES",
+                        va("Script bug: too many simultaneous ForceTexturesToLoad entitites at once.  Max is %d.", 4)) )
+        {
+            __debugbreak();
+        }
+        s_forcedLoadEntities[s_numForcedLoadEntities++] = serverDObj;
+    }
+    else
+    {
+        for ( i = 0; i < s_numForcedLoadEntities; ++i )
+        {
+            if ( s_forcedLoadEntities[i] == serverDObj )
+            {
+                for ( j = i + 1; j < s_numForcedLoadEntities; ++j )
+                    s_forcedLoadEntities[j - 1] = s_forcedLoadEntities[j];
+                s_forcedLoadEntities[--s_numForcedLoadEntities] = 0;
+                break;
+            }
+        }
+    }
+    Sys_LeaveCriticalSection(CRITSECT_STREAM_FORCE_LOAD_COMMAND);
 }
 
 void __cdecl R_StreamUpdateForcedModels()
@@ -2279,8 +2324,7 @@ struct importance_and_offset_pred
 {
     bool operator()(int a, int b) const
     {
-        // Compare based on importance stored in streamFrontendGlob
-        return streamFrontendGlob.imageImportanceBits[a - 4064] > streamFrontendGlob.imageImportanceBits[b - 4064];
+        return *(int *)&streamFrontendGlob.imageImportance[a] > *(int *)&streamFrontendGlob.imageImportance[b];
     }
 };
 
@@ -2292,11 +2336,10 @@ void __cdecl R_StreamUpdate_EndQuerySort(bool diskOrder)
     PROF_SCOPED("R_Stream EndQuerySort");
 
     index = 0;
-    while (index < streamFrontendGlob.totalBytesWanted)
+    while (index < streamFrontendGlob.sortedImageCount)
     {
-        imagePartIndex = *(int *)((char *)&streamFrontendGlob.sortedImages[index] + 2);
-        if ((streamFrontendGlob.imageInSortedListBits[imagePartIndex >> 5]
-            & (1 << (BYTE2(streamFrontendGlob.sortedImages[index]) & 0x1F))) == 0
+        imagePartIndex = streamFrontendGlob.sortedImages[index];
+        if (!IMAGE_BIT_IS_SET(streamFrontendGlob.imageInSortedListBits, imagePartIndex)
             && !Assert_MyHandler(
                 "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_stream.cpp",
                 4178,
@@ -2306,35 +2349,31 @@ void __cdecl R_StreamUpdate_EndQuerySort(bool diskOrder)
         {
             __debugbreak();
         }
-        if ((streamFrontendGlob.dynamicImageImportanceBits[(imagePartIndex >> 5) - 4064] & (1 << (imagePartIndex & 0x1F))) != 0)
+        if (IMAGE_BIT_IS_SET(streamFrontendGlob.imageImportanceBits, imagePartIndex))
         {
             ++index;
         }
         else
         {
-            *(int *)((char *)&streamFrontendGlob.sortedImages[index] + 2) = *(int *)((char *)&streamFrontendGlob.sortedImages[--streamFrontendGlob.totalBytesWanted]
-                + 2);
-            streamFrontendGlob.imageInSortedListBits[imagePartIndex >> 5] &= ~(1 << (imagePartIndex & 0x1F));
+            streamFrontendGlob.sortedImages[index] = streamFrontendGlob.sortedImages[--streamFrontendGlob.sortedImageCount];
+            IMAGE_BIT_UNSET(streamFrontendGlob.imageInSortedListBits, imagePartIndex);
         }
     }
     if (diskOrder)
     {
         if (streamFrontendGlob.diskOrderImagesNeedSorting || streamFrontendGlob.forceDiskOrder)
         {
-            //std::_Sort<int *, int, importance_and_offset_pred>(
-            //    (int *)((char *)streamFrontendGlob.sortedImages + 2),
-            //    (int *)((char *)&streamFrontendGlob.sortedImages[streamFrontendGlob.totalBytesWanted] + 2),
-            //    (4 * streamFrontendGlob.totalBytesWanted) >> 2,
-            //    0);
-
-            std::sort((int *)((char *)streamFrontendGlob.sortedImages + 2), (int *)((char *)&streamFrontendGlob.sortedImages[streamFrontendGlob.totalBytesWanted] + 2), importance_and_offset_pred{});
+            std::sort(
+                streamFrontendGlob.sortedImages,
+                streamFrontendGlob.sortedImages + streamFrontendGlob.sortedImageCount,
+                importance_and_offset_pred{});
 
             streamFrontendGlob.diskOrderImagesNeedSorting = 0;
         }
     }
     else
     {
-        importance_merge_sort((void **)((char *)streamFrontendGlob.sortedImages + 2), streamFrontendGlob.totalBytesWanted);
+        importance_merge_sort((void **)streamFrontendGlob.sortedImages, streamFrontendGlob.sortedImageCount);
     }
 }
 
@@ -2360,7 +2399,7 @@ void R_StreamUpdate_CombineImportance()
     {
         PROF_SCOPED("R_Stream combine xmodels");
 
-        for (modelIndex = 0; modelIndex < 1000; ++modelIndex)
+        for (modelIndex = 0; modelIndex < STREAM_MAX_MODELS; ++modelIndex)
         {
             mask = 1 << (modelIndex & 0x1F);
             staticBit = mask & streamFrontendGlob.modelDistanceBits[modelIndex >> 5];
@@ -2405,7 +2444,7 @@ void R_StreamUpdate_CombineImportance()
     {
         PROF_SCOPED("R_Stream combine materials");
 
-        for (materialIndex = 0; materialIndex < 0x1000; ++materialIndex)
+        for (materialIndex = 0; materialIndex < STREAM_MAX_MATERIALS; ++materialIndex)
         {
             if (streamFrontendGlob.materialImportance[materialIndex] != 0.0
                 && (streamFrontendGlob.materialPreventBits[materialIndex >> 5] & (1 << (materialIndex & 0x1F))) == 0)
@@ -2445,7 +2484,7 @@ void __cdecl R_StreamUpdateForXModel(const XModel *remoteModel, float distSq)
             bounds = &highMipBounds[surf];
             if (bounds->himipRadiusSq != 0.0)
             {
-                v4 = distNotSq - Vec3Length(bounds->center);
+                v4 = distNotSq - Abs(bounds->center);
                 if ((float)((float)(v4 * v4) - 0.0) < 0.0)
                     v3 = 0.0f;
                 else
@@ -2462,7 +2501,7 @@ void __cdecl R_StreamUpdateForXModel(const XModel *remoteModel, float distSq)
                 {
                     __debugbreak();
                 }
-                if (materialIndex >= 4096
+                if (materialIndex >= STREAM_MAX_MATERIALS
                     && !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_stream.cpp",
                         3532,

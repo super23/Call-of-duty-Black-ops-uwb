@@ -276,6 +276,7 @@ double __cdecl Dtp_ReduceFriction(pmove_t *pm, const playerState_s *ps)
     {
         __debugbreak();
     }
+    memset(&trace, 0, 16);
     if ( ps->jumpTime >= 0 )
         return 1.0;
     delta = pm->ps->jumpTime + pm->cmd.serverTime;

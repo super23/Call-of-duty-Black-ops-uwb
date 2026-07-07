@@ -19,7 +19,11 @@
 #include <xanim/dobj_utils.h>
 #include <xanim/xmodel_utils.h>
 #include "phys_auto_rigid_body.h"
+#ifdef KISAK_SP
+#include <cgame_sp/cg_vehicles_sp.h>
+#else
 #include <cgame_mp/cg_vehicles_mp.h>
+#endif
 #include <glass/glass_client.h>
 #include <algorithm>
 
@@ -607,7 +611,7 @@ void phys_contact_manifold_process::process(
         bpi1->m_cg_to_world_xform);   // rb1 is used here as cg1_to_world
  
     // -----------------------------------------------------------------------
-    // Compute penetration_t – how far along the translation we are
+    // Compute penetration_t ï¿½ how far along the translation we are
     //
     //   displacement = p1_orig - p2_orig   (before the 0.34 nudge)
     //   dist_p1_p2_n = dot(n, displacement)

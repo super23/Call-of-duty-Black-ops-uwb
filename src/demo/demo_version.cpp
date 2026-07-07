@@ -286,7 +286,11 @@ const NetFieldList s_demoOtherNetFieldList_Base[6] =
   { clientStateFields, 50u, "clientStateFields" },
   { demoPlayerStateFields, 176u, "demoPlayerStateFields" },
   { objectiveFields, 9u, "objectiveFields" },
+#ifdef KISAK_SP
+  { hudElemFields, 45u, "hudElemFields" },
+#else
   { hudElemFields, 43u, "hudElemFields" },
+#endif
   { matchStateFields, 15u, "matchStateFields" }
 };
 

@@ -10,6 +10,7 @@
 #include "snd_radverb.h"
 #include "snd_bank.h"
 #include "snd_globals.h"
+#include <universal/com_files.h>
 
 const dvar_t *sd_xa2_num_devices;
 const dvar_t *sd_xa2_can_switch_device;
@@ -531,7 +532,6 @@ void __cdecl iSND_ChannelError(int voiceIndex)
     alias = g_snd.voice[voiceIndex].alias;
     SND_LengthNotify(voiceIndex, 0);
     SND_StopVoice(voiceIndex);
-    alias->soundFile->exists = 0;
 }
 
 char __cdecl SD_Init()

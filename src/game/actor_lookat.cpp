@@ -1,8 +1,8 @@
 #include "actor_lookat.h"
-#include <game_mp/actor_mp.h>
+#include <game/actor_wrapper.h>
 #include "actor_animapi.h"
 #include <qcommon/dobj_management.h>
-#include <game_mp/g_main_mp.h>
+#include <game/g_main_wrapper.h>
 
 void __cdecl Actor_InitLookAt(actor_s *self)
 {

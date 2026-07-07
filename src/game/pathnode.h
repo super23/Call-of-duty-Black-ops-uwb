@@ -376,7 +376,8 @@ void __cdecl Path_GetType(pathnode_t *node, int);
 void __cdecl Scr_SetPathnodeField(unsigned int entnum, unsigned int offset);
 void __cdecl Path_ReadOnly(int offset);
 void __cdecl Scr_GetPathnodeField(unsigned int entnum, unsigned int offset);
-void __cdecl Path_CallFunctionForNodes(scriptInstance_t inst, void (__cdecl *function)(scriptInstance_t, pathnode_t *));
+typedef void (__cdecl *PathNodeCallback_t)(scriptInstance_t inst, pathnode_t *node, void *userData);
+void __cdecl Path_CallFunctionForNodes(scriptInstance_t inst, PathNodeCallback_t function, void *userData);
 void __cdecl GScr_SetDynamicPathnodeField(pathnode_t *node, unsigned int index);
 void    parented_pathnode_list_update(gentity_s *gent, const phys_mat44 *mat);
 const pathnode_parent_t *__cdecl get_pathnode_parent(const pathnode_t *node);
@@ -404,7 +405,18 @@ void __cdecl Scr_FreePathnode(pathnode_t *node);
 void __cdecl Scr_AddPathnode(pathnode_t *node);
 void __cdecl Scr_GetNode();
 void __cdecl Scr_GetNodeArray();
+void __cdecl Scr_GetAnyNodeArray();
+void __cdecl Scr_FindPath();
 void __cdecl Scr_GetAllNodes();
+void __cdecl G_InitPathnodeScriptLinks(int restart);
+void __cdecl Scr_SetNodePriority();
+void __cdecl Scr_GetNodeOwner();
+void __cdecl Scr_SetTurretNode();
+void __cdecl Scr_UnsetTurretNode();
+void __cdecl Scr_GetCoverNodeArray();
+void __cdecl Scr_SetEnableNode();
+void __cdecl Scr_LinkNodes();
+void __cdecl Scr_UnLinkNodes();
 pathnode_t *__cdecl Scr_GetPathnode(unsigned int index, scriptInstance_t inst);
 bool __cdecl Path_CompareNodesIncreasing(const pathsort_t &ps1, const pathsort_t &ps2);
 unsigned int __cdecl Path_ConvertNodeToIndex(const pathnode_t *node);
@@ -445,6 +457,12 @@ void __cdecl Path_DrawDebug();
 void __cdecl Path_DrawDebugLink(const pathnode_t *node, int i, bool bShowAll);
 void __cdecl Path_DrawDebugClaimedNodes(const float *origin, int numNodes);
 bool __cdecl Path_NodesVisible(const pathnode_t *node0, const pathnode_t *node1);
+bool __cdecl IsSolidProtectingTgtFromPt(
+    const float *targetPos,
+    const float *coverPos,
+    float maxAngle,
+    float maxDist,
+    float checkRadius);
 int __cdecl NodeVisCacheEntry(int i, int j);
 bool __cdecl Path_ExpandedNodeVisible(const pathnode_t *node0, const pathnode_t *node1);
 int __cdecl ExpandedNodeVisCacheEntry(int i, int j);

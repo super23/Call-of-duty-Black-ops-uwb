@@ -1,14 +1,20 @@
 #include "live_sessions_win.h"
 #include <win32/win_tasks.h>
 #include <DW/dwMatchMaking.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_main_pc_sp.h>
+#include <game/g_main.h>
+#include <server_sp/sv_init_sp.h>
+#else
 #include <client_mp/cl_main_pc_mp.h>
+#include <game_mp/g_main_mp.h>
+#include <server_mp/sv_init_mp.h>
+#endif
 #include <gfx_d3d/r_rendercmds.h>
 #include "live_storage_win.h"
 #include "live_win.h"
 #include <DW/dwUtils_pc.h>
 #include "live_stats.h"
-#include <game_mp/g_main_mp.h>
-#include <server_mp/sv_init_mp.h>
 #include "live_leaderboard.h"
 #include <cgame/cg_compass.h>
 
@@ -16,6 +22,8 @@ SessionData_s g_serverSession;
 
 overlappedTask overlappedTasks_2[32];
 const dvar_t *matchmaking_debug;
+const dvar_t *party_debug;
+const dvar_t *tu_debugLobbyConnectionStatus;
 SessionJoinData sessionJoinData[32];
 SessionCreateData sessionCreateData[32];
 
@@ -991,5 +999,7 @@ void __cdecl Session_Init()
     g_serverSession.sessionName = (char*)"gameSession";
     g_serverSession.registerUsersWithVoice = 1;
     matchmaking_debug = _Dvar_RegisterBool("matchmaking_debug", 1, 0, "Enable matchmaking debugging information");
+    party_debug = _Dvar_RegisterBool("party_debug", 0, 0, "");
+    tu_debugLobbyConnectionStatus = _Dvar_RegisterBool("tu_debugLobbyConnectionStatus", 0, 0, "");
 }
 

@@ -31,9 +31,15 @@
 #include <client_mp/sv_client_mp.h>
 #include <game_mp/g_cmds_mp.h>
 
-// 42710 = BLOPS (MP)
+#ifdef KISAK_SP
+// 42700 = Call of Duty: Black Ops (single-player, Steam)
+#define APPID 42700
+#define APPID_STR "42700"
+#else
+// 42710 = Call of Duty: Black Ops (multiplayer, Steam)
 #define APPID 42710
 #define APPID_STR "42710"
+#endif
 
 
 bool g_steamInitialized = false;

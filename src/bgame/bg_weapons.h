@@ -952,6 +952,12 @@ bool __cdecl BG_WeaponBlocksProne(unsigned int weapIndex);
 bool __cdecl BG_IsOverheatingWeapon(unsigned int weapIndex);
 bool __cdecl BG_IsBayonetWeapon(unsigned int weapIndex);
 bool __cdecl BG_IsUseAsMeleeWeapon(unsigned int weapIndex);
+#ifdef KISAK_SP
+void __cdecl BG_ResetWeaponUsedMasks();
+void __cdecl BG_SetWeaponUsed(int clientNum, unsigned int weaponIndex);
+bool __cdecl BG_HasWeaponBeenUsed(int clientNum, unsigned int weaponIndex);
+unsigned int __cdecl BG_GetWeaponUsedMaskWord(int clientNum, int wordIndex);
+#endif
 int __cdecl BG_TakePlayerWeapon(playerState_s *ps, unsigned int weaponIndex);
 void __cdecl BG_TakeHeldWeapon(playerState_s *ps, unsigned int weaponIndex);
 void __cdecl BG_GetSpreadForWeapon(
@@ -1090,6 +1096,7 @@ void __cdecl Deploy_State_Deploy(playerState_s *ps);
 void __cdecl Deploy_State_Breakdown(playerState_s *ps);
 void __cdecl PM_Weapon_CheckForMantle(pmove_t *pm);
 int __cdecl BG_CheckForUniversalActionDW(playerState_s *ps);
+bool __cdecl ViewModelOverride(playerState_s *ps, pml_t *pml);
 void __cdecl PM_Weapon_Turret(pmove_t *pm, pml_t *pml);
 void __cdecl PM_ResetWeaponState(playerState_s *ps);
 void __cdecl BG_WeaponFireRecoil(const playerState_s *ps, float *recoilSpeed, float *kickAVel);

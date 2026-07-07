@@ -3,7 +3,11 @@
 #include "ui_server.h"
 #include "ui_main_pc.h"
 #include <qcommon/com_gamemodes.h>
+#ifdef KISAK_SP
+#include <ui_sp/ui_feeders_sp.h>
+#else
 #include <ui_mp/ui_feeders_mp.h>
+#endif
 #include "ui_utils.h"
 #include "ui_playlists.h"
 #include <live/live_leaderboard.h>
@@ -12,13 +16,23 @@
 #include <live/live_meetplayer.h>
 #include "ui_friends.h"
 #include <live/live_fileshare.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_ui_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#else
 #include <client_mp/cl_ui_mp.h>
 #include <client_mp/cl_cgame_mp.h>
+#endif
 #include <live/live_pcache.h>
 #include <live/live_pcache_profile.h>
 #include <client/cl_rank.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_scrn_sp.h>
+#include <client_sp/cl_main_pc_sp.h>
+#else
 #include <client_mp/cl_scrn_mp.h>
 #include <client_mp/cl_main_pc_mp.h>
+#endif
 #include "ui_emblem.h"
 #include <live/live_fileshare_search.h>
 #include <cgame/cg_compass.h>

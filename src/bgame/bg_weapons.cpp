@@ -12,15 +12,18 @@
 #include "bg_mantle.h"
 #include "bg_perks.h"
 #include <game_mp/g_main_mp.h>
-#include <cgame/cg_compass.h>
 #include "bg_dtp.h"
 #include "bg_weapons_load_obj.h"
+#ifdef KISAK_SP
+#include "bg_sp_assets.h"
+#endif
 #include <ui_mp/ui_gametype_variants_mp.h>
 #include <client/splitscreen.h>
 #include <universal/com_math_anglevectors.h>
 #include <cgame/cg_drawtools.h>
 #include <universal/com_files.h>
 #include <cgame_mp/cg_predict_mp.h>
+#include <cgame/cg_compass.h>
 
 static const float vehicleGunnerADSLerpTimeMS = 300.0f;
 static const float vehicleADSLerpTimeMS = 500.0f;
@@ -56,11 +59,29 @@ void __cdecl BG_LoadPenetrationDepthTable()
 
     if ( !penetrationDepthTableLoaded )
     {
+#ifdef KISAK_SP
+        // Decomp: CoDSP_rdBlackOps.map.c — verified code_post_gfx.ff (Unlinker): info/bullet_penetration_sp (MP: info/bullet_penetration_mp).
+        if ( !BG_SP_TryLoadInfoStringFirst(
+                "info/bullet_penetration_sp",
+                "info/bullet_penetration_mp",
+                "BULLET_PEN_TABLE",
+                loadBuffer,
+                &buffer) )
+        {
+            Com_PrintWarning(
+                16,
+                "SP: missing bullet penetration table — using zeros (CoDSP_rdBlackOps.map.c)\n");
+            Com_Memset((unsigned int *)penetrationDepthTable, 0, 496);
+            penetrationDepthTableLoaded = 1;
+            return;
+        }
+#else
         buffer = Com_LoadInfoString(
                              (char*)"info/bullet_penetration_mp",
                              "bullet penetration table",
                              "BULLET_PEN_TABLE",
                              loadBuffer);
+#endif
         Com_Memset((unsigned int *)penetrationDepthTable, 0, 496);
         BG_ParsePenetrationDepthTable("small", penetrationDepthTable[1], buffer);
         BG_ParsePenetrationDepthTable("medium", penetrationDepthTable[2], buffer);
@@ -328,6 +349,36 @@ bool __cdecl BG_IsBayonetWeapon(unsigned int weapIndex)
     return BG_GetWeaponDef(weapIndex)->bHasBayonet;
 }
 
+// Decomp: CoDSP_rdBlackOps.map.c (gPlayerWeaponsUsed / BG_SetWeaponUsed / BG_HasWeaponBeenUsed)
+#ifdef KISAK_SP
+static unsigned int gPlayerWeaponsUsed[16];
+
+void __cdecl BG_ResetWeaponUsedMasks()
+{
+    memset(gPlayerWeaponsUsed, 0, sizeof(gPlayerWeaponsUsed));
+}
+
+void __cdecl BG_SetWeaponUsed(int clientNum, unsigned int weaponIndex)
+{
+    iassert(clientNum >= 0 && clientNum < 4);
+    iassert(weaponIndex < 128);
+    gPlayerWeaponsUsed[4 * clientNum + weaponIndex / 32] |= 1u << (weaponIndex % 32);
+}
+
+bool __cdecl BG_HasWeaponBeenUsed(int clientNum, unsigned int weaponIndex)
+{
+    iassert(clientNum >= 0 && clientNum < 4);
+    iassert(weaponIndex < 128);
+    return (gPlayerWeaponsUsed[4 * clientNum + weaponIndex / 32] & (1u << (weaponIndex % 32))) != 0;
+}
+
+unsigned int __cdecl BG_GetWeaponUsedMaskWord(int clientNum, int wordIndex)
+{
+    iassert(clientNum >= 0 && clientNum < 4);
+    iassert(wordIndex >= 0 && wordIndex < 4);
+    return gPlayerWeaponsUsed[4 * clientNum + wordIndex];
+}
+#endif
 bool __cdecl BG_IsUseAsMeleeWeapon(unsigned int weapIndex)
 {
     const WeaponDef *weapDef; // [esp+8h] [ebp-4h]
@@ -1165,6 +1216,102 @@ void __cdecl PM_Weapon_Idle(playerState_s *ps)
     PM_StartWeaponAnim(ps, 0, 1);
 }
 
+#ifdef KISAK_SP
+static unsigned int *__cdecl PS_ViewModelOverrideWeapon(playerState_s *ps)
+{
+    return (unsigned int *)((char *)ps + 1264);
+}
+
+static unsigned int *__cdecl PS_ViewModelOverrideState(playerState_s *ps)
+{
+    return (unsigned int *)((char *)ps + 1268);
+}
+
+static unsigned int *__cdecl PS_ViewModelOverrideSavedWeapon(playerState_s *ps)
+{
+    return (unsigned int *)((char *)ps + 1272);
+}
+#endif
+
+bool __cdecl ViewModelOverride(playerState_s *ps, pml_t *pml)
+{
+#ifdef KISAK_SP
+    const WeaponDef *weapDef;
+    const WeaponVariantDef *weapVariantDef;
+    unsigned int overrideWeapon;
+    unsigned int overrideState;
+
+    if ( !ps || !pml )
+        return false;
+    if ( (ps->weapFlags & 0x400000) == 0 )
+        return false;
+
+    overrideWeapon = *PS_ViewModelOverrideWeapon(ps);
+    overrideState = *PS_ViewModelOverrideState(ps);
+
+    if ( ps->weaponstate == (int)overrideState && ps->weapon == (unsigned __int16)overrideWeapon )
+    {
+        ps->weaponTime -= pml->msec;
+        if ( ps->weaponTime <= 0 )
+        {
+            ps->weapon = (unsigned __int16)overrideWeapon;
+            ps->weapFlags &= ~0x400000u;
+            ps->weaponTime = 0;
+            PM_StartWeaponAnim(ps, 0, 0);
+        }
+        return true;
+    }
+
+    weapVariantDef = BG_GetWeaponVariantDef(overrideWeapon);
+    weapDef = BG_GetWeaponDef(overrideWeapon);
+    if ( !weapVariantDef || !weapDef )
+    {
+        ps->weapFlags &= ~0x400000u;
+        return false;
+    }
+
+    switch ( overrideState )
+    {
+    case 11:
+        PM_StartWeaponAnim(ps, 15, 0);
+        ps->weaponTime = weapVariantDef->iReloadTime;
+        PM_AddEvent(ps, 0x12u);
+        break;
+    case 6:
+        PM_StartWeaponAnim(ps, 2, 0);
+        ps->weaponTime = weapDef->iFireTime;
+        PM_AddEvent(ps, 0x1Du);
+        break;
+    case 34:
+        PM_StartWeaponAnim(ps, 41, 0);
+        ps->weaponTime = weapDef->nightVisionWearTime;
+        PM_AddEvent(ps, 0x5Du);
+        break;
+    case 35:
+        PM_StartWeaponAnim(ps, 42, 0);
+        ps->weaponTime = weapDef->nightVisionRemoveTime;
+        PM_AddEvent(ps, 0x5Eu);
+        break;
+    default:
+        Com_PrintWarning(
+            19,
+            "Trying to force viewmodel to play an animation not supported by code: %u.\n",
+            overrideState);
+        ps->weapFlags &= ~0x400000u;
+        return false;
+    }
+
+    *PS_ViewModelOverrideSavedWeapon(ps) = ps->weapon;
+    ps->weapon = (unsigned __int16)overrideWeapon;
+    ps->weaponstate = (weaponstate_t)overrideState;
+    return true;
+#else
+    (void)ps;
+    (void)pml;
+    return false;
+#endif
+}
+
 void __cdecl PM_Weapon(pmove_t *pm, pml_t *pml)
 {
     const char *v2; // eax
@@ -1201,7 +1348,11 @@ void __cdecl PM_Weapon(pmove_t *pm, pml_t *pml)
                 ps->weapon = 0;
             return;
         }
-        if ( !CG_IsShowingZombieMap() && (ps->pm_flags & 0x400) == 0 && (ps->eFlags & 0x300) == 0 )
+        if ( !CG_IsShowingZombieMap()
+#ifdef KISAK_SP
+            && !ViewModelOverride(ps, pml)
+#endif
+            && (ps->pm_flags & 0x400) == 0 && (ps->eFlags & 0x300) == 0 )
         {
             if ( ps->waterlevel >= 3 )
             {
@@ -4997,7 +5148,11 @@ void __cdecl PM_Weapon_Turret(pmove_t *pm, pml_t *pml)
         __debugbreak();
     if ( ps->pm_type < 9 )
     {
-        if ( !CG_IsShowingZombieMap() && (ps->pm_flags & 0x400) == 0 && (ps->eFlags & 0x4000) == 0 && !BurstFirePending(ps) )
+        if ( !CG_IsShowingZombieMap()
+#ifdef KISAK_SP
+            && !ViewModelOverride(ps, pml)
+#endif
+            && (ps->pm_flags & 0x400) == 0 && (ps->eFlags & 0x4000) == 0 && !BurstFirePending(ps) )
             PM_Weapon_CheckForChangeWeapon(pm);
     }
     else
@@ -5210,29 +5365,26 @@ bool __cdecl BG_ThrowingBackGrenade(const playerState_s *ps)
     return ps->throwBackGrenadeOwner != 1023;
 }
 
-static const float ofsPowZ = 5.0f;
-// (aislop)
+// T5 retail: CoDMPServer.c:159883 (ofsPowZ @ :86650).
+float ofsPowZ = 5.0f;
+
 void __cdecl BG_CalcVehicleTurretWeaponPosOffset(float positionFrac, const WeaponDef *weapDef, float *outOffset)
 {
-    float v8 = sin(positionFrac * 3.1415927f - 1.5707964f);
-    float adjustedFrac = (v8 + 1.0f) / 2.0f;
-
-    // Default prone offsets
-    float offsetX = weapDef->vProneOfs[0];
+    // Sin curve maps fWeaponPosFrac [0,1] to a smooth [0,1] blend (retail uses sin; cos is unused).
+    const float adjustedFrac = (sinf(positionFrac * 3.1415927f - 1.5707964f) + 1.0f) / 2.0f;
+    float offset = weapDef->vProneOfs[0];
     float offsetY = weapDef->vProneOfs[1];
     float offsetZ = weapDef->vProneOfs[2];
-
-    // Default ADS offsets
-    float offsetADS_X = weapDef->vDuckedOfs[0];
+    float offsetADS = weapDef->vDuckedOfs[0];
     float offsetADS_Y = weapDef->vDuckedOfs[1];
     float offsetADS_Z = weapDef->vDuckedOfs[2];
 
-    // Override with vehCameraTurretOffset if non-zero
+    // Optional dvar overrides (retail CoDMPServer.c:159911-159928); default to weapon def offsets when zero.
     if (vehCameraTurretOffset->current.value != 0.0f ||
         vehCameraTurretOffset->current.vector[1] != 0.0f ||
         vehCameraTurretOffset->current.vector[2] != 0.0f)
     {
-        offsetX = vehCameraTurretOffset->current.value;
+        offset = vehCameraTurretOffset->current.value;
         offsetY = vehCameraTurretOffset->current.vector[1];
         offsetZ = vehCameraTurretOffset->current.vector[2];
     }
@@ -5241,19 +5393,21 @@ void __cdecl BG_CalcVehicleTurretWeaponPosOffset(float positionFrac, const Weapo
         vehCameraTurretOffsetADS->current.vector[1] != 0.0f ||
         vehCameraTurretOffsetADS->current.vector[2] != 0.0f)
     {
-        offsetADS_X = vehCameraTurretOffsetADS->current.value;
+        offsetADS = vehCameraTurretOffsetADS->current.value;
         offsetADS_Y = vehCameraTurretOffsetADS->current.vector[1];
         offsetADS_Z = vehCameraTurretOffsetADS->current.vector[2];
     }
 
-    // Linear interpolation
-    outOffset[0] = adjustedFrac * (offsetADS_X - offsetX) + offsetX;
-    outOffset[1] = adjustedFrac * (offsetADS_Y - offsetY) + offsetY;
-    outOffset[2] = adjustedFrac * (offsetADS_Z - offsetZ) + offsetZ;
+    // Linear lerp vProneOfs -> vDuckedOfs on X/Y; Z gets an extra ease curve on adjustedFrac.
+    const float deltaY = offsetADS_Y - offsetY;
+    const float deltaZ = offsetADS_Z - offsetZ;
+    outOffset[0] = adjustedFrac * (offsetADS - offset) + offset;
+    outOffset[1] = adjustedFrac * deltaY + offsetY;
+    outOffset[2] = adjustedFrac * deltaZ + offsetZ;
 
-    // Apply Z offset scaling with power
-    float ofs = (offsetADS_Z - offsetZ >= 0.0f) ? (1.0f / ofsPowZ) : ofsPowZ;
-    outOffset[2] = powf(offsetADS_Z - offsetZ, ofs) * adjustedFrac + offsetZ;
+    // Retail: outOffset[2] = deltaZ * pow(adjustedFrac, zPow) + offsetZ (CoDMPServer.c:159934-159941).
+    const float zPow = (deltaZ >= 0.0f) ? (1.0f / ofsPowZ) : ofsPowZ;
+    outOffset[2] = deltaZ * powf(adjustedFrac, zPow) + offsetZ;
 }
 
 WeaponVariantDef *__cdecl BG_LoadWeaponVariantDef(const char *name)

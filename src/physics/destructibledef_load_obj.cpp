@@ -5,7 +5,11 @@
 #include <universal/com_memory.h>
 #include <clientscript/cscr_stringlist.h>
 #include <EffectsCore/fx_load_obj.h>
+#ifdef KISAK_SP
+#include <game/g_main.h>
+#else
 #include <game_mp/g_main_mp.h>
+#endif
 #include <xanim/xmodel_load_obj.h>
 #include <xanim/xmodel_utils.h>
 
@@ -1031,9 +1035,16 @@ int __cdecl XModelGetBoneIndex(const XModel *model, unsigned int name, unsigned 
     }
     boneNames = model->localBoneNames;
     numBones = model->numBones;
-
-    iassert(numBones < DOBJ_MAX_PARTS);
-
+    if ( numBones >= 0xA0
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\physics\\destructibledef_load_obj.cpp",
+                    1087,
+                    0,
+                    "%s",
+                    "numBones < DOBJ_MAX_PARTS") )
+    {
+        __debugbreak();
+    }
     for ( localBoneIndex = 0; ; ++localBoneIndex )
     {
         if ( localBoneIndex >= numBones )

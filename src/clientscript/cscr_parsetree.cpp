@@ -245,6 +245,7 @@ sval_u __cdecl prepend_node(scriptInstance_t inst, sval_u val1, sval_u val2)
     return val2;
 }
 
+
 sval_u __cdecl append_node(scriptInstance_t inst, sval_u val1, sval_u val2)
 {
     sval_u *node;
@@ -257,6 +258,24 @@ sval_u __cdecl append_node(scriptInstance_t inst, sval_u val1, sval_u val2)
     return val1;
 }
 
+/*
+sval_u __cdecl append_node(scriptInstance_t inst, sval_u val1, sval_u val2)
+{
+    sval_u *node;
+
+    node = Scr_AllocNode(inst, 2);
+    node[0] = val2;
+    node[1].stringValue = 0;
+    
+    // Defensive checks: validate pointers before dereferencing
+    if (val1.node && val1.node[1].node && val1.node[1].node[1].node)
+    {
+        val1.node[1].node[1].node = node;
+    }
+    val1.node[1].node = node;
+    return val1;
+}
+*/
 void __cdecl Scr_ClearDebugExpr(scriptInstance_t inst, debugger_sval_s *debugExprHead)
 {
     while ( debugExprHead )

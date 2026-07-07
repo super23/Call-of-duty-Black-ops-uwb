@@ -36,8 +36,15 @@ struct threat_bias_t // sizeof=0x424
                                         // Actor_GetThreatBias(int,int)+15/r ...
 };
 
+extern threat_bias_t g_threatBias;
+
 bool __fastcall Actor_CheckIgnore(sentient_s *self, sentient_s *enemy);
 void __cdecl Actor_InitThreatBiasGroups();
+int __cdecl Actor_FindThreatBiasGroupIndex(unsigned int name);
+void __cdecl Actor_CreateThreatBiasGroup(unsigned int name);
+int __cdecl Actor_SetThreatBias(int groupSelf, int groupEnemy, int threat);
+void __cdecl Actor_SetThreatBiasEntireGroup(int group, int threat);
+int __cdecl Actor_SetIgnoreMeGroup(int groupSelf, int groupIgnoreMe);
 int __fastcall Actor_GetThreatBias(int groupSelf, int groupEnemy);
 void __fastcall Actor_FlagEnemyUnattackable(actor_s *self);
 bool __fastcall Actor_CaresAboutInfo(actor_s *self, sentient_s *pOther);
@@ -72,6 +79,12 @@ int __fastcall Actor_ThreatBonusForCurrentEnemy(
 int __fastcall Actor_ThreatCoveringFire(actor_s *self, sentient_s *enemy);
 int __fastcall Actor_ThreatFlashed(sentient_s *enemy);
 void __fastcall Actor_IncrementThreatTime(actor_s *self);
+// Decomp: CoDSP_rdBlackOps.map.c
+bool __fastcall Actor_GetPotentialThreat(const potential_threat_t *self, float *directionOut);
 void __fastcall Actor_SetPotentialThreat(potential_threat_t *self, float yaw);
 void __fastcall Actor_ClearPotentialThreat(potential_threat_t *self);
 void __cdecl Actor_PotentialThreat_Debug(actor_s *self);
+// Decomp: CoDSP_rdBlackOps.map.c (actor_suppression.cpp)
+bool __fastcall Actor_IsSuppressed(actor_s *self);
+bool __fastcall Actor_IsSuppressionWaiting(actor_s *self);
+bool __fastcall Actor_IsMoveSuppressed(actor_s *self);

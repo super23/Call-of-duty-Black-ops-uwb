@@ -909,7 +909,7 @@ char __cdecl FX_CullCylinder(
     {
         if ( !Vec3IsNormalized(camera->frustum[planeIndex]) )
         {
-            v6 = Vec3Length(camera->frustum[planeIndex]);
+            v6 = Abs(camera->frustum[planeIndex]);
             v7 = va(
                          "(%g %g %g) len %g",
                          camera->frustum[planeIndex][0],
@@ -2022,7 +2022,7 @@ FxPool<FxTrailElem,FxTrailElem> *__cdecl FX_TrailElemFromHandle(FxSystem *system
     {
         __debugbreak();
     }
-    return FX_PoolFromHandle_Generic<FxTrailElem,FxTrailElem,2048>(system->trailElems, handle);
+    return FX_PoolFromHandle_Generic<FxTrailElem,FxTrailElem,FX_ELEM_LIMIT>(system->trailElems, handle);
 }
 
 void __cdecl FX_GenTrail_IndsForSegment(
@@ -2228,7 +2228,7 @@ void __cdecl FX_DrawSpriteEffect(FxSystem *system, FxEffect *effect, int drawTim
         while ( elemHandle != 0xFFFF )
         {
             elem = (FxElem *)FX_ElemFromHandle(system, elemHandle);
-            if ( count > 2048 )
+            if ( count > FX_ELEM_LIMIT )
             {
                 if ( !Assert_MyHandler(
                                 "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_draw.cpp",
@@ -2319,10 +2319,7 @@ void __cdecl FX_GenerateVerts(FxGenerateVertsCmd *cmd)
 
 void __cdecl FX_FillGenerateVertsCmd(int localClientNum, FxGenerateVertsCmd *cmd)
 {
-    int v2; // eax
-    cg_s *LocalClientGlobals; // eax
-    int v4; // eax
-    cg_s *cgameGlob; // eax
+    cg_s *cgameGlob;
 
     if ( !cmd && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_draw.cpp", 2362, 0, "%s", "cmd") )
         __debugbreak();
@@ -2331,13 +2328,10 @@ void __cdecl FX_FillGenerateVertsCmd(int localClientNum, FxGenerateVertsCmd *cmd
     cmd->postLightInfo = FX_PostLight_GetInfo();
     cmd->spriteInfo = FX_SpriteGetInfo();
     cmd->localClientNum = localClientNum;
-    v2 = R_GetLocalClientNum();
-    LocalClientGlobals = CG_GetLocalClientGlobals(v2);
-    cmd->vieworg[0] = LocalClientGlobals->refdef.vieworg[0];
-    cmd->vieworg[1] = LocalClientGlobals->refdef.vieworg[1];
-    cmd->vieworg[2] = LocalClientGlobals->refdef.vieworg[2];
-    v4 = R_GetLocalClientNum();
-    cgameGlob = CG_GetLocalClientGlobals(v4);
+    cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+    cmd->vieworg[0] = cgameGlob->refdef.vieworg[0];
+    cmd->vieworg[1] = cgameGlob->refdef.vieworg[1];
+    cmd->vieworg[2] = cgameGlob->refdef.vieworg[2];
     AxisCopy(cgameGlob->refdef.viewaxis, cmd->viewaxis);
 }
 

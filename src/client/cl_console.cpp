@@ -4,8 +4,13 @@
 
 #include "cl_main.h"
 #include "client.h"
+#ifdef KISAK_SP
+#include <cgame_sp/cg_newDraw_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#else
 #include <cgame_mp/cg_newDraw_mp.h>
 #include <client_mp/cl_cgame_mp.h>
+#endif
 #include "con_channels.h"
 #include <stringed/stringed_hooks.h>
 #include <win32/win_net.h>
@@ -15,9 +20,15 @@
 #include <qcommon/threads.h>
 #include <sound/snd_public_async.h>
 #include <universal/com_files.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_scrn_sp.h>
+#include <cgame_sp/cg_consolecmds_sp.h>
+#include <server_sp/sv_main_pc_sp.h>
+#else
 #include <client_mp/cl_scrn_mp.h>
 #include <cgame_mp/cg_consolecmds_mp.h>
 #include <server_mp/sv_main_pc_mp.h>
+#endif
 #include "cl_keys.h"
 
 
@@ -83,6 +94,7 @@ const dvar_t *con_typewriterColorGlowCheckpoint;
 const dvar_t *con_restricted;
 const dvar_t *con_restricted_access;
 const dvar_t *con_matchPrefixOnly;
+const dvar_t *con_extcon;
 
 field_t historyEditLines[32];
 
@@ -828,6 +840,13 @@ void __cdecl Con_Init()
                                                     1,
                                                     1u,
                                                     "Only match the prefix when listing matching Dvars");
+    con_extcon = _Dvar_RegisterInt(
+                                        "con_extcon",
+                                        0,
+                                        0,
+                                        1,
+                                        1u,
+                                        "Enable external console window");
     Field_Clear(&g_consoleField);
     g_consoleField.widthInPixels = g_console_field_width;
     g_consoleField.charHeight = g_console_char_height;
@@ -1068,7 +1087,7 @@ void CL_ConsolePrint_AddLine(
             {
                 if (c != 94)
                     goto LABEL_63;
-                if (text && *text != 94 && *text >= 48 && *text <= 64 || text && *text == 70)
+                if ( text && *text != 94 && ((*text >= 48 && *text <= 64) || *text == 70) )
                 {
                     bcassert(con.lineOffset, sizeof(con.textTempLine));
                     color = *text;
@@ -1101,28 +1120,42 @@ void CL_ConsolePrint_AddLine(
                         }
                         goto LABEL_79;
                     }
-                    bcassert(con.lineOffset, sizeof(con.textTempLine));
-                    if (!IsValidMaterialHandle(*(Material *const *)(text + 3))
-                        && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\client\\cl_console.cpp",
-                            1343,
-                            0,
-                            "%s",
-                            "IsValidMaterialHandle( *reinterpret_cast< const MaterialHandle * >( &text[CONTXTCMD_ARG_HUDICON_MATERIAL] ) )"))
+                    // HUD icon escape (CONTXTCMD): ^ then 7-byte payload (MaterialHandle at text+3).
+                    // Retail asserts offset < 505 before embed (CoDMPServer CL_ConsolePrint_AddLine): need 8 slots total.
+                    if ( con.lineOffset + 8 > (int)sizeof(con.textTempLine) )
                     {
-                        __debugbreak();
+                        int skip = 0;
+                        while ( skip < 7 && text[skip] )
+                            ++skip;
+                        text += skip;
+                        atStartOfBrokenLine = 0;
                     }
-                    con.textTempLine[con.lineOffset++] = 94;
-                    v9 = &con.textTempLine[con.lineOffset];
-                    v10 = text;
-                    *(_DWORD *)v9 = *(_DWORD *)text;
-                    *((_WORD *)v9 + 2) = *((_WORD *)v10 + 2);
-                    v9[6] = v10[6];
-                    con.lineOffset += 7;
-                    text += 7;
+                    else if ( !IsValidMaterialHandle(*(Material *const *)(text + 3)) )
+                    {
+                        // Invalid/truncated embed: skip payload without asserting (recover like RB_DrawText).
+                        int skip = 0;
+                        while ( skip < 7 && text[skip] )
+                            ++skip;
+                        if ( con.lineOffset + 1 <= (int)sizeof(con.textTempLine) )
+                            con.textTempLine[con.lineOffset++] = '^';
+                        text += skip;
+                        atStartOfBrokenLine = 0;
+                    }
+                    else
+                    {
+                        bcassert2(con.lineOffset + 8, sizeof(con.textTempLine));
+                        con.textTempLine[con.lineOffset++] = 94;
+                        v9 = &con.textTempLine[con.lineOffset];
+                        v10 = text;
+                        *(_DWORD *)v9 = *(_DWORD *)text;
+                        *((_WORD *)v9 + 2) = *((_WORD *)v10 + 2);
+                        v9[6] = v10[6];
+                        con.lineOffset += 7;
+                        text += 7;
 
-                    bcassert(con.lineOffset, sizeof(con.textTempLine));
-                    atStartOfBrokenLine = 0;
+                        bcassert2(con.lineOffset, sizeof(con.textTempLine));
+                        atStartOfBrokenLine = 0;
+                    }
                 }
             }
         LABEL_79:
@@ -4108,11 +4141,16 @@ void __cdecl Con_Restricted_InitLists()
     const StringTable *table; // [esp+4h] [ebp-4h] BYREF
 
     Con_Restricted_ShutDown();
+#ifdef KISAK_SP
+    // CoDSP: no MP dedicated devconsole restrict tables; avoid early init asset errors.
+    table = 0;
+#else
     LicenseType = SV_GetLicenseType();
     if ( SV_IsServerRanked(LicenseType) )
         StringTable_GetAsset("mp/devconsole_restrict_access_dedicated_ranked_mp.csv", (XAssetHeader *)&table);
     else
         StringTable_GetAsset("mp/devconsole_restrict_access_dedicated_mp.csv", (XAssetHeader *)&table);
+#endif
     if ( table )
     {
         Con_Restricted_LoadTable(table);

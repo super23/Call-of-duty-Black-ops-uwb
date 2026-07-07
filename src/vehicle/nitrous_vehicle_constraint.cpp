@@ -5,23 +5,18 @@
 #include <game/g_scr_vehicle.h>
 #include <physics/phys_main.h>
 
+// Decomp: CoDMPServer.c:659635  (RVA 0082A290)
 void    path_constraint_update(rigid_body_constraint_custom_path *vpc, gentity_s *veh)
 {
-    float v3[9]; // [esp+58h] [ebp-38h] BYREF
-    phys_mat44 *p_m_path_mat; // [esp+7Ch] [ebp-14h]
-    scr_vehicle_s *scr_vehicle; // [esp+80h] [ebp-10h]
-    //int v6; // [esp+84h] [ebp-Ch]
-    //void *v7; // [esp+88h] [ebp-8h]
-    //void *retaddr; // [esp+90h] [ebp+0h]
-    //
-    //v6 = a1;
-    //v7 = retaddr;
+    float axis[9];
+    phys_mat44 *p_m_path_mat;
+    scr_vehicle_s *scr_vehicle;
     if ( vpc && veh && veh->scr_vehicle && veh->scr_vehicle->nitrousVehicle )
     {
         scr_vehicle = veh->scr_vehicle;
         p_m_path_mat = &vpc->m_path_mat;
-        AnglesToAxis(scr_vehicle->pathPos.angles, (float (*)[3])v3);
-        Phys_AxisToNitrousMat((float (*)[3])v3, p_m_path_mat);
+        AnglesToAxis(scr_vehicle->pathPos.angles, (float (*)[3])axis);
+        Phys_AxisToNitrousMat((float (*)[3])axis, p_m_path_mat);
         Phys_Vec3ToNitrousVec(scr_vehicle->pathPos.origin, &p_m_path_mat->w);
         if ( ((LODWORD(scr_vehicle->pathPos.origin[0]) & 0x7F800000) == 0x7F800000
              || (LODWORD(scr_vehicle->pathPos.origin[1]) & 0x7F800000) == 0x7F800000
@@ -60,26 +55,20 @@ void    path_constraint_update(rigid_body_constraint_custom_path *vpc, gentity_s
     }
 }
 
+// Decomp: CoDMPServer.c:659698  (RVA 0082A520)
+// Notes:   IDA casts m_phys_user_data to rigid_body_constraint* to read b1; offset 0 is body (CoDMPServer.h PhysObjUserData::body == rigid_body_constraint::b1)
 rigid_body_constraint_custom_path * path_constraint_create(gentity_s *veh)
 {
-    float v3[9]; // [esp-50h] [ebp-68h] BYREF
-    phys_mat44 *p_m_path_mat; // [esp-2Ch] [ebp-44h]
-    phys_vec3 *p_b1_r_loc; // [esp-28h] [ebp-40h]
-    int v6; // [esp-24h] [ebp-3Ch]
-    float v7; // [esp-20h] [ebp-38h]
-    float v8; // [esp-1Ch] [ebp-34h]
-    rigid_body_constraint_custom_path *v9; // [esp-Ch] [ebp-24h]
-    user_rigid_body *user_rb; // [esp-8h] [ebp-20h]
-    environment_rigid_body *b1; // [esp-4h] [ebp-1Ch]
-    rigid_body_constraint_custom_path *rbc_custom_path; // [esp+0h] [ebp-18h]
-    user_rigid_body *urb; // [esp+4h] [ebp-14h]
-    rigid_body *rb; // [esp+8h] [ebp-10h]
-    //int v15; // [esp+Ch] [ebp-Ch]
-    //void *v16; // [esp+10h] [ebp-8h]
-    //void *retaddr; // [esp+18h] [ebp+0h]
-    //
-    //v15 = a1;
-    //v16 = retaddr;
+    float axis[9];
+    phys_mat44 *p_m_path_mat;
+    phys_vec3 *p_b1_r_loc;
+    float b1_r_loc_y;
+    float b1_r_loc_z;
+    rigid_body_constraint_custom_path *path_constraint;
+    user_rigid_body *user_rb;
+    environment_rigid_body *b1;
+    PhysObjUserData *phys_user_data;
+    rigid_body *rb;
     if ( !veh
         && _tlAssert(
                  "C:\\projects_pc\\cod\\codsrc\\src\\vehicle\\nitrous_vehicle_constraint.cpp",
@@ -107,8 +96,8 @@ rigid_body_constraint_custom_path * path_constraint_create(gentity_s *veh)
     {
         __debugbreak();
     }
-    rb = (rigid_body *)veh->scr_vehicle->nitrousVehicle->m_phys_user_data;
-    if ( !rb
+    phys_user_data = veh->scr_vehicle->nitrousVehicle->m_phys_user_data;
+    if ( !phys_user_data
         && _tlAssert(
                  "C:\\projects_pc\\cod\\codsrc\\src\\vehicle\\nitrous_vehicle_constraint.cpp",
                  41,
@@ -117,8 +106,8 @@ rigid_body_constraint_custom_path * path_constraint_create(gentity_s *veh)
     {
         __debugbreak();
     }
-    urb = (user_rigid_body *)veh->scr_vehicle->nitrousVehicle->m_phys_user_data;
-    if ( !LODWORD(urb->m_last_position.x)
+    rb = phys_user_data->body;
+    if ( !rb
         && _tlAssert(
                  "C:\\projects_pc\\cod\\codsrc\\src\\vehicle\\nitrous_vehicle_constraint.cpp",
                  42,
@@ -127,13 +116,11 @@ rigid_body_constraint_custom_path * path_constraint_create(gentity_s *veh)
     {
         __debugbreak();
     }
-    rbc_custom_path = (rigid_body_constraint_custom_path *)veh->scr_vehicle->nitrousVehicle->m_phys_user_data;
-    b1 = (environment_rigid_body *)rbc_custom_path->b1;
+    b1 = (environment_rigid_body *)rb;
     user_rb = phys_sys::create_user_rigid_body(0);
-    //user_rigid_body::set(user_rb, 0);
     user_rb->set(0);
-    v9 = phys_sys::create_rbc_custom_path(b1, (environment_rigid_body *)user_rb, 0);
-    if ( !v9
+    path_constraint = phys_sys::create_rbc_custom_path(b1, (environment_rigid_body *)user_rb, 0);
+    if ( !path_constraint
         && _tlAssert(
                  "C:\\projects_pc\\cod\\codsrc\\src\\vehicle\\nitrous_vehicle_constraint.cpp",
                  49,
@@ -142,23 +129,23 @@ rigid_body_constraint_custom_path * path_constraint_create(gentity_s *veh)
     {
         __debugbreak();
     }
-    v6 = 0;
-    v7 = 0.0f;
-    v8 = 0.0f;
-    p_b1_r_loc = &v9->b1_r_loc;
-    v9->b1_r_loc.x = 0.0f;
-    p_b1_r_loc->y = v7;
-    p_b1_r_loc->z = v8;
-    p_m_path_mat = &v9->m_path_mat;
-    AnglesToAxis(veh->r.currentAngles, (float (*)[3])v3);
-    Phys_AxisToNitrousMat((float (*)[3])v3, p_m_path_mat);
+    b1_r_loc_y = 0.0f;
+    b1_r_loc_z = 0.0f;
+    p_b1_r_loc = &path_constraint->b1_r_loc;
+    path_constraint->b1_r_loc.x = 0.0f;
+    p_b1_r_loc->y = b1_r_loc_y;
+    p_b1_r_loc->z = b1_r_loc_z;
+    p_m_path_mat = &path_constraint->m_path_mat;
+    AnglesToAxis(veh->r.currentAngles, (float (*)[3])axis);
+    Phys_AxisToNitrousMat((float (*)[3])axis, p_m_path_mat);
     Phys_Vec3ToNitrousVec(veh->r.currentOrigin, &p_m_path_mat->w);
-    v9->m_urb = user_rb;
-    //user_rb::set(v9->m_urb, &v9->m_path_mat);
-    v9->m_urb->set(&v9->m_path_mat);
-    return v9;
+    path_constraint->m_urb = user_rb;
+    //user_rb::set(path_constraint->m_urb, &path_constraint->m_path_mat);
+    path_constraint->m_urb->set(&path_constraint->m_path_mat);
+    return path_constraint;
 }
 
+// Decomp: CoDMPServer.c:659797  (RVA 0082A780)
 void __cdecl path_constraint_destroy(rigid_body_constraint_custom_path *vpc)
 {
     if ( !vpc->m_urb
@@ -181,4 +168,3 @@ void __cdecl path_constraint_destroy(rigid_body_constraint_custom_path *vpc)
     }
     phys_sys::destroy(vpc->m_urb);
 }
-

@@ -3,11 +3,13 @@
 
 struct DObjAnimMat;
 
+// Entity / client accessors
 playerState_s *__cdecl SV_GameClientNum(int num);
 svEntity_s *__cdecl SV_SvEntityForGentity(const gentity_s *gEnt);
 gentity_s *__cdecl SV_GentityNum(int num);
 gentity_s *__cdecl SV_GEntityForSvEntity(svEntity_s *svEnt);
 
+// Game module bridge (commands, configstrings, traces)
 void __cdecl SV_GameSendServerCommand(int clientNum, svscmd_type type, const char *text);
 void __cdecl SV_GameDropClient(int clientNum, const char *reason);
 void __cdecl SV_SetMapCenter(float *mapCenter);
@@ -19,15 +21,19 @@ bool __cdecl SV_inSnapshot(const float *origin, int iEntityNum);
 bool __cdecl SV_EntityContact(const float *mins, const float *maxs, const gentity_s *gEnt);
 void __cdecl SV_GetServerinfo(char *buffer, int bufferSize);
 void __cdecl SV_LocateGameData(
-                gentity_s *gEnts,
-                int numGEntities,
-                int sizeofGEntity_t,
-                playerState_s *clients,
-                int sizeofGameClient);
+    gentity_s *gEnts,
+    int numGEntities,
+    int sizeofGEntity_t,
+    playerState_s *clients,
+    int sizeofGameClient);
 void __cdecl SV_GetUsercmd(int clientNum, usercmd_s *cmd);
+
+// XModel precache (retail passes mutable names into XModelPrecache)
 XModel *__cdecl SV_XModelGet(char *name);
 unsigned __int8 *__cdecl SV_AllocXModelPrecache(unsigned int size);
 unsigned __int8 *__cdecl SV_AllocXModelPrecacheColl(unsigned int size);
+
+// Server DObj / skeleton helpers
 void __cdecl SV_DObjDumpInfo(gentity_s *ent);
 void __cdecl SV_ResetSkeletonCache();
 bool __cdecl SV_DObjCreateSkelForBone(DObj *obj, int boneIndex);
@@ -43,6 +49,8 @@ int __cdecl SV_DObjSetRotTransIndex(const gentity_s *ent, int *partBits, int bon
 void __cdecl SV_DObjGetBounds(gentity_s *ent, float *mins, float *maxs);
 XAnimTree_s *__cdecl SV_DObjGetTree(gentity_s *ent);
 void __cdecl SV_XModelDebugBoxes(gentity_s *ent, const float *color, int *partBits, int duration);
+
+// Map / path utilities (basename helper uses char *; see SV_GetMapBaseName)
 bool __cdecl SV_MapExists(char *name);
 bool __cdecl SV_DObjExists(gentity_s *ent);
 void __cdecl SV_track_shutdown();
@@ -50,12 +58,16 @@ void __cdecl SV_SavePaths(unsigned __int8 *buf, unsigned int size);
 int __cdecl SV_GetGuid(int clientNum);
 int __cdecl SV_GetClientPing(unsigned int clientNum);
 bool __cdecl SV_IsLocalClient(unsigned int clientNum);
+
+// Game VM lifecycle
 void __cdecl SV_ShutdownGameProgs();
 void __cdecl SV_SetGametype();
 void __cdecl SV_ShutdownGameVM(int clearScripts);
-void __cdecl    SV_RestartGameProgs(int savepersist);
-void __cdecl    SV_InitGameVM(int restart, int registerDvars);
-void __cdecl    SV_InitGameProgs(int savepersist);
+void __cdecl SV_RestartGameProgs(int savepersist);
+void __cdecl SV_InitGameVM(int restart, int registerDvars);
+void __cdecl SV_InitGameProgs(int savepersist);
 int __cdecl SV_GameCommand();
+
+// Script archive dvar lookup (overloads mirror Dvar_GetVariantString)
 const char *__cdecl SV_Archived_Dvar_GetVariantString(const char *dvarName);
 const char *__cdecl SV_Archived_Dvar_GetVariantString(int dvarHash);

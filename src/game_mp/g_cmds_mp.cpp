@@ -21,11 +21,12 @@
 #include <clientscript/cscr_vm.h>
 #include <game/actor_fields.h>
 
+// Decomp: CoDMPServer.c:382848
 int __cdecl CheatsOk(gentity_s *ent)
 {
-    const char *v1; // eax
-    const char *v3; // eax
-    bool bCreateFX; // [esp+3h] [ebp-1h]
+    const char *fmtMsg;
+    const char *fmtMsg2;
+    bool bCreateFX;
 
     if ( g_cheats->current.enabled )
     {
@@ -36,37 +37,38 @@ int __cdecl CheatsOk(gentity_s *ent)
         }
         else
         {
-            v3 = va("%c \"GAME_MUSTBEALIVECOMMAND\"", 101);
-            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v3);
+            fmtMsg2 = va("%c \"GAME_MUSTBEALIVECOMMAND\"", 101);
+            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg2);
             return 0;
         }
     }
     else
     {
-        v1 = va("%c \"GAME_CHEATSNOTENABLED\"", 101);
-        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v1);
+        fmtMsg = va("%c \"GAME_CHEATSNOTENABLED\"", 101);
+        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg);
         return 0;
     }
 }
 
 char line[1024];
+// Decomp: CoDMPServer.c:382881
 char *__cdecl ConcatArgs(int start)
 {
-    unsigned int v1; // kr00_4
-    int c; // [esp+10h] [ebp-418h]
-    int len; // [esp+14h] [ebp-414h]
-    char arg[1028]; // [esp+20h] [ebp-408h] BYREF
+    unsigned int tmp1; // kr00_4
+    int c;
+    int len;
+    char arg[1028];
 
     len = 0;
     c = SV_Cmd_Argc();
     while ( start < c )
     {
         SV_Cmd_ArgvBuffer(start, arg, 1024);
-        v1 = strlen(arg);
-        if ( (int)(v1 + len) >= 1023 )
+        tmp1 = strlen(arg);
+        if ( (int)(tmp1 + len) >= 1023 )
             break;
-        memcpy((unsigned __int8 *)&line[len], (unsigned __int8 *)arg, v1);
-        len += v1;
+        memcpy((unsigned __int8 *)&line[len], (unsigned __int8 *)arg, tmp1);
+        len += tmp1;
         if ( start != c - 1 )
             line[len++] = 32;
         ++start;
@@ -75,6 +77,7 @@ char *__cdecl ConcatArgs(int start)
     return line;
 }
 
+// Decomp: CoDMPServer.c:382907
 int __cdecl SV_Cmd_Argc()
 {
     if ( sv_cmd_args.nesting >= 8u
@@ -91,18 +94,19 @@ int __cdecl SV_Cmd_Argc()
     return sv_cmd_args.argc[sv_cmd_args.nesting];
 }
 
+// Decomp: CoDMPServer.c:382925
 void __cdecl G_setfog(char *fogstring)
 {
-    float fDensity; // [esp+0h] [ebp-40h] BYREF
-    float sunFogDir[3]; // [esp+4h] [ebp-3Ch] BYREF
-    float clr[3]; // [esp+10h] [ebp-30h] BYREF
-    float fFar; // [esp+1Ch] [ebp-24h] BYREF
-    float sunFogColor[3]; // [esp+20h] [ebp-20h] BYREF
-    float fNear; // [esp+2Ch] [ebp-14h] BYREF
-    int time; // [esp+30h] [ebp-10h] BYREF
-    float sunAngEnd; // [esp+34h] [ebp-Ch] BYREF
-    float sunAngStart; // [esp+38h] [ebp-8h] BYREF
-    float fogMaxOpacity; // [esp+3Ch] [ebp-4h] BYREF
+    float fDensity;
+    float sunFogDir[3];
+    float clr[3];
+    float fFar;
+    float sunFogColor[3];
+    float fNear;
+    int time;
+    float sunAngEnd;
+    float sunAngStart;
+    float fogMaxOpacity;
 
     SV_SetConfigstring(10, fogstring);
     level.fFogOpaqueDist = FLT_MAX;
@@ -133,25 +137,26 @@ void __cdecl G_setfog(char *fogstring)
     }
 }
 
+// Decomp: CoDMPServer.c:382975
 void __cdecl Cmd_Give_f(gentity_s *ent)
 {
-    unsigned __int8 PlayerWeaponModel; // al
-    int v2; // eax
-    unsigned int v3; // eax
-    int iClipSize; // [esp-4h] [ebp-78h]
-    int v5; // [esp-4h] [ebp-78h]
-    int i; // [esp+48h] [ebp-2Ch]
-    int slot; // [esp+4Ch] [ebp-28h]
-    gentity_s *it_ent; // [esp+50h] [ebp-24h]
-    char *name; // [esp+54h] [ebp-20h]
-    bool give_all; // [esp+58h] [ebp-1Ch]
-    char *amt; // [esp+5Ch] [ebp-18h]
-    const WeaponVariantDef *weapVariantDef; // [esp+60h] [ebp-14h]
-    int amount; // [esp+64h] [ebp-10h]
-    unsigned int weapIndex; // [esp+68h] [ebp-Ch]
-    int weapIndexa; // [esp+68h] [ebp-Ch]
-    const WeaponDef *weapDef; // [esp+6Ch] [ebp-8h]
-    const gitem_s *it; // [esp+70h] [ebp-4h]
+    unsigned __int8 PlayerWeaponModel;
+    int tmp2;
+    unsigned int tmp3;
+    int iClipSize;
+    int tmp5;
+    int i;
+    int slot;
+    gentity_s *it_ent;
+    char *name;
+    bool give_all;
+    char *amt;
+    const WeaponVariantDef *weapVariantDef;
+    int amount;
+    unsigned int weapIndex;
+    int weapAlt;
+    const WeaponDef *weapDef;
+    const gitem_s *it;
 
     if ( CheatsOk(ent) )
     {
@@ -209,7 +214,7 @@ LABEL_50:
                                 {
                                     level.initializing = 1;
                                     weapVariantDef = 0;
-                                    weapIndexa = 0;
+                                    weapAlt = 0;
                                     it = G_FindItem(name);
                                     if ( it )
                                     {
@@ -222,9 +227,9 @@ LABEL_50:
                                         it_ent->active = 1;
                                         if ( it->giType == IT_WEAPON )
                                         {
-                                            weapIndexa = it_ent->item[0].index % 2048;
-                                            weapVariantDef = BG_GetWeaponVariantDef(weapIndexa);
-                                            weapDef = BG_GetWeaponDef(weapIndexa);
+                                            weapAlt = it_ent->item[0].index % 2048;
+                                            weapVariantDef = BG_GetWeaponVariantDef(weapAlt);
+                                            weapDef = BG_GetWeaponDef(weapAlt);
                                             if ( weapDef->offhandClass == OFFHAND_CLASS_FLASH_GRENADE )
                                             {
                                                 ent->client->ps.offhandSecondary = PLAYER_OFFHAND_SECONDARY_FLASH;
@@ -241,11 +246,11 @@ LABEL_50:
                                         if ( it->giType == IT_WEAPON )
                                         {
                                             iClipSize = weapVariantDef->iClipSize;
-                                            v2 = BG_ClipForWeapon(weapIndexa);
-                                            BG_SetAmmoInClip(&ent->client->ps, v2, iClipSize);
-                                            v5 = BG_GetStartAmmo(weapIndexa) - weapVariantDef->iClipSize;
-                                            v3 = BG_AmmoForWeapon(weapIndexa);
-                                            BG_SetAmmoInPool(&ent->client->ps, v3, v5);
+                                            tmp2 = BG_ClipForWeapon(weapAlt);
+                                            BG_SetAmmoInClip(&ent->client->ps, tmp2, iClipSize);
+                                            tmp5 = BG_GetStartAmmo(weapAlt) - weapVariantDef->iClipSize;
+                                            tmp3 = BG_AmmoForWeapon(weapAlt);
+                                            BG_SetAmmoInPool(&ent->client->ps, tmp3, tmp5);
                                         }
                                         level.initializing = 0;
                                     }
@@ -263,23 +268,24 @@ LABEL_50:
     }
 }
 
+// Decomp: CoDMPServer.c:383108
 void __cdecl Cmd_Take_f(gentity_s *ent)
 {
-    const WeaponVariantDef *weapVarDef; // eax
-    int v3; // eax
-    const WeaponVariantDef *weapVarDef2; // eax
-    int AmmoNotInClip; // [esp-4h] [ebp-44h]
-    int v6; // [esp-4h] [ebp-44h]
-    int j; // [esp+20h] [ebp-20h]
-    int i; // [esp+24h] [ebp-1Ch]
-    int slot; // [esp+28h] [ebp-18h]
-    char *name; // [esp+2Ch] [ebp-14h]
-    char *amt; // [esp+30h] [ebp-10h]
-    int amount; // [esp+34h] [ebp-Ch]
-    unsigned int weapIndex; // [esp+38h] [ebp-8h]
-    unsigned int weapIndexa; // [esp+38h] [ebp-8h]
-    unsigned int weapIndexb; // [esp+38h] [ebp-8h]
-    BOOL take_all; // [esp+3Ch] [ebp-4h]
+    const WeaponVariantDef *weapVarDef;
+    int tmp3;
+    const WeaponVariantDef *weapVarDef2;
+    int AmmoNotInClip;
+    int tmp6;
+    int j;
+    int i;
+    int slot;
+    char *name;
+    char *amt;
+    int amount;
+    unsigned int weapIndex;
+    unsigned int weapAlt;
+    unsigned int weapIndexb;
+    BOOL take_all;
 
     if (CheatsOk(ent))
     {
@@ -345,12 +351,12 @@ void __cdecl Cmd_Take_f(gentity_s *ent)
                         {
                             for (i = 0; i < 15; ++i)
                             {
-                                weapIndexa = ent->client->ps.heldWeapons[i].weapon;
-                                if (weapIndexa)
+                                weapAlt = ent->client->ps.heldWeapons[i].weapon;
+                                if (weapAlt)
                                 {
-                                    BG_SetAmmoInPool(&ent->client->ps, weapIndexa, 0);
-                                    v3 = BG_ClipForWeapon(weapIndexa);
-                                    BG_SetAmmoInClip(&ent->client->ps, v3, 0);
+                                    BG_SetAmmoInPool(&ent->client->ps, weapAlt, 0);
+                                    tmp3 = BG_ClipForWeapon(weapAlt);
+                                    BG_SetAmmoInClip(&ent->client->ps, tmp3, 0);
                                 }
                             }
                         }
@@ -367,9 +373,9 @@ void __cdecl Cmd_Take_f(gentity_s *ent)
                                         BG_AddAmmoToPool(&ent->client->ps, weapIndexb, -amount);
                                         if (BG_GetAmmoNotInClip(&ent->client->ps, weapIndexb) < 0)
                                         {
-                                            v6 = BG_GetAmmoNotInClip(&ent->client->ps, weapIndexb);
+                                            tmp6 = BG_GetAmmoNotInClip(&ent->client->ps, weapIndexb);
                                             weapVarDef2 = BG_GetWeaponVariantDef(weapIndexb);
-                                            BG_AddAmmoToClip(&ent->client->ps, weapVarDef2->iClipIndex, v6);
+                                            BG_AddAmmoToClip(&ent->client->ps, weapVarDef2->iClipIndex, tmp6);
                                             BG_SetAmmoInPool(&ent->client->ps, weapIndexb, 0);
                                         }
                                     }
@@ -383,95 +389,101 @@ void __cdecl Cmd_Take_f(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:383229
 void __cdecl Cmd_God_f(gentity_s *ent)
 {
-    const char *v1; // eax
-    const char *v2; // [esp+0h] [ebp-8h]
+    const char *fmtMsg;
+    const char *tmp2;
 
     if ( CheatsOk(ent) )
     {
         ent->flags ^= 1u;
         if ( (ent->flags & 1) != 0 )
-            v2 = "GAME_GODMODE_ON";
+            tmp2 = "GAME_GODMODE_ON";
         else
-            v2 = "GAME_GODMODE_OFF";
-        v1 = va("%c \"%s\"", 101, v2);
-        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v1);
+            tmp2 = "GAME_GODMODE_OFF";
+        fmtMsg = va("%c \"%s\"", 101, tmp2);
+        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg);
     }
 }
 
+// Decomp: CoDMPServer.c:383247
 void __cdecl Cmd_DemiGod_f(gentity_s *ent)
 {
-    const char *v1; // eax
-    const char *v2; // [esp+0h] [ebp-8h]
+    const char *fmtMsg;
+    const char *tmp2;
 
     if ( CheatsOk(ent) )
     {
         ent->flags ^= 2u;
         if ( (ent->flags & 2) != 0 )
-            v2 = "GAME_DEMI_GODMODE_ON";
+            tmp2 = "GAME_DEMI_GODMODE_ON";
         else
-            v2 = "GAME_DEMI_GODMODE_OFF";
-        v1 = va("%c \"%s\"", 101, v2);
-        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v1);
+            tmp2 = "GAME_DEMI_GODMODE_OFF";
+        fmtMsg = va("%c \"%s\"", 101, tmp2);
+        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg);
     }
 }
 
+// Decomp: CoDMPServer.c:383265
 void __cdecl Cmd_Notarget_f(gentity_s *ent)
 {
-    const char *v1; // eax
+    const char *fmtMsg;
 
     if ( CheatsOk(ent) )
     {
         ent->flags ^= 4u;
         if ( (ent->flags & 4) != 0 )
-            v1 = va("%c \"%s\"", 101, "GAME_NOTARGETON");
+            fmtMsg = va("%c \"%s\"", 101, "GAME_NOTARGETON");
         else
-            v1 = va("%c \"%s\"", 101, "GAME_NOTARGETOFF");
-        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v1);
+            fmtMsg = va("%c \"%s\"", 101, "GAME_NOTARGETOFF");
+        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg);
     }
 }
 
+// Decomp: CoDMPServer.c:383281
 void __cdecl Cmd_Noclip_f(gentity_s *ent)
 {
-    const char *v1; // eax
+    const char *fmtMsg;
 
     if ( CheatsOk(ent) )
     {
         if ( (ent->client->flags & 1) != 0 )
         {
             ent->client->flags &= ~1u;
-            v1 = va("%c \"%s\"", 101, "GAME_NOCLIPOFF");
+            fmtMsg = va("%c \"%s\"", 101, "GAME_NOCLIPOFF");
         }
         else
         {
             ent->client->flags |= 1u;
-            v1 = va("%c \"%s\"", 101, "GAME_NOCLIPON");
+            fmtMsg = va("%c \"%s\"", 101, "GAME_NOCLIPON");
         }
-        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v1);
+        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg);
     }
 }
 
+// Decomp: CoDMPServer.c:383302
 void __cdecl Cmd_UFO_f(gentity_s *ent)
 {
-    const char *v1; // eax
+    const char *fmtMsg;
 
     if ( CheatsOk(ent) )
     {
         if ( (ent->client->flags & 2) != 0 )
         {
             ent->client->flags &= ~2u;
-            v1 = va("%c \"%s\"", 101, "GAME_UFOOFF");
+            fmtMsg = va("%c \"%s\"", 101, "GAME_UFOOFF");
         }
         else
         {
             ent->client->flags |= 2u;
-            v1 = va("%c \"%s\"", 101, "GAME_UFOON");
+            fmtMsg = va("%c \"%s\"", 101, "GAME_UFOON");
         }
-        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v1);
+        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg);
     }
 }
 
+// Decomp: CoDMPServer.c:383323
 void __cdecl Cmd_Kill_f(gentity_s *ent)
 {
     if (!ent->client
@@ -502,19 +514,21 @@ void __cdecl Cmd_Kill_f(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:383383
 void __cdecl StopFollowing(gentity_s *ent)
 {
-    gclient_s *client; // [esp+10h] [ebp-BCh]
-    float vAngles[3]; // [esp+14h] [ebp-B8h] BYREF
-    col_context_t context; // [esp+20h] [ebp-ACh] BYREF
-    float vEnd[3]; // [esp+48h] [ebp-84h] BYREF
-    float vMins[3]; // [esp+54h] [ebp-78h] BYREF
-    trace_t trace; // [esp+60h] [ebp-6Ch] BYREF
-    float vForward[3]; // [esp+9Ch] [ebp-30h] BYREF
-    float vPos[3]; // [esp+A8h] [ebp-24h] BYREF
-    float vUp[3]; // [esp+B4h] [ebp-18h] BYREF
-    float vMaxs[3]; // [esp+C0h] [ebp-Ch] BYREF
+    gclient_s *client;
+    float vAngles[3];
+    col_context_t context;
+    float vEnd[3];
+    float vMins[3];
+    trace_t trace;
+    float vForward[3];
+    float vPos[3];
+    float vUp[3];
+    float vMaxs[3];
 
+    memset(&trace, 0, 16);
     //col_context_t::col_context_t(&context);
     client = ent->client;
     if ( !client && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_cmds_mp.cpp", 709, 0, "%s", "client") )
@@ -578,20 +592,19 @@ void __cdecl StopFollowing(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:383508
 int __cdecl Cmd_FollowCycle_f(gentity_s *ent, int dir)
 {
-    int v4; // [esp+0h] [ebp-2814h]
-    playerState_s v5; // [esp+4h] [ebp-2810h] BYREF
-    int health; // [esp+2730h] [ebp-E4h] BYREF
-    int clientNum; // [esp+2734h] [ebp-E0h]
-    int otherFlags; // [esp+2738h] [ebp-DCh] BYREF
-    clientState_s v9; // [esp+273Ch] [ebp-D8h] BYREF
-    playerState_s *ps; // [esp+2810h] [ebp-4h]
-    int savedregs; // [esp+2814h] [ebp+0h] BYREF
+    int tmp4;
+    playerState_s tmp5;
+    int health;
+    int clientNum;
+    int otherFlags;
+    clientState_s tmp9;
+    playerState_s *ps;
 
-    ps = &v5;
+    ps = &tmp5;
     // LWSS: this is likely some 128bit aligned alloca
-    //ps = (playerState_s *)((char *)&v5 + ((0x80 - (((unsigned __int8)&savedregs - 16) & 0x7F)) & 0x7F));
     //if (((unsigned __int8)ps & 0x7F) != 0
     //    && !Assert_MyHandler(
     //        "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_cmds_mp.cpp",
@@ -616,7 +629,7 @@ int __cdecl Cmd_FollowCycle_f(gentity_s *ent, int dir)
     clientNum = ent->client->spectatorClient;
     if (clientNum < 0)
         clientNum = 0;
-    v4 = clientNum;
+    tmp4 = clientNum;
     do
     {
         clientNum += dir;
@@ -624,7 +637,7 @@ int __cdecl Cmd_FollowCycle_f(gentity_s *ent, int dir)
             clientNum = 0;
         if (clientNum < 0)
             clientNum = level.maxclients - 1;
-        if (SV_GetArchivedClientInfo(clientNum, &ent->client->sess.archiveTime, ps, &v9, 0, &health, &otherFlags))
+        if (SV_GetArchivedClientInfo(clientNum, &ent->client->sess.archiveTime, ps, &tmp9, 0, &health, &otherFlags))
         {
             if ((otherFlags & 4) == 0
                 && !Assert_MyHandler(
@@ -636,7 +649,7 @@ int __cdecl Cmd_FollowCycle_f(gentity_s *ent, int dir)
             {
                 __debugbreak();
             }
-            if (G_ClientCanSpectateTeamOrLocalPlayer(ent->client, &v9))
+            if (G_ClientCanSpectateTeamOrLocalPlayer(ent->client, &tmp9))
             {
                 ent->client->spectatorClient = clientNum;
                 ent->client->sess.sessionState = SESS_STATE_SPECTATOR;
@@ -645,10 +658,11 @@ int __cdecl Cmd_FollowCycle_f(gentity_s *ent, int dir)
                 return 1;
             }
         }
-    } while (clientNum != v4);
+    } while (clientNum != tmp4);
     return 0;
 }
 
+// Decomp: CoDMPServer.c:383588
 bool __cdecl G_IsPlaying(gentity_s *ent)
 {
     if ( !ent->client
@@ -669,25 +683,26 @@ bool __cdecl G_IsPlaying(gentity_s *ent)
     return ent->client->sess.sessionState == SESS_STATE_PLAYING;
 }
 
+// Decomp: CoDMPServer.c:383616
 void __cdecl G_Say(gentity_s *ent, gentity_s *target, int mode, const char *chatText)
 {
-    const char *v4; // eax
-    int v5; // eax
-    int Guid; // eax
-    int v7; // [esp-Ch] [ebp-10Ch]
-    int number; // [esp-Ch] [ebp-10Ch]
-    int j; // [esp+Ch] [ebp-F4h]
-    char cleanname[68]; // [esp+10h] [ebp-F0h] BYREF
-    gentity_s *other; // [esp+54h] [ebp-ACh]
-    const char *pszTeamString; // [esp+58h] [ebp-A8h]
-    int color; // [esp+5Ch] [ebp-A4h]
-    char text[156]; // [esp+60h] [ebp-A0h] BYREF
+    const char *tmp4;
+    int tmp5;
+    int Guid;
+    int tmp7;
+    int number;
+    int j;
+    char cleanname[68];
+    gentity_s *other;
+    const char *pszTeamString;
+    int color;
+    char text[156];
 
     pszTeamString = "";
     if ( mode == 1 && ent->client->sess.cs.team != TEAM_AXIS )
         mode = ent->client->sess.cs.team == TEAM_ALLIES;
-    v4 = CS_DisplayName(&ent->client->sess.cs, 3);
-    I_strncpyz(cleanname, v4, 64);
+    tmp4 = CS_DisplayName(&ent->client->sess.cs, 3);
+    I_strncpyz(cleanname, tmp4, 64);
     I_CleanStr(cleanname);
     if ( mode == 1 )
     {
@@ -717,9 +732,9 @@ void __cdecl G_Say(gentity_s *ent, gentity_s *target, int mode, const char *chat
     }
     else
     {
-        v7 = ent->s.number;
-        v5 = SV_GetGuid(ent->s.number);
-        G_LogPrintf("say;%d;%d;%s;%s\n", v5, v7, cleanname, chatText);
+        tmp7 = ent->s.number;
+        tmp5 = SV_GetGuid(ent->s.number);
+        G_LogPrintf("say;%d;%d;%s;%s\n", tmp5, tmp7, cleanname, chatText);
         color = 55;
     }
     I_strncpyz(text, chatText, 150);
@@ -738,6 +753,7 @@ void __cdecl G_Say(gentity_s *ent, gentity_s *target, int mode, const char *chat
     }
 }
 
+// Decomp: CoDMPServer.c:383687
 void __cdecl G_SayTo(
                 gentity_s *ent,
                 gentity_s *other,
@@ -747,11 +763,11 @@ void __cdecl G_SayTo(
                 const char *cleanname,
                 const char *message)
 {
-    const char *v7; // eax
-    team_t team; // [esp+4h] [ebp-D4h]
-    char szStateString[68]; // [esp+8h] [ebp-D0h] BYREF
-    const char *team_color; // [esp+4Ch] [ebp-8Ch]
-    char name[132]; // [esp+50h] [ebp-88h] BYREF
+    const char *fmtMsg;
+    team_t team;
+    char szStateString[68];
+    const char *team_color;
+    char name[132];
 
     if ( other
         && other->r.inuse
@@ -797,103 +813,105 @@ void __cdecl G_SayTo(
         {
             Com_sprintf(name, 0x80u, "%s%s%s: ", szStateString, cleanname, "^7");
         }
-        v7 = va("%c \"\x15%s%c%c%s\"", (char)((mode == 1) + 104), name, 94, color, message);
-        SV_GameSendServerCommand(other - g_entities, SV_CMD_CAN_IGNORE, v7);
+        fmtMsg = va("%c \"\x15%s%c%c%s\"", (char)((mode == 1) + 104), name, 94, color, message);
+        SV_GameSendServerCommand(other - g_entities, SV_CMD_CAN_IGNORE, fmtMsg);
     }
 }
 
+// Decomp: CoDMPServer.c:383745
 void __cdecl Cmd_Where_f(gentity_s *ent)
 {
-    char *v1; // eax
-    const char *v2; // eax
+    char *tmp1;
+    const char *fmtMsg;
 
-    v1 = vtos(ent->r.currentOrigin);
-    v2 = va("%c \"%s\"", 101, v1);
-    SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v2);
+    tmp1 = vtos(ent->r.currentOrigin);
+    fmtMsg = va("%c \"%s\"", 101, tmp1);
+    SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg);
 }
 
+// Decomp: CoDMPServer.c:383756
 void __cdecl Cmd_CallVote_f(gentity_s *ent)
 {
-    int LicenseType; // eax
-    const char *v2; // eax
-    const char *v3; // eax
-    const char *v4; // eax
-    const char *v5; // eax
-    const char *v6; // eax
-    char *v7; // eax
-    char *v8; // eax
-    char *v9; // eax
-    const char *v10; // eax
-    const char *v11; // eax
-    const char *v12; // eax
-    const char *v13; // eax
-    const char *v14; // eax
-    const char *v15; // eax
-    char *GameTypeNameForScript; // eax
-    char *v17; // eax
-    char *v18; // eax
-    const char *v19; // eax
-    const char *v20; // eax
-    const char *v21; // eax
-    const char *v22; // eax
-    char *v23; // eax
-    char *v24; // eax
-    char *v25; // eax
-    const char *v26; // [esp+4h] [ebp-364h]
-    int j; // [esp+8h] [ebp-360h]
-    int kicknum; // [esp+Ch] [ebp-35Ch]
-    const dvar_s *mapname; // [esp+10h] [ebp-358h]
-    const char *playerName; // [esp+14h] [ebp-354h]
-    char arg1[256]; // [esp+18h] [ebp-350h] BYREF
-    char arg2[256]; // [esp+118h] [ebp-250h] BYREF
-    char cleanName[68]; // [esp+218h] [ebp-150h] BYREF
-    int i; // [esp+25Ch] [ebp-10Ch]
-    char arg3[260]; // [esp+260h] [ebp-108h] BYREF
+    int LicenseType;
+    const char *fmtMsg;
+    const char *fmtMsg2;
+    const char *fmtMsg3;
+    const char *fmtMsg4;
+    const char *fmtMsg5;
+    char *tmp7;
+    char *tmp8;
+    char *tmp9;
+    const char *fmtMsg6;
+    const char *fmtMsg7;
+    const char *fmtMsg8;
+    const char *fmtMsg9;
+    const char *fmtMsg10;
+    const char *fmtMsg11;
+    char *GameTypeNameForScript;
+    char *tmp17;
+    char *tmp18;
+    const char *tmp19;
+    const char *fmtMsg12;
+    const char *fmtMsg13;
+    const char *fmtMsg14;
+    char *fmtMsg15;
+    char *fmtMsg16;
+    char *fmtMsg17;
+    const char *tmp26;
+    int j;
+    int kicknum;
+    const dvar_s *mapname;
+    const char *playerName;
+    char arg1[256];
+    char arg2[256];
+    char cleanName[68];
+    int i;
+    char arg3[260];
 
     if ( !g_allowVote->current.enabled || (LicenseType = SV_GetLicenseType(), SV_IsServerRanked(LicenseType)) )
     {
-        v2 = va("%c \"GAME_VOTINGNOTENABLED\"", 101);
-        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v2);
+        fmtMsg = va("%c \"GAME_VOTINGNOTENABLED\"", 101);
+        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg);
         return;
     }
     if ( level.numConnectedClients < 2 )
     {
-        v3 = va("%c \"GAME_VOTINGNOTENOUGHPLAYERS\"", 101);
-        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v3);
+        fmtMsg2 = va("%c \"GAME_VOTINGNOTENOUGHPLAYERS\"", 101);
+        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg2);
         return;
     }
     if ( g_oldVoting->current.enabled )
     {
         if ( level.voteTime )
         {
-            v4 = va("%c \"GAME_VOTEALREADYINPROGRESS\"", 101);
-            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v4);
+            fmtMsg3 = va("%c \"GAME_VOTEALREADYINPROGRESS\"", 101);
+            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg3);
             return;
         }
         if ( ent->client->sess.voteCount >= 3 )
         {
-            v5 = va("%c \"GAME_MAXVOTESCALLED\"", 101);
-            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v5);
+            fmtMsg4 = va("%c \"GAME_MAXVOTESCALLED\"", 101);
+            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg4);
             return;
         }
         if ( ent->client->sess.cs.team == TEAM_SPECTATOR )
         {
-            v6 = va("%c \"GAME_NOSPECTATORCALLVOTE\"", 101);
-            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v6);
+            fmtMsg5 = va("%c \"GAME_NOSPECTATORCALLVOTE\"", 101);
+            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg5);
             return;
         }
     }
     SV_Cmd_ArgvBuffer(1, arg1, 256);
     SV_Cmd_ArgvBuffer(2, arg2, 256);
     SV_Cmd_ArgvBuffer(3, arg3, 256);
-    v7 = strchr(arg1, 0x3Bu);
-    if ( v7 )
+    tmp7 = strchr(arg1, 0x3Bu);
+    if ( tmp7 )
         goto LABEL_85;
-    v8 = strchr(arg2, 0x3Bu);
-    if ( v8 )
+    tmp8 = strchr(arg2, 0x3Bu);
+    if ( tmp8 )
         goto LABEL_85;
-    v9 = strchr(arg3, 0x3Bu);
-    if ( v9 )
+    tmp9 = strchr(arg3, 0x3Bu);
+    if ( tmp9 )
         goto LABEL_85;
     if ( !g_oldVoting->current.enabled )
     {
@@ -910,29 +928,29 @@ void __cdecl Cmd_CallVote_f(gentity_s *ent)
         && I_stricmp(arg1, "tempBanUser")
         && I_stricmp(arg1, "tempBanClient") )
     {
-        v10 = va("%c \"GAME_INVALIDVOTESTRING\"", 101);
-        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v10);
+        fmtMsg6 = va("%c \"GAME_INVALIDVOTESTRING\"", 101);
+        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg6);
         const char aCGameVotecomma[] =
             "%c \"GAME_VOTECOMMANDSARE\x15 map_restart, map_rotate, map <mapname>, g_gametype <typename>, typemap <typename> <mapname>, kick <player>, clientkick <clientnum>, tempBanUser <player>, tempBanClient <clientNum>\"\x00\x00tempBanClient";
 
 
-        v11 = va(aCGameVotecomma, 101);
-        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v11);
+        fmtMsg7 = va(aCGameVotecomma, 101);
+        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg7);
         return;
     }
     if ( level.voteExecuteTime )
     {
         level.voteExecuteTime = 0;
-        v12 = va("%s\n", level.voteString);
-        Cbuf_AddText(0, v12);
+        fmtMsg8 = va("%s\n", level.voteString);
+        Cbuf_AddText(0, fmtMsg8);
     }
     if ( !I_stricmp(arg1, "typemap") )
     {
         if ( !Scr_IsValidGameType(arg2) )
         {
 LABEL_32:
-            v13 = va("%c \"GAME_INVALIDGAMETYPE\"", 101);
-            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v13);
+            fmtMsg9 = va("%c \"GAME_INVALIDGAMETYPE\"", 101);
+            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg9);
             return;
         }
         if ( !I_stricmp(arg2, g_gametype->current.string) )
@@ -941,8 +959,8 @@ LABEL_32:
         if ( !useFastFile->current.enabled && !SV_MapExists(arg3) )
         {
         LABEL_37:
-            v14 = va("%c \"\x15the server doesn't have that map\"\x00\x00%c \"GAME_INVALIDGAMETYPE\"", 101);
-            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v14);
+            fmtMsg10 = va("%c \"\x15the server doesn't have that map\"\x00\x00%c \"GAME_INVALIDGAMETYPE\"", 101);
+            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg10);
             return;
         }
         mapname = _Dvar_RegisterString("mapname", (char *)"", 0x44u, "Current map name");
@@ -950,8 +968,8 @@ LABEL_32:
             arg3[0] = 0;
         if ( !arg2[0] && !arg3[0] )
         {
-            v15 = va("%c \"GAME_TYPEMAP_NOCHANGE\"", 101);
-            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v15);
+            fmtMsg11 = va("%c \"GAME_TYPEMAP_NOCHANGE\"", 101);
+            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg11);
             return;
         }
         if ( arg3[0] )
@@ -975,8 +993,8 @@ LABEL_32:
         else
         {
             Com_sprintf(level.voteString, 0x400u, "g_gametype %s; map_restart", arg2);
-            v17 = Scr_GetGameTypeNameForScript(arg2);
-            Com_sprintf(level.voteDisplayString, 0x400u, "GAME_VOTE_GAMETYPE %s", v17);
+            tmp17 = Scr_GetGameTypeNameForScript(arg2);
+            Com_sprintf(level.voteDisplayString, 0x400u, "GAME_VOTE_GAMETYPE %s", tmp17);
         }
         goto LABEL_96;
     }
@@ -985,8 +1003,8 @@ LABEL_32:
         if ( !Scr_IsValidGameType(arg2) )
             goto LABEL_32;
         Com_sprintf(level.voteString, 0x400u, "%s %s; map_restart", arg1, arg2);
-        v18 = Scr_GetGameTypeNameForScript(arg2);
-        Com_sprintf(level.voteDisplayString, 0x400u, "GAME_VOTE_GAMETYPE %s", v18);
+        tmp18 = Scr_GetGameTypeNameForScript(arg2);
+        Com_sprintf(level.voteDisplayString, 0x400u, "GAME_VOTE_GAMETYPE %s", tmp18);
         goto LABEL_96;
     }
     if ( !I_stricmp(arg1, "map_restart") )
@@ -1001,21 +1019,21 @@ LABEL_32:
         Com_sprintf(level.voteDisplayString, 0x400u, "GAME_VOTE_NEXTMAP");
 LABEL_96:
         playerName = CS_DisplayName(&ent->client->sess.cs, 3);
-        v22 = va("%c GAME_CALLEDAVOTE %s", 101, playerName);
-        SV_GameSendServerCommand(-1, SV_CMD_CAN_IGNORE, v22);
+        fmtMsg14 = va("%c GAME_CALLEDAVOTE %s", 101, playerName);
+        SV_GameSendServerCommand(-1, SV_CMD_CAN_IGNORE, fmtMsg14);
         level.voteTime = level.time + 30000;
         level.voteYes = 1;
         level.voteNo = 0;
         for ( i = 0; i < level.maxclients; ++i )
             level.clients[i].ps.eFlags &= ~0x100000u;
         ent->client->ps.eFlags |= 0x100000u;
-        v23 = va("%i %i", level.voteTime, sv_serverId_value);
-        SV_SetConfigstring(15, v23);
+        fmtMsg15 = va("%i %i", level.voteTime, sv_serverId_value);
+        SV_SetConfigstring(15, fmtMsg15);
         SV_SetConfigstring(16, level.voteDisplayString);
-        v24 = va("%i", level.voteYes);
-        SV_SetConfigstring(17, v24);
-        v25 = va("%i", level.voteNo);
-        SV_SetConfigstring(18, v25);
+        fmtMsg16 = va("%i", level.voteYes);
+        SV_SetConfigstring(17, fmtMsg16);
+        fmtMsg17 = va("%i", level.voteNo);
+        SV_SetConfigstring(18, fmtMsg17);
         return;
     }
     if ( !I_stricmp(arg1, "map") )
@@ -1054,8 +1072,8 @@ LABEL_96:
             {
                 if ( level.clients[j].sess.connected == CON_CONNECTED )
                 {
-                    v19 = CS_DisplayName(&level.clients[j].sess.cs, 3);
-                    I_strncpyz(cleanName, v19, 64);
+                    tmp19 = CS_DisplayName(&level.clients[j].sess.cs, 3);
+                    I_strncpyz(cleanName, tmp19, 64);
                     I_CleanStr(cleanName);
                     if ( !I_stricmp(cleanName, arg2) )
                         kicknum = j;
@@ -1065,60 +1083,61 @@ LABEL_96:
         if ( Demo_IsEnabled() && !kicknum )
         {
 LABEL_85:
-            v20 = va("%c \"GAME_INVALIDVOTESTRING\"", 101);
-            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v20);
+            fmtMsg12 = va("%c \"GAME_INVALIDVOTESTRING\"", 101);
+            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg12);
             return;
         }
         if ( kicknum == level.maxclients )
         {
-            v21 = va("%c \"GAME_CLIENTNOTONSERVER\"", 101);
-            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v21);
+            fmtMsg13 = va("%c \"GAME_CLIENTNOTONSERVER\"", 101);
+            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg13);
             return;
         }
         if ( arg1[0] == 116 || arg1[0] == 84 )
             Com_sprintf(level.voteString, 0x400u, "%s \"%d\"", "tempBanClient", kicknum);
         else
             Com_sprintf(level.voteString, 0x400u, "%s \"%d\"", "clientkick", kicknum);
-        v26 = CS_DisplayName(&level.clients[kicknum].sess.cs, 3);
-        Com_sprintf(level.voteDisplayString, 0x400u, "GAME_VOTE_KICK (%i)%s", kicknum, v26);
+        tmp26 = CS_DisplayName(&level.clients[kicknum].sess.cs, 3);
+        Com_sprintf(level.voteDisplayString, 0x400u, "GAME_VOTE_KICK (%i)%s", kicknum, tmp26);
         goto LABEL_96;
     }
     if ( !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_cmds_mp.cpp", 1283, 0, "unhandled callvote") )
         __debugbreak();
 }
 
+// Decomp: CoDMPServer.c:384033
 void __cdecl Cmd_Vote_f(gentity_s *ent)
 {
-    const char *v1; // eax
-    const char *v2; // eax
-    const char *v3; // eax
-    const char *v4; // eax
-    char *v5; // eax
-    char *v6; // eax
-    char msg[68]; // [esp+0h] [ebp-48h] BYREF
+    const char *fmtMsg;
+    const char *fmtMsg2;
+    const char *fmtMsg3;
+    const char *fmtMsg4;
+    char *fmtMsg5;
+    char *fmtMsg6;
+    char msg[68];
 
     if ( g_oldVoting->current.enabled )
     {
         if ( !level.voteTime )
         {
-            v1 = va("%c \"GAME_NOVOTEINPROGRESS\"", 101);
-            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v1);
+            fmtMsg = va("%c \"GAME_NOVOTEINPROGRESS\"", 101);
+            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg);
             return;
         }
         if ( (ent->client->ps.eFlags & 0x100000) != 0 )
         {
-            v2 = va("%c \"GAME_VOTEALREADYCAST\"", 101);
-            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v2);
+            fmtMsg2 = va("%c \"GAME_VOTEALREADYCAST\"", 101);
+            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg2);
             return;
         }
         if ( ent->client->sess.cs.team == TEAM_SPECTATOR )
         {
-            v3 = va("%c \"GAME_NOSPECTATORVOTE\"", 101);
-            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v3);
+            fmtMsg3 = va("%c \"GAME_NOSPECTATORVOTE\"", 101);
+            SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg3);
             return;
         }
-        v4 = va("%c \"GAME_VOTECAST\"", 101);
-        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v4);
+        fmtMsg4 = va("%c \"GAME_VOTECAST\"", 101);
+        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg4);
         ent->client->ps.eFlags |= 0x100000u;
     }
     SV_Cmd_ArgvBuffer(1, msg, 64);
@@ -1126,8 +1145,8 @@ void __cdecl Cmd_Vote_f(gentity_s *ent)
     {
         if ( g_oldVoting->current.enabled )
         {
-            v5 = va("%i", ++level.voteYes);
-            SV_SetConfigstring(17, v5);
+            fmtMsg5 = va("%i", ++level.voteYes);
+            SV_SetConfigstring(17, fmtMsg5);
         }
         else
         {
@@ -1136,8 +1155,8 @@ void __cdecl Cmd_Vote_f(gentity_s *ent)
     }
     else if ( g_oldVoting->current.enabled )
     {
-        v6 = va("%i", ++level.voteNo);
-        SV_SetConfigstring(18, v6);
+        fmtMsg6 = va("%i", ++level.voteNo);
+        SV_SetConfigstring(18, fmtMsg6);
     }
     else
     {
@@ -1145,16 +1164,17 @@ void __cdecl Cmd_Vote_f(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:384093
 void __cdecl Cmd_SetViewpos_f(gentity_s *ent)
 {
-    const char *v1; // eax
-    const char *v2; // eax
-    long double v3; // st7
-    int v4; // [esp+0h] [ebp-424h]
-    char buffer[1024]; // [esp+4h] [ebp-420h] BYREF
-    float origin[3]; // [esp+408h] [ebp-1Ch] BYREF
-    float angles[3]; // [esp+414h] [ebp-10h] BYREF
-    int i; // [esp+420h] [ebp-4h]
+    const char *fmtMsg;
+    const char *fmtMsg2;
+    long double tmp3;
+    int tmp4;
+    char buffer[1024];
+    float origin[3];
+    float angles[3];
+    int i;
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_cmds_mp.cpp", 1387, 0, "%s", "ent") )
         __debugbreak();
@@ -1165,28 +1185,28 @@ void __cdecl Cmd_SetViewpos_f(gentity_s *ent)
     }
     if ( !g_cheats->current.enabled )
     {
-        v1 = va("%c \"GAME_CHEATSNOTENABLED\"", 101);
-        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v1);
+        fmtMsg = va("%c \"GAME_CHEATSNOTENABLED\"", 101);
+        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg);
         return;
     }
     if ( SV_Cmd_Argc() < 4 || SV_Cmd_Argc() > 6 )
     {
-        v2 = va("%c GAME_USAGE : setviewpos x y z yaw", 101);
-        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, v2);
+        fmtMsg2 = va("%c GAME_USAGE : setviewpos x y z yaw", 101);
+        SV_GameSendServerCommand(ent - g_entities, SV_CMD_CAN_IGNORE, fmtMsg2);
         return;
     }
     for ( i = 0; i < 3; ++i )
     {
         SV_Cmd_ArgvBuffer(i + 1, buffer, 1024);
-        v3 = atof(buffer);
-        origin[i] = v3;
+        tmp3 = atof(buffer);
+        origin[i] = tmp3;
     }
     origin[2] = origin[2] - ent->client->ps.viewHeightCurrent;
     memset(angles, 0, sizeof(angles));
-    v4 = SV_Cmd_Argc();
-    if ( v4 == 5 )
+    tmp4 = SV_Cmd_Argc();
+    if ( tmp4 == 5 )
         goto LABEL_18;
-    if ( v4 == 6 )
+    if ( tmp4 == 6 )
     {
         SV_Cmd_ArgvBuffer(5, buffer, 1024);
         angles[0] = atof(buffer);
@@ -1197,18 +1217,20 @@ LABEL_18:
     TeleportPlayer(ent, origin, angles);
 }
 
+// Decomp: CoDMPServer.c:384167
 void __cdecl Cmd_EntityCount_f()
 {
     if ( g_cheats->current.enabled )
         Com_Printf(0, "entity count = %i\n", level.num_entities);
 }
 
+// Decomp: CoDMPServer.c:384174
 void __cdecl Cmd_MenuResponse_f(gentity_s *pEnt)
 {
-    char szServerId[1024]; // [esp+0h] [ebp-C10h] BYREF
-    char szMenuName[1028]; // [esp+400h] [ebp-810h] BYREF
-    int iMenuIndex; // [esp+804h] [ebp-40Ch]
-    char szResponse[1028]; // [esp+808h] [ebp-408h] BYREF
+    char szServerId[1024];
+    char szMenuName[1028];
+    int iMenuIndex;
+    char szResponse[1028];
 
     iMenuIndex = -1;
     if ( SV_Cmd_Argc() == 4 )
@@ -1232,11 +1254,12 @@ void __cdecl Cmd_MenuResponse_f(gentity_s *pEnt)
     Scr_Notify(pEnt, scr_const.menuresponse, 2u);
 }
 
+// Decomp: CoDMPServer.c:384204
 void __cdecl ClientCommand(int clientNum)
 {
-    char errMsg[68]; // [esp+4h] [ebp-450h] BYREF
-    gentity_s *ent; // [esp+48h] [ebp-40Ch]
-    char cmd[1028]; // [esp+4Ch] [ebp-408h] BYREF
+    char errMsg[68];
+    gentity_s *ent;
+    char cmd[1028];
 
     ent = &g_entities[clientNum];
     if ( ent->client )
@@ -1407,9 +1430,10 @@ void __cdecl ClientCommand(int clientNum)
     }
 }
 
+// Decomp: CoDMPServer.c:384390
 void __cdecl Cmd_Say_f(gentity_s *ent, int mode, int arg0)
 {
-    char *p; // [esp+0h] [ebp-4h]
+    char *p;
 
     if ( SV_Cmd_Argc() >= 2 || arg0 )
     {
@@ -1421,35 +1445,37 @@ void __cdecl Cmd_Say_f(gentity_s *ent, int mode, int arg0)
     }
 }
 
+// Decomp: CoDMPServer.c:384405
 void Cmd_PrintEntities_f()
 {
     G_PrintEntities();
 }
 
+// Decomp: CoDMPServer.c:384411
 void Cmd_VisionSetNaked_f()
 {
-    const char *v0; // eax
-    const char *v1; // eax
-    char *v2; // eax
-    float v3; // [esp+0h] [ebp-1Ch]
-    int v4; // [esp+4h] [ebp-18h]
-    float v5; // [esp+8h] [ebp-14h]
-    int duration; // [esp+18h] [ebp-4h]
+    const char *tmp0;
+    const char *tmp1;
+    char *fmtMsg;
+    float tmp3;
+    int tmp4;
+    float tmp5;
+    int duration;
 
     duration = 1000;
-    v4 = SV_Cmd_Argc();
-    if ( v4 == 2 )
+    tmp4 = SV_Cmd_Argc();
+    if ( tmp4 == 2 )
         goto LABEL_4;
-    if ( v4 == 3 )
+    if ( tmp4 == 3 )
     {
-        v0 = SV_Cmd_Argv(2);
-        v3 = atof(v0);
-        v5 = v3 * 1000.0;
-        duration = (int)(v5 + 9.313225746154785e-10);
+        tmp0 = SV_Cmd_Argv(2);
+        tmp3 = atof(tmp0);
+        tmp5 = tmp3 * 1000.0;
+        duration = (int)(tmp5 + 9.313225746154785e-10);
 LABEL_4:
-        v1 = SV_Cmd_Argv(1);
-        v2 = va("\"%s\" %i", v1, duration);
-        SV_SetConfigstring(1550, v2);
+        tmp1 = SV_Cmd_Argv(1);
+        fmtMsg = va("\"%s\" %i", tmp1, duration);
+        SV_SetConfigstring(1550, fmtMsg);
         return;
     }
     Com_Printf(0, "USAGE: visionSetNaked <name> <duration>\n");
@@ -1485,30 +1511,31 @@ const char *__cdecl SV_Cmd_Argv(int argIndex)
         return sv_cmd_args.argv[sv_cmd_args.nesting][argIndex];
 }
 
+// Decomp: CoDMPServer.c:384479
 void Cmd_VisionSetNight_f()
 {
-    const char *v0; // eax
-    const char *v1; // eax
-    char *v2; // eax
-    float v3; // [esp+0h] [ebp-1Ch]
-    int v4; // [esp+4h] [ebp-18h]
-    float v5; // [esp+8h] [ebp-14h]
-    int duration; // [esp+18h] [ebp-4h]
+    const char *tmp0;
+    const char *tmp1;
+    char *fmtMsg;
+    float tmp3;
+    int tmp4;
+    float tmp5;
+    int duration;
 
     duration = 1000;
-    v4 = SV_Cmd_Argc();
-    if ( v4 == 2 )
+    tmp4 = SV_Cmd_Argc();
+    if ( tmp4 == 2 )
         goto LABEL_4;
-    if ( v4 == 3 )
+    if ( tmp4 == 3 )
     {
-        v0 = SV_Cmd_Argv(2);
-        v3 = atof(v0);
-        v5 = v3 * 1000.0;
-        duration = (int)(v5 + 9.313225746154785e-10);
+        tmp0 = SV_Cmd_Argv(2);
+        tmp3 = atof(tmp0);
+        tmp5 = tmp3 * 1000.0;
+        duration = (int)(tmp5 + 9.313225746154785e-10);
 LABEL_4:
-        v1 = SV_Cmd_Argv(1);
-        v2 = va("\"%s\" %i", v1, duration);
-        SV_SetConfigstring(1551, v2);
+        tmp1 = SV_Cmd_Argv(1);
+        fmtMsg = va("\"%s\" %i", tmp1, duration);
+        SV_SetConfigstring(1551, fmtMsg);
         return;
     }
     Com_Printf(0, "USAGE: visionSetNight <name> <duration>\n");

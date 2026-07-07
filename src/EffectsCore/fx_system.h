@@ -2,6 +2,8 @@
 
 #include <gfx_d3d/fxprimitives.h>
 
+#define FX_ELEM_LIMIT 3000 // temporary increase from 2048
+
 struct FxSystemContainer // sizeof=0xBA0
 {
     FxSystem system;
@@ -11,9 +13,9 @@ struct FxSystemContainer // sizeof=0xBA0
 struct FxSystemBuffers // sizeof=0x62480
 {
     FxEffectContainer effects[1024];
-    FxPool<FxElem,FxElemContainer> elems[2048];
+    FxPool<FxElem,FxElemContainer> elems[FX_ELEM_LIMIT];
     FxPool<FxTrail,FxTrail> trails[128];
-    FxPool<FxTrailElem,FxTrailElem> trailElems[2048];
+    FxPool<FxTrailElem,FxTrailElem> trailElems[FX_ELEM_LIMIT];
     FxVisState visState[2];
     FxUniqueHandleDb uniqueHandleDb;
     unsigned __int8 padBuffer[80];

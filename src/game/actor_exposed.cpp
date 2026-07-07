@@ -1,13 +1,20 @@
 #include "actor_exposed.h"
-#include <game_mp/actor_mp.h>
-#include <game_mp/g_main_mp.h>
+#include <game/actor_animapi.h>
+#include <game/actor_wrapper.h>
+#include <game/g_main_wrapper.h>
 #include "actor_senses.h"
 #include "actor_state.h"
-#include <game_mp/g_utils_mp.h>
+#include <game/g_utils_wrapper.h>
 #include "actor_navigation.h"
 #include "actor_orientation.h"
 #include "actor_events.h"
+#include "actor_generic.h"
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#include <clientscript/cscr_vm.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
+#endif
 
 void __fastcall Actor_Exposed_FindReacquireNode(actor_s *self)
 {
@@ -273,7 +280,7 @@ void __fastcall Actor_Exposed_FlashBanged(actor_s *self)
     Actor_SetAnimScript(
         self,
         &g_animScriptTable[self->species]->flashed,
-        AI_MOVE_STOP,
+        0,
         AI_ANIM_USE_BOTH_DELTAS,
         AI_ANIM_FUNCTION_STOP);
     Actor_SetOrientMode(self, AI_ORIENT_DONT_CHANGE);
@@ -302,5 +309,69 @@ void __fastcall Actor_Exposed_Touch(actor_s *self, gentity_s *pOther)
     }
     if ( pOther->sentient )
         Actor_GetPerfectInfo(self, pOther->sentient);
+}
+
+// Decomp: CoDSPBlackOps.map.c
+
+bool __fastcall Actor_Exposed_Start(actor_s *self, ai_state_t ePrevState)
+{
+    (void)ePrevState;
+    iassert(self);
+    if ( self->flashBanged )
+    {
+        self->allowPain = true;
+        self->allowDeath = true;
+        self->exposedStartTime = level.time;
+        self->exposedDuration = 500;
+    }
+    Actor_SetSubState(self, STATE_EXPOSED_COMBAT);
+    return true;
+}
+
+void __fastcall Actor_Exposed_Finish(actor_s *self, ai_state_t eNextState)
+{
+    (void)eNextState;
+    iassert(self);
+    if ( self->flashBanged )
+    {
+        self->allowPain = false;
+        self->allowDeath = false;
+        self->exposedDuration = 0;
+    }
+}
+
+bool __fastcall Actor_Exposed_Resume(actor_s *self, ai_state_t ePrevState)
+{
+    (void)ePrevState;
+    iassert(self);
+    if ( self->flashBanged )
+    {
+        self->allowPain = true;
+        self->allowDeath = true;
+        self->exposedStartTime = level.time;
+        self->exposedDuration = 500;
+    }
+    return true;
+}
+
+actor_think_result_t __fastcall Actor_Exposed_Think(actor_s *self)
+{
+    iassert(self);
+    iassert(self->sentient);
+    Actor_PreThink(self);
+    if ( self->flashBanged && self->eSubState[self->stateLevel] != STATE_EXPOSED_FLASHBANGED )
+        Actor_Exposed_FlashBanged(self);
+#ifdef KISAK_SP
+    // Actor_SetAnimScript runs Scr_RunCurrentThreads; only safe outside active script calls.
+    if ( !gScrVmPub[SCRIPTINSTANCE_SERVER].function_count
+        && self->eAnimMode == AI_ANIM_UNKNOWN
+        && g_animScriptTable[self->species]
+        && g_animScriptTable[self->species]->stop.func )
+    {
+        Actor_AnimStop(self, &g_animScriptTable[self->species]->stop);
+    }
+#endif
+    Actor_PostThink(self);
+    return ACTOR_THINK_DONE;
 }
 

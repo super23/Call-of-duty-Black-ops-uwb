@@ -1,13 +1,19 @@
 #include "cg_shellshock.h"
 
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#include <cgame_sp/cg_view_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
-#include <bgame/bg_pmove.h>
 #include <cgame_mp/cg_view_mp.h>
+#include <client_mp/cl_cgame_mp.h>
+#endif
+#include <bgame/bg_pmove.h>
 #include <client/splitscreen.h>
 #include <cmath>
 #include <sound/snd_public_async.h>
 #include "cg_sound.h"
-#include <client_mp/cl_cgame_mp.h>
 #include <sound/snd.h>
 #include <demo/demo_playback.h>
 

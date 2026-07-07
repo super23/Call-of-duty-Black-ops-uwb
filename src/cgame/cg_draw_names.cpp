@@ -1,20 +1,29 @@
 #include "cg_draw_names.h"
 
 #include <cstring>
+#ifdef KISAK_SP
+#include <client_sp/cl_ui_sp.h>
+#include <cgame_sp/cg_local_sp.h>
+#include <cgame_sp/cg_ents_sp.h>
+#include <cgame_sp/cg_main_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <cgame_sp/cg_players_sp.h>
+#else
 #include <client_mp/cl_ui_mp.h>
 #include <cgame_mp/cg_local_mp.h>
-#include "cg_main.h"
 #include <cgame_mp/cg_ents_mp.h>
 #include <cgame_mp/cg_main_mp.h>
+#include <client_mp/cl_cgame_mp.h>
+#include <cgame_mp/cg_players_mp.h>
+#endif
+#include "cg_main.h"
 #include <demo/demo_playback.h>
 #include <clientscript/scr_const.h>
 #include "cg_drawtools.h"
 #include <gfx_d3d/r_font.h>
 #include <client/cl_rank.h>
-#include <client_mp/cl_cgame_mp.h>
 #include <universal/com_math_anglevectors.h>
 #include <qcommon/dobj_management.h>
-#include <cgame_mp/cg_players_mp.h>
 #include <gfx_d3d/r_dpvs.h>
 #include "cg_world.h"
 #include <bgame/bg_weapons.h>
@@ -26,6 +35,29 @@ OverheadFade overheadFade[32];
 DrawNameEntity drawNameEntities[32];
 unsigned int numDrawNameEntities;
 PlayerDetails playerDetails[1][32];
+
+int __cdecl CG_EntityNumForClientSlot(int localClientNum, const cg_s *cgameGlob, int clientSlot)
+{
+    int j;
+    const snapshot_s *snap;
+
+    if ( clientSlot < 0 || clientSlot >= com_maxclients->current.integer )
+        return clientSlot;
+    snap = cgameGlob->nextSnap;
+    if ( !snap )
+        return clientSlot;
+    for ( j = 0; j < snap->numEntities; ++j )
+    {
+        int entIndex;
+        const centity_s *body;
+
+        entIndex = snap->entities[j].number;
+        body = CG_GetEntity(localClientNum, entIndex);
+        if ( body->nextState.eType == 1 && body->nextState.clientNum == clientSlot )
+            return entIndex;
+    }
+    return clientSlot;
+}
 
 void __cdecl CG_ClearOverheadFade()
 {
@@ -111,6 +143,8 @@ void __cdecl CG_DrawOverheadNames(int localClientNum, const centity_s *cent, flo
     if ( alpha > 0.001 )
     {
         entnum = cent->nextState.number;
+        if ( cent->nextState.eType == 1 && cent->nextState.clientNum < com_maxclients->current.integer )
+            entnum = cent->nextState.clientNum;
         cgameGlob = CG_GetLocalClientGlobals(localClientNum);
         scrPlace = &scrPlaceView[localClientNum];
         if ( cent->pose.eType != 14
@@ -121,7 +155,7 @@ void __cdecl CG_DrawOverheadNames(int localClientNum, const centity_s *cent, flo
             {
                 currentPlayerDetails = &playerDetails[localClientNum][entnum];
                 ps = &cgameGlob->nextSnap->ps;
-                font = UI_GetFontHandle(0, cg_overheadNamesFont->current.integer, 1.0);
+                font = UI_GetFontHandle(scrPlace, cg_overheadNamesFont->current.integer, 1.0);
                 CG_InitPlayerDetails(localClientNum, entnum);
                 if ( cgameGlob->clientNum != entnum
                     || (cgameGlob->predictedPlayerState.eFlags2 & 0x10000000) != 0
@@ -157,7 +191,7 @@ void __cdecl CG_DrawOverheadNames(int localClientNum, const centity_s *cent, flo
                             text = currentPlayerDetails->clanDisplayName;
                             break;
                         case 2:
-                            text = (const char *)currentPlayerDetails;
+                            text = currentPlayerDetails->fullDisplayName;
                             break;
                         case 5:
                             text = "";
@@ -166,8 +200,8 @@ void __cdecl CG_DrawOverheadNames(int localClientNum, const centity_s *cent, flo
                             Com_PrintError(14, "Bad Overhead Display Mode for client num: %i\n", entnum);
                             break;
                     }
-                    CG_RelativeTeamColor(entnum, color, localClientNum);
                     color[3] = alpha;
+                    CG_RelativeTeamColor(entnum, color, localClientNum);
                     if ( CG_CalcNamePosition(localClientNum, origin, &nameX, &y) )
                     {
                         x = nameX;
@@ -396,6 +430,7 @@ char __cdecl CG_CanSeeFriendlyHead(int localClientNum, const centity_s *cent)
     unsigned __int16 hitEntId; // [esp+DCh] [ebp-8h]
     float dot; // [esp+E0h] [ebp-4h]
 
+    memset(&trace, 0, 16);
     if ( cg_drawThroughWalls->current.enabled )
         return 1;
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
@@ -552,7 +587,17 @@ void __cdecl CG_ScanForCrosshairEntityInternal(int localClientNum)
         }
         hitEnt = CG_GetEntity(localClientNum, hitEntId);
         if ( hitEnt->pose.eType == 14 && !CG_CheckIfDrivingRemoteControlVehicle(localClientNum, hitEntId) )
-            hitEntId = CG_GetDriverClientNumFromVehicle(localClientNum, hitEnt);
+        {
+            int driverSlot = CG_GetDriverClientNumFromVehicle(localClientNum, hitEnt);
+
+            if ( driverSlot < com_maxclients->current.integer )
+            {
+                int driverEntNum = CG_EntityNumForClientSlot(localClientNum, cgameGlob, driverSlot);
+
+                hitEntId = driverEntNum;
+                hitEnt = CG_GetEntity(localClientNum, driverEntNum);
+            }
+        }
         if ( hitEntId >= com_maxclients->current.integer
             && hitEnt->nextState.eType != 17
             && !CG_CheckIfDrivingRemoteControlVehicle(localClientNum, hitEntId) )
@@ -583,9 +628,11 @@ void __cdecl CG_ScanForCrosshairEntityInternal(int localClientNum)
             {
                 hitEntTeam = (team_t)(hitEnt->nextState.faction.iHeadIconTeam & 3);
             }
-            else if ( hitEntId < com_maxclients->current.integer )
+            else if ( hitEnt->nextState.eType == 1 )
             {
-                hitEntTeam = cgameGlob->bgs.clientinfo[hitEntId].team;
+                unsigned int cn = hitEnt->nextState.clientNum;
+                if ( cn < com_maxclients->current.integer )
+                    hitEntTeam = cgameGlob->bgs.clientinfo[cn].team;
             }
             if ( hitEntTeam == team && team || owner )
             {
@@ -597,9 +644,15 @@ void __cdecl CG_ScanForCrosshairEntityInternal(int localClientNum)
                 {
                     return;
                 }
-                if ( (cgameGlob->bgs.clientinfo[hitEntId].perks[1] & 4) != 0 )
                 {
-                    return;
+                    unsigned int perkLookup = hitEntId;
+                    if ( hitEnt->nextState.eType == 1 && hitEnt->nextState.clientNum < com_maxclients->current.integer )
+                        perkLookup = hitEnt->nextState.clientNum;
+                    if ( perkLookup < com_maxclients->current.integer
+                        && (cgameGlob->bgs.clientinfo[perkLookup].perks[1] & 4) != 0 )
+                    {
+                        return;
+                    }
                 }
                 diff[0] = hitEnt->pose.origin[0] - start[0];
                 diff[1] = hitEnt->pose.origin[1] - start[1];
@@ -642,17 +695,18 @@ bool __cdecl CG_CheckIfDrivingRemoteControlVehicle(int localClientNum, unsigned 
     centity_s *ParentEnt; // [esp+10h] [ebp-10h]
     unsigned __int16 ParentID; // [esp+18h] [ebp-8h]
     centity_s *ent; // [esp+1Ch] [ebp-4h]
+    const cg_s *cgameGlob;
 
     ent = CG_GetEntity(localClientNum, EntId);
-    CG_GetLocalClientGlobals(localClientNum);
+    cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     result = 0;
     if ( ent->pose.eType == 14 )
     {
         ParentID = CG_GetDriverClientNumFromVehicle(localClientNum, ent);
         if ( ParentID < com_maxclients->current.integer )
         {
-            ParentEnt = CG_GetEntity(localClientNum, ParentID);
-            if ( ((*((unsigned int *)ParentEnt + 201) >> 1) & 1) != 0 && (ParentEnt->nextState.lerp.eFlags2 & 0x10000000) != 0 )
+            ParentEnt = CG_GetEntity(localClientNum, CG_EntityNumForClientSlot(localClientNum, cgameGlob, ParentID));
+            if ( ParentEnt->nextValid && (ParentEnt->nextState.lerp.eFlags2 & 0x10000000) != 0 )
                 return 1;
         }
     }
@@ -706,13 +760,15 @@ int __cdecl CG_GetTeamIndicator()
     return team_indicator->current.integer;
 }
 
-bool __cdecl ShouldDrawCrosshairNames(const cg_s *cgameGlob)
+bool __cdecl ShouldDrawCrosshairNames(int localClientNum, const cg_s *cgameGlob)
 {
+    unsigned int nameClient;
+
     if ( !cg_drawCrosshairNames->current.enabled )
         return 0;
     if ( Demo_IsGameHudHidden() )
         return 0;
-    if ( cgameGlob->crosshairClientNum > com_maxclients->current.integer )
+    if ( (unsigned int)cgameGlob->crosshairClientNum >= 1023u )
         return 0;
     if ( cgameGlob->nextSnap->ps.clientNum >= 0x20u
         && !Assert_MyHandler(
@@ -731,18 +787,27 @@ bool __cdecl ShouldDrawCrosshairNames(const cg_s *cgameGlob)
         return 0;
     if ( (cgameGlob->predictedPlayerState.eFlags & 0x4000) != 0 && cgameGlob->predictedPlayerState.vehicleType == 6 )
         return 0;
-    if ( cgameGlob->crosshairClientNum >= 0x20u
+    nameClient = (unsigned int)cgameGlob->crosshairClientNum;
+    if ( (unsigned int)cgameGlob->crosshairClientNum < MAX_GENTITIES )
+    {
+        const centity_s *chCent = CG_GetEntity(localClientNum, cgameGlob->crosshairClientNum);
+        if ( chCent->nextState.eType == 1 )
+            nameClient = chCent->nextState.clientNum;
+    }
+    if ( nameClient >= (unsigned int)com_maxclients->current.integer )
+        return 0;
+    if ( nameClient >= 0x20u
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_draw_names.cpp",
                     1191,
                     0,
-                    "cgameGlob->crosshairClientNum doesn't index MAX_CLIENTS\n\t%i not in [0, %i)",
-                    cgameGlob->crosshairClientNum,
+                    "crosshair target client doesn't index MAX_CLIENTS\n\t%i not in [0, %i)",
+                    nameClient,
                     32) )
     {
         __debugbreak();
     }
-    return cgameGlob->bgs.clientinfo[cgameGlob->crosshairClientNum].infoValid != 0;
+    return cgameGlob->bgs.clientinfo[nameClient].infoValid != 0;
 }
 
 void __cdecl CG_DrawCrosshairNames(int localClientNum)
@@ -757,10 +822,22 @@ void __cdecl CG_DrawCrosshairNames(int localClientNum)
     int inViewStart; // [esp+2Ch] [ebp-Ch]
     int entnum; // [esp+30h] [ebp-8h]
     float alpha; // [esp+34h] [ebp-4h]
+    unsigned int crosshairTargetClientSlot; // clientinfo index for team / name data
 
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
-    if ( ShouldDrawCrosshairNames(cgameGlob) )
+    if ( ShouldDrawCrosshairNames(localClientNum, cgameGlob) )
     {
+        crosshairTargetClientSlot = (unsigned int)cgameGlob->crosshairClientNum;
+        if ( (unsigned int)cgameGlob->crosshairClientNum < MAX_GENTITIES )
+        {
+            const centity_s *crosshairCent =
+                CG_GetEntity(localClientNum, cgameGlob->crosshairClientNum);
+            if ( crosshairCent->nextState.eType == 1
+                && crosshairCent->nextState.clientNum < com_maxclients->current.integer )
+            {
+                crosshairTargetClientSlot = crosshairCent->nextState.clientNum;
+            }
+        }
         inViewStart = cgameGlob->crosshairClientStartTime;
         inViewLast = cgameGlob->crosshairClientLastTime;
         nextSnap = cgameGlob->nextSnap;
@@ -770,15 +847,18 @@ void __cdecl CG_DrawCrosshairNames(int localClientNum)
             cent = CG_GetEntity(localClientNum, entnum);
             if ( cent->nextState.eType == 14 )
             {
-                entnum = CG_GetDriverClientNumFromVehicle(localClientNum, cent);
-                if ( entnum >= com_maxclients->current.integer )
+                int driverSlot = CG_GetDriverClientNumFromVehicle(localClientNum, cent);
+                if ( driverSlot >= com_maxclients->current.integer )
                     continue;
+                entnum = CG_EntityNumForClientSlot(localClientNum, cgameGlob, driverSlot);
+                cent = CG_GetEntity(localClientNum, entnum);
             }
             if ( CG_IsValidCrosshairEntity(localClientNum, cgameGlob, cent, entnum) )
             {
                 myTeam = cgameGlob->bgs.clientinfo[cgameGlob->nextSnap->ps.clientNum].team;
                 //BLOPS_NULLSUB();
-                if ( myTeam == 3 || myTeam && myTeam == cgameGlob->bgs.clientinfo[cgameGlob->crosshairClientNum].team )
+                if ( myTeam == 3
+                    || myTeam && myTeam == cgameGlob->bgs.clientinfo[crosshairTargetClientSlot].team )
                     alpha = CG_FadeCrosshairNameAlpha(
                                         cgameGlob->time,
                                         inViewStart,
@@ -829,8 +909,10 @@ char __cdecl CG_IsValidCrosshairEntity(int localClientNum, const cg_s *cgameGlob
 {
     centity_s *vehCent; // [esp+Ch] [ebp-Ch]
     bool allowOccupant; // [esp+17h] [ebp-1h]
+    int clientInfoSlot; // index into bgs.clientinfo (clientNum, not entity number)
+    unsigned int crosshairClientSlot;
 
-    if ( ((*((unsigned int *)cent + 201) >> 1) & 1) == 0 )
+    if ( !cent->nextValid )
         return 0;
     if ( cent->nextState.eType != 1 && cent->nextState.eType != 14 )
         return 0;
@@ -841,11 +923,26 @@ char __cdecl CG_IsValidCrosshairEntity(int localClientNum, const cg_s *cgameGlob
     if ( entNum == cgameGlob->crosshairClientNum )
         return 1;
     allowOccupant = 0;
-    if ( cgameGlob->bgs.clientinfo[entNum].infoValid && cgameGlob->bgs.clientinfo[entNum].attachedVehEntNum != 1023 )
+    clientInfoSlot = entNum;
+    if ( cent->nextState.eType == 1 && cent->nextState.clientNum < com_maxclients->current.integer )
+        clientInfoSlot = cent->nextState.clientNum;
+    if ( cgameGlob->bgs.clientinfo[clientInfoSlot].infoValid
+        && cgameGlob->bgs.clientinfo[clientInfoSlot].attachedVehEntNum != 1023 )
     {
-        vehCent = CG_GetEntity(localClientNum, cgameGlob->bgs.clientinfo[entNum].attachedVehEntNum);
+        crosshairClientSlot = (unsigned int)cgameGlob->crosshairClientNum;
+        if ( (unsigned int)cgameGlob->crosshairClientNum < MAX_GENTITIES )
+        {
+            const centity_s *chCent = CG_GetEntity(localClientNum, cgameGlob->crosshairClientNum);
+
+            if ( chCent->nextState.eType == 1
+                && chCent->nextState.clientNum < com_maxclients->current.integer )
+            {
+                crosshairClientSlot = chCent->nextState.clientNum;
+            }
+        }
+        vehCent = CG_GetEntity(localClientNum, cgameGlob->bgs.clientinfo[clientInfoSlot].attachedVehEntNum);
         if ( vehCent )
-            return CG_GetDriverClientNumFromVehicle(localClientNum, vehCent) == cgameGlob->crosshairClientNum;
+            return CG_GetDriverClientNumFromVehicle(localClientNum, vehCent) == (int)crosshairClientSlot;
     }
     return allowOccupant;
 }
@@ -855,24 +952,26 @@ bool __cdecl ShouldDrawFriendlyName(int localClientNum, const centity_s *cent, i
     bool v5; // [esp+0h] [ebp-Ch]
     snapshot_s *nextSnap; // [esp+4h] [ebp-8h]
     const cg_s *cgameGlob; // [esp+8h] [ebp-4h]
+    int clientSlot; // bgs.clientinfo / ps.clientNum index (not world entity number)
 
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     if ( (cent->nextState.lerp.eFlags & 0x20) != 0 )
         return 0;
     if ( cent->nextState.eType != 1 )
         return 0;
-    if ( !team )
+    clientSlot = cent->nextState.clientNum;
+    if ( clientSlot < 0 || clientSlot >= com_maxclients->current.integer )
         return 0;
-    if ( team != 3 && team != cgameGlob->bgs.clientinfo[entnum].team )
+    if ( team != 3 && team != cgameGlob->bgs.clientinfo[clientSlot].team )
         return 0;
     if ( (cgameGlob->nextSnap->ps.eFlags & 0x4000) != 0 && cgameGlob->nextSnap->ps.vehicleType == 6 )
         return 0;
     nextSnap = cgameGlob->nextSnap;
-    v5 = (nextSnap->ps.otherFlags & 6) != 0 && entnum == nextSnap->ps.clientNum;
+    v5 = (nextSnap->ps.otherFlags & 6) != 0 && clientSlot == nextSnap->ps.clientNum;
     return !v5 || cgameGlob->renderingThirdPerson;
 }
 
-int __cdecl GetVehicleDriverEntNum(const cg_s *cgameGlob, const centity_s *cent, int entnum)
+int __cdecl GetVehicleDriverEntNum(int localClientNum, const cg_s *cgameGlob, const centity_s *cent, int vehEntNum)
 {
     unsigned __int16 i; // [esp+4h] [ebp-4h]
 
@@ -882,10 +981,10 @@ int __cdecl GetVehicleDriverEntNum(const cg_s *cgameGlob, const centity_s *cent,
             && cgameGlob->bgs.clientinfo[i].attachedVehEntNum == cent->nextState.number
             && !cgameGlob->bgs.clientinfo[i].attachedVehSeat )
         {
-            return i;
+            return CG_EntityNumForClientSlot(localClientNum, cgameGlob, i);
         }
     }
-    return entnum;
+    return vehEntNum;
 }
 
 void __cdecl CG_DrawFriendlyNames(int localClientNum)
@@ -912,31 +1011,41 @@ void __cdecl CG_DrawFriendlyNames(int localClientNum)
             cent = CG_GetEntity(localClientNum, entnum);
             if ( cent->nextState.eType == 14 )
             {
-                entnum = GetVehicleDriverEntNum(cgameGlob, cent, entnum);
+                entnum = GetVehicleDriverEntNum(localClientNum, cgameGlob, cent, entnum);
                 cent = CG_GetEntity(localClientNum, entnum);
             }
             if ( ShouldDrawFriendlyName(localClientNum, cent, entnum, team) )
             {
-                if ( !v2 && CG_CanSeeFriendlyHead(localClientNum, cent) )
+                int nameSlot;
+
+                nameSlot = cent->nextState.clientNum;
+                if ( nameSlot >= 0 && nameSlot < 32 )
                 {
-                    if ( !overheadFade[entnum].visible )
+                    if ( !v2 && CG_CanSeeFriendlyHead(localClientNum, cent) )
                     {
-                        overheadFade[entnum].visible = 1;
-                        overheadFade[entnum].startTime = cgameGlob->time;
+                        if ( !overheadFade[nameSlot].visible )
+                        {
+                            overheadFade[nameSlot].visible = 1;
+                            overheadFade[nameSlot].startTime = cgameGlob->time;
+                        }
                     }
+                    else
+                    {
+                        overheadFade[nameSlot].visible = 0;
+                    }
+                    if ( overheadFade[nameSlot].visible )
+                        overheadFade[nameSlot].lastTime = cgameGlob->time;
+                    alpha = CG_FadeCrosshairNameAlpha(
+                                        cgameGlob->time,
+                                        overheadFade[nameSlot].startTime,
+                                        overheadFade[nameSlot].lastTime,
+                                        cg_friendlyNameFadeIn->current.integer,
+                                        cg_friendlyNameFadeOut->current.integer);
                 }
                 else
                 {
-                    overheadFade[entnum].visible = 0;
+                    alpha = 0.0f;
                 }
-                if ( overheadFade[entnum].visible )
-                    overheadFade[entnum].lastTime = cgameGlob->time;
-                alpha = CG_FadeCrosshairNameAlpha(
-                                    cgameGlob->time,
-                                    overheadFade[entnum].startTime,
-                                    overheadFade[entnum].lastTime,
-                                    cg_friendlyNameFadeIn->current.integer,
-                                    cg_friendlyNameFadeOut->current.integer);
                 TeamIndicator = CG_GetTeamIndicator();
                 CG_AddDrawName(localClientNum, entnum, alpha, TeamIndicator);
             }
@@ -950,8 +1059,6 @@ void __cdecl CG_DrawVisibleNames(int localClientNum)
     bool v2; // [esp+8h] [ebp-48h]
     bool v3; // [esp+Ch] [ebp-44h]
     snapshot_s *v4; // [esp+10h] [ebp-40h]
-    unsigned __int16 i; // [esp+20h] [ebp-30h]
-    bool noDrawOverride; // [esp+27h] [ebp-29h]
     int entityIndex; // [esp+28h] [ebp-28h]
     const cg_s *cgameGlob; // [esp+34h] [ebp-1Ch]
     const snapshot_s *nextSnap; // [esp+38h] [ebp-18h]
@@ -973,48 +1080,57 @@ void __cdecl CG_DrawVisibleNames(int localClientNum)
         {
             entnum = nextSnap->entities[entityIndex].number;
             cent = CG_GetEntity(localClientNum, entnum);
-            noDrawOverride = 0;
-            if ( cent->pose.eType == 14 )
+            if ( cent->nextState.eType == 14 )
             {
-                for ( i = 0; i < com_maxclients->current.integer; ++i )
-                {
-                    if ( cgameGlob->bgs.clientinfo[i].infoValid
-                        && cgameGlob->bgs.clientinfo[i].attachedVehEntNum == cent->nextState.number
-                        && !cgameGlob->bgs.clientinfo[i].attachedVehSeat )
-                    {
-                        entnum = i;
-                        noDrawOverride = 1;
-                        break;
-                    }
-                }
+                int vehEnt;
+
+                vehEnt = entnum;
+                entnum = GetVehicleDriverEntNum(localClientNum, cgameGlob, cent, vehEnt);
+                if ( entnum != vehEnt )
+                    cent = CG_GetEntity(localClientNum, entnum);
             }
-            if ( (cent->nextState.eType == 1 || cent->nextState.eType == 14)
-                && (noDrawOverride || (cent->nextState.lerp.eFlags & 0x20) == 0) )
+            if ( cent->nextState.eType != 1 )
+                continue;
+            if ( (cent->nextState.lerp.eFlags & 0x20) != 0 )
+                continue;
             {
+                int nameSlot;
+
                 v4 = cgameGlob->nextSnap;
-                v2 = (v4->ps.otherFlags & 6) != 0 && entnum == v4->ps.clientNum;
+                nameSlot = cent->nextState.clientNum;
+                if ( nameSlot < 0 || nameSlot >= 32 )
+                    nameSlot = -1;
+                v2 = (v4->ps.otherFlags & 6) != 0
+                    && cent->nextState.clientNum == v4->ps.clientNum;
                 if ( !v2 || cgameGlob->renderingThirdPerson )
                 {
-                    if ( !v3 && CG_CanSeeFriendlyHead(localClientNum, cent) )
+                    if ( nameSlot >= 0 && nameSlot < 32 )
                     {
-                        if ( !overheadFade[entnum].visible )
+                        if ( !v3 && CG_CanSeeFriendlyHead(localClientNum, cent) )
                         {
-                            overheadFade[entnum].visible = 1;
-                            overheadFade[entnum].startTime = timeNow;
+                            if ( !overheadFade[nameSlot].visible )
+                            {
+                                overheadFade[nameSlot].visible = 1;
+                                overheadFade[nameSlot].startTime = timeNow;
+                            }
                         }
+                        else
+                        {
+                            overheadFade[nameSlot].visible = 0;
+                        }
+                        if ( overheadFade[nameSlot].visible )
+                            overheadFade[nameSlot].lastTime = timeNow;
+                        alpha = CG_FadeCrosshairNameAlpha(
+                                            timeNow,
+                                            overheadFade[nameSlot].startTime,
+                                            overheadFade[nameSlot].lastTime,
+                                            cg_friendlyNameFadeIn->current.integer,
+                                            cg_friendlyNameFadeOut->current.integer);
                     }
                     else
                     {
-                        overheadFade[entnum].visible = 0;
+                        alpha = 0.0f;
                     }
-                    if ( overheadFade[entnum].visible )
-                        overheadFade[entnum].lastTime = timeNow;
-                    alpha = CG_FadeCrosshairNameAlpha(
-                                        timeNow,
-                                        overheadFade[entnum].startTime,
-                                        overheadFade[entnum].lastTime,
-                                        cg_friendlyNameFadeIn->current.integer,
-                                        cg_friendlyNameFadeOut->current.integer);
                     TeamIndicator = CG_GetTeamIndicator();
                     CG_AddDrawName(localClientNum, entnum, alpha, TeamIndicator);
                 }

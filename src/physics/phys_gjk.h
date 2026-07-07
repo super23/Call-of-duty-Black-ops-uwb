@@ -318,7 +318,7 @@ struct __declspec(align(16)) gjk_geom_info_t // sizeof=0x40
     struct gjk_entity_info_t *get_xform();
 };
 
-const struct __declspec(align(16)) gjk_query_input // sizeof=0x80
+struct __declspec(align(16)) gjk_query_input // sizeof=0x80
 {                                       // XREF: gjk_trace_input_t/r
                                         // ?cached_query_resize@gjk_query_output@@QAEX_NPAV?$colgeom_visitor_inlined_t@$0MI@@@H@Z/r
     phys_vec3 m_cg_aabb_min;
@@ -347,15 +347,26 @@ const struct __declspec(align(16)) gjk_query_input // sizeof=0x80
     // padding byte
 
     gjk_query_input()
+        : m_cg_aabb_min(0.0f)
+        , m_cg_aabb_max(0.0f)
+        , m_cg_position(0.0f)
+        , m_cg_translation(0.0f)
+        , m_ac_eps_vec(0.0f)
+        , m_contents(0)
+        , m_pass_entity_num(0)
+        , m_pass_owner_num(0)
+        , m_is_server_thread(false)
+        , m_proximity_data(nullptr)
+        , m_proximity_mask(0)
+        , m_gjk_query_flags(0)
     {
-        //this->m_geom_skip_list.m_first = 0;
-        //this->m_geom_skip_list.m_last_next_ptr = &this->m_geom_skip_list.m_first;
-        //this->m_geom_skip_list.m_alloc_count = 0;
     }
 
     void visit_skip_list(int query_visitor_count) const;
     bool is_in_skip_list(const gjk_geom_info_t *gi_) const;
 };
+
+static_assert(sizeof(gjk_query_input) == 0x80, "gjk_query_input layout must match COD (see CoDMPServer / tl phys headers)");
 
 struct gjk_collision_visitor // sizeof=0x4
 {                                                                             // XREF: create_gjk_geom_collision_visitor/r

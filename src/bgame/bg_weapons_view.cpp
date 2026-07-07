@@ -1247,13 +1247,14 @@ double __cdecl BG_CalculateViewMovement_HorizontalBobFactor(const playerState_s 
     return v4 * amplitude;
 }
 
-void __cdecl BG_CalculateViewMovementAngles(viewState_t *vs, float *angles)
+void __cdecl BG_CalculateViewMovementAngles(viewState_t *vs, float *angles, bool skipIdleAngles)
 {
     *angles = 0.0f;
     angles[1] = 0.0f;
     angles[2] = 0.0f;
     BG_CalculateViewMovement_DamageKick(vs, angles);
-    BG_CalculateViewMovement_IdleAngles(vs, angles);
+    if ( !skipIdleAngles )
+        BG_CalculateViewMovement_IdleAngles(vs, angles);
     BG_CalculateViewMovement_BobAngles(vs, angles);
     BG_CalculateViewMovement_AdsBob(vs, angles);
 }

@@ -58,16 +58,16 @@ void __cdecl DB_ResetZoneSize(int trackLoadProgress);
 bool __cdecl DB_IsMinimumFastFileLoaded();
 void __cdecl DB_ResetMinimumFastFileLoaded();
 void __cdecl DB_CancelLoadXFile();
-signed __int32 DB_WaitXFileStage();
+signed __int32 __cdecl DB_WaitXFileStage();
 void __cdecl DB_LoadedExternalData(unsigned int size);
 unsigned __int8 *__cdecl DB_LoadXFileDataNullTerminated(unsigned __int8 *pos);
 void __cdecl DB_LoadXFileSetSize(int size);
 void __cdecl DB_LoadXFileData(unsigned __int8 *pos, int size);
-void DB_ReadXFileStage();
+void __cdecl DB_ReadXFileStage();
 int __cdecl DB_ReadData();
 
 void __cdecl DB_LoadXFileInternal();
-void Load_XAssetListCustom();
+void __cdecl Load_XAssetListCustom();
 void __cdecl Load_XAssetArrayCustom(int count);
 char __cdecl DB_LoadXFile(
                 const char *path,

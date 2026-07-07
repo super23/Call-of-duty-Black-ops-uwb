@@ -21,6 +21,8 @@
 #include <live/live_storage_pub.h>
 #include <universal/q_parse.h>
 #include <game_mp/g_main_mp.h>
+#include <database/db_registry.h>
+#include <qcommon/common.h>
 
 int sv_migrate;
 
@@ -340,9 +342,28 @@ void __cdecl SV_Map_f()
     }
     else
     {
-        if (!DB_FileExists(mapname, FFD_DEFAULT) && !DB_FileExists(mapname, FFD_USER_MAP))
+        if ( !Com_MapFastfileExists(mapname) )
         {
-            Com_PrintError(1, "Can't find map \"%s\" in usermaps\\%s folder.\n", mapname, mapname);
+            char specOpsZoneName[64];
+
+            if ( Com_IsSpecOpsMapToken(mapname) && !Com_ParseSpecOpsZoneName(mapname, specOpsZoneName, sizeof(specOpsZoneName)) )
+            {
+                Com_PrintError(1, "Bad specop level name\n");
+            }
+            else if ( fs_gameDirVar && *(_BYTE *)fs_gameDirVar->current.integer )
+            {
+                Com_PrintError(
+                    1,
+                    "Can't find map \"%s\" (not in stock zones, usermaps\\%s, or mod fastfile %s\\%s.ff).\n",
+                    mapname,
+                    mapname,
+                    fs_gameDirVar->current.string,
+                    mapname);
+            }
+            else
+            {
+                Com_PrintError(1, "Can't find map \"%s\" in usermaps\\%s folder.\n", mapname, mapname);
+            }
             return;
         }
     }
@@ -370,7 +391,14 @@ void __cdecl SV_Map_f()
 char __cdecl SV_CheckMapExists(const char *map)
 {
     const char *v1; // eax
-    char expanded[68]; // [esp+0h] [ebp-48h] BYREF
+    char specOpsZoneName[64]; // [esp+0h] [ebp-88h] BYREF
+    char expanded[68]; // [esp+40h] [ebp-48h] BYREF
+
+    if ( Com_IsSpecOpsMapToken(map) && !Com_ParseSpecOpsZoneName(map, specOpsZoneName, sizeof(specOpsZoneName)) )
+    {
+        Com_PrintError(1, "Bad specop level name\n");
+        return 0;
+    }
 
     Com_GetBspFilename(expanded, 0x40u, map);
     if ( FS_ReadFile(expanded, 0) != -1 )

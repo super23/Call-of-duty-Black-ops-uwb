@@ -1,42 +1,58 @@
 #include "glass_load_obj.h"
+
 #include "glass.h"
-#include <universal/com_memory.h>
+
+#include <cstring>
+
+#include <database/database.h>
+#include <qcommon/common.h>
 #include <universal/com_files.h>
+#include <universal/com_memory.h>
+
+namespace
+{
+constexpr unsigned int kMaxGlasses = 0x3E8u;
+constexpr unsigned int kGlassesArrayBytes = kMaxGlasses * sizeof(Glass); // retail: operator new[](0x1E460u)
+} // namespace
 
 bool glassesInited;
 Glasses glasses;
 
+// Decomp: CoDMPServer.c:855693 — Retail: BlackOpsMP.retail.c:sub_498620 @ 0x498620
 Glasses *__cdecl GetGlasses_LoadObj()
 {
-    if ( !glassesInited )
+    if (!glassesInited)
     {
-        glassesInited = 1;
-        memset((unsigned __int8 *)&glasses, 0, sizeof(glasses));
-        glasses.glasses = (Glass *)operator new[](0x1E460u);
+        glassesInited = true;
+        memset(&glasses, 0, sizeof(glasses));
+        glasses.glasses = reinterpret_cast<Glass *>(operator new[](kGlassesArrayBytes));
         glasses.numGlasses = 0;
-        glasses.name = 0;
+        glasses.name = nullptr;
     }
     return &glasses;
 }
 
+// Decomp: CoDMPServer.c:855707 — Retail: BlackOpsMP.retail.c:sub_4AE1E0 @ 0x4AE1E0 (fastcall; header via DB)
 Glasses *__cdecl GetGlasses_FastFile()
 {
-    XAssetHeader header; // [esp+0h] [ebp-4h] BYREF
+    XAssetHeader header;
 
-    if ( DB_GetAllXAssetOfType(ASSET_TYPE_GLASSES, &header, 1) <= 0 )
-        return 0;
-    else
-        return (Glasses *)header.xmodelPieces;
+    if (DB_GetAllXAssetOfType(ASSET_TYPE_GLASSES, &header, 1) <= 0)
+        return nullptr;
+
+    return reinterpret_cast<Glasses *>(header.xmodelPieces);
 }
 
+// Decomp: CoDMPServer.c:855721 — Retail: BlackOpsMP.retail.c:sub_4BCE70 @ 0x4BCE70
 Glasses *__cdecl GetGlasses()
 {
-    bool v1; // [esp+4h] [ebp-8h]
+    Glasses *(__cdecl *getGlasses)();
+    const bool usingMods = fs_gameDirVar && *reinterpret_cast<const unsigned char *>(fs_gameDirVar->current.integer);
 
-    v1 = fs_gameDirVar && *(_BYTE *)fs_gameDirVar->current.integer;
-    if ( v1 || !useFastFile->current.enabled )
-        return (Glasses *)((int (__cdecl *)(Glasses *(__cdecl *)()))GetGlasses_LoadObj)(GetGlasses_LoadObj);
+    if (usingMods || !useFastFile->current.enabled)
+        getGlasses = GetGlasses_LoadObj;
     else
-        return (Glasses *)((int (__cdecl *)(Glasses *(__cdecl *)()))GetGlasses_FastFile)(GetGlasses_FastFile);
-}
+        getGlasses = GetGlasses_FastFile;
 
+    return getGlasses();
+}

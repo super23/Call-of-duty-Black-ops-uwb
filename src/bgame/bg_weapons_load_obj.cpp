@@ -13,6 +13,33 @@
 #include <game/g_weapon_load_obj.h>
 #include "bg_weapons_def.h"
 #include <database/db_registry.h>
+#include <universal/dvar.h>
+#ifdef KISAK_SP
+#include "bg_sp_assets.h"
+#endif
+
+static const dvar_t *bg_weaponMergeAnimLog;
+
+// Merged-weapon loader sizing (matches T5 retail layout).
+// BG_SplitWeaponDefNames caps attachments at 5, so componentAll.numComponents <= 6
+// (base + 5 attachments).  The load loop fills szBuffer in 0x4000-byte slabs
+// indexed 0..numComponents-2, so up to 5 slabs.  The merge loop then reads
+// szBuffer[0x4000*(i+2)] for i in 0..v10-2 (with v10<=5), so the high-water mark
+// is 0x4000*5 + 0x4000 = 6 * 0x4000 = 0x18000 bytes.
+#define WEAPON_VARIANT_MERGE_SZBUFFER_BYTES (6 * 0x4000)
+
+// sources[6] = { &v15[0..5*64] } -> v15 must hold 6 component-name slots.
+#define WEAPON_VARIANT_MERGE_SOURCES_BYTES (6 * 64)
+
+// Merge output buffer.  ParseConfigStringToStructMerged calls
+// Info_SetValueForKey_Big(pszMergedBuffer, ...) which writes up to BIG_INFO_STRING
+// (0x4000) bytes at &v16[0x4000*i + 320] for i in 0..v10-2 (max 4 iters), plus
+// BG_WeaponComponentListToName + strcat("_mp") at &v16[64*i + 65856] (<=68 bytes
+// per slot).  Highest write is at 0x4000*3 + 320 + 0x4000 = 65856, then
+// 65856 + 64*3 + 68 = 66116.  Bump up to a full slab past that for safety so
+// the layout matches the szBuffer sizing in case future merged weapons use the
+// extra capacity.
+#define WEAPON_VARIANT_MERGE_V16_BYTES (WEAPON_VARIANT_MERGE_SZBUFFER_BYTES + 320)
 
 const char *szWeapOverlayReticleNames[2] =
 { "none", "crosshair" };
@@ -1023,6 +1050,11 @@ void __cdecl BG_LoadWeaponStrings()
 
 void __cdecl BG_LoadPlayerAnimTypes()
 {
+#ifdef KISAK_SP
+    // Decomp: BlackOps.singleplayer.c — mp/playeranimtypes.txt from common; fallback if zone lacks MP string tables.
+    BG_SP_LoadPlayerAnimTypesWithFallback();
+    return;
+#endif
     char v0; // [esp+53h] [ebp-29h]
     char *v1; // [esp+58h] [ebp-24h]
     const char *v2; // [esp+5Ch] [ebp-20h]
@@ -1287,22 +1319,83 @@ char __cdecl BG_LoadWeaponFile(char *szFileName, char *szBuffer, int iBufferSize
     }
 }
 
+// Fallback list of "bottom attachment" animation substrings used when the
+// loose raw/weapon_gripanims.csv file isn't available (e.g. when useFastFile
+// is enabled and the user hasn't shipped the CSV).  Without these, every
+// merged weapon variant that has a grip/extclip/dualclip/gl/dw attachment
+// fails its anim-field merge (BG_MergeWeaponDefAnimations -> "neither '%s'
+// nor '%s' are bottom attachment point animations"), which spams the log and
+// also leaves merged weapons with wrong animations.
+//
+// Important: T5 attachment animation files use the *long* attachment names
+// for grenade launcher ("_grenadier_") and masterkey ("_masterkey_") variants
+// rather than the short codes "_gl_" / "_mk_" that appear in weapon filenames,
+// so both forms must be listed for the substring check to recognize them.
+// `_extclip_` is intentionally *not* listed: the extclip is the extended
+// magazine, not a grip swap, so its reload anim yields to a real bottom
+// attachment (grip/gl/dw/masterkey) when both are present (this avoids
+// "both ... are bottom attachment point animations" spam on e.g.
+// skorpion_grip_extclip_mp / mac11_grip_extclip_mp).
+static const char *s_defaultGripAnimSubstrings[] =
+{
+    "_grip_",
+    "_dualclip_",
+    "_gl_",
+    "_grenadier_",
+    "_mk_",
+    "_masterkey_",
+    "_dw_",
+    "_swatturret_",
+};
+
+static bool s_warnedMissingWeaponGripCsv;
+
+static void BG_AddGripAnimSubstring(const char *token)
+{
+    if ((unsigned int)s_numWeaponGripAnimSubstrings >= 0x40)
+        Com_Error(ERR_DROP, "Weapon grip anim substrings table size exceeded");
+    const size_t len = strlen(token) + 1;
+    char *dest = (char *)Hunk_Alloc((int)len, "BG_LoadWeaponMergeSupport", 10);
+    s_weaponGripAnimSubstrings[s_numWeaponGripAnimSubstrings] = dest;
+    memcpy(dest, token, len);
+    ++s_numWeaponGripAnimSubstrings;
+}
+
 void __cdecl BG_LoadWeaponMergeSupport()
 {
-    char v0; // [esp+3h] [ebp-2Dh]
-    char *v1; // [esp+8h] [ebp-28h]
-    const char *v2; // [esp+Ch] [ebp-24h]
-    char *buf; // [esp+24h] [ebp-Ch]
-    const char *text_p; // [esp+28h] [ebp-8h] BYREF
-    const char *token; // [esp+2Ch] [ebp-4h]
+    char *buf;
+    const char *text_p;
+    const char *token;
+    int gripCsvFromLooseFs;
 
     s_numWeaponGripAnimSubstrings = 0;
-    if ( !useFastFile->current.enabled )
+
+    if ( !bg_weaponMergeAnimLog )
+        bg_weaponMergeAnimLog = _Dvar_RegisterBool(
+            "bg_weaponMergeAnimLog",
+            0,
+            0,
+            "Log BG_MergeWeaponDefAnimations heuristic picks (very verbose; slows loading when on)");
+
+    // Always populate the attachment table - mods using fastfiles can still
+    // ship attachment .csv definitions, and BG_SplitWeaponDefNames needs the
+    // table to recognize attachment names like "grip" or "extclip".
+    BG_LoadWeaponAttachmentTable();
+
+    // Try packaged rawfile first (matches retail when useFastFile is on).
+    buf = Com_LoadRawTextFile("weapon_gripanims.csv");
+    // LinkerMod / mod dirs: CSV is often a loose file under fs_gameDir / search path
+    // while the rest of the game still runs from fastfiles. Retail FF path alone
+    // misses that; load from disk as a second pass like other loose assets.
+    gripCsvFromLooseFs = 0;
+    if ( !buf && useFastFile && useFastFile->current.enabled )
     {
-        BG_LoadWeaponAttachmentTable();
-        buf = Com_LoadRawTextFile("weapon_gripanims.csv");
-        if ( !buf )
-            Com_Error(ERR_DROP, "Couldn't load file '%s'", "weapon_gripanims.csv");
+        buf = Com_LoadRawTextFile_LoadObj("weapon_gripanims.csv");
+        if ( buf )
+            gripCsvFromLooseFs = 1;
+    }
+    if ( buf )
+    {
         text_p = buf;
         Com_BeginParseSession("BG_LoadWeaponMergeSupport");
         while ( 1 )
@@ -1310,24 +1403,32 @@ void __cdecl BG_LoadWeaponMergeSupport()
             token = (const char *)Com_Parse(&text_p);
             if ( !token || !*token )
                 break;
-            if ( (unsigned int)s_numWeaponGripAnimSubstrings >= 0x40 )
-                Com_Error(ERR_DROP, "Weapon grip anim substrings table size exceeded");
-            s_weaponGripAnimSubstrings[s_numWeaponGripAnimSubstrings] = (char *)Hunk_Alloc(
-                                                                                                                                                        strlen(token) + 1,
-                                                                                                                                                        "BG_LoadWeaponMergeSupport",
-                                                                                                                                                        10);
-            v2 = token;
-            v1 = s_weaponGripAnimSubstrings[s_numWeaponGripAnimSubstrings];
-            do
-            {
-                v0 = *v2;
-                *v1++ = *v2++;
-            }
-            while ( v0 );
-            ++s_numWeaponGripAnimSubstrings;
+            BG_AddGripAnimSubstring(token);
         }
         Com_EndParseSession();
-        Com_UnloadRawTextFile(buf);
+        if ( gripCsvFromLooseFs )
+            FS_FreeFile(buf);
+        else
+            Com_UnloadRawTextFile(buf);
+    }
+
+    // Fallback: if the CSV wasn't shipped (common with fastfile-only builds
+    // like LinkerMod-packaged custom maps), seed the table with the canonical
+    // T5 substrings so anim merges can complete (retail loads the CSV from
+    // disc when not using fastfiles — see BlackOpsMP.retail weapon_gripanims).
+    if ( s_numWeaponGripAnimSubstrings == 0 )
+    {
+        if ( !s_warnedMissingWeaponGripCsv )
+        {
+            s_warnedMissingWeaponGripCsv = true;
+            Com_PrintWarning(
+                17,
+                "weapon_gripanims.csv not found (fastfile rawfile or loose file on disk); "
+                "using built-in attachment anim substrings. Add CSV to your mod zone or "
+                "mods/<mod>/weapon_gripanims.csv for retail-accurate merges (LinkerMod).\n");
+        }
+        for ( size_t i = 0; i < sizeof(s_defaultGripAnimSubstrings) / sizeof(s_defaultGripAnimSubstrings[0]); ++i )
+            BG_AddGripAnimSubstring(s_defaultGripAnimSubstrings[i]);
     }
 }
 
@@ -1548,56 +1649,81 @@ char __cdecl BG_IsGripAnimationName(const char *name)
 
 int __cdecl BG_MergeWeaponDefAnimations(const char *fieldName, char **value, char *mergedValue, unsigned int size)
 {
-    char rightGrip; // [esp+1h] [ebp-3h]
-    char leftGrip; // [esp+2h] [ebp-2h]
-    bool isADS; // [esp+3h] [ebp-1h]
+    char rightGrip;
+    char leftGrip;
+    bool isADS;
+    const char *chosen;
 
     leftGrip = BG_IsGripAnimationName(value[1]);
     rightGrip = BG_IsGripAnimationName(value[2]);
     isADS = BG_IsADSField(fieldName);
-    if ( leftGrip && rightGrip )
-    {
-        Com_PrintError(
-            1,
-            "Can't merge anim field '%s', both '%s' and '%s' are bottom attachment point animations",
-            fieldName,
-            value[1],
-            value[2]);
-        return 0;
-    }
-    if ( !leftGrip && !rightGrip )
-    {
-        Com_PrintError(
-            1,
-            "Can't merge anim field '%s', neither '%s' nor '%s' are bottom attachment point animations",
-            fieldName,
-            value[1],
-            value[2]);
-        return 0;
-    }
-    if ( !leftGrip
-        && !rightGrip
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_weapons_load_obj.cpp",
-                    2564,
-                    0,
-                    "%s",
-                    "leftGrip || rightGrip") )
-    {
-        __debugbreak();
-    }
+
+    // Deterministic merge on conflicts. Logging defaults off: each line is a
+    // Com_Printf and hundreds of merged variants × anim fields bog down load.
+    // Enable bg_weaponMergeAnimLog when debugging. Ship weapon_gripanims.csv
+    // (retail/rawfile or mod path) for substring tables closer to T5 retail.
+    chosen = value[2];
     if ( !isADS )
     {
-        if ( !leftGrip )
-            goto LABEL_15;
-LABEL_16:
-        strncpy(mergedValue, value[1], size);
-        return 1;
+        if ( leftGrip && !rightGrip )
+            chosen = value[1];
+        else if ( !leftGrip && rightGrip )
+            chosen = value[2];
+        else if ( leftGrip && rightGrip )
+        {
+            if ( bg_weaponMergeAnimLog && bg_weaponMergeAnimLog->current.enabled )
+                Com_Printf(
+                    17,
+                    "BG_MergeWeaponDefAnimations: '%s' — both attachments match grip/bottom anim heuristics; using '%s' over '%s'\n",
+                    fieldName,
+                    value[2],
+                    value[1]);
+            chosen = value[2];
+        }
+        else if ( I_stricmp(value[1], value[2]) )
+        {
+            if ( com_developer && com_developer->current.integer )
+                Com_PrintError(
+                    1,
+                    "BG_MergeWeaponDefAnimations: '%s' — neither side matched grip heuristics; using '%s' over '%s'\n",
+                    fieldName,
+                    value[2],
+                    value[1]);
+            chosen = value[2];
+        }
     }
-    if ( !leftGrip )
-        goto LABEL_16;
-LABEL_15:
-    strncpy(mergedValue, value[2], size);
+    else
+    {
+        if ( !leftGrip && rightGrip )
+            chosen = value[1];
+        else if ( leftGrip && !rightGrip )
+            chosen = value[2];
+        else if ( leftGrip && rightGrip )
+        {
+            if ( bg_weaponMergeAnimLog && bg_weaponMergeAnimLog->current.enabled )
+                Com_Printf(
+                    17,
+                    "BG_MergeWeaponDefAnimations: '%s' — ADS anim conflict (both grip-type substrings); using '%s' over '%s'\n",
+                    fieldName,
+                    value[2],
+                    value[1]);
+            chosen = value[2];
+        }
+        else if ( I_stricmp(value[1], value[2]) )
+        {
+            if ( bg_weaponMergeAnimLog && bg_weaponMergeAnimLog->current.enabled )
+                Com_Printf(
+                    17,
+                    "BG_MergeWeaponDefAnimations: '%s' — ADS anim heuristic miss; using '%s' over '%s'\n",
+                    fieldName,
+                    value[2],
+                    value[1]);
+            chosen = value[2];
+        }
+    }
+    strncpy(mergedValue, chosen, size);
+    if ( size != 0 )
+        mergedValue[size - 1] = 0;
     return 1;
 }
 
@@ -1642,36 +1768,37 @@ int __cdecl BG_MergeWeaponDefSpecialCases(const char *fieldName, char **value, c
 
 char __cdecl BG_LoadWeaponVariantDefFile(WeaponFullDef *weapFullDef, const char *folder, char *name)
 {
-    char *sourceName; // [esp+10h] [ebp-2847Ch] BYREF
-    char *v5; // [esp+14h] [ebp-28478h]
-    _BYTE *v6; // [esp+18h] [ebp-28474h]
-    char *pszBuffer; // [esp+1Ch] [ebp-28470h] BYREF
-    char *v8; // [esp+20h] [ebp-2846Ch]
-    char *v9; // [esp+24h] [ebp-28468h]
-    int v10; // [esp+28h] [ebp-28464h]
-    char *sources[6]; // [esp+2Ch] [ebp-28460h] BYREF
-    WeaponComponentList componentAll; // [esp+44h] [ebp-28448h] BYREF
-    char szBuffer[16384]; // [esp+17Ch] [ebp-28310h] BYREF
-    char v14; // [esp+417Ch] [ebp-24310h] BYREF
-    _BYTE v15[64]; // [esp+1817Ch] [ebp-10310h] BYREF
-    char v16[66116]; // [esp+181BCh] [ebp-102D0h] BYREF
-    char **ppszConfigString; // [esp+28400h] [ebp-8Ch]
-    char outputName[64]; // [esp+28404h] [ebp-88h] BYREF
-    char dest[64]; // [esp+28444h] [ebp-48h] BYREF
-    int i; // [esp+28488h] [ebp-4h]
+    // T5 retail packs three char* into adjacent stack slots and passes
+    // &firstSlot as `const char**`.  MSVC debug builds reorder/pad locals
+    // and break that trick (Info_ValueForKey reads 0xCCCCCCCC), so we use
+    // explicit 3-element arrays.
+    const char *pszBufferArr[3]; // [base, prev-merged, next-attachment]
+    const char *sourceNameArr[3];
+    int v10;
+    char *sources[6];
+    WeaponComponentList componentAll;
+    char szBuffer[WEAPON_VARIANT_MERGE_SZBUFFER_BYTES];
+    char componentNames[WEAPON_VARIANT_MERGE_SOURCES_BYTES]; // 6 * 64
+    char mergeScratch[WEAPON_VARIANT_MERGE_V16_BYTES];
+    char **ppszConfigString;
+    char outputName[64];
+    char dest[64];
+    int i;
 
     ppszConfigString = (char **)weapFullDef;
+    // Zero the head byte of each merge buffer/name slot.  Max merge iterations
+    // is v10-1 with v10 <= 5, so 4 slots get used (matches T5 retail).
     for ( i = 0; i < 4; ++i )
     {
-        v16[0x4000 * i + 320] = 0;
-        v16[64 * i + 65856] = 0;
+        mergeScratch[0x4000 * i + 320] = 0;
+        mergeScratch[64 * i + 65856] = 0;
     }
     outputName[0] = 0;
     Com_sprintf(dest, 0x40u, "weapons/%s/%s", folder, name);
     if ( (int)FS_FOpenFileByMode(dest, 0, FS_READ) <= 0 )
     {
         for ( i = 0; i < 6; ++i )
-            sources[i] = (char*)&v15[64 * i];
+            sources[i] = &componentNames[64 * i];
         if ( !BG_SplitWeaponDefNames(name, sources, &componentAll, outputName) )
             return 0;
         if ( componentAll.numComponents - 1 > 6
@@ -1686,7 +1813,7 @@ char __cdecl BG_LoadWeaponVariantDefFile(WeaponFullDef *weapFullDef, const char 
         }
         for ( i = 0; i < componentAll.numComponents - 1; ++i )
         {
-            Com_sprintf(dest, 0x40u, "weapons/%s/%s", folder, &v15[64 * i]);
+            Com_sprintf(dest, 0x40u, "weapons/%s/%s", folder, &componentNames[64 * i]);
             if ( !BG_LoadWeaponFile(dest, &szBuffer[0x4000 * i], 0x4000) )
             {
                 Com_PrintError(
@@ -1698,38 +1825,57 @@ char __cdecl BG_LoadWeaponVariantDefFile(WeaponFullDef *weapFullDef, const char 
             }
         }
         SetConfigString(ppszConfigString, outputName);
-        sourceName = (char*)v15;
-        pszBuffer = szBuffer;
-        v5 = v16;
-        v8 = &v14;
+
+        // Build the three-way merge inputs.
+        //   slot 0 = base weapon file (e.g. "ak74u_mp")
+        //   slot 1 = "previously merged" - the running merge result.  T5
+        //            retail seeded this with an *empty* sentinel buffer (a
+        //            single zero byte), which meant the *first* merge pass
+        //            silently dropped sources[1] (the first attachment) and
+        //            then spammed "Could not merge field ..." errors for
+        //            every field whose value differed from base, because the
+        //            merge resolver could only see {base, "", right} and
+        //            tried to invoke a special-case merger for non-special
+        //            fields.  Seeding slot 1 with sources[1] instead actually
+        //            folds the first attachment in and turns the typical
+        //            "base unchanged, attachment changed it" case into a
+        //            non-conflict that picks the attachment's value.
+        // slot 2 = the next attachment we are folding in this iteration.
+        pszBufferArr[0] = szBuffer;
+        pszBufferArr[1] = &szBuffer[0x4000];               // sources[1] content
+        sourceNameArr[0] = &componentNames[0];             // sources[0] name
+        sourceNameArr[1] = &componentNames[64];            // sources[1] name
+
         v10 = BG_WeaponComponentListCountAttachments(&componentAll);
         for ( i = 0; i < v10 - 1; ++i )
         {
-            v6 = &v15[64 * i + 128];
-            v9 = &szBuffer[0x4000 * i + 0x8000];
+            sourceNameArr[2] = &componentNames[64 * (i + 2)];
+            pszBufferArr[2] = &szBuffer[0x4000 * (i + 2)];
             if ( !ParseConfigStringToStructMerged(
                             (unsigned __int8 *)weapFullDef,
                             weaponDefFields,
                             748,
                             name,
-                            (const char **)&pszBuffer,
-                            (const char **)&sourceName,
-                            &v16[0x4000 * i + 320],
+                            pszBufferArr,
+                            sourceNameArr,
+                            &mergeScratch[0x4000 * i + 320],
                             43,
                             (int (__cdecl *)(unsigned __int8 *, const char *, const int, const int))BG_ParseWeaponDefSpecificFieldType,
                             SetConfigString2,
                             BG_MergeWeaponDefSpecialCases) )
                 return 0;
             componentAll.numComponents = i + 3;
-            BG_WeaponComponentListToName(&componentAll, &v16[64 * i + 65856], 64);
-            strcat(&v16[64 * i + 65856], "_mp");
-            v5 = &v16[64 * i + 65856];
-            v8 = &v16[0x4000 * i + 320];
+            BG_WeaponComponentListToName(&componentAll, &mergeScratch[64 * i + 65856], 64);
+            strcat(&mergeScratch[64 * i + 65856], "_mp");
+            // After this fold the merged config string becomes the "previously
+            // merged" buffer/name for the next iteration.
+            sourceNameArr[1] = &mergeScratch[64 * i + 65856];
+            pszBufferArr[1] = &mergeScratch[0x4000 * i + 320];
         }
     }
     else
     {
-        if ( !BG_LoadWeaponFile(dest, szBuffer, 0x4000) )
+        if ( !BG_LoadWeaponFile(dest, szBuffer, WEAPON_VARIANT_MERGE_SZBUFFER_BYTES) )
             return 0;
         SetConfigString(ppszConfigString, name);
         if ( !ParseConfigStringToStruct(

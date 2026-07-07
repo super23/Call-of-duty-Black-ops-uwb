@@ -4,6 +4,7 @@
 #include <qcommon/threads.h>
 #include "rb_resource.h"
 #include "r_dvars.h"
+#include "r_singlethreaded_device_pc.h"
 #include "rb_logfile.h"
 #include "r_image_load_common.h"
 #include "r_image_load_obj.h"
@@ -372,8 +373,10 @@ void __cdecl Image_Create2DTexture_PC(
                 _D3DFORMAT imageFormat)
 {
     const char *v6; // eax
+    int v7; // [esp+0h] [ebp-14h]
     int hr; // [esp+4h] [ebp-10h]
     unsigned int usage; // [esp+8h] [ebp-Ch]
+    int semaphore; // [esp+Ch] [ebp-8h]
     _D3DPOOL memPool; // [esp+10h] [ebp-4h]
 
     if ( !image && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_image.cpp", 646, 0, "%s", "image") )
@@ -409,8 +412,11 @@ void __cdecl Image_Create2DTexture_PC(
     {
         __debugbreak();
     }
+    semaphore = R_AcquireDXDeviceOwnership(0);
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("dx.device->CreateTexture( width, height, mipmapCount, usage, imageFormat, memPool, &image->texture.map, 0 )\n");
+    v7 = R_AcquireDXDeviceOwnership(0);
     hr = dx.device->CreateTexture(
                  width,
                  height,
@@ -420,6 +426,8 @@ void __cdecl Image_Create2DTexture_PC(
                  memPool,
                  (IDirect3DTexture9 **)image,
                  0);
+    if ( v7 )
+        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -431,6 +439,8 @@ void __cdecl Image_Create2DTexture_PC(
             679,
             v6);
     }
+    if ( semaphore )
+        R_ReleaseDXDeviceOwnership();
 }
 
 unsigned int __cdecl Image_GetUsage(int imageFlags, _D3DFORMAT imageFormat)
@@ -462,7 +472,9 @@ void __cdecl Image_Create3DTexture_PC(
                 _D3DFORMAT imageFormat)
 {
     const char *v7; // eax
+    int v8; // [esp+0h] [ebp-14h]
     int hr; // [esp+4h] [ebp-10h]
+    int semaphore; // [esp+Ch] [ebp-8h]
 
     if ( !image && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_image.cpp", 701, 0, "%s", "image") )
         __debugbreak();
@@ -491,9 +503,12 @@ void __cdecl Image_Create3DTexture_PC(
     {
         __debugbreak();
     }
+    semaphore = R_AcquireDXDeviceOwnership(0);
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint(
             "dx.device->CreateVolumeTexture( width, height, depth, mipmapCount, 0, imageFormat, D3DPOOL_MANAGED, &image->texture.volmap, 0 )\n");
+    v8 = R_AcquireDXDeviceOwnership(0);
     hr = dx.device->CreateVolumeTexture(
                  width,
                  height,
@@ -504,6 +519,8 @@ void __cdecl Image_Create3DTexture_PC(
                  D3DPOOL_MANAGED,
                  (IDirect3DVolumeTexture9 **)image,
                  0);
+    if ( v8 )
+        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -515,6 +532,8 @@ void __cdecl Image_Create3DTexture_PC(
             721,
             v7);
     }
+    if ( semaphore )
+        R_ReleaseDXDeviceOwnership();
 }
 
 void __cdecl Image_CreateCubeTexture_PC(
@@ -524,7 +543,9 @@ void __cdecl Image_CreateCubeTexture_PC(
                 _D3DFORMAT imageFormat)
 {
     const char *v4; // eax
+    int v5; // [esp+0h] [ebp-Ch]
     int hr; // [esp+4h] [ebp-8h]
+    int semaphore; // [esp+8h] [ebp-4h]
 
     if ( !image && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_image.cpp", 741, 0, "%s", "image") )
         __debugbreak();
@@ -554,9 +575,12 @@ void __cdecl Image_CreateCubeTexture_PC(
     {
         __debugbreak();
     }
+    semaphore = R_AcquireDXDeviceOwnership(0);
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint(
             "dx.device->CreateCubeTexture( edgeLen, mipmapCount, 0, imageFormat, D3DPOOL_MANAGED, &image->texture.cubemap, 0 )\n");
+    v5 = R_AcquireDXDeviceOwnership(0);
     hr = dx.device->CreateCubeTexture(
                  edgeLen,
                  mipmapCount,
@@ -565,6 +589,8 @@ void __cdecl Image_CreateCubeTexture_PC(
                  D3DPOOL_MANAGED,
                  (IDirect3DCubeTexture9 **)image,
                  0);
+    if ( v5 )
+        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -576,6 +602,8 @@ void __cdecl Image_CreateCubeTexture_PC(
             758,
             v4);
     }
+    if ( semaphore )
+        R_ReleaseDXDeviceOwnership();
 }
 
 void __cdecl Image_SetupRenderTarget(
@@ -681,6 +709,8 @@ void __cdecl R_DelayLoadImage(XAssetHeader header, void *data)
         externalDataSize = (const char *)image->cardMemory.platform[0];
         image->cardMemory.platform[0] = 0;
         image->cardMemory.platform[1] = 0;
+        // Decomp SP+MP: BlackOps.singleplayer.c sub_70A380 @688960 / BlackOpsMP.retail.c sub_71FEB0 @689463 —
+        // on load failure call Image_AssignDefaultTexture (white/black/normal), no Com_Error.
         if (r_loadForRenderer->current.enabled && !Image_LoadFromFile(image, 0))
             Image_AssignDefaultTexture(image);
         DB_LoadedExternalData((unsigned int)externalDataSize);
@@ -689,6 +719,8 @@ void __cdecl R_DelayLoadImage(XAssetHeader header, void *data)
 
 char __cdecl Image_AssignDefaultTexture(GfxImage *image)
 {
+    // Decomp SP+MP: BlackOps.singleplayer.c sub_70A340 @688925 / BlackOpsMP.retail.c sub_71FE70 @689428 —
+    // semantic 5 -> identity normal, 8 -> $black, else -> $white (2D mapType only).
     if ( image->mapType != 3 )
         return 0;
     if ( image->semantic == 5 )
@@ -860,7 +892,17 @@ void __cdecl Load_Texture(GfxTexture *remoteLoadDef, GfxImage *image)
                 image->cardMemory.platform[0] = 0;
                 image->cardMemory.platform[1] = 0;
                 if ( !Image_LoadFromFile(image, 0) )
+                {
+#ifdef KISAK_SP
+                    // Decomp SP: BlackOps.singleplayer.c sub_70A3E0 @689064 uses Com_Error in retail;
+                    // Kisak SP matches delay-load path (sub_70A380 @688978): log + white/black fallback.
+                    Com_PrintError(8, "ERROR: Couldn't load image '%s'\n", image->name);
+                    Image_AssignDefaultTexture(image);
+#else
+                    // Decomp MP: BlackOpsMP.retail.c sub_71FF10 @689552 — Com_Error(ERR_DROP).
                     Com_Error(ERR_DROP, "Couldn't load image '%s'\n", image->name);
+#endif
+                }
                 DB_LoadedExternalData(externalDataSize);
             }
         }
@@ -907,7 +949,7 @@ GfxImage *__cdecl Image_FindExisting_FastFile(const char *name)
 GfxImage *__cdecl Image_Register(char *imageName, unsigned __int8 semantic, int imageTrack)
 {
     if ( useFastFile->current.enabled )
-        return (GfxImage *)((int (__cdecl *)(char *, unsigned int, int))Image_Register_FastFile)(imageName, semantic, imageTrack);
+        return Image_Register_FastFile(imageName, semantic, imageTrack);
     else
         return Image_Register_LoadObj(imageName, semantic, imageTrack);
 }
@@ -924,13 +966,24 @@ GfxImage *__cdecl Image_Register_LoadObj(char *imageName, unsigned __int8 semant
     imagea = Image_Load(imageName, semantic, imageTrack);
     ProfLoad_End();
     if ( !imagea )
+        // Decomp SP+MP: BlackOps.singleplayer.c sub_70A700 @689189-689191 / BlackOpsMP.retail.c sub_720210 @689682-689684 —
+        // console error only; caller may substitute later via delay-load default texture.
         Com_PrintError(8, "ERROR: failed to load image '%s'\n", imageName);
     return imagea;
 }
 
-GfxImage *__cdecl Image_Register_FastFile(const char *imageName)
+GfxImage *__cdecl Image_Register_FastFile(char *imageName, unsigned __int8 semantic, int imageTrack)
 {
-    return Image_FindExisting(imageName);
+    GfxImage *image;
+
+    image = Image_FindExisting(imageName);
+    if ( image )
+        return image;
+#ifdef KISAK_SP
+    if ( *imageName == '$' )
+        return Image_Load(imageName, semantic, (unsigned __int8)imageTrack);
+#endif
+    return 0;
 }
 
 void __cdecl R_ReleaseLostImages()
@@ -991,18 +1044,36 @@ void __cdecl R_RebuildLostImage(XAssetHeader header)
                     && !Image_LoadFromFile(header.image, LOBYTE(header.xmodelPieces[3].numpieces) == 0)
                     && !Image_AssignDefaultTexture(header.image) )
                 {
+#ifdef KISAK_SP
+                    // Decomp SP: BlackOps.singleplayer.c sub_70A7A0 @689222-689226 — retail Com_Error if fallback fails;
+                    // Kisak SP: console only, keep running (same as Load_Texture / delay-load policy).
+                    Com_PrintError(
+                        8,
+                        "ERROR: Couldn't load image '%s' to recover from a lost device\n",
+                        (const char *)header.xmodelPieces[3].pieces);
+#else
+                    // Decomp MP: BlackOpsMP.retail.c sub_7202D0 @689738-689742.
                     Com_Error(
                         ERR_DROP,
                         "Couldn't load image '%s' to recover from a lost device",
                         (const char *)header.xmodelPieces[3].pieces);
+#endif
                 }
             }
             else
             {
+#ifdef KISAK_SP
+                Com_PrintError(
+                    8,
+                    "ERROR: No way to recover image '%s' from a lost device\n",
+                    (const char *)header.xmodelPieces[3].pieces);
+#else
+                // Decomp MP: BlackOpsMP.retail.c sub_7202D0 @689746-689747.
                 Com_Error(
                     ERR_DROP,
                     "No way to recover image '%s' from a lost device",
                     (const char *)header.xmodelPieces[3].pieces);
+#endif
             }
         }
         else if ( !Image_IsProg(header.image) )
@@ -1091,7 +1162,17 @@ void __cdecl Image_Reload(GfxImage *image)
         __debugbreak();
     Image_Release(image);
     if ( !Image_LoadFromFile(image, image->skippedMipLevels == 0) )
+    {
+#ifdef KISAK_SP
+        // Decomp SP: BlackOps.singleplayer.c sub_70A830 @689257-689260 — retail Com_Error;
+        // Kisak SP: log + default texture (sub_70A340 @688925, white/black by semantic).
+        Com_PrintError(8, "ERROR: failed to load image '%s'\n", image->name);
+        Image_AssignDefaultTexture(image);
+#else
+        // Decomp MP: BlackOpsMP.retail.c sub_720360 @689774-689777.
         Com_Error(ERR_DROP, "failed to load image '%s'", image->name);
+#endif
+    }
 }
 
 void __cdecl R_EnumImages(void (__cdecl *func)(GfxImage *, void *), void *data)
@@ -1113,6 +1194,7 @@ void __cdecl R_EnumImages(void (__cdecl *func)(GfxImage *, void *), void *data)
 IDirect3DSurface9 *__cdecl Image_GetSurface(GfxImage *image)
 {
     const char *v1; // eax
+    int semaphore; // [esp+0h] [ebp-Ch]
     int hr; // [esp+4h] [ebp-8h]
     IDirect3DSurface9 *surface; // [esp+8h] [ebp-4h] BYREF
 
@@ -1133,13 +1215,17 @@ IDirect3DSurface9 *__cdecl Image_GetSurface(GfxImage *image)
     {
         __debugbreak();
     }
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("image->texture.map->GetSurfaceLevel( 0, &surface )\n");
+    semaphore = R_AcquireDXDeviceOwnership(0);
     //hr = ((int (__stdcall *)(unsigned int, unsigned int, unsigned int))image->texture.basemap->__vftable[1].AddRef)(
     //             (GfxTexture)image->texture.basemap,
     //             0,
     //             &surface);
     hr = image->texture.map->GetSurfaceLevel(0, &surface);
+    if ( semaphore )
+        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;

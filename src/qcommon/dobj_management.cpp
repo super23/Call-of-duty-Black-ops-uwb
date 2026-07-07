@@ -1,5 +1,9 @@
 #include "dobj_management.h"
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
+#endif
 
 int objFreeCount;
 __int16 clientObjMap[1537];

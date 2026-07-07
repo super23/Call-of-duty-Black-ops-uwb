@@ -1,17 +1,17 @@
 #include "actor_script_cmd.h"
-#include <game_mp/g_main_mp.h>
+#include <game/g_main_wrapper.h>
 #include <clientscript/cscr_vm.h>
 #include "actor_state.h"
 #include "actor_orientation.h"
-#include <game_mp/actor_mp.h>
+#include <game/actor_wrapper.h>
 #include "actor_aim.h"
-#include <game_mp/g_spawn_mp.h>
+#include <game/g_spawn_wrapper.h>
 #include "actor_exposed.h"
 #include "actor_lookat.h"
 #include "actor_senses.h"
 #include <cgame/cg_drawtools.h>
 #include "actor_navigation.h"
-#include <game_mp/g_utils_mp.h>
+#include <game/g_utils_wrapper.h>
 #include <clientscript/scr_const.h>
 #include "actor_spawner.h"
 #include <clientscript/cscr_stringlist.h>
@@ -21,17 +21,38 @@
 #include "actor_events.h"
 #include "actor_dog_exposed.h"
 #include <bgame/bg_dog.h>
-#include <game_mp/g_combat_mp.h>
+#include <game/g_combat_wrapper.h>
 #include "g_weapon.h"
-#include <game_mp/g_client_script_cmd_mp.h>
-#include <game_mp/g_misc_mp.h>
-#include <game_mp/g_trigger_mp.h>
-#include <game_mp/g_active_mp.h>
+#include "g_client_script_cmd_wrapper.h"
+#include <game/g_misc_wrapper.h>
+#include <game/g_trigger_wrapper.h>
+#include <game/g_active_wrapper.h>
 #include "g_scr_mover.h"
 #include "g_missile.h"
 #include "turret.h"
+#include "actor_turret.h"
+#include "actor_cover.h"
+#include "actor_threat.h"
+#include "actor_aim.h"
+#include "actor_grenade.h"
 #include "g_scr_helicopter.h"
+#ifdef KISAK_SP
+#include "actor_sp.h"
+#include <game/g_missile.h>
+#include "g_actor_prone.h"
+#include <xanim/xanim.h>
+#include "g_items.h"
+#include "actor_animapi.h"
+#include "g_scr_main.h"
+#include <bgame/bg_weapons.h>
+#include <cmath>
+#endif
 #include <cgame/cg_scr_main.h>
+
+#ifdef KISAK_SP
+void __cdecl ScrCmd_animscriptedInternal(scr_entref_t entref, int bDelayForActor, int bSkipRestart);
+static int g_actorPredictionDepth;
+#endif
 
 static void __cdecl METHOD_NULLSUB(scr_entref_t entref)
 {
@@ -47,6 +68,7 @@ const BuiltinMethodDef methods_2[] =
   { "reacquirestep", &ActorCmd_ReacquireStep, 0 },
   { "findreacquirenode", &ActorCmd_FindReacquireNode, 0 },
   { "getreacquirenode", &ActorCmd_GetReacquireNode, 0 },
+  { "usecovernode", &ActorCmd_UseCoverNode, 0 },
   { "usereacquirenode", &ActorCmd_UseReacquireNode, 0 },
   { "findreacquiredirectpath", &ActorCmd_FindReacquireDirectPath, 0 },
   { "trimpathtoattack", &ActorCmd_TrimPathToAttack, 0 },
@@ -67,6 +89,9 @@ const BuiltinMethodDef methods_2[] =
   { "ispathdirect", &ActorCmd_IsPathDirect, 0 },
   { "allowedstances", &ActorCmd_AllowedStances, 0 },
   { "isstanceallowed", &ActorCmd_IsStanceAllowed, 0 },
+  { "issuppressionwaiting", &ActorCmd_IsSuppressionWaiting, 0 },
+  { "issuppressed", &ActorCmd_IsSuppressed, 0 },
+  { "ismovesuppressed", &ActorCmd_IsMoveSuppressed, 0 },
   { "traversemode", &ActorCmd_TraverseMode, 0 },
   { "animmode", &ActorCmd_AnimMode, 0 },
   { "orientmode", &ActorCmd_OrientMode, 0 },
@@ -88,6 +113,17 @@ const BuiltinMethodDef methods_2[] =
   { "getnegotiationstartnode", &ScrCmd_GetNegotiationStartNode, 0 },
   { "getnegotiationendnode", &ScrCmd_GetNegotiationEndNode, 0 },
   { "checkprone", &ActorCmd_CheckProne, 0 },
+#ifdef KISAK_SP
+  { "setproneanimnodes", &ActorCmd_SetProneAnimNodes, 0 },
+  { "enterprone", &ActorCmd_EnterProne, 0 },
+  { "exitprone", &ActorCmd_ExitProne, 0 },
+  { "updateprone", &ActorCmd_UpdateProne, 0 },
+  { "updateplayersightaccuracy", &ActorCmd_UpdatePlayerSightAccuracy, 0 },
+  { "dropweapon", &ActorCmd_DropWeapon, 0 },
+  { "trackscriptstate", &ActorCmd_trackScriptState, 0 },
+  { "findcovernode", &ActorCmd_FindCoverNode, 0 },
+  { "getcovernode", &ActorCmd_GetCoverNode, 0 },
+#endif
   { "pushplayer", &ActorCmd_PushPlayer, 0 },
   { "setgoalnode", &ActorCmd_SetGoalNode, 0 },
   { "setgoalpos", &ActorCmd_SetGoalPos, 0 },
@@ -100,7 +136,9 @@ const BuiltinMethodDef methods_2[] =
   { "clearfixednodesafevolume", &ActorCmd_ClearFixedNodeSafeVolume, 0 },
   { "isingoal", &ActorCmd_IsInGoal, 0 },
   { "setruntopos", &ActorCmd_SetOverrideRunToPos, 0 },
+  { "setoverrideruntopos", &ActorCmd_SetOverrideRunToPos, 0 },
   { "clearruntopos", &ActorCmd_ClearOverrideRunToPos, 0 },
+  { "clearoverrideruntopos", &ActorCmd_ClearOverrideRunToPos, 0 },
   { "nearnode", &ActorCmd_NearNode, 0 },
   { "clearenemy", &ActorCmd_ClearEnemy, 0 },
   { "setentitytarget", &ActorCmd_SetEntityTarget, 0 },
@@ -114,14 +152,48 @@ const BuiltinMethodDef methods_2[] =
   { "isknownenemyinradius", &ActorCmd_IsKnownEnemyInRadius, 0 },
   { "isknownenemyinvolume", &ActorCmd_IsKnownEnemyInVolume, 0 },
   { "settalktospecies", &ActorCmd_SetTalkToSpecies, 0 },
-  { "allowpitchangle", &METHOD_NULLSUB, 0 },
+  { "allowpitchangle", &ActorCmd_AllowPitchAngle, 0 },
+  { "setengagementmindist", &ActorCmd_SetEngagementMinDist, 0 },
+  { "setengagementmaxdist", &ActorCmd_SetEngagementMaxDist, 0 },
+  { "useturret", &ActorCmd_UseTurret, 0 },
+  { "stopuseturret", &ActorCmd_StopUseTurret, 0 },
+  { "canuseturret", &ActorCmd_CanUseTurret, 0 },
   { "knockback", &ActorCmd_Knockback, 0 },
   { "getdeltaturnyaw", &ActorCmd_GetDeltaTurnYaw, 0 },
   { "setentityowner", &ActorCmd_SetEntityOwner, 0 },
   { "clearentityowner", &ActorCmd_ClearEntityOwner, 0 },
   { "setanimstate", &ActorCmd_SetAnimState, 0 },
   { "setaimanimweights", &ActorCmd_SetAimAnimWeights, 0 },
-  { "finishactordamage", &ActorCmd_finishActorDamage, 0 }
+  { "finishactordamage", &ActorCmd_finishActorDamage, 0 },
+  { "setthreatbiasgroup", &ActorCmd_SetThreatBiasGroup, 0 },
+  { "findbestcovernode", &ActorCmd_FindBestCoverNode, 0 },
+#ifdef KISAK_SP
+  { "startscriptedanim", &ActorCmd_StartScriptedAnim, 0 },
+#endif
+  { "canshoot", &ActorCmd_CanShoot, 0 },
+  { "shoot", &ActorCmd_Shoot, 0 },
+  { "stopshoot", &ActorCmd_StopShoot, 0 },
+#ifdef KISAK_SP
+  { "aimatpos", &ActorCmd_AimAtPos, 0 },
+  { "setaimanims", &ActorCmd_SetAimAnims, 0 },
+  { "shootblank", &ActorCmd_ShootBlank, 0 },
+  { "checkcoverexitposwithpath", &ActorCmd_CheckCoverExitPosWithPath, 0 },
+  { "checkgrenadethrow", &ActorCmd_CheckGrenadeThrow, 0 },
+  { "checkgrenadethrowpos", &ActorCmd_CheckGrenadeThrowPos, 0 },
+  { "throwgrenade", &ActorCmd_ThrowGrenade, 0 },
+  { "checkgrenadelaunch", &ActorCmd_CheckGrenadeLaunch, 0 },
+  { "checkgrenadelaunchpos", &ActorCmd_CheckGrenadeLaunchPos, 0 },
+  { "firegrenadelauncher", &ActorCmd_FireGrenadeLauncher, 0 },
+  { "pickupgrenade", &ActorCmd_PickUpGrenade, 0 },
+  { "setturretanim", &ActorCmd_SetTurretAnim, 0 },
+  { "getturret", &ActorCmd_GetTurret, 0 },
+  { "beginprediction", &ActorCmd_BeginPrediction, 0 },
+  { "endprediction", &ActorCmd_EndPrediction, 0 },
+  { "dumphistory", &ActorCmd_DumpHistory, 0 },
+  { "startactorreact", &ActorCmd_StartActorReact, 0 },
+#endif
+  { "magicgrenade", &ScrCmd_MagicGrenade, 0 },
+  { "magicgrenademanual", &ScrCmd_MagicGrenadeManual, 0 }
 };
 
 
@@ -635,6 +707,23 @@ void __cdecl ActorCmd_GetReacquireNode(scr_entref_t entref)
         Scr_AddPathnode(pNode);
 }
 
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_UseCoverNode)
+void __cdecl ActorCmd_UseCoverNode(scr_entref_t entref)
+{
+    actor_s *self;
+    pathnode_t *node;
+    bool result;
+
+    self = Actor_Get(entref);
+    node = Scr_GetPathnode(0, SCRIPTINSTANCE_SERVER);
+    if ( self->fixedNode && self->scriptGoal.node && self->scriptGoal.node != node )
+        Scr_Error("cannot change node when using fixedNode mode", 0);
+    if ( Actor_KeepClaimedNode(self) )
+        Scr_Error("cannot change node when keepclaimednode is set", 0);
+    result = Actor_Cover_UseCoverNode(self, node);
+    Scr_AddBool(result, SCRIPTINSTANCE_SERVER);
+}
+
 void __cdecl ActorCmd_UseReacquireNode(scr_entref_t entref)
 {
     pathnode_t *Pathnode; // eax
@@ -712,6 +801,51 @@ void __cdecl ActorCmd_ClearPitchOrient(scr_entref_t entref)
     v1 = Actor_Get(entref);
     v1->ProneInfo.prone = 0;
     v1->ProneInfo.orientPitch = 0;
+}
+
+// Decomp: BlackOps.singleplayer.c (ActorCmd_AllowPitchAngle)
+void __cdecl ActorCmd_AllowPitchAngle(scr_entref_t entref)
+{
+    actor_s *self;
+    int enable;
+
+    self = Actor_Get(entref);
+    enable = Scr_GetInt(0, SCRIPTINSTANCE_SERVER);
+    G_AddEvent(self->ent, EV_ALLOWPITCH, enable != 0);
+}
+
+// Decomp: BlackOps.singleplayer.c (ActorCmd_SetEngagementMinDist)
+void __cdecl ActorCmd_SetEngagementMinDist(scr_entref_t entref)
+{
+    actor_s *self;
+    float secondaryDist;
+
+    self = Actor_Get(entref);
+    if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) != 2 )
+        Scr_Error("setEngagementMinDist requires two parameters", 0);
+    self->pathEnemyFightDist = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
+    secondaryDist = Scr_GetFloat(1u, SCRIPTINSTANCE_SERVER);
+    if ( secondaryDist > 0.0f )
+        self->meleeAttackDist = secondaryDist;
+}
+
+// Decomp: BlackOps.singleplayer.c (ActorCmd_SetEngagementMaxDist)
+void __cdecl ActorCmd_SetEngagementMaxDist(scr_entref_t entref)
+{
+    actor_s *self;
+    float maxSightDist;
+
+    self = Actor_Get(entref);
+    if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) != 2 )
+        Scr_Error("setEngagementMaxDist requires two parameters", 0);
+    self->pathEnemyLookahead = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
+    maxSightDist = Scr_GetFloat(1u, SCRIPTINSTANCE_SERVER);
+    if ( maxSightDist > 0.0f )
+    {
+        self->fMaxSightDistSqrd = maxSightDist * maxSightDist;
+        if ( self->sentient )
+            self->sentient->maxVisibleDist = maxSightDist;
+    }
 }
 
 void __cdecl ActorCmd_SetLookAtAnimNodes(scr_entref_t entref)
@@ -1301,11 +1435,11 @@ void __cdecl ActorCmd_AnimMode(scr_entref_t entref)
     if ( mode == scr_const.nophysics )
     {
         self->eScriptSetAnimMode = AI_ANIM_NOPHYSICS;
-        self->ent->flags |= 0x2000u;
+        self->ent->flags |= 0x1000u;
     }
     else
     {
-        self->ent->flags &= ~0x2000u;
+        self->ent->flags &= ~0x1000u;
         if ( mode == scr_const.gravity )
         {
             self->eScriptSetAnimMode = AI_ANIM_USE_BOTH_DELTAS;
@@ -1608,6 +1742,33 @@ void __cdecl ActorCmd_IsDeflected(scr_entref_t entref)
     Scr_AddInt(self->Physics.bDeflected, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_IsSuppressionWaiting ~8256C518)
+void __cdecl ActorCmd_IsSuppressionWaiting(scr_entref_t entref)
+{
+    actor_s *self;
+
+    self = Actor_Get(entref);
+    Scr_AddInt(Actor_IsSuppressionWaiting(self), SCRIPTINSTANCE_SERVER);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_IsSuppressed ~8256C568)
+void __cdecl ActorCmd_IsSuppressed(scr_entref_t entref)
+{
+    actor_s *self;
+
+    self = Actor_Get(entref);
+    Scr_AddInt(Actor_IsSuppressed(self), SCRIPTINSTANCE_SERVER);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_IsMoveSuppressed ~8256C5B8)
+void __cdecl ActorCmd_IsMoveSuppressed(scr_entref_t entref)
+{
+    actor_s *self;
+
+    self = Actor_Get(entref);
+    Scr_AddInt(Actor_IsMoveSuppressed(self), SCRIPTINSTANCE_SERVER);
+}
+
 void __cdecl ScrCmd_animcustom(scr_entref_t entref)
 {
     int func; // [esp+0h] [ebp-8h]
@@ -1732,7 +1893,7 @@ void __cdecl ScrCmd_GetNegotiationEndNode(scr_entref_t entref)
         {
             __debugbreak();
         }
-        if ( *((int *)&self->Physics.proximity_data.prims[199].tree + 7 * self->Path.wNegotiationStartNode) < 0
+        if ( self->Path.pts[self->Path.wNegotiationStartNode - 1].iNodeNum < 0
             && !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_script_cmd.cpp",
                         3120,
@@ -1742,8 +1903,7 @@ void __cdecl ScrCmd_GetNegotiationEndNode(scr_entref_t entref)
         {
             __debugbreak();
         }
-        v1 = Path_ConvertIndexToNode(*((unsigned int *)&self->Physics.proximity_data.prims[199].tree
-                                                                 + 7 * self->Path.wNegotiationStartNode));
+        v1 = Path_ConvertIndexToNode((unsigned int)self->Path.pts[self->Path.wNegotiationStartNode - 1].iNodeNum);
         Scr_AddPathnode(v1);
     }
 }
@@ -1777,6 +1937,215 @@ void __cdecl ActorCmd_CheckProne(scr_entref_t entref)
                                  50.0);
     Scr_AddBool(canGoProne, SCRIPTINSTANCE_SERVER);
 }
+
+#ifdef KISAK_SP
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_SetProneAnimNodes)
+void __cdecl ActorCmd_SetProneAnimNodes(scr_entref_t entref)
+{
+    float downAng;
+    float upAng;
+    actor_s *self;
+    XAnimTree_s *tree;
+
+    downAng = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
+    upAng = Scr_GetFloat(1u, SCRIPTINSTANCE_SERVER);
+    self = Actor_Get(entref);
+    tree = G_GetActorAnimTree(self);
+    if ( downAng >= 0.0f )
+        Scr_Error("Down angle (parameter 1) must be set to be less than 0.", 0);
+    if ( upAng <= 0.0f )
+        Scr_Error("Up angle (parameter 2) must be set to be greater than 0.", 0);
+    self->fInvProneAnimLowPitch = 1.0f / downAng;
+    self->fInvProneAnimHighPitch = 1.0f / upAng;
+    self->proneAnimInfo.animProneLow = Scr_GetAnim(2u, tree, SCRIPTINSTANCE_SERVER).index;
+    self->proneAnimInfo.animProneLevel = Scr_GetAnim(3u, tree, SCRIPTINSTANCE_SERVER).index;
+    self->proneAnimInfo.animProneHigh = Scr_GetAnim(4u, tree, SCRIPTINSTANCE_SERVER).index;
+    self->proneAnimInfo.bProneAnimSetup = 1;
+}
+
+void __cdecl ActorCmd_EnterProne(scr_entref_t entref)
+{
+    actor_s *self;
+    unsigned int transTime;
+
+    self = Actor_Get(entref);
+    if ( self->fInvProneAnimLowPitch == 0.0f && self->fInvProneAnimHighPitch == 0.0f
+        || !self->proneAnimInfo.animProneLow
+        || !self->proneAnimInfo.animProneLevel
+        || !self->proneAnimInfo.animProneHigh )
+    {
+        Scr_Error("Must call SetProneAnimNodes before calling EnterProne", 0);
+    }
+    transTime = (unsigned int)(Scr_GetFloat(0, SCRIPTINSTANCE_SERVER) * 1000.0f);
+    G_ActorEnterProne(self, transTime);
+}
+
+void __cdecl ActorCmd_ExitProne(scr_entref_t entref)
+{
+    actor_s *self;
+    unsigned int transTime;
+
+    self = Actor_Get(entref);
+    transTime = (unsigned int)(Scr_GetFloat(0, SCRIPTINSTANCE_SERVER) * 1000.0f);
+    G_ActorExitProne(self, transTime);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_UpdateProne)
+void __cdecl ActorCmd_UpdateProne(scr_entref_t entref)
+{
+    actor_s *self;
+    XAnimTree_s *tree;
+    scr_anim_s animUp;
+    scr_anim_s animDown;
+    float goalWeight;
+    float goalTime;
+    float rate;
+    DObj *serverDObj;
+
+    self = Actor_Get(entref);
+    if ( !BG_ActorIsProne(&self->ProneInfo, level.time) )
+        return;
+    tree = G_GetActorAnimTree(self);
+    animUp = Scr_GetAnim(0, tree, SCRIPTINSTANCE_SERVER);
+    animDown = Scr_GetAnim(1u, tree, SCRIPTINSTANCE_SERVER);
+    goalWeight = Scr_GetFloat(2u, SCRIPTINSTANCE_SERVER);
+    goalTime = Scr_GetFloat(3u, SCRIPTINSTANCE_SERVER);
+    rate = Scr_GetFloat(4u, SCRIPTINSTANCE_SERVER);
+    serverDObj = Com_GetServerDObj(self->ent->s.number);
+    XAnimSetCompleteGoalWeight(serverDObj, animUp.index, goalWeight, goalTime, rate, 0, 0, 0, -1);
+    XAnimSetCompleteGoalWeight(serverDObj, animDown.index, goalWeight, goalTime, rate, 0, 0, 0, -1);
+    Actor_UpdateProneInformation(self, 0);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_UpdatePlayerSightAccuracy ~82569580)
+// Map: CoDSP_rd.map VA 0x82569580 (actor_script_cmd.obj)
+void __cdecl ActorCmd_UpdatePlayerSightAccuracy(scr_entref_t entref)
+{
+    actor_s *self;
+    sentient_s *targetSentient;
+
+    self = Actor_Get(entref);
+    targetSentient = Actor_GetTargetSentient(self);
+    if ( !targetSentient )
+    {
+        self->playerSightAccuracy = 1.0f;
+        return;
+    }
+    iassert(targetSentient->ent);
+    if ( targetSentient->ent->client )
+        self->playerSightAccuracy = Actor_GetPlayerSightAccuracy(self, targetSentient);
+    else
+        self->playerSightAccuracy = 1.0f;
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_FindCoverNode ~825696A0)
+// Map: CoDSP_rd.map VA 0x825696a0 (actor_script_cmd.obj)
+void __cdecl ActorCmd_FindCoverNode(scr_entref_t entref)
+{
+    actor_s *self;
+
+    self = Actor_Get(entref);
+    Actor_Cover_FindCoverNode(self, Actor_GetTargetSentient(self));
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_GetCoverNode ~825697E0)
+// Map: CoDSP_rd.map VA 0x825697e0 (actor_script_cmd.obj)
+void __cdecl ActorCmd_GetCoverNode(scr_entref_t entref)
+{
+    actor_s *self;
+    pathnode_t *node;
+
+    self = Actor_Get(entref);
+    node = Actor_Cover_GetCoverNode(self, Actor_GetTargetSentient(self));
+    if ( node )
+        Scr_AddPathnode(node);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_DropWeapon ~8256AC38)
+// Map: CoDSP_rd.map VA 0x8256ac38 (actor_script_cmd.obj)
+void __cdecl ActorCmd_DropWeapon(scr_entref_t entref)
+{
+    actor_s *self;
+    const char *weaponName;
+    unsigned int dropTag;
+    int weaponIndex;
+    float tossSpeed;
+    gentity_s *weapEnt;
+    float dir[3];
+    float *origin;
+
+    self = Actor_Get(entref);
+    weaponName = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
+    if ( I_stricmp(weaponName, "none") )
+    {
+        dropTag = Scr_GetConstString(1u, SCRIPTINSTANCE_SERVER);
+        tossSpeed = Scr_GetFloat(2u, SCRIPTINSTANCE_SERVER);
+        weaponIndex = G_GetWeaponIndexForName((char *)weaponName);
+        if ( !weaponIndex )
+            Scr_Error(va("unknown weapon '%s' in dropWeapon", weaponName), 0);
+        weapEnt = Drop_Weapon(self->ent, weaponIndex, 0, dropTag);
+        if ( weapEnt )
+        {
+            if ( tossSpeed == 0.0f )
+            {
+                weapEnt->s.lerp.pos.trDelta[0] = 0.0f;
+                weapEnt->s.lerp.pos.trDelta[1] = 0.0f;
+                weapEnt->s.lerp.pos.trDelta[2] = 0.0f;
+            }
+            else
+            {
+                origin = self->ent->r.currentOrigin;
+                dir[0] = weapEnt->r.currentOrigin[0] - origin[0];
+                dir[1] = weapEnt->r.currentOrigin[1] - origin[1];
+                dir[2] = weapEnt->r.currentOrigin[2] - origin[2];
+                dir[2] = dir[2] + (self->ent->r.maxs[2] - self->ent->r.mins[2]) * 0.5f + 2.0f;
+                Vec3Normalize(dir);
+                weapEnt->s.lerp.pos.trDelta[0] = tossSpeed * dir[0];
+                weapEnt->s.lerp.pos.trDelta[1] = tossSpeed * dir[1];
+                weapEnt->s.lerp.pos.trDelta[2] = tossSpeed * dir[2];
+            }
+            weapEnt->s.time2 = level.time;
+            if ( self->ent->client )
+                weapEnt->s.lerp.eFlags |= 0x200000u;
+            Scr_AddEntity(weapEnt, SCRIPTINSTANCE_SERVER);
+            Scr_Notify(self->ent, scr_const.dropweapon, 1u);
+            Scr_AddEntity(weapEnt, SCRIPTINSTANCE_SERVER);
+        }
+    }
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_trackScriptState ~8256F0C8)
+// Map: CoDSP_rd.map VA 0x8256f0c8 (actor_script_cmd.obj)
+void __cdecl ActorCmd_trackScriptState(scr_entref_t entref)
+{
+    actor_s *self;
+    unsigned int newState;
+    unsigned int reason;
+
+    self = Actor_Get(entref);
+    if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) != 2 )
+        Scr_Error("trackScriptState newStateName, reasonForTransition", 0);
+    Scr_SetString(&self->lastScriptState, self->scriptState, SCRIPTINSTANCE_SERVER);
+    newState = Scr_GetConstString(0, SCRIPTINSTANCE_SERVER);
+    Scr_SetString(&self->scriptState, newState, SCRIPTINSTANCE_SERVER);
+    reason = Scr_GetConstString(1u, SCRIPTINSTANCE_SERVER);
+    Scr_SetString(&self->stateChangeReason, reason, SCRIPTINSTANCE_SERVER);
+    if ( self->scriptState == self->lastScriptState )
+    {
+        const char *oldState;
+        const char *curState;
+
+        oldState = SL_ConvertToString(self->lastScriptState, SCRIPTINSTANCE_SERVER);
+        curState = SL_ConvertToString(self->scriptState, SCRIPTINSTANCE_SERVER);
+        Scr_Error(
+            va(
+                "trackScriptState should only be called on script state transitions.  Called for state %s from state %s.",
+                curState,
+                oldState),
+            0);
+    }
+}
+#endif
 
 void __cdecl ActorCmd_PushPlayer(scr_entref_t entref)
 {
@@ -2039,15 +2408,15 @@ void __cdecl ActorCmd_SetOverrideRunToPos(scr_entref_t entref)
 
 void __cdecl ActorCmd_ClearOverrideRunToPos(scr_entref_t entref)
 {
-    actor_s *v1; // eax
+    actor_s *self;
 
-    v1 = Actor_Get(entref);
-    v1->arrivalInfo.animscriptOverrideRunTo = 0;
-    v1->arrivalInfo.animscriptOverrideRunToPos[0] = 0.0f;
-    v1 = (actor_s *)((char *)v1 + 3836);
-    //v1->sentient = *(sentient_s **)&FLOAT_0_0;
-    v1->sentient = NULL;
-    v1->species = AI_SPECIES_DOG;
+    self = Actor_Get(entref);
+    // KISAK FIX: decomp CoDMPServer.c:782596 mis-decoded +3836 as sentient/species writes; clear all run-to components.
+    // dog_move / dog_combat call clearruntopos — corrupting sentient broke targeting and combat.
+    self->arrivalInfo.animscriptOverrideRunTo = 0;
+    self->arrivalInfo.animscriptOverrideRunToPos[0] = 0.0f;
+    self->arrivalInfo.animscriptOverrideRunToPos[1] = 0.0f;
+    self->arrivalInfo.animscriptOverrideRunToPos[2] = 0.0f;
 }
 
 void __cdecl ActorCmd_NearNode(scr_entref_t entref)
@@ -2111,7 +2480,6 @@ void __cdecl ActorCmd_SetEntityTarget(scr_entref_t entref)
     self = Actor_Get(entref);
     targetEnt = 0;
     targetThreat = AI_ENTITY_TARGET_MAX_THREAT;
-
     NumParam = Scr_GetNumParam(SCRIPTINSTANCE_SERVER);
     if ( NumParam != 1 )
     {
@@ -2135,18 +2503,27 @@ void __cdecl ActorCmd_SetEntityTarget(scr_entref_t entref)
             v1 = 0.0f;
         targetThreat = v1;
     }
-
     targetEnt = Scr_GetEntity(0);
 LABEL_14:
-    
-    iassert(self->sentient);
-    iassert(targetEnt);
-
+    if ( !self->sentient
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_script_cmd.cpp",
+                    3622,
+                    0,
+                    "%s",
+                    "self->sentient") )
+    {
+        __debugbreak();
+    }
+    if ( !targetEnt
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_script_cmd.cpp", 3623, 0, "%s", "targetEnt") )
+    {
+        __debugbreak();
+    }
+    //EntHandle::setEnt(&self->sentient->scriptTargetEnt, targetEnt);
     self->sentient->scriptTargetEnt.setEnt(targetEnt);
-
     self->sentient->entityTargetThreat = targetThreat;
-
-    if ( self->sentient->entityTargetThreat == AI_ENTITY_TARGET_MAX_THREAT )
+    if ( self->sentient->entityTargetThreat == 1.0 )
         Sentient_SetEnemy(self->sentient, targetEnt, 1);
 }
 
@@ -2320,6 +2697,35 @@ void __cdecl ActorCmd_IsKnownEnemyInVolume(scr_entref_t entref)
         Scr_AddInt(1, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDSP_rdBlackOps.map.c (SentientCmd_SetThreatBiasGroup ~6240233)
+void __cdecl ActorCmd_SetThreatBiasGroup(scr_entref_t entref)
+{
+    actor_s *self;
+    unsigned int groupName;
+    int groupIndex;
+    const char *groupNameStr;
+
+    self = Actor_Get(entref);
+    if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) == 1 )
+    {
+        groupName = Scr_GetConstString(0, SCRIPTINSTANCE_SERVER);
+        groupIndex = Actor_FindThreatBiasGroupIndex(groupName);
+        if ( groupIndex >= 0 )
+        {
+            self->sentient->iThreatBiasGroupIndex = groupIndex;
+        }
+        else
+        {
+            groupNameStr = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
+            Scr_Error(va("Invalid threat bias group '%s'.\n", groupNameStr), 0);
+        }
+    }
+    else
+    {
+        self->sentient->iThreatBiasGroupIndex = 0;
+    }
+}
+
 void __cdecl ActorCmd_SetTalkToSpecies(scr_entref_t entref)
 {
     int i; // [esp+0h] [ebp-14h]
@@ -2350,13 +2756,693 @@ void __cdecl ActorCmd_SetTalkToSpecies(scr_entref_t entref)
     self->talkToSpecies = speciesFlag;
 }
 
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_FindBestCoverNode ~5985814)
+void __cdecl ActorCmd_FindBestCoverNode(scr_entref_t entref)
+{
+    actor_s *self;
+    pathnode_t *bestCover;
+
+    self = Actor_Get(entref);
+    bestCover = Actor_Cover_FindBestCover(self, Actor_GetTargetSentient(self));
+    if ( bestCover )
+        Scr_AddPathnode(bestCover);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_StartScriptedAnim ~5985280)
+#ifdef KISAK_SP
+void __cdecl ActorCmd_StartScriptedAnim(scr_entref_t entref)
+{
+    if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) > 8 )
+        Scr_Error("too many parameters", 0);
+    ScrCmd_animscriptedInternal(entref, 0, 0);
+}
+#endif
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_CanShoot ~5987071)
+void __cdecl ActorCmd_CanShoot(scr_entref_t entref)
+{
+    actor_s *self;
+    float targetPos[3];
+    float muzzlePos[3];
+    float muzzleOffset[3];
+    int canShootFrom;
+
+    self = Actor_Get(entref);
+    Scr_GetVector(0, targetPos, SCRIPTINSTANCE_SERVER);
+    if ( !Actor_GetMuzzleInfo(self, muzzlePos, 0) )
+        Scr_Error(va("Couldn't find %s in entity %d", "tag_flash", self->ent->s.number), 0);
+    if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) > 1 )
+    {
+        Scr_GetVector(1u, muzzleOffset, SCRIPTINSTANCE_SERVER);
+        muzzlePos[0] = muzzlePos[0] + muzzleOffset[0];
+        muzzlePos[1] = muzzlePos[1] + muzzleOffset[1];
+        muzzlePos[2] = muzzlePos[2] + muzzleOffset[2];
+    }
+    canShootFrom = Actor_CanShootFrom(self, targetPos, muzzlePos);
+    Scr_AddInt(canShootFrom, SCRIPTINSTANCE_SERVER);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_Shoot ~5985545)
+void __cdecl ActorCmd_Shoot(scr_entref_t entref)
+{
+    actor_s *self;
+    float accuracyMod;
+    float targetPos[3];
+
+    self = Actor_Get(entref);
+    accuracyMod = 1.0f;
+    if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) == 1 )
+    {
+        accuracyMod = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
+        if ( accuracyMod < 0.0f )
+            Scr_ParamError(0u, "accuracy mod must be nonnegative", SCRIPTINSTANCE_SERVER);
+    }
+    if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) >= 2 )
+    {
+        Scr_GetVector(1u, targetPos, SCRIPTINSTANCE_SERVER);
+        Actor_Shoot(self, targetPos, 1, accuracyMod);
+    }
+    else
+        Actor_Shoot(self, 0, 1, accuracyMod);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_StopShoot ~5985661)
+void __cdecl ActorCmd_StopShoot(scr_entref_t entref)
+{
+    actor_s *self;
+
+    self = Actor_Get(entref);
+    Actor_StopShoot(self);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (8256CC18 ActorCmd_ThrowGrenade)
+#ifdef KISAK_SP
+void __cdecl ActorCmd_CheckGrenadeThrow(scr_entref_t entref)
+{
+    actor_s *self;
+    sentient_s *enemy;
+    float handOffset[3];
+    float standPos[3];
+    float tossFrom[3];
+    float tossVel[3];
+    float predictedPos[3];
+    float velocity[3];
+    unsigned int method;
+
+    self = Actor_Get(entref);
+    if ( !self->sentient )
+        return;
+    Scr_GetVector(0, handOffset, SCRIPTINSTANCE_SERVER);
+    method = Scr_GetConstString(1, SCRIPTINSTANCE_SERVER);
+    Scr_GetFloat(2, SCRIPTINSTANCE_SERVER);
+    if ( self->iGrenadeAmmo <= 0 )
+        return;
+    enemy = Actor_GetTargetSentient(self);
+    if ( !enemy || bg_gravity->current.value <= 0.0f || self->pGrenade.isDefined() )
+        return;
+    Sentient_GetOrigin(enemy, predictedPos);
+    Sentient_GetVelocity(enemy, velocity);
+    predictedPos[0] = predictedPos[0] + velocity[0];
+    predictedPos[1] = predictedPos[1] + velocity[1];
+    predictedPos[2] = predictedPos[2] + velocity[2];
+    self->vGrenadeTargetPos[0] = predictedPos[0];
+    self->vGrenadeTargetPos[1] = predictedPos[1];
+    self->vGrenadeTargetPos[2] = predictedPos[2];
+    self->bGrenadeTargetValid = 1;
+    standPos[0] = self->ent->r.currentOrigin[0];
+    standPos[1] = self->ent->r.currentOrigin[1];
+    standPos[2] = self->ent->r.currentOrigin[2];
+    tossFrom[0] = standPos[0] + handOffset[0];
+    tossFrom[1] = standPos[1] + handOffset[1];
+    tossFrom[2] = standPos[2] + handOffset[2];
+    if ( Actor_Grenade_CheckTossPosFrom(self, tossFrom, predictedPos, tossVel) )
+    {
+        self->bGrenadeTossValid = 1;
+        Scr_SetString(&self->GrenadeTossMethod, method, SCRIPTINSTANCE_SERVER);
+        Scr_AddVector(self->vGrenadeTossVel, SCRIPTINSTANCE_SERVER);
+    }
+}
+
+void __cdecl ActorCmd_CheckGrenadeThrowPos(scr_entref_t entref)
+{
+    actor_s *self;
+    float handOffset[3];
+    float targetPos[3];
+    float standPos[3];
+    float tossFrom[3];
+    float tossVel[3];
+    unsigned int method;
+
+    self = Actor_Get(entref);
+    if ( !self->sentient )
+        return;
+    Scr_GetVector(0, handOffset, SCRIPTINSTANCE_SERVER);
+    method = Scr_GetConstString(1, SCRIPTINSTANCE_SERVER);
+    Scr_GetVector(2, targetPos, SCRIPTINSTANCE_SERVER);
+    if ( self->iGrenadeAmmo <= 0 )
+        return;
+    self->vGrenadeTargetPos[0] = targetPos[0];
+    self->vGrenadeTargetPos[1] = targetPos[1];
+    self->vGrenadeTargetPos[2] = targetPos[2];
+    self->bGrenadeTargetValid = 1;
+    standPos[0] = self->ent->r.currentOrigin[0];
+    standPos[1] = self->ent->r.currentOrigin[1];
+    standPos[2] = self->ent->r.currentOrigin[2];
+    tossFrom[0] = standPos[0] + handOffset[0];
+    tossFrom[1] = standPos[1] + handOffset[1];
+    tossFrom[2] = standPos[2] + handOffset[2];
+    if ( Actor_Grenade_CheckTossPosFrom(self, tossFrom, targetPos, tossVel) )
+    {
+        self->bGrenadeTossValid = 1;
+        Scr_SetString(&self->GrenadeTossMethod, method, SCRIPTINSTANCE_SERVER);
+        Scr_AddVector(self->vGrenadeTossVel, SCRIPTINSTANCE_SERVER);
+    }
+}
+
+void __cdecl ActorCmd_ThrowGrenade(scr_entref_t entref)
+{
+    actor_s *self;
+    DObj *serverDObj;
+    const WeaponDef *weapDef;
+    float velOut[3];
+    float posOut[3];
+    float handPos[3];
+    float tossVel[3];
+    int entnum;
+
+    self = Actor_Get(entref);
+    if ( self->ent->health <= 0 || (!self->pGrenade.isDefined() && !self->bGrenadeTossValid) )
+        goto cleanup;
+    if ( self->bGrenadeTargetValid )
+    {
+        if ( !G_DObjGetWorldTagPos(self->ent, scr_const.tag_inhand, handPos) )
+        {
+            serverDObj = Com_GetServerDObj(self->ent->s.number);
+            entnum = self->ent->s.number;
+            Scr_Error(
+                va(
+                    "Missing tag [%s] on entity [%d] (%s)\n",
+                    SL_ConvertToString(scr_const.tag_inhand, SCRIPTINSTANCE_SERVER),
+                    entnum,
+                    DObjGetName(serverDObj)),
+                0);
+            return;
+        }
+        if ( !Actor_Grenade_CheckTossPosFrom(self, handPos, self->vGrenadeTargetPos, tossVel) )
+            goto use_cached;
+        posOut[0] = handPos[0];
+        posOut[1] = handPos[1];
+        posOut[2] = handPos[2];
+        velOut[0] = tossVel[0];
+        velOut[1] = tossVel[1];
+        velOut[2] = tossVel[2];
+    }
+    else
+    {
+    use_cached:
+        if ( self->vGrenadeTossPos[0] != 0.0f || self->vGrenadeTossPos[1] != 0.0f || self->vGrenadeTossPos[2] != 0.0f )
+        {
+            posOut[0] = self->vGrenadeTossPos[0];
+            posOut[1] = self->vGrenadeTossPos[1];
+            posOut[2] = self->vGrenadeTossPos[2];
+        }
+        else
+        {
+            Actor_Grenade_GetTossFromPosition(self, posOut);
+        }
+        velOut[0] = self->vGrenadeTossVel[0];
+        velOut[1] = self->vGrenadeTossVel[1];
+        velOut[2] = self->vGrenadeTossVel[2];
+    }
+    if ( self->pGrenade.isDefined() && self->eState[self->stateLevel] == AIS_GRENADE_RESPONSE )
+    {
+        Actor_Grenade_Detach(self);
+        G_InitGrenadeEntity(self->ent, self->pGrenade.ent());
+        G_InitGrenadeMovement(self->pGrenade.ent(), posOut, velOut, 1, WEAPROTATE_GRENADE_ROTATE);
+    }
+    else
+    {
+        if ( !self->iGrenadeWeaponIndex )
+            Scr_Error(
+                va(
+                    "Actor [%s] doesn't have a grenade weapon set.",
+                    SL_ConvertToString(self->ent->targetname, SCRIPTINSTANCE_SERVER)),
+                0);
+        weapDef = BG_GetWeaponDef(self->iGrenadeWeaponIndex);
+        G_FireGrenade(self->ent, posOut, velOut, self->iGrenadeWeaponIndex, 0, 1, weapDef->aiFuseTime);
+        if ( self->iGrenadeAmmo > 0 )
+            --self->iGrenadeAmmo;
+    }
+cleanup:
+    self->bGrenadeTossValid = 0;
+    Scr_SetString(&self->GrenadeTossMethod, 0, SCRIPTINSTANCE_SERVER);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_SetAimAnims ~82569CE8)
+void __cdecl ActorCmd_SetAimAnims(scr_entref_t entref)
+{
+    actor_s *self;
+    XAnimTree_s *tree;
+
+    self = Actor_Get(entref);
+    tree = G_GetActorAnimTree(self);
+    self->aimAnimInfo.animAimUp = Scr_GetAnim(0, tree, SCRIPTINSTANCE_SERVER).index;
+    self->aimAnimInfo.animAimDown = Scr_GetAnim(1u, tree, SCRIPTINSTANCE_SERVER).index;
+    self->aimAnimInfo.animAimLeft = Scr_GetAnim(2u, tree, SCRIPTINSTANCE_SERVER).index;
+    self->aimAnimInfo.animAimRight = Scr_GetAnim(3u, tree, SCRIPTINSTANCE_SERVER).index;
+    self->aimAnimInfo.animAimUpLeft = Scr_GetAnim(4u, tree, SCRIPTINSTANCE_SERVER).index;
+    self->aimAnimInfo.animAimUpRight = Scr_GetAnim(5u, tree, SCRIPTINSTANCE_SERVER).index;
+    self->aimAnimInfo.bAimAnimSetup = true;
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_AimAtPos ~82569DF0)
+void __cdecl ActorCmd_AimAtPos(scr_entref_t entref)
+{
+    actor_s *self;
+    DObj *obj;
+    XAnimTree_s *tree;
+    float targetPos[3];
+    float eyePos[3];
+    float dir[3];
+    float upWeight;
+    float downWeight;
+    float sideWeight;
+    float blendTime;
+    float returnValue;
+
+    self = Actor_Get(entref);
+    iassert(self->sentient);
+    Scr_GetVector(0, targetPos, SCRIPTINSTANCE_SERVER);
+    Sentient_GetEyePosition(self->sentient, eyePos);
+    dir[0] = targetPos[0] - eyePos[0];
+    dir[1] = targetPos[1] - eyePos[1];
+    dir[2] = targetPos[2] - eyePos[2];
+    Vec3Normalize(dir);
+    upWeight = 0.0f;
+    downWeight = 0.0f;
+    if ( -dir[2] >= 0.0f )
+    {
+        upWeight = -dir[2];
+        sideWeight = 1.0f - upWeight;
+    }
+    else
+    {
+        downWeight = dir[2];
+        sideWeight = 1.0f - downWeight;
+    }
+    blendTime = 0.1f;
+    tree = G_GetActorAnimTree(self);
+    iassert(tree);
+    obj = Com_GetServerDObj(self->ent->s.number);
+    if ( self->aimAnimInfo.animAimUp )
+        XAnimSetCompleteGoalWeight(obj, self->aimAnimInfo.animAimUp, upWeight, blendTime, 1.0f, 0, 0, 0, 0);
+    if ( self->aimAnimInfo.animAimDown )
+        XAnimSetCompleteGoalWeight(obj, self->aimAnimInfo.animAimDown, sideWeight, blendTime, 1.0f, 0, 0, 0, 0);
+    if ( self->aimAnimInfo.animAimLeft )
+        XAnimSetGoalWeight(obj, self->aimAnimInfo.animAimLeft, sideWeight, blendTime, 1.0f, 0, 0, 0, 0);
+    if ( self->aimAnimInfo.animAimRight )
+        XAnimSetGoalWeight(obj, self->aimAnimInfo.animAimRight, upWeight, blendTime, 1.0f, 0, 0, 0, 0);
+    if ( self->aimAnimInfo.animAimUpLeft )
+        XAnimSetGoalWeight(obj, self->aimAnimInfo.animAimUpLeft, sideWeight, blendTime, 1.0f, 0, 0, 0, 0);
+    returnValue = 0.0f;
+    if ( self->aimAnimInfo.animAimUpRight )
+        returnValue = (float)XAnimSetGoalWeight(
+            obj,
+            self->aimAnimInfo.animAimUpRight,
+            downWeight,
+            blendTime,
+            1.0f,
+            0,
+            0,
+            0,
+            0);
+    Scr_AddFloat(returnValue, SCRIPTINSTANCE_SERVER);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_ShootBlank ~825693F0)
+void __cdecl ActorCmd_ShootBlank(scr_entref_t entref)
+{
+    actor_s *self;
+    unsigned int weapon;
+    const WeaponDef *weapDef;
+    const char *weaponNameStr;
+
+    self = Actor_Get(entref);
+    weaponNameStr = SL_ConvertToString(self->weaponName, SCRIPTINSTANCE_SERVER);
+    weapon = G_GetWeaponIndexForName((char *)weaponNameStr);
+    weapDef = BG_GetWeaponDef(weapon);
+    if ( weapDef && weapDef->weapType != WEAPTYPE_BULLET )
+        Scr_Error(
+            va("ShootBlank() only works with bullet weapons.  Using weapon [%s]", BG_WeaponName(weapon)),
+            0);
+    Actor_ShootBlank(self);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_CheckCoverExitPosWithPath ~82569240)
+void __cdecl ActorCmd_CheckCoverExitPosWithPath(scr_entref_t entref)
+{
+    actor_s *self;
+    float exitPos[3];
+    bool canExit;
+
+    self = Actor_Get(entref);
+    Scr_GetVector(0, exitPos, SCRIPTINSTANCE_SERVER);
+    canExit = Actor_CheckCoverExitPosWithPath(self, exitPos);
+    Scr_AddBool(canExit, SCRIPTINSTANCE_SERVER);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_CheckGrenadeLaunch ~8256D128)
+void __cdecl ActorCmd_CheckGrenadeLaunch(scr_entref_t entref)
+{
+    actor_s *self;
+    sentient_s *enemy;
+    float handOffset[3];
+    float predictedPos[3];
+    float velocity[3];
+    float standPos[3];
+
+    self = Actor_Get(entref);
+    iassert(self->sentient);
+    enemy = Actor_GetTargetSentient(self);
+    if ( !enemy )
+        return;
+    Scr_GetVector(0, handOffset, SCRIPTINSTANCE_SERVER);
+    Sentient_GetOrigin(enemy, predictedPos);
+    Sentient_GetVelocity(enemy, velocity);
+    predictedPos[0] = predictedPos[0] + velocity[0];
+    predictedPos[1] = predictedPos[1] + velocity[1];
+    predictedPos[2] = predictedPos[2] + velocity[2];
+    self->vGrenadeTargetPos[0] = predictedPos[0];
+    self->vGrenadeTargetPos[1] = predictedPos[1];
+    self->vGrenadeTargetPos[2] = predictedPos[2];
+    self->bGrenadeTargetValid = 1;
+    standPos[0] = self->ent->r.currentOrigin[0];
+    standPos[1] = self->ent->r.currentOrigin[1];
+    standPos[2] = self->ent->r.currentOrigin[2];
+    if ( Actor_CheckGrenadeLaunch(self, standPos, handOffset) )
+        Scr_AddVector(self->vGrenadeTossVel, SCRIPTINSTANCE_SERVER);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_CheckGrenadeLaunchPos ~8256D3C0)
+void __cdecl ActorCmd_CheckGrenadeLaunchPos(scr_entref_t entref)
+{
+    actor_s *self;
+    float handOffset[3];
+    float targetPos[3];
+    float standPos[3];
+
+    self = Actor_Get(entref);
+    iassert(self->sentient);
+    Scr_GetVector(0, handOffset, SCRIPTINSTANCE_SERVER);
+    Scr_GetVector(1u, targetPos, SCRIPTINSTANCE_SERVER);
+    self->vGrenadeTargetPos[0] = targetPos[0];
+    self->vGrenadeTargetPos[1] = targetPos[1];
+    self->vGrenadeTargetPos[2] = targetPos[2];
+    self->bGrenadeTargetValid = 1;
+    standPos[0] = self->ent->r.currentOrigin[0];
+    standPos[1] = self->ent->r.currentOrigin[1];
+    standPos[2] = self->ent->r.currentOrigin[2];
+    if ( Actor_CheckGrenadeLaunch(self, standPos, handOffset) )
+        Scr_AddVector(self->vGrenadeTossVel, SCRIPTINSTANCE_SERVER);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_FireGrenadeLauncher ~8256D4E0)
+void __cdecl ActorCmd_FireGrenadeLauncher(scr_entref_t entref)
+{
+    actor_s *self;
+    gentity_s *grenade;
+    gentity_s *ent;
+    float handPos[3];
+    unsigned int tagName;
+
+    self = Actor_Get(entref);
+    ent = self->ent;
+    if ( ent->health <= 0 )
+        goto cleanup;
+    if ( !self->bGrenadeTossValid || !self->bGrenadeTargetValid )
+        goto cleanup;
+    tagName = Scr_GetConstString(0, SCRIPTINSTANCE_SERVER);
+    if ( !G_DObjGetWorldTagPos(ent, tagName, handPos) )
+        Scr_Error(
+            va(
+                "Missing tag [%s] on entity [%d]\n",
+                SL_ConvertToString(tagName, SCRIPTINSTANCE_SERVER),
+                ent->s.number),
+            0);
+    if ( !Actor_CheckGrenadeLaunch(self, handPos, 0) )
+        goto cleanup;
+    grenade = G_FireGrenade(ent, handPos, self->vGrenadeTossVel, ent->s.weapon, ent->s.weaponModel, 0, 0);
+    if ( grenade )
+        grenade->flags |= 0x20000u;
+cleanup:
+    self->bGrenadeTossValid = 0;
+    Scr_SetString(&self->GrenadeTossMethod, 0, SCRIPTINSTANCE_SERVER);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_PickUpGrenade ~8256D688)
+void __cdecl ActorCmd_PickUpGrenade(scr_entref_t entref)
+{
+    actor_s *self;
+    gentity_s *grenade;
+
+    self = Actor_Get(entref);
+    if ( !self->pGrenade.isDefined() )
+        return;
+    grenade = self->pGrenade.ent();
+    Actor_Grenade_Attach(self, grenade);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_SetTurretAnim ~8256E168)
+void __cdecl ActorCmd_SetTurretAnim(scr_entref_t entref)
+{
+    actor_s *self;
+    XAnimTree_s *tree;
+
+    self = Actor_Get(entref);
+    tree = G_GetActorAnimTree(self);
+    self->turretAnim = Scr_GetAnim(0, tree, SCRIPTINSTANCE_SERVER).index;
+    self->bTurretAnimSetup = true;
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_GetTurret ~8256E1D8)
+void __cdecl ActorCmd_GetTurret(scr_entref_t entref)
+{
+#ifdef KISAK_SP
+    actor_s *self;
+
+    self = Actor_Get(entref);
+    if ( Actor_IsUsingTurret(self) )
+    {
+        iassert(self->pTurret);
+        Scr_AddEntity(self->pTurret, SCRIPTINSTANCE_SERVER);
+    }
+#endif
+}
+
+static void Actor_SavePredictionState(actor_s *self)
+{
+    actor_prediction_backup_t *backup;
+    gentity_s *ent;
+
+    backup = &g_scr_data.actorBackup;
+    ent = self->ent;
+    backup->eAnimMode = self->eAnimMode;
+    backup->eScriptSetAnimMode = self->eScriptSetAnimMode;
+    backup->safeToChangeScript = self->safeToChangeScript;
+    backup->Physics = self->Physics;
+    backup->prevMoveDir[0] = self->prevMoveDir[0];
+    backup->prevMoveDir[1] = self->prevMoveDir[1];
+    backup->leanAmount = self->leanAmount;
+    backup->isFacingMotion = self->isFacingMotion;
+    backup->fDesiredBodyYaw = self->fDesiredBodyYaw;
+    backup->entOrigin[0] = ent->r.currentOrigin[0];
+    backup->entOrigin[1] = ent->r.currentOrigin[1];
+    backup->entOrigin[2] = ent->r.currentOrigin[2];
+    backup->entAngles[0] = ent->r.currentAngles[0];
+    backup->entAngles[1] = ent->r.currentAngles[1];
+    backup->entAngles[2] = ent->r.currentAngles[2];
+    backup->vLookForward[0] = self->vLookForward[0];
+    backup->vLookForward[1] = self->vLookForward[1];
+    backup->vLookForward[2] = self->vLookForward[2];
+    backup->vLookRight[0] = self->vLookRight[0];
+    backup->vLookRight[1] = self->vLookRight[1];
+    backup->vLookRight[2] = self->vLookRight[2];
+    backup->vLookUp[0] = self->vLookUp[0];
+    backup->vLookUp[1] = self->vLookUp[1];
+    backup->vLookUp[2] = self->vLookUp[2];
+}
+
+static void Actor_RestorePredictionState(actor_s *self)
+{
+    const actor_prediction_backup_t *backup;
+    gentity_s *ent;
+
+    backup = &g_scr_data.actorBackup;
+    ent = self->ent;
+    self->eAnimMode = backup->eAnimMode;
+    self->eScriptSetAnimMode = backup->eScriptSetAnimMode;
+    self->safeToChangeScript = backup->safeToChangeScript;
+    self->Physics = backup->Physics;
+    self->prevMoveDir[0] = backup->prevMoveDir[0];
+    self->prevMoveDir[1] = backup->prevMoveDir[1];
+    self->leanAmount = backup->leanAmount;
+    self->isFacingMotion = backup->isFacingMotion;
+    self->fDesiredBodyYaw = backup->fDesiredBodyYaw;
+    ent->r.currentOrigin[0] = backup->entOrigin[0];
+    ent->r.currentOrigin[1] = backup->entOrigin[1];
+    ent->r.currentOrigin[2] = backup->entOrigin[2];
+    ent->r.currentAngles[0] = backup->entAngles[0];
+    ent->r.currentAngles[1] = backup->entAngles[1];
+    ent->r.currentAngles[2] = backup->entAngles[2];
+    self->vLookForward[0] = backup->vLookForward[0];
+    self->vLookForward[1] = backup->vLookForward[1];
+    self->vLookForward[2] = backup->vLookForward[2];
+    self->vLookRight[0] = backup->vLookRight[0];
+    self->vLookRight[1] = backup->vLookRight[1];
+    self->vLookRight[2] = backup->vLookRight[2];
+    self->vLookUp[0] = backup->vLookUp[0];
+    self->vLookUp[1] = backup->vLookUp[1];
+    self->vLookUp[2] = backup->vLookUp[2];
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_BeginPrediction ~8256E280)
+void __cdecl ActorCmd_BeginPrediction(scr_entref_t entref)
+{
+    actor_s *self;
+    XAnimTree_s *tree;
+
+    self = Actor_Get(entref);
+    if ( g_actorPredictionDepth )
+        Scr_Error("beginPrediction already called", 0);
+    ++g_actorPredictionDepth;
+    iassert(g_scr_data.actorBackupXAnimTree);
+    tree = G_GetActorAnimTree(self);
+    XAnimCloneAnimTree(tree, g_scr_data.actorBackupXAnimTree);
+    Actor_SavePredictionState(self);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_EndPrediction ~8256E688)
+void __cdecl ActorCmd_EndPrediction(scr_entref_t entref)
+{
+    actor_s *self;
+    XAnimTree_s *tree;
+
+    self = Actor_Get(entref);
+    --g_actorPredictionDepth;
+    if ( g_actorPredictionDepth )
+        Scr_Error("endPrediction already called", 0);
+    iassert(g_scr_data.actorBackupXAnimTree);
+    tree = G_GetActorAnimTree(self);
+    XAnimCloneAnimTree(g_scr_data.actorBackupXAnimTree, tree);
+    XAnimClearTree(g_scr_data.actorBackupXAnimTree);
+    Actor_RestorePredictionState(self);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_DumpHistory ~8256F1F0)
+void __cdecl ActorCmd_DumpHistory(scr_entref_t entref)
+{
+    actor_s *self;
+    int i;
+
+    self = Actor_Get(entref);
+    for ( i = 0; i < 10; ++i )
+    {
+        Com_Printf(
+            18,
+            "actor %d moveHistory[%d] = (%g, %g)\n",
+            self->ent->s.number,
+            i,
+            self->moveHistory[i][0],
+            self->moveHistory[i][1]);
+    }
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (ActorCmd_StartActorReact ~82571620)
+void __cdecl ActorCmd_StartActorReact(scr_entref_t entref)
+{
+    actor_s *self;
+
+    self = Actor_Get(entref);
+    if ( Actor_PushState(self, AIS_REACT) )
+        Actor_KillAnimScript(self);
+}
+#endif
+
+// Decomp: CoDSP_rdBlackOps.map.c (825FB830 ScrCmd_MagicGrenade)
+void __cdecl ScrCmd_MagicGrenade(scr_entref_t entref)
+{
+    actor_s *self;
+    float origin[3];
+    float targetPos[3];
+    float landPos[3];
+    float tossVel[3];
+    int fuseTime;
+    gentity_s *grenade;
+
+    self = Actor_Get(entref);
+    if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) != 2 && Scr_GetNumParam(SCRIPTINSTANCE_SERVER) != 3 )
+        Scr_Error("<actor> MagicGrenade <origin> <target position> [time to blow (seconds)].\n", SCRIPTINSTANCE_SERVER);
+    Scr_GetVector(0u, origin, SCRIPTINSTANCE_SERVER);
+    Scr_GetVector(1u, targetPos, SCRIPTINSTANCE_SERVER);
+    Actor_Grenade_GetTossPositionsPos(origin, targetPos, landPos, self->iGrenadeWeaponIndex);
+    if ( Actor_Grenade_CheckMinimumEnergyToss(self, origin, landPos, tossVel)
+        || Actor_Grenade_CheckMaximumEnergyToss(self, origin, landPos, tossVel, false)
+        || Actor_Grenade_CheckMaximumEnergyToss(self, origin, landPos, tossVel, true)
+        || Actor_Grenade_CheckInfiniteEnergyToss(self, origin, landPos, tossVel)
+        || Actor_Grenade_CheckGrenadeHintToss(self, origin, landPos, tossVel) )
+    {
+        if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) == 3 )
+            fuseTime = (int)(Scr_GetFloat(2u, SCRIPTINSTANCE_SERVER) * 1000.0f);
+        else
+            fuseTime = 5000;
+        if ( !self->iGrenadeWeaponIndex )
+            Scr_Error(va("Actor [%s] doesn't have a grenade weapon set.", SL_ConvertToString(self->ent->targetname, SCRIPTINSTANCE_SERVER)), SCRIPTINSTANCE_SERVER);
+        grenade = G_FireGrenade(self->ent, origin, tossVel, self->iGrenadeWeaponIndex, 0, 1, fuseTime);
+        if ( grenade )
+        {
+            grenade->parent.setEnt(0);
+            grenade->r.ownerNum.setEnt(0);
+            Scr_AddEntity(grenade, SCRIPTINSTANCE_SERVER);
+        }
+    }
+    else
+    {
+        Com_DPrintf(24, "MagicGrenade: None of the methods worked (probably distance or blocked)...need a good failsafe or remove this print?\n");
+    }
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (825FBCB0 ScrCmd_MagicGrenadeManual)
+void __cdecl ScrCmd_MagicGrenadeManual(scr_entref_t entref)
+{
+    actor_s *self;
+    float origin[3];
+    float velocity[3];
+    int fuseTime;
+    gentity_s *grenade;
+
+    self = Actor_Get(entref);
+    if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) != 2 && Scr_GetNumParam(SCRIPTINSTANCE_SERVER) != 3 )
+        Scr_Error("<actor> MagicGrenadeManual <origin> <velocity> [time To Blow (seconds)].\n", SCRIPTINSTANCE_SERVER);
+    Scr_GetVector(0u, origin, SCRIPTINSTANCE_SERVER);
+    Scr_GetVector(1u, velocity, SCRIPTINSTANCE_SERVER);
+    if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) == 3 )
+        fuseTime = (int)(Scr_GetFloat(2u, SCRIPTINSTANCE_SERVER) * 1000.0f);
+    else
+        fuseTime = 5000;
+    if ( !self->iGrenadeWeaponIndex )
+        Scr_Error(va("Actor [%s] doesn't have a grenade weapon set.", SL_ConvertToString(self->ent->targetname, SCRIPTINSTANCE_SERVER)), SCRIPTINSTANCE_SERVER);
+    grenade = G_FireGrenade(self->ent, origin, velocity, self->iGrenadeWeaponIndex, 0, 1, fuseTime);
+    if ( grenade )
+        Scr_AddEntity(grenade, SCRIPTINSTANCE_SERVER);
+}
+
 void __cdecl ActorCmd_GetDeltaTurnYaw(scr_entref_t entref)
 {
     float value; // [esp+0h] [ebp-Ch]
     actor_s *self; // [esp+8h] [ebp-4h]
 
     self = Actor_Get(entref);
-    if ( !Flame_GetLocalClientSourceRange()
+    if ( !G_IsSpeciesDog(self->species)
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_script_cmd.cpp",
                     4069,

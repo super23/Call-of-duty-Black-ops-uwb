@@ -291,7 +291,7 @@ void __cdecl CG_DrawWaterTrail(int localClientNum, centity_s *cent)
                 in_water = 1;
                 CG_DrawWaterTrail(localClientNum, cent->pose.origin, waterHeight);
             }
-            speed = Vec3Length(velocity);
+            speed = Abs(velocity);
             CG_SetNextRippleTime(cent, cgameGlob->time, speed, in_water);
         }
     }
@@ -328,7 +328,7 @@ void __cdecl CG_DrawWaterTrail(int localClientNum)
                         CG_DrawWaterTrail(localClientNum, cgameGlob->predictedPlayerState.origin, cent->pose.player.waterHeight);
                         in_water = 1;
                     }
-                    speed = Vec3Length(cgameGlob->predictedPlayerState.velocity);
+                    speed = Abs(cgameGlob->predictedPlayerState.velocity);
                     CG_SetNextRippleTime(cent, cgameGlob->time, speed, in_water);
                 }
             }
@@ -1353,7 +1353,7 @@ double __cdecl LookAtAxisAndDistance(const float *origin, const float *lookAt, f
     Vec3Cross((const float *)axis, &(*axis)[3], &(*axis)[6]);
     if ( !Vec3IsNormalized(&(*axis)[6]) )
     {
-        v3 = Vec3Length(&(*axis)[6]);
+        v3 = Abs(&(*axis)[6]);
         v4 = va("(%g %g %g) len %g", (*axis)[6], (*axis)[7], (*axis)[8], v3);
         if ( !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
@@ -1441,7 +1441,7 @@ void __cdecl CG_UpdateDestructibleKillCam(int localClientNum)
     Vec3Cross(cgameGlob->refdef.viewaxis[0], cgameGlob->refdef.viewaxis[1], cgameGlob->refdef.viewaxis[2]);
     if ( !Vec3IsNormalized(cgameGlob->refdef.viewaxis[2]) )
     {
-        v1 = Vec3Length(cgameGlob->refdef.viewaxis[2]);
+        v1 = Abs(cgameGlob->refdef.viewaxis[2]);
         v2 = va(
                      "(%g %g %g) len %g",
                      cgameGlob->refdef.viewaxis[2][0],
@@ -1518,6 +1518,7 @@ void __cdecl CG_UpdateArtilleryKillCam(int localClientNum)
     float campos[3]; // [esp+1A0h] [ebp-18h] BYREF
     float originalBombOrigin[3]; // [esp+1ACh] [ebp-Ch]
 
+    memset(&trace, 0, 16);
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     if ( !cgameGlob->inKillCam
         && !Assert_MyHandler(
@@ -1554,7 +1555,7 @@ void __cdecl CG_UpdateArtilleryKillCam(int localClientNum)
     Vec3Cross(delta, left, up);
     if ( !Vec3IsNormalized(up) )
     {
-        v1 = Vec3Length(up);
+        v1 = Abs(up);
         v2 = va("(%g %g %g) len %g", up[0], up[1], up[2], v1);
         if ( !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
@@ -1572,7 +1573,7 @@ void __cdecl CG_UpdateArtilleryKillCam(int localClientNum)
         deltaProjectedToWall[0] = (float)(v18 * wallNormal[0]) + delta[0];
         deltaProjectedToWall[1] = (float)(v18 * wallNormal[1]) + delta[1];
         deltaProjectedToWall[2] = (float)(v18 * wallNormal[2]) + delta[2];
-        v17 = -(cg_artilleryKillCamWallSideDist->current.value / Vec3Length(deltaProjectedToWall));
+        v17 = -(cg_artilleryKillCamWallSideDist->current.value / Abs(deltaProjectedToWall));
         campos[0] = (float)(v17 * deltaProjectedToWall[0]) + bombOrigin[0];
         campos[1] = (float)(v17 * deltaProjectedToWall[1]) + bombOrigin[1];
         campos[2] = (float)(v17 * deltaProjectedToWall[2]) + bombOrigin[2];
@@ -1746,7 +1747,7 @@ void __cdecl CG_UpdateArtilleryKillCam(int localClientNum)
     Vec3Cross(cgameGlob->refdef.viewaxis[0], cgameGlob->refdef.viewaxis[1], cgameGlob->refdef.viewaxis[2]);
     if ( !Vec3IsNormalized(cgameGlob->refdef.viewaxis[2]) )
     {
-        v3 = Vec3Length(cgameGlob->refdef.viewaxis[2]);
+        v3 = Abs(cgameGlob->refdef.viewaxis[2]);
         v4 = va(
                      "(%g %g %g) len %g",
                      cgameGlob->refdef.viewaxis[2][0],
@@ -1795,6 +1796,7 @@ void __cdecl CG_UpdateDogKillCam(int localClientNum)
     trace_t trace; // [esp+E8h] [ebp-48h] BYREF
     float dogOrigin[3]; // [esp+124h] [ebp-Ch] BYREF
 
+    memset(&trace, 0, 16);
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     if ( !cgameGlob->inKillCam
         && !Assert_MyHandler(
@@ -1872,7 +1874,7 @@ void __cdecl CG_UpdateDogKillCam(int localClientNum)
     Vec3Cross(cgameGlob->refdef.viewaxis[0], cgameGlob->refdef.viewaxis[1], cgameGlob->refdef.viewaxis[2]);
     if ( !Vec3IsNormalized(cgameGlob->refdef.viewaxis[2]) )
     {
-        v1 = Vec3Length(cgameGlob->refdef.viewaxis[2]);
+        v1 = Abs(cgameGlob->refdef.viewaxis[2]);
         v2 = va(
                      "(%g %g %g) len %g",
                      cgameGlob->refdef.viewaxis[2][0],
@@ -1960,6 +1962,7 @@ void __cdecl LerpKillCamView(int localClientNum)
     {
         if ( cgameGlob->killCamLerpEndTime > cgameGlob->time )
         {
+            memset(&trace, 0, 16);
             if ( cgameGlob->killCamLerpEndTime <= cgameGlob->oldTime
                 && !Assert_MyHandler(
                             "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
@@ -2226,6 +2229,7 @@ void __cdecl CG_CalcViewValues(int localClientNum)
                 break;
             case CAM_VEHICLE_GUNNER:
                 cgameGlob->refdef.noLodCullOut = 1;
+                // Gunner view: barrel tag camera (CG_OffsetVehicleGunner), not chase cam — retail CoDMPServer.c:253682.
                 CG_OffsetVehicleGunner(localClientNum, cgameGlob);
                 break;
             default:
@@ -2408,27 +2412,32 @@ void    CG_OffsetChaseCamView(int localClientNum, CameraMode camMode)
 }
 #endif
 
-// aislop used after fixing stack in IDA
+// CoDMPServer.c:253784 / BlackOpsMP.retail.c:853561 (sub_7F4340)
 void CG_OffsetChaseCamView(int localClientNum, CameraMode camMode)
 {
     cg_s *cgameGlob;
     clientActive_t *cl;
+    float forward[3];
     float viewAngles[3];
-    float focusAngles[3];
-    float forward[3], right[3], up[3];
-    float focusPoint[3];
+    float focusDir[3];
+    float camDir[3];
+    float right[3];
+    float up[3];
     float view[3];
-    float focusDist, horizDist;
+    float end[3];
+    float horizDist;
     float thirdPersonRange;
 
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
 
-    iassert(Demo_IsThirdPersonCamera() || cgameGlob->predictedPlayerState.otherFlags & POF_FOLLOW);
+    iassert(Demo_IsThirdPersonCamera() || (cgameGlob->predictedPlayerState.otherFlags & POF_FOLLOW));
 
     if (cg_thirdPersonMode->current.integer == 2)
     {
         AnglesToAxis(devSavedAngles, cgameGlob->refdef.viewaxis);
-        Vec3Copy(devSavedOrigin, cgameGlob->refdef.vieworg);
+        cgameGlob->refdef.vieworg[0] = devSavedOrigin[0];
+        cgameGlob->refdef.vieworg[1] = devSavedOrigin[1];
+        cgameGlob->refdef.vieworg[2] = devSavedOrigin[2];
         return;
     }
 
@@ -2437,57 +2446,59 @@ void CG_OffsetChaseCamView(int localClientNum, CameraMode camMode)
 
     cl = CL_GetLocalClientGlobals(localClientNum);
 
-    Vec3Copy(cl->viewangles, viewAngles);
-    Vec3Copy(cl->viewangles, focusAngles);
+    forward[PITCH] = cl->viewangles[PITCH];
+    forward[YAW] = cl->viewangles[YAW];
+    forward[ROLL] = cl->viewangles[ROLL];
+    viewAngles[PITCH] = cl->viewangles[PITCH];
+    viewAngles[YAW] = cl->viewangles[YAW];
+    viewAngles[ROLL] = cl->viewangles[ROLL];
 
     if (cg_thirdPersonMode->current.integer == 1)
     {
+        forward[YAW] += cgameGlob->refdefViewAngles[YAW];
         viewAngles[YAW] += cgameGlob->refdefViewAngles[YAW];
-        focusAngles[YAW] += cgameGlob->refdefViewAngles[YAW];
     }
 
     viewAngles[YAW] = AngleNormalize180(viewAngles[YAW]);
-    focusAngles[YAW] = AngleNormalize180(focusAngles[YAW]);
+    forward[YAW] = AngleNormalize180(forward[YAW]);
 
-    AngleVectors(viewAngles, forward, right, up);
+    AngleVectors(viewAngles, focusDir, right, up);
 
-    // focus point 512 units forward
-    Vec3Mad(cgameGlob->refdef.vieworg, 512.0f, forward, focusPoint);
+    view[0] = (512.0f * focusDir[0]) + cgameGlob->refdef.vieworg[0];
+    view[1] = (512.0f * focusDir[1]) + cgameGlob->refdef.vieworg[1];
+    view[2] = (512.0f * focusDir[2]) + cgameGlob->refdef.vieworg[2];
 
-    Vec3Copy(cgameGlob->refdef.vieworg, view);
+    view[0] = view[0] - cgameGlob->refdef.vieworg[0];
+    view[1] = view[1] - cgameGlob->refdef.vieworg[1];
+    view[2] = view[2] - cgameGlob->refdef.vieworg[2];
 
-    // delta from view to focus
-    focusPoint[0] -= view[0];
-    focusPoint[1] -= view[1];
-    focusPoint[2] -= view[2];
-
-    horizDist = sqrtf(focusPoint[0] * focusPoint[0] + focusPoint[1] * focusPoint[1]);
+    horizDist = sqrtf((view[0] * view[0]) + (view[1] * view[1]));
     if (horizDist < 1.0f)
         horizDist = 1.0f;
 
-    viewAngles[PITCH] = -atan2f(focusPoint[2], horizDist) * 57.295776f;
+    viewAngles[PITCH] = -atan2f(view[2], horizDist) * 57.295776f;
+    viewAngles[YAW] -= cg_thirdPersonAngle->current.value;
 
-    focusAngles[PITCH] -= cg_thirdPersonAngle->current.value;
-
-    AngleVectors(viewAngles, forward, right, up);
+    AngleVectors(viewAngles, camDir, right, up);
 
     thirdPersonRange = cg_thirdPersonRange->current.value;
-
     if (camMode == CAM_VEHICLE && cgameGlob->renderingThirdPerson == TP_FOR_MODEL)
         thirdPersonRange = 512.0f;
 
-    Vec3Mad(view, -thirdPersonRange, forward, view);
+    end[0] = cgameGlob->refdef.vieworg[0] - (thirdPersonRange * camDir[0]);
+    end[1] = cgameGlob->refdef.vieworg[1] - (thirdPersonRange * camDir[1]);
+    end[2] = cgameGlob->refdef.vieworg[2] - (thirdPersonRange * camDir[2]);
 
     ThirdPersonViewTrace(
         cgameGlob,
         cgameGlob->refdef.vieworg,
-        view,
+        end,
         0x2818011,
         cgameGlob->refdef.vieworg,
         true,
         true);
 
-    AnglesToAxis(viewAngles, cgameGlob->refdef.viewaxis);
+    AnglesToAxis(forward, cgameGlob->refdef.viewaxis);
 }
 
 
@@ -2863,7 +2874,7 @@ void __cdecl CG_OffsetFirstPersonView(cg_s *cgameGlob)
         vs.frametime = (float)cgameGlob->frametime * 0.001;
         vs.fLastIdleFactor = cgameGlob->playerEntity.fLastIdleFactor;
         vs.weapIdleTime = &cgameGlob->weapIdleTime;
-        BG_CalculateViewMovementAngles(&vs, angles);
+        BG_CalculateViewMovementAngles(&vs, angles, false);
         cgameGlob->refdefViewAngles[0] = cgameGlob->refdefViewAngles[0] + angles[0];
         cgameGlob->refdefViewAngles[1] = cgameGlob->refdefViewAngles[1] + angles[1];
         cgameGlob->refdefViewAngles[2] = cgameGlob->refdefViewAngles[2] + angles[2];
@@ -3180,7 +3191,7 @@ void __cdecl CG_UpdateHelicopterKillCam(KillCamEntityType killCamEntityType, int
     Vec3Cross(delta, right, up);
     if ( !Vec3IsNormalized(up) )
     {
-        v2 = Vec3Length(up);
+        v2 = Abs(up);
         v3 = va("(%g %g %g) len %g", up[0], up[1], up[2], v2);
         if ( !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
@@ -3268,6 +3279,7 @@ void __cdecl CG_UpdateExplosiveKillCam(int localClientNum, KillCamEntityType kil
     bool shouldStop; // [esp+20Fh] [ebp-Dh]
     float campos[3]; // [esp+210h] [ebp-Ch] BYREF
 
+    memset(&trace, 0, 16);
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     if ( !cgameGlob->inKillCam
         && !Assert_MyHandler(
@@ -3362,7 +3374,7 @@ void __cdecl CG_UpdateExplosiveKillCam(int localClientNum, KillCamEntityType kil
     Vec3Normalize(delta);
     if ( !Vec3IsNormalized(delta) )
     {
-        v2 = Vec3Length(delta);
+        v2 = Abs(delta);
         v3 = va("(%g %g %g) len %g", delta[0], delta[1], delta[2], v2);
         if ( !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
@@ -3382,7 +3394,7 @@ void __cdecl CG_UpdateExplosiveKillCam(int localClientNum, KillCamEntityType kil
     Vec3Cross(delta, left, up);
     if ( !Vec3IsNormalized(up) )
     {
-        v4 = Vec3Length(up);
+        v4 = Abs(up);
         v5 = va("(%g %g %g) len %g", up[0], up[1], up[2], v4);
         if ( !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
@@ -3587,7 +3599,7 @@ double __cdecl LookAtBothPoints(const float *point1, const float *point2, const 
     Vec3Cross((const float *)lookaxis, &(*lookaxis)[3], &(*lookaxis)[6]);
     if ( !Vec3IsNormalized(&(*lookaxis)[6]) )
     {
-        v4 = Vec3Length(&(*lookaxis)[6]);
+        v4 = Abs(&(*lookaxis)[6]);
         v5 = va("(%g %g %g) len %g", (*lookaxis)[6], (*lookaxis)[7], (*lookaxis)[8], v4);
         if ( !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp",
@@ -3631,6 +3643,7 @@ void __cdecl CG_KillcamCameraTrace(
     float prevBombOrigin[3]; // [esp+B0h] [ebp-10h] BYREF
     const float *thin_mins; // [esp+BCh] [ebp-4h]
 
+    memset(&trace, 0, 16);
     cam_mins = CAM_MINS;
     cam_maxs = CAM_MAXS;
     thin_mins = THIN_MAXS;
@@ -3868,10 +3881,11 @@ const ClientViewParams *__cdecl CG_GetLocalClientViewParams(
 void __cdecl GetCeilingHeight(cg_s *cgameGlob)
 {
     col_context_t context; // [esp+Ch] [ebp-74h] BYREF
-    trace_t trace; // [esp+34h] [ebp-4Ch] BYREF
+    trace_t result; // [esp+34h] [ebp-4Ch] BYREF
     float endPos[3]; // [esp+70h] [ebp-10h] BYREF
     float TEST_HEIGHT; // [esp+7Ch] [ebp-4h]
 
+    memset(&result, 0, 16);
     if ( ++cgameGlob->heightToCeilingTS >= 50 )
     {
         TEST_HEIGHT = 1024.0f;
@@ -3880,10 +3894,10 @@ void __cdecl GetCeilingHeight(cg_s *cgameGlob)
         endPos[2] = cgameGlob->predictedPlayerState.origin[2];
         endPos[2] = endPos[2] + 1024.0;
         //col_context_t::col_context_t(&context);
-        CG_TraceCapsule(&trace, cgameGlob->predictedPlayerState.origin, playerMins, playerMaxs, endPos, 1023, 1, &context);
-        if ( trace.fraction < 1.0 )
+        CG_TraceCapsule(&result, cgameGlob->predictedPlayerState.origin, playerMins, playerMaxs, endPos, 1023, 1, &context);
+        if ( result.fraction < 1.0 )
         {
-            Vec3Lerp(cgameGlob->predictedPlayerState.origin, endPos, trace.fraction, endPos);
+            Vec3Lerp(cgameGlob->predictedPlayerState.origin, endPos, result.fraction, endPos);
             cgameGlob->heightToCeiling = endPos[2] - cgameGlob->predictedPlayerState.origin[2];
         }
         else
@@ -5016,6 +5030,7 @@ void __cdecl CG_UpdateAdsDof(int localClientNum, GfxDepthOfField *dof)
     float traceEnd[3]; // [esp+F0h] [ebp-10h] BYREF
     float farEnd; // [esp+FCh] [ebp-4h]
 
+    memset(&trace, 0, 16);
     if ( !dof && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_view_mp.cpp", 3702, 0, "%s", "dof") )
         __debugbreak();
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);

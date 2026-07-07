@@ -1,10 +1,15 @@
 #pragma once
 #include "db_registry.h"
 
-struct StreamPosInfo // sizeof=0x8
-{                                       // XREF: .data:g_streamPosStack/r
-    unsigned __int8 *pos;               // XREF: DB_PopStreamPos(void)+51/r
-    unsigned int index;                 // XREF: DB_PushStreamPos(uint)+8F/w
+enum
+{
+    DB_STREAM_COUNT = 7,
+};
+
+struct StreamPosInfo
+{
+    unsigned __int8 *pos;
+    unsigned int index;
 };
 
 void __cdecl DB_InitStreams(XBlock *blocks);
@@ -21,5 +26,5 @@ extern XBlock *g_streamBlocks;
 extern unsigned __int8 *g_streamPos;
 extern unsigned int g_streamPosIndex;
 extern unsigned int g_streamDelayIndex;
-extern unsigned __int8 *g_streamPosArray[7];
+extern unsigned __int8 *g_streamPosArray[DB_STREAM_COUNT];
 extern unsigned int g_streamPosStackIndex;

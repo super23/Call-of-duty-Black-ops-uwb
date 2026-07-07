@@ -1,5 +1,7 @@
 #pragma once
-
+#ifdef KISAK_SP
+#include <client_sp/cl_input_sp.h>
+#else
 #include <qcommon/bitarray.h>
 
 enum $E73F4D5E40210A2851F956A075585D03 : __int32
@@ -224,3 +226,4 @@ void __cdecl IN_TalkDown();
 void __cdecl IN_TalkUp();
 void __cdecl CL_ShutdownInput();
 void __cdecl CL_ClearKeys(int localClientNum);
+#endif // !KISAK_SP

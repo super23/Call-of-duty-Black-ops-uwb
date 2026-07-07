@@ -1,5 +1,4 @@
 #include "snd_occlusion.h"
-#include <universal/profile.h>
 #include <qcommon/cm_trace.h>
 #include <cgame/cg_world.h>
 #include "snd.h"
@@ -30,6 +29,7 @@ double __cdecl SND_LosOcclusionTrace(bool fancy, int *cache, const float *listen
     unsigned int hits[3]; // [esp+E4h] [ebp-10h] BYREF
     float side_listen_ray_step; // [esp+F0h] [ebp-4h]
 
+    memset(&result, 0, 16);
     occlusion_factor = 1.0f;
     memset(valid, 0, sizeof(valid));
     memset(hits, 0, sizeof(hits));
@@ -154,6 +154,7 @@ void __cdecl Snd_LosOcclusionMultiTrace(
     float dst[3]; // [esp+60h] [ebp-18h] BYREF
     float dp[3]; // [esp+6Ch] [ebp-Ch] BYREF
 
+    memset(&result, 0, 16);
     cache = 0;
     for ( i = 0; i < listen_rays; ++i )
     {
@@ -622,10 +623,7 @@ void __cdecl SND_LosOcclusionThreadMain()
             Sys_EnterCriticalSection(CRITSEC_SOUND_OCCLUSION);
             Sys_LeaveCriticalSection(CRITSEC_SOUND_OCCLUSION);
             if ( snd_losOcclusion->current.enabled )
-            {
-                PROF_SCOPED("SND_LosOcclusionCmd");
                 SND_LosOcclusionCmd();
-            }
         }
         NET_Sleep(0xAu);
     }

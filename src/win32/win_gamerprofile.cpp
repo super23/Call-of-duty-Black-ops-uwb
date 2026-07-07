@@ -192,6 +192,18 @@ void __cdecl GamerProfile_UpdateDvarsFromProfile(int controllerIndex)
     const char *v4; // eax
     int i; // [esp+8h] [ebp-4h]
     int ia; // [esp+8h] [ebp-4h]
+#ifdef KISAK_SP
+    static bool s_spProfileDvarsApplied;
+    extern const dvar_t *ui_signedInToProfile;
+
+    // CoDSP_rdBlackOps.map.c: frontend only needs one apply after profile is ready.
+    if ( s_spProfileDvarsApplied
+        && ui_signedInToProfile
+        && ui_signedInToProfile->current.enabled )
+    {
+        return;
+    }
+#endif
 
     if ( controllerIndex
         && !Assert_MyHandler(
@@ -219,9 +231,15 @@ void __cdecl GamerProfile_UpdateDvarsFromProfile(int controllerIndex)
     {
         __debugbreak();
     }
+    if ( !gamerSettings[controllerIndex].isInitialized )
+        return;
+
     v1 = va("Updating dvars from profile %i.\n", controllerIndex);
+#ifdef KISAK_SP
+    Com_DPrintf(12, "^3%s\n", v1);
+#else
     Com_Printf(16, "^3%s\n", v1);
-    if ( gamerSettings[controllerIndex].isInitialized )
+#endif
     {
         Dvar_SetInt((dvar_s *)com_first_time, gamerSettings[controllerIndex].firstTime);
         Dvar_SetBool((dvar_s *)zombietron_discovered, gamerSettings[controllerIndex].zombietron_discovered);
@@ -251,6 +269,8 @@ void __cdecl GamerProfile_UpdateDvarsFromProfile(int controllerIndex)
         Dvar_SetFloat((dvar_s *)snd_menu_left_surround, gamerSettings[controllerIndex].snd_menu_left_surround);
         Dvar_SetFloat((dvar_s *)snd_menu_right_surround, gamerSettings[controllerIndex].snd_menu_right_surround);
         Dvar_SetFloat((dvar_s *)snd_menu_lfe, gamerSettings[controllerIndex].snd_menu_lfe);
+#ifndef KISAK_SP
+        // MP / Live_InitPlatform dvars (live_win.cpp:506-526); not used on offline SP main menu.
         Dvar_SetBool((dvar_s *)xblive_basictraining_popup, gamerSettings[controllerIndex].basicTrainingPopup);
         Dvar_SetInt((dvar_s *)bot_friends, gamerSettings[controllerIndex].friends);
         Dvar_SetInt((dvar_s *)bot_enemies, gamerSettings[controllerIndex].enemies);
@@ -277,15 +297,17 @@ void __cdecl GamerProfile_UpdateDvarsFromProfile(int controllerIndex)
             Dvar_SetString((dvar_s *)customclass[ia], gamerSettings[controllerIndex].customClass[ia]);
         Dvar_SetString((dvar_s *)clanName, gamerSettings[controllerIndex].clanPrefix);
         CL_SanitizeClanName();
+#endif
         String = Dvar_GetString("clanName");
         I_strncpyz(gamerSettings[controllerIndex].clanPrefix, String, 5);
         v4 = va("GamerProfile_UpdateDvarsFromProfile(%i):", controllerIndex);
+#ifdef KISAK_SP
+        if ( !s_spProfileDvarsApplied )
+            DebugReportProfileDVars(v4);
+        s_spProfileDvarsApplied = true;
+#else
         DebugReportProfileDVars(v4);
-    }
-    else
-    {
-        v2 = va("Profile %i not initialized yet.\n", controllerIndex);
-        Com_Printf(16, "^3%s\n", v2);
+#endif
     }
 }
 
@@ -431,6 +453,8 @@ void __cdecl GamerProfile_UpdateProfileFromDvars(int controllerIndex, profileWri
     gamerSettings[controllerIndex].snd_menu_left_surround = snd_menu_left_surround->current.value;
     gamerSettings[controllerIndex].snd_menu_right_surround = snd_menu_right_surround->current.value;
     gamerSettings[controllerIndex].snd_menu_lfe = snd_menu_lfe->current.value;
+#ifndef KISAK_SP
+    // MP-only fields (see dvarNameList[] for SP campaign profile keys: mis_*, r_gamma, snd_menu_*).
     gamerSettings[controllerIndex].basicTrainingPopup = xblive_basictraining_popup->current.enabled;
     gamerSettings[controllerIndex].friends = bot_friends->current.integer;
     gamerSettings[controllerIndex].enemies = bot_enemies->current.integer;
@@ -450,6 +474,7 @@ void __cdecl GamerProfile_UpdateProfileFromDvars(int controllerIndex, profileWri
         I_strncpyz(gamerSettings[controllerIndex].customClass[i], customclass[i]->current.string, 16);
     CL_SanitizeClanName();
     I_strncpyz(gamerSettings[controllerIndex].clanPrefix, clanName->current.string, 5);
+#endif
     writeProfile = 0;
     writeProfile = gamerSettings[controllerIndex].loadoutDirty;
     if ( profileWriteState )
@@ -737,6 +762,27 @@ void __cdecl GamerProfile_InitAllProfiles()
     //BLOPS_NULLSUB();
     GamerProfile_UpdateProfileFromDvars(0, PROFILE_NO_WRITE);
 }
+
+#ifdef KISAK_SP
+void __cdecl GamerProfile_InitSPOfflineProfile()
+{
+    // CoDSP_rdBlackOps.map.c / BlackOps.singleplayer.c: offline PC — no XProfile read at boot.
+    // MP retail: GamerProfile_InitAllProfiles after Live_InitPlatform (live_win.cpp:506+).
+    // Call after Com_InitDvars + Live_RegisterSPOfflineDvars + UI_RegisterDvars (UI_InitOnceForAllClients).
+    if ( gamerSettings[0].isInitialized )
+        return;
+    memset((unsigned __int8 *)gamerSettings, 0, sizeof(gamerSettings));
+    // CoDSP_rdBlackOps.map.c Live_UserSignedIn @ live_win.cpp:807: GamerProfile_LogInProfile.
+    GamerProfile_LogInProfile(0);
+    gamerSettings[0].errorOnRead = 0;
+    GamerProfile_UpdateProfileFromDvars(0, PROFILE_NO_WRITE);
+    GamerProfile_UpdateDvarsFromProfile(0);
+    // ui_signedInToProfile is registered in UI_RegisterDvars (called just before this).
+    // Declared in ui_main_sp.cpp — forward declare to avoid pulling ui_sp into win_gamerprofile.
+    extern void UI_SP_NotifyOfflineProfileReady();
+    UI_SP_NotifyOfflineProfileReady();
+}
+#endif
 
 void __cdecl GamerProfile_LogInProfile(int controllerIndex)
 {

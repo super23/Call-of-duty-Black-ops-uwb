@@ -2,8 +2,98 @@
 #include "actor_senses.h"
 #include "g_weapon.h"
 #include <clientscript/cscr_stringlist.h>
-#include <game_mp/g_main_mp.h>
-#include <game_mp/actor_mp.h>
+#include <clientscript/cscr_vm.h>
+#include <game/g_main_wrapper.h>
+#include <game/actor_wrapper.h>
+#include "bullet.h"
+#include <bgame/bg_misc.h>
+#include <bgame/bg_weapons_def.h>
+#include <game/g_utils_wrapper.h>
+#include "actor_events.h"
+#include "actor_turret.h"
+
+#ifdef KISAK_SP
+#include "actor_sp.h"
+
+// Decomp: CoDSP_rdBlackOps.map.c (Actor_GetPlayerSightAccuracy ~82521588)
+// Map: CoDSP_rd.map VA 0x82521588 (actor_aim.obj)
+float __fastcall Actor_GetPlayerSightAccuracy(actor_s *self, sentient_s *targetSentient)
+{
+    float accuracy;
+    float enemyEye[3];
+    float playerViewPos[3];
+    float actorEye[3];
+    float delta[3];
+    float checkPos[3];
+    gentity_s *playerEnt;
+    float *playerOrigin;
+    float dx;
+    float dy;
+    bool inPlayerCone;
+
+    iassert(self);
+    iassert(targetSentient);
+    iassert(targetSentient->ent);
+    iassert(targetSentient->ent->client);
+
+    accuracy = 0.0f;
+    Sentient_GetEyePosition(targetSentient, enemyEye);
+    playerEnt = targetSentient->ent;
+    playerViewPos[0] = playerEnt->client->ps.origin[0];
+    playerViewPos[1] = playerEnt->client->ps.origin[1];
+    playerViewPos[2] = playerEnt->client->ps.origin[2];
+    delta[0] = enemyEye[0] - playerViewPos[0];
+    delta[1] = enemyEye[1] - playerViewPos[1];
+    delta[2] = enemyEye[2] - playerViewPos[2];
+
+    if ( !Actor_IsUsingTurret(self) )
+    {
+        Actor_GetEyePosition(self, actorEye);
+        checkPos[0] = (enemyEye[0] + playerViewPos[0]) * 0.5f;
+        checkPos[1] = (enemyEye[1] + playerViewPos[1]) * 0.5f;
+        checkPos[2] = (enemyEye[2] + playerViewPos[2]) * 0.5f;
+    }
+
+    if ( Actor_CanSeePointEx(self, enemyEye, self->fovDot, self->fMaxSightDistSqrd, playerEnt->s.number) )
+        accuracy += 10.0f;
+
+    checkPos[0] = playerViewPos[0] + delta[0] * 0.75f;
+    checkPos[1] = playerViewPos[1] + delta[1] * 0.75f;
+    checkPos[2] = playerViewPos[2] + delta[2] * 0.75f;
+    if ( Actor_CanSeePointEx(self, checkPos, self->fovDot, self->fMaxSightDistSqrd, playerEnt->s.number) )
+        accuracy += 30.0f;
+
+    checkPos[0] = playerViewPos[0] + delta[0] * 0.5f;
+    checkPos[1] = playerViewPos[1] + delta[1] * 0.5f;
+    checkPos[2] = playerViewPos[2] + delta[2] * 0.5f;
+    if ( Actor_CanSeePointEx(self, checkPos, self->fovDot, self->fMaxSightDistSqrd, playerEnt->s.number) )
+        accuracy += 30.0f;
+
+    checkPos[0] = playerViewPos[0] + delta[0] * 0.25f;
+    checkPos[1] = playerViewPos[1] + delta[1] * 0.25f;
+    checkPos[2] = playerViewPos[2] + delta[2] * 0.25f;
+    if ( Actor_CanSeePointEx(self, checkPos, self->fovDot, self->fMaxSightDistSqrd, playerEnt->s.number) )
+        accuracy += 30.0f;
+
+    accuracy *= 0.01f;
+
+    playerOrigin = targetSentient->ent->r.currentOrigin;
+    dx = playerOrigin[0] - playerViewPos[0];
+    dy = playerOrigin[1] - playerViewPos[1];
+    inPlayerCone = (dx * dx + dy * dy) < 65536.0f;
+    if ( accuracy < 0.75f && inPlayerCone )
+        accuracy = 0.75f;
+    else if ( accuracy < 0.1f )
+        accuracy = 0.1f;
+
+    if ( accuracy < 0.0f )
+        accuracy = 0.0f;
+    if ( accuracy > 1.0f )
+        accuracy = 1.0f;
+    return accuracy;
+}
+
+#endif // KISAK_SP
 
 void __cdecl Actor_FillWeaponParms(actor_s *self, weaponParms *wp)
 {
@@ -173,6 +263,146 @@ gentity_s *__cdecl Actor_Melee(actor_s *self, const float *direction)
                          ai_meleeWidth->current.value,
                          ai_meleeHeight->current.value,
                          level.time);
+    }
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (Actor_StopShoot ~5918109)
+void __fastcall Actor_StopShoot(actor_s *self)
+{
+    iassert(self);
+    iassert(self->ent);
+    self->ent->s.lerp.eFlags &= ~0x40u;
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (Actor_ShootNoEnemy ~5917582)
+static void Actor_ShootNoEnemy(weaponParms *wp)
+{
+    wp->forward[0] = wp->gunForward[0];
+    wp->forward[1] = wp->gunForward[1];
+    wp->forward[2] = wp->gunForward[2];
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (Actor_ShootPos ~5917590)
+static void Actor_ShootPos(weaponParms *wp, const float *targetPos)
+{
+    wp->forward[0] = targetPos[0] - wp->muzzleTrace[0];
+    wp->forward[1] = targetPos[1] - wp->muzzleTrace[1];
+    wp->forward[2] = targetPos[2] - wp->muzzleTrace[2];
+    Vec3Normalize(wp->forward);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (Actor_GetFinalAccuracy ~5915784)
+static float Actor_GetFinalAccuracy(actor_s *self, float accuracyMod)
+{
+    sentient_s *enemy;
+    float accuracy;
+
+    enemy = Actor_GetTargetSentient(self);
+    accuracy = self->accuracy * accuracyMod * self->playerSightAccuracy;
+    if ( enemy && enemy->ent && enemy->ent->client )
+        accuracy = accuracy * enemy->attackerAccuracy;
+    if ( accuracy < 0.0f )
+        accuracy = 0.0f;
+    if ( accuracy > 1.0f )
+        accuracy = 1.0f;
+    self->debugLastAccuracy = accuracy;
+    return accuracy;
+}
+
+#ifdef KISAK_SP
+// Decomp: CoDSP_rdBlackOps.map.c (Actor_ShootBlank ~82524E70)
+void __fastcall Actor_ShootBlank(actor_s *self)
+{
+    gentity_s *ent;
+    unsigned int weapon;
+    weaponParms wp;
+    const WeaponDef *weapDef;
+    const char *weaponNameStr;
+
+    iassert(self);
+    iassert(self->ent);
+    ent = self->ent;
+    if ( self->lastShotTime == level.time )
+    {
+        Com_PrintError(
+            18,
+            "ERROR: Attempt for same actor (entnum %d) to shoot/melee more than once in a frame.\n",
+            ent->s.number);
+        return;
+    }
+    self->lastShotTime = level.time;
+    weaponNameStr = SL_ConvertToString(self->weaponName, SCRIPTINSTANCE_SERVER);
+    weapon = G_GetWeaponIndexForName((char *)weaponNameStr);
+    weapDef = BG_GetWeaponDef(weapon);
+    if ( !weapDef || weapDef->weapType != WEAPTYPE_BULLET )
+    {
+        Scr_Error(
+            va("ShootBlank() only works with bullet weapons.  Using weapon [%s]", BG_WeaponName(weapon)),
+            0);
+        return;
+    }
+    Actor_InitWeaponParms(self, weapon, &wp);
+    Actor_ShootNoEnemy(&wp);
+    ent->s.weapon = weapon;
+    iassert(ent->s.weapon == weapon);
+    iassert(weapDef->weapType == WEAPTYPE_BULLET);
+    G_AddEvent(ent, EV_FIRE_WEAPON, 0);
+}
+#endif
+
+// Decomp: CoDSP_rdBlackOps.map.c (Actor_Shoot ~5915270)
+void __fastcall Actor_Shoot(actor_s *self, const float *optionalTarget, int addEvents, float accuracyMod)
+{
+    gentity_s *ent;
+    unsigned int weapon;
+    weaponParms wp;
+    gentity_s *targetEnt;
+    const char *weaponNameStr;
+    const WeaponDef *weapDef;
+
+    iassert(self);
+    iassert(self->ent);
+    ent = self->ent;
+    if ( self->lastShotTime == level.time )
+    {
+        Com_PrintError(
+            18,
+            "ERROR: Attempt for same actor (entnum %d) to shoot/melee more than once in a frame.\n",
+            ent->s.number);
+        return;
+    }
+    self->lastShotTime = level.time;
+    weaponNameStr = SL_ConvertToString(self->weaponName, SCRIPTINSTANCE_SERVER);
+    weapon = G_GetWeaponIndexForName((char *)weaponNameStr);
+    Actor_InitWeaponParms(self, weapon, &wp);
+    targetEnt = Actor_GetTargetEntity(self);
+    if ( optionalTarget )
+        Actor_ShootPos(&wp, optionalTarget);
+    else if ( targetEnt )
+    {
+        float targetPos[3];
+
+        if ( targetEnt->sentient )
+            Sentient_GetThirdPersonEyePosition(targetEnt->sentient, targetPos);
+        else
+            G_EntityCentroid(targetEnt, targetPos);
+        Actor_ShootPos(&wp, targetPos);
+        if ( Actor_GetFinalAccuracy(self, accuracyMod) > G_random() )
+            ++self->hitCount;
+        else
+            ++self->missCount;
+    }
+    else
+        Actor_ShootNoEnemy(&wp);
+
+    ent->s.weapon = weapon;
+    ent->s.lerp.eFlags |= 0x40u;
+    weapDef = BG_GetWeaponDef(weapon);
+    if ( weapDef->weapType == WEAPTYPE_BULLET )
+    {
+        Bullet_Fire(ent, 0.0f, &wp, ent, level.time);
+        if ( addEvents )
+            G_AddEvent(ent, EV_FIRE_WEAPON, 0);
     }
 }
 

@@ -998,7 +998,10 @@ void __cdecl SV_Init()
                                                         "Hit effects that are more than <this value> outside of the frustum will be culled.");
     sv_punkbuster = _Dvar_RegisterBool("sv_punkbuster", 0, 0x10u, "Enable PunkBuster on this server");
     sv_security = _Dvar_RegisterInt("sv_security", 1, 0, 2, 0x14u, "Enable security on this server");
-    sv_ranked = _Dvar_RegisterInt("sv_ranked", 0, 0, 5, 0x44u, "Server license type.");
+    // Domain widened to allow -1 (unranked/unlicensed) which Live_GetLicenseType
+    // can return on machines that aren't signed into Live. The stock Treyarch
+    // build accepted any negative value; ours rejected it and spammed the log.
+    sv_ranked = _Dvar_RegisterInt("sv_ranked", 0, -1, 5, 0x44u, "Server license type.");
     ui_ranked = _Dvar_RegisterBool("ui_ranked", 0, 0x80u, "True if playing in a ranked server");
     sv_dedicatedmaxclients = _Dvar_RegisterInt(
                                                          "sv_dedicatedmaxclients",

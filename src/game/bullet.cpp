@@ -3,22 +3,30 @@
 #include <bgame/bg_misc.h>
 #include "game_public.h"
 #include "g_weapon.h"
+#ifdef KISAK_SP
+#include <server_sp/sv_init_sp.h>
+#else
 #include <server_mp/sv_init_mp.h>
-#include <game_mp/g_main_mp.h>
+#endif
+#include <game/g_main_wrapper.h>
 #include <cgame/cg_drawtools.h>
-#include <game_mp/g_team_mp.h>
+#include <game/g_team_wrapper.h>
 #include <server/sv_world.h>
-#include <game_mp/g_trigger_mp.h>
+#include <game/g_trigger_wrapper.h>
 #include <DynEntity/DynEntity_server.h>
-#include <game_mp/g_combat_mp.h>
+#include <game/g_combat_wrapper.h>
 #include <client/cl_debugdata.h>
-#include <game_mp/g_utils_mp.h>
+#include <game/g_utils_wrapper.h>
 #include <server/sv_game.h>
 #include <glass/glass_server.h>
 #include "actor_events.h"
 #include <bgame/bg_perks.h>
 #include <cgame/cg_weapons.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
+#endif
 
 unsigned __int8 scr_playerdamage_boneindex = 254u;
 
@@ -351,6 +359,7 @@ void __cdecl Bullet_FireExtended(
     BulletTraceResults br; // [esp+Ch] [ebp-58h] BYREF
     const WeaponDef *weapDef; // [esp+60h] [ebp-4h]
 
+    memset(&br, 0, 16);
     if ( !bp && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\bullet.cpp", 660, 0, "%s", "bp") )
         __debugbreak();
     if ( !weapVariantDef
@@ -857,7 +866,11 @@ void __cdecl Bullet_ImpactEffect(
             }
             else
             {
+#ifdef KISAK_SP
+                tempEnt = G_TempEntity(br->hitPos, EV_BULLET_HIT_CLIENT_SMALL);
+#else
                 tempEnt = G_TempEntity(br->hitPos, EV_BULLET_HIT);
+#endif
                 WeaponIndex = BG_GetWeaponIndex(weapVariantDef);
                 AssignToSmallerType<unsigned short>(&tempEnt->s.weapon, WeaponIndex);
                 tempEnt->s.eventParm = DirToByte(normal);
@@ -930,6 +943,8 @@ void __cdecl Bullet_FirePenetrate(
     bool traceHit; // [esp+1B3h] [ebp-5h]
     const WeaponDef *weapDef; // [esp+1B4h] [ebp-4h]
 
+    memset(&br, 0, 16);
+    memset(&revBr, 0, 16);
     if ( !bp && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\bullet.cpp", 735, 0, "%s", "bp") )
         __debugbreak();
     if ( !weapVariantDef

@@ -56,7 +56,7 @@ void __fastcall Actor_TeamMoveBlockedClear(actor_s *self);
 char __cdecl Actor_TeamMoveCalcMovementDir(team_move_context_t *context, ai_teammove_t *result);
 void __cdecl Actor_MoveAlongPathWithTeam(actor_s *self, bool bRun, bool bUseInterval, bool bAllowGoalPileUp);
 ai_teammove_t __fastcall Actor_GetTeamMoveStatus(actor_s *self, bool bUseInterval, bool bAllowGoalPileUp);
-bool Actor_TeamMoveCheckWaitTimer(actor_s *self, ai_teammove_t *result);
+char __cdecl Actor_TeamMoveCheckWaitTimer(actor_s *self, ai_teammove_t *result);
 char __cdecl Actor_TeamMoveNeedToCheckWait(unsigned __int8 moveMode, path_t *pPath);
 bool __cdecl Actor_IsEnemy(actor_s *self, sentient_s *other);
 void __cdecl Actor_TeamMoveSetDodge(team_move_context_t *context, team_move_other_context_t *context_other);
@@ -78,4 +78,8 @@ int __cdecl Actor_TeamMoveTrimPath(path_t *pPath, const team_move_context_t *con
 void __cdecl Actor_TeamMoveTooCloseMoveAway(const actor_s *self, int mask, team_move_context_t *context);
 char __cdecl Actor_TeamMoveCheckPileup(actor_s *self, actor_s *pOtherActor);
 
+#ifdef KISAK_SP
+extern const float g_actorAssumedSpeed[4];
+#else
 extern const float g_actorAssumedSpeed[1];
+#endif

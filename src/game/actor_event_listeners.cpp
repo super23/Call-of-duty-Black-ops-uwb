@@ -1,9 +1,12 @@
 #include "actor_event_listeners.h"
-#include <game_mp/g_main_mp.h>
+#include <game/g_main_wrapper.h>
 #include <clientscript/cscr_vm.h>
-#include <game_mp/g_spawn_mp.h>
-#include <game_mp/g_misc_mp.h>
+#include <game/g_spawn_wrapper.h>
+#include <game/g_misc_wrapper.h>
 #include <clientscript/scr_const.h>
+#include <clientscript/cscr_stringlist.h>
+#include <bgame/bg_animation.h>
+#include <client/con_channels.h>
 
 unsigned __int16 *g_AIEV_scrConst_table[28] =
 {
@@ -42,6 +45,77 @@ unsigned __int16 *g_AIEV_scrConst_table[28] =
 int g_listenerCount;
 AIEventListener g_AIEVlisteners[32];
 unsigned int array[63];
+
+ai_event_t __cdecl Actor_FindEventFromString(unsigned __int16 eventString)
+{
+    const char *fmtMsg;
+    char *eventName;
+    int i;
+
+    for ( i = 0; i < AI_EV_NUM_EVENTS; ++i )
+    {
+        if ( g_AIEV_scrConst_table[i] && *g_AIEV_scrConst_table[i] == eventString )
+            return (ai_event_t)i;
+    }
+    eventName = SL_ConvertToString(eventString, SCRIPTINSTANCE_SERVER);
+    fmtMsg = va("Unable to find AI event for [%s]", eventName);
+    Scr_Error(fmtMsg, SCRIPTINSTANCE_SERVER);
+    return AI_EV_BAD;
+}
+
+void __cdecl Actor_EventListener_Add(unsigned int entIndex, unsigned __int16 eventString)
+{
+    const char *fmtMsg;
+    ai_event_t event;
+    int i;
+
+    event = Actor_FindEventFromString(eventString);
+    if ( event >= AI_EV_NUM_EVENTS
+        && !Assert_MyHandler(
+                "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_event_listeners.cpp",
+                140,
+                0,
+                "event < AI_EV_NUM_EVENTS") )
+    {
+        __debugbreak();
+    }
+    if ( !event )
+        return;
+    for ( i = 0; i < g_listenerCount; ++i )
+    {
+        if ( g_AIEVlisteners[i].entIndex == (int)entIndex )
+        {
+            Com_BitSetAssert(&array[2 * i], event, 0xFFFFFFF);
+            return;
+        }
+    }
+    if ( g_listenerCount >= 32 )
+    {
+        fmtMsg = va("Max listeners exceeded; entity id: %d\n", entIndex);
+        Scr_Error(fmtMsg, SCRIPTINSTANCE_SERVER);
+    }
+    g_AIEVlisteners[g_listenerCount].entIndex = entIndex;
+    Com_BitSetAssert(&array[2 * g_listenerCount], event, 0xFFFFFFF);
+    ++g_listenerCount;
+}
+
+void __cdecl Actor_EventListener_Remove(unsigned int entIndex, unsigned __int16 eventString)
+{
+    ai_event_t event;
+    int i;
+
+    event = Actor_FindEventFromString(eventString);
+    for ( i = 0; i < g_listenerCount; ++i )
+    {
+        if ( g_AIEVlisteners[i].entIndex == (int)entIndex )
+        {
+            Com_BitClearAssert(&array[2 * i], event, 0xFFFFFFF);
+            if ( !array[2 * i] )
+                RemoveSwapWithLast(i);
+            return;
+        }
+    }
+}
 
 void __cdecl RemoveSwapWithLast(unsigned int listenerIndex)
 {

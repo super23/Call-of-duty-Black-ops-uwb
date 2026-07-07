@@ -1,28 +1,43 @@
 #include "cl_keys.h"
 #include <gfx_d3d/r_font.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_main_sp.h>
+#include <client_sp/cl_scrn_sp.h>
+#include <server_sp/sv_init_sp.h>
+#include <cgame_sp/cg_newDraw_sp.h>
+#include <cgame_sp/cg_main_sp.h>
+#include <ui_sp/ui_main_sp.h>
+#include <cgame_sp/cg_consolecmds_sp.h>
+#include <cgame_sp/cg_scoreboard_sp.h>
+#include <client_sp/cl_ui_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <client/cl_cin.h>
+#include <gfx_d3d/r_cinematic.h>
+#else
 #include <client_mp/cl_main_mp.h>
+#include <client_mp/cl_scrn_mp.h>
+#include <server_mp/sv_init_mp.h>
+#include <cgame_mp/cg_newDraw_mp.h>
+#include <cgame_mp/cg_main_mp.h>
+#include <ui_mp/ui_main_mp.h>
+#include <cgame_mp/cg_consolecmds_mp.h>
+#include <cgame_mp/cg_scoreboard_mp.h>
+#include <client_mp/cl_ui_mp.h>
+#include <client_mp/cl_cgame_mp.h>
+#endif
 #include <stringed/stringed_hooks.h>
 #include "cl_console.h"
 #include <win32/win_main.h>
-#include <client_mp/cl_scrn_mp.h>
 #include <universal/com_files.h>
 #include "splitscreen.h"
 #include <universal/com_memory.h>
 #include <win32/win_gamepad.h>
 #include "cl_main.h"
 #include <devgui/devgui.h>
-#include <cgame_mp/cg_newDraw_mp.h>
-#include <server_mp/sv_init_mp.h>
 #include "client.h"
-#include <cgame_mp/cg_main_mp.h>
-#include <ui_mp/ui_main_mp.h>
-#include <cgame_mp/cg_consolecmds_mp.h>
-#include <cgame_mp/cg_scoreboard_mp.h>
 #include <demo/demo_playback.h>
 #include <ui/ui_shared.h>
 #include <qcommon/com_clients.h>
-#include <client_mp/cl_ui_mp.h>
-#include <client_mp/cl_cgame_mp.h>
 
 struct keyname_t // sizeof=0x8
 {
@@ -1982,13 +1997,24 @@ LABEL_37:
                 *locSelInputState = LOC_SEL_INPUT_NONE;
             }
             clcState = CL_GetLocalClientConnectionState(localClientNum);
+#ifdef KISAK_SP
+            if ( down && key == 200 && R_Cinematic_IsStarted() && !LocalClientUIGlobals->keyCatchers )
+            {
+                SCR_StopCinematic();
+                return;
+            }
+#endif
             if ( down )
             {
                 v7 = key == 200 || key < 128;
                 if ( v7
                     && (clcState >= CA_CONNECTING && CL_GetLocalClientConnection(localClientNum)->demoplaying
                      || clcState == CA_CINEMATIC
-                     || clcState == CA_LOGO)
+                     || clcState == CA_LOGO
+#ifdef KISAK_SP
+                     || ((clcState == CA_LOADING || clcState == CA_PRIMED) && R_Cinematic_IsStarted())
+#endif
+                    )
                     && !LocalClientUIGlobals->keyCatchers )
                 {
                     Dvar_SetString((dvar_s *)nextdemo, "");
@@ -2328,6 +2354,27 @@ void __cdecl Key_ClearStates(int localClientNum)
         keys[keynum].down = 0;
         keys[keynum].repeats = 0;
     }
+}
+
+const char *__cdecl CL_GetCommandFromKey(int localClientNum, const char *keyName)
+{
+    int keynum;
+
+    if ( localClientNum
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\client\\cl_keys.cpp",
+                    2713,
+                    0,
+                    "localClientNum doesn't index MAX_LOCAL_CLIENTS\n\t%i not in [0, %i)",
+                    localClientNum,
+                    1) )
+    {
+        __debugbreak();
+    }
+    keynum = Key_StringToKeynum(keyName);
+    if ( keynum < 0 )
+        return 0;
+    return Key_GetBinding(localClientNum, keynum, 0);
 }
 
 int __cdecl CL_GetKeyBinding(int localClientNum, const char *command, char (*keyNames)[128], int bindNum)

@@ -1,5 +1,9 @@
 #pragma once
+#ifdef KISAK_SP
+#include <client_sp/cl_main_sp.h>
+#else
 #include <client_mp/cl_main_mp.h>
+#endif
 
 enum taskCompleteResults : __int32;
 

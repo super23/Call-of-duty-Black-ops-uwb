@@ -66,8 +66,13 @@ void __cdecl CL_CreateDevGui()
     CL_CreateMapMenuEntries();
     R_CreateDevGui();
     Cbuf_InsertText(0, "exec devgui_main");
+#ifdef KISAK_SP
+    Cbuf_InsertText(0, "exec devgui_maps_sp");
+    Cbuf_InsertText(0, "exec devgui_sp");
+#else
     Cbuf_InsertText(0, "exec devgui_maps_mp");
     Cbuf_InsertText(0, "exec devgui_mp");
+#endif
     CG_InitVisionSetsMenu();
     Cbuf_InsertText(0, "exec devgui_anims");
     Cbuf_InsertText(0, "exec devgui_art");

@@ -313,6 +313,7 @@ struct FxSpriteInfo // sizeof=0x10
 
 union FxBoltAndSortOrder // sizeof=0x4
 {                                       // XREF: FxEffect/r
+    unsigned __int32 packed;            // Decomp: boltAndSortOrder.0 raw dword (CoDMPServer.c:358892)
     //$88D60DA77564256B22C3F95D9DD45A24 __s0;
     struct //$88D60DA77564256B22C3F95D9DD45A24 // sizeof=0x4
     {                                       // XREF: FxBoltAndSortOrder/r

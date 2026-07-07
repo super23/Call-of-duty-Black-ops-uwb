@@ -1350,8 +1350,11 @@ void __cdecl MatrixInverse44(const mat4x4 &mat, mat4x4 &dst)
         iassert(det != 0.0);
 
         det = 1.0 / det;
-        for (i = 0; i < 16; ++i)
-                (dst)[0][i] = (dst)[0][i] * det;
+        {
+                float *outFlat = &dst[0][0];
+                for (i = 0; i < 16; ++i)
+                        outFlat[i] = outFlat[i] * det;
+        }
 }
 
 void __cdecl MatrixTransformVector44(const float *vec, const float (*mat)[4], float *out)
@@ -1704,7 +1707,7 @@ void SpotLightViewMatrix(const float *direction, float rotation, float (*mtx)[4]
 
     // Get any vector perpendicular to forward
     // PerpendicularVector expects a source and writes the result into dst.
-    // We pass 'forward' (not normalized) — PerpendicularVector should handle that, but we will normalize afterwards.
+    // We pass 'forward' (not normalized) ? PerpendicularVector should handle that, but we will normalize afterwards.
     PerpendicularVector(forward, up);
 
     // right = cross(up, forward)
@@ -3315,7 +3318,7 @@ float __cdecl Vec3Distance(const float *v1, const float *v2)
     dir[0] = *v2 - *v1;
     dir[1] = v2[1] - v1[1];
     dir[2] = v2[2] - v1[2];
-    return Vec3Length(dir);
+    return Abs(dir);
 }
 
 float __cdecl Vec3DistanceSq(const float *p1, const float *p2)
@@ -3397,6 +3400,11 @@ float AngleNormalize180(float angle)
         if (angle < 0.0f)
                 angle += 360.0f;
         return angle - 180.0f;
+}
+
+float    __cdecl Abs(const float *v)
+{
+        return (float)sqrt((float)((float)((float)(*v * *v) + (float)(v[1] * v[1])) + (float)(v[2] * v[2])));
 }
 
 void __cdecl Vec3Scale(const float *v, float scale, float *result)
@@ -3582,11 +3590,6 @@ void __cdecl Vec3AddScalar(const float *a, float s, float *sum)
     *sum = *a + s;
     sum[1] = a[1] + s;
     sum[2] = a[2] + s;
-}
-
-bool __cdecl Vec3Compare(const float *a, const float *b)
-{
-    return *a == *b && a[1] == b[1] && a[2] == b[2];
 }
 
 void __cdecl Vec3Add(const float *a, const float *b, float *sum)

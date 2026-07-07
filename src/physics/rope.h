@@ -125,6 +125,7 @@ void __cdecl Rope_Reset();
 void __cdecl Rope_Reset(int rope_index);
 void __cdecl Rope_SetMaterial(int rope_index, Material *const material);
 int __cdecl Rope_GetNumParticles(int rope_index);
+void __cdecl Rope_GetPosition(int rope_index, float fraction, float *outPos);
 void __cdecl Rope_AddAnchor(
                 int rope_index,
                 char particle_index,

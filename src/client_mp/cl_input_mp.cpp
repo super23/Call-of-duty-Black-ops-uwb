@@ -495,6 +495,9 @@ void __cdecl CL_AdjustAngles(int localClientNum)
 
     kb = playersKb[localClientNum];
     LocalClientGlobals = CL_GetLocalClientGlobals(localClientNum);
+    // BlackOpsMP.retail.c:~874080 / ~813233: freezecontrolsallowlook (pm_flags 0x10) blocks view input.
+    if ( (LocalClientGlobals->snap.ps.pm_flags & 0x10) != 0 )
+        return;
     if ( kb[9].active )
         speed = (float)((float)cls.frametime * 0.001) * cl_anglespeedkey->current.value;
     else
@@ -964,7 +967,10 @@ void __cdecl CL_MouseMove(int localClientNum, usercmd_s *cmd)
         accelSensitivity = accelSensitivity * LocalClientGlobals->cgameFOVSensitivityScale;
         if ( rate != 0.0 && cl_showMouseRate->current.enabled )
             Com_Printf(14, "%f : %f\n", rate, accelSensitivity);
-        if ( (LocalClientGlobals->snap.ps.pm_flags & 0x800) == 0 && LocalClientGlobals->snap.ps.weaponstate != 35 )
+        // BlackOpsMP.retail.c:~813128 pm_flags 0x800 and ~813233 pm_flags 0x10 both block look input.
+        if ( (LocalClientGlobals->snap.ps.pm_flags & 0x800) == 0
+            && (LocalClientGlobals->snap.ps.pm_flags & 0x10) == 0
+            && LocalClientGlobals->snap.ps.weaponstate != 35 )
         {
             mx = mx * accelSensitivity;
             my = my * accelSensitivity;

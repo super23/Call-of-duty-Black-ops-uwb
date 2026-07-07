@@ -18,6 +18,9 @@
 #include <cstdint>
 #include <cmath>
 
+// Stock T5 used 40168 for MP stats blobs; stats.ddl in shipped fastfiles can require ~40548 bytes.
+#define LIVE_STATS_DDL_BUFFER_BYTES 40960
+
 //======================= WIN32 DEFINES =================================
 #ifdef WIN32
 
@@ -64,11 +67,6 @@ static ID_INLINE int BigLong(int l) { return LongSwap(l); }
 
 
 #define MAX_LOCAL_CENTITIES 0x600
-
-#define	MAX_GENTITIES		(1024) // 0x400
-
-#define ENTITYNUM_WORLD (MAX_GENTITIES - 2)
-#define ENTITYNUM_NONE (MAX_GENTITIES - 1)
 
 //=============================================
 void I_strncat(char *dest, int size, const char *src);
@@ -465,6 +463,15 @@ static const float colorDkGreen[4] = { 0.0, 0.25, 0.0, 1.0 };
 
 
 
+
+#define	MAX_GENTITIES		(1024) // 0x400
+#define ENTITYNUM_NONE      (MAX_GENTITIES - 1)
+#define ENTITYNUM_WORLD     0
+
+inline float Square(float val)
+{
+    return val * val;
+}
 
 struct usercmd_s;
 

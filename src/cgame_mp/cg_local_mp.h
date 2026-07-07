@@ -13,7 +13,7 @@
 #include <client_mp/cl_main_mp.h>
 #include <cgame_mp/cg_main_mp.h>
 
-#define MAX_LOCAL_CLIENTS 1
+#include <client/client_limits.h>
 
 enum link_type_e : __int32
 {                                       // XREF: cg_s/r
@@ -849,6 +849,7 @@ struct __declspec(align(128)) cg_s // sizeof=0x71C80
         int alliesFlagAway;
         int axisFlagAway;
         int resetWeaponStateFlag;
+        int hideViewModel;
         // padding byte
         // padding byte
         // padding byte

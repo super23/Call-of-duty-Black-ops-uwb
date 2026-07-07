@@ -6,6 +6,8 @@
 #include <game/actor_animapi.h>
 #include <game/g_player_corpse.h>
 
+// MP server script data and builtins (g_scr_main_mp.cpp).
+
 struct gentity_s;
 struct scr_animscript_t;
 struct pathnode_t;
@@ -14,52 +16,40 @@ struct objective_t;
 struct XAnimTree_s;
 struct scr_animtree_t;
 
-struct gameTypeScript_t // sizeof=0x84
-{                                       // XREF: scr_data_t::<unnamed_type_gametype>/r
+struct gameTypeScript_t
+{
     char pszScript[64];
-    char pszName[64];                   // XREF: Scr_GetGameTypeNameForScript(char const *)+49/o
+    char pszName[64];
     int bTeamBased;
 };
 
-struct scr_data_t_unnamed_type_gametype // sizeof=0x10BC
-{                                       // XREF: scr_data_t/r
-    int main;                           // XREF: GScr_LoadGameTypeScript(void)+41/w
-                                        // Scr_LoadGameType(void)+4/r ...
-    int startupgametype;                // XREF: GScr_LoadGameTypeScript(void)+5C/w
-                                        // Scr_StartupGameType(void)+6/r
-    int playerconnect;                  // XREF: GScr_LoadGameTypeScript(void)+77/w
-                                        // Scr_PlayerConnect(gentity_s *)+6/r
-    int playerdisconnect;               // XREF: GScr_LoadGameTypeScript(void)+92/w
-                                        // Scr_PlayerDisconnect(gentity_s *)+6/r
-    int playerdamage;                   // XREF: GScr_LoadGameTypeScript(void)+AD/w
-                                        // Scr_PlayerDamage(gentity_s *,gentity_s *,gentity_s *,int,int,int,int,float const * const,float const * const,hitLocation_t,int)+C6/r
-    int playerkilled;                   // XREF: GScr_LoadGameTypeScript(void)+C8/w
-                                        // Scr_PlayerKilled(gentity_s *,gentity_s *,gentity_s *,int,int,int,float const * const,hitLocation_t,int,int)+BA/r
+// Script function handles for gametype callbacks (from _callbacksetup / gametype main).
+struct scr_gametype_data_t
+{
+    int main;
+    int startupgametype;
+    int playerconnect;
+    int playerdisconnect;
+    int playerdamage;
+    int playerkilled;
     int votecalled;
     int playervote;
     int playerrevive;
-    int actordamage;                    // XREF: GScr_LoadGameTypeScript(void)+E3/w
-                                        // Scr_ActorDamage(gentity_s *,gentity_s *,gentity_s *,int,int,int,int,float const * const,float const * const,hitLocation_t,int)+C6/r
-    int actorkilled;                    // XREF: GScr_LoadGameTypeScript(void)+FE/w
-                                        // Scr_ActorKilled(gentity_s *,gentity_s *,gentity_s *,int,int,int,float const * const,hitLocation_t,int)+AC/r
-    int vehicledamage;                  // XREF: GScr_LoadGameTypeScript(void)+119/w
-                                        // Scr_VehicleDamage(gentity_s *,gentity_s *,gentity_s *,int,int,int,int,float const * const,float const * const,hitLocation_t,int,int,uint,uint)+F0/r
-    int vehicleradiusdamage;            // XREF: GScr_LoadGameTypeScript(void)+134/w
-                                        // Scr_VehicleRadiusDamage(gentity_s *,gentity_s *,gentity_s *,int,float,float,int,int,int,float const * const,float,float,float const * const,int)+FD/r
-    int playerlaststand;                // XREF: GScr_LoadGameTypeScript(void)+14F/w
-                                        // Scr_PlayerLastStand(gentity_s *,gentity_s *,gentity_s *,int,int,int,float const * const,hitLocation_t,int)+B8/r
-    int iNumGameTypes;                  // XREF: Scr_ParseGameTypeList_LoadObj+30B/w
-                                        // Scr_ParseGameTypeList_FastFile+261/w ...
-    gameTypeScript_t list[32];          // XREF: Scr_ParseGameTypeList_LoadObj+1E/o
-                                        // Scr_ParseGameTypeList_LoadObj+14A/o ...
+    int actordamage;
+    int actorkilled;
+    int vehicledamage;
+    int vehicleradiusdamage;
+    int playerlaststand;
+    int iNumGameTypes;
+    gameTypeScript_t list[32];
 };
 
 struct scr_data_t
 {
     int levelscript;
     int gametypescript;
-    scr_data_t_unnamed_type_gametype gametype;
-    int delete_;
+    scr_gametype_data_t gametype;
+    int delete_; // codescripts/delete main
     int initstructs;
     int createstruct;
     int findstruct;
@@ -67,7 +57,6 @@ struct scr_data_t
     corpseInfo_t playerCorpseInfo[4];
     XAnimTree_s *actorXAnimTrees[16];
     corpseInfo_t actorCorpseInfo[8];
-    //_BYTE gap97F8[96];
     int destructible_callback;
     int levelnotify;
     int faceeventnotify;
@@ -77,15 +66,14 @@ struct scr_data_t
 };
 
 
-struct cached_tag_mat_t // sizeof=0x3C
-{                                       // XREF: .data:cached_tag_mat_t cg_cachedTagMat/r
+// Cached tag axis for GScr_GetTagOrigin / UpdateTagInternal (see level.cachedTagMat).
+struct cached_tag_mat_t
+{
     int time;
     int entnum;
-    unsigned __int16 name;              // XREF: GScr_Shutdown(void)+3/r
-                                        // GScr_Shutdown(void)+12/o
-    // padding byte
-    // padding byte
-    float tagMat[4][3];                 // XREF: CScr_GetTagOrigin(scr_entref_t)+117/o
+    unsigned __int16 name;
+    unsigned __int8 pad[2];
+    float tagMat[4][3];
 };
 
 void assertCmd();
@@ -94,16 +82,16 @@ void assertmsgCmd();
 void print();
 void println();
 void GScr_IsCollectors();
-unsigned int __cdecl    GScr_AllocString(const char *s);
+unsigned int __cdecl GScr_AllocString(const char *s);
 void __cdecl Scr_LoadLevel();
 void __cdecl Scr_LoadPreGame();
 void __cdecl GScr_LoadGameTypeScript();
 int __cdecl GScr_LoadScriptAndLabel(scriptInstance_t inst, const char *filename, const char *label, int bEnforceExists);
-void __cdecl    GScr_LoadScripts(scriptInstance_t inst);
-void __cdecl    GScr_LoadDogAnimScripts(scriptInstance_t inst);
-void __cdecl    GScr_LoadSingleAnimScript(scriptInstance_t inst, scr_animscript_t *pAnim, const char *name);
-void GScr_SetScriptsForPathNodes();
-void __cdecl GScr_SetScriptsForPathNode(scriptInstance_t inst, pathnode_t *loadNode);
+void __cdecl GScr_LoadScripts(scriptInstance_t inst);
+void __cdecl GScr_LoadDogAnimScripts(scriptInstance_t inst);
+void __cdecl GScr_LoadSingleAnimScript(scriptInstance_t inst, scr_animscript_t *pAnim, const char *name);
+void GScr_SetScriptsForPathNodes(ScriptFunctions *functions);
+void __cdecl GScr_SetScriptsForPathNode(scriptInstance_t inst, pathnode_t *loadNode, ScriptFunctions *functions);
 unsigned __int8 *__cdecl GScr_AnimscriptAlloc(unsigned int size);
 int GScr_LoadLevelScript();
 int GScr_LoadPreGameScript();
@@ -218,7 +206,7 @@ void __cdecl ScrCmd_GetEyeApprox(scr_entref_t entref);
 void __cdecl ScrCmd_UseBy(scr_entref_t entref);
 void __cdecl ScrCmd_IsTouching(scr_entref_t entref);
 void __cdecl ScrCmd_IsTouchingSwept(scr_entref_t entref);
-void __cdecl ScrCmd_IsTouchingVolume(scr_entref_t entref);
+void ScrCmd_IsTouchingVolume(scr_entref_t entref);
 void ScrCmd_SoundExists();
 void __cdecl ScrCmd_PlaySound(scr_entref_t entref);
 void __cdecl ScrCmd_PlaySoundOnTag(scr_entref_t entref);
@@ -267,7 +255,7 @@ void __cdecl GScr_GetTurretTarget(scr_entref_t entref);
 void __cdecl GScr_DisconnectPaths(scr_entref_t entref);
 void __cdecl GScr_ConnectPaths(scr_entref_t entref);
 void __cdecl ScrCmd_GetStance(scr_entref_t entref);
-void __cdecl ScrCmd_SetStance(scr_entref_t entref); // LWSS ADD
+void __cdecl ScrCmd_SetStance(scr_entref_t entref);
 void __cdecl Scr_SetStableMissile(scr_entref_t entref);
 void __cdecl GScr_SetCursorHint(scr_entref_t entref);
 int __cdecl G_GetHintStringIndex(int *piIndex, char *pszString);
@@ -355,7 +343,7 @@ void Scr_BulletTracePassed();
 void __cdecl Scr_SightTracePassed();
 void Scr_PhysicsTrace();
 void Scr_PlayerPhysicsTrace();
-void Scr_PlayerBulletTrace(); // LWSS ADD
+void Scr_PlayerBulletTrace();
 void Scr_RandomInt();
 void Scr_RandomFloat();
 void Scr_RandomIntRange();
@@ -568,6 +556,7 @@ void GScr_FPrintFields();
 void GScr_FReadLn();
 void GScr_FGetArg();
 void GScr_ExecDevgui();
+void Scr_IsSplitscreen();
 void Scr_IsGlobalStatsServer();
 void GScr_SetPlayerStatsForMatchRecording();
 void GScr_SetPlayerFinalForMatchRecording();
@@ -728,11 +717,11 @@ void GScr_IsPregameGameStarted();
 void GScr_PregameStartGame();
 void (__cdecl *__cdecl Scr_GetFunction(const char **pName, int *type))();
 void __cdecl GScr_SetClientFlag(scr_entref_t entref);
-void __cdecl GScr_GetClientFlag(scr_entref_t entref); // LWSS ADD
+void __cdecl GScr_GetClientFlag(scr_entref_t entref);
 void __cdecl GScr_ClearClientFlag(scr_entref_t entref);
 void __cdecl GScr_IsMissileInsideHeightLock(scr_entref_t entref);
 void __cdecl GScr_IsOnGround(scr_entref_t entref);
-void __cdecl GScr_GetGroundEnt(scr_entref_t entref); // LWSS ADD
+void __cdecl GScr_GetGroundEnt(scr_entref_t entref);
 XAnimTree_s *__cdecl GScr_GetEntAnimTree(gentity_s *ent);
 void __cdecl G_FlagAnimForUpdate(gentity_s *ent);
 void __cdecl GScr_SetAnim(scr_entref_t entref);
@@ -743,12 +732,12 @@ void __cdecl G_SetAnimTree(gentity_s *ent, scr_animtree_t *animtree);
 void __cdecl GScr_UseAnimTree(scr_entref_t entref);
 void (__cdecl *__cdecl Scr_GetMethod(const char **pName, int *type))(scr_entref_t);
 void (__cdecl *__cdecl BuiltIn_GetMethod(const char **pName, int *type))(scr_entref_t);
-void __cdecl Scr_SetOrigin(gentity_s *ent, int);
-void __cdecl Scr_SetAngles(gentity_s *ent, int);
-void __cdecl Scr_SetExposureIndex(gentity_s *ent, int);
-void __cdecl Scr_SetExposureLerpToLighter(gentity_s *ent, int);
-void __cdecl Scr_SetExposureLerpToDarker(gentity_s *ent, int);
-void __cdecl Scr_SetHealth(gentity_s *ent, int);
+void __cdecl Scr_SetOrigin(gentity_s *ent, int unused);
+void __cdecl Scr_SetAngles(gentity_s *ent, int unused);
+void __cdecl Scr_SetExposureIndex(gentity_s *ent, int unused);
+void __cdecl Scr_SetExposureLerpToLighter(gentity_s *ent, int unused);
+void __cdecl Scr_SetExposureLerpToDarker(gentity_s *ent, int unused);
+void __cdecl Scr_SetHealth(gentity_s *ent, int unused);
 void __cdecl GScr_AddVector(float *vVec);
 void __cdecl GScr_AddEntity(gentity_s *pEnt);
 void __cdecl Scr_ParseGameTypeList();
@@ -761,90 +750,90 @@ void __cdecl Scr_StartupGameType();
 void __cdecl Scr_PlayerConnect(gentity_s *self);
 void __cdecl Scr_PlayerDisconnect(gentity_s *self);
 void __cdecl Scr_PlayerDamage(
-                gentity_s *self,
-                gentity_s *inflictor,
-                gentity_s *attacker,
-                int damage,
-                int dflags,
-                unsigned int meansOfDeath,
-                unsigned int iWeapon,
-                float *vPoint,
-                float *vDir,
-                hitLocation_t hitLoc,
-                int timeOffset);
+    gentity_s *self,
+    gentity_s *inflictor,
+    gentity_s *attacker,
+    int damage,
+    int dflags,
+    unsigned int meansOfDeath,
+    unsigned int iWeapon,
+    float *vPoint,
+    float *vDir,
+    hitLocation_t hitLoc,
+    int timeOffset);
 void __cdecl Scr_PlayerKilled(
-                gentity_s *self,
-                gentity_s *inflictor,
-                gentity_s *attacker,
-                int damage,
-                unsigned int meansOfDeath,
-                unsigned int iWeapon,
-                float *vDir,
-                hitLocation_t hitLoc,
-                int psTimeOffset,
-                int deathAnimDuration);
+    gentity_s *self,
+    gentity_s *inflictor,
+    gentity_s *attacker,
+    int damage,
+    unsigned int meansOfDeath,
+    unsigned int iWeapon,
+    float *vDir,
+    hitLocation_t hitLoc,
+    int psTimeOffset,
+    int deathAnimDuration);
 void __cdecl Scr_ActorDamage(
-                gentity_s *self,
-                gentity_s *inflictor,
-                gentity_s *attacker,
-                int damage,
-                int dflags,
-                unsigned int meansOfDeath,
-                unsigned int iWeapon,
-                float *vPoint,
-                float *vDir,
-                hitLocation_t hitLoc,
-                int timeOffset);
+    gentity_s *self,
+    gentity_s *inflictor,
+    gentity_s *attacker,
+    int damage,
+    int dflags,
+    unsigned int meansOfDeath,
+    unsigned int iWeapon,
+    float *vPoint,
+    float *vDir,
+    hitLocation_t hitLoc,
+    int timeOffset);
 void __cdecl Scr_ActorKilled(
-                gentity_s *self,
-                gentity_s *inflictor,
-                gentity_s *attacker,
-                int damage,
-                unsigned int meansOfDeath,
-                unsigned int iWeapon,
-                float *vDir,
-                hitLocation_t hitLoc,
-                int psTimeOffset);
+    gentity_s *self,
+    gentity_s *inflictor,
+    gentity_s *attacker,
+    int damage,
+    unsigned int meansOfDeath,
+    unsigned int iWeapon,
+    float *vDir,
+    hitLocation_t hitLoc,
+    int psTimeOffset);
 void __cdecl Scr_VehicleRadiusDamage(
-                gentity_s *self,
-                gentity_s *inflictor,
-                gentity_s *attacker,
-                int damage,
-                float fInnerDamage,
-                float fOuterDamage,
-                int dflags,
-                unsigned int meansOfDeath,
-                unsigned int iWeapon,
-                float *vPoint,
-                float fRadius,
-                float coneAngleCos,
-                float *coneDirection,
-                int timeOffset);
+    gentity_s *self,
+    gentity_s *inflictor,
+    gentity_s *attacker,
+    int damage,
+    float fInnerDamage,
+    float fOuterDamage,
+    int dflags,
+    unsigned int meansOfDeath,
+    unsigned int iWeapon,
+    float *vPoint,
+    float fRadius,
+    float coneAngleCos,
+    float *coneDirection,
+    int timeOffset);
 void __cdecl Scr_VehicleDamage(
-                gentity_s *self,
-                gentity_s *inflictor,
-                gentity_s *attacker,
-                int damage,
-                int dflags,
-                unsigned int meansOfDeath,
-                unsigned int iWeapon,
-                float *vPoint,
-                float *vDir,
-                hitLocation_t hitLoc,
-                int timeOffset,
-                unsigned int damageFromUnderneath,
-                unsigned int modelIndex,
-                unsigned int partName);
+    gentity_s *self,
+    gentity_s *inflictor,
+    gentity_s *attacker,
+    int damage,
+    int dflags,
+    unsigned int meansOfDeath,
+    unsigned int iWeapon,
+    float *vPoint,
+    float *vDir,
+    hitLocation_t hitLoc,
+    int timeOffset,
+    unsigned int damageFromUnderneath,
+    unsigned int modelIndex,
+    unsigned int partName);
 void __cdecl Scr_PlayerLastStand(
-                gentity_s *self,
-                gentity_s *inflictor,
-                gentity_s *attacker,
-                int damage,
-                unsigned int meansOfDeath,
-                unsigned int iWeapon,
-                float *vDir,
-                hitLocation_t hitLoc,
-                int psTimeOffset);
+    gentity_s *self,
+    gentity_s *inflictor,
+    gentity_s *attacker,
+    int damage,
+    unsigned int meansOfDeath,
+    unsigned int iWeapon,
+    float *vDir,
+    hitLocation_t hitLoc,
+    int psTimeOffset);
 void __cdecl Scr_VoteCalled(gentity_s *self, char *command, char *param1, char *param2);
 void __cdecl Scr_PlayerVote(gentity_s *self, char *option);
 void __cdecl GScr_Shutdown();

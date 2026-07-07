@@ -77,7 +77,7 @@ void __cdecl BG_ApplyWeaponMovement_LeanOrigin(weaponState_t *ws, float *origin)
 void __cdecl BG_ApplyWeaponMovement_BobOrigin(weaponState_t *ws, float *origin);
 double __cdecl BG_CalculateViewMovement_VerticalBobFactor(const playerState_s *ps, float cycle, float speed);
 double __cdecl BG_CalculateViewMovement_HorizontalBobFactor(const playerState_s *ps, float cycle, float speed);
-void __cdecl BG_CalculateViewMovementAngles(viewState_t *vs, float *angles);
+void __cdecl BG_CalculateViewMovementAngles(viewState_t *vs, float *angles, bool skipIdleAngles);
 void __cdecl BG_CalculateViewMovement_DamageKick(viewState_t *vs, float *angles);
 void __cdecl BG_CalculateViewMovement_IdleAngles(viewState_t *vs, float *angles);
 void __cdecl BG_CalculateViewMovement_BobAngles(viewState_t *vs, float *angles);

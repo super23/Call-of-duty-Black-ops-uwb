@@ -1,6 +1,7 @@
 #pragma once
 #include <gfx_d3d/r_material.h>
 #include "screen_placement.h"
+#include <client/client_limits.h>
 
 enum connstate_t : __int32
 {                                       // XREF: clientUIActive_t/r
@@ -84,4 +85,4 @@ void __cdecl CL_DrawSpinnerLoadbar(
 void __cdecl CL_RegisterDvars();
 
 
-extern clientUIActive_t clientUIActives[1];
+extern clientUIActive_t clientUIActives[MAX_LOCAL_CLIENTS];

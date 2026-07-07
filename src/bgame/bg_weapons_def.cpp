@@ -29,36 +29,46 @@ unsigned int __cdecl BG_GetNumWeapons()
 
 const WeaponVariantDef *__cdecl BG_GetWeaponVariantDef(unsigned int weaponIndex)
 {
-    if ( weaponIndex > bg_lastParsedWeaponIndex
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_weapons_def.cpp",
-                    63,
-                    0,
-                    "weaponIndex not in [0, bg_lastParsedWeaponIndex]\n\t%i not in [%i, %i]",
-                    weaponIndex,
-                    0,
-                    bg_lastParsedWeaponIndex) )
+    // LinkerMod-style hardening: when running a mod, scripts/bots routinely pass
+    // weapon indices that don't resolve (e.g. from cl_playerRank=-1 bots whose
+    // stats blob is zero/garbage). Falling out of [0, bg_lastParsedWeaponIndex]
+    // would have us index off the end of bg_weaponVariantDefs and dereference
+    // garbage. Substitute the "default" weapon (index 0) so callers always get
+    // a valid pointer instead of a SEGV.
+    if ( weaponIndex > bg_lastParsedWeaponIndex || !bg_weaponVariantDefs[weaponIndex] )
     {
-        __debugbreak();
+        if ( weaponIndex > bg_lastParsedWeaponIndex )
+            Com_PrintWarning(17, "BG_GetWeaponVariantDef: bad index %u (max %u), using default\n", weaponIndex, bg_lastParsedWeaponIndex);
+        return bg_weaponVariantDefs[0];
     }
     return bg_weaponVariantDefs[weaponIndex];
 }
 
 const WeaponDef *__cdecl BG_GetWeaponDef(unsigned int weaponIndex)
 {
-    if ( weaponIndex > bg_lastParsedWeaponIndex
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_weapons_def.cpp",
-                    75,
-                    0,
-                    "weaponIndex not in [0, bg_lastParsedWeaponIndex]\n\t%i not in [%i, %i]",
-                    weaponIndex,
-                    0,
-                    bg_lastParsedWeaponIndex) )
+    // See BG_GetWeaponVariantDef above - same hardening applies. This is the
+    // most frequently called bgame helper and the typical bot-spawn crash path
+    // (G_RegisterWeapon -> BG_GetWeaponDef on a junk index from an unranked
+    // player's loadout) terminates right here in stock.
+    const WeaponVariantDef *variant;
+    if ( weaponIndex > bg_lastParsedWeaponIndex || !bg_weaponVariantDefs[weaponIndex] )
     {
-        __debugbreak();
+        if ( weaponIndex > bg_lastParsedWeaponIndex )
+            Com_PrintWarning(17, "BG_GetWeaponDef: bad index %u (max %u), using default\n", weaponIndex, bg_lastParsedWeaponIndex);
+        variant = bg_weaponVariantDefs[0];
     }
-    return bg_weaponVariantDefs[weaponIndex]->weapDef;
+    else
+    {
+        variant = bg_weaponVariantDefs[weaponIndex];
+    }
+    if ( !variant )
+    {
+        // bg_weaponVariantDefs[0] should always be initialised by BG_InitDefaultWeaponDef.
+        // Hit this only on a catastrophic init failure - keep going rather than crashing.
+        static const WeaponDef s_emptyWeaponDef = {};
+        return &s_emptyWeaponDef;
+    }
+    return variant->weapDef ? variant->weapDef : bg_weaponVariantDefs[0]->weapDef;
 }
 
 unsigned int __cdecl BG_GetWeaponIndex(const WeaponVariantDef *weapVariantDef)
@@ -256,10 +266,16 @@ int __cdecl BG_GetWeaponIndexForName(const char *name, void (__cdecl *regWeap)(u
     weapVariantDef = BG_LoadWeaponVariantDef(name);
     if ( weapVariantDef )
     {
+#ifdef KISAK_SP
+        // Decomp: CoDSP_rdBlackOps.map.c — slot 0 is fastfile "none"; defaultweapon_mp must register at index 1
+        // before any weapon init. BG_IsDefaultWeapon must not skip setup while the table is still empty.
+        if ( BG_IsDefaultWeapon(name) && bg_lastParsedWeaponIndex )
+            return 0;
+#else
         if ( BG_IsDefaultWeapon(name) )
             return 0;
-        else
-            return BG_SetupWeaponVariantDef(weapVariantDef, regWeap);
+#endif
+        return BG_SetupWeaponVariantDef(weapVariantDef, regWeap);
     }
     else
     {

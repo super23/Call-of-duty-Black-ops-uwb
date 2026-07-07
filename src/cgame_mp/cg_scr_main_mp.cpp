@@ -25,8 +25,32 @@
 #include <universal/surfaceflags.h>
 #include <gfx_d3d/r_fog.h>
 #include "cg_servercmds_mp.h"
+#include <bgame/bg_weapons_def.h>
 
-GfxFog cg_clientVolFog;
+struct ClientVolFogBackup
+{
+    int valid;
+    float start;
+    float r;
+    float g;
+    float b;
+    float density;
+    float heightDensity;
+    float baseHeight;
+    float fogColorScale;
+    float sunColR;
+    float sunColG;
+    float sunColB;
+    float sunDirX;
+    float sunDirY;
+    float sunDirZ;
+    float sunStartAng;
+    float sunEndAng;
+    float maxFogOpacity;
+    int transitionMsec;
+};
+
+static ClientVolFogBackup s_clientVolFog;
 
 unsigned __int16 *footTags[4] =
 {
@@ -64,11 +88,12 @@ BuiltinFunctionDef client_project_functions[] =
   { "setextracamorigin", &CScr_SetExtraCamOrigin, 0 },
   { "setextracamangles", &CScr_SetExtraCamAngles, 0 },
   { "iscameraspiketoggled", &CScr_IsCameraSpikeToggled, 0 },
-  // NEW FUNCS FROM BLOPS MP RETAIL (LATEST)
+  // LWSS ADD FROM BLOPS MP RETAIL (LATEST)
   { "setclientvolumetricfog", &CScr_SetClientVolumetricFog, 0 },
   { "switchtoservervolumetricfog", &CScr_SwitchToServerVolumetricFog, 0 },
   { "switchtoclientvolumetricfog", &CScr_SwitchToClientVolumetricFog, 0 },
   { "isinhelicopter", &CScr_IsInHelicopter, 0 },
+  // LWSS END
 };
 
 // LWSS: Looks congruent to retail blops MP
@@ -254,45 +279,33 @@ void CScr_SpawnFX()
     }
 }
 
+// BlackOpsMP.retail.c sub_7EE150 @ 850142-850188
 void CScr_PlayFXOnTag()
 {
-    char *v0; // [esp+0h] [ebp-60h]
-    char *error; // [esp+4h] [ebp-5Ch]
-    scr_entref_t v2; // [esp+10h] [ebp-50h] BYREF
-    scr_entref_t v3; // [esp+1Ah] [ebp-46h]
-    scr_entref_t v4; // [esp+28h] [ebp-38h]
-    scr_entref_t v5; // [esp+32h] [ebp-2Eh]
-    scr_entref_t entref; // [esp+38h] [ebp-28h]
-    unsigned int tagName; // [esp+40h] [ebp-20h]
-    unsigned int effectHandle; // [esp+44h] [ebp-1Ch]
-    int localClientNum; // [esp+48h] [ebp-18h]
-    const FxEffectDef *fxDef; // [esp+4Ch] [ebp-14h]
-    int numParams; // [esp+50h] [ebp-10h]
-    const char *name; // [esp+54h] [ebp-Ch]
-    cgs_t *cgs; // [esp+58h] [ebp-8h]
-    int fxId; // [esp+5Ch] [ebp-4h]
+    scr_entref_t entref;
+    unsigned int tagName;
+    unsigned int effectHandle;
+    int localClientNum;
+    const FxEffectDef *fxDef;
+    int numParams;
+    const char *name;
+    cgs_t *cgs;
+    int fxId;
 
     numParams = Scr_GetNumParam(SCRIPTINSTANCE_CLIENT);
     if ( numParams != 4 )
         Scr_Error(SCRIPTINSTANCE_CLIENT, "Incorrect number of parameters for playfxontag", 0);
     localClientNum = CScr_GetLocalClientNum(0);
     fxId = Scr_GetInt(1u, SCRIPTINSTANCE_CLIENT);
-    v3 = Scr_GetEntityRef(2, SCRIPTINSTANCE_CLIENT);
-    v4 = v3;
-    v5 = v3;
-    entref = v3;
-    if ( !Com_GetClientDObj(v3.entnum, localClientNum) )
+    entref = Scr_GetEntityRef(2, SCRIPTINSTANCE_CLIENT);
+    if ( !Com_GetClientDObj(entref.entnum, localClientNum) )
     {
-        error = va(
-                            "CScr_PlayFX: invalid entity for local client %i, either not in the snapshot for the client or dobj does not exist yet",
-                            localClientNum);
-        Scr_Error(SCRIPTINSTANCE_CLIENT, error, 0);
+        Scr_Error(SCRIPTINSTANCE_CLIENT, va(
+            "CScr_PlayFX: invalid entity for local client %i, either not in the snapshot for the client or dobj does not exist yet",
+            localClientNum), 0);
     }
     if ( fxId <= 0 || fxId >= 196 )
-    {
-        v0 = va("CScr_PlayFX: invalid effect id %d", fxId);
-        Scr_Error(SCRIPTINSTANCE_CLIENT, v0, 0);
-    }
+        Scr_Error(SCRIPTINSTANCE_CLIENT, va("CScr_PlayFX: invalid effect id %d", fxId), 0);
     cgs = CG_GetLocalClientStaticGlobals(localClientNum);
     fxDef = cgs->fxs[fxId];
     if ( !fxDef
@@ -1127,194 +1140,248 @@ void CScr_IsCameraSpikeToggled()
     }
 }
 
+// Client volumetric fog — congruent with retail BlackOpsMP sub_7EF1F0 / setClientVolFog
+// and Scr_SetVolumetricFog (server) → R_SetFogFromServer + R_SwitchFog path in CG_ParseFog.
+
 void CScr_SetClientVolumetricFog()
 {
-    if (Scr_GetNumParam(SCRIPTINSTANCE_CLIENT) != 18 && Scr_GetNumParam(SCRIPTINSTANCE_CLIENT) != 8)
-    {
+    float v0;
+    float v1;
+    float sunDirY;
+    float green;
+    float startDist;
+    float baseHeight;
+    float blue;
+    float sunStartAng;
+    float red;
+    float fogColorScale;
+    float maxFogOpacity;
+    float density;
+    float time;
+    float sunColorB;
+    float halfwayDist;
+    float sunDirZ;
+    float halfwayHeight;
+    float sunStopAng;
+    float sunColorR;
+    float sunColorG;
+    float sunDirX;
+    int lcn;
+    cg_s *cgameGlob;
+
+    sunColorR = 0.5f;
+    sunColorG = 0.5f;
+    sunColorB = 0.5f;
+    sunDirX = 1.0f;
+    sunDirY = 0.0f;
+    sunDirZ = 0.0f;
+    sunStartAng = 0.0f;
+    sunStopAng = 0.0f;
+    maxFogOpacity = 1.0f;
+    if ( Scr_GetNumParam(SCRIPTINSTANCE_CLIENT) != 8 && Scr_GetNumParam(SCRIPTINSTANCE_CLIENT) != 18 )
         Scr_Error(
             SCRIPTINSTANCE_CLIENT,
             "Incorrect number of parameters\n"
-            "USAGE: setClientVolFog(<startDist>, <halfwayDist>, <halfwayHeight>, <baseHeight>, <red>, <green>, <blue>, <transit"
-            "ion time>, <sun red>, <sun blue>, <sun green>, <sun dir X>, <sun dir Y>, <sun dir Z>, <sun start angle>, <sun end "
-            "angle>, <max fog opacity>)\n",
+            "USAGE: setClientVolFog(<startDist>, <halfwayDist>, <halfwayHeight>, <baseHeight>, <red>, <green>, <blue>, <transiti"
+            "on time>)\n"
+            "OR:     setClientVolFog(<startDist>, <halfwayDist>, <halfwayHeight>, <baseHeight>, <red>, <green>, <blue>, <fogColor"
+            "Scale>, <sunFogRed>, <sunFogGreen>, <sunFogBlue>, <sunFogDirX>, <sunFogDirY>, <sunFogDirZ>, <sunFogStartAng>, <sunF"
+            "ogEndAng>, <transition time>, <max fog opacity>)\n",
             0);
-    }
-
-    float startDist = Scr_GetFloat(0, SCRIPTINSTANCE_CLIENT);
-    if (startDist < 0.0)
+    startDist = Scr_GetFloat(0, SCRIPTINSTANCE_CLIENT);
+    if ( startDist < 0.0 )
         Scr_Error(SCRIPTINSTANCE_CLIENT, "setClientVolFog: startDist must be greater or equal to 0", 0);
-
-    float halfwayDist = Scr_GetFloat(1u, SCRIPTINSTANCE_CLIENT);
-    if (halfwayDist <= 0.0)
+    halfwayDist = Scr_GetFloat(1u, SCRIPTINSTANCE_CLIENT);
+    if ( halfwayDist <= 0.0 )
         Scr_Error(SCRIPTINSTANCE_CLIENT, "setClientVolFog: halfwayDist must be greater than 0", 0);
-
-    float halfwayHeight = Scr_GetFloat(2u, SCRIPTINSTANCE_CLIENT);
-    if (halfwayHeight < 0.0)
+    halfwayHeight = Scr_GetFloat(2u, SCRIPTINSTANCE_CLIENT);
+    if ( halfwayHeight < 0.0 )
         Scr_Error(SCRIPTINSTANCE_CLIENT, "setClientVolFog: halfwayHeight must be greater or equal to 0", 0);
-
-    float baseHeight = Scr_GetFloat(3u, SCRIPTINSTANCE_CLIENT);
-    float density = 1.0 / halfwayDist;
-
-    float heightDensity;
-    if (halfwayHeight < 1.0)
-        heightDensity = 0.0;
+    baseHeight = Scr_GetFloat(3u, SCRIPTINSTANCE_CLIENT);
+    density = 1.0f / halfwayDist;
+    if ( halfwayHeight < 1.0f )
+        v1 = 0.0f;
     else
-        heightDensity = 1.0 / halfwayHeight;
-
-    float red = Scr_GetFloat(4u, SCRIPTINSTANCE_CLIENT);
-    float green = Scr_GetFloat(5u, SCRIPTINSTANCE_CLIENT);
-    float blue = Scr_GetFloat(6u, SCRIPTINSTANCE_CLIENT);
-    int numParams = Scr_GetNumParam(SCRIPTINSTANCE_CLIENT);
-
-    cg_clientVolFog.fogStart = startDist;
-    cg_clientVolFog.color[0] = red;
-    cg_clientVolFog.color[1] = green;
-    cg_clientVolFog.color[2] = blue;
-    cg_clientVolFog.density = density;
-    cg_clientVolFog.heightDensity = heightDensity;
-    cg_clientVolFog.baseHeight = baseHeight;
-
-    if (numParams == 8)
+        v1 = 1.0f / halfwayHeight;
+    red = Scr_GetFloat(4u, SCRIPTINSTANCE_CLIENT);
+    green = Scr_GetFloat(5u, SCRIPTINSTANCE_CLIENT);
+    blue = Scr_GetFloat(6u, SCRIPTINSTANCE_CLIENT);
+    if ( Scr_GetNumParam(SCRIPTINSTANCE_CLIENT) == 18 )
     {
-        cg_clientVolFog.color[3] = 1.0;
-        cg_clientVolFog.sunFogColor[0] = 0.0;
-        cg_clientVolFog.sunFogColor[1] = 0.0;
-        cg_clientVolFog.sunFogColor[2] = 0.0;
-        cg_clientVolFog.sunFogDir[0] = 0.0;
-        cg_clientVolFog.sunFogDir[1] = 0.0;
-        cg_clientVolFog.sunFogDir[2] = 0.0;
-        cg_clientVolFog.sunFogStartAng = 0.0;
-        cg_clientVolFog.sunFogEndAng = 0.0;
-        cg_clientVolFog.sunFogColor[3] = 1.0;
+        fogColorScale = Scr_GetFloat(7u, SCRIPTINSTANCE_CLIENT);
+        sunColorR = Scr_GetFloat(8u, SCRIPTINSTANCE_CLIENT);
+        sunColorG = Scr_GetFloat(9u, SCRIPTINSTANCE_CLIENT);
+        sunColorB = Scr_GetFloat(0xAu, SCRIPTINSTANCE_CLIENT);
+        sunDirX = Scr_GetFloat(0xBu, SCRIPTINSTANCE_CLIENT);
+        sunDirY = Scr_GetFloat(0xCu, SCRIPTINSTANCE_CLIENT);
+        sunDirZ = Scr_GetFloat(0xDu, SCRIPTINSTANCE_CLIENT);
+        sunStartAng = Scr_GetFloat(0xEu, SCRIPTINSTANCE_CLIENT);
+        sunStopAng = Scr_GetFloat(0xFu, SCRIPTINSTANCE_CLIENT);
+        time = Scr_GetFloat(0x10u, SCRIPTINSTANCE_CLIENT);
+        maxFogOpacity = Scr_GetFloat(0x11u, SCRIPTINSTANCE_CLIENT);
     }
     else
     {
-        cg_clientVolFog.color[3] = Scr_GetFloat(7u, SCRIPTINSTANCE_CLIENT);
-        cg_clientVolFog.sunFogColor[0] = Scr_GetFloat(8u, SCRIPTINSTANCE_CLIENT);
-        cg_clientVolFog.sunFogColor[1] = Scr_GetFloat(9u, SCRIPTINSTANCE_CLIENT);
-        cg_clientVolFog.sunFogColor[2] = Scr_GetFloat(0xAu, SCRIPTINSTANCE_CLIENT);
-        cg_clientVolFog.sunFogDir[0] = Scr_GetFloat(0xBu, SCRIPTINSTANCE_CLIENT);
-        cg_clientVolFog.sunFogDir[1] = Scr_GetFloat(0xCu, SCRIPTINSTANCE_CLIENT);
-        cg_clientVolFog.sunFogDir[2] = Scr_GetFloat(0xDu, SCRIPTINSTANCE_CLIENT);
-        cg_clientVolFog.sunFogStartAng = Scr_GetFloat(0xEu, SCRIPTINSTANCE_CLIENT);
-        cg_clientVolFog.sunFogEndAng = Scr_GetFloat(0xFu, SCRIPTINSTANCE_CLIENT);
-        cg_clientVolFog.sunFogColor[3] = Scr_GetFloat(0x11u, SCRIPTINSTANCE_CLIENT);
+        Com_Printf(1, "setClientVolFog: Old syntax used. Please update script.\n");
+        if ( green <= red )
+            v0 = red;
+        else
+            v0 = green;
+        fogColorScale = v0;
+        if ( blue > v0 )
+            fogColorScale = blue;
+        red = red * (float)(1.0 / fogColorScale);
+        green = green * (float)(1.0 / fogColorScale);
+        blue = blue * (float)(1.0 / fogColorScale);
+        time = Scr_GetFloat(7u, SCRIPTINSTANCE_CLIENT);
     }
+    if ( (density <= 0.0 || density > 1.0)
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_scr_main_mp.cpp",
+                    0,
+                    0,
+                    "%s\n\t(density) = %g",
+                    "(density > 0 && density <= 1)",
+                    density) )
+    {
+        __debugbreak();
+    }
+    if ( (v1 < 0.0 || v1 > 1.0)
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_scr_main_mp.cpp",
+                    0,
+                    0,
+                    "%s\n\t(heightDensity) = %g",
+                    "(heightDensity >= 0 && heightDensity <= 1)",
+                    v1) )
+    {
+        __debugbreak();
+    }
+    // setClientVolFog (retail) has no localClientNum; first script arg is startDist (float).
+    lcn = 0;
+    cgameGlob = CG_GetLocalClientGlobals(lcn);
+    R_SetFogFromServer(
+        lcn,
+        startDist,
+        red,
+        green,
+        blue,
+        density,
+        v1,
+        baseHeight,
+        fogColorScale,
+        sunColorR,
+        sunColorG,
+        sunColorB,
+        sunDirX,
+        sunDirY,
+        sunDirZ,
+        sunStartAng,
+        sunStopAng,
+        maxFogOpacity);
+    s_clientVolFog.valid = 1;
+    s_clientVolFog.start = startDist;
+    s_clientVolFog.r = red;
+    s_clientVolFog.g = green;
+    s_clientVolFog.b = blue;
+    s_clientVolFog.density = density;
+    s_clientVolFog.heightDensity = v1;
+    s_clientVolFog.baseHeight = baseHeight;
+    s_clientVolFog.fogColorScale = fogColorScale;
+    s_clientVolFog.sunColR = sunColorR;
+    s_clientVolFog.sunColG = sunColorG;
+    s_clientVolFog.sunColB = sunColorB;
+    s_clientVolFog.sunDirX = sunDirX;
+    s_clientVolFog.sunDirY = sunDirY;
+    s_clientVolFog.sunDirZ = sunDirZ;
+    s_clientVolFog.sunStartAng = sunStartAng;
+    s_clientVolFog.sunEndAng = sunStopAng;
+    s_clientVolFog.maxFogOpacity = maxFogOpacity;
+    s_clientVolFog.transitionMsec = (int)(float)(time * 1000.0f + 9.313225746154785e-10);
+    R_SwitchFog(lcn, 1u, cgameGlob->time, s_clientVolFog.transitionMsec);
 }
 
 void CScr_SwitchToServerVolumetricFog()
 {
-    if (Scr_GetNumParam(SCRIPTINSTANCE_CLIENT) != 1)
-    {
+    int lcn;
+
+    if ( Scr_GetNumParam(SCRIPTINSTANCE_CLIENT) != 0 )
         Scr_Error(
             SCRIPTINSTANCE_CLIENT,
-            "Incorrect number of parameters\nUSAGE: SwitchToServerVolumetricFog(localClientNum)\n",
+            "USAGE: switchToServerVolFog()\n",
             0);
-    }
-
-    int clientIndex = Scr_GetInt(0, SCRIPTINSTANCE_CLIENT);
-    if (clientIndex)
-    {
-        char* errorBuf = va("Trying to get a local client index for a client '%d' that is not a local client.", clientIndex);
-        Scr_Error(SCRIPTINSTANCE_CLIENT, errorBuf, 0);
-    }
-
-    cg_s* cgameGlob = CG_GetLocalClientGlobals(clientIndex);
-    R_SetFogFromServer(
-        clientIndex,
-        cg_serverVolFog.fogStart,
-        cg_serverVolFog.color[0],
-        cg_serverVolFog.color[1],
-        cg_serverVolFog.color[2],
-        cg_serverVolFog.density,
-        cg_serverVolFog.heightDensity,
-        cg_serverVolFog.baseHeight,
-        cg_serverVolFog.color[3],
-        cg_serverVolFog.sunFogColor[0],
-        cg_serverVolFog.sunFogColor[1],
-        cg_serverVolFog.sunFogColor[2],
-        cg_serverVolFog.sunFogDir[0],
-        cg_serverVolFog.sunFogDir[1],
-        cg_serverVolFog.sunFogDir[2],
-        cg_serverVolFog.sunFogStartAng,
-        cg_serverVolFog.sunFogEndAng,
-        cg_serverVolFog.sunFogColor[3]);
-
-    R_SwitchFog(clientIndex, 1u, cgameGlob->time, 0);
+    lcn = 0;
+    CG_ParseFog(lcn);
 }
 
 void CScr_SwitchToClientVolumetricFog()
 {
-    if (Scr_GetNumParam(SCRIPTINSTANCE_CLIENT) != 1)
-    {
+    int lcn;
+    cg_s *cgameGlob;
+
+    if ( Scr_GetNumParam(SCRIPTINSTANCE_CLIENT) != 0 )
         Scr_Error(
             SCRIPTINSTANCE_CLIENT,
-            "Incorrect number of parameters\nUSAGE: SwitchToClientVolumetricFog(localClientNum)\n",
+            "USAGE: switchToClientVolFog()\n",
             0);
-    }
-        
-    int clientIndex = Scr_GetInt(0, SCRIPTINSTANCE_CLIENT);
-    if (clientIndex)
-    {
-        char* errorBuf = va("Trying to get a local client index for a client '%d' that is not a local client.", clientIndex);
-        Scr_Error(SCRIPTINSTANCE_CLIENT, errorBuf, 0);
-    }
-
-    cg_s* cgameGlob = CG_GetLocalClientGlobals(clientIndex);
+    if ( !s_clientVolFog.valid )
+        return;
+    lcn = 0;
+    cgameGlob = CG_GetLocalClientGlobals(lcn);
     R_SetFogFromServer(
-        clientIndex,
-        cg_clientVolFog.fogStart,
-        cg_clientVolFog.color[0],
-        cg_clientVolFog.color[1],
-        cg_clientVolFog.color[2],
-        cg_clientVolFog.density,
-        cg_clientVolFog.heightDensity,
-        cg_clientVolFog.baseHeight,
-        cg_clientVolFog.color[3],
-        cg_clientVolFog.sunFogColor[0],
-        cg_clientVolFog.sunFogColor[1],
-        cg_clientVolFog.sunFogColor[2],
-        cg_clientVolFog.sunFogDir[0],
-        cg_clientVolFog.sunFogDir[1],
-        cg_clientVolFog.sunFogDir[2],
-        cg_clientVolFog.sunFogStartAng,
-        cg_clientVolFog.sunFogEndAng,
-        cg_clientVolFog.sunFogColor[3]);
-
-    R_SwitchFog(clientIndex, 1u, cgameGlob->time, 0);
+        lcn,
+        s_clientVolFog.start,
+        s_clientVolFog.r,
+        s_clientVolFog.g,
+        s_clientVolFog.b,
+        s_clientVolFog.density,
+        s_clientVolFog.heightDensity,
+        s_clientVolFog.baseHeight,
+        s_clientVolFog.fogColorScale,
+        s_clientVolFog.sunColR,
+        s_clientVolFog.sunColG,
+        s_clientVolFog.sunColB,
+        s_clientVolFog.sunDirX,
+        s_clientVolFog.sunDirY,
+        s_clientVolFog.sunDirZ,
+        s_clientVolFog.sunStartAng,
+        s_clientVolFog.sunEndAng,
+        s_clientVolFog.maxFogOpacity);
+    R_SwitchFog(lcn, 1u, cgameGlob->time, s_clientVolFog.transitionMsec);
 }
 
 void CScr_IsInHelicopter()
 {
-    if (Scr_GetNumParam(SCRIPTINSTANCE_CLIENT) != 1)
-    {
-        Scr_Error(SCRIPTINSTANCE_CLIENT, "Incorrect number of parameters\nUSAGE: IsInHelicopter(localClientNum)\n", 0);
-    }
-    
-    int clientIndex = Scr_GetInt(0, SCRIPTINSTANCE_CLIENT);
-    if (clientIndex)
-    {
-        char* errorBuf = va("Trying to get a local client index for a client '%d' that is not a local client.", clientIndex);
-        Scr_Error(SCRIPTINSTANCE_CLIENT, errorBuf, 0);
-    }
+    int lcn;
+    cg_s *cg;
+    centity_s *cent;
+    const WeaponVariantDef *wv;
+    int ge;
 
-    cg_s* cgameGlob = CG_GetLocalClientGlobals(clientIndex);
-    
-    int isInHelicopter = 0;
-    if(cgameGlob->cameraData.lastCamMode == CAM_VEHICLE)
+    if ( Scr_GetNumParam(SCRIPTINSTANCE_CLIENT) != 0 )
+        Scr_Error(
+            SCRIPTINSTANCE_CLIENT,
+            "USAGE: isInHelicopter()\n",
+            0);
+    lcn = 0;
+    cg = CG_GetLocalClientGlobals(lcn);
+    wv = BG_GetWeaponVariantDef(cg->predictedPlayerState.weapon);
+    if ( wv && !I_stricmp(wv->szInternalName, "helicopter_gunner_mp") )
     {
-        centity_s* vehicle = CG_GetEntity(clientIndex, cgameGlob->predictedPlayerState.viewlocked_entNum);
-        if (vehicle)
+        Scr_AddInt(1, SCRIPTINSTANCE_CLIENT);
+        return;
+    }
+    ge = cg->predictedPlayerState.groundEntityNum;
+    if ( ge != 1023 && ge != 1022 && (unsigned int)ge < 1024u )
+    {
+        cent = CG_GetEntity(lcn, ge);
+        if ( cent && cent->nextState.eType == ET_HELICOPTER )
         {
-            isInHelicopter = CG_GetVehicleInfo(vehicle->nextState.vehicleState.vehicleInfoIndex)->type == 6;
+            Scr_AddInt(1, SCRIPTINSTANCE_CLIENT);
+            return;
         }
     }
-    else
-    {
-        isInHelicopter = cgameGlob->cameraData.lastCamMode == CAM_VEHICLE_GUNNER;
-    }
-
-    Scr_AddInt(isInHelicopter, SCRIPTINSTANCE_CLIENT);
+    Scr_AddInt(0, SCRIPTINSTANCE_CLIENT);
 }
 
 void CScr_GetGridFromPos()
@@ -1362,7 +1429,7 @@ void __cdecl CScr_GetLocalPlayerTeam()
     cg_s *cGameGlob; // [esp+8h] [ebp-Ch]
     int localClientNum; // [esp+10h] [ebp-4h]
 
-    localClientNum = CScr_GetLocalClientNum(0);
+    localClientNum = 0;
     if ( CL_LocalClient_IsActive(localClientNum) )
     {
         cGameGlob = CG_GetLocalClientGlobals(localClientNum);
@@ -1401,6 +1468,8 @@ void(__cdecl *__cdecl CScr_GetFunctionProjectSpecific(const char **pName, int *t
 
     for (i = 0; i < ARRAY_COUNT(client_project_functions); ++i)
     {
+        if ( !client_project_functions[i].actionString )
+            break;
         if (!strcmp(*pName, client_project_functions[i].actionString))
         {
             *pName = client_project_functions[i].actionString;
@@ -1411,11 +1480,13 @@ void(__cdecl *__cdecl CScr_GetFunctionProjectSpecific(const char **pName, int *t
     return 0;
 }
 
+// CoDMPServer.c CScrCmd_GetOwner @ 240352-240386
 void __cdecl CScrCmd_GetOwner(scr_entref_t entref)
 {
-    centity_s *Entity; // eax
-    int intValue; // [esp-4h] [ebp-30h]
-    centity_s *pSelf; // [esp+1Ch] [ebp-10h]
+    centity_s *pOwner;
+    int localClientNum;
+    centity_s *pSelf;
+    int ownerEntNum;
 
     if ( entref.classnum )
     {
@@ -1441,9 +1512,21 @@ void __cdecl CScrCmd_GetOwner(scr_entref_t entref)
         if ( entref.entnum >= 0x400u )
             CG_GetFakeEntity(entref.client, entref.entnum);
     }
-    intValue = CScr_GetLocalClientNum(0);
-    Entity = CG_GetEntity(intValue, (int)pSelf->nextState.faction.iHeadIconTeam >> 2);
-    CScr_AddEntity(Entity, intValue);
+    localClientNum = CScr_GetLocalClientNum(0);
+    // BlackOpsMP.retail.c:144413-144422 — undefined if cent invalid or owner index out of range
+    if ( !pSelf->nextValid )
+    {
+        Scr_AddUndefined(SCRIPTINSTANCE_CLIENT);
+        return;
+    }
+    ownerEntNum = (int)(unsigned __int8)pSelf->nextState.faction.iHeadIconTeam >> 2;
+    if ( (unsigned int)ownerEntNum >= 0x400u )
+    {
+        Scr_AddUndefined(SCRIPTINSTANCE_CLIENT);
+        return;
+    }
+    pOwner = CG_GetEntity(localClientNum, ownerEntNum);
+    CScr_AddEntity(pOwner, localClientNum);
 }
 
 void __cdecl CScr_GetTagOrigin(scr_entref_t entref)
@@ -1854,8 +1937,10 @@ void (__cdecl *__cdecl CScr_GetMethodProjectSpecific(const char **pName, int *ty
 {
     unsigned int i; // [esp+18h] [ebp-4h]
 
-    for ( i = 0; i < 0x1D; ++i )
+    for ( i = 0; i < ARRAY_COUNT(client_project_methods); ++i )
     {
+        if ( !client_project_methods[i].actionString )
+            break;
         if ( !strcmp(*pName, client_project_methods[i].actionString) )
         {
             *pName = client_project_methods[i].actionString;

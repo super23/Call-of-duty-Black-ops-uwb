@@ -1,18 +1,25 @@
 #include "actor_corpse.h"
-#include <game_mp/g_utils_mp.h>
+#include "actor.h"
+#include <game/g_utils_wrapper.h>
 #include <clientscript/scr_const.h>
 #include "sentient.h"
+#ifdef KISAK_SP
+#include <client_sp/g_client_sp.h>
+#else
 #include <client_mp/g_client_mp.h>
-#include <game_mp/g_main_mp.h>
+#endif
+#include <game/g_main_wrapper.h>
 #include <gfx_d3d/r_dobj_skin.h>
 #include <server/sv_world.h>
 #include "g_player_corpse.h"
-#include <game_mp/actor_mp.h>
+#include <game/actor_wrapper.h>
 #include "actor_event_listeners.h"
 #include <qcommon/dobj_management.h>
-#include <game_mp/g_misc_mp.h>
-#include <game_mp/g_spawn_mp.h>
+#include <game/g_misc_wrapper.h>
+#include <game/g_spawn_wrapper.h>
 #include <cgame/cg_event.h>
+#include <qcommon/common.h>
+#include <xanim/xanim.h>
 
 int __cdecl G_GetActorCorpseIndex(gentity_s *ent)
 {
@@ -20,7 +27,7 @@ int __cdecl G_GetActorCorpseIndex(gentity_s *ent)
 
     for ( i = 0; i < 8; ++i )
     {
-        if ( *(unsigned int *)&g_scr_data.actorCorpseInfo[1504 * i + 36] == ent->s.number )
+        if ( g_scr_data.actorCorpseInfo[i].entnum == ent->s.number )
             return i;
     }
     if ( !Assert_MyHandler(
@@ -81,7 +88,7 @@ int __cdecl G_GetFreeActorCorpseIndex(int reuse)
     found = 0;
     for ( i = 0; i < level.actorCorpseCount; ++i )
     {
-        if ( *(unsigned int *)&g_scr_data.actorCorpseInfo[1504 * i + 36] == -1 )
+        if ( g_scr_data.actorCorpseInfo[i].entnum == -1 )
         {
             if ( reuse )
                 return i;
@@ -89,7 +96,7 @@ int __cdecl G_GetFreeActorCorpseIndex(int reuse)
         else
         {
             found = 1;
-            ent = &level.gentities[*(unsigned int *)&g_scr_data.actorCorpseInfo[1504 * i + 36]];
+            ent = &level.gentities[g_scr_data.actorCorpseInfo[i].entnum];
             vDelta[0] = ent->r.currentOrigin[0] - vRefPos[0];
             vDelta[1] = ent->r.currentOrigin[1] - vRefPos[1];
             vDelta[2] = ent->r.currentOrigin[2] - vRefPos[2];
@@ -127,9 +134,9 @@ int __cdecl G_GetFreeActorCorpseIndex(int reuse)
         {
             bestIndex = farthestBehindIndex;
         }
-        ent = &level.gentities[*(unsigned int *)&g_scr_data.actorCorpseInfo[1504 * bestIndex + 36]];
+        ent = &level.gentities[g_scr_data.actorCorpseInfo[bestIndex].entnum];
         G_FreeEntity(ent);
-        *(unsigned int *)&g_scr_data.actorCorpseInfo[1504 * bestIndex + 36] = -1;
+        g_scr_data.actorCorpseInfo[bestIndex].entnum = -1;
         return bestIndex;
     }
     else
@@ -155,9 +162,13 @@ void __cdecl G_RemoveOneActorCorpse()
 
     for ( i = 0; i < level.actorCorpseCount; ++i )
     {
-        if ( *(int *)&g_scr_data.actorCorpseInfo[1504 * i + 36] >= 0 )
+        if ( g_scr_data.actorCorpseInfo[i].entnum >= 0 )
         {
-            G_FreeEntity(&level.gentities[*(unsigned int *)&g_scr_data.actorCorpseInfo[1504 * i + 36]]);
+            unsigned int entNum = (unsigned int)g_scr_data.actorCorpseInfo[i].entnum;
+            gentity_s *corpse = &level.gentities[entNum];
+            if ( corpse->r.inuse )
+                G_FreeEntity(corpse);
+            g_scr_data.actorCorpseInfo[i].entnum = -1;
             return;
         }
     }
@@ -169,8 +180,14 @@ void __cdecl G_RemoveAllActorCorpses()
 
     for ( i = 0; i < level.actorCorpseCount; ++i )
     {
-        if ( *(int *)&g_scr_data.actorCorpseInfo[1504 * i + 36] >= 0 )
-            G_FreeEntity(&level.gentities[*(unsigned int *)&g_scr_data.actorCorpseInfo[1504 * i + 36]]);
+        if ( g_scr_data.actorCorpseInfo[i].entnum >= 0 )
+        {
+            unsigned int entNum = (unsigned int)g_scr_data.actorCorpseInfo[i].entnum;
+            gentity_s *corpse = &level.gentities[entNum];
+            if ( corpse->r.inuse )
+                G_FreeEntity(corpse);
+            g_scr_data.actorCorpseInfo[i].entnum = -1;
+        }
     }
 }
 
@@ -191,8 +208,14 @@ void __cdecl G_RemoveActorCorpses(unsigned int allowedCorpseCount)
     }
     for ( i = allowedCorpseCount; i < level.actorCorpseCount; ++i )
     {
-        if ( *(int *)&g_scr_data.actorCorpseInfo[1504 * i + 36] >= 0 )
-            G_FreeEntity(&level.gentities[*(unsigned int *)&g_scr_data.actorCorpseInfo[1504 * i + 36]]);
+        if ( g_scr_data.actorCorpseInfo[i].entnum >= 0 )
+        {
+            unsigned int entNum = (unsigned int)g_scr_data.actorCorpseInfo[i].entnum;
+            gentity_s *corpse = &level.gentities[entNum];
+            if ( corpse->r.inuse )
+                G_FreeEntity(corpse);
+            g_scr_data.actorCorpseInfo[i].entnum = -1;
+        }
     }
     level.actorCorpseCount = allowedCorpseCount;
 }
@@ -236,7 +259,7 @@ void __cdecl ActorCorpse_Free(gentity_s *ent)
     int actorCorpseIndex; // [esp+0h] [ebp-4h]
 
     actorCorpseIndex = G_GetActorCorpseIndex(ent);
-    if ( *(unsigned int *)&g_scr_data.actorCorpseInfo[1504 * actorCorpseIndex + 36] != ent->s.number
+    if ( (unsigned int)g_scr_data.actorCorpseInfo[actorCorpseIndex].entnum != ent->s.number
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_corpse.cpp",
                     401,
@@ -246,7 +269,7 @@ void __cdecl ActorCorpse_Free(gentity_s *ent)
     {
         __debugbreak();
     }
-    *(unsigned int *)&g_scr_data.actorCorpseInfo[1504 * actorCorpseIndex + 36] = -1;
+    g_scr_data.actorCorpseInfo[actorCorpseIndex].entnum = -1;
 }
 
 void __cdecl Actor_GetBodyPlantAngles(
@@ -342,6 +365,7 @@ double __cdecl Actor_SetBodyPlantAngle(
     float vDelta[3]; // [esp+C4h] [ebp-18h] BYREF
     float vMaxs[3]; // [esp+D0h] [ebp-Ch] BYREF
 
+    memset(&trace, 0, 16);
     fStartUp = 30.0f;
     fEndDown = 30.0f;
     fSize = 4.0999999f;
@@ -355,7 +379,7 @@ double __cdecl Actor_SetBodyPlantAngle(
     vMaxs[2] = 8.0f;
 
     //col_context_t::col_context_t(&context);
-    if ( g_entities[iEntNum].actor && Flame_GetLocalClientSourceRange() )
+    if ( g_entities[iEntNum].actor && G_IsSpeciesDog(g_entities[iEntNum].actor->species) )
         fEndDown = 45.0f;
     vStart[0] = *vOrigin;
     vStart[1] = vOrigin[1];
@@ -627,6 +651,8 @@ int __cdecl Actor_BecomeCorpse(gentity_s *self)
     actor_s *actor; // [esp+78h] [ebp-Ch]
     corpseInfo_t *corpseInfo; // [esp+7Ch] [ebp-8h]
     int axis; // [esp+80h] [ebp-4h]
+    int actorCorpseIndex; // actor corpse slot from G_GetFreeActorCorpseIndex
+    XAnim_s *sourceAnims;
     int savedregs; // [esp+84h] [ebp+0h] BYREF
 
     actor = self->actor;
@@ -677,11 +703,26 @@ int __cdecl Actor_BecomeCorpse(gentity_s *self)
         __debugbreak();
     }
     body->item[0].ammoCount = level.time;
-    corpseInfo = (corpseInfo_t *)&g_scr_data.actorCorpseInfo[1504 * G_GetFreeActorCorpseIndex(1) + 32];
+    actorCorpseIndex = G_GetFreeActorCorpseIndex(1);
+    if ( actorCorpseIndex < 0 )
+        return 0;
+    corpseInfo = &g_scr_data.actorCorpseInfo[actorCorpseIndex];
     corpseInfo->entnum = body->s.number;
     corpseInfo->time = level.time;
     corpseInfo->falling = 1;
-    XAnimCloneAnimTree(tree, corpseInfo->tree);
+    if ( tree )
+    {
+        sourceAnims = XAnimGetAnims(tree);
+        if ( sourceAnims
+            && (!corpseInfo->tree || corpseInfo->tree->anims != sourceAnims) )
+        {
+            if ( corpseInfo->tree )
+                Com_XAnimFreeSmallTree(corpseInfo->tree);
+            corpseInfo->tree = Com_XAnimCreateSmallTree(sourceAnims);
+        }
+        if ( corpseInfo->tree )
+            XAnimCloneAnimTree(tree, corpseInfo->tree);
+    }
     body->s.groundEntityNum = 1023;
     if ( body->r.svFlags
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_corpse.cpp", 869, 0, "%s", "!body->r.svFlags") )

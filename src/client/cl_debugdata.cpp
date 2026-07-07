@@ -3,7 +3,11 @@
 #include <gfx_d3d/r_debug_alloc.h>
 #include <gfx_d3d/r_debug.h>
 
+#ifdef KISAK_SP
+#include <client_sp/cl_main_sp.h>
+#else
 #include <client_mp/cl_main_mp.h>
+#endif
 
 
 thread_local int gTls_isSverThread; // ??

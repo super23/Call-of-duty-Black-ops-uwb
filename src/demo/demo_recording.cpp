@@ -11,16 +11,22 @@
 #include <qcommon/cmd.h>
 #include <win32/win_shared.h>
 #include <win32/win_net.h>
-#include <server_mp/sv_main_mp.h>
 #include <qcommon/sv_msg_write_mp.h>
+#ifdef KISAK_SP
+#include <server_sp/sv_main_sp.h>
+#include <ui_sp/ui_main_sp.h>
+#include <game/g_main.h>
+#else
+#include <server_mp/sv_main_mp.h>
+#include <ui_mp/ui_main_mp.h>
+#include <game_mp/g_main_mp.h>
+#endif
 #include "demo_profile.h"
 #include <glass/glass_server.h>
-#include <ui_mp/ui_main_mp.h>
 #include <ui/ui_main.h>
 #include <universal/q_parse.h>
 #include <stdlib.h>
 #include <qcommon/sv_msg_write.h>
-#include <game_mp/g_main_mp.h>
 #include <universal/com_shared.h>
 #include <time.h>
 

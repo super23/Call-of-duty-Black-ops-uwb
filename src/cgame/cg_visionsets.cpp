@@ -4,16 +4,24 @@
 #include <universal/q_shared.h>
 #include <xanim/xmodel.h>
 #include <devgui/devgui.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#include <cgame_sp/cg_main_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <cgame_sp/cg_consolecmds_sp.h>
+#include <cgame_sp/cg_view_sp.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
 #include <cgame_mp/cg_main_mp.h>
+#include <client_mp/cl_cgame_mp.h>
+#include <cgame_mp/cg_consolecmds_mp.h>
+#include <cgame_mp/cg_view_mp.h>
+#endif
 
 #include <cmath>
 #include <universal/com_loadutils.h>
 #include <qcommon/common.h>
 #include <universal/q_parse.h>
-#include <client_mp/cl_cgame_mp.h>
-#include <cgame_mp/cg_consolecmds_mp.h>
-#include <cgame_mp/cg_view_mp.h>
 #include "cg_camera.h"
 #include <bgame/bg_weapons.h>
 #include <bgame/bg_weapons_def.h>
@@ -840,7 +848,7 @@ bool __cdecl CG_VisionSetStartLerp_To(
                     "mode not in [0, VISIONSETMODECOUNT]\n\t%i not in [%i, %i]",
                     mode,
                     0,
-                    6) )
+                    VISIONSETMODECOUNT) )
     {
         __debugbreak();
     }
@@ -874,7 +882,11 @@ void __cdecl CG_VisionSetConfigString_Naked(int localClientNum)
     const char *token; // [esp+Ch] [ebp-4h]
 
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+#ifdef KISAK_SP
+    configString = Info_ValueForKey((char *)CL_GetConfigString(1554), va("%i", localClientNum));
+#else
     configString = CL_GetConfigString(1550);
+#endif
     token = Com_Parse(&configString)->token;
     I_strncpyz(cgameGlob->visionNameNaked, token, 64);
     v1 = Com_Parse(&configString)->token;
@@ -906,6 +918,37 @@ void __cdecl CG_VisionSetConfigString_Night(int localClientNum)
         VISIONSETMODE_NIGHT,
         VISIONSETLERP_TO_SMOOTH,
         cgameGlob->visionNameNight,
+        duration);
+}
+
+// Decomp: BlackOps.singleplayer.c (sub_5B5CE0)
+void __cdecl CG_VisionSetConfigString_LastStand(int localClientNum)
+{
+    const char *v1;
+    int duration;
+    cg_s *cgameGlob;
+    char configString[1024];
+    char key[16];
+    const char *clientConfig;
+    const char *configStringPtr;
+    const char *token;
+
+    cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+    I_strncpyz(configString, CL_GetConfigString(3148), 1024);
+    _snprintf(key, sizeof(key), "%i", cgameGlob->predictedPlayerState.clientNum);
+    clientConfig = Info_ValueForKey(configString, key);
+    if ( !clientConfig[0] )
+        return;
+    configStringPtr = clientConfig;
+    token = Com_Parse(&configStringPtr)->token;
+    I_strncpyz(cgameGlob->visionNameNaked, token, 64);
+    v1 = Com_Parse(&configStringPtr)->token;
+    duration = atoi(v1);
+    CG_VisionSetStartLerp_To(
+        localClientNum,
+        VISIONSETMODE_NAKED,
+        VISIONSETLERP_TO_SMOOTH,
+        cgameGlob->visionNameNaked,
         duration);
 }
 

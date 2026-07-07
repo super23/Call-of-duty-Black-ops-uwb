@@ -5,6 +5,7 @@
 
 #define CINEMATIC_INVALID_IMAGE_FRAME -1
 #define BINK_MISC_BUFFER_SIZE 1572864
+#define CINEMATIC_PLAYBACK_NO_DEFAULT_FALLBACK 0x100u
 
 enum CIN_IOSTATE : __int32
 {                                       // XREF: CinematicGlob/r
@@ -116,8 +117,11 @@ void __cdecl R_Cinematic_UpdateFrame(bool force_wait);
 void R_Cinematic_UpdateRendererImages();
 void __cdecl R_Cinematic_SetRendererImagesToFrame(int frameToSetTo);
 char __cdecl R_Cinematic_GetFilenameAndTimeInMsec(char *outName, int outNameSize, unsigned int *outTimeInMsec);
+void __cdecl R_Cinematic_QueueNextPlayback(const char *name, unsigned int playbackFlags);
 bool __cdecl R_Cinematic_IsFinished();
 bool __cdecl R_Cinematic_IsStarted();
+bool __cdecl R_Cinematic_IsPending();
 bool __cdecl R_Cinematic_IsNextReady();
 char __cdecl R_Cinematic_IsUnderrun();
 void __cdecl R_Cinematic_ForceRelinquishIO();
+double __cdecl R_Cinematic_GetTimeRemaining();

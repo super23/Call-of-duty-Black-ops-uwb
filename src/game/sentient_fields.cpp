@@ -3,11 +3,15 @@
 #include <universal/q_shared.h>
 #include <clientscript/cscr_vm.h>
 #include "sentient.h"
-#include <game_mp/g_spawn_mp.h>
+#include <game/g_spawn_wrapper.h>
 
 const sentient_fields_s fields_2[20] =
 {
+#ifdef KISAK_SP
+  { "team", 4, { 4 }, F_INT, SentientScr_SetTeam, SentientScr_GetTeam },
+#else
   { "aiteam", 4, { 4 }, F_INT, SentientScr_SetTeam, SentientScr_GetTeam },
+#endif
   { "script_owner", 8, { 4 }, F_ENTHANDLE, &SentientScr_ReadOnly, NULL },
   { "threatbias", 12, { 4 }, F_INT, NULL, NULL },
   { "threatbiasgroup", 16, { 4 }, F_INT, &SentientScr_ReadOnly, NULL },

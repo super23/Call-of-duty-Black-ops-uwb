@@ -4,6 +4,7 @@
 #include "rb_backend.h"
 #include "r_ui3d.h"
 #include "r_image_load_common.h"
+#include "r_singlethreaded_device_pc.h"
 #include "rb_logfile.h"
 #include <qcommon/threads.h>
 #include "rb_resource.h"
@@ -386,6 +387,7 @@ void __cdecl R_GetFullScreenRes(FullscreenType screenType, int *fullscreenWidth,
 IDirect3DSurface9 *R_AssignSingleSampleDepthStencilSurface()
 {
     const char *v2; // eax
+    int semaphore; // [esp+0h] [ebp-10h]
     int hr; // [esp+4h] [ebp-Ch]
     int depthStencilWidth; // [esp+8h] [ebp-8h] BYREF
     int depthStencilHeight; // [esp+Ch] [ebp-4h] BYREF
@@ -400,10 +402,12 @@ IDirect3DSurface9 *R_AssignSingleSampleDepthStencilSurface()
     else
     {
         R_GetFrameBufferDepthStencilRes(&depthStencilWidth, &depthStencilHeight);
+        R_AssertDXDeviceOwnership();
         if (r_logFile && r_logFile->current.integer)
             RB_LogPrint(
                 "dx.device->CreateDepthStencilSurface( depthStencilWidth, depthStencilHeight, dx.depthStencilFormat, D3DMULTISAMP"
                 "LE_NONE, 0, 0, &dx.singleSampleDepthStencilSurface, 0 )\n");
+        semaphore = R_AcquireDXDeviceOwnership(0);
         hr = dx.device->CreateDepthStencilSurface(
             depthStencilWidth,
             depthStencilHeight,
@@ -413,6 +417,8 @@ IDirect3DSurface9 *R_AssignSingleSampleDepthStencilSurface()
             0,
             &dx.singleSampleDepthStencilSurface,
             0);
+        if (semaphore)
+            R_ReleaseDXDeviceOwnership();
         if (hr < 0)
         {
             ++g_disableRendering;
@@ -534,7 +540,9 @@ void __cdecl R_InitShadowmapRenderTarget(
 {
     const char *v5; // eax
     const char *v6; // eax
+    int v7; // [esp+0h] [ebp-20h]
     int v8; // [esp+4h] [ebp-1Ch]
+    int semaphore; // [esp+8h] [ebp-18h]
     int hr; // [esp+Ch] [ebp-14h]
     unsigned __int16 totalHeight; // [esp+14h] [ebp-Ch]
     RenderTargetUsage usage; // [esp+18h] [ebp-8h]
@@ -583,10 +591,12 @@ void __cdecl R_InitShadowmapRenderTarget(
         renderTarget);
     if ( usage )
     {
+        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint(
                 "dx.device->CreateDepthStencilSurface( totalWidth, totalHeight, gfxMetrics.shadowmapFormatSecondary, D3DMULTISAMP"
                 "LE_NONE, 0, 0, &renderTarget->surface.depthStencil, 0 )\n");
+        v7 = R_AcquireDXDeviceOwnership(0);
 
 
         //v8 = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, unsigned int, unsigned int, _D3DFORMAT, unsigned int, unsigned int, unsigned int, IDirect3DSurface9 **, unsigned int))dx.device->CreateDepthStencilSurface)(
@@ -602,6 +612,8 @@ void __cdecl R_InitShadowmapRenderTarget(
         //             0);
 
         v8 = dx.device->CreateDepthStencilSurface(totalWidth, totalHeight, gfxMetrics.shadowmapFormatSecondary, D3DMULTISAMPLE_NONE, 0, 0, &renderTarget->surface.depthStencil, 0);
+        if ( v7 )
+            R_ReleaseDXDeviceOwnership();
         if ( v8 < 0 )
         {
             ++g_disableRendering;
@@ -617,10 +629,12 @@ void __cdecl R_InitShadowmapRenderTarget(
     }
     else
     {
+        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint(
                 "dx.device->CreateRenderTarget( totalWidth, totalHeight, gfxMetrics.shadowmapFormatSecondary, D3DMULTISAMPLE_NONE"
                 ", 0, 0, &renderTarget->surface.color, 0 )\n");
+        semaphore = R_AcquireDXDeviceOwnership(0);
         //hr = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, unsigned int, unsigned int, _D3DFORMAT, unsigned int, unsigned int, unsigned int, GfxRenderTargetSurface *, unsigned int))
         // dx.device->CreateRenderTarget)(
         //             dx.device,
@@ -635,6 +649,8 @@ void __cdecl R_InitShadowmapRenderTarget(
         //             0);
 
         hr = dx.device->CreateRenderTarget(totalWidth, totalHeight, gfxMetrics.shadowmapFormatSecondary, D3DMULTISAMPLE_NONE, 0, 0, &renderTarget->surface.color, 0);
+        if ( semaphore )
+            R_ReleaseDXDeviceOwnership();
         if ( hr < 0 )
         {
             ++g_disableRendering;
@@ -768,10 +784,13 @@ void __cdecl R_InitFrameBufferRenderTarget_Win32(GfxRenderTarget *renderTarget)
     const char *v1; // eax
     const char *v2; // eax
     const char *v3; // eax
+    int v4; // [esp+0h] [ebp-20h]
     int v5; // [esp+4h] [ebp-1Ch]
     int depthStencilWidth; // [esp+8h] [ebp-18h] BYREF
     int depthStencilHeight; // [esp+Ch] [ebp-14h] BYREF
+    int v8; // [esp+10h] [ebp-10h]
     HRESULT v9; // [esp+14h] [ebp-Ch]
+    int semaphore; // [esp+18h] [ebp-8h]
     HRESULT hr; // [esp+1Ch] [ebp-4h]
 
     if ( !renderTarget
@@ -786,8 +805,10 @@ void __cdecl R_InitFrameBufferRenderTarget_Win32(GfxRenderTarget *renderTarget)
     }
     renderTarget->width = vidConfig.displayWidth;
     renderTarget->height = vidConfig.displayHeight;
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("dx.device->GetSwapChain( 0, &dx.windows[0].swapChain )\n");
+    semaphore = R_AcquireDXDeviceOwnership(0);
 
     hr = dx.device->GetSwapChain(0, &dx.windows[0].swapChain);
     //hr = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, unsigned int, int *))dx.device->GetSwapChain)(
@@ -795,6 +816,8 @@ void __cdecl R_InitFrameBufferRenderTarget_Win32(GfxRenderTarget *renderTarget)
     //             dx.device,
     //             0,
     //             &dx.windows[0].width);
+    if ( semaphore )
+        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -806,8 +829,10 @@ void __cdecl R_InitFrameBufferRenderTarget_Win32(GfxRenderTarget *renderTarget)
             1803,
             v1);
     }
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("dx.device->GetBackBuffer( 0, 0, D3DBACKBUFFER_TYPE_MONO, &renderTarget->surface.color )\n");
+    v8 = R_AcquireDXDeviceOwnership(0);
 
     v9 = dx.device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &renderTarget->surface.color);
     //v9 = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, unsigned int, unsigned int, unsigned int, GfxRenderTargetSurface *))dx.device->GetBackBuffer)(
@@ -817,6 +842,8 @@ void __cdecl R_InitFrameBufferRenderTarget_Win32(GfxRenderTarget *renderTarget)
     //             0,
     //             0,
     //             &renderTarget->surface);
+    if ( v8 )
+        R_ReleaseDXDeviceOwnership();
     if ( v9 < 0 )
     {
         ++g_disableRendering;
@@ -845,10 +872,12 @@ void __cdecl R_InitFrameBufferRenderTarget_Win32(GfxRenderTarget *renderTarget)
     else
     {
         R_GetFrameBufferDepthStencilRes(&depthStencilWidth, &depthStencilHeight);
+        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint(
                 "dx.device->CreateDepthStencilSurface( depthStencilWidth, depthStencilHeight, dx.depthStencilFormat, dx.multiSamp"
                 "leType, dx.multiSampleQuality, 0, &renderTarget->surface.depthStencil, 0 )\n");
+        v4 = R_AcquireDXDeviceOwnership(0);
         //v5 = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, int, int, _D3DFORMAT, _D3DMULTISAMPLE_TYPE, unsigned int, unsigned int, IDirect3DSurface9 **, unsigned int))dx.device->CreateDepthStencilSurface)(
         //             dx.device,
         //             dx.device,
@@ -862,6 +891,8 @@ void __cdecl R_InitFrameBufferRenderTarget_Win32(GfxRenderTarget *renderTarget)
         //             0);
 
         v5 = dx.device->CreateDepthStencilSurface(depthStencilWidth, depthStencilHeight, dx.depthStencilFormat, dx.multiSampleType, dx.multiSampleQuality, 0, &renderTarget->surface.depthStencil, 0);
+        if ( v4 )
+            R_ReleaseDXDeviceOwnership();
         if ( v5 < 0 )
         {
             ++g_disableRendering;
@@ -905,6 +936,7 @@ void R_InitSceneNullRenderTarget_PC()
                          dx.depthStencilFormat);
             if ( !hr )
             {
+                R_AssertDXDeviceOwnership();
                 hr = dx.device->CreateRenderTarget(
                             gfxRenderTargets[R_RENDERTARGET_SCENE].width,
                             gfxRenderTargets[R_RENDERTARGET_SCENE].height,
@@ -1056,6 +1088,7 @@ void R_InitIntZRenderTarget_PC()
                     return;
             }
         }
+        R_AssertDXDeviceOwnership();
         if ( dx.device->CreateTexture(width, height, 1u, 2u, FOURCC_INTZ, D3DPOOL_DEFAULT, &depthTexture, 0) )
             return;
         if ( NvAPI_D3D9_GetTextureHandle(depthTexture, &hNvDepthTexture) )
@@ -1081,6 +1114,7 @@ void R_InitIntZRenderTarget_PC()
     if ( !dx.d3d9->CheckDeviceFormat(dx.adapterIndex, D3DDEVTYPE_HAL, D3DFMT_X8R8G8B8, 2, D3DRTYPE_TEXTURE, FOURCC_INTZ)
         && !dx.d3d9->CheckDeviceFormat(dx.adapterIndex, D3DDEVTYPE_HAL, D3DFMT_X8R8G8B8, 1, D3DRTYPE_SURFACE, FOURCC_RESZ) )
     {
+        R_AssertDXDeviceOwnership();
         if ( !dx.device->CreateTexture(
                         width,
                         height,
@@ -1189,6 +1223,7 @@ void R_InitSizedRenderTargetImage(
     const char *v8; // eax
     unsigned __int16 v9; // [esp+0h] [ebp-20h]
     unsigned __int16 v10; // [esp+4h] [ebp-1Ch]
+    int semaphore; // [esp+10h] [ebp-10h]
     int hr; // [esp+14h] [ebp-Ch]
 
     if (fullscreenWidth >> picmip > 1)
@@ -1229,10 +1264,12 @@ void R_InitSizedRenderTargetImage(
     }
     else if (usage == RENDERTARGET_USAGE_RENDER)
     {
+        R_AssertDXDeviceOwnership();
         if (r_logFile && r_logFile->current.integer)
             RB_LogPrint(
                 "dx.device->CreateDepthStencilSurface( fullscreenWidth, fullscreenHeight, dx.depthStencilFormat, D3DMULTISAMPLE_N"
                 "ONE, 0, 0, &renderTarget->surface.depthStencil, 0 )\n");
+        semaphore = R_AcquireDXDeviceOwnership(0);
         hr = dx.device->CreateDepthStencilSurface(
             fullscreenWidth,
             fullscreenHeight,
@@ -1242,6 +1279,8 @@ void R_InitSizedRenderTargetImage(
             0,
             &renderTarget->surface.depthStencil,
             0);
+        if (semaphore)
+            R_ReleaseDXDeviceOwnership();
         if (hr < 0)
         {
             ++g_disableRendering;
@@ -1270,7 +1309,9 @@ void R_InitUI3DRenderTarget(
     int location,
     bool allocatePingPongBuffer)
 {
+    int semaphore; // [esp+0h] [ebp-4h]
 
+    semaphore = R_AcquireDXDeviceOwnership(0);
     R_InitSizedRenderTargetImage(
         18,
         width,
@@ -1288,6 +1329,8 @@ void R_InitUI3DRenderTarget(
             D3DFMT_A8R8G8B8,
             RENDERTARGET_USAGE_RENDER,
             &gfxRenderTargets[R_RENDERTARGET_UI3D_PING_PONG]);
+    if (semaphore)
+        R_ReleaseDXDeviceOwnership();
 }
 
 void __cdecl R_ShutdownUI3DRenderTarget(bool freePingPongBuffer)

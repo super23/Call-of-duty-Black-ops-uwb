@@ -6,6 +6,7 @@
 #include <universal/assertive.h>
 #include <stringed/stringed_hooks.h>
 #include <qcommon/common.h>
+#include <universal/physicalmemory.h>
 
 #include <string.h>
 #include <gfx_d3d/r_material.h>
@@ -13,6 +14,21 @@
 #include <win32/win_shared.h>
 #include <gfx_d3d/rb_draw3d.h>
 #include <gfx_d3d/r_rendercmds.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_scrn_sp.h>
+#include "ui_feeders.h"
+#include <cgame_sp/cg_main_sp.h>
+#include <client/splitscreen.h>
+#include <universal/com_stringtable.h>
+#include <qcommon/com_clients.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <client/cl_keys.h>
+#include <ui_sp/ui_feeders_sp.h>
+#include <win32/win_gamerprofile.h>
+#include <win32/win_gamepad.h>
+#include <cgame_sp/cg_consolecmds_sp.h>
+#include <cgame_sp/cg_newDraw_sp.h>
+#else
 #include <client_mp/cl_scrn_mp.h>
 #include "ui_feeders.h"
 #include <cgame_mp/cg_main_mp.h>
@@ -26,12 +42,17 @@
 #include <win32/win_gamepad.h>
 #include <cgame_mp/cg_consolecmds_mp.h>
 #include <cgame_mp/cg_newDraw_mp.h>
+#endif
 #include <cgame/cg_hudelem.h>
 #include <gfx_d3d/r_ui3d.h>
 #include "ui_atoms.h"
 #include <client/cl_console.h>
 #include <iterator>
+#ifdef KISAK_SP
+#include <client_sp/cl_input_sp.h>
+#else
 #include <client_mp/cl_input_mp.h>
+#endif
 #include <sound/snd_public_async.h>
 #include <cgame/cg_sound.h>
 
@@ -10631,7 +10652,7 @@ void __cdecl Menu_PaintAll_AppendToVisibleList(char *stringBegin, unsigned int s
 
     if (!lastNewline)
     {
-        // No newline in string � treat start as line beginning
+        // No newline in string � treat start as line beginning
         lastNewline = stringBegin - 1;
     }
 
@@ -11210,20 +11231,36 @@ char __cdecl Menu_DoesMenuOrParentsHaveControlFlag(UiContext *dc, menuDef_t *men
     return 0;
 }
 
-void __cdecl UI_SetLoadingScreenMaterial(const char * name)
+void __cdecl UI_SetLoadingScreenMaterial(const char *mapName)
 {
-    if (!IsDedicatedServer())
+    Material *loadscreenMaterial;
+    const char *loadscreenMaterialName;
+
+    if (IsDedicatedServer())
+        return;
+
+    if (!mapName || !mapName[0])
     {
-        Material *mat; // [esp+0h] [ebp-4h]
-
-        iassert(name);
-        iassert(name[0]);
-
-        mat = Material_RegisterHandle(va("loadscreen_%s", name), 36);
-        if (Material_IsDefault(mat))
-            sharedUiInfo.loadingScreen = 0;
-        else
-            sharedUiInfo.loadingScreen = mat;
+        sharedUiInfo.loadingScreen = 0;
+        return;
     }
+
+#ifndef KISAK_SP
+    // BlackOpsMP.retail.c sub_486630 — mp_hotel uses loadscreen_mp_hotel2.
+    if (I_stricmp(mapName, "mp_hotel") != 0)
+        loadscreenMaterialName = va("loadscreen_%s", mapName);
+    else
+        loadscreenMaterialName = "loadscreen_mp_hotel2";
+#else
+    // BlackOps.singleplayer.c sub_5C6F70 — loadscreen_<map> only.
+    loadscreenMaterialName = va("loadscreen_%s", mapName);
+#endif
+
+    loadscreenMaterial = Material_RegisterHandle((char *)loadscreenMaterialName, 36);
+
+    if (Material_IsDefault(loadscreenMaterial) || !I_stricmp(mapName, "frontend"))
+        sharedUiInfo.loadingScreen = 0;
+    else
+        sharedUiInfo.loadingScreen = loadscreenMaterial;
 }
 

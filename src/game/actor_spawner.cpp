@@ -1,12 +1,15 @@
 #include "actor_spawner.h"
+#ifdef KISAK_SP
+extern int g_scriptAiLimit;
+#endif
 #include <qcommon/cm_world.h>
-#include <game_mp/g_main_mp.h>
+#include <game/g_main_wrapper.h>
 #include <clientscript/cscr_stringlist.h>
-#include <game_mp/g_active_mp.h>
+#include <game/g_active_wrapper.h>
 #include <clientscript/cscr_vm.h>
-#include <game_mp/g_utils_mp.h>
-#include <game_mp/g_spawn_mp.h>
-#include <game_mp/actor_mp.h>
+#include <game/g_utils_wrapper.h>
+#include "g_spawn_sp.h"
+#include <game/actor_wrapper.h>
 #include "actor_events.h"
 #include "actor_senses.h"
 #include <clientscript/scr_const.h>
@@ -86,6 +89,49 @@ int __cdecl PointCouldSeeSpawn(const float *vEyePos, const float *vSpawnPos, int
     return 0;
 }
 
+#ifdef KISAK_SP
+#include <clientscript/cscr_variable.h>
+
+static void G_SetEntScriptStringVar(gentity_s *ent, const char *fieldName, const char *value)
+{
+    unsigned int entId;
+    unsigned int varName;
+    unsigned int var;
+    VariableValue varValue;
+    const char *varUsagePos;
+
+    varUsagePos = gScrVarPub[SCRIPTINSTANCE_SERVER].varUsagePos;
+    if ( !varUsagePos )
+        gScrVarPub[SCRIPTINSTANCE_SERVER].varUsagePos = "<script entity variable>";
+    entId = Scr_GetEntityId(SCRIPTINSTANCE_SERVER, ent->s.number, 0, 0);
+    varName = SL_FindString(fieldName, SCRIPTINSTANCE_SERVER);
+    var = FindVariable(SCRIPTINSTANCE_SERVER, entId, varName);
+    if ( !var )
+        var = GetNewVariable(SCRIPTINSTANCE_SERVER, entId, varName);
+    varValue.type = VAR_STRING;
+    varValue.u.stringValue = SL_GetString_(SCRIPTINSTANCE_SERVER, value, 0, 7);
+    SetVariableValue(SCRIPTINSTANCE_SERVER, var, &varValue);
+    gScrVarPub[SCRIPTINSTANCE_SERVER].varUsagePos = varUsagePos;
+}
+
+void G_InitActorScriptDefaults(gentity_s *ent)
+{
+    unsigned int entId;
+    unsigned int varName;
+
+    entId = Scr_GetEntityId(SCRIPTINSTANCE_SERVER, ent->s.number, 0, 0);
+    varName = SL_FindString("weapon", SCRIPTINSTANCE_SERVER);
+    if ( !FindVariable(SCRIPTINSTANCE_SERVER, entId, varName) )
+        G_SetEntScriptStringVar(ent, "weapon", "");
+    varName = SL_FindString("secondaryweapon", SCRIPTINSTANCE_SERVER);
+    if ( !FindVariable(SCRIPTINSTANCE_SERVER, entId, varName) )
+        G_SetEntScriptStringVar(ent, "secondaryweapon", "");
+    varName = SL_FindString("sidearm", SCRIPTINSTANCE_SERVER);
+    if ( !FindVariable(SCRIPTINSTANCE_SERVER, entId, varName) )
+        G_SetEntScriptStringVar(ent, "sidearm", "");
+}
+#endif
+
 gentity_s *__cdecl SpawnActor(gentity_s *ent, unsigned int targetname, enumForceSpawn forceSpawn, int getEnemyInfo)
 {
     const char *v5; // [esp+18h] [ebp-38h]
@@ -106,6 +152,22 @@ gentity_s *__cdecl SpawnActor(gentity_s *ent, unsigned int targetname, enumForce
         Com_DPrintf(18, "Attempted spawn prevented by ai_disableSpawn.\n");
         return 0;
     }
+#ifdef KISAK_SP
+    if ( g_scriptAiLimit )
+    {
+        int actorCount;
+        int i;
+
+        actorCount = 0;
+        for ( i = 0; i < 16; ++i )
+        {
+            if ( level.actors[i].inuse )
+                ++actorCount;
+        }
+        if ( actorCount >= g_scriptAiLimit )
+            return 0;
+    }
+#endif
     if ( forceSpawn == CHECK_SPAWN )
     {
         if ( SpotWouldTelefrag(ent) )
@@ -155,6 +217,9 @@ gentity_s *__cdecl SpawnActor(gentity_s *ent, unsigned int targetname, enumForce
     spawn = G_Spawn();
     G_DuplicateEntityFields(spawn, ent);
     G_DuplicateScriptFields(spawn, ent);
+#ifdef KISAK_SP
+    spawn->team = ent->spawner.team;
+#endif
     Scr_SetString(&spawn->targetname, targetname, SCRIPTINSTANCE_SERVER);
     spawn->spawnflags &= ~1u;
     if ( SP_actor(spawn, 0) )
@@ -182,6 +247,9 @@ gentity_s *__cdecl SpawnActor(gentity_s *ent, unsigned int targetname, enumForce
                 }
             }
         }
+#ifdef KISAK_SP
+        Actor_FinishSpawning(spawn->actor);
+#endif
         Actor_UpdateSight(pSelf);
         Actor_UpdateThreat(pSelf);
         Actor_InitAnimScript(spawn->actor);

@@ -6,8 +6,12 @@
 #include <clientscript/cscr_main.h>
 #include "common.h"
 #include <cstring>
-#include <game_mp/g_cmds_mp.h>
+#include <game/g_cmds_wrapper.h>
+#ifdef KISAK_SP
+#include <server_sp/sv_main_sp.h>
+#else
 #include <server_mp/sv_main_mp.h>
+#endif
 
 #include <Windows.h>
 #include "threads.h"
@@ -20,7 +24,11 @@
 #include <client/cl_console.h>
 #include <database/db_registry.h>
 #include <database/db_file_load.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_main_sp.h>
+#else
 #include <client_mp/cl_main_mp.h>
+#endif
 #include <server/sv_game.h>
 
 int cmd_wait;

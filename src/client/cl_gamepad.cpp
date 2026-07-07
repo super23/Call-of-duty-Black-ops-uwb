@@ -8,18 +8,25 @@
 #include "cl_main.h"
 #include "client.h"
 #include "cl_keys.h"
+#ifdef KISAK_SP
+#include <cgame_sp/cg_main_sp.h>
+#include <server_sp/sv_init_sp.h>
+#include <cgame_sp/cg_newDraw_sp.h>
+#include <cgame_sp/cg_scoreboard_sp.h>
+#else
 #include <cgame_mp/cg_main_mp.h>
 #include <server_mp/sv_init_mp.h>
+#include <cgame_mp/cg_newDraw_mp.h>
+#include <cgame_mp/cg_scoreboard_mp.h>
+#endif
 #include <win32/win_gamepad.h>
 #include <devgui/devgui.h>
-#include <cgame_mp/cg_newDraw_mp.h>
 #include <ui/keycodes.h>
 #include <demo/demo_playback.h>
 #include <live/live_win.h>
 #include <bgame/bg_unlockable_items.h>
 #include <qcommon/com_clients.h>
 #include <cgame/cg_compass.h>
-#include <cgame_mp/cg_scoreboard_mp.h>
 #include <cgame/cg_gamepad.h>
 
 int lastGamepadEventTimeGlobal;

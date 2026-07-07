@@ -69,6 +69,7 @@ struct PlayerDetails // sizeof=0x68
     int inViewLastTime;
 };
 
+int __cdecl CG_EntityNumForClientSlot(int localClientNum, const cg_s *cgameGlob, int clientSlot);
 void __cdecl CG_ClearOverheadFade();
 void __cdecl CG_ClearPlayerDetails();
 void __cdecl CG_InitPlayerDetails(int localClientNum, int targetClientNum);
@@ -85,11 +86,11 @@ bool __cdecl CG_CheckIfDrivingRemoteControlVehicle(int localClientNum, unsigned 
 void __cdecl CG_DrawNames(int localClientNum);
 int __cdecl compareEntityDist(float *v1, float *v2);
 int __cdecl CG_GetTeamIndicator();
-bool __cdecl ShouldDrawCrosshairNames(const cg_s *cgameGlob);
+bool __cdecl ShouldDrawCrosshairNames(int localClientNum, const cg_s *cgameGlob);
 void __cdecl CG_DrawCrosshairNames(int localClientNum);
 void __cdecl CG_AddDrawName(int localClientNum, int entnum, float alpha, int teamIndicator);
 char __cdecl CG_IsValidCrosshairEntity(int localClientNum, const cg_s *cgameGlob, const centity_s *cent, int entNum);
 bool __cdecl ShouldDrawFriendlyName(int localClientNum, const centity_s *cent, int entnum, int team);
-int __cdecl GetVehicleDriverEntNum(const cg_s *cgameGlob, const centity_s *cent, int entnum);
+int __cdecl GetVehicleDriverEntNum(int localClientNum, const cg_s *cgameGlob, const centity_s *cent, int vehEntNum);
 void __cdecl CG_DrawFriendlyNames(int localClientNum);
 void __cdecl CG_DrawVisibleNames(int localClientNum);

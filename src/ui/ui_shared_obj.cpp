@@ -4,9 +4,21 @@
 #include "ui_utils.h"
 #include "l_precomp.h"
 #include <universal/eval.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_scrn_sp.h>
+#else
 #include <client_mp/cl_scrn_mp.h>
+#endif
 #include <qcommon/dobj_management.h>
+#include <qcommon/common.h>
+#include <universal/q_shared.h>
+#include <gfx_d3d/r_material.h>
+#include <database/db_registry.h>
+#ifdef KISAK_SP
+#include <game/g_main.h>
+#else
 #include <game_mp/g_main_mp.h>
+#endif
 
 #include <cctype>
 

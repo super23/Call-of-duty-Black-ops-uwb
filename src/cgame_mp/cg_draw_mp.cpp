@@ -386,16 +386,22 @@ void __cdecl CG_Draw2DInternal(int localClientNum)
                 }
                 else
                 {
+                    bool namesAllowedPm;
+                    bool wantsExplicitNames;
+
                     CG_DrawNightVisionOverlay(localClientNum);
                     CG_ScanForCrosshairEntity(localClientNum);
                     CG_DrawCrosshair(localClientNum);
-                    if ( drawHud )
+                    namesAllowedPm = ps->pm_type < 9 || Demo_IsMovieCamera();
+                    wantsExplicitNames =
+                        cg_drawCrosshairNames->current.enabled || cg_drawFriendlyNames->current.enabled;
+                    if ( drawHud || (wantsExplicitNames && namesAllowedPm) )
                     {
-                        if ( ps->pm_type < 9 || Demo_IsMovieCamera() )
+                        if ( namesAllowedPm )
                             CG_UpdatePlayerNames(localClientNum);
-                        if ( !chatOverScoreboard )
-                            CG_DrawChatMessages(localClientNum);
                     }
+                    if ( drawHud && !chatOverScoreboard )
+                        CG_DrawChatMessages(localClientNum);
                     CG_CheckTimedMenus(localClientNum);
                     if ( drawHud )
                     {

@@ -1,12 +1,13 @@
 #include "actor_events.h"
-#include <game_mp/g_main_mp.h>
+#include "actor_grenade.h"
+#include <game/g_main_wrapper.h>
 #include "actor_senses.h"
 #include "bullet.h"
-#include <game_mp/actor_mp.h>
+#include <game/actor_wrapper.h>
 #include "actor_event_listeners.h"
-#include <game_mp/g_spawn_mp.h>
+#include <game/g_spawn_wrapper.h>
 #include <clientscript/cscr_vm.h>
-#include <game_mp/g_misc_mp.h>
+#include <game/g_misc_wrapper.h>
 #include <clientscript/scr_const.h>
 
 const struct $97E41B13BD0B431546CEBD7708497565 // sizeof=0xC
@@ -733,6 +734,7 @@ void __cdecl Actor_EventGrenadePing(actor_s *self, gentity_s *originator, const 
     {
         __debugbreak();
     }
+    Actor_GrenadePing(self, originator);
 }
 
 void __fastcall Actor_EventGunshot(actor_s *self, sentient_s *originator, const float *vOrigin)

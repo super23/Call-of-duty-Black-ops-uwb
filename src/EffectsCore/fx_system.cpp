@@ -26,7 +26,7 @@ int fx_serverVisClient;
 
 int __cdecl FX_AllocateClientMemory_SizeRequired(int maxLocalClients)
 {
-    return 405536 * maxLocalClients + 127 + 155688 * maxLocalClients + 254;
+    return (sizeof(FxSystemContainer) + sizeof(FxSystemBuffers)) * maxLocalClients + 127 + 155688 * maxLocalClients + 254;
 }
 
 void __cdecl FX_AllocateClientMemory(HunkUser *hunk, int maxLocalClients)
@@ -36,8 +36,8 @@ void __cdecl FX_AllocateClientMemory(HunkUser *hunk, int maxLocalClients)
     fx_maxLocalClients = maxLocalClients;
     fx_systemPool = (FxSystemContainer *)Hunk_UserAlloc(hunk, 2976 * maxLocalClients, 128, "fx_systemPool");
     memset((unsigned __int8 *)fx_systemPool, 0, 2976 * maxLocalClients);
-    fx_systemBufferPool = (FxSystemBuffers *)Hunk_UserAlloc(hunk, 402560 * maxLocalClients, 128, "fx_systemBufferPool");
-    memset((unsigned __int8 *)fx_systemBufferPool, 0, 402560 * maxLocalClients);
+    fx_systemBufferPool = (FxSystemBuffers *)Hunk_UserAlloc(hunk, sizeof(FxSystemBuffers) * maxLocalClients, 128, "fx_systemBufferPool");
+    memset((unsigned __int8 *)fx_systemBufferPool, 0, sizeof(FxSystemBuffers) * maxLocalClients);
     fx_marksSystemPool = (FxMarksSystem *)Hunk_UserAlloc(hunk, 155688 * maxLocalClients, 128, "fx_marksSystemPool");
     memset((unsigned __int8 *)fx_marksSystemPool, 0, 155688 * maxLocalClients);
     for ( i = 0; i < maxLocalClients; ++i )
@@ -63,17 +63,7 @@ void __cdecl FX_FreeClientMemory(HunkUser *hunk)
 
 FxSystemContainer *__cdecl FX_GetSystem(int localClientNum)
 {
-    if ( localClientNum
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",
-                    193,
-                    0,
-                    "%s\n\t(localClientNum) = %i",
-                    "(localClientNum == 0)",
-                    localClientNum) )
-    {
-        __debugbreak();
-    }
+    (void)localClientNum;
     return fx_systemPool;
 }
 
@@ -84,17 +74,7 @@ FxSystemContainer *__cdecl FX_GetSystemRemote(int localClientNum)
 
 FxSystemBuffers *__cdecl FX_GetSystemBuffers(int localClientNum)
 {
-    if ( localClientNum
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",
-                    215,
-                    0,
-                    "%s\n\t(localClientNum) = %i",
-                    "(localClientNum == 0)",
-                    localClientNum) )
-    {
-        __debugbreak();
-    }
+    (void)localClientNum;
     return fx_systemBufferPool;
 }
 
@@ -606,7 +586,7 @@ FxPool<FxTrailElem, FxTrailElem> *__cdecl FX_AllocPool_Generic_FxTrailElem_FxTra
         nextFree = pool[itemIndex].nextFree;
     } while (_InterlockedCompareExchange((volatile unsigned __int32 *)firstFreeIndex, nextFree, itemIndex) != itemIndex);
     if (itemIndex != -1
-        && itemIndex >= 0x800
+        && itemIndex >= FX_ELEM_LIMIT
         && !Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",
             247,
@@ -617,7 +597,7 @@ FxPool<FxTrailElem, FxTrailElem> *__cdecl FX_AllocPool_Generic_FxTrailElem_FxTra
         __debugbreak();
     }
     if (nextFree != -1
-        && nextFree >= 0x800
+        && nextFree >= FX_ELEM_LIMIT
         && !Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",
             248,
@@ -1152,20 +1132,20 @@ unsigned int __cdecl FX_SpawnEffect(
             }
         }
 
-#if 0 // aislop used with union context
-        remoteEffect->effect.boltAndSortOrder.0 = ($88D60DA77564256B22C3F95D9DD45A24)(((boneIndex & 0x1FF) << 20)
-                                                                                                                                                                | *(unsigned int *)&remoteEffect->effect.boltAndSortOrder.0
+#if 1 // Decomp: CoDMPServer.c:358892-358948 — retail dword bolt packing (FX_BONE_INDEX_NONE=511 needs 9 bits)
+        remoteEffect->effect.boltAndSortOrder.packed = (((boneIndex & 0x1FF) << 20)
+                                                                                                                                                                | remoteEffect->effect.boltAndSortOrder.packed
                                                                                                                                                                 & 0xE00FFFFF);
-        *(unsigned int *)&remoteEffect->effect.boltAndSortOrder.0 &= ~0x80000u;
+        remoteEffect->effect.boltAndSortOrder.packed &= ~0x80000u;
         if ( dobjHandle != 2047 || boneIndex == 511 )
         {
             if ( markEntnum == 1023 )
             {
                 if ( dobjHandle == 2047 )
-                    v12 = *(unsigned int *)&remoteEffect->effect.boltAndSortOrder.0 & 0x9FFFFFFF;
+                    v12 = remoteEffect->effect.boltAndSortOrder.packed & 0x9FFFFFFF;
                 else
-                    v12 = *(unsigned int *)&remoteEffect->effect.boltAndSortOrder.0 & 0x9FFFFFFF | 0x20000000;
-                remoteEffect->effect.boltAndSortOrder.0 = ($88D60DA77564256B22C3F95D9DD45A24)v12;
+                    v12 = remoteEffect->effect.boltAndSortOrder.packed & 0x9FFFFFFF | 0x20000000;
+                remoteEffect->effect.boltAndSortOrder.packed =v12;
                 if ( boneIndex < 0
                     && !Assert_MyHandler(
                                 "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",
@@ -1176,13 +1156,13 @@ unsigned int __cdecl FX_SpawnEffect(
                 {
                     __debugbreak();
                 }
-                remoteEffect->effect.boltAndSortOrder.0 = ($88D60DA77564256B22C3F95D9DD45A24)(((dobjHandle & 0x7FF) << 8)
-                                                                                                                                                                        | *(unsigned int *)&remoteEffect->effect.boltAndSortOrder.0
+                remoteEffect->effect.boltAndSortOrder.packed =(((dobjHandle & 0x7FF) << 8)
+                                                                                                                                                                        | remoteEffect->effect.boltAndSortOrder.packed
                                                                                                                                                                         & 0xFFF800FF);
-                remoteEffect->effect.boltAndSortOrder.0 = ($88D60DA77564256B22C3F95D9DD45A24)((FX_GetBoltTemporalBits(
+                remoteEffect->effect.boltAndSortOrder.packed =((FX_GetBoltTemporalBits(
                                                                                                                                                                                     system->localClientNum,
                                                                                                                                                                                     dobjHandle) << 19)
-                                                                                                                                                                        | *(unsigned int *)&remoteEffect->effect.boltAndSortOrder.0
+                                                                                                                                                                        | remoteEffect->effect.boltAndSortOrder.packed
                                                                                                                                                                         & 0xFFF7FFFF);
             }
             else
@@ -1208,11 +1188,11 @@ unsigned int __cdecl FX_SpawnEffect(
                 {
                     __debugbreak();
                 }
-                remoteEffect->effect.boltAndSortOrder.0 = ($88D60DA77564256B22C3F95D9DD45A24)(((markEntnum & 0x7FF) << 8)
-                                                                                                                                                                        | *(unsigned int *)&remoteEffect->effect.boltAndSortOrder.0
+                remoteEffect->effect.boltAndSortOrder.packed =(((markEntnum & 0x7FF) << 8)
+                                                                                                                                                                        | remoteEffect->effect.boltAndSortOrder.packed
                                                                                                                                                                         & 0xFFF800FF);
-                *(unsigned int *)&remoteEffect->effect.boltAndSortOrder.0 |= 0x60000000u;
-                if ( ((*(unsigned int *)&remoteEffect->effect.boltAndSortOrder.0 >> 8) & 0x7FF) != markEntnum
+                remoteEffect->effect.boltAndSortOrder.packed |= 0x60000000u;
+                if ( ((remoteEffect->effect.boltAndSortOrder.packed >> 8) & 0x7FF) != markEntnum
                     && !Assert_MyHandler(
                                 "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",
                                 1687,
@@ -1227,33 +1207,33 @@ unsigned int __cdecl FX_SpawnEffect(
         }
         else
         {
-            remoteEffect->effect.boltAndSortOrder.0 = ($88D60DA77564256B22C3F95D9DD45A24)(((boneIndex & 0x1FFFFF) << 8)
-                                                                                                                                                                    | *(unsigned int *)&remoteEffect->effect.boltAndSortOrder.0
+            remoteEffect->effect.boltAndSortOrder.packed =(((boneIndex & 0x1FFFFF) << 8)
+                                                                                                                                                                    | remoteEffect->effect.boltAndSortOrder.packed
                                                                                                                                                                     & 0xE00000FF);
-            remoteEffect->effect.boltAndSortOrder.0 = ($88D60DA77564256B22C3F95D9DD45A24)(*(unsigned int *)&remoteEffect->effect.boltAndSortOrder.0
+            remoteEffect->effect.boltAndSortOrder.packed =(remoteEffect->effect.boltAndSortOrder.packed
                                                                                                                                                                     & 0x9FFFFFFF
                                                                                                                                                                     | 0x40000000);
-            if ( ((*(unsigned int *)&remoteEffect->effect.boltAndSortOrder.0 >> 8) & 0x1FFFFF) != boneIndex
+            if ( ((remoteEffect->effect.boltAndSortOrder.packed >> 8) & 0x1FFFFF) != boneIndex
                 && !Assert_MyHandler(
                             "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",
                             1678,
                             0,
                             "effect->boltAndSortOrder.absDynEntId == static_cast<uint>( boneIndex )\n\t%i, %i",
-                            (*(unsigned int *)&remoteEffect->effect.boltAndSortOrder.0 >> 8) & 0x1FFFFF,
+                            (remoteEffect->effect.boltAndSortOrder.packed >> 8) & 0x1FFFFF,
                             boneIndex) )
             {
                 __debugbreak();
             }
         }
-        remoteEffect->effect.boltAndSortOrder.0 = ($88D60DA77564256B22C3F95D9DD45A24)((unsigned __int8)runnerSortOrder | *(unsigned int *)&remoteEffect->effect.boltAndSortOrder.0 & 0xFFFFFF00);
+        remoteEffect->effect.boltAndSortOrder.packed =((unsigned __int8)runnerSortOrder | remoteEffect->effect.boltAndSortOrder.packed & 0xFFFFFF00);
 
-        if ( (unsigned __int8)*(unsigned int *)&remoteEffect->effect.boltAndSortOrder.0 != runnerSortOrder
+        if ( (unsigned __int8)remoteEffect->effect.boltAndSortOrder.packed != runnerSortOrder
             && !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",
                         1707,
                         0,
                         "effect->boltAndSortOrder.sortOrder == static_cast<uint>( runnerSortOrder )\n\t%i, %i",
-                        (unsigned __int8)*(unsigned int *)&remoteEffect->effect.boltAndSortOrder.0,
+                        (unsigned __int8)remoteEffect->effect.boltAndSortOrder.packed,
                         runnerSortOrder) )
         {
             __debugbreak();
@@ -2453,7 +2433,7 @@ int __cdecl FX_TrailElemToHandle(FxSystem *system, FxTrailElem *trailElem)
     {
         __debugbreak();
     }
-    return FX_PoolToHandle_Generic<FxTrailElem,FxTrailElem,2048>(system->trailElems, trailElem);
+    return FX_PoolToHandle_Generic<FxTrailElem,FxTrailElem,FX_ELEM_LIMIT>(system->trailElems, trailElem);
 }
 
 FxPool<FxTrailElem,FxTrailElem> *__cdecl FX_AllocTrailElem(FxEffect *remoteEffect, FxSystem *system)
@@ -2725,7 +2705,7 @@ void __cdecl FX_SpawnElem(
                              + elemDef->lifeSpanMsec.base > system->msecNow )
                         {
                             remoteElem = FX_AllocElem(&remoteEffect->effect, system);
-                            if ( !remoteElem || system->shared->activeElemCount > 2018 )
+                            if ( !remoteElem || system->shared->activeElemCount > (FX_ELEM_LIMIT - 30) )
                                 FX_SetWarningPriority(system, priority);
                             if ( remoteElem )
                             {
@@ -2841,7 +2821,7 @@ FxPool<FxElem, FxElemContainer> *__cdecl FX_AllocPool_Generic_FxElem_FxElemConta
         nextFree = pool[itemIndex].nextFree;
     } while (_InterlockedCompareExchange((volatile unsigned __int32 *)firstFreeIndex, nextFree, itemIndex) != itemIndex);
     if (itemIndex != -1
-        && itemIndex >= 0x800
+        && itemIndex >= FX_ELEM_LIMIT
         && !Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",
             247,
@@ -2852,7 +2832,7 @@ FxPool<FxElem, FxElemContainer> *__cdecl FX_AllocPool_Generic_FxElem_FxElemConta
         __debugbreak();
     }
     if (nextFree != -1
-        && nextFree >= 0x800
+        && nextFree >= FX_ELEM_LIMIT
         && !Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",
             248,
@@ -2883,6 +2863,7 @@ void FX_SpawnRunner(
     int randomSeed,
     int msecWhenPlayed)
 {
+#if 0 // aislop refactored — bolt.boneIndex is 8-bit; FX_BONE_INDEX_NONE (511) never matches
     FxEffectContainer *spawnedContainer;
     const FxEffectDef *effectDef;
 
@@ -2999,6 +2980,101 @@ void FX_SpawnRunner(
     {
         FX_DelRefToEffect(system, spawnedContainer, 0);
     }
+#else // Decomp: CoDMPServer.c — retail dword bolt checks for runner spawn
+    FxEffectContainer *spawnedContainer;
+    int runnerSortOrder;
+    const FxEffectDef *effectDef;
+    unsigned int spawnedHandle;
+    float *usedAxis;
+    float rotatedAxis[3][3];
+    float spawnOrigin[3];
+    float axis[3][3];
+
+    FX_GetSpawnOrigin(effectFrameWhenPlayed, remoteElemDef, randomSeed, spawnOrigin);
+    FX_OffsetSpawnOrigin(effectFrameWhenPlayed, remoteElemDef, randomSeed, spawnOrigin);
+    effectDef = FX_GetElemVisuals(remoteElemDef, randomSeed).effectDef.handle;
+    UnitQuatToAxis(effectFrameWhenPlayed->quat, axis);
+    if ( (remoteElemDef->flags & 8) != 0 )
+    {
+        FX_RandomlyRotateAxis(axis, randomSeed, rotatedAxis);
+        usedAxis = rotatedAxis[0];
+    }
+    else
+    {
+        usedAxis = axis[0];
+    }
+    if ( remoteElemDef->sortOrder == 255 )
+        runnerSortOrder = 255;
+    else
+        runnerSortOrder = remoteElemDef->sortOrder;
+    if ( runnerSortOrder <= 0 )
+        runnerSortOrder = 0;
+    FX_PlayElementSpawnSound(system->localClientNum, remoteElemDef, spawnOrigin);
+    if ( ((effect->boltAndSortOrder.packed >> 29) & 3) == 2 )
+    {
+        spawnedHandle = FX_SpawnEffect(
+            system,
+            effectDef,
+            msecWhenPlayed,
+            spawnOrigin,
+            (const float (*)[3])usedAxis,
+            2047,
+            511,
+            runnerSortOrder,
+            effect->owner,
+            0x3FFu,
+            &orIdentity);
+        spawnedContainer = UniqueHandleToEffect(system, spawnedHandle);
+    }
+    else if ( ((effect->boltAndSortOrder.packed >> 20) & 0x1FF) == 0x1FF )
+    {
+        if ( ((effect->boltAndSortOrder.packed >> 8) & 0x7FF) == 0x7FF )
+            spawnedHandle = FX_SpawnEffect(
+                system,
+                effectDef,
+                msecWhenPlayed,
+                spawnOrigin,
+                (const float (*)[3])usedAxis,
+                2047,
+                511,
+                runnerSortOrder,
+                effect->owner,
+                0x3FFu,
+                &orIdentity);
+        else
+            spawnedHandle = FX_SpawnEffect(
+                system,
+                effectDef,
+                msecWhenPlayed,
+                spawnOrigin,
+                (const float (*)[3])usedAxis,
+                2047,
+                511,
+                runnerSortOrder,
+                effect->owner,
+                (effect->boltAndSortOrder.packed >> 8) & 0x7FF,
+                &orIdentity);
+        spawnedContainer = UniqueHandleToEffect(system, spawnedHandle);
+    }
+    else
+    {
+        spawnedHandle = FX_SpawnEffect(
+            system,
+            effectDef,
+            msecWhenPlayed,
+            spawnOrigin,
+            (const float (*)[3])usedAxis,
+            (effect->boltAndSortOrder.packed >> 8) & 0x7FF,
+            (effect->boltAndSortOrder.packed >> 20) & 0x1FF,
+            runnerSortOrder,
+            effect->owner,
+            0x3FFu,
+            &orIdentity);
+        spawnedContainer = UniqueHandleToEffect(system, spawnedHandle);
+    }
+    if ( spawnedContainer )
+        FX_DelRefToEffect(system, spawnedContainer, 0);
+#endif
 }
 
 
@@ -3131,7 +3207,7 @@ void FX_RandomlyRotateAxis(const float (*axisIn)[3], int randomSeed, float (*axi
     Vec3Cross((const float *)axisOut, &(*axisOut)[3], &(*axisOut)[6]);
     if (!Vec3IsNormalized((const float *)axisOut))
     {
-        v4 = Vec3Length((const float *)axisOut);
+        v4 = Abs((const float *)axisOut);
         v5 = va("(%g %g %g) len %g", (*axisOut)[0], (*axisOut)[1], (*axisOut)[2], v4);
         if (!Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",
@@ -3144,7 +3220,7 @@ void FX_RandomlyRotateAxis(const float (*axisIn)[3], int randomSeed, float (*axi
     }
     if (!Vec3IsNormalized(&(*axisOut)[3]))
     {
-        v6 = Vec3Length(&(*axisOut)[3]);
+        v6 = Abs(&(*axisOut)[3]);
         v7 = va("(%g %g %g) len %g", (*axisOut)[3], (*axisOut)[4], (*axisOut)[5], v6);
         if (!Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",
@@ -3157,7 +3233,7 @@ void FX_RandomlyRotateAxis(const float (*axisIn)[3], int randomSeed, float (*axi
     }
     if (!Vec3IsNormalized(&(*axisOut)[6]))
     {
-        v8 = Vec3Length(&(*axisOut)[6]);
+        v8 = Abs(&(*axisOut)[6]);
         v9 = va("(%g %g %g) len %g", (*axisOut)[6], (*axisOut)[7], (*axisOut)[8], v8);
         if (!Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",
@@ -3423,7 +3499,7 @@ void __cdecl FX_FreePool_Generic_FxElem_FxElemContainer_(
     unsigned __int32 freedIndex; // [esp+90h] [ebp-4h]
 
     freedIndex = ((char *)item_slim - (char *)pool) / 48;
-    if (freedIndex >= 0x800
+    if (freedIndex >= FX_ELEM_LIMIT
         && !Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",
             300,
@@ -3449,7 +3525,7 @@ void __cdecl FX_FreePool_Generic_FxElem_FxElemContainer_(
         *(_DWORD *)&item_slim->defIndex = nextFree;
     } while (_InterlockedCompareExchange((volatile unsigned __int32 *)firstFreeIndex, freedIndex, nextFree) != nextFree);
     if (nextFree != -1
-        && nextFree >= 0x800
+        && nextFree >= FX_ELEM_LIMIT
         && !Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",
             316,
@@ -3558,7 +3634,7 @@ void __cdecl FX_FreePool_Generic_FxTrailElem_FxTrailElem_(
     unsigned __int32 freedIndex; // [esp+90h] [ebp-4h]
 
     freedIndex = ((char *)item_slim - (char *)pool) >> 5;
-    if (freedIndex >= 0x800
+    if (freedIndex >= FX_ELEM_LIMIT
         && !Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",
             300,
@@ -3584,7 +3660,7 @@ void __cdecl FX_FreePool_Generic_FxTrailElem_FxTrailElem_(
         LODWORD(item_slim->origin[0]) = nextFree;
     } while (_InterlockedCompareExchange((volatile unsigned __int32 *)firstFreeIndex, freedIndex, nextFree) != nextFree);
     if (nextFree != -1
-        && nextFree >= 0x800
+        && nextFree >= FX_ELEM_LIMIT
         && !Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\EffectsCore\\fx_system.cpp",
             316,

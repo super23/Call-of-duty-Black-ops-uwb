@@ -1,13 +1,15 @@
 #include "actor_dog_exposed.h"
-#include <game_mp/g_main_mp.h>
+#include "actor_animapi.h"
+#include <game/g_main_wrapper.h>
 #include "actor_state.h"
-#include <game_mp/actor_mp.h>
+#include <game/actor_wrapper.h>
 #include "actor_corpse.h"
 #include "actor_orientation.h"
 #include "actor_team_move.h"
 #include "actor_exposed.h"
 #include "actor_navigation.h"
 #include <qcommon/cm_world.h>
+#include <qcommon/cm_trace.h>
 #include <bgame/bg_dog.h>
 #include "g_debug.h"
 
@@ -99,7 +101,8 @@ actor_think_result_t __fastcall Actor_Dog_Exposed_Think(actor_s *self)
     self->pszDebugInfo = "exposed";
     Actor_PreThink(self);
     enemy = Actor_GetTargetSentient(self);
-    v5 = (AnimScriptList *)self->pAnimScriptFunc == &g_scr_data.dogAnim
+    v5 = g_animScriptTable[self->species]
+        && self->pAnimScriptFunc == &g_animScriptTable[self->species]->combat
         && Actor_IsAnimScriptAlive(self)
         && !self->safeToChangeScript;
     attackScriptRunning = v5;
@@ -161,19 +164,19 @@ actor_think_result_t __fastcall Actor_Dog_Exposed_Think(actor_s *self)
                 Actor_SetAnimScript(
                     self,
                     &g_animScriptTable[self->species]->jump,
-                    AI_MOVE_RUN,
+                    3u,
                     AI_ANIM_USE_BOTH_DELTAS_NOCLIP,
                     AI_ANIM_FUNCTION_MOVE);
             }
             else if ( Actor_IsMoving(self) && Actor_Dog_ShouldTurn(self) )
             {
                 Actor_SetOrientMode(self, AI_ORIENT_TO_MOTION);
-                Actor_SetAnimScript(self, &g_animScriptTable[self->species]->turn, AI_MOVE_RUN, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_MOVE);
+                Actor_SetAnimScript(self, &g_animScriptTable[self->species]->turn, 3u, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_MOVE);
             }
-            else if ( (self->pAnimScriptFunc != &g_scr_data.dogAnim.jump
+            else if ( (self->pAnimScriptFunc != &g_animScriptTable[self->species]->jump
                             || !Actor_IsAnimScriptAlive(self)
                             || self->safeToChangeScript)
-                         && (self->pAnimScriptFunc != &g_scr_data.dogAnim.turn
+                         && (self->pAnimScriptFunc != &g_animScriptTable[self->species]->turn
                             || !Actor_IsAnimScriptAlive(self)
                             || self->safeToChangeScript) )
             {
@@ -220,9 +223,11 @@ void __cdecl Actor_Dog_Attack(actor_s *self)
     //if ( EntHandle::isDefined(&self->sentient->targetEnt) )
     if ( self->sentient->targetEnt.isDefined() )
     {
-        if ( (AnimScriptList *)self->pAnimScriptFunc == &g_scr_data.dogAnim && !Actor_IsAnimScriptAlive(self) )
+        if ( g_animScriptTable[self->species]
+            && self->pAnimScriptFunc == &g_animScriptTable[self->species]->combat
+            && !Actor_IsAnimScriptAlive(self) )
             Actor_KillAnimScript(self);
-        Actor_SetAnimScript(self, &g_animScriptTable[self->species]->combat, AI_MOVE_STOP, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_STOP);
+        Actor_SetAnimScript(self, &g_animScriptTable[self->species]->combat, 0, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_STOP);
     }
 }
 
@@ -326,6 +331,7 @@ int __cdecl Actor_Dog_IsEnemyInAttackRange(actor_s *self, sentient_s *enemy, int
     float *currentOrigin; // eax
     col_context_t context; // [esp+24h] [ebp-A4h] BYREF
     float mins[3]; // [esp+4Ch] [ebp-7Ch] BYREF
+    trace_t trace; // [esp+58h] [ebp-70h] BYREF
     float enemyToMe[2]; // [esp+94h] [ebp-34h] BYREF
     float cos45; // [esp+9Ch] [ebp-2Ch]
     float enemyToAttackSpot[2]; // [esp+A0h] [ebp-28h] BYREF
@@ -381,11 +387,12 @@ int __cdecl Actor_Dog_IsEnemyInAttackRange(actor_s *self, sentient_s *enemy, int
     }
     else if ( enemyInAttackRange )
     {
-        trace_t trace; // [esp+58h] [ebp-70h] BYREF
+        // KISAK FIX: default-construct col_context_t (retail ctor sets passEntityNum 1023); memset broke melee LOS.
+        memset(&trace, 0, sizeof(trace));
+        context = col_context_t();
         mins[0] = actorMins[0];
         mins[1] = -15.0;
         mins[2] = 18.0f;
-        //col_context_t::col_context_t(&context);
         G_TraceCapsule(
             &trace,
             self->ent->r.currentOrigin,
@@ -447,6 +454,7 @@ char __fastcall Actor_SetMeleeAttackSpot(actor_s *self, const float *enemyPositi
     {
         __debugbreak();
     }
+    memset(&trace, 0, sizeof(trace));
     bestFraction = 0.0f;
     enemy = Actor_GetTargetSentient(self);
     currentOrigin = self->ent->r.currentOrigin;
@@ -518,10 +526,13 @@ char __fastcall Actor_SetMeleeAttackSpot(actor_s *self, const float *enemyPositi
         if ( (float)((float)(v7 * v7) + (float)(v8 * v8)) < (float)((float)(v9 * v9) + (float)(v10 * v10)) )
         {
 LABEL_33:
-            //col_context_t::col_context_t(&context);
+            context = col_context_t();
             G_TraceCapsule(&trace, attackPosition, mins, maxs, attackPosition, enemy->ent->s.number, 0x20000, &context);
             if ( !trace.startsolid && !trace.allsolid )
+            {
+                context = col_context_t();
                 G_TraceCapsule(&trace, attackPosition, mins, maxs, enemyPosition, enemy->ent->s.number, 41943057, &context);
+            }
             if ( trace.fraction < 1.0 && ai_debugMeleeAttackSpots->current.enabled )
             {
                 Vec3Lerp(attackPosition, enemyPosition, trace.fraction, endPos);
@@ -545,6 +556,7 @@ LABEL_33:
                 dropPosition[1] = attackPosition[1];
                 dropPosition[2] = attackPosition[2];
                 dropPosition[2] = dropPosition[2] - DROP_AMOUNT;
+                context = col_context_t();
                 G_TraceCapsule(&trace, attackPosition, mins, actorMaxs, dropPosition, enemy->ent->s.number, 41943057, &context);
                 if ( trace.fraction < 1.0 && !trace.allsolid && !trace.startsolid )
                 {

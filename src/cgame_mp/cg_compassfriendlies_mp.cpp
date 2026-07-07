@@ -705,7 +705,8 @@ CompassDogs *__cdecl GetDogs(int localClientNum, int entityNum, int time)
         if ( s_compassDogs[localClientNum][dog].entityNum == entityNum )
             return &s_compassDogs[localClientNum][dog];
     }
-    for ( doga = 0; doga < 8 && s_compassDogs[localClientNum][doga].lastUpdate; ++doga )
+    // Match retail occupancy: slot used while entityNum != 0 (CoDMPServer GetDogs uses first int per slot).
+    for ( doga = 0; doga < 8 && s_compassDogs[localClientNum][doga].entityNum; ++doga )
         ;
     if ( doga >= 8 )
     {
@@ -780,14 +781,14 @@ CompassTurrets *__cdecl GetCompassTurrets(int localClientNum, int entityNum, int
     int oldest; // [esp+8h] [ebp-4h]
 
     if ( time - lastUpdateTime_0 > 1000 )
-        memset((unsigned __int8 *)s_compassDogs, 0, sizeof(s_compassDogs));
+        memset((unsigned __int8 *)s_compassTurrets, 0, sizeof(s_compassTurrets));
     lastUpdateTime_0 = time;
     for ( turret = 0; turret < 32; ++turret )
     {
         if ( s_compassTurrets[localClientNum][turret].entityNum == entityNum )
             return &s_compassTurrets[localClientNum][turret];
     }
-    for ( turreta = 0; turreta < 32 && s_compassTurrets[localClientNum][turreta].lastUpdate; ++turreta )
+    for ( turreta = 0; turreta < 32 && s_compassTurrets[localClientNum][turreta].entityNum; ++turreta )
         ;
     if ( turreta >= 32 )
     {
@@ -3550,7 +3551,6 @@ void __cdecl CG_CompassDrawDogs(
             CG_CompassUpYawVector(cgameGlob, yawVector);
             dog = s_compassDogs[localClientNum];
             myTeam = cgameGlob->bgs.clientinfo[cgameGlob->clientNum].team;
-            friendly = myTeam == dog->team && myTeam;
             num = 0;
             while ( num < 8 )
             {
@@ -3558,6 +3558,7 @@ void __cdecl CG_CompassDrawDogs(
                 fadedColor[1] = color[1];
                 fadedColor[2] = color[2];
                 fadedColor[3] = color[3];
+                friendly = myTeam == dog->team && myTeam;
                 cent = CG_GetEntity(localClientNum, dog->entityNum);
                 if ( cent->nextState.eType == eType )
                 {

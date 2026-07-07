@@ -20,6 +20,7 @@ void __cdecl    GScr_LoadConsts()
     scr_const.axis = GScr_AllocString("axis");
     scr_const.bad_path = GScr_AllocString("bad_path");
     scr_const.begin_firing = GScr_AllocString("begin_firing");
+    scr_const.begin_custom_anim = GScr_AllocString("begin_custom_anim");
     scr_const.unknown_location = GScr_AllocString("unknown_location");
     scr_const.cancel_location = GScr_AllocString("cancel_location");
     scr_const.confirm_location = GScr_AllocString("confirm_location");
@@ -29,6 +30,7 @@ void __cdecl    GScr_LoadConsts()
     scr_const.damage_afterdeath = GScr_AllocString("damage_afterdeath");
     scr_const.dead = GScr_AllocString("dead");
     scr_const.death = GScr_AllocString("death");
+    scr_const.deathplant = GScr_AllocString("deathplant");
     scr_const.disconnect = GScr_AllocString("disconnect");
     scr_const.death_or_disconnect = GScr_AllocString("death_or_disconnect");
     scr_const.detonate = GScr_AllocString("detonate");
@@ -186,6 +188,7 @@ void __cdecl    GScr_LoadConsts()
     scr_const.weapon_change = GScr_AllocString("weapon_change");
     scr_const.weapon_change_complete = GScr_AllocString("weapon_change_complete");
     scr_const.weapon_fired = GScr_AllocString("weapon_fired");
+    scr_const.weapon_raising = GScr_AllocString("weapon_raising");
     scr_const.worldspawn = GScr_AllocString("worldspawn");
     scr_const.flashbang = GScr_AllocString("flashbang");
     scr_const.flash = GScr_AllocString("flash");
@@ -381,6 +384,9 @@ void __cdecl    GScr_LoadConsts()
     scr_const._custom = GScr_AllocString("<custom>");
     scr_const.angle_deltas = GScr_AllocString("angle deltas");
     scr_const.bulletwhizby = GScr_AllocString("bulletwhizby");
+    scr_const.human = GScr_AllocString("human");
+    scr_const.zombie = GScr_AllocString("zombie");
+    scr_const.zombie_dog = GScr_AllocString("zombie_dog");
     scr_const.dog = GScr_AllocString("dog");
     scr_const.enemy = GScr_AllocString("enemy");
     scr_const.enemy_visible = GScr_AllocString("enemy_visible");

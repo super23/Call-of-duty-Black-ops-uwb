@@ -1,9 +1,15 @@
 #include "cl_voice.h"
 #include "cl_main.h"
+#ifdef KISAK_SP
+#include <client_sp/cl_main_sp.h>
+#include <cgame_sp/cg_main_sp.h>
+#include <client_sp/cl_main_pc_sp.h>
+#else
 #include <client_mp/cl_main_mp.h>
 #include <cgame_mp/cg_main_mp.h>
-#include "client.h"
 #include <client_mp/cl_main_pc_mp.h>
+#endif
+#include "client.h"
 #include <win32/win_voice.h>
 
 unsigned __int8 tempVoicePacketBuf[1260];

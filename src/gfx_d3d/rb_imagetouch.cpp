@@ -1,4 +1,5 @@
 #include "rb_imagetouch.h"
+#include "r_singlethreaded_device_pc.h"
 #include "r_init.h"
 #include "r_dvars.h"
 #include "rb_logfile.h"
@@ -11,17 +12,25 @@ void __cdecl RB_TouchAllImages()
 {
   const char *v0; // eax
   const char *v1; // eax
+  int v2; // [esp+0h] [ebp-4228h]
   int v3; // [esp+4h] [ebp-4224h]
+  int v4; // [esp+8h] [ebp-4220h]
   int hr; // [esp+Ch] [ebp-421Ch]
   unsigned int i; // [esp+14h] [ebp-4214h]
+  int v8; // [esp+18h] [ebp-4210h]
   int v9; // [esp+1Ch] [ebp-420Ch]
   ImageList imageList; // [esp+20h] [ebp-4208h] BYREF
 
+  v8 = R_AcquireDXDeviceOwnership(0);
   if ( !dx.inScene )
   {
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
       RB_LogPrint("dx.device->BeginScene()\n");
+    v4 = R_AcquireDXDeviceOwnership(0);
     hr = dx.device->BeginScene();
+    if ( v4 )
+      R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
       ++g_disableRendering;
@@ -46,10 +55,14 @@ void __cdecl RB_TouchAllImages()
   R_SetCodeImageTexture(&gfxCmdBufSourceState, 8u, 0);
   if ( !dx.inScene )
   {
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
       RB_LogPrint("dx.device->EndScene()\n");
+    v2 = R_AcquireDXDeviceOwnership(0);
     //v3 = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *))dx.device->EndScene)(dx.device, dx.device);
     v3 = dx.device->EndScene();
+    if ( v2 )
+      R_ReleaseDXDeviceOwnership();
     if ( v3 < 0 )
     {
       ++g_disableRendering;
@@ -61,6 +74,8 @@ void __cdecl RB_TouchAllImages()
         v1);
     }
   }
+  if ( v8 )
+    R_ReleaseDXDeviceOwnership();
 }
 
 void __cdecl RB_TouchImage(GfxImage *image)

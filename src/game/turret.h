@@ -59,6 +59,7 @@ struct TurretInfo // sizeof=0xE0
 
 void __cdecl Turret_RegisterDvars();
 void __cdecl G_InitTurrets();
+bool __cdecl G_CanSpawnTurret();
 void __cdecl G_ClientStopUsingTurret(gentity_s *self);
 void __cdecl turret_think_client(gentity_s *self);
 void __cdecl turret_track(gentity_s *self, gentity_s *other);

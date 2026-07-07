@@ -1,6 +1,7 @@
 #include "fx_sort.h"
 #include "fx_archive.h"
 #include "fx_update_util.h"
+#include "fx_system.h"
 
 void __cdecl FX_SortEffects(FxSystem *system)
 {
@@ -263,7 +264,7 @@ int __cdecl FX_ElemToHandle(FxSystem *system, FxElem *elem)
     {
         __debugbreak();
     }
-    return FX_PoolToHandle_Generic<FxElem,FxElemContainer,2048>(system->elems, elem);
+    return FX_PoolToHandle_Generic<FxElem,FxElemContainer,FX_ELEM_LIMIT>(system->elems, elem);
 }
 
 void __cdecl FX_GetInsertSortElem(

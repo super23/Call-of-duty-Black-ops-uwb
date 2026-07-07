@@ -4,6 +4,40 @@
 #include <client/cl_console.h>
 #include <qcommon/threads.h>
 
+void __cdecl Sys_ConsoleThread(unsigned int index)
+{
+    MSG msg;
+
+    (void)index;
+
+    while (true)
+    {
+        if (con_extcon && con_extcon->current.integer)
+            break;
+
+        Sleep(50);
+    }
+
+    Sys_ShowConsole();
+
+    while (GetMessageA(&msg, 0, 0, 0))
+    {
+        TranslateMessage(&msg);
+        DispatchMessageA(&msg);
+    }
+}
+
+void __cdecl Sys_InitConsoleThread()
+{
+#ifndef KISAK_DEDICATED
+    if (IsDedicatedServer())
+        return;
+#endif
+
+    Sys_CreateThread(Sys_ConsoleThread, THREAD_CONTEXT_WORKER7);
+    Sys_ResumeThread(THREAD_CONTEXT_WORKER7);
+}
+
 WinConData s_wcd;
 unsigned int s_totalChars;
 

@@ -4,15 +4,20 @@
 #include <cgame/cg_compass.h>
 #include <flame/flame_system.h>
 #include <DW/dwMatchMaking.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_consolecmds_sp.h>
+#include <client_sp/cl_main_pc_sp.h>
+#else
 #include <cgame_mp/cg_consolecmds_mp.h>
+#include <client_mp/cl_main_pc_mp.h>
+#endif
 #include "splitscreen.h"
 #include <gfx_d3d/r_rendercmds.h>
-#include <client_mp/cl_main_pc_mp.h>
 #include <qcommon/cmd.h>
 #include <win32/win_gamerprofile.h>
 #include <win32/win_shared.h>
 
-clientUIActive_t clientUIActives[1];
+clientUIActive_t clientUIActives[MAX_LOCAL_CLIENTS];
 
 bool s_dontUnlockControllers;
 
@@ -183,6 +188,13 @@ void __cdecl CL_RegisterCommands()
 
 void __cdecl CL_UpdateDvarsFromProfile()
 {
+#ifdef KISAK_SP
+    extern const dvar_t *ui_signedInToProfile;
+
+    // CoDSP_rdBlackOps.map.c: frontend.ff polls via execNowOnDvar until ui_signedInToProfile==1.
+    if ( ui_signedInToProfile && ui_signedInToProfile->current.enabled )
+        return;
+#endif
     GamerProfile_UpdateDvarsFromProfile(0);
 }
 

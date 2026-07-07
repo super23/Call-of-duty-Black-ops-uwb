@@ -1,4 +1,5 @@
 #include "live_storage.h"
+#include <qcommon/common.h>
 #include <qcommon/com_gamemodes.h>
 #include "live_stats.h"
 #include "live_storage_pub.h"
@@ -6,23 +7,30 @@
 #include <win32/win_shared.h>
 #include <qcommon/com_clients.h>
 #include <universal/mem_largelocal.h>
+#ifdef KISAK_SP
+#include <server_sp/sv_main_pc_sp.h>
+#include <client_sp/cl_main_pc_sp.h>
+#include <ui_sp/ui_main_sp.h>
+#else
 #include <server_mp/sv_main_pc_mp.h>
+#include <client_mp/cl_main_pc_mp.h>
+#include <ui_mp/ui_main_mp.h>
+#endif
 #include <time.h>
 #include "live_meetplayer.h"
 #include "live_win.h"
 #include "live_combatrecord.h"
-#include <client_mp/cl_main_pc_mp.h>
 #include "live_storage_win.h"
 #include "live_contracts.h"
 #include "live_fileshare.h"
 #include "live_fileshare_cache.h"
 #include "live_fileshare_search.h"
 #include <DW/MatchRecorder.h>
-#include <ui_mp/ui_main_mp.h>
 #include "live_counter.h"
 #include <qcommon/threads.h>
 
 cmd_function_s LiveStorage_FakeComErrorCmd_VAR;
+cmd_function_s LiveStorage_ReadStatsCmd_VAR;
 cmd_function_s LiveStorage_ReadStatsBackupCmd_VAR;
 cmd_function_s LiveStorage_GetFriendStatsCmd_VAR;
 cmd_function_s LiveStorage_WriteBackupStatsCmd_VAR;
@@ -58,7 +66,7 @@ playerFileOperations controllerFileOps[1];
 unsigned __int64 s_tempXuid;
 unsigned __int64 s_XuidOfOtherPlayer;
 int s_lastStatsUpdateTimeForOtherPlayer;
-unsigned __int8 s_tempStatsBuffer[40168];
+unsigned __int8 s_tempStatsBuffer[LIVE_STATS_DDL_BUFFER_BYTES];
 char s_matchRecordBinaryData[66560];
 
 const TaskDefinition task_LiveDeleteUserFile[1] =
@@ -501,7 +509,7 @@ void __cdecl LiveStorage_CorrectStatsError(char *msg)
 
 int __cdecl LiveStorage_GetStatsBufferSize()
 {
-    return 40168;
+    return LIVE_STATS_DDL_BUFFER_BYTES;
 }
 
 unsigned __int8 __cdecl LiveStorage_GetStatsChecksumValid(int controllerIndex, statsLocation playerStatsLocation)
@@ -532,7 +540,7 @@ void __cdecl LiveStorage_SetStatsWriteNeeded(int controllerIndex, bool isWriteNe
 
 int __cdecl LiveStorage_ValidateWithDDL(int controllerIndex, statsLocation location)
 {
-    char backupBuffer[40172]; // [esp+0h] [ebp-9CF8h] BYREF
+    char backupBuffer[LIVE_STATS_DDL_BUFFER_BYTES]; // [esp+0h] [ebp-9CF8h] BYREF
     char *buffer; // [esp+9CF0h] [ebp-8h]
     int bufferSize; // [esp+9CF4h] [ebp-4h]
 
@@ -548,8 +556,8 @@ int __cdecl LiveStorage_ValidateWithDDL(int controllerIndex, statsLocation locat
         LiveStorage_SetStatsDDLValidated(controllerIndex, location, 1);
         return 1;
     }
-    else if ( DDL_FixBufferVersion(buffer, g_statsDDL, "ddl_mp/stats.ddl", backupBuffer, 40168)
-                 || DDL_FixBufferVersion(buffer, g_statsDDL, "ddl_mp/stats_archive.ddl", backupBuffer, 40168) )
+    else if ( DDL_FixBufferVersion(buffer, g_statsDDL, "ddl_mp/stats.ddl", backupBuffer, LIVE_STATS_DDL_BUFFER_BYTES)
+                 || DDL_FixBufferVersion(buffer, g_statsDDL, "ddl_mp/stats_archive.ddl", backupBuffer, LIVE_STATS_DDL_BUFFER_BYTES) )
     {
         DDL_NoCheckPrintWarning(
             "DDL: Stats buffer updated to version %d for controller index %d.\n",
@@ -1244,7 +1252,7 @@ TaskRecord *__cdecl LiveStorage_ReadStatsBackup(int controllerIndex)
                                                                                                                                     controllerIndex,
                                                                                                                                     STATS_LOCATION_BACKUP,
                                                                                                                                     1);
-    fileInfo->statsBackupFileInfo.bufferSize = 40172;
+    fileInfo->statsBackupFileInfo.bufferSize = LIVE_STATS_DDL_BUFFER_BYTES;
     fileInfo->statsBackupFileInfo.fileOperationSucessFunction = (void (__cdecl *)(const int, void *))LiveStorage_StatsBackupReadSuccessful;
     fileInfo->statsBackupFileInfo.fileNotFoundFunction = (taskCompleteResults (__cdecl *)(const int, void *))LiveStorage_StatsBackupFileNotFound;
     fileInfo->statsBackupFileInfo.fileTask.m_optional = 1;
@@ -1364,6 +1372,8 @@ int __cdecl LiveStorage_GetUTCOffset()
 
 bool __cdecl LiveStorage_IsTimeSynced()
 {
+    if ( onlinegame && !onlinegame->current.enabled )
+        return true;
     return s_UTCSynced;
 }
 
@@ -1520,7 +1530,7 @@ TaskRecord *__cdecl LiveStorage_ReadOtherPlayerStats(int controllerIndex, unsign
     fileInfo->isCompressedFile = 1;
     fileInfo->fileTask.m_filename = (char*)"globalstatsCompressed";
     fileInfo->fileBuffer = (unsigned __int8 *)LiveStorage_GetStatsBuffer(controllerIndex, STATS_LOCATION_OTHERPLAYER, 1);
-    fileInfo->bufferSize = 40172;
+    fileInfo->bufferSize = LIVE_STATS_DDL_BUFFER_BYTES;
     fileInfo->fileOperationSucessFunction = (void (__cdecl *)(const int, void *))LiveStorage_ReadOtherPlayerStatsSuccessful;
     fileInfo->fileNotFoundFunction = (taskCompleteResults (__cdecl *)(const int, void *))LiveStorage_OtherPlayerStatsFileNotFound;
     fileInfo->menuDef = "popup_fetchstats";
@@ -1732,7 +1742,7 @@ TaskRecord *__cdecl LiveStorage_ReadCommonStats(
     {
         memset(s_tempStatsBuffer, 0, sizeof(s_tempStatsBuffer));
         fileInfo->fileBuffer = s_tempStatsBuffer;
-        fileInfo->bufferSize = 40168;
+        fileInfo->bufferSize = LIVE_STATS_DDL_BUFFER_BYTES;
     }
     nestedTask = LiveStorage_ReadDWFile(controllerIndex, fileInfo);
     return LiveStorage_SetupNestedTask(taskDef, controllerIndex, nestedTask, fileInfo);
@@ -3996,11 +4006,24 @@ char __cdecl LiveStorage_Init()
     int i; // [esp+0h] [ebp-8h]
     int controllerIndex; // [esp+4h] [ebp-4h]
 
-    if ( !live_service->current.enabled )
-        return 0;
-
+    // Stats DDL and combat record must initialize even when live_service is 0; otherwise
+    // g_statsDDL stays NULL, CAC/rank/readStats break, and local profile load can't validate.
     LiveStats_Init();
     LiveCombatRecord_Init();
+
+    // stat_version must exist before offline local profile load (players/userstats_*.bin).
+    stat_version = _Dvar_RegisterInt("stat_version", 10, 0, 0x7FFFFFFF, 0, "Stats version number");
+    stats_version_check = _Dvar_RegisterBool(
+        "stats_version_check",
+        1,
+        0,
+        "Reset stats if version numbers do not match");
+
+    if ( !live_service->current.enabled )
+    {
+        Cmd_AddCommandInternal("readStats", LiveStorage_ReadStatsCmd, &LiveStorage_ReadStatsCmd_VAR);
+        return 0;
+    }
 
     for ( controllerIndex = 0; controllerIndex < 1; ++controllerIndex )
         LiveMeetPlayer_Init();
@@ -4009,6 +4032,7 @@ char __cdecl LiveStorage_Init()
         LiveStorage_ClearPlayerStats(i);
 
     Cmd_AddCommandInternal("fakeComError", LiveStorage_FakeComErrorCmd, &LiveStorage_FakeComErrorCmd_VAR);
+    Cmd_AddCommandInternal("readStats", LiveStorage_ReadStatsCmd, &LiveStorage_ReadStatsCmd_VAR);
     Cmd_AddCommandInternal("readStatsBackup", LiveStorage_ReadStatsBackupCmd, &LiveStorage_ReadStatsBackupCmd_VAR);
     Cmd_AddCommandInternal("getServiceRecord", LiveStorage_GetFriendStatsCmd, &LiveStorage_GetFriendStatsCmd_VAR);
     Cmd_AddCommandInternal("backupStats", LiveStorage_WriteBackupStatsCmd, &LiveStorage_WriteBackupStatsCmd_VAR);
@@ -4028,8 +4052,6 @@ char __cdecl LiveStorage_Init()
     Cmd_AddCommandInternal("refetchWAD", LiveStorage_RefetchOnlineWAD, &LiveStorage_RefetchOnlineWAD_VAR);
     Cmd_AddCommandInternal("generatePlaylistPopulation", BLOPS_NULLSUB, &LiveStorage_GeneratePopulationDataCmd_VAR);
 
-    stat_version = _Dvar_RegisterInt("stat_version", 10, 0, 0x7FFFFFFF, 0, "Stats version number");
-    stats_version_check = _Dvar_RegisterBool("stats_version_check", 1, 0, "Reset stats if version numbers do not match");
     maxStatsBackupInterval = _Dvar_RegisterInt(
                                                          "maxStatsBackupInterval",
                                                          1,
@@ -4127,6 +4149,19 @@ void __cdecl LiveStorage_WriteBackupStatsCmd()
 void __cdecl LiveStorage_ReadStatsBackupCmd()
 {
     LiveStorage_ReadStatsBackup(0);
+}
+
+// "readStats" command - kicks off the local "DW" stats read on the primary
+// controller. Stock T5 hooked this into the Demonware backend; we route to
+// our local LiveStorage_ReadStats which is now wired up via KISAK_LIVE_SERVICE.
+// Without this, win_main.cpp's startup Cbuf_AddText("readStats\n") would
+// just spit "Unknown command 'readStats'" into the console log.
+void __cdecl LiveStorage_ReadStatsCmd()
+{
+    int controllerIndex = 0;
+    if ( Cmd_Argc() >= 2 )
+        controllerIndex = atoi(Cmd_Argv(1));
+    LiveStorage_ReadStats(controllerIndex, 0, 0);
 }
 
 void __cdecl LiveStorage_GetFriendStatsCmd()

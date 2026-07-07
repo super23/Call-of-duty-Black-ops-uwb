@@ -34,7 +34,28 @@ const dvar_t *perk_dogsAttackGhost;
 const dvar_t *perk_blackbirdShowsGpsJammer;
 
 
-const char *bg_perkNames[52] =
+#ifdef KISAK_SP
+// Decomp: CoDSP_rdBlackOps.map.c off_83118A7C — SP/zombie perk table (15 entries).
+const char *bg_perkNames[BG_PERK_COUNT] =
+{
+  "specialty_longersprint",
+  "specialty_unlimitedsprint",
+  "specialty_scavanger",
+  "specialty_fastreload",
+  "specialty_bulletdamage",
+  "specialty_bulletaccuracy",
+  "specialty_flakjacket",
+  "specialty_armorvest",
+  "specialty_quickrevive",
+  "specialty_altmelee",
+  "specialty_rof",
+  "specialty_extraammo",
+  "specialty_endurance",
+  "specialty_deadshot",
+  "specialty_additionalprimaryweapon"
+};
+#else
+const char *bg_perkNames[BG_PERK_COUNT] =
 {
   "specialty_armorpiercing",
   "specialty_armorvest",
@@ -89,28 +110,29 @@ const char *bg_perkNames[52] =
   "specialty_twoprimaries",
   "specialty_unlimitedsprint"
 };
+#endif
 
 unsigned int __cdecl BG_GetPerkIndexForName(const char *perkName)
 {
     unsigned int idx; // [esp+0h] [ebp-4h]
 
     if ( !perkName )
-        return 52;
-    for ( idx = 0; idx < 0x34 && I_stricmp(perkName, bg_perkNames[idx]); ++idx )
+        return BG_PERK_INVALID;
+    for ( idx = 0; idx < BG_PERK_COUNT && I_stricmp(perkName, bg_perkNames[idx]); ++idx )
         ;
     return idx;
 }
 
 const char *__cdecl BG_GetPerkNameForIndex(unsigned int perkIndex)
 {
-    if ( perkIndex >= 0x34
+    if ( perkIndex >= BG_PERK_COUNT
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_perks.cpp",
                     144,
                     0,
                     "perkIndex doesn't index PERK_COUNT\n\t%i not in [0, %i)",
                     perkIndex,
-                    52) )
+                    BG_PERK_COUNT) )
     {
         __debugbreak();
     }

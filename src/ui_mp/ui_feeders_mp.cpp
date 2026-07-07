@@ -540,9 +540,7 @@ char *__cdecl UI_FeederItemText_WeaponOptions(
     itemIndex = sharedUiInfo.itemIndex;
     weaponOption = BG_GetWeaponOptionNumFromIndexAndGroup(index, currentWeaponGroup);
     cost = BG_GetWeaponOptionCost(weaponOption);
-    WeaponOptionNumFromIndexAndGroup = BG_GetWeaponOptionNumFromIndexAndGroup(
-                                                                             index,
-                                                                             (eWeaponOptionGroup)ui_currentWeaponOptionGroup->current.integer);
+    WeaponOptionNumFromIndexAndGroup = BG_GetWeaponOptionNumFromIndexAndGroup(index, currentWeaponGroup);
     if ( BG_UnlockablesIsItemOptionPurchased(controllerIndex, itemIndex, WeaponOptionNumFromIndexAndGroup) )
         cost = 0;
     itemLocked = BG_UnlockablesIsWeaponOptionLocked(controllerIndex, weaponOption);
@@ -2659,9 +2657,7 @@ char __cdecl UI_FeederItemColor_WeaponOptions(
     itemIndex = sharedUiInfo.itemIndex;
     weaponOption = BG_GetWeaponOptionNumFromIndexAndGroup(index, currentWeaponGroup);
     cost = BG_GetWeaponOptionCost(weaponOption);
-    WeaponOptionNumFromIndexAndGroup = BG_GetWeaponOptionNumFromIndexAndGroup(
-                                                                             index,
-                                                                             (eWeaponOptionGroup)ui_currentWeaponOptionGroup->current.integer);
+    WeaponOptionNumFromIndexAndGroup = BG_GetWeaponOptionNumFromIndexAndGroup(index, currentWeaponGroup);
     itemPurchased = BG_UnlockablesIsItemOptionPurchased(controllerIndex, itemIndex, WeaponOptionNumFromIndexAndGroup);
     if ( !cost )
         itemPurchased = 1;

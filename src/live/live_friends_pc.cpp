@@ -3,8 +3,15 @@
 #include <steam/steam_api.h>
 #include "live_meetplayer.h"
 
+// Retail T5 sized this to 256; modern Steam users routinely exceed that, so
+// we clamp g_sortedNumFriends to MAX_FRIENDS below to keep
+// g_sortedFriendsRedirect[] from overflowing (the assert at
+// live_friends_pc.cpp:295 fires for anyone with >256 friends, e.g. while
+// the script picks a random friend name for an AI bot).
+#define MAX_FRIENDS 256
+
 int g_sortedNumFriends;
-int g_sortedFriendsRedirect[256];
+int g_sortedFriendsRedirect[MAX_FRIENDS];
 
 bool g_sortedFriendsListDirty = true;
 
@@ -22,7 +29,13 @@ static int _GetNumFriends()
 
 int __cdecl LiveSteam_GetNumFriends()
 {
-    return _GetNumFriends<4>();
+    // Clamp to MAX_FRIENDS so callers (Friends_GetByIndex, bot name picker,
+    // friends list UI) only ever produce indices that fit in
+    // g_sortedFriendsRedirect[].
+    int count = _GetNumFriends<4>();
+    if (count > MAX_FRIENDS)
+        count = MAX_FRIENDS;
+    return count;
 }
 
 int __cdecl LiveSteam_GetNumFriendsOnTheServer()
@@ -331,16 +344,12 @@ int __cdecl _GetSortedFriendIndex(int index)
     if ( g_sortedFriendsListDirty )
     {
         g_sortedNumFriends = LiveSteam_GetNumFriends();
-        if ( g_sortedNumFriends > 256
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\live\\live_friends_pc.cpp",
-                        295,
-                        0,
-                        "%s",
-                        "g_sortedNumFriends <= MAX_FRIENDS") )
-        {
-            __debugbreak();
-        }
+        // Retail asserts on > MAX_FRIENDS here; on modern Steam accounts the
+        // count is routinely 300+ which would also overflow
+        // g_sortedFriendsRedirect[].  Clamp instead so the bot-name picker
+        // and friend list UI just operate on the first MAX_FRIENDS entries.
+        if ( g_sortedNumFriends > MAX_FRIENDS )
+            g_sortedNumFriends = MAX_FRIENDS;
         onlineInsertIndex = 0;
         offlineInsertIndex = g_sortedNumFriends - 1;
         for ( i = 0; i < g_sortedNumFriends; ++i )

@@ -3,6 +3,7 @@
 #include <qcommon/common.h>
 #include <universal/physicalmemory.h>
 #include "r_init.h"
+#include "r_singlethreaded_device_pc.h"
 #include "r_rendertarget.h"
 #include "r_dvars.h"
 
@@ -45,6 +46,7 @@ void __cdecl CreateExtraCamRenderTargets(eExtraCamResolution resConfig, int loca
 {
     unsigned int width; // [esp+44h] [ebp-Ch]
     unsigned int height; // [esp+48h] [ebp-8h]
+    int semaphore; // [esp+4Ch] [ebp-4h]
 
     width = 0;
     height = 0;
@@ -66,7 +68,10 @@ void __cdecl CreateExtraCamRenderTargets(eExtraCamResolution resConfig, int loca
     {
         __debugbreak();
     }
+    semaphore = R_AcquireDXDeviceOwnership(0);
     R_InitExtraCamRenderTargets(width, height, location);
+    if ( semaphore )
+        R_ReleaseDXDeviceOwnership();
     g_extraCamConfig.renderTargetWidth = width;
     g_extraCamConfig.renderTargetHeight = height;
     g_extraCamConfig.aspectRatio = (double)width / (double)height;

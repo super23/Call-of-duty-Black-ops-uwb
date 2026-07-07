@@ -2,13 +2,17 @@
 #include <bgame/bg_weapons_ammo.h>
 #include <bgame/bg_misc.h>
 #include "g_weapon.h"
-#include <game_mp/g_main_mp.h>
-#include <game_mp/g_utils_mp.h>
+#include <game/g_main_wrapper.h>
+#include <game/g_utils_wrapper.h>
 #include <server/sv_game.h>
-#include <game_mp/g_spawn_mp.h>
+#include <game/g_spawn_wrapper.h>
 #include <clientscript/scr_const.h>
 #include <server/sv_world.h>
+#ifdef KISAK_SP
+#include <server_sp/sv_main_sp.h>
+#else
 #include <server_mp/sv_main_mp.h>
+#endif
 #include <clientscript/cscr_vm.h>
 #include <universal/com_math_anglevectors.h>
 #include <xanim/xmodel_utils.h>
@@ -16,7 +20,11 @@
 #include <xanim/dobj_utils.h>
 #include "g_load_utils.h"
 #include <clientscript/cscr_stringlist.h>
+#ifdef KISAK_SP
+#include <server_sp/sv_init_sp.h>
+#else
 #include <server_mp/sv_init_mp.h>
+#endif
 #include <bgame/bg_weapons_def.h>
 #include <cgame/cg_weapons.h>
 
@@ -312,6 +320,7 @@ int __cdecl WeaponPickup_AddWeapon(
     int playerWeapIdx; // [esp+ACh] [ebp-4h]
     int savedregs; // [esp+B0h] [ebp+0h] BYREF
 
+    memset(&trace, 0, 16);
     //col_context_t::col_context_t(&context);
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_items.cpp", 192, 0, "%s", "ent") )
         __debugbreak();
@@ -1028,6 +1037,7 @@ gentity_s *__cdecl ThrowDownWeapon(
     float *currentOrigin; // [esp+8h] [ebp-C8h]
     float *trBase; // [esp+Ch] [ebp-C4h]
     col_context_t context; // [esp+24h] [ebp-ACh] BYREF
+    trace_t trace; // [esp+4Ch] [ebp-84h] BYREF
     float vCenter[3]; // [esp+88h] [ebp-48h] BYREF
     float tagMat[4][3]; // [esp+94h] [ebp-3Ch] BYREF
     unsigned int altWeapIdx; // [esp+C4h] [ebp-Ch]
@@ -1075,7 +1085,7 @@ gentity_s *__cdecl ThrowDownWeapon(
         {
             if ( G_DObjGetWorldTagMatrix(ent, tag, tagMat) )
             {
-                trace_t trace; // [esp+4Ch] [ebp-84h] BYREF
+                memset(&trace, 0, 16);
                 vCenter[0] = (float)(ent->r.mins[0] + ent->r.maxs[0]) * 0.5;
                 vCenter[1] = (float)(ent->r.mins[1] + ent->r.maxs[1]) * 0.5;
                 vCenter[2] = (float)(ent->r.mins[2] + ent->r.maxs[2]) * 0.5;
@@ -1284,6 +1294,7 @@ void __cdecl FinishSpawningItem(gentity_s *ent)
     int clipMask; // [esp+100h] [ebp-4h]
     int savedregs; // [esp+104h] [ebp+0h] BYREF
 
+    memset(&tr, 0, 16);
     //col_context_t::col_context_t(&context);
     ent->handler = 21;
     if ((ent->spawnflags & 1) != 0)
@@ -1414,7 +1425,12 @@ void __cdecl SaveRegisteredWeapons()
                 v0 = va("%i %s %i", weapIndex, weapVariantDef->szInternalName, weapVariantDef->iVariantCount);
             else
                 v0 = va("%i %s", weapIndex, weapVariantDef->szInternalName);
+#ifdef KISAK_SP
+            // PC SP layout: CS 3035 is registered items, not weapon slot 199 (2836+199).
+            SV_SetConfigstring(count + 2836 + (count >= 199 ? 1 : 0), v0);
+#else
             SV_SetConfigstring(count + 2836, v0);
+#endif
             ++count;
         }
     }
@@ -1423,12 +1439,54 @@ void __cdecl SaveRegisteredWeapons()
 
 void __cdecl SaveRegisteredItems()
 {
-    char string[2048]; // [esp+0h] [ebp-818h] BYREF
-    int bits; // [esp+804h] [ebp-14h]
-    int weapIdx; // [esp+808h] [ebp-10h]
-    int n; // [esp+80Ch] [ebp-Ch]
-    int digit; // [esp+810h] [ebp-8h]
-    int last_non_zero_char; // [esp+814h] [ebp-4h]
+#ifdef KISAK_SP
+    char string[128];
+    int bits;
+    int col;
+    int row;
+    int n;
+    int digit;
+    int last_non_zero_char;
+
+    level.bRegisterItems = 0;
+    last_non_zero_char = 0;
+    n = 0;
+    digit = 0;
+    bits = 0;
+    for ( col = 0; col < 128; ++col )
+    {
+        for ( row = 0; row < 16; ++row )
+        {
+            if ( itemRegistered[col + 128 * row] )
+            {
+                digit += 1 << bits;
+                break;
+            }
+        }
+        if ( ++bits == 4 )
+        {
+            string[n++] = digit + (digit >= 10 ? 87 : 48);
+            if ( digit )
+                last_non_zero_char = n;
+            digit = 0;
+            bits = 0;
+        }
+    }
+    if ( bits )
+    {
+        string[n++] = digit + (digit >= 10 ? 87 : 48);
+        if ( digit )
+            last_non_zero_char = n;
+    }
+    string[last_non_zero_char] = 0;
+    SV_SetConfigstring(3035, string);
+#else
+    char string[2048];
+    int bits;
+    int weapIdx;
+    int n;
+    int digit;
+    int last_non_zero_char;
 
     level.bRegisterItems = 0;
     last_non_zero_char = 0;
@@ -1456,6 +1514,7 @@ void __cdecl SaveRegisteredItems()
     }
     string[last_non_zero_char] = 0;
     SV_SetConfigstring(3147, string);
+#endif
 }
 
 void __cdecl G_RegisterWeapon(unsigned int weapIndex)
@@ -1467,20 +1526,29 @@ void __cdecl G_RegisterWeapon(unsigned int weapIndex)
     unsigned int modelindex; // [esp+0h] [ebp-Ch]
     WeaponDef *weapDef; // [esp+8h] [ebp-4h]
 
-    if ( itemRegistered[weapIndex]
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_items.cpp",
-                    1530,
-                    0,
-                    "%s",
-                    "!itemRegistered[weapIndex]") )
+    // LinkerMod-style hardening: with mods loaded a bot can be assigned a
+    // weapon index that's out of range or whose variantdef failed to load.
+    // Bail out gracefully instead of __debugbreak.
+    if ( weapIndex >= 0x800 || !bg_weaponVariantDefs[weapIndex] )
     {
-        __debugbreak();
+        Com_PrintWarning(17, "G_RegisterWeapon: bad weapIndex %u, skipping\n", weapIndex);
+        return;
+    }
+    if ( itemRegistered[weapIndex] )
+    {
+        // Treat double-registration as a no-op rather than crashing - a number
+        // of mod scripts call G_GivePlayerWeapon repeatedly on the same index.
+        return;
     }
     itemRegistered[weapIndex] = 1;
     level.bRegisterItems = 1;
     level.registerWeapons = 1;
     weapDef = bg_weaponVariantDefs[weapIndex]->weapDef;
+    if ( !weapDef )
+    {
+        Com_PrintWarning(17, "G_RegisterWeapon: weapIndex %u has null weapDef, skipping\n", weapIndex);
+        return;
+    }
     if ( *weapDef->szUseHintString
         && !G_GetHintStringIndex(&weapDef->iUseHintStringIndex, (char *)weapDef->szUseHintString) )
     {
@@ -1514,16 +1582,11 @@ void __cdecl G_RegisterWeapon(unsigned int weapIndex)
 
 int __cdecl IsItemRegistered(unsigned int iItemIndex)
 {
-    if ( iItemIndex >= 0x800
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_items.cpp",
-                    1585,
-                    0,
-                    "%s",
-                    "(iItemIndex >= 0) && (iItemIndex < MAX_WEAPONS)") )
-    {
-        __debugbreak();
-    }
+    // LinkerMod-style hardening: out-of-range weapon indices come up legitimately
+    // when mods reference items that did not get loaded. Treat them as not
+    // registered (false) rather than __debugbreak'ing.
+    if ( iItemIndex >= 0x800 )
+        return 0;
     return itemRegistered[iItemIndex];
 }
 
@@ -1709,6 +1772,7 @@ void __cdecl G_RunItem(gentity_s *ent)
     float dot; // [esp+100h] [ebp-4h]
     int savedregs; // [esp+104h] [ebp+0h] BYREF
 
+    memset(&tr, 0, 16);
     if ( ent->s.eType == 2
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_items.cpp",

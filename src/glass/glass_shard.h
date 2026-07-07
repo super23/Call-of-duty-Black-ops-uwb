@@ -1,4 +1,8 @@
 #pragma once
+// Glass shard physics, outline, mesh, and shard-group types.
+// Retail: CoDMPServer.h structs 2672–2677, 2711, 35785–35799; bodies CoDMPServer.c ~854000+ (allocator)
+// and ~857000+ / ~861000+ / ~862000+ / ~863000+ (GlassShard, helpers).
+
 #include <universal/com_math.h>
 #include <physics/phys_local.h>
 #include <gfx_d3d/r_material.h>
@@ -8,15 +12,15 @@
 
 struct GfxPackedVertex;
 
+// CoDMPServer.h:2673 — 2D ray/segment in outline plane (origin + dir + length).
 struct ray2_t // sizeof=0x14
-{                                       // XREF: GlassShard::Outline::Vertex/r
-                                        // OutlineEdge/r
+{
     float origin[2];
-    float dir[2];                       // XREF: GlassClient::PlayShatterFX(int,float const * const,float const * const)+5AC/o
-    float len;                          // XREF: GlassClient::PlayShatterFX(int,float const * const,float const * const)+481/r
-                                        // GlassClient::PlayShatterFX(int,float const * const,float const * const)+4B3/r ...
+    float dir[2];
+    float len;
 };
 
+// CoDMPServer.h:2677 — rigid-body state for falling shards (align 16).
 struct __declspec(align(16)) GlassPhysics // sizeof=0xA0
 {
     phys_mat44 m_mat;
@@ -26,18 +30,7 @@ struct __declspec(align(16)) GlassPhysics // sizeof=0xA0
     phys_vec3 m_force_sum;
     phys_vec3 m_torque_sum;
     float m_inv_mass;
-    // padding byte
-    // padding byte
-    // padding byte
-    // padding byte
-    // padding byte
-    // padding byte
-    // padding byte
-    // padding byte
-    // padding byte
-    // padding byte
-    // padding byte
-    // padding byte
+    char pad[12];
 
     void CreateAxis(
         float *position,
@@ -63,6 +56,7 @@ static_assert(sizeof(GlassPhysics) == 160);
 
 struct GlassDef;
 
+// CoDMPServer.h:2678 — render/physics bucket for shards sharing a glass pane.
 struct ShardGroup // sizeof=0x54
 {
     unsigned int packedPos;
@@ -75,7 +69,7 @@ struct ShardGroup // sizeof=0x54
     bool invalidBBox;
     bool visible;
     bool highLod;
-    // padding byte
+    char pad; // align __int16 fields
     __int16 numShards;
     __int16 numIndices;
     __int16 numVerts;
@@ -83,7 +77,7 @@ struct ShardGroup // sizeof=0x54
     GfxLightingInfo lightingInfo;
     unsigned __int16 *renderIndices;
 
-    void __thiscall Init(unsigned int p, const GlassDef *gd);
+    void __thiscall Init(unsigned int packedPos, const GlassDef *glassDef);
     void __thiscall Reset();
     void __thiscall Add(GlassShard *shard);
     void __thiscall Remove(GlassShard *shard);
@@ -104,123 +98,145 @@ struct ShardGroup // sizeof=0x54
 };
 static_assert(sizeof(ShardGroup) == 84);
 
+// CoDMPServer.h:2711
 struct GlassShardMeshVertex // sizeof=0x2
 {
     unsigned __int8 pos;
     unsigned __int8 norm;
 };
 
+// CoDMPServer.h:2672
 struct GlassShard // sizeof=0x90
 {
-    enum RemoveReason : __int32
-    {                                       // XREF: ?Remove@GlassShard@@QAEXW4RemoveReason@1@_N@Z/r
-        REMOVE_HIT_BOTTOM           = 0x0,
-        REMOVE_OUT_OF_SHARDS        = 0x1,
-        REMOVE_OUT_OF_VERTEX_MEMORY = 0x2,
-        REMOVE_OUT_OF_SHARD_MEMORY  = 0x3,
-        REMOVE_OUT_OF_PHYSICS       = 0x4,
-        REMOVE_ROLLBACK_TIME        = 0x5,
-        NUM_REMOVE_REASONS          = 0x6,
-        REMOVE_DONT_TRACK           = 0x7,
-        // LWSS ADD
-        KISAK_I_HAVE_NO_CLUE_WHY    = 0x8,
-        KISAK_TOTAL
-        // LWSS END
+    // CoDMPServer.h:7030
+    enum RemoveReason : int
+    {
+        REMOVE_HIT_BOTTOM           = 0,
+        REMOVE_OUT_OF_SHARDS        = 1,
+        REMOVE_OUT_OF_VERTEX_MEMORY = 2,
+        REMOVE_OUT_OF_SHARD_MEMORY  = 3,
+        REMOVE_OUT_OF_PHYSICS       = 4,
+        REMOVE_ROLLBACK_TIME        = 5,
+        NUM_REMOVE_REASONS          = 6,
+        REMOVE_DONT_TRACK           = 7,
+        // Retail passes (GlassShard::RemoveReason)8 without a named enum entry — CoDMPServer.c:855067
+        // after Outlines::InitShards replaces the alloc shard with outline-derived shards.
+        REMOVE_SHATTER_REPLACED     = 8,
+        KISAK_I_HAVE_NO_CLUE_WHY    = REMOVE_SHATTER_REPLACED, // legacy alias (glass_client.cpp)
+        NUM_REMOVE_REASON_STATS     = 9,
+        KISAK_TOTAL                 = NUM_REMOVE_REASON_STATS,
+    };
+
+    // CoDMPServer.h:7043
+    enum SplitFailReason : int
+    {
+        SPLIT_FAIL_START_POS  = 0,
+        SPLIT_FAIL_START_DIR  = 1,
+        SPLIT_FAIL_INIT       = 2,
+        SPLIT_FAIL_VERTS      = 3,
+        SPLIT_FAIL_AREA       = 4,
+        SPLIT_FAIL_MEMORY     = 5,
+        SPLIT_FAIL_ANGLE      = 6,
+        SPLIT_FAIL_NARROW     = 7,
+        NUM_SPLIT_FAIL_REASONS = 8,
     };
 
     struct Outline;
+
+    // CoDMPServer.h:35785 — ear-clipping triangulation workspace (256 index bytes).
     struct Triangles // sizeof=0x108
-    {                                       // XREF: ?Create@GlassShard@@QAE_NPBUGlass@@@Z/r
+    {
         const struct Outline *outline;
         unsigned __int8 triangleIndices[256];
         unsigned int nIndices;
 
-        Triangles(const struct GlassShard::Outline *ol);
-        double CalcCross(int idx1, int idx2, int idx3);
+        Triangles(const struct GlassShard::Outline *outline);
+        double CalcCross(int vertIdx0, int vertIdx1, int vertIdx2);
         char AddTri(
-            unsigned __int8 v1,
-            unsigned __int8 v2,
-            unsigned __int8 v3);
+            unsigned __int8 vertIdx0,
+            unsigned __int8 vertIdx1,
+            unsigned __int8 vertIdx2);
         char Triangulate();
     };
 
     struct Outline
     {
+        // CoDMPServer.h:35793
         struct EdgeDistance // sizeof=0x14
-        {                                       // XREF: ?TracePoint@GlassShard@@QAE_NQBM00M00@Z/r
-            unsigned int edgeIndex;             // XREF: GlassShard::TracePoint(float const * const,float const * const,float const * const,float,float const * const,float const * const)+67B/r
-                                                // GlassShard::TracePoint(float const * const,float const * const,float const * const,float,float const * const,float const * const)+A8A/r
-            float edgeParam;                    // XREF: GlassShard::TracePoint(float const * const,float const * const,float const * const,float,float const * const,float const * const)+675/r
-                                                // GlassShard::TracePoint(float const * const,float const * const,float const * const,float,float const * const,float const * const)+A84/r
-            float dist;                         // XREF: GlassShard::TracePoint(float const * const,float const * const,float const * const,float,float const * const,float const * const)+570/r
-            float closestPoint[2];              // XREF: GlassShard::TracePoint(float const * const,float const * const,float const * const,float,float const * const,float const * const)+602/r
+        {
+            unsigned int edgeIndex;
+            float edgeParam;
+            float dist;
+            float closestPoint[2];
         };
-        struct Vertex
+
+        // CoDMPServer.h:2674
+        struct Vertex // sizeof=0x18
         {
             ray2_t edge;
-            bool isOriginalEdge;                // XREF: GlassShard::Outline::Reverse(void)+1E7/w
-            // padding byte
-            // padding byte
-            // padding byte
+            bool isOriginalEdge;
+            char pad[3];
 
             void operator=(const GlassShard::Outline::Vertex *other);
         };
         static_assert(sizeof(Outline::Vertex) == 24);
-        GlassShard::Outline::Vertex *verts; // XREF: GlassClient::Outlines::InitShards(GlassShard const *,GlassShard * * const,int)+4F/w
-                                            // GlassShard::Create(Glass const *)+35/w ...
+
+        GlassShard::Outline::Vertex *verts;
         float length;
         float area;
-        unsigned __int8 numVerts;           // XREF: GlassClient::Outlines::InitShards(GlassShard const *,GlassShard * * const,int)+55/w
-                                            // GlassShard::Create(Glass const *)+3B/w ...
-        unsigned __int8 maxVerts;           // XREF: GlassClient::Outlines::InitShards(GlassShard const *,GlassShard * * const,int)+5C/w
-                                            // GlassShard::Create(Glass const *)+42/w ...
-        bool isClosed;                      // XREF: GlassClient::Outlines::InitShards(GlassShard const *,GlassShard * * const,int)+63/w
-                                            // GlassShard::Create(Glass const *)+49/w ...
-        // padding byte
+        unsigned __int8 numVerts;
+        unsigned __int8 maxVerts;
+        bool isClosed;
+        char pad;
 
-        void MarkAllEdge(bool e);
+        void MarkAllEdge(bool isEdge);
 
-        int Init(Vertex *ptr,unsigned __int8 num);
+        int Init(Vertex *vertStorage, unsigned __int8 numVerts);
         int SetPointers(unsigned __int8 *ptr);
-        GlassShard::Outline &operator=(const GlassShard::Outline &o);
+        GlassShard::Outline &operator=(const GlassShard::Outline &other);
         double Length() const;
+
+        // CoDMPServer.c:857107 @ 0099A940 — cached shoelace area; requires closed outline.
         inline float Area() const
         {
-            return this->area;
+            iassert(isClosed);
+            return area;
         }
+
         Vertex *Add(const float *pos);
         Vertex *Add(float *dir, float len);
 
         char CloseOutline();
 
-        void GetBBox(float *mn, float *mx);
+        void GetBBox(float *mins, float *maxs);
         double Extent();
         void Recenter(bool flip, float *offset);
         bool HasNarrowAngle();
         bool IsNarrow();
         void Reverse();
         int GetNumIntersections(
-            const float *start,
-            const float *dir,
+            const float *rayOrigin,
+            const float *rayDir,
             float *nearestDist,
-            int *nearestedge) const;
+            int *nearestEdge) const;
         char DoesIntersect(
-            const float *start,
-            const float *dir,
-            float len,
+            const float *rayOrigin,
+            const float *rayDir,
+            float rayLen,
             float padding);
         void GetNearestDistances(
-            const float *p,
+            const float *point,
             EdgeDistance *dists,
-            int nDists);
+            int numDists);
         void Verify() const;
 
-        static void Defrag(GlassShard *ptr);
+        static void Defrag(GlassShard *shard);
         void Defrag();
     };
 
+    // CoDMPServer.h:2676
     struct __declspec(align(4)) Mesh // sizeof=0x10
-    {                                       // XREF: GlassShard/r
+    {
         PackedUnitVec *normArray;
         unsigned __int8 *indices;
         unsigned __int8 numNorm;
@@ -228,9 +244,7 @@ struct GlassShard // sizeof=0x90
         unsigned __int8 numVertsLow;
         unsigned __int8 numIndices;
         unsigned __int8 numIndicesLow;
-        // padding byte
-        // padding byte
-        // padding byte
+        char pad[3];
 
         void Clear();
         void SetTriangles(
@@ -241,9 +255,9 @@ struct GlassShard // sizeof=0x90
         void Init(
             const GlassShard::Outline *outline,
             float thickness,
-            const float *tangt);
+            const float *tangent);
         static void __cdecl InitVertexList(unsigned __int8 numOutlineVerts, GlassShardMeshVertex *verts);
-        static unsigned int __cdecl GetMemorySize(unsigned int numOutineVerts);
+        static unsigned int __cdecl GetMemorySize(unsigned int numOutlineVerts);
     };
 
     GlassShard *groupNext;
@@ -267,7 +281,6 @@ struct GlassShard // sizeof=0x90
     bool inGroupChange;
     bool delayedDrop;
 
-
     void Init();
     void Destroy();
     double EdgeRatio();
@@ -284,12 +297,12 @@ struct GlassShard // sizeof=0x90
         const float *dir);
     void InitMesh();
     char AllocateMemory(
-        unsigned int nHull,
+        unsigned int numHullVerts,
         const Triangles *triangles);
     void FreeMemory();
     void Defrag();
-    void ToWorldPos(float *pLocal, float *pWorld, bool is3D);
-    void ToWorldDir(float *dLocal, float *dWorld, bool is3D);
+    void ToWorldPos(float *localPos, float *worldPos, bool is3D);
+    void ToWorldDir(float *localDir, float *worldDir, bool is3D);
     void ToLocal(float *pos, float *dir, float *localPos, float *localDir);
     bool Intersect(float *pos, float *dir, float *hitPoint);
     void ExplosionEvent(
@@ -351,29 +364,47 @@ struct GlassShard // sizeof=0x90
         float stickiness);
     void DrawOutline();
 
-    //static void __cdecl Defrag(GlassShard *ptr);
-
-    static int splitFailCount[8];
+    static int splitFailCount[NUM_SPLIT_FAIL_REASONS]; // CoDMPServer.c:110742
     static int lastFreeMemorySize;
-    static int removeReasonsCount[KISAK_TOTAL];
+    static int removeReasonsCount[KISAK_TOTAL]; // retail [7] @ CoDMPServer.c:110748; +1 for reason 8
 };
 static_assert(sizeof(GlassShard) == 144);
 
-void GlassShard_Defrag(void *ptr); // changed from static member func
+void GlassShard_Defrag(void *ptr);
 
+// CoDMPServer.h — stack outline buffer for GlassShard::Create (64 verts × 24 bytes + outline header).
 struct TempOutline : GlassShard::Outline // sizeof=0x610
-{                                       // XREF: ?Create@GlassShard@@QAE_NPBUGlass@@@Z/r
-    GlassShard::Outline::Vertex v[64];  // XREF: GlassClient::Outlines::InitShards(GlassShard const *,GlassShard * * const,int)+49/o
+{
+    GlassShard::Outline::Vertex v[64]; // stack verts; glass_shard.cpp sets outline.verts = v
 };
 
+// CoDMPServer — edge ray used by GlassClient::PlayShatterFX.
 struct OutlineEdge // sizeof=0x18
-{                                       // XREF: ?PlayShatterFX@GlassClient@@QBEXHQBM0@Z/r
-    int index;                          // XREF: GlassClient::PlayShatterFX(int,float const * const,float const * const)+96/w
-    ray2_t ray;                         // XREF: GlassClient::PlayShatterFX(int,float const * const,float const * const)+D8/o
+{
+    int index;
+    ray2_t ray;
 };
 
-bool __cdecl IsInside(const float *v1, const float *v2, const float *v3, const float *p);
-double __cdecl GetSegmentParam(const float *a1, const float *a2, const float *p);
-bool __cdecl Vec2IntersectSegments(const float *a1, const float *a2, const float *b1, const float *b2, float *ret);
-char __cdecl Vec2IntesectLines(const float *a1, const float *a2, const float *b1, const float *b2, float *ret);
-int compareShards(const void *s1, const void *s2);
+// CoDMPServer.c:862437 @ 009A6C90 — point-in-triangle test (2D, outline plane).
+bool __cdecl IsInside(const float *vert0, const float *vert1, const float *vert2, const float *point);
+
+// CoDMPServer.c:861856 @ 009A5030 — parametric position of point on segment [segStart, segEnd].
+double __cdecl GetSegmentParam(const float *segStart, const float *segEnd, const float *point);
+
+// CoDMPServer.c:861871 @ 009A50C0
+bool __cdecl Vec2IntersectSegments(
+    const float *segA0,
+    const float *segA1,
+    const float *segB0,
+    const float *segB1,
+    float *intersectionOut);
+
+// CoDMPServer.c:861892 @ 009A5170 (retail spelling preserved)
+char __cdecl Vec2IntesectLines(
+    const float *lineA0,
+    const float *lineA1,
+    const float *lineB0,
+    const float *lineB1,
+    float *intersectionOut);
+
+int compareShards(const void *shardA, const void *shardB);

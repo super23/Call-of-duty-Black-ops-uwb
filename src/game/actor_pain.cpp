@@ -1,7 +1,7 @@
 #include "actor_pain.h"
-#include <game_mp/g_main_mp.h>
-#include <game_mp/actor_mp.h>
-#include <game_mp/g_spawn_mp.h>
+#include <game/g_main_wrapper.h>
+#include <game/actor_wrapper.h>
+#include <game/g_spawn_wrapper.h>
 #include <clientscript/scr_const.h>
 #include "actor_events.h"
 #include "actor_orientation.h"

@@ -1,13 +1,22 @@
 #include "cg_compass.h"
 #include <qcommon/common.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_newDraw_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <cgame_sp/cg_main_sp.h>
+#include <cgame_sp/cg_scoreboard_sp.h>
+#include <game/g_main.h>
+#else
 #include <cgame_mp/cg_newDraw_mp.h>
 #include <client_mp/cl_cgame_mp.h>
-#include <gfx_d3d/r_font.h>
 #include <cgame_mp/cg_main_mp.h>
+#include <cgame_mp/cg_scoreboard_mp.h>
+#include <game_mp/g_main_mp.h>
+#endif
+#include <gfx_d3d/r_font.h>
 #include "cg_drawtools.h"
 #include <gfx_d3d/r_rendercmds.h>
 #include <ui/ui_atoms.h>
-#include <game_mp/g_main_mp.h>
 #include <win32/win_shared.h>
 
 const dvar_t *compass;
@@ -2216,8 +2225,6 @@ void __cdecl CG_CompassDrawPlayerMap(
     }
 }
 
-float yawVector[3];
-
 void __cdecl CG_CompassDrawPlayerMapLocationSelector(
                 int localClientNum,
                 CompassType compassType,
@@ -2348,8 +2355,14 @@ void __cdecl CG_CompassDrawPlayerMapLocationSelector(
                 radius = radius * 250.0;
             else
                 radius = (float)(cgameGlob->compassMapWorldSize[1] / 25.0) * radius;
-            *(_QWORD *)yawVector = *(_QWORD *)cgameGlob->selectedYaw;
-            vectoangles(yawVector, diffAngles);
+            /* CoDMPServer: vectoangles needs Z; selectedYaw is only XY (map facing). */
+            {
+                float selDir[3];
+                selDir[0] = cgameGlob->selectedYaw[0];
+                selDir[1] = cgameGlob->selectedYaw[1];
+                selDir[2] = 0.0f;
+                vectoangles(selDir, diffAngles);
+            }
             yawTo = diffAngles[1];
             CG_DrawRotatedPic(
                 &scrPlaceView[localClientNum],
@@ -2366,7 +2379,6 @@ void __cdecl CG_CompassDrawPlayerMapLocationSelector(
     }
 }
 
-float yawVector_0[3];
 void __cdecl CG_CompassDrawPlayerSelectedLocations(
                 int localClientNum,
                 CompassType compassType,
@@ -2515,8 +2527,13 @@ void __cdecl CG_CompassDrawPlayerSelectedLocations(
                         radius = radius * 250.0;
                     else
                         radius = (float)(cgameGlob->compassMapWorldSize[1] / 25.0) * radius;
-                    *(_QWORD *)yawVector_0 = *(_QWORD *)cgameGlob->selectedYaw;
-                    vectoangles(yawVector_0, diffAngles);
+                    {
+                        float selDir[3];
+                        selDir[0] = cgameGlob->selectedYaw[0];
+                        selDir[1] = cgameGlob->selectedYaw[1];
+                        selDir[2] = 0.0f;
+                        vectoangles(selDir, diffAngles);
+                    }
                     yawTo = diffAngles[1];
                     posScreen[0] = posScreen[0] - (float)(radius * 0.5);
                     posScreen[1] = posScreen[1] - (float)(radius * 0.5);
@@ -2556,21 +2573,23 @@ void __cdecl CG_CompassDrawPlayer(
                 Material *material,
                 float *color)
 {
-    float yawVector[2]; // [esp+30h] [ebp-58h] BYREF
-    bool clipped; // [esp+3Bh] [ebp-4Dh]
-    float outClipped; // [esp+3Ch] [ebp-4Ch] BYREF
-    float v9; // [esp+40h] [ebp-48h]
-    float xy[2]; // [esp+44h] [ebp-44h] BYREF
-    const cg_s *cgameGlob; // [esp+4Ch] [ebp-3Ch]
-    float angle; // [esp+50h] [ebp-38h]
-    float centerY; // [esp+54h] [ebp-34h]
-    rectDef_s scaledRect; // [esp+58h] [ebp-30h] BYREF
-    float x; // [esp+70h] [ebp-18h]
-    float y; // [esp+74h] [ebp-14h]
-    const playerState_s *ps; // [esp+78h] [ebp-10h]
-    float centerX; // [esp+7Ch] [ebp-Ch]
-    float h; // [esp+80h] [ebp-8h]
-    float w; // [esp+84h] [ebp-4h]
+    /* 2D "north" in map pixel space for partial compass (from CG_CompassUpYawVector). */
+    float compassNorth2D[2];
+    /* Clamped icon position from CG_WorldPosToCompass (written as [x,y]). */
+    float iconPosClamped[2];
+    /* Unclamped / working offsets for full-screen map branch. */
+    float fullMapIconOffset[2];
+    const cg_s *cgameGlob;
+    float angle;
+    float centerY;
+    rectDef_s scaledRect;
+    float x;
+    float y;
+    const playerState_s *ps;
+    float centerX;
+    float iconH;
+    float iconW;
+    bool playerIconClipped;
 
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     ps = &cgameGlob->predictedPlayerState;
@@ -2593,10 +2612,10 @@ void __cdecl CG_CompassDrawPlayer(
     centerY = (float)(scaledRect.h * 0.5) + scaledRect.y;
     if ( compassType == COMPASS_TYPE_FULL)
     {
-        w = cg_hudMapPlayerWidth->current.value;
-        h = cg_hudMapPlayerHeight->current.value;
-        xy[0] = 0.0f;
-        xy[1] = 0.0f;
+        iconW = cg_hudMapPlayerWidth->current.value;
+        iconH = cg_hudMapPlayerHeight->current.value;
+        fullMapIconOffset[0] = 0.0f;
+        fullMapIconOffset[1] = 0.0f;
         if ( (cgameGlob->predictedPlayerState.otherFlags & 2) != 0 )
             CG_WorldPosToCompass(
                 COMPASS_TYPE_FULL,
@@ -2606,7 +2625,7 @@ void __cdecl CG_CompassDrawPlayer(
                 cgameGlob->predictedPlayerState.origin,
                 cgameGlob->predictedPlayerState.origin,
                 0,
-                xy);
+                fullMapIconOffset);
         else
             CG_WorldPosToCompass(
                 COMPASS_TYPE_FULL,
@@ -2616,9 +2635,9 @@ void __cdecl CG_CompassDrawPlayer(
                 cgameGlob->refdef.vieworg,
                 cgameGlob->refdef.vieworg,
                 0,
-                xy);
-        x = xy[0];
-        y = xy[1];
+                fullMapIconOffset);
+        x = fullMapIconOffset[0];
+        y = fullMapIconOffset[1];
     }
     else
     {
@@ -2635,47 +2654,56 @@ void __cdecl CG_CompassDrawPlayer(
         color[3] = CG_FadeCompass(localClientNum, cgameGlob->compassFadeTime, (CompassType)compassType);
         if ( color[3] == 0.0 )
             return;
-        w = compassPlayerWidth->current.value * compassSize->current.value;
-        h = compassPlayerHeight->current.value * compassSize->current.value;
-        //BLOPS_NULLSUB();
+        iconW = compassPlayerWidth->current.value * compassSize->current.value;
+        iconH = compassPlayerHeight->current.value * compassSize->current.value;
         x = 0.0f;
         y = 0.0f;
     }
+
+    /* Parrot-camera / remote view: project player position with optional clamp. */
+    bool drawPlayerIcon = true;
     if ( (cgameGlob->predictedPlayerState.eFlags2 & 0x10000000) == 0 )
     {
         if ( compassType || !compassRotation->current.enabled )
             angle = AngleNormalize180(cgameGlob->compassNorthYaw - cgameGlob->refdefViewAngles[1]);
         else
             angle = 0.0f;
-        goto LABEL_25;
     }
-    outClipped = 0.0f;
-    v9 = 0.0f;
-    CG_CompassUpYawVector(cgameGlob, yawVector);
-    clipped = CG_WorldPosToCompass(
-                            (CompassType)compassType,
-                            cgameGlob,
-                            &scaledRect,
-                            yawVector,
-                            cgameGlob->refdef.vieworg,
-                            cgameGlob->predictedPlayerState.origin,
-                            0,
-                            &outClipped);
-    if ( !clipped || compassClampIcons->current.enabled )
+    else
     {
-        x = outClipped;
-        y = v9;
-        if ( compassType || !compassRotation->current.enabled )
-            angle = AngleNormalize360(cgameGlob->compassNorthYaw - cgameGlob->predictedPlayerEntity.nextState.lerp.apos.trBase[1]);
+        iconPosClamped[0] = 0.0f;
+        iconPosClamped[1] = 0.0f;
+        CG_CompassUpYawVector(cgameGlob, compassNorth2D);
+        playerIconClipped = CG_WorldPosToCompass(
+            (CompassType)compassType,
+            cgameGlob,
+            &scaledRect,
+            compassNorth2D,
+            cgameGlob->refdef.vieworg,
+            cgameGlob->predictedPlayerState.origin,
+            0,
+            iconPosClamped);
+        if ( playerIconClipped && !compassClampIcons->current.enabled )
+            drawPlayerIcon = false;
         else
-            angle = AngleNormalize360(cgameGlob->refdefViewAngles[1] - cgameGlob->predictedPlayerEntity.nextState.lerp.apos.trBase[1]);
-LABEL_25:
+        {
+            x = iconPosClamped[0];
+            y = iconPosClamped[1];
+            if ( compassType || !compassRotation->current.enabled )
+                angle = AngleNormalize360(cgameGlob->compassNorthYaw - cgameGlob->predictedPlayerEntity.nextState.lerp.apos.trBase[1]);
+            else
+                angle = AngleNormalize360(cgameGlob->refdefViewAngles[1] - cgameGlob->predictedPlayerEntity.nextState.lerp.apos.trBase[1]);
+        }
+    }
+
+    if ( drawPlayerIcon )
+    {
         CG_DrawRotatedPic(
             &scrPlaceView[localClientNum],
-            (float)(centerX - (float)(w * 0.5)) + x,
-            (float)(centerY - (float)(h * 0.5)) + y,
-            w,
-            h,
+            (float)(centerX - (float)(iconW * 0.5)) + x,
+            (float)(centerY - (float)(iconH * 0.5)) + y,
+            iconW,
+            iconH,
             rect->horzAlign,
             rect->vertAlign,
             angle,
@@ -3331,7 +3359,12 @@ void __cdecl CG_SetGridTable()
     if ( !G_ExitAfterToolComplete() )
     {
         memset((unsigned __int8 *)gridPointStatus, 0, sizeof(gridPointStatus));
+#ifdef KISAK_SP
+        // CoDSP: compass grid points table is MP-only; SP campaign has no mp/gridPointsTable.csv.
+        return;
+#else
         StringTable_GetAsset("mp/gridPointsTable.csv", (XAssetHeader *)&gridStringTable);
+#endif
         if ( !gridStringTable
             && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_compass.cpp", 2260, 0, "%s", "gridStringTable") )
         {
@@ -4028,6 +4061,13 @@ char __cdecl CalcCompassPointerSizeObjective(
 
 bool __cdecl CG_IsShowingZombieMap()
 {
-    return 0;
+    // cg_showZombieMap enables the zm fullscreen-map feature; weapons only block while it is actually up.
+    if ( !zombiemode || !zombiemode->current.enabled || !cg_showZombieMap->current.enabled )
+        return false;
+    if ( forceFullScreenMap->current.enabled )
+        return true;
+    if ( CG_IsSelectingLocation(0) )
+        return true;
+    return CG_IsScoreboardDisplayed(0);
 }
 

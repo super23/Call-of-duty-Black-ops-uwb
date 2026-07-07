@@ -8,10 +8,15 @@
 #include "live_win.h"
 #include <gfx_d3d/r_stream.h>
 #include <demo/demo_ui.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_cgame_sp.h>
+#include <cgame_sp/cg_local_sp.h>
+#else
 #include <client_mp/cl_cgame_mp.h>
+#include <cgame_mp/cg_local_mp.h>
+#endif
 #include <client/client.h>
 #include <database/db_registry.h>
-#include <cgame_mp/cg_local_mp.h>
 
 FastCriticalSection s_lock;
 

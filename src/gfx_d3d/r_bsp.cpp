@@ -13,6 +13,10 @@
 #include "r_staticmodelcache.h"
 #include "r_reflection_probe.h"
 #include "r_model.h"
+#ifdef KISAK_SP
+#include <database/db_registry.h>
+#include <universal/com_files.h>
+#endif
 
 GfxWorld s_world;
 int g_pmemLocation;
@@ -267,7 +271,31 @@ void __cdecl R_SetWorldPtr_LoadObj(const char *name)
 
 void __cdecl R_SetWorldPtr_FastFile(const char *name)
 {
+#ifdef KISAK_SP
+    XAssetHeader header;
+    char bspName[256];
+    char mapBase[64];
+
+    if ( DB_FindXAssetEntry(ASSET_TYPE_GFXWORLD, name) )
+        header = DB_FindXAssetHeader(ASSET_TYPE_GFXWORLD, (char *)name, true, -1);
+    else if ( Com_IsBspMapPath(name) )
+    {
+        Com_StripMapBaseFromBspPath(name, mapBase, sizeof(mapBase));
+        if ( mapBase[0] && DB_FindXAssetEntry(ASSET_TYPE_GFXWORLD, mapBase) )
+            header = DB_FindXAssetHeader(ASSET_TYPE_GFXWORLD, mapBase, true, -1);
+    }
+    else if ( name && !Com_IsBspMapPath(name) )
+    {
+        Com_GetBspFilename(bspName, sizeof(bspName), name);
+        if ( I_stricmp(bspName, name) && DB_FindXAssetEntry(ASSET_TYPE_GFXWORLD, bspName) )
+            header = DB_FindXAssetHeader(ASSET_TYPE_GFXWORLD, bspName, true, -1);
+    }
+    if ( !header.gfxWorld )
+        Com_Error(ERR_DROP, "R_SetWorldPtr_FastFile: missing gfx_map for map '%s'", name ? name : "?");
+    rgp.world = header.gfxWorld;
+#else
     rgp.world = DB_FindXAssetHeader(ASSET_TYPE_GFXWORLD, (char*)name, 1, -1).gfxWorld;
+#endif
     rgp.needSortMaterials = 1;
 }
 

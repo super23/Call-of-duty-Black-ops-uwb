@@ -1,28 +1,39 @@
 #include "g_weapon.h"
-#include <game_mp/g_main_mp.h>
+#include <game/g_scr_vehicle.h>
+#include <game/g_main_wrapper.h>
 #include <server/sv_world.h>
 #include <glass/glass_server.h>
-#include <game_mp/g_utils_mp.h>
-#include <game_mp/g_combat_mp.h>
-#include <game_mp/g_trigger_mp.h>
+#include <game/g_utils_wrapper.h>
+#include <game/g_combat_wrapper.h>
+#include <game/g_trigger_wrapper.h>
 #include <server/sv_game.h>
 #include <client/cl_debugdata.h>
 #include "g_missile.h"
 #include <cgame/cg_drawtools.h>
 #include <bgame/bg_misc.h>
 #include "turret.h"
-#include <game_mp/g_team_mp.h>
+#include <game/g_team_wrapper.h>
 #include <universal/com_math_anglevectors.h>
+#ifdef KISAK_SP
+#include <client_sp/g_client_sp.h>
+#else
 #include <client_mp/g_client_mp.h>
+#endif
 #include <clientscript/cscr_vm.h>
-#include <game_mp/g_spawn_mp.h>
+#include <game/g_spawn_wrapper.h>
 #include <clientscript/scr_const.h>
 #include "g_targets.h"
 #include "bullet.h"
 #include "g_debug.h"
 #include <bgame/bg_weapons_ammo.h>
+#ifdef KISAK_SP
+#include <server_sp/sv_main_sp.h>
+#else
 #include <server_mp/sv_main_mp.h>
+#endif
 #include <bgame/bg_weapons_def.h>
+#include "g_items.h"
+#include <qcommon/common.h>
 #include <flame/flame_system.h>
 
 const float traceOffsets[9][2] =
@@ -341,6 +352,7 @@ gentity_s *__cdecl Weapon_Melee_internal(gentity_s *ent, weaponParms *wp, float 
     unsigned __int16 hitEntId; // [esp+7Ch] [ebp-8h]
     gentity_s *traceEnt; // [esp+80h] [ebp-4h]
 
+    memset(&tr, 0, 16);
     if ( !wp && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_weapon.cpp", 251, 0, "%s", "wp") )
         __debugbreak();
     if ( !wp->weapDef
@@ -472,6 +484,7 @@ bool __cdecl Melee_Trace(
     unsigned int traceIndex; // [esp+B0h] [ebp-8h]
     unsigned __int16 hitEntId; // [esp+B4h] [ebp-4h]
 
+    memset(&traceTest, 0, 16);
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_weapon.cpp", 159, 0, "%s", "ent") )
         __debugbreak();
     if ( !wp && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_weapon.cpp", 160, 0, "%s", "wp") )
@@ -934,6 +947,7 @@ void __cdecl Weapon_Flamethrower_Update(gentity_s *ent, weaponParms *wp)
     flameWeaponConfig.angle[1] = angles[1];
     flameWeaponConfig.angle[2] = angles[2];
     flameWeaponConfig.fTable = wp->weapDef->flameTableThirdPersonPtr;
+    // CoDMPServer.c:69697170 — v6 = 0 (bFireWhileIdle); idle pilot is client-only.
     flameWeaponConfig.bFireWhileIdle = 0;
     flameWeaponConfig.bIsFiring = isFiring;
     flameWeaponConfig.burnRate = 1.0f;
@@ -1069,9 +1083,17 @@ void __cdecl Weapon_Napalm_Flame(gentity_s *ent, trace_t *trace, int count)
         }
         else
         {
+            // G_FireGrenade(parent=missile) sets owner/parent to the missile in G_InitGrenadeEntity.
+            // Clearing them (setEnt(NULL)) orphan napalm blobs so they often never arm / fall correctly.
+            // Match intended behavior: attribute blobs to the missile's owner when defined (retail ties
+            // credits/physics to the firing player chain; EntHandle::setEnt in decomp is unreliable here).
             grenade = G_FireGrenade(ent, new_origin, forward, iWeaponIndex, 0, 0, 0);
-            grenade->r.ownerNum.setEnt(0);
-            grenade->parent.setEnt(0);
+            if ( grenade && ent->r.ownerNum.isDefined() )
+            {
+                gentity_s *owner = ent->r.ownerNum.ent();
+                grenade->r.ownerNum.setEnt(owner);
+                grenade->parent.setEnt(owner);
+            }
         }
     }
 }
@@ -1252,6 +1274,7 @@ void __cdecl DeployWeapon(gentity_s *ent)
     float traceEnd[3]; // [esp+1D8h] [ebp-Ch] BYREF
 
     turretEnt = 0;
+    memset(&trace, 0, 16);
     traceWidth = 4.0f;
     bipodNudgeDist = bipodNudgeDistDefault;
     //col_context_t::col_context_t(&context);
@@ -1844,18 +1867,49 @@ void __cdecl G_SetupWeaponDef()
         Com_SetWeaponInfoMemory(1);
         ClearRegisteredItems();
         BG_ClearWeaponDef();
-        G_GetWeaponIndexForName((char*)"defaultweapon_mp");
+#ifdef KISAK_SP
+        // Decomp: CoDSP_rdBlackOps.map.c — SP uses defaultweapon from the loaded zone, not MP unlockables.
+        G_GetWeaponIndexForName((char *)"defaultweapon");
+        if ( zombiemode && zombiemode->current.enabled )
+        {
+            static const char *zmWeapons[] =
+            {
+                "m1911_zm",
+                "knife_zm",
+                "bowie_knife_zm",
+                "frag_grenade_zm",
+                "claymore_zm",
+                nullptr
+            };
+            int i;
+
+            for ( i = 0; zmWeapons[i]; ++i )
+                G_GetWeaponIndexForName((char *)zmWeapons[i]);
+        }
+#else
+        G_GetWeaponIndexForName((char *)"defaultweapon_mp");
         BG_LoadWeaponTable("_mp", G_RegisterWeapon);
+#endif
     }
     Com_DPrintf(17, "----------------------\n");
 }
 
 int __cdecl G_GetWeaponIndexForName(char *name)
 {
+    int weaponIndex;
+
     if ( level.initializing )
         return BG_GetWeaponIndexForName(name, G_RegisterWeapon);
-    else
-        return BG_FindWeaponIndexForName(name);
+    weaponIndex = BG_FindWeaponIndexForName(name);
+#ifdef KISAK_SP
+    if ( !weaponIndex && name && name[0] )
+    {
+        weaponIndex = BG_GetWeaponIndexForName(name, G_RegisterWeapon);
+        if ( weaponIndex && level.registerWeapons )
+            SaveRegisteredWeapons();
+    }
+#endif
+    return weaponIndex;
 }
 
 void __cdecl G_SelectWeaponIndex(int clientNum, int iWeaponIndex)
@@ -1928,11 +1982,49 @@ int __cdecl G_GetPlayerVehicleWeapon(const playerState_s *ps)
         return 0;
     info = BG_GetVehicleInfo(ent->scr_vehicle->infoIdx);
     if ( seatIndex >= 1 && seatIndex <= 4 )
-        return *(unsigned __int16 *)&info->gunnerWeapon[3][2 * seatIndex + 62];
+    {
+        const int gunnerIndex = seatIndex - 1;
+        unsigned int weapon = info->gunnerWeaponIndex[gunnerIndex];
+        if ( !weapon )
+        {
+            const int weaponFromName = G_GetWeaponIndexForName((char *)info->gunnerWeapon[gunnerIndex]);
+            AssignToSmallerType<unsigned short>(
+                &bg_vehicleInfos[ent->scr_vehicle->infoIdx].gunnerWeaponIndex[gunnerIndex],
+                weaponFromName);
+            weapon = info->gunnerWeaponIndex[gunnerIndex];
+        }
+        return weapon;
+    }
     if ( seatIndex )
         return 0;
     if ( ent->s.weapon || info->driverControlledGunPos < 0 )
         return ent->s.weapon;
     return info->gunnerWeaponIndex[info->driverControlledGunPos];
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (G_UpdatePlayerWeaponOptions ~82662238)
+void __cdecl G_UpdatePlayerWeaponOptions(playerState_s *ps, unsigned int weaponIndex, int weaponOptions)
+{
+    PlayerHeldWeapon *heldWeapon;
+    unsigned int altIndex;
+    renderOptions_s opts;
+
+    iassert(ps);
+    if ( !BG_PlayerHasWeapon(ps, weaponIndex) )
+        return;
+    heldWeapon = BG_GetHeldWeapon(ps, weaponIndex);
+    iassert(heldWeapon);
+    opts.i = weaponOptions;
+    heldWeapon->options.CopyWeaponOptions(&opts);
+    altIndex = BG_GetWeaponVariantDef(weaponIndex)->altWeaponIndex;
+    while ( altIndex )
+    {
+        if ( !BG_PlayerHasWeapon(ps, altIndex) )
+            break;
+        heldWeapon = BG_GetHeldWeapon(ps, altIndex);
+        iassert(heldWeapon);
+        heldWeapon->options.CopyWeaponOptions(&opts);
+        altIndex = BG_GetWeaponVariantDef(altIndex)->altWeaponIndex;
+    }
 }
 

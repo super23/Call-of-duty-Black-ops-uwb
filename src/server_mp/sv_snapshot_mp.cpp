@@ -1724,7 +1724,7 @@ int __cdecl SV_GetArchivedClientInfo(
         *otherFlags = v14->ps.otherFlags;
         if (ps)
         {
-            Com_Memcpy(ps, &v14->ps, 9892);
+            Com_Memcpy(ps, &v14->ps, sizeof(playerState_s));
             if (ps->commandTime)
                 ps->commandTime += v13;
             if (ps->pm_time)

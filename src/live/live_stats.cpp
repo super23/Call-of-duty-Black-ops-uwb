@@ -3,7 +3,17 @@
 #include "live_storage.h"
 #include "live_win.h"
 #include <qcommon/com_gamemodes.h>
+#ifdef KISAK_SP
+#include <ui_sp/ui_gametype_custom_sp.h>
+#include <ui_sp/ui_gametype_variants_sp.h>
+#include <client_sp/cl_main_pc_sp.h>
+#include <server_sp/sv_main_sp.h>
+#else
 #include <ui_mp/ui_gametype_custom_mp.h>
+#include <ui_mp/ui_gametype_variants_mp.h>
+#include <client_mp/cl_main_pc_mp.h>
+#include <server_mp/sv_main_mp.h>
+#endif
 #include <qcommon/md4.h>
 #include <client/cl_rank.h>
 #include <qcommon/com_clients.h>
@@ -13,11 +23,9 @@
 #include "live_counter.h"
 #include <DW/MatchRecorder.h>
 #include <cgame/cg_compass.h>
-#include <ui_mp/ui_gametype_variants_mp.h>
-#include <client_mp/cl_main_pc_mp.h>
-#include <server_mp/sv_main_mp.h>
 #include "live_storage_win.h"
 #include <ddl/ddl_cmd.h>
+#include <qcommon/common.h>
 
 const char *lbTypeEnum_7[17] =
 {
@@ -129,7 +137,7 @@ int __cdecl LiveStats_GetDDLHeaderVersion(unsigned __int8 *statsBuffer)
 
 int __cdecl LiveStats_ValidateGlobalWithDDL(int controllerIndex)
 {
-    char backupBuffer[40172]; // [esp+0h] [ebp-9CF8h] BYREF
+    char backupBuffer[LIVE_STATS_DDL_BUFFER_BYTES]; // [esp+0h] [ebp-9CF8h] BYREF
     char *buffer; // [esp+9CF0h] [ebp-8h]
     int bufferSize; // [esp+9CF4h] [ebp-4h]
 
@@ -145,8 +153,8 @@ int __cdecl LiveStats_ValidateGlobalWithDDL(int controllerIndex)
         LiveStorage_SetStatsDDLValidated(controllerIndex, STATS_LOCATION_NORMAL, 1);
         return 1;
     }
-    else if ( DDL_FixBufferVersion(buffer, g_statsDDL, "ddl_mp/stats.ddl", backupBuffer, 40168)
-                 || DDL_FixBufferVersion(buffer, g_statsDDL, "ddl_mp/stats_archive.ddl", backupBuffer, 40168) )
+    else if ( DDL_FixBufferVersion(buffer, g_statsDDL, "ddl_mp/stats.ddl", backupBuffer, LIVE_STATS_DDL_BUFFER_BYTES)
+                 || DDL_FixBufferVersion(buffer, g_statsDDL, "ddl_mp/stats_archive.ddl", backupBuffer, LIVE_STATS_DDL_BUFFER_BYTES) )
     {
         DDL_NoCheckPrintWarning(
             "DDL: Stats buffer updated to version %d for controller index %d.\n",
@@ -163,8 +171,12 @@ int __cdecl LiveStats_ValidateGlobalWithDDL(int controllerIndex)
 
 int __cdecl LiveStats_CanPerformStatOperation(int controllerIndex)
 {
-    if ( !Live_IsUserSignedInToLive() || !Live_IsUserSignedInToDemonware(controllerIndex) )
-        return 0;
+    // onlinegame==0: LAN / bots / local profile only — never require Steam or DW.
+    if ( onlinegame->current.enabled )
+    {
+        if ( !Live_IsUserSignedInToLive() || !Live_IsUserSignedInToDemonware(controllerIndex) )
+            return 0;
+    }
     if ( LiveStorage_DoWeHaveCurrentStats(controllerIndex) )
     {
         if ( LiveStorage_AreStatsDDLValidated(controllerIndex, STATS_LOCATION_NORMAL)
@@ -612,6 +624,8 @@ bool __cdecl LiveStats_WriteVersionToBuffer(char *buffer)
     path[0] = "PlayerStatsList";
     path[1] = "STATS_VERSION";
     pathDepth = 2;
+    if ( !stat_version )
+        return 0;
     if ( DDL_MoveToPath(&g_statsRootState, &searchState, 2, path) )
         return DDL_SetInt(&searchState, stat_version->current.unsignedInt, buffer);
     DDL_PrintError("DDL:Error setting player stat value for %s.\n", path[pathDepth - 1]);
@@ -810,7 +824,7 @@ void __cdecl LiveStats_SetStatChanged(int controllerIndex, const char *hexMsg)
             statChangeCommand[runCount] = hexMsg[i];
             if ( sizeFound && runCount == 2 * size - 1 )
             {
-                LiveStats_ProcessStatChangedData(controllerIndex, (char *)buffer, 40168, startOffset, size, statChangeCommand);
+                LiveStats_ProcessStatChangedData(controllerIndex, (char *)buffer, LIVE_STATS_DDL_BUFFER_BYTES, startOffset, size, statChangeCommand);
                 runCount = 0;
                 offsetFound = 0;
                 sizeFound = 0;

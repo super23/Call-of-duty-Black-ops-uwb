@@ -2,7 +2,11 @@
 
 #include <cstring>
 #include <gfx_d3d/r_init.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_main_sp.h>
+#else
 #include <client_mp/cl_main_mp.h>
+#endif
 
 ScreenPlacement scrPlaceView[1];
 ScreenPlacement scrPlaceFull;

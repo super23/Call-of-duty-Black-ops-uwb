@@ -3,6 +3,7 @@
 #include "flame_class_fire.h"
 #include "flame_class_drips.h"
 #include "flame_class_smoke.h"
+#include <universal/assertive.h>
 #include <universal/com_math_anglevectors.h>
 #include <cgame_mp/cg_local_mp.h>
 #include <cgame/cg_drawtools.h>
@@ -20,12 +21,12 @@ int g_ChunkCountWaterMark;
 
 void __cdecl Flame_Class_Chunk_Init()
 {
-    memset(flameChunks, 0, 0x15E00u);
+    memset(flameChunks, 0, sizeof(flameChunks));
     Flame_List_Init((flameGeneric_s*)flameChunks, 112, 800);
     flameChunksFree = flameChunks;
     flameChunksUsed = 0;
 
-    memset(sv_flameChunks, 0, 0x15E00u);
+    memset(sv_flameChunks, 0, sizeof(sv_flameChunks));
     Flame_List_Init((flameGeneric_s *)sv_flameChunks, 112, 800);
     sv_flameChunksFree = sv_flameChunks;
     sv_flameChunksUsed = 0;
@@ -35,7 +36,7 @@ void __cdecl Flame_Class_Chunk_Init()
 
 flameChunk_s *__cdecl Flame_Class_Chunk_Alloc(bool is_server)
 {
-    flameChunk_s *freeChunk; // [esp+0h] [ebp-4h]
+    flameChunk_s *freeChunk;
 
     if ( is_server )
         freeChunk = sv_flameChunksFree;
@@ -72,114 +73,106 @@ void __cdecl Flame_Class_Chunk_Free(bool is_server, flameChunk_s *chunk)
         Flame_List_Move_Global(&chunk->gen, (flameGeneric_s **)&flameChunksUsed, (flameGeneric_s **)&flameChunksFree);
         --g_ChunkCount;
     }
-    Flame_Item_Init(&chunk->gen, 0x70u);
+    Flame_Item_Init(&chunk->gen, sizeof(flameChunk_s));
 }
 
-void __cdecl Flame_Phys_Spawn_Items(bool is_server, int curTime, flameChunk_s *trav)
+void __cdecl Flame_Phys_Spawn_Items(bool is_server, int curTime, flameChunk_s *chunk)
 {
-    int max; // [esp+8h] [ebp-10h]
-    int min; // [esp+10h] [ebp-8h]
-    float lifeFrac; // [esp+14h] [ebp-4h]
+    int fireLifeMaxMs;
+    int fireLifeMinMs;
+    float lifeFrac;
 
-    lifeFrac = (float)(trav->gen.age.lastUpdateTime - trav->gen.age.startTime)
-                     / (float)(trav->gen.age.endTime - trav->gen.age.startTime);
-    if ( trav->spawnFireInterval && curTime >= trav->spawnFireInterval + trav->lastSpawnFire )
+    lifeFrac = (float)(chunk->gen.age.lastUpdateTime - chunk->gen.age.startTime)
+        / (float)(chunk->gen.age.endTime - chunk->gen.age.startTime);
+    if ( chunk->spawnFireInterval && curTime >= chunk->spawnFireInterval + chunk->lastSpawnFire )
     {
-        min = (int)(float)(1000.0 * trav->gen.stream->flameVars->flameVar_streamChunkFireMinLifeFracStart);
-        max = (int)(float)(1000.0 * trav->gen.stream->flameVars->flameVar_streamChunkFireMinLifeFracEnd);
-        if ( trav->gen.age.lastUpdateTime - trav->gen.age.startTime >= min )
+        fireLifeMinMs = (int)(1000.0f * chunk->gen.stream->flameVars->flameVar_streamChunkFireMinLifeFracStart);
+        fireLifeMaxMs = (int)(1000.0f * chunk->gen.stream->flameVars->flameVar_streamChunkFireMinLifeFracEnd);
+        if ( chunk->gen.age.lastUpdateTime - chunk->gen.age.startTime >= fireLifeMinMs )
         {
-            if ( trav->gen.age.lastUpdateTime - trav->gen.age.startTime <= max )
+            if ( chunk->gen.age.lastUpdateTime - chunk->gen.age.startTime <= fireLifeMaxMs )
                 Flame_Class_Fire_Spawn(
                     is_server,
-                    trav,
+                    chunk,
                     curTime,
-                    (float)(1.0 - (float)((trav->gen.age.lastUpdateTime - trav->gen.age.startTime - min) / (max - min)))
-                * trav->gen.stream->flameVars->flameVar_streamChunkFireMinLifeFrac);
+                    (1.0f - (float)((chunk->gen.age.lastUpdateTime - chunk->gen.age.startTime - fireLifeMinMs) / (fireLifeMaxMs - fireLifeMinMs)))
+                        * chunk->gen.stream->flameVars->flameVar_streamChunkFireMinLifeFrac);
             else
-                Flame_Class_Fire_Spawn(is_server, trav, curTime, 0.0);
+                Flame_Class_Fire_Spawn(is_server, chunk, curTime, 0.0f);
         }
         else
         {
-            Flame_Class_Fire_Spawn(is_server, trav, curTime, trav->gen.stream->flameVars->flameVar_streamChunkFireMinLifeFrac);
+            Flame_Class_Fire_Spawn(is_server, chunk, curTime, chunk->gen.stream->flameVars->flameVar_streamChunkFireMinLifeFrac);
         }
-        trav->lastSpawnFire += trav->spawnFireInterval;
-        trav->spawnFireInterval = (int)(Flame_Random(is_server)
-                                                                    * ((trav->gen.stream->flameVars->flameVar_streamChunkSpawnFireIntervalEnd
-                                                                        - trav->gen.stream->flameVars->flameVar_streamChunkSpawnFireIntervalStart)
-                                                                     * lifeFrac
-                                                                     + trav->gen.stream->flameVars->flameVar_streamChunkSpawnFireIntervalStart)
-                                                                    * 1000.0);
+        chunk->lastSpawnFire += chunk->spawnFireInterval;
+        chunk->spawnFireInterval = (int)(Flame_Random(is_server)
+            * ((chunk->gen.stream->flameVars->flameVar_streamChunkSpawnFireIntervalEnd
+                - chunk->gen.stream->flameVars->flameVar_streamChunkSpawnFireIntervalStart)
+                * lifeFrac
+                + chunk->gen.stream->flameVars->flameVar_streamChunkSpawnFireIntervalStart)
+            * 1000.0);
     }
-    if ( trav->spawnDripsInterval && trav->gen.age.lastUpdateTime - trav->gen.age.startTime > trav->spawnDripsInterval )
+    if ( chunk->spawnDripsInterval && chunk->gen.age.lastUpdateTime - chunk->gen.age.startTime > chunk->spawnDripsInterval )
     {
-        Flame_Class_Drips_Spawn(is_server, trav, curTime, 0.0);
-        trav->spawnDripsInterval = 0;
+        Flame_Class_Drips_Spawn(is_server, chunk, curTime, 0.0f);
+        chunk->spawnDripsInterval = 0;
     }
     if ( !is_server
-        && trav->spawnSmokeInterval
-        && trav->gen.age.lastUpdateTime - trav->gen.age.startTime > trav->spawnSmokeInterval )
+        && chunk->spawnSmokeInterval
+        && chunk->gen.age.lastUpdateTime - chunk->gen.age.startTime > chunk->spawnSmokeInterval )
     {
-        Flame_Class_Smoke_Spawn(trav, curTime);
-        trav->spawnSmokeInterval = 0;
+        Flame_Class_Smoke_Spawn(chunk, curTime);
+        chunk->spawnSmokeInterval = 0;
     }
 }
 
 void __cdecl Flame_Class_Chunk_Age(bool is_server, int time)
 {
-    phys_static_array<flameGeneric_s *,1000> *v2; // [esp+8h] [ebp-54h]
-    phys_static_array<flameGeneric_s *,1000> *v3; // [esp+Ch] [ebp-50h]
-    flamePhysics_t physBackup; // [esp+1Ch] [ebp-40h] BYREF
-    flameChunk_s *nextTrav; // [esp+50h] [ebp-Ch]
-    int curTime; // [esp+54h] [ebp-8h]
-    flameChunk_s *trav; // [esp+58h] [ebp-4h]
+    phys_static_array<flameGeneric_s *,1000> *flamesArray;
+    flamePhysics_t physBackup;
+    flameChunk_s *nextChunk;
+    int curTime;
+    flameChunk_s *chunk;
 
-    if ( is_server )
-        trav = sv_flameChunksUsed;
-    else
-        trav = flameChunksUsed;
-    while ( trav )
+    chunk = is_server ? sv_flameChunksUsed : flameChunksUsed;
+    while ( chunk )
     {
-        nextTrav = (flameChunk_s *)trav->gen.listGlobal.next;
+        nextChunk = (flameChunk_s *)chunk->gen.listGlobal.next;
         curTime = time;
-        if ( trav->gen.age.lastUpdateTime < trav->gen.age.endTime
-            && trav->spawnFireInterval
-            && curTime > trav->spawnFireInterval + trav->lastSpawnFire )
+        if ( chunk->gen.age.lastUpdateTime < chunk->gen.age.endTime
+            && chunk->spawnFireInterval
+            && curTime > chunk->spawnFireInterval + chunk->lastSpawnFire )
         {
-            curTime = trav->spawnFireInterval + trav->lastSpawnFire;
+            curTime = chunk->spawnFireInterval + chunk->lastSpawnFire;
         }
-        if ( ((*((unsigned int *)&trav->gen + 23) >> 3) & 1) != 0
-            || trav->gen.age.lastUpdateTime - trav->gen.age.startTime >= (int)(float)(1000.0
-                                                                                                                                                            * trav->gen.stream->flameVars->flameVar_streamChunkSpawnFireMaxLifeFrac) )
+        if ( chunk->gen.delete_chunk
+            || chunk->gen.age.lastUpdateTime - chunk->gen.age.startTime >= (int)(1000.0f
+                * chunk->gen.stream->flameVars->flameVar_streamChunkSpawnFireMaxLifeFrac) )
         {
-            Flame_Class_Chunk_Free(is_server, trav);
+            Flame_Class_Chunk_Free(is_server, chunk);
         }
         else
         {
             while ( curTime <= time )
             {
-                if ( trav->gen.age.lastUpdateTime - trav->gen.age.startTime < (int)(float)(1000.0
-                                                                                                                                                                 * trav->gen.stream->flameVars->flameVar_streamChunkSpawnFireMaxLifeFrac) )
+                if ( chunk->gen.age.lastUpdateTime - chunk->gen.age.startTime < (int)(1000.0f
+                    * chunk->gen.stream->flameVars->flameVar_streamChunkSpawnFireMaxLifeFrac) )
                 {
                     if ( curTime == time )
                     {
-                        if ( is_server )
-                            v2 = &sv_flames;
-                        else
-                            v2 = &cl_flames;
-                        Flame_Phys_Update_Item_Chunk(&trav->gen, curTime, v2);
-                        Flame_Phys_Spawn_Items(is_server, curTime, trav);
+                        flamesArray = is_server ? &sv_flames : &cl_flames;
+                        Flame_Phys_Update_Item_Chunk(&chunk->gen, curTime, flamesArray);
+                        Flame_Phys_Spawn_Items(is_server, curTime, chunk);
                     }
                     else
                     {
-                        memcpy(&physBackup, trav, sizeof(physBackup));
-                        if ( is_server )
-                            v3 = &sv_flames;
-                        else
-                            v3 = &cl_flames;
-                        Flame_Phys_Update_Item_Chunk(&trav->gen, curTime, v3);
-                        Flame_Phys_Spawn_Items(is_server, curTime, trav);
-                        memcpy(trav, &physBackup, 0x34u);
+                        // Intermediate fire-spawn substep: run physics/spawn at curTime,
+                        // then restore only gen.phys (0x34 bytes at chunk start).
+                        memcpy(&physBackup, &chunk->gen.phys, sizeof(physBackup));
+                        flamesArray = is_server ? &sv_flames : &cl_flames;
+                        Flame_Phys_Update_Item_Chunk(&chunk->gen, curTime, flamesArray);
+                        Flame_Phys_Spawn_Items(is_server, curTime, chunk);
+                        memcpy(&chunk->gen.phys, &physBackup, sizeof(physBackup));
                     }
                 }
                 if ( curTime == time )
@@ -187,7 +180,7 @@ void __cdecl Flame_Class_Chunk_Age(bool is_server, int time)
                 curTime = time;
             }
         }
-        trav = nextTrav;
+        chunk = nextChunk;
     }
     Flame_Phys_Update_Items(is_server);
 }
@@ -199,16 +192,16 @@ flameChunk_s *__cdecl Flame_Class_Chunk_Spawn(
                 float *velocityAdd,
                 flameTable *fTable)
 {
-    int v6; // esi
-    float speed; // [esp+18h] [ebp-14h]
-    flameChunk_s *chunk; // [esp+28h] [ebp-4h]
+    int minFireLifeOffsetMs;
+    float speed;
+    flameChunk_s *chunk;
 
     chunk = Flame_Class_Chunk_Alloc(is_server);
     if ( !chunk )
         return 0;
-    *((unsigned int *)&chunk->gen + 23) = *((unsigned int *)&chunk->gen + 23) & 0xFFFFFFF8 | 1;
-    *((unsigned int *)&chunk->gen + 23) = (16 * flame_spawn_id++) | *((unsigned int *)&chunk->gen + 23) & 0xF;
-    *((unsigned int *)&chunk->gen + 23) &= ~8u;
+    chunk->gen.type = 1;
+    chunk->gen.id = flame_spawn_id++;
+    chunk->gen.delete_chunk = 0;
     chunk->gen.age.startTime = spawnVars->time;
     chunk->gen.age.endTime = spawnVars->duration + spawnVars->time;
     chunk->gen.age.lastUpdateTime = spawnVars->time;
@@ -222,16 +215,16 @@ flameChunk_s *__cdecl Flame_Class_Chunk_Spawn(
     chunk->gen.phys.velocity[0] = speed * chunk->gen.phys.velocity[0];
     chunk->gen.phys.velocity[1] = speed * chunk->gen.phys.velocity[1];
     chunk->gen.phys.velocity[2] = speed * chunk->gen.phys.velocity[2];
-    chunk->gen.phys.velocity[0] = chunk->gen.phys.velocity[0] + *velocityAdd;
+    chunk->gen.phys.velocity[0] = chunk->gen.phys.velocity[0] + velocityAdd[0];
     chunk->gen.phys.velocity[1] = chunk->gen.phys.velocity[1] + velocityAdd[1];
     chunk->gen.phys.velocity[2] = chunk->gen.phys.velocity[2] + velocityAdd[2];
-    chunk->gen.phys.invStartSpeed = Flame_CalcInvStartSpeed(1.0, spawnVars->speed);
+    chunk->gen.phys.invStartSpeed = Flame_CalcInvStartSpeed(1.0f, spawnVars->speed);
     chunk->gen.phys.gravity = spawnVars->gravityStart;
     chunk->gen.phys.rotation = Flame_CRandom(is_server) * fTable->flameVar_streamChunkRotationRange;
     chunk->gen.phys.rotVel = 0.0f;
-    chunk->spawnFireInterval = (int)(float)(1000.0 * fTable->flameVar_streamChunkSpawnFireIntervalStart);
-    v6 = (int)(float)(1000.0 * fTable->flameVar_streamChunkSpawnFireMinLifeFrac);
-    chunk->lastSpawnFire = spawnVars->time - (int)(Flame_Random(is_server) * (double)chunk->spawnFireInterval) + v6;
+    chunk->spawnFireInterval = (int)(1000.0f * fTable->flameVar_streamChunkSpawnFireIntervalStart);
+    minFireLifeOffsetMs = (int)(1000.0f * fTable->flameVar_streamChunkSpawnFireMinLifeFrac);
+    chunk->lastSpawnFire = spawnVars->time - (int)(Flame_Random(is_server) * (double)chunk->spawnFireInterval) + minFireLifeOffsetMs;
     chunk->spawnDripsInterval = 0;
     chunk->spawnSmokeInterval = 0;
     if ( chunkList )
@@ -241,32 +234,23 @@ flameChunk_s *__cdecl Flame_Class_Chunk_Spawn(
 
 void __cdecl Flame_Class_Chunk_Render_Item(int localClientNum, flameChunk_s *chunk)
 {
-    float v2; // [esp+0h] [ebp-88h]
-    float v3; // [esp+4h] [ebp-84h]
-    float v4; // [esp+10h] [ebp-78h]
-    float v5; // [esp+14h] [ebp-74h]
-    float fwd[3]; // [esp+18h] [ebp-70h] BYREF
-    float points[4][2]; // [esp+24h] [ebp-64h]
-    float right[3]; // [esp+44h] [ebp-44h] BYREF
-    float start[3]; // [esp+50h] [ebp-38h] BYREF
-    float end[3]; // [esp+5Ch] [ebp-2Ch] BYREF
-    float angles[3]; // [esp+68h] [ebp-20h] BYREF
-    float down[3]; // [esp+74h] [ebp-14h] BYREF
-    int i; // [esp+80h] [ebp-8h]
-    cg_s *clientGlobals; // [esp+84h] [ebp-4h]
+    float halfSize;
+    float negHalfSize;
+    float pointOffsetRight;
+    float pointOffsetDown;
+    float fwd[3];
+    float points[4][2];
+    float right[3];
+    float start[3];
+    float end[3];
+    float angles[3];
+    float down[3];
+    int cornerIndex;
+    cg_s *clientGlobals;
 
     clientGlobals = CG_GetLocalClientGlobals(localClientNum);
-    if ( !clientGlobals
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_class_chunk.cpp",
-                    353,
-                    0,
-                    "%s\n\t%s",
-                    "clientGlobals",
-                    "unknown client index") )
-    {
-        __debugbreak();
-    }
+    iassert(clientGlobals);
+
     if ( flame_debug_render->current.integer > 0 )
     {
         points[0][0] = -1.0f;
@@ -284,30 +268,30 @@ void __cdecl Flame_Class_Chunk_Render_Item(int localClientNum, flameChunk_s *chu
         AxisToAngles(clientGlobals->refdef.viewaxis, angles);
         angles[2] = chunk->gen.phys.rotation;
         AngleVectors(angles, fwd, right, down);
-        v5 = chunk->gen.size.current * 0.5;
-        right[0] = v5 * right[0];
-        right[1] = v5 * right[1];
-        right[2] = v5 * right[2];
-        v4 = chunk->gen.size.current * -0.5;
-        down[0] = v4 * down[0];
-        down[1] = v4 * down[1];
-        down[2] = v4 * down[2];
-        start[0] = (float)(points[3][0] * right[0]) + chunk->gen.phys.origin[0];
-        start[1] = (float)(points[3][0] * right[1]) + chunk->gen.phys.origin[1];
-        start[2] = (float)(points[3][0] * right[2]) + chunk->gen.phys.origin[2];
-        start[0] = (float)(points[3][1] * down[0]) + start[0];
-        start[1] = (float)(points[3][1] * down[1]) + start[1];
-        start[2] = (float)(points[3][1] * down[2]) + start[2];
-        for ( i = 0; i < 4; ++i )
+        halfSize = chunk->gen.size.current * 0.5f;
+        right[0] = halfSize * right[0];
+        right[1] = halfSize * right[1];
+        right[2] = halfSize * right[2];
+        negHalfSize = chunk->gen.size.current * -0.5f;
+        down[0] = negHalfSize * down[0];
+        down[1] = negHalfSize * down[1];
+        down[2] = negHalfSize * down[2];
+        start[0] = points[3][0] * right[0] + chunk->gen.phys.origin[0];
+        start[1] = points[3][0] * right[1] + chunk->gen.phys.origin[1];
+        start[2] = points[3][0] * right[2] + chunk->gen.phys.origin[2];
+        start[0] = points[3][1] * down[0] + start[0];
+        start[1] = points[3][1] * down[1] + start[1];
+        start[2] = points[3][1] * down[2] + start[2];
+        for ( cornerIndex = 0; cornerIndex < 4; ++cornerIndex )
         {
-            v3 = points[i][0];
-            end[0] = (float)(v3 * right[0]) + chunk->gen.phys.origin[0];
-            end[1] = (float)(v3 * right[1]) + chunk->gen.phys.origin[1];
-            end[2] = (float)(v3 * right[2]) + chunk->gen.phys.origin[2];
-            v2 = points[i][1];
-            end[0] = (float)(v2 * down[0]) + end[0];
-            end[1] = (float)(v2 * down[1]) + end[1];
-            end[2] = (float)(v2 * down[2]) + end[2];
+            pointOffsetRight = points[cornerIndex][0];
+            end[0] = pointOffsetRight * right[0] + chunk->gen.phys.origin[0];
+            end[1] = pointOffsetRight * right[1] + chunk->gen.phys.origin[1];
+            end[2] = pointOffsetRight * right[2] + chunk->gen.phys.origin[2];
+            pointOffsetDown = points[cornerIndex][1];
+            end[0] = pointOffsetDown * down[0] + end[0];
+            end[1] = pointOffsetDown * down[1] + end[1];
+            end[2] = pointOffsetDown * down[2] + end[2];
             CG_DebugLine(start, end, colorRed, 1, 1);
             start[0] = end[0];
             start[1] = end[1];
@@ -318,7 +302,7 @@ void __cdecl Flame_Class_Chunk_Render_Item(int localClientNum, flameChunk_s *chu
 
 void __cdecl Flame_Class_Chunk_Render_All(int localClientNum)
 {
-    flameChunk_s *chunk; // [esp+0h] [ebp-4h]
+    flameChunk_s *chunk;
 
     if ( flame_debug_render->current.integer > 0 )
     {

@@ -105,6 +105,14 @@ unsigned __int8 *__cdecl Com_LiveRealloc(unsigned __int8 *ptr, unsigned int size
 unsigned __int8 *__cdecl Com_LiveCalloc(unsigned int num, unsigned int size);
 bool __cdecl Com_IsRunningMenuLevel(const char *name);
 bool __cdecl Com_IsMenuLevel(const char *name);
+#ifdef KISAK_SP
+// CoDSP_rdBlackOps.map.c: menu maps (frontend) may ship gfx_map+com_map without col_map_sp.
+bool __cdecl Com_SP_IsMenuMapName(const char *name);
+bool __cdecl Com_SP_MenuLevelHasClipmap(const char *mapToken);
+bool __cdecl Com_SP_TryResolveMenuLevelBspName(const char *mapToken, char *outBspName, int outBspNameSize);
+void __cdecl Com_SP_LoadMenuLevelServerWorld(const char *mapToken, int *outChecksum);
+void __cdecl Com_SP_LoadMenuLevelClientWorld(const char *mapToken);
+#endif
 void __cdecl Com_BeginRedirect(char *buffer, unsigned int buffersize, void (__cdecl *flush)(char *));
 void __cdecl Com_EndRedirect();
 void __cdecl Com_PrintMessage(int channel, char *msg, int error);
@@ -188,9 +196,21 @@ void Com_LoadUiFastFile();
 void __cdecl Com_LoadMapLoadingScreenFastFile(const char *mapName);
 void __cdecl Com_UnloadLevelFastFiles();
 void __cdecl Com_LoadLevelFastFiles(char *mapName);
+#ifdef KISAK_SP
+void Com_SP_UnloadLevelZonesForMapLoad();
+#endif
+bool Com_IsSpecOpsMapToken(const char *mapName);
+bool Com_ParseSpecOpsZoneName(const char *mapName, char *zoneNameOut, unsigned int zoneNameSize);
+bool Com_MapFastfileExists(const char *mapName);
+bool Com_ZoneFastfileExistsOnDisk(const char *zoneName);
+bool Com_ZoneFastfileExistsAnySource(const char *zoneName);
+const char *Com_GetLevelPrimaryFastfileZone(const char *mapName, char *zoneBuffer, unsigned int zoneBufferSize);
 char *__cdecl Com_GetLevelSharedFastFile(char *mapName);
 void Com_LoadCommonFastFile();
 void __cdecl Com_LoadFrontEnd();
+#ifdef KISAK_SP
+void __cdecl Com_EnsureFrontendUIMenus();
+#endif
 void __cdecl Com_UnloadFrontEnd();
 void __cdecl Com_AssetLoadUI();
 void __cdecl Com_ResetFrametime();
@@ -268,6 +288,7 @@ inline int SnapFloatToInt(float x)
 
 
 extern const dvar_t *collectors;
+extern const dvar_t *presell;
 extern const dvar_t *primaryWeaponOffset;
 extern const dvar_t *scr_xpcollectorsscale;
 extern const dvar_t *scr_xpscale;
@@ -292,6 +313,7 @@ extern const dvar_t *dedicated;
 extern const dvar_t *com_maxfps;
 extern const dvar_t *arcademode;
 extern const dvar_t *zombiemode;
+extern const dvar_t *zombiemode_path_minz_bias;
 extern const dvar_t *legacy_zombiemode;
 extern const dvar_t *zombieStopSplitScreen;
 extern const dvar_t *zombietron;

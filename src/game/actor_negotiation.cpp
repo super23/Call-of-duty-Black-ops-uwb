@@ -3,8 +3,8 @@
 #include "actor_orientation.h"
 #include <clientscript/cscr_stringlist.h>
 #include "actor_animapi.h"
-#include <game_mp/actor_mp.h>
-#include <game_mp/g_main_mp.h>
+#include <game/actor_wrapper.h>
+#include <game/g_main_wrapper.h>
 #include <bgame/bg_dog.h>
 #include "actor_state.h"
 
@@ -80,7 +80,7 @@ actor_think_result_t __fastcall Actor_Negotiation_Think(actor_s *pSelf)
             {
                 __debugbreak();
             }
-            if ( *((int *)&pSelf->Physics.proximity_data.prims[199].tree + 7 * pSelf->Path.wNegotiationStartNode) < 0
+            if ( pSelf->Path.pts[pSelf->Path.wNegotiationStartNode - 1].iNodeNum < 0
                 && !Assert_MyHandler(
                             "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_negotiation.cpp",
                             69,
@@ -90,8 +90,8 @@ actor_think_result_t __fastcall Actor_Negotiation_Think(actor_s *pSelf)
             {
                 __debugbreak();
             }
-            pSelf->sentient->pNearestNode = Path_ConvertIndexToNode(*((unsigned int *)&pSelf->Physics.proximity_data.prims[199].tree
-                                                                                                                            + 7 * pSelf->Path.wNegotiationStartNode));
+            pSelf->sentient->pNearestNode = Path_ConvertIndexToNode(
+                (unsigned int)pSelf->Path.pts[pSelf->Path.wNegotiationStartNode - 1].iNodeNum);
             pSelf->sentient->bNearestNodeBad = 0;
             pSelf->sentient->bNearestNodeValid = 1;
         }

@@ -1,5 +1,9 @@
 #include "ui_viewer.h"
+#ifdef KISAK_SP
+#include <client_sp/cl_cgame_sp.h>
+#else
 #include <client_mp/cl_cgame_mp.h>
+#endif
 #include <gfx_d3d/r_drawsurf.h>
 #include <gfx_d3d/r_material_load_obj.h>
 #include <gfx_d3d/r_skybox.h>
@@ -23,7 +27,11 @@
 #include <cgame/cg_weapon_options.h>
 #include <clientscript/cscr_stringlist.h>
 #include <client/cl_debugdata.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_ents_sp.h>
+#else
 #include <cgame_mp/cg_ents_mp.h>
+#endif
 #include <bgame/bg_misc.h>
 #include <qcommon/threads.h>
 #include <universal/com_memory.h>
@@ -1901,7 +1909,13 @@ void __thiscall UIViewer::Draw(int localClientNum, bool _ingame, unsigned int ey
     {
         __debugbreak();
     }
+#ifdef KISAK_SP
+    if ( this->ingame
+        || ( !this->ingame && comWorld.name && rgp.world )
+        || ( DB_IsZoneLoaded("common_mp") && DB_IsZoneLoaded("ui_viewer_mp") && comWorld.name ) )
+#else
     if ( this->ingame || DB_IsZoneLoaded("common_mp") && DB_IsZoneLoaded("ui_viewer_mp") && comWorld.name )
+#endif
     {
         if ( this->ingame && !this->mapLoaded || !this->ingame && !rgp.world )
             UIViewer::LoadMap();
@@ -1970,9 +1984,15 @@ void __cdecl ForceLoadWeapon(XAssetHeader header)
 
 void __cdecl UI_ViewerDraw(unsigned int eyeToRender)
 {
-    if (DB_IsZoneLoaded("ui_mp"))
+#ifdef KISAK_SP
+    if ( DB_IsZoneLoaded("ui_mp")
+        || DB_IsZoneLoaded("ui")
+        || DB_IsZoneLoaded("ui_viewer")
+        || DB_IsZoneLoaded("ui_viewer_mp") )
+#else
+    if ( DB_IsZoneLoaded("ui_mp") )
+#endif
     {
-        //UIViewer::Draw(&uiViewer, 0, 0, eyeToRender);
         uiViewer.Draw(0, 0, eyeToRender);
     }
 }

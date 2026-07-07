@@ -2,7 +2,11 @@
 
 #include <cstring>
 #include "cg_weapons.h"
+#ifdef KISAK_SP
+#include <cgame_sp/cg_main_sp.h>
+#else
 #include <cgame_mp/cg_main_mp.h>
+#endif
 #include <bgame/bg_misc.h>
 
 localEntity_s cg_localEntities[1][128];

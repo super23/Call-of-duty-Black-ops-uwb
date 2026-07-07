@@ -19,6 +19,15 @@ int __cdecl BG_ActorIsProne(actor_prone_info_s *pInfo, int iCurrentTime)
     return 1;
 }
 
+int __cdecl BG_ActorGoalIsProne(actor_prone_info_s *pInfo)
+{
+    if ( !pInfo->prone || pInfo->bCorpseOrientation || pInfo->orientPitch )
+        return 0;
+    if ( pInfo->iProneTrans < 0 )
+        return 0;
+    return 1;
+}
+
 double __cdecl BG_GetActorProneFraction(actor_prone_info_s *pInfo, int iCurrentTime)
 {
     if ( !pInfo->prone )

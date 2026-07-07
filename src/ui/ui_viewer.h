@@ -1,7 +1,11 @@
 #pragma once
 #include <xanim/dobj.h>
 #include <universal/dvar.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_predict_sp.h>
+#else
 #include <cgame_mp/cg_predict_mp.h>
+#endif
 #include <live/live_combatrecord.h>
 
 struct __declspec(align(8)) UIViewer // sizeof=0xA16C0

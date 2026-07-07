@@ -1080,10 +1080,11 @@ char __cdecl R_Cinematic_StartPlayback_Now(const char *filename, unsigned int pl
     cinematicGlob.timeInMsec = 0;
     errText[0] = 0;
     if (R_Cinematic_BinkOpen(filename, playbackFlags, errText, 128)
-        || (Com_PrintWarning(8, "R_Cinematic_BinkOpen '%s' failed: %s; trying default.\n", filename, errText),
-            CinematicHunk_Reset(&cinematicGlob.binkHunk),
-            errText[0] = 0,
-            R_Cinematic_BinkOpen("default", playbackFlags, errText, 128)))
+        || (!(playbackFlags & CINEMATIC_PLAYBACK_NO_DEFAULT_FALLBACK)
+            && (Com_PrintWarning(8, "R_Cinematic_BinkOpen '%s' failed: %s; trying default.\n", filename, errText),
+                CinematicHunk_Reset(&cinematicGlob.binkHunk),
+                errText[0] = 0,
+                R_Cinematic_BinkOpen("default", playbackFlags, errText, 128))))
     {
         if (Sys_IsRenderThread())
         {
@@ -1603,21 +1604,23 @@ void __cdecl R_Cinematic_SetRendererImagesToFrame(int frameToSetTo)
 
 char __cdecl R_Cinematic_GetFilenameAndTimeInMsec(char *outName, int outNameSize, unsigned int *outTimeInMsec)
 {
-    if ( !outTimeInMsec
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 3248, 0, "%s", "outTimeInMsec") )
-    {
-        __debugbreak();
-    }
-    if ( !outName
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_cinematic.cpp", 3249, 0, "%s", "outName") )
-    {
-        __debugbreak();
-    }
     if ( !R_Cinematic_IsStarted() )
         return 0;
-    *outTimeInMsec = cinematicGlob.timeInMsec;
-    I_strncpyz(outName, cinematicGlob.currentCinematicName, outNameSize);
+    if ( outTimeInMsec )
+        *outTimeInMsec = cinematicGlob.timeInMsec;
+    if ( outName && outNameSize > 0 )
+        I_strncpyz(outName, cinematicGlob.currentCinematicName, outNameSize);
     return 1;
+}
+
+void __cdecl R_Cinematic_QueueNextPlayback(const char *name, unsigned int playbackFlags)
+{
+    if ( !name || !*name )
+        return;
+    Sys_EnterCriticalSection(CRITSECT_CINEMATIC);
+    I_strncpyz(cinematicGlob.nextCinematicName, name, 256);
+    cinematicGlob.nextCinematicPlaybackFlags = playbackFlags;
+    Sys_LeaveCriticalSection(CRITSECT_CINEMATIC);
 }
 
 bool __cdecl R_Cinematic_IsFinished()
@@ -1628,6 +1631,15 @@ bool __cdecl R_Cinematic_IsFinished()
 bool __cdecl R_Cinematic_IsStarted()
 {
     return !R_Cinematic_IsFinished() && cinematicGlob.currentCinematicName[0];
+}
+
+bool __cdecl R_Cinematic_IsPending()
+{
+    if ( R_Cinematic_IsFinished() )
+        return false;
+    return cinematicGlob.targetCinematicName[0] != 0
+        || cinematicGlob.currentCinematicName[0] != 0
+        || cinematicGlob.nextCinematicName[0] != 0;
 }
 
 bool __cdecl R_Cinematic_IsNextReady()
@@ -1644,5 +1656,26 @@ void __cdecl R_Cinematic_ForceRelinquishIO()
 {
     if (cinematicGlob.fileIoState)
         R_Cinematic_RelinquishIO();
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (R_Cinematic_GetTimeRemaining ~8558359)
+double __cdecl R_Cinematic_GetTimeRemaining()
+{
+    BINK *bink;
+    float remainingFrames;
+    float frameRate;
+
+    if ( !cinematicGlob.bink )
+        return 0.0;
+    if ( cinematicGlob.currentPaused == CINEMATIC_SCRIPT_PAUSED )
+        cinematicGlob.currentPaused = CINEMATIC_NOT_PAUSED;
+    bink = cinematicGlob.bink;
+    remainingFrames = (float)(bink->Frames - bink->FrameNum);
+    if ( !bink->FrameRateDiv )
+        return 0.0;
+    frameRate = (float)bink->FrameRate / (float)bink->FrameRateDiv;
+    if ( frameRate == 0.0f )
+        return 0.0;
+    return remainingFrames / frameRate;
 }
 

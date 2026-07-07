@@ -76,7 +76,7 @@ void    make_rotate(
     phys_vec3 v8; // [esp+18h] [ebp-3Ch] BYREF
     float len; // [esp+44h] [ebp-10h]
 
-    len = Vec3Length(&v->x);
+    len = Abs(&v->x);
     if (len >= 0.0000099999997)
     {
         v8.x = (1.0 / len) * v->x;
@@ -1121,31 +1121,31 @@ void    clip_winding(phys_static_array<phys_vec3,512> &winding, const plane_lt &
     *sides.add(0, "phys array add overflow.") = *sides[0];
     *dists.add(0, "phys array add overflow.") = *dists[0];
 
-    // All verts are behind (or on) the plane — winding is completely clipped
+    // All verts are behind (or on) the plane ï¿½ winding is completely clipped
     if (!counts[0])
     {
         winding.m_alloc_count = 0;
         return;
     }
 
-    // All verts are in front — winding is unmodified, nothing to clip
+    // All verts are in front ï¿½ winding is unmodified, nothing to clip
     if (!counts[1])
         return;
 
-    // Mixed — need to clip
+    // Mixed ï¿½ need to clip
     phys_static_array<phys_vec3, 512> clipped;
 
     for (int j = 0; j < winding.m_alloc_count; ++j)
     {
         phys_vec3 *p = winding[j];
 
-        if (*sides[j] == 2) // on plane — keep as-is
+        if (*sides[j] == 2) // on plane ï¿½ keep as-is
         {
             *clipped.add(0, "phys array add overflow.") = *p;
             continue;
         }
 
-        if (*sides[j] == 0) // front — keep
+        if (*sides[j] == 0) // front ï¿½ keep
             *clipped.add(0, "phys array add overflow.") = *p;
 
         // Check if the next edge crosses a side boundary
@@ -1155,7 +1155,7 @@ void    clip_winding(phys_static_array<phys_vec3,512> &winding, const plane_lt &
         if (*sides[j + 1] == *sides[j])
             continue;
 
-        // Edge crosses the plane — compute intersection
+        // Edge crosses the plane ï¿½ compute intersection
         phys_vec3 *q = winding[(j + 1) % num_verts];
         float      fj = *dists[j];
         float      fj1 = *dists[j + 1];
@@ -1299,7 +1299,7 @@ void    init_winding(const plane_lt *plane, phys_static_array<phys_vec3,512> *wi
     up.x = up.x - (float)(proj * normal.x);
     up.y = up.y - (float)(proj * normal.y);
     up.z = v3 - (float)(proj * normal.z);
-    len = Vec3Length(&up.x);
+    len = Abs(&up.x);
     if (len != 0.0)
     {
         v38 = 1.0 / len;
@@ -2061,9 +2061,15 @@ void __cdecl render_prims(col_prim_t *prims, int nprims)
     {
         prim = &prims[pi];
         if ( prim->type )
-            render_brush(prim->brush, 0, 0, 1, 0, 0, 0, 0);
+        {
+            if ( prim->brush )
+                render_brush(prim->brush, 0, 0, 1, 0, 0, 0, 0);
+        }
         else
-            render_collision_tree(prim->tree, colorWhite);
+        {
+            if ( prim->tree )
+                render_collision_tree(prim->tree, colorWhite);
+        }
     }
 }
 

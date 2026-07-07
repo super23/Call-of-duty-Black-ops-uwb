@@ -1,7 +1,12 @@
 #include "demo_profile.h"
 #include "demo_common.h"
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#include <cgame_sp/cg_consolecmds_sp.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
 #include <cgame_mp/cg_consolecmds_mp.h>
+#endif
 #include "demo_playback.h"
 #include <game/g_debug.h>
 #include <client/cl_debugdata.h>

@@ -1516,6 +1516,7 @@ void __thiscall physics_system::time_step(float outside_delta_t, bool last_step)
     unsigned int temp_buffer_12; // [esp+20h] [ebp-30h]
     volatile unsigned int temp_buffer_16; // [esp+24h] [ebp-2Ch]
     void *temp_buffer_20; // [esp+28h] [ebp-28h]
+    phys_transient_allocator transient_buffer; // [esp+2Ch] [ebp-24h] BYREF
     int v26; // [esp+4Ch] [ebp-4h]
     int savedregs; // [esp+50h] [ebp+0h] BYREF
 
@@ -1579,8 +1580,9 @@ LABEL_11:
             PMM_FREE((unsigned __int8 *)v12, 0x38u, 4u);
         }
     }
-    phys_transient_allocator transient_buffer; // [esp+2Ch] [ebp-24h] BYREF
-
+    memset(&transient_buffer, 0, 16);
+    transient_buffer.m_mutex.m_count = 1;
+    transient_buffer.m_slot_pool = 0;
     v26 = 0;
     physics_system::solver_priority_sort(&transient_buffer);
     physics_system::generate_partitions_and_stuff(&transient_buffer);

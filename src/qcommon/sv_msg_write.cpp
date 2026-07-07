@@ -1,9 +1,16 @@
 #include "sv_msg_write.h"
 #include <demo/demo_version.h>
+#include <universal/com_math.h>
+#ifdef KISAK_SP
+#include <server_sp/sv_main_sp.h>
+#include <server_sp/sv_snapshot_profile_sp.h>
+#include <server_sp/sv_init_sp.h>
+#else
 #include <server_mp/sv_main_mp.h>
-#include "msg.h"
 #include <server_mp/sv_snapshot_profile_mp.h>
 #include <server_mp/sv_init_mp.h>
+#endif
+#include "msg.h"
 #include <cgame/cg_draw_debug.h>
 #include <flame/flame_system.h>
 
@@ -2115,7 +2122,16 @@ void __cdecl MSG_WriteDeltaPlayerstate(
     }
     if ( snapInfo->demoSnapshot || snapInfo->archived )
         goto LABEL_17;
-    dist = Vec3DistanceSq(snapInfo->client->predictedOrigin, to->origin);
+    if ( IS_NAN(snapInfo->client->predictedOrigin[0]) || IS_NAN(snapInfo->client->predictedOrigin[1])
+        || IS_NAN(snapInfo->client->predictedOrigin[2]) || IS_NAN(to->origin[0]) || IS_NAN(to->origin[1])
+        || IS_NAN(to->origin[2]) )
+    {
+        dist = 1.0e12f;
+    }
+    else
+    {
+        dist = Vec3DistanceSq(snapInfo->client->predictedOrigin, to->origin);
+    }
     if ( !svsHeaderValid
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\sv_msg_write.cpp",
@@ -2446,7 +2462,7 @@ LABEL_92:
     }
     v12 = MSG_GetUsedBitCount(msg);
     SV_PacketAnalyze_TrackPS_ObjectivesBits(v12);
-    if ( !memcmp(&from->hud, &to->hud, 0x1B20u) )
+    if ( !memcmp(&from->hud, &to->hud, sizeof(from->hud)) )
     {
         MSG_WriteBit0(msg);
     }
@@ -2561,13 +2577,13 @@ int __cdecl MSG_WriteDeltaHudElems_LastChangedField(
             break;
         }
     }
-    if ( (lc + 1 < 0 || lc + 1 >= numFields)
+    if ( (lc < -1 || lc >= numFields)
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\sv_msg_write.cpp",
                     3232,
                     0,
                     "%s\n\t(lc) = %i",
-                    "(lc+1 >= 0 && lc+1 < static_cast<int>( numFields ))",
+                    "(lc >= -1 && lc < static_cast<int>( numFields ))",
                     lc) )
     {
         __debugbreak();

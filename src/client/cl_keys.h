@@ -102,6 +102,7 @@ void __cdecl CL_HandleKeySpectatorInput(int localClientNum, int key);
 void __cdecl CL_CharEvent(int localClientNum, int key);
 void __cdecl CL_ConsoleCharEvent(int localClientNum, int key);
 void __cdecl Key_ClearStates(int localClientNum);
+const char *__cdecl CL_GetCommandFromKey(int localClientNum, const char *keyName);
 int __cdecl CL_GetKeyBinding(int localClientNum, const char *command, char (*keyNames)[128], int bindNum);
 int __cdecl CL_GetKeyBindingInternal(
                 int localClientNum,

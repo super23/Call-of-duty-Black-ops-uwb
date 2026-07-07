@@ -1,5 +1,6 @@
 #include "r_shade.h"
 #include "r_state.h"
+#include "r_singlethreaded_device_pc.h"
 #include "r_dvars.h"
 #include "rb_logfile.h"
 #include "rb_shade.h"
@@ -42,6 +43,7 @@ void __cdecl R_SetVertexShaderConstantFromCode_Old(GfxCmdBufContext context, con
     const float *v5; // [esp+34h] [ebp-24h]
     unsigned int dest; // [esp+38h] [ebp-20h]
     IDirect3DDevice9 *device; // [esp+3Ch] [ebp-1Ch]
+    int v8; // [esp+40h] [ebp-18h]
     int hr; // [esp+44h] [ebp-14h]
     GfxCmdBufContext source; // [esp+4Ch] [ebp-Ch] BYREF
     const float *data; // [esp+54h] [ebp-4h]
@@ -57,9 +59,13 @@ void __cdecl R_SetVertexShaderConstantFromCode_Old(GfxCmdBufContext context, con
         v5 = data;
         dest = routingData->dest;
         device = context.state->prim.device;
+        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint("device->SetVertexShaderConstantF( dest, data, rowCount )\n");
+        v8 = R_AcquireDXDeviceOwnership(0);
         hr = device->SetVertexShaderConstantF(dest, v5, rowCount);
+        if ( v8 )
+            R_ReleaseDXDeviceOwnership();
         if ( hr < 0 )
         {
             ++g_disableRendering;
@@ -179,7 +185,9 @@ void __cdecl R_SetVertexShaderConstantFromCode_New(
     //$26AC422158757CD6FC73CEC8E4188A45 *CodeConstant; // [esp+40h] [ebp-6Ch]
     unsigned int dest; // [esp+44h] [ebp-68h]
     IDirect3DDevice9 *device; // [esp+48h] [ebp-64h]
+    int v10; // [esp+4Ch] [ebp-60h]
     int v11; // [esp+50h] [ebp-5Ch]
+    int v16; // [esp+64h] [ebp-48h]
     int hr; // [esp+68h] [ebp-44h]
     unsigned int rowLoop; // [esp+70h] [ebp-3Ch]
     unsigned __int64 packed; // [esp+74h] [ebp-38h]
@@ -210,11 +218,15 @@ void __cdecl R_SetVertexShaderConstantFromCode_New(
             dest = routingData->dest;
             device = context.state->prim.device;
 
+            R_AssertDXDeviceOwnership();
 
             if (r_logFile && r_logFile->current.integer)
                 RB_LogPrint("device->SetVertexShaderConstantF( dest, data, rowCount )\n");
 
+            v10 = R_AcquireDXDeviceOwnership(0);
             v11 = device->SetVertexShaderConstantF(dest, data, rowCount);
+            if (v10)
+                R_ReleaseDXDeviceOwnership();
             if (v11 < 0)
             {
                 ++g_disableRendering;
@@ -264,9 +276,13 @@ void __cdecl R_SetVertexShaderConstantFromCode_New(
             data = R_GetCodeMatrix(context.source, index, routingData->u.codeConst.firstRow);
             dest = routingData->dest;
 
+            R_AssertDXDeviceOwnership();
             if (r_logFile && r_logFile->current.integer)
                 RB_LogPrint("device->SetVertexShaderConstantF( dest, data, rowCount )\n");
+            v16 = R_AcquireDXDeviceOwnership(0);
             hr = context.state->prim.device->SetVertexShaderConstantF(dest, data, rowCount);
+            if (v16)
+                R_ReleaseDXDeviceOwnership();
             if (hr < 0)
             {
                 ++g_disableRendering;
@@ -426,10 +442,13 @@ void __cdecl R_HW_SetPixelShaderConstant(
                 unsigned int rowCount)
 {
     const char *v4; // eax
+    int semaphore; // [esp+0h] [ebp-8h]
     int hr; // [esp+4h] [ebp-4h]
 
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetPixelShaderConstantF( dest, data, rowCount )\n");
+    semaphore = R_AcquireDXDeviceOwnership(0);
 
     hr = device->SetPixelShaderConstantF(dest, data, rowCount);
     //hr = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, unsigned int, const float *, unsigned int))device->SetPixelShaderConstantF)(
@@ -438,6 +457,8 @@ void __cdecl R_HW_SetPixelShaderConstant(
     //             dest,
     //             data,
     //             rowCount);
+    if ( semaphore )
+        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -763,6 +784,7 @@ void __cdecl R_SetVertexShaderConstantFromLiteral(GfxCmdBufState *state, unsigne
     const float *v6; // [esp+34h] [ebp-14h]
     unsigned int v7; // [esp+38h] [ebp-10h]
     IDirect3DDevice9 *device; // [esp+3Ch] [ebp-Ch]
+    int v9; // [esp+40h] [ebp-8h]
     int hr; // [esp+44h] [ebp-4h]
 
     if ( dest >= 0x100
@@ -782,9 +804,13 @@ void __cdecl R_SetVertexShaderConstantFromLiteral(GfxCmdBufState *state, unsigne
     v6 = literal;
     v7 = dest;
     device = state->prim.device;
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("device->SetVertexShaderConstantF( dest, data, rowCount )\n");
+    v9 = R_AcquireDXDeviceOwnership(0);
     hr = device->SetVertexShaderConstantF(dest, literal, 1u);
+    if ( v9 )
+        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;

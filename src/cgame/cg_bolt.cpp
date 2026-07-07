@@ -3,7 +3,11 @@
 #include "cg_spawn.h"
 #include <bgame/bg_misc.h>
 #include <bgame/bg_weapons_def.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
+#endif
 #include <xanim/xmodel_utils.h>
 #include <universal/com_math_anglevectors.h>
 

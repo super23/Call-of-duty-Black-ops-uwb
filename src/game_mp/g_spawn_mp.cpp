@@ -17,6 +17,7 @@
 #include <game/g_client_fields.h>
 #include <cgame/cg_hudelem.h>
 #include <bgame/bg_weapons_def.h>
+#include <game/g_vehicle_path.h>
 
 struct ent_field_t // sizeof=0x14
 {                                       // XREF: .rdata:fields_1/r
@@ -66,12 +67,15 @@ const SpawnFuncEntry s_bspOnlySpawns[15] =
   { "script_vehicle", SP_script_vehicle }
 };
 
-const SpawnFuncEntry s_bspOrDynamicSpawns[7] =
+// KISAK FIX (mp_area51 apple_damage_think): script Spawn("trigger_damage", ...) uses G_CallSpawnEntity, not BSP-only spawns.
+// Retail allows trigger_damage here; was missing (only in s_bspOnlySpawns). Revert: remove trigger_damage line and change [8] back to [7].
+const SpawnFuncEntry s_bspOrDynamicSpawns[8] =
 {
   { "info_notnull", SP_info_notnull },
   { "info_notnull_big", SP_info_notnull },
   { "trigger_radius", SP_trigger_radius },
   { "trigger_radius_use", SP_trigger_radius_use },
+  { "trigger_damage", SP_trigger_damage },
   { "script_model", SP_script_model },
   { "script_origin", SP_script_origin },
   { "script_vehicle_collmap", SP_script_vehicle_collmap }
@@ -80,44 +84,49 @@ const SpawnFuncEntry s_bspOrDynamicSpawns[7] =
 
 
 
+// Decomp: CoDMPServer.c:440355
 int __cdecl G_SpawnFloat(const SpawnVar *spawnVar, const char *key, const char *defaultString, float *out)
 {
-    int present; // [esp+0h] [ebp-8h]
-    const char *s; // [esp+4h] [ebp-4h] BYREF
+    int present;
+    const char *s;
 
     present = G_SpawnString(spawnVar, key, defaultString, &s);
     *out = atof(s);
     return present;
 }
 
+// Decomp: CoDMPServer.c:440366
 int __cdecl G_SpawnInt(const SpawnVar *spawnVar, const char *key, const char *defaultString, int *out)
 {
-    int present; // [esp+0h] [ebp-8h]
-    const char *s; // [esp+4h] [ebp-4h] BYREF
+    int present;
+    const char *s;
 
     present = G_SpawnString(spawnVar, key, defaultString, &s);
     *out = atoi(s);
     return present;
 }
 
+// Decomp: CoDMPServer.c:440377
 void __cdecl Scr_ReadOnlyField(gentity_s *ent, int)
 {
     Scr_Error("Tried to set a read only entity field", 0);
 }
 
+// Decomp: CoDMPServer.c:440383
 void __cdecl G_FreeEntityWrapper(gentity_s *ent, SpawnVar *v)
 {
     G_FreeEntity(ent);
 }
 
+// Decomp: CoDMPServer.c:440389
 unsigned int __cdecl G_SetEntityScriptVariableInternal(const char *key, char *value)
 {
-    int v3; // eax
-    const char *v4; // eax
-    float v5; // [esp+8h] [ebp-1Ch]
-    unsigned int index; // [esp+10h] [ebp-14h]
-    int type; // [esp+14h] [ebp-10h] BYREF
-    float vec[3]; // [esp+18h] [ebp-Ch] BYREF
+    int tmp3;
+    const char *fmtMsg;
+    float tmp5;
+    unsigned int index;
+    int type;
+    float vec[3];
 
     index = Scr_FindField(key, &type, SCRIPTINSTANCE_SERVER);
     if ( !index )
@@ -133,25 +142,26 @@ unsigned int __cdecl G_SetEntityScriptVariableInternal(const char *key, char *va
             Scr_AddVector(vec, SCRIPTINSTANCE_SERVER);
             break;
         case 5:
-            v5 = atof(value);
-            Scr_AddFloat(v5, SCRIPTINSTANCE_SERVER);
+            tmp5 = atof(value);
+            Scr_AddFloat(tmp5, SCRIPTINSTANCE_SERVER);
             break;
         case 6:
-            v3 = atoi(value);
-            Scr_AddInt(v3, SCRIPTINSTANCE_SERVER);
+            tmp3 = atoi(value);
+            Scr_AddInt(tmp3, SCRIPTINSTANCE_SERVER);
             break;
         default:
-            v4 = va("G_SetEntityScriptVariableInternal: bad case %d", type);
-            if ( !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp", 210, 0, v4) )
+            fmtMsg = va("G_SetEntityScriptVariableInternal: bad case %d", type);
+            if ( !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp", 210, 0, fmtMsg) )
                 __debugbreak();
             break;
     }
     return index;
 }
 
+// Decomp: CoDMPServer.c:440438
 void __cdecl G_ParseEntityFields(const SpawnVar *spawnVar, gentity_s *ent, int radiant_update)
 {
-    int i; // [esp+0h] [ebp-4h]
+    int i;
 
     if ( !spawnVar->spawnVarsValid
         && !Assert_MyHandler(
@@ -169,12 +179,13 @@ void __cdecl G_ParseEntityFields(const SpawnVar *spawnVar, gentity_s *ent, int r
     G_SetAngle(ent, ent->r.currentAngles);
 }
 
+// Decomp: CoDMPServer.c:440460
 void __cdecl G_ParseEntityField(const char *key, char *value, gentity_s *ent, int radiant_update)
 {
-    float v4; // [esp+0h] [ebp-20h]
-    const ent_field_t *f; // [esp+Ch] [ebp-14h]
-    float vec[3]; // [esp+10h] [ebp-10h] BYREF
-    int modelIndex; // [esp+1Ch] [ebp-4h]
+    float tmp4;
+    const ent_field_t *f;
+    float vec[3];
+    int modelIndex;
 
     for ( f = fields_1; ; ++f )
     {
@@ -192,8 +203,8 @@ void __cdecl G_ParseEntityField(const char *key, char *value, gentity_s *ent, in
             *(int *)((char *)&ent->s.number + f->ofs) = atoi(value);
             break;
         case F_FLOAT:
-            v4 = atof(value);
-            *(float *)((char *)&ent->s.number + f->ofs) = v4;
+            tmp4 = atof(value);
+            *(float *)((char *)&ent->s.number + f->ofs) = tmp4;
             break;
         case F_STRING:
             Scr_SetStringLiveUpdateSafe((unsigned __int16 *)((char *)ent + f->ofs), value, SCRIPTINSTANCE_SERVER);
@@ -236,21 +247,23 @@ void __cdecl G_ParseEntityField(const char *key, char *value, gentity_s *ent, in
     }
 }
 
+// Decomp: CoDMPServer.c:440533
 void __cdecl G_SetEntityScriptVariable(const char *key, char *value, gentity_s *ent)
 {
-    unsigned int index; // [esp+0h] [ebp-4h]
+    unsigned int index;
 
     index = G_SetEntityScriptVariableInternal(key, value);
     if ( index )
         GScr_SetDynamicEntityField(ent, index);
 }
 
+// Decomp: CoDMPServer.c:440543
 unsigned int __cdecl G_SpawnStruct(SpawnVar *spawnVar)
 {
-    unsigned int index; // [esp+0h] [ebp-10h]
-    int i; // [esp+4h] [ebp-Ch]
-    const char *scriptLabel; // [esp+8h] [ebp-8h] BYREF
-    unsigned int structId; // [esp+Ch] [ebp-4h]
+    unsigned int index;
+    int i;
+    const char *scriptLabel;
+    unsigned int structId;
 
     if ( !spawnVar->spawnVarsValid
         && !Assert_MyHandler(
@@ -286,11 +299,12 @@ unsigned int __cdecl G_SpawnStruct(SpawnVar *spawnVar)
     return structId;
 }
 
+// Decomp: CoDMPServer.c:440591
 void __cdecl G_DuplicateEntityFields(gentity_s *dest, const gentity_s *source)
 {
-    float *v2; // [esp+8h] [ebp-14h]
-    float *v3; // [esp+Ch] [ebp-10h]
-    const ent_field_t *f; // [esp+14h] [ebp-8h]
+    float *tmp2;
+    float *tmp3;
+    const ent_field_t *f;
 
     for ( f = fields_1; f->name; ++f )
     {
@@ -309,11 +323,11 @@ void __cdecl G_DuplicateEntityFields(gentity_s *dest, const gentity_s *source)
                     SCRIPTINSTANCE_SERVER);
                 break;
             case F_VECTOR:
-                v2 = (float *)((char *)&dest->s.number + f->ofs);
-                v3 = (float *)((char *)&source->s.number + f->ofs);
-                *v2 = *v3;
-                v2[1] = v3[1];
-                v2[2] = v3[2];
+                tmp2 = (float *)((char *)&dest->s.number + f->ofs);
+                tmp3 = (float *)((char *)&source->s.number + f->ofs);
+                *tmp2 = *tmp3;
+                tmp2[1] = tmp3[1];
+                tmp2[2] = tmp3[2];
                 break;
             case F_MODEL:
                 *(_WORD *)((char *)&dest->s.number + f->ofs) = *(_WORD *)((char *)&source->s.number + f->ofs);
@@ -324,6 +338,7 @@ void __cdecl G_DuplicateEntityFields(gentity_s *dest, const gentity_s *source)
     }
 }
 
+// Decomp: CoDMPServer.c:440634
 void __cdecl G_DuplicateScriptFields(gentity_s *dest, const gentity_s *source)
 {
     if ( dest->s.number != dest - g_entities
@@ -349,18 +364,19 @@ void __cdecl G_DuplicateScriptFields(gentity_s *dest, const gentity_s *source)
     Scr_CopyEntityNum(source->s.number, dest->s.number, 0, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDMPServer.c:440662
 bool __cdecl IsClientOnlyEntity(const SpawnVar *spawnVar)
 {
-    bool result; // al
-    char *out; // [esp+28h] [ebp-24h] BYREF
-    const char *modelName; // [esp+2Ch] [ebp-20h] BYREF
-    const char *clientSide; // [esp+30h] [ebp-1Ch] BYREF
-    DestructibleDef *ddef; // [esp+34h] [ebp-18h]
-    const char *destructibledefname; // [esp+38h] [ebp-14h] BYREF
-    bool bClientSide; // [esp+3Fh] [ebp-Dh]
-    const char *classname; // [esp+40h] [ebp-Ch] BYREF
-    unsigned int flags; // [esp+44h] [ebp-8h]
-    const char *spawnFlags; // [esp+48h] [ebp-4h] BYREF
+    bool result;
+    char *out;
+    const char *modelName;
+    const char *clientSide;
+    DestructibleDef *ddef;
+    const char *destructibledefname;
+    bool bClientSide;
+    const char *classname;
+    unsigned int flags;
+    const char *spawnFlags;
 
     G_SpawnString(spawnVar, "classname", "", &classname);
     G_SpawnString(spawnVar, "spawnflags", "", &spawnFlags);
@@ -391,10 +407,11 @@ LABEL_15:
     return 1;
 }
 
+// Decomp: CoDMPServer.c:440830
 void __cdecl G_SetupDestructible(gentity_s *ent, char *destructibleName)
 {
-    char szConfigString[1024]; // [esp+0h] [ebp-408h] BYREF
-    int iDestID; // [esp+404h] [ebp-4h]
+    char szConfigString[1024];
+    int iDestID;
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp", 533, 0, "%s", "ent") )
         __debugbreak();
@@ -428,9 +445,10 @@ void __cdecl G_SetupDestructible(gentity_s *ent, char *destructibleName)
     ent->s.lerp.eFlags |= 0x20000u;
 }
 
+// Decomp: CoDMPServer.c:440830
 void __cdecl G_SetupDestructible(gentity_s *ent, SpawnVar *spawnVar)
 {
-    const char *destructibleName; // [esp+0h] [ebp-4h] BYREF
+    const char *destructibleName;
 
     destructibleName = 0;
     G_SpawnString(spawnVar, "destructibledef", 0, &destructibleName);
@@ -438,13 +456,14 @@ void __cdecl G_SetupDestructible(gentity_s *ent, SpawnVar *spawnVar)
         G_SetupDestructible(ent, (char *)destructibleName);
 }
 
+// Decomp: CoDMPServer.c:440841
 void __cdecl G_CallSpawn(SpawnVar *spawnVar)
 {
-    const gitem_s *item; // [esp+8Ch] [ebp-14h]
-    void (__cdecl *spawnFunc)(gentity_s *, SpawnVar *); // [esp+90h] [ebp-10h]
-    const char *classname; // [esp+94h] [ebp-Ch] BYREF
-    gentity_s *ent; // [esp+98h] [ebp-8h]
-    int radiantLiveUpdate; // [esp+9Ch] [ebp-4h]
+    const gitem_s *item;
+    void (__cdecl *spawnFunc)(gentity_s *, SpawnVar *);
+    const char *classname;
+    gentity_s *ent;
+    int radiantLiveUpdate;
 
     if ( !spawnVar->spawnVarsValid
         && !Assert_MyHandler(
@@ -502,7 +521,7 @@ void __cdecl G_CallSpawn(SpawnVar *spawnVar)
                     }
                     else if ( strcmp("glass", classname) )
                     {
-                        spawnFunc = G_FindSpawnFunc(classname, s_bspOrDynamicSpawns, 7);
+                        spawnFunc = G_FindSpawnFunc(classname, s_bspOrDynamicSpawns, 8);
                         if ( !spawnFunc && level.spawnVar.spawnVarsValid )
                             spawnFunc = G_FindSpawnFunc(classname, s_bspOnlySpawns, 15);
                         if ( (char *)spawnFunc != (char *)G_FreeEntityWrapper )
@@ -526,7 +545,7 @@ void __cdecl G_CallSpawn(SpawnVar *spawnVar)
 
 const gitem_s *__cdecl G_GetItemForClassname(const char *classname)
 {
-    unsigned int weapIndex; // [esp+0h] [ebp-8h]
+    unsigned int weapIndex;
 
     if ( g_connectpaths->current.integer )
         return 0;
@@ -544,7 +563,7 @@ void (__cdecl *__cdecl G_FindSpawnFunc(
                 const SpawnFuncEntry *spawnFuncArray,
                 int spawnFuncCount))(gentity_s *, SpawnVar *)
 {
-    int spawnFuncIter; // [esp+14h] [ebp-4h]
+    int spawnFuncIter;
 
     for ( spawnFuncIter = 0; spawnFuncIter < spawnFuncCount; ++spawnFuncIter )
     {
@@ -554,11 +573,14 @@ void (__cdecl *__cdecl G_FindSpawnFunc(
     return 0;
 }
 
+// Decomp: CoDMPServer.c:440958
+// KISAK FIX: use SpawnVar* spawn callback (retail) and pass spawnVar=0 so SP_* reads extra spawn() args from script VM.
+// Revert: restore void (*spawnFunc)(gentity_s*) cast and ((void (*)(gentity_s*, unsigned int))spawnFunc)(ent, 0).
 int __cdecl G_CallSpawnEntity(gentity_s *ent)
 {
-    const gitem_s *item; // [esp+0h] [ebp-Ch]
-    void (__cdecl *spawnFunc)(gentity_s *); // [esp+4h] [ebp-8h]
-    char *classname; // [esp+8h] [ebp-4h]
+    const gitem_s *item;
+    void (__cdecl *spawnFunc)(gentity_s *, SpawnVar *);
+    char *classname;
 
     if ( level.spawnVar.spawnVarsValid
         && !Assert_MyHandler(
@@ -581,20 +603,20 @@ int __cdecl G_CallSpawnEntity(gentity_s *ent)
         }
         else
         {
-            spawnFunc = (void (__cdecl *)(gentity_s *))G_FindSpawnFunc(classname, s_bspOrDynamicSpawns, 7);
+            spawnFunc = G_FindSpawnFunc(classname, s_bspOrDynamicSpawns, 8);
             if ( spawnFunc )
             {
-                //if ( spawnFunc == G_FreeEntityWrapper
-                //    && !Assert_MyHandler(
-                //                "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp",
-                //                729,
-                //                0,
-                //                "%s",
-                //                "spawnFunc != G_FreeEntityWrapper") )
-                //{
-                //    __debugbreak();
-                //}
-                ((void (__cdecl *)(gentity_s *, unsigned int))spawnFunc)(ent, 0);
+                if ( spawnFunc == G_FreeEntityWrapper
+                    && !Assert_MyHandler(
+                                "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp",
+                                729,
+                                0,
+                                "%s",
+                                "spawnFunc != G_FreeEntityWrapper") )
+                {
+                    __debugbreak();
+                }
+                spawnFunc(ent, 0); // spawnVar null => SP_* uses Scr_GetFloat from script spawn() args
                 if ( !ent->r.inuse
                     && !Assert_MyHandler(
                                 "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp",
@@ -621,9 +643,10 @@ int __cdecl G_CallSpawnEntity(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:441031
 void __cdecl GScr_AddFieldsForEntity()
 {
-    const ent_field_t *f; // [esp+4h] [ebp-4h]
+    const ent_field_t *f;
 
     for ( f = fields_1; f->name; ++f )
     {
@@ -654,16 +677,18 @@ void __cdecl GScr_AddFieldsForEntity()
     GScr_AddFieldsForClient();
 }
 
+// Decomp: CoDMPServer.c:441067
 void __cdecl GScr_AddFieldsForRadiant()
 {
     Scr_AddFields("radiant", (char*)"txt", SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDMPServer.c:441074
 void __cdecl GScr_SetGenericField(unsigned __int8 *b, fieldtype_t type, int ofs, unsigned int whichbits)
 {
-    gentity_s *ent; // [esp+8h] [ebp-4h]
-    gentity_s *enta; // [esp+8h] [ebp-4h]
-    gentity_s *entb; // [esp+8h] [ebp-4h]
+    gentity_s *ent;
+    gentity_s *enta;
+    gentity_s *entb;
 
     switch ( type )
     {
@@ -697,10 +722,11 @@ void __cdecl GScr_SetGenericField(unsigned __int8 *b, fieldtype_t type, int ofs,
     }
 }
 
+// Decomp: CoDMPServer.c:441113
 int __cdecl Scr_SetObjectField(unsigned int classnum, unsigned int entnum, unsigned int offset)
 {
-    const char *v4; // eax
-    const char *v5; // eax
+    const char *fmtMsg;
+    const char *fmtMsg2;
 
     switch ( classnum )
     {
@@ -713,21 +739,21 @@ int __cdecl Scr_SetObjectField(unsigned int classnum, unsigned int entnum, unsig
             Scr_SetPathnodeField(entnum, offset);
             return 1;
         case 3u:
-            v4 = va("vehicle node is read-only");
-            Scr_Error(v4, 0);
+            GScr_SetVehicleNodeField(entnum, offset);
             return 1;
         default:
-            v5 = va("bad class num %u", classnum);
-            if ( !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp", 894, 0, v5) )
+            fmtMsg2 = va("bad class num %u", classnum);
+            if ( !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp", 894, 0, fmtMsg2) )
                 __debugbreak();
             return 1;
     }
 }
 
+// Decomp: CoDMPServer.c:441147
 int __cdecl Scr_SetEntityField(unsigned int entnum, unsigned int offset)
 {
-    const ent_field_t *f; // [esp+0h] [ebp-8h]
-    gentity_s *ent; // [esp+4h] [ebp-4h]
+    const ent_field_t *f;
+    gentity_s *ent;
 
     if ( entnum >= 0x400
         && !Assert_MyHandler(
@@ -803,9 +829,10 @@ int __cdecl Scr_SetEntityField(unsigned int entnum, unsigned int offset)
     }
 }
 
+// Decomp: CoDMPServer.c:441236
 void __cdecl Scr_GetEntityField(unsigned int entnum, unsigned int offset)
 {
-    gentity_s *ent; // [esp+4h] [ebp-4h]
+    gentity_s *ent;
 
     if ( entnum >= 0x400
         && !Assert_MyHandler(
@@ -859,12 +886,13 @@ void __cdecl Scr_GetEntityField(unsigned int entnum, unsigned int offset)
     }
 }
 
+// Decomp: CoDMPServer.c:441296
 void __cdecl GScr_GetGenericField(unsigned __int8 *b, fieldtype_t type, int ofs, unsigned int whichbits)
 {
-    gentity_s *v4; // eax
-    sentient_s *v5; // eax
-    unsigned int v6; // eax
-    unsigned int id; // [esp+4h] [ebp-4h]
+    gentity_s *tmp4;
+    sentient_s *tmp5;
+    unsigned int modelNameStr;
+    unsigned int id;
 
     switch ( type )
     {
@@ -875,8 +903,8 @@ void __cdecl GScr_GetGenericField(unsigned __int8 *b, fieldtype_t type, int ofs,
         case F_ENTHANDLE:
             if ( ((EntHandle *)&b[ofs])->isDefined() )
             {
-                v4 = ((EntHandle *)&b[ofs])->ent();
-                Scr_AddEntity(v4, SCRIPTINSTANCE_SERVER);
+                tmp4 = ((EntHandle *)&b[ofs])->ent();
+                Scr_AddEntity(tmp4, SCRIPTINSTANCE_SERVER);
             }
             break;
         case F_ACTOR:
@@ -890,8 +918,8 @@ void __cdecl GScr_GetGenericField(unsigned __int8 *b, fieldtype_t type, int ofs,
         case F_SENTIENTHANDLE:
             if ( ((SentientHandle *)&b[ofs])->isDefined() )
             {
-                v5 = ((SentientHandle *)&b[ofs])->sentient();
-                Scr_AddEntity(v5->ent, SCRIPTINSTANCE_SERVER);
+                tmp5 = ((SentientHandle *)&b[ofs])->sentient();
+                Scr_AddEntity(tmp5->ent, SCRIPTINSTANCE_SERVER);
             }
             break;
         case F_PATHNODE:
@@ -904,8 +932,8 @@ void __cdecl GScr_GetGenericField(unsigned __int8 *b, fieldtype_t type, int ofs,
                 Scr_AddObject(id, SCRIPTINSTANCE_SERVER);
             break;
         case F_MODEL:
-            v6 = G_ModelName(b[ofs]);
-            Scr_AddConstString(v6, SCRIPTINSTANCE_SERVER);
+            modelNameStr = G_ModelName(b[ofs]);
+            Scr_AddConstString(modelNameStr, SCRIPTINSTANCE_SERVER);
             break;
         default:
             Scr_GetGenericField(b, type, ofs, SCRIPTINSTANCE_SERVER, whichbits);
@@ -913,9 +941,10 @@ void __cdecl GScr_GetGenericField(unsigned __int8 *b, fieldtype_t type, int ofs,
     }
 }
 
+// Decomp: CoDMPServer.c:441351
 void __cdecl Scr_GetObjectField(unsigned int classnum, unsigned int entnum, unsigned int offset)
 {
-    const char *v3; // eax
+    const char *fmtMsg;
 
     switch ( classnum )
     {
@@ -932,17 +961,18 @@ void __cdecl Scr_GetObjectField(unsigned int classnum, unsigned int entnum, unsi
             GScr_GetVehicleNodeField(entnum, offset);
             break;
         default:
-            v3 = va("bad class num %u", classnum);
-            if ( !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp", 1023, 0, v3) )
+            fmtMsg = va("bad class num %u", classnum);
+            if ( !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp", 1023, 0, fmtMsg) )
                 __debugbreak();
             break;
     }
 }
 
+// Decomp: CoDMPServer.c:441383
 void __cdecl Scr_FreeEntityConstStrings(gentity_s *pEnt)
 {
-    const ent_field_t *f; // [esp+4h] [ebp-8h]
-    int i; // [esp+8h] [ebp-4h]
+    const ent_field_t *f;
+    int i;
 
     for ( f = fields_1; f->name; ++f )
     {
@@ -956,6 +986,7 @@ void __cdecl Scr_FreeEntityConstStrings(gentity_s *pEnt)
     }
 }
 
+// Decomp: CoDMPServer.c:441401
 void __cdecl Scr_FreeEntity(gentity_s *ent)
 {
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp", 1065, 0, "%s", "ent") )
@@ -986,6 +1017,7 @@ void __cdecl Scr_FreeEntity(gentity_s *ent)
     Scr_FreeEntityNum(ent->s.number, 0, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDMPServer.c:441443
 void __cdecl Scr_AddEntity(gentity_s *ent, scriptInstance_t inst)
 {
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp", 1076, 0, "%s", "ent") )
@@ -1015,18 +1047,19 @@ void __cdecl Scr_AddEntity(gentity_s *ent, scriptInstance_t inst)
     Scr_AddEntityNum(ent->s.number, 0, inst, 0);
 }
 
+// Decomp: CoDMPServer.c:441484
 gentity_s *__cdecl Scr_GetEntityAllowNull(unsigned int index, scriptInstance_t inst)
 {
-    scr_entref_t v3; // [esp+0h] [ebp-1Ch] BYREF
-    scr_entref_t v4; // [esp+Ah] [ebp-12h]
-    scr_entref_t entref; // [esp+10h] [ebp-Ch]
+    scr_entref_t tmp3;
+    scr_entref_t tmp4;
+    scr_entref_t entref;
 
     if ( !Scr_GetType(index, inst) )
         return 0;
-    //v4 = *Scr_GetEntityRef(&v3, index, inst);
-    v4 = Scr_GetEntityRef(index, inst);
-    entref = v4;
-    if ( v4.classnum )
+    //tmp4 = *Scr_GetEntityRef(&tmp3, index, inst);
+    tmp4 = Scr_GetEntityRef(index, inst);
+    entref = tmp4;
+    if ( tmp4.classnum )
         return 0;
     if ( entref.entnum >= 0x400u
         && !Assert_MyHandler(
@@ -1041,16 +1074,17 @@ gentity_s *__cdecl Scr_GetEntityAllowNull(unsigned int index, scriptInstance_t i
     return &g_entities[entref.entnum];
 }
 
+// Decomp: CoDMPServer.c:441519
 gentity_s *__cdecl Scr_GetEntity(unsigned int index)
 {
-    scr_entref_t v2; // [esp+0h] [ebp-18h] BYREF
-    scr_entref_t v3; // [esp+Ah] [ebp-Eh]
-    scr_entref_t entref; // [esp+10h] [ebp-8h]
+    scr_entref_t tmp2;
+    scr_entref_t tmp3;
+    scr_entref_t entref;
 
-    //v3 = *Scr_GetEntityRef(&v2, index, SCRIPTINSTANCE_SERVER);
-    v3 = Scr_GetEntityRef(index, SCRIPTINSTANCE_SERVER);
-    entref = v3;
-    if ( v3.classnum )
+    //tmp3 = *Scr_GetEntityRef(&tmp2, index, SCRIPTINSTANCE_SERVER);
+    tmp3 = Scr_GetEntityRef(index, SCRIPTINSTANCE_SERVER);
+    entref = tmp3;
+    if ( tmp3.classnum )
     {
         Scr_ParamError(index, "not an entity", SCRIPTINSTANCE_SERVER);
         return 0;
@@ -1071,6 +1105,7 @@ gentity_s *__cdecl Scr_GetEntity(unsigned int index)
     }
 }
 
+// Decomp: CoDMPServer.c:441558
 void __cdecl Scr_FreeHudElem(game_hudelem_s *hud)
 {
     if ( !hud && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp", 1137, 0, "%s", "hud") )
@@ -1101,6 +1136,7 @@ void __cdecl Scr_FreeHudElem(game_hudelem_s *hud)
     Scr_FreeEntityNum(hud - g_hudelems, 1u, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDMPServer.c:441600
 void __cdecl Scr_AddHudElem(game_hudelem_s *hud)
 {
     if ( !hud && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp", 1158, 0, "%s", "hud") )
@@ -1129,6 +1165,7 @@ void __cdecl Scr_AddHudElem(game_hudelem_s *hud)
     Scr_AddEntityNum(hud - g_hudelems, 1u, SCRIPTINSTANCE_SERVER, 0);
 }
 
+// Decomp: CoDMPServer.c:441640
 unsigned __int16 __cdecl Scr_ExecEntThread(gentity_s *ent, int handle, unsigned int paramcount)
 {
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp", 1193, 0, "%s", "ent") )
@@ -1155,27 +1192,30 @@ unsigned __int16 __cdecl Scr_ExecEntThread(gentity_s *ent, int handle, unsigned 
     {
         __debugbreak();
     }
+    if ( !handle )
+        return 0;
     return Scr_ExecEntThreadNum(SCRIPTINSTANCE_SERVER, ent->s.number, 0, handle, paramcount, 0);
 }
 
+// Decomp: CoDMPServer.c:441681
 void __cdecl Scr_Notify(gentity_s *ent, unsigned __int16 stringValue, unsigned int paramcount)
 {
-    char *v3; // eax
-    const char *v4; // eax
+    char *slStr;
+    const char *fmtMsg;
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp", 1223, 0, "%s", "ent") )
         __debugbreak();
     if ( ent->s.number != ent - g_entities )
     {
-        v3 = SL_ConvertToString(stringValue, SCRIPTINSTANCE_SERVER);
-        v4 = va("s.number = %i, index = %i, stringValue = %s", ent->s.number, ent - g_entities, v3);
+        slStr = SL_ConvertToString(stringValue, SCRIPTINSTANCE_SERVER);
+        fmtMsg = va("s.number = %i, index = %i, stringValue = %s", ent->s.number, ent - g_entities, slStr);
         if ( !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_spawn_mp.cpp",
                         1224,
                         0,
                         "%s\n\t%s",
                         "ent->s.number == ent - g_entities",
-                        v4) )
+                        fmtMsg) )
             __debugbreak();
     }
     if ( !ent->r.inuse
@@ -1192,15 +1232,16 @@ void __cdecl Scr_Notify(gentity_s *ent, unsigned __int16 stringValue, unsigned i
     Scr_NotifyNum(ent->s.number, 0, stringValue, paramcount);
 }
 
+// Decomp: CoDMPServer.c:441727
 void __cdecl Scr_GetEnt()
 {
-    gentity_s *result; // [esp+0h] [ebp-24h]
-    unsigned __int16 name; // [esp+8h] [ebp-1Ch]
-    int offset; // [esp+Ch] [ebp-18h]
-    char *key; // [esp+10h] [ebp-14h]
-    gentity_s *ent; // [esp+18h] [ebp-Ch]
-    int i; // [esp+1Ch] [ebp-8h]
-    unsigned __int16 value; // [esp+20h] [ebp-4h]
+    gentity_s *result;
+    unsigned __int16 name;
+    int offset;
+    char *key;
+    gentity_s *ent;
+    int i;
+    unsigned __int16 value;
 
     name = (unsigned __int16)Scr_GetConstString(0, SCRIPTINSTANCE_SERVER);
     key = Scr_GetString(1u, SCRIPTINSTANCE_SERVER);
@@ -1246,16 +1287,17 @@ void __cdecl Scr_GetEnt()
     }
 }
 
+// Decomp: CoDMPServer.c:441785
 void __cdecl Scr_GetEntArray()
 {
-    unsigned __int16 name; // [esp+4h] [ebp-1Ch]
-    int offset; // [esp+8h] [ebp-18h]
-    char *key; // [esp+Ch] [ebp-14h]
-    gentity_s *ent; // [esp+14h] [ebp-Ch]
-    gentity_s *enta; // [esp+14h] [ebp-Ch]
-    int i; // [esp+18h] [ebp-8h]
-    int ia; // [esp+18h] [ebp-8h]
-    unsigned __int16 value; // [esp+1Ch] [ebp-4h]
+    unsigned __int16 name;
+    int offset;
+    char *key;
+    gentity_s *ent;
+    gentity_s *enta;
+    int i;
+    int ia;
+    unsigned __int16 value;
 
     if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) )
     {
@@ -1317,18 +1359,20 @@ void __cdecl Scr_GetEntArray()
     }
 }
 
+// Decomp: CoDMPServer.c:441860
 void __cdecl GScr_SetDynamicEntityField(gentity_s *ent, unsigned int index)
 {
     Scr_SetDynamicEntityField(ent->s.number, 0, index, SCRIPTINSTANCE_SERVER, 0);
 }
 
+// Decomp: CoDMPServer.c:441866
 void __cdecl SP_worldspawn(SpawnVar *spawnVar)
 {
-    char *v1; // eax
-    float v2; // [esp+4h] [ebp-14h]
-    float value; // [esp+8h] [ebp-10h]
-    float v4; // [esp+10h] [ebp-8h]
-    const char *s; // [esp+14h] [ebp-4h] BYREF
+    char *fmtMsg;
+    float tmp2;
+    float value;
+    float tmp4;
+    const char *s;
 
     G_SpawnString(spawnVar, "classname", "", &s);
     if ( I_stricmp(s, "worldspawn") )
@@ -1337,8 +1381,8 @@ void __cdecl SP_worldspawn(SpawnVar *spawnVar)
     G_SpawnString(spawnVar, "ambienttrack", "", &s);
     if ( *s )
     {
-        v1 = va("n\\%s", s);
-        SV_SetConfigstring(1547, v1);
+        fmtMsg = va("n\\%s", s);
+        SV_SetConfigstring(1547, fmtMsg);
     }
     else
     {
@@ -1359,10 +1403,10 @@ void __cdecl SP_worldspawn(SpawnVar *spawnVar)
     if ( *s )
     {
         SV_SetConfigstring(1548, (char *)s);
-        v2 = atof(s);
-        v4 = v2 * 0.017453292;
-        level.compassNorth[0] = cos(v4);
-        level.compassNorth[1] = sin(v4);
+        tmp2 = atof(s);
+        tmp4 = tmp2 * 0.017453292;
+        level.compassNorth[0] = cos(tmp4);
+        level.compassNorth[1] = sin(tmp4);
     }
     else
     {
@@ -1387,6 +1431,7 @@ void __cdecl SP_worldspawn(SpawnVar *spawnVar)
     }
 }
 
+// Decomp: CoDMPServer.c:441939
 void __cdecl G_SpawnEntitiesFromString()
 {
     if ( !G_ParseSpawnVars(&level.spawnVar) )
@@ -1397,10 +1442,11 @@ void __cdecl G_SpawnEntitiesFromString()
     G_ResetEntityParsePoint();
 }
 
+// Decomp: CoDMPServer.c:441950
 void __cdecl G_LoadStructs()
 {
-    unsigned __int16 hThread; // [esp+14h] [ebp-8h]
-    const char *classname; // [esp+18h] [ebp-4h] BYREF
+    unsigned __int16 hThread;
+    const char *classname;
 
     if ( !g_scr_data.initstructs
         && !Assert_MyHandler(

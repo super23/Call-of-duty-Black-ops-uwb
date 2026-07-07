@@ -440,8 +440,18 @@ void __cdecl SND_EqualPowerFadeCoefs(float t, float *a, float *b)
 
     float angle = t * (3.1415927f / 2.0f);
 
-    *a = cos(angle);
-    *b = sin(angle);
+    *a = cosf(angle);
+    *b = sinf(angle);
+
+    if (*a < 0.0f)
+        *a = 0.0f;
+    else if (*a > 1.0f)
+        *a = 1.0f;
+
+    if (*b < 0.0f)
+        *b = 0.0f;
+    else if (*b > 1.0f)
+        *b = 1.0f;
 
     iassert(!IS_NAN(*a));
     iassert(!IS_NAN(*b));

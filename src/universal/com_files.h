@@ -244,6 +244,8 @@ unsigned int __cdecl FS_FOpenFileByMode(char *qpath, int *f, fsMode_t mode);
 unsigned int __cdecl FS_FTell(int f);
 void __cdecl FS_Flush(int f);
 void __cdecl Com_GetBspFilename(char *filename, unsigned int size, const char *mapname);
+bool __cdecl Com_IsBspMapPath(const char *name);
+void __cdecl Com_StripMapBaseFromBspPath(const char *bspPath, char *mapBase, unsigned int size);
 
 extern int fs_numServerReferencedIwds;
 extern const char *fs_serverIwdNames[1024];

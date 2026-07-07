@@ -9,3 +9,5 @@ char __cdecl CL_AnyLocalClientChallenging();
 void __cdecl CL_LocalClients_SetAllUsedActive();
 int __cdecl CL_LocalActiveIndexFromClientNum(int localClientNum);
 const char *__cdecl CL_ControllerIndex_GetUsername();
+char __cdecl CL_IsSplitScreen();
+char __cdecl CL_IsRenderingSplitScreen();

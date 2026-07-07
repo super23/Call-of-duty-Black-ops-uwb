@@ -1,9 +1,9 @@
 #include "g_mover.h"
-#include <game_mp/g_main_mp.h>
-#include <game_mp/g_utils_mp.h>
+#include <game/g_main_wrapper.h>
+#include <game/g_utils_wrapper.h>
 #include <server/sv_world.h>
 #include <qcommon/cm_world.h>
-#include <game_mp/g_spawn_mp.h>
+#include <game/g_spawn_wrapper.h>
 #include <clientscript/scr_const.h>
 #include <physics/physpreset_load_obj.h>
 #include <universal/com_math_anglevectors.h>
@@ -13,7 +13,15 @@
 #include <bgame/bg_misc.h>
 #include <server/sv_game.h>
 #include "g_load_utils.h"
+#ifdef KISAK_SP
+#include <game/g_animscripted.h>
+#include <cgame/cg_event.h>
+#endif
+#ifdef KISAK_SP
+#include <server_sp/sv_init_sp.h>
+#else
 #include <server_mp/sv_init_mp.h>
+#endif
 #include <clientscript/cscr_vm.h>
 #include <glass/glass_server.h>
 #include <cgame/cg_event.h>
@@ -794,8 +802,7 @@ void __cdecl G_MoverTeam_New(gentity_s *ent)
                 mover_info = create_mover_info(ent);
             BG_EvaluateTrajectory(&ent->s.lerp.pos, level.time, origin);
             BG_EvaluateTrajectory(&ent->s.lerp.apos, level.time, angles);
-            //mover_info_t::init(mover_info, origin, angles, ent->r.currentOrigin, ent->r.currentAngles, 1);
-            mover_info->init(origin, angles, ent->r.currentAngles, ent->r.currentAngles, true);
+            mover_info->init(origin, angles, ent->r.currentOrigin, ent->r.currentAngles, true);
             G_MoverTeam(ent, mover_info);
         }
     }
@@ -881,9 +888,40 @@ void __thiscall mover_info_t::update(float *origin, const float *angles)
 
 void __cdecl G_RunMover(gentity_s *ent)
 {
-    float *v1; // [esp+4h] [ebp-4h]
-    int savedregs; // [esp+8h] [ebp+0h] BYREF
+    float *v1;
+#ifdef KISAK_SP
+    if ( ent->scripted )
+    {
+        trajectory_t *pos;
+        bool isRagdoll;
 
+        G_Animscripted_Think(ent);
+        pos = &ent->s.lerp.pos;
+        isRagdoll = Com_IsRagdollTrajectory(pos);
+        G_SetOrigin(ent, ent->r.currentOrigin);
+        G_SetAngle(ent, ent->r.currentAngles);
+        SV_LinkEntity(ent);
+
+        if ( ent->scripted )
+        {
+            pos->trType = TR_INTERPOLATE;
+            ent->s.lerp.apos.trType = TR_INTERPOLATE;
+            G_RunThink(ent);
+            if ( isRagdoll )
+            {
+                pos->trType = TR_FIRST_RAGDOLL;
+                ent->s.lerp.apos.trType = TR_FIRST_RAGDOLL;
+            }
+            return;
+        }
+
+        if ( isRagdoll )
+        {
+            pos->trType = TR_FIRST_RAGDOLL;
+            ent->s.lerp.apos.trType = TR_FIRST_RAGDOLL;
+        }
+    }
+#endif
     if ( ent->tagInfo )
     {
         if ( !zombietron->current.enabled || ent->s.lerp.apos.trType == 1 )

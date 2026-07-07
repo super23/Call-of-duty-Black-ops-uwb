@@ -1,50 +1,56 @@
 #pragma once
+
 #include <gfx_d3d/r_material.h>
 #include <gfx_d3d/fxprimitives.h>
 
-struct GlassState // sizeof=0x4
-{                                       // XREF: GlassClient/r
-
-    enum State : __int32
-    {                                       // XREF: ?SetState@GlassServer@@QAEXW4State@GlassState@@QBM1@Z/r
-        PRISTINE  = 0x0,
-        CRACKED   = 0x1,
-        SHATTERED = 0x2,
-        INVALID   = 0x3,
+// Packed pane state: 4-bit GlassState::State plus 12-bit pane id (see GlassServer snapshot writes).
+struct GlassState
+{
+    enum State : int
+    {
+        PRISTINE = 0,
+        CRACKED = 1,
+        SHATTERED = 2,
+        INVALID = 3,
     };
-    //GlassState::<unnamed_type_val> val;
-    union //GlassState::<unnamed_type_val> // sizeof=0x4
-    {                                       // XREF: GlassState/r
+
+    union
+    {
         unsigned int i;
-        //$01920CFBCEBBC7D8417C03082B059610 __s1;
         struct
         {
-            unsigned __int32 state : 4;
-            unsigned __int32 id : 12;
+            unsigned int state : 4;
+            unsigned int id : 12;
         };
     } val;
 };
 
-struct GlassDef // sizeof=0x3C
-{                                       // XREF: GlassDefLoad/r
+static_assert(sizeof(GlassState) == 4);
+
+// Glass material / shard parameters (fastfile asset, 60 bytes).
+struct GlassDef
+{
     const char *name;
     int maxHealth;
     float thickness;
     float minShardSize;
     float maxShardSize;
-    float shardLifeProbablility;
+    float shardLifeProbablility; // retail asset key spelling
     int maxShards;
     Material *pristineMaterial;
     Material *crackedMaterial;
     Material *shardMaterial;
     const char *crackSound;
-    const char *shatterShound;
-    const char *autoShatterShound;
+    const char *shatterShound;     // retail asset key spelling
+    const char *autoShatterShound; // retail asset key spelling
     const FxEffectDef *crackEffect;
     const FxEffectDef *shatterEffect;
 };
 
-const struct Glass // sizeof=0x7C
+static_assert(sizeof(GlassDef) == 0x3C);
+
+// One placed breakable pane in a map (read-only glasses asset, 124 bytes).
+struct Glass
 {
     GlassDef *glassDef;
     unsigned int index;
@@ -54,9 +60,8 @@ const struct Glass // sizeof=0x7C
     float absmin[3];
     float absmax[3];
     bool isPlanar;
-    unsigned __int8 numOutlineVerts;
-    // padding byte
-    // padding byte
+    char numOutlineVerts;
+    char pad[2];
     float (*outline)[2];
     float outlineAxis[3][3];
     float outlineOrigin[3];
@@ -64,11 +69,14 @@ const struct Glass // sizeof=0x7C
     float thickness;
 };
 
-struct Glasses // sizeof=0x38
-{                                       // XREF: .data:glasses/r
-    const char *name;                   // XREF: GetGlasses_LoadObj(void)+4A/w
-    unsigned int numGlasses;            // XREF: GetGlasses_LoadObj(void)+40/w
-    Glass *glasses;                     // XREF: GetGlasses_LoadObj(void)+3A/w
+static_assert(sizeof(Glass) == 0x7C);
+
+// Glasses asset: pane array plus client work-memory and renderer limits.
+struct Glasses
+{
+    const char *name;
+    unsigned int numGlasses;
+    Glass *glasses;
     unsigned __int8 *workMemory;
     unsigned int workMemorySize;
     unsigned int smallAllocatorBlocks;
@@ -82,15 +90,13 @@ struct Glasses // sizeof=0x38
     unsigned int numIndices;
 };
 
-struct __declspec(align(8)) GlassTimer // sizeof=0x10
-{                                       // XREF: ?Triangulate@Triangles@GlassShard@@QAE_NXZ/r
-                                        // ?Shatter@GlassShard@@QAEHQAPAU1@H@Z/r ...
-    unsigned __int64 start;             // XREF: ShardGroup::GenerateVerts(bool,int)+2F5/w
-                                        // ShardGroup::GenerateVerts(bool,int)+2F8/w ...
-    unsigned __int64 *counter;          // XREF: ShardGroup::GenerateVerts(bool,int)+2ED/w
-                                        // ShardGroup::GenerateVerts(bool,int)+426/r ...
-    // padding byte
-    // padding byte
-    // padding byte
-    // padding byte
+static_assert(sizeof(Glasses) == 0x38);
+
+// Scoped PC-tick accumulator for renderer profiling (split / triangulate / gen-verts stats).
+struct __declspec(align(8)) GlassTimer
+{
+    unsigned __int64 start;
+    unsigned __int64 *counter;
 };
+
+static_assert(sizeof(GlassTimer) == 0x10);

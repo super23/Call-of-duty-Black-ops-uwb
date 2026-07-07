@@ -2,14 +2,25 @@
 
 #include "cg_weapons.h"
 #include <bgame/bg_local.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#include <cgame_sp/cg_ents_sp.h>
+#include <cgame_sp/cg_main_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <cgame_sp/cg_view_sp.h>
+#include <cgame_sp/cg_vehicles_sp.h>
+#include <game/g_main.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
 #include <cgame_mp/cg_ents_mp.h>
-#include "cg_main.h"
 #include <cgame_mp/cg_main_mp.h>
 #include <client_mp/cl_cgame_mp.h>
-#include <qcommon/common.h>
 #include <cgame_mp/cg_view_mp.h>
 #include <cgame_mp/cg_vehicles_mp.h>
+#include <game_mp/g_main_mp.h>
+#endif
+#include "cg_main.h"
+#include <qcommon/common.h>
 #include <vehicle/nitrous_vehicle.h>
 #include <client/cl_keys.h>
 #include <bgame/bg_misc.h>
@@ -17,10 +28,10 @@
 #include <clientscript/scr_const.h>
 #include <bgame/bg_weapons_def.h>
 #include "cg_local.h"
+#include "cg_vehicle.h"
 #include <win32/win_shared.h>
 #include <demo/demo_playback.h>
 #include <qcommon/dobj_management.h>
-#include <game_mp/g_main_mp.h>
 #include <universal/com_math_anglevectors.h>
 #include <bgame/bg_pmove.h>
 #include <bgame/bg_slidemove.h>
@@ -369,11 +380,10 @@ void __cdecl CG_UpdateCameraTransition(int localClientNum, CameraMode oldMode, C
     }
     else if ( oldMode == CAM_MISSILE && !cgameGlob->cameraData.missileWasKillCam )
     {
-        v4 = ps->viewangles;
-        v5 = cgameGlob->cameraData.missileViewAngles;
-        ps->viewangles[0] = cgameGlob->cameraData.missileViewAngles[0];
-        v4[1] = v5[1];
-        v4[2] = v5[2];
+        // BlackOpsMP.retail.c:CG_UpdateCameraTransition CAM_MISSILE exit resyncs client
+        // viewangles via ps.viewangles - delta_angles (CL_SetViewAngles). Restoring stale
+        // missileViewAngles into ps while delta_angles still reflect in-flight steering
+        // softlocks mouse look after UnlinkGuidedMissileCamera (loc_51EDD0).
         v10 = ps->viewangles[0] - ps->delta_angles[0];
         v11 = ps->viewangles[1] - ps->delta_angles[1];
         v12 = ps->viewangles[2] - ps->delta_angles[2];
@@ -557,7 +567,17 @@ int __cdecl CG_RemapVehicleButton(int localClientNum, int *twokeys, int button)
 
 bool __cdecl CG_RenderPlayerFromMissilePOV(int localClientNum)
 {
-    return (CG_GetLocalClientGlobals(localClientNum)->predictedPlayerState.eFlags2 & 0x40000) != 0;
+    const playerState_s *ps;
+
+    ps = &CG_GetLocalClientGlobals(localClientNum)->predictedPlayerState;
+    // BlackOpsMP.retail.c:285851 sub_4E2640 — post-unlink static cam until UnlinkGuidedMissileCamera.
+    if ( CG_IsInGuidedMissileStatic(ps) )
+        return true;
+    // Active TV guided flight only: eFlags2 0x40000 (LinkGuidedMissileCamera) + live viewlock.
+    // Do NOT use CG_IsInGuidedMissile (sub_51F9C0) here — it is true for full ADS overlay
+    // before the missile is fired (fWeaponPosFrac >= 0.95, viewlocked 1023), which wrongly
+    // selects CAM_MISSILE and skips CG_OffsetFirstPersonView (ground-level ADS view).
+    return (ps->eFlags2 & 0x40000) != 0 && ps->viewlocked_entNum != 1023;
 }
 
 bool __cdecl CG_ExtraCamViewActive(int localClientNum)
@@ -679,6 +699,19 @@ CameraMode __cdecl CG_UpdateCameraMode(int localClientNum)
     }
     if ( !bSkipTransition && ShouldDoCameraTransition(cgameGlob, prevMode, newMode, 0) )
         CG_UpdateCameraTransition(localClientNum, prevMode, newMode, 0);
+    if ( prevMode != newMode
+        && !cgameGlob->inKillCam
+        && newMode == CAM_NORMAL
+        && prevMode == CAM_MISSILE
+        && (cgameGlob->predictedPlayerState.otherFlags & 2) == 0 )
+    {
+        float temp[3];
+
+        temp[0] = cgameGlob->predictedPlayerState.viewangles[0] - cgameGlob->predictedPlayerState.delta_angles[0];
+        temp[1] = cgameGlob->predictedPlayerState.viewangles[1] - cgameGlob->predictedPlayerState.delta_angles[1];
+        temp[2] = cgameGlob->predictedPlayerState.viewangles[2] - cgameGlob->predictedPlayerState.delta_angles[2];
+        CL_SetViewAngles(localClientNum, temp);
+    }
     if ( prevMode != newMode )
         CG_UpdateVehicleInitView(localClientNum, newMode);
     if ( cgameGlob->vehicleInitView )
@@ -1071,242 +1104,245 @@ float swayViewAngles[1][3];
 float swayOffset[1][3];
 float swayAngles[1][3];
 float crouchOfs[3] = { 0.0, 0.0, 53.0 };
-bool gVehicleRelativeGunnerAngles = true;
 
+// T5 retail: CoDMPServer.c:175163 / BlackOpsMP.retail.c:sub_5C0980 (~438827).
+// Chopper Gunner (CAM_VEHICLE_GUNNER): vieworg + refdefViewAngles from tag_gunner_barrelN,
+// ADS offset via BG_CalcVehicleTurretWeaponPosOffset, vehicle-delta influence on ps->viewangles
+// only (refdefViewAngles stay barrel-aligned). Called from cg_view_mp.cpp before CG_UpdateCameraTween.
 void __cdecl CG_OffsetVehicleGunner(int localClientNum, cg_s *cgameGlob)
 {
-    int WeaponIndexForName; // eax
-    double v3; // st7
-    double v4; // st7
-    double v5; // st7
-    float *v6; // [esp+20h] [ebp-254h]
-    float *v7; // [esp+24h] [ebp-250h]
-    float v8; // [esp+2Ch] [ebp-248h]
-    float v9; // [esp+38h] [ebp-23Ch]
-    float v10; // [esp+74h] [ebp-200h]
-    float v11; // [esp+80h] [ebp-1F4h]
-    float v12; // [esp+88h] [ebp-1ECh]
-    float v13; // [esp+8Ch] [ebp-1E8h]
-    float *v14; // [esp+90h] [ebp-1E4h]
-    float *viewangles; // [esp+94h] [ebp-1E0h]
-    float out[9]; // [esp+B8h] [ebp-1BCh] BYREF
-    float playerAngles[3]; // [esp+DCh] [ebp-198h] BYREF
-    float mtx[3][3]; // [esp+E8h] [ebp-18Ch] BYREF
-    float vehiclePitchInfluence; // [esp+10Ch] [ebp-168h]
-    float asdf[3]; // [esp+110h] [ebp-164h]
-    float viewAxis[3][3]; // [esp+11Ch] [ebp-158h] BYREF
-    float temp[3]; // [esp+140h] [ebp-134h] BYREF
-    float vehicleYawInfluence; // [esp+14Ch] [ebp-128h]
-    float deltaAxis[3][3]; // [esp+150h] [ebp-124h] BYREF
-    float tagMtx2[4][3]; // [esp+174h] [ebp-100h] BYREF
-    float vehicleRollInfluence; // [esp+1A4h] [ebp-D0h]
-    float v27; // [esp+1A8h] [ebp-CCh]
-    float fc; // [esp+1ACh] [ebp-C8h]
-    float crouchPos[3]; // [esp+1B0h] [ebp-C4h] BYREF
-    float f; // [esp+1BCh] [ebp-B8h]
-    float tagCrouchMtx[4][3]; // [esp+1C0h] [ebp-B4h] BYREF
-    DObj *obj; // [esp+1F0h] [ebp-84h]
-    vehicle_info_t *info; // [esp+1F4h] [ebp-80h]
-    int weapon; // [esp+1F8h] [ebp-7Ch]
-    int gunnerIndex; // [esp+1FCh] [ebp-78h]
-    unsigned __int16 *gunnerViewCrouchTags[4]; // [esp+200h] [ebp-74h]
-    float viewPos[3]; // [esp+210h] [ebp-64h]
-    float offset[3]; // [esp+21Ch] [ebp-58h] BYREF
-    centity_s *vehicle; // [esp+228h] [ebp-4Ch]
-    playerState_s *ps; // [esp+22Ch] [ebp-48h]
-    float tagMtx[4][3]; // [esp+230h] [ebp-44h] BYREF
-    const WeaponDef *weapDef; // [esp+260h] [ebp-14h]
-    unsigned __int16 *gunnerViewTags[4]; // [esp+264h] [ebp-10h]
+    unsigned __int16 *gunnerBarrelTags[4];
+    unsigned __int16 *gunnerCrouchTags[4];
+    playerState_s *ps;
+    centity_s *vehicle;
+    DObj *obj;
+    int gunnerIndex;
+    vehicle_info_t *info;
+    int weaponIndex;
+    const WeaponDef *weapDef;
+    float barrelTagMtx[4][3];
+    float viewPos[3];
+    float adsOffset[3];
+    float crouchTagMtx[4][3];
+    float crouchPos[3];
+    float vehiclePoseMtx[4][3];
+    float vehicleDeltaAxis[3][3];
+    float vehicleDeltaTranspose[3][3];
+    float barrelViewAngles[3];
+    float barrelViewAxis[3][3];
+    float vehicleCorrectedAxis[3][3];
+    float vehicleCorrectedAngles[3];
+    float vehiclePitchInfluence;
+    float vehicleYawInfluence;
+    float barrelPitch;
+    float barrelYaw;
+    float pitchAngleDelta;
+    float yawAngleDelta;
+    float clientViewAngles[3];
+    float leanBlend;
+    float leanSinAngle;
 
-    gunnerViewTags[0] = &scr_const.tag_gunner_barrel1;
-    gunnerViewTags[1] = &scr_const.tag_gunner_barrel2;
-    gunnerViewTags[2] = &scr_const.tag_gunner_barrel3;
-    gunnerViewTags[3] = &scr_const.tag_gunner_barrel4;
-    gunnerViewCrouchTags[0] = &scr_const.tag_gunner1;
-    gunnerViewCrouchTags[1] = &scr_const.tag_gunner2;
-    gunnerViewCrouchTags[2] = &scr_const.tag_gunner3;
-    gunnerViewCrouchTags[3] = &scr_const.tag_gunner4;
+    gunnerBarrelTags[0] = &scr_const.tag_gunner_barrel1;
+    gunnerBarrelTags[1] = &scr_const.tag_gunner_barrel2;
+    gunnerBarrelTags[2] = &scr_const.tag_gunner_barrel3;
+    gunnerBarrelTags[3] = &scr_const.tag_gunner_barrel4;
+    gunnerCrouchTags[0] = &scr_const.tag_gunner1;
+    gunnerCrouchTags[1] = &scr_const.tag_gunner2;
+    gunnerCrouchTags[2] = &scr_const.tag_gunner3;
+    gunnerCrouchTags[3] = &scr_const.tag_gunner4;
+
     ps = &cgameGlob->predictedPlayerState;
-    vehicle = CG_GetEntity(localClientNum, cgameGlob->predictedPlayerState.viewlocked_entNum);
+    vehicle = CG_GetEntity(localClientNum, ps->viewlocked_entNum);
     obj = Com_GetClientDObj(vehicle->nextState.number, localClientNum);
-    if (obj)
+    if (!obj)
+        return;
+
+    gunnerIndex = ps->vehiclePos - 1;
+    if (!CG_DObjGetWorldTagMatrix(&vehicle->pose, obj, *gunnerBarrelTags[gunnerIndex], barrelTagMtx, barrelTagMtx[3]))
+        return;
+
+    info = (vehicle_info_t *)CG_GetVehicleInfo(vehicle->nextState.vehicleState.vehicleInfoIndex);
+    weaponIndex = info->gunnerWeaponIndex[gunnerIndex];
+    if (!weaponIndex)
     {
-        gunnerIndex = ps->vehiclePos - 1;
-        if (CG_DObjGetWorldTagMatrix(&vehicle->pose, obj, *gunnerViewTags[gunnerIndex], tagMtx, tagMtx[3]))
+        const int resolvedWeapon = CG_GetWeaponIndexForName(info->gunnerWeapon[gunnerIndex]);
+        AssignToSmallerType<unsigned short>(&info->gunnerWeaponIndex[gunnerIndex], resolvedWeapon);
+        weaponIndex = info->gunnerWeaponIndex[gunnerIndex];
+    }
+
+    weapDef = BG_GetWeaponDef(weaponIndex);
+    if (!weapDef)
+        return;
+
+    viewPos[0] = barrelTagMtx[3][0];
+    viewPos[1] = barrelTagMtx[3][1];
+    viewPos[2] = barrelTagMtx[3][2];
+    // ADS: shift vieworg along barrel tag axes (angles unchanged here — retail CoDMPServer.c:175289-175292).
+    BG_CalcVehicleTurretWeaponPosOffset(ps->fWeaponPosFrac, weapDef, adsOffset);
+    viewPos[0] = adsOffset[2] * barrelTagMtx[2][0]
+        + (adsOffset[1] * barrelTagMtx[1][0] + (adsOffset[0] * barrelTagMtx[0][0] + viewPos[0]));
+    viewPos[1] = adsOffset[2] * barrelTagMtx[2][1]
+        + (adsOffset[1] * barrelTagMtx[1][1] + (adsOffset[0] * barrelTagMtx[0][1] + viewPos[1]));
+    viewPos[2] = adsOffset[2] * barrelTagMtx[2][2]
+        + (adsOffset[1] * barrelTagMtx[1][2] + (adsOffset[0] * barrelTagMtx[0][2] + viewPos[2]));
+
+    if (cgameGlob->vehicleInitView)
+    {
+        swayViewAngles[localClientNum][0] = ps->viewangles[0];
+        swayViewAngles[localClientNum][1] = ps->viewangles[1];
+        swayViewAngles[localClientNum][2] = ps->viewangles[2];
+    }
+
+    CG_CalculateGunnerOffset_Sway(
+        ps->viewangles,
+        weaponIndex,
+        swayViewAngles[localClientNum],
+        swayOffset[localClientNum],
+        swayAngles[localClientNum],
+        4.0f,
+        cgameGlob->frametime);
+
+    viewPos[0] += swayOffset[localClientNum][0] * barrelTagMtx[0][0];
+    viewPos[1] += swayOffset[localClientNum][0] * barrelTagMtx[0][1];
+    viewPos[2] += swayOffset[localClientNum][0] * barrelTagMtx[0][2];
+    viewPos[0] += swayOffset[localClientNum][1] * barrelTagMtx[1][0];
+    viewPos[1] += swayOffset[localClientNum][1] * barrelTagMtx[1][1];
+    viewPos[2] += swayOffset[localClientNum][1] * barrelTagMtx[1][2];
+    viewPos[0] += -swayOffset[localClientNum][2] * barrelTagMtx[2][0];
+    viewPos[1] += -swayOffset[localClientNum][2] * barrelTagMtx[2][1];
+    viewPos[2] += -swayOffset[localClientNum][2] * barrelTagMtx[2][2];
+
+    cgameGlob->refdef.vieworg[0] = viewPos[0];
+    cgameGlob->refdef.vieworg[1] = viewPos[1];
+    cgameGlob->refdef.vieworg[2] = viewPos[2];
+    AxisToAngles(barrelTagMtx, cgameGlob->refdefViewAngles);
+
+    // Ground gunner crouch lean (vehicleType != 6). Helicopters use fWeaponPosFrac ADS instead of leanf.
+    if (ps->leanf > 0.0f)
+    {
+        leanSinAngle = ps->leanf * 3.1415927f - 1.5707964f;
+        leanSinAngle = sinf(leanSinAngle);
+        leanBlend = (leanSinAngle + 1.0f) * 0.5f;
+        if (CG_DObjGetWorldTagMatrix(
+                &vehicle->pose,
+                obj,
+                *gunnerCrouchTags[gunnerIndex],
+                crouchTagMtx,
+                crouchTagMtx[3]))
         {
-            info = (vehicle_info_t*)CG_GetVehicleInfo(vehicle->nextState.vehicleState.vehicleInfoIndex);
-            weapon = info->gunnerWeaponIndex[gunnerIndex];
-            if (!weapon)
-            {
-                WeaponIndexForName = CG_GetWeaponIndexForName(info->gunnerWeapon[gunnerIndex]);
-                AssignToSmallerType<unsigned short>(&info->gunnerWeaponIndex[gunnerIndex], WeaponIndexForName);
-                weapon = info->gunnerWeaponIndex[gunnerIndex];
-            }
-            weapDef = BG_GetWeaponDef(weapon);
-            if (weapDef)
-            {
-                *(_QWORD *)viewPos = *(_QWORD *)&tagMtx[3][0];
-                viewPos[2] = tagMtx[3][2];
-                BG_CalcVehicleTurretWeaponPosOffset(ps->fWeaponPosFrac, weapDef, offset);
-                viewPos[0] = (float)(offset[2] * tagMtx[2][0])
-                    + (float)((float)(offset[1] * tagMtx[1][0]) + (float)((float)(offset[0] * tagMtx[0][0]) + viewPos[0]));
-                viewPos[1] = (float)(offset[2] * tagMtx[2][1])
-                    + (float)((float)(offset[1] * tagMtx[1][1]) + (float)((float)(offset[0] * tagMtx[0][1]) + viewPos[1]));
-                viewPos[2] = (float)(offset[2] * tagMtx[2][2])
-                    + (float)((float)(offset[1] * tagMtx[1][2]) + (float)((float)(offset[0] * tagMtx[0][2]) + viewPos[2]));
-                if (cgameGlob->vehicleInitView)
-                {
-                    v14 = swayViewAngles[localClientNum];
-                    viewangles = ps->viewangles;
-                    *v14 = ps->viewangles[0];
-                    v14[1] = viewangles[1];
-                    v14[2] = viewangles[2];
-                }
-                CG_CalculateGunnerOffset_Sway(
-                    ps->viewangles,
-                    weapon,
-                    swayViewAngles[localClientNum],
-                    swayOffset[localClientNum],
-                    swayAngles[localClientNum],
-                    4.0,
-                    cgameGlob->frametime);
-                v13 = swayOffset[localClientNum][0];
-                viewPos[0] = (float)(v13 * tagMtx[0][0]) + viewPos[0];
-                viewPos[1] = (float)(v13 * tagMtx[0][1]) + viewPos[1];
-                viewPos[2] = (float)(v13 * tagMtx[0][2]) + viewPos[2];
-                v12 = swayOffset[localClientNum][1];
-                viewPos[0] = (float)(v12 * tagMtx[1][0]) + viewPos[0];
-                viewPos[1] = (float)(v12 * tagMtx[1][1]) + viewPos[1];
-                viewPos[2] = (float)(v12 * tagMtx[1][2]) + viewPos[2];
-                //LODWORD(v11) = LODWORD(swayOffset[localClientNum][2]) ^ _mask__NegFloat_;
-                v11 = -swayOffset[localClientNum][2];
-                viewPos[0] = (float)(v11 * tagMtx[2][0]) + viewPos[0];
-                viewPos[1] = (float)(v11 * tagMtx[2][1]) + viewPos[1];
-                viewPos[2] = (float)(v11 * tagMtx[2][2]) + viewPos[2];
-                cgameGlob->refdef.vieworg[0] = viewPos[0];
-                cgameGlob->refdef.vieworg[1] = viewPos[1];
-                cgameGlob->refdef.vieworg[2] = viewPos[2];
-                AxisToAngles(tagMtx, cgameGlob->refdefViewAngles);
-                if (ps->leanf > 0.0)
-                {
-                    v10 = (float)(ps->leanf * 3.1415927) - 1.5707964;
-                    fc = cos(v10);
-                    v27 = sin(v10);
-                    f = (float)(v27 + 1.0) / 2.0;
-                    if (CG_DObjGetWorldTagMatrix(
-                        &vehicle->pose,
-                        obj,
-                        *gunnerViewCrouchTags[gunnerIndex],
-                        tagCrouchMtx,
-                        tagCrouchMtx[3]))
-                    {
-                        crouchPos[0] = (float)(crouchOfs[0] * tagCrouchMtx[0][0]) + tagCrouchMtx[3][0];
-                        crouchPos[1] = (float)(crouchOfs[0] * tagCrouchMtx[0][1]) + tagCrouchMtx[3][1];
-                        crouchPos[2] = (float)(crouchOfs[0] * tagCrouchMtx[0][2]) + tagCrouchMtx[3][2];
-                        crouchPos[0] = (float)(crouchOfs[1] * tagCrouchMtx[1][0]) + crouchPos[0];
-                        crouchPos[1] = (float)(crouchOfs[1] * tagCrouchMtx[1][1]) + crouchPos[1];
-                        crouchPos[2] = (float)(crouchOfs[1] * tagCrouchMtx[1][2]) + crouchPos[2];
-                        crouchPos[0] = (float)(crouchOfs[2] * tagCrouchMtx[2][0]) + crouchPos[0];
-                        crouchPos[1] = (float)(crouchOfs[2] * tagCrouchMtx[2][1]) + crouchPos[1];
-                        crouchPos[2] = (float)(crouchOfs[2] * tagCrouchMtx[2][2]) + crouchPos[2];
-                        Vec3Lerp(cgameGlob->refdef.vieworg, crouchPos, f, cgameGlob->refdef.vieworg);
-                        v3 = AngleNormalize180(cgameGlob->refdefViewAngles[0]);
-                        cgameGlob->refdefViewAngles[0] = v3 * (1.0 - f);
-                    }
-                    else if (!CG_DObjGetWorldTagMatrix(
-                        &vehicle->pose,
-                        obj,
-                        *gunnerViewCrouchTags[gunnerIndex],
-                        tagCrouchMtx,
-                        tagCrouchMtx[3])
-                        && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_camera.cpp",
-                            1294,
-                            0,
-                            "%s",
-                            "CG_DObjGetWorldTagMatrix( &vehicle->pose, obj, *gunnerViewCrouchTags[gunnerIndex], tagCrouchMtx, "
-                            "tagCrouchMtx[3] )"))
-                    {
-                        __debugbreak();
-                    }
-                }
-                AnglesToAxis(vehicle->pose.angles, tagMtx2);
-                tagMtx2[3][0] = vehicle->pose.origin[0];
-                tagMtx2[3][1] = vehicle->pose.origin[1];
-                tagMtx2[3][2] = vehicle->pose.origin[2];
-                if (cgameGlob->vehicleInitView)
-                {
-                    MatrixTranspose(tagMtx2, cgameGlob->prevVehicleInvAxis);
-                    cgameGlob->vehicleInitView = 0;
-                }
-                MatrixMultiply(cgameGlob->prevVehicleInvAxis, tagMtx2, deltaAxis);
-                MatrixTranspose(tagMtx2, cgameGlob->prevVehicleInvAxis);
-                if (gVehicleRelativeGunnerAngles)
-                {
-                    MatrixTranspose(deltaAxis, (float (*)[3])out);
-                    AxisCopy((const float (*)[3])out, deltaAxis);
-                }
-                playerAngles[0] = cgameGlob->refdefViewAngles[0];
-                playerAngles[1] = cgameGlob->refdefViewAngles[1];
-                playerAngles[2] = cgameGlob->refdefViewAngles[2];
-                AnglesToAxis(playerAngles, viewAxis);
-                MatrixMultiply(viewAxis, deltaAxis, mtx);
-                AxisToAngles(mtx, temp);
-                if (ps->fWeaponPosFrac == 1.0 || (ps->eFlags & 0x40) != 0 && weapDef->weapType != WEAPTYPE_PROJECTILE)
-                {
-                    vehiclePitchInfluence = cg_viewVehicleInfluenceGunnerFiring->current.value;
-                    vehicleYawInfluence = cg_viewVehicleInfluenceGunnerFiring->current.vector[1];
-                    vehicleRollInfluence = cg_viewVehicleInfluenceGunnerFiring->current.vector[2];
-                }
-                else
-                {
-                    vehiclePitchInfluence = cg_viewVehicleInfluenceGunner->current.value;
-                    vehicleYawInfluence = cg_viewVehicleInfluenceGunner->current.vector[1];
-                    vehicleRollInfluence = cg_viewVehicleInfluenceGunner->current.vector[2];
-                }
-                if (gVehicleRelativeGunnerAngles)
-                {
-                    vehiclePitchInfluence = 1.0 - vehiclePitchInfluence;
-                    vehicleYawInfluence = 1.0 - vehicleYawInfluence;
-                }
-                else
-                {
-                    vehiclePitchInfluence = 0.0f;
-                    vehicleYawInfluence = 0.0f;
-                    vehicleRollInfluence = 0.0f;
-                }
-                v9 = cgameGlob->refdefViewAngles[0];
-                v4 = AngleNormalize180(temp[0] - v9);
-                asdf[0] = v4 * vehiclePitchInfluence + v9;
-                v8 = cgameGlob->refdefViewAngles[1];
-                v5 = AngleNormalize180(temp[1] - v8);
-                asdf[1] = v5 * vehicleYawInfluence + v8;
-                asdf[2] = 0.0f;
-                asdf[0] = asdf[0] - cgameGlob->refdefViewAngles[0];
-                asdf[1] = asdf[1] - cgameGlob->refdefViewAngles[1];
-                asdf[2] = 0.0f;
-                v6 = ps->viewangles;
-                v7 = ps->viewangles;
-                ps->viewangles[0] = ps->viewangles[0] + asdf[0];
-                v6[1] = v7[1] + asdf[1];
-                v6[2] = v7[2] + asdf[2];
-                temp[0] = ps->viewangles[0] - ps->delta_angles[0];
-                temp[1] = ps->viewangles[1] - ps->delta_angles[1];
-                temp[2] = ps->viewangles[2] - ps->delta_angles[2];
-                CL_SetViewAngles(localClientNum, temp);
-                Com_Printf(0, "CL_SetViewAngles() - TANGO - (%3.0f, %3.0f, %3.0f)\n", temp[0], temp[1], temp[2]);
-                if (!Demo_IsPaused()
-                    && !Demo_IsCompleted()
-                    && !Demo_GetClipPausedState()
-                    && cl_paused->current.value == 0.0
-                    && vehicle->vehicle
-                    && vehicle->vehicle->lastGunnerFire[gunnerIndex] > cgameGlob->time - 100)
-                {
-                    cgameGlob->refdefViewAngles[0] = crandom() * weapDef->vertViewJitter + cgameGlob->refdefViewAngles[0];
-                    cgameGlob->refdefViewAngles[1] = crandom() * weapDef->horizViewJitter + cgameGlob->refdefViewAngles[1];
-                }
-            }
+            crouchPos[0] = crouchOfs[0] * crouchTagMtx[0][0] + crouchTagMtx[3][0];
+            crouchPos[1] = crouchOfs[0] * crouchTagMtx[0][1] + crouchTagMtx[3][1];
+            crouchPos[2] = crouchOfs[0] * crouchTagMtx[0][2] + crouchTagMtx[3][2];
+            crouchPos[0] += crouchOfs[1] * crouchTagMtx[1][0];
+            crouchPos[1] += crouchOfs[1] * crouchTagMtx[1][1];
+            crouchPos[2] += crouchOfs[1] * crouchTagMtx[1][2];
+            crouchPos[0] += crouchOfs[2] * crouchTagMtx[2][0];
+            crouchPos[1] += crouchOfs[2] * crouchTagMtx[2][1];
+            crouchPos[2] += crouchOfs[2] * crouchTagMtx[2][2];
+            Vec3Lerp(cgameGlob->refdef.vieworg, crouchPos, leanBlend, cgameGlob->refdef.vieworg);
+            cgameGlob->refdefViewAngles[0] = AngleNormalize180(cgameGlob->refdefViewAngles[0]) * (1.0f - leanBlend);
         }
+        else if (!CG_DObjGetWorldTagMatrix(
+                     &vehicle->pose,
+                     obj,
+                     *gunnerCrouchTags[gunnerIndex],
+                     crouchTagMtx,
+                     crouchTagMtx[3])
+                 && !Assert_MyHandler(
+                        "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_camera.cpp",
+                        1294,
+                        0,
+                        "%s",
+                        "CG_DObjGetWorldTagMatrix( &vehicle->pose, obj, *gunnerViewCrouchTags[gunnerIndex], tagCrouchMtx, "
+                        "tagCrouchMtx[3] )"))
+        {
+            __debugbreak();
+        }
+    }
+
+    AnglesToAxis(vehicle->pose.angles, vehiclePoseMtx);
+    vehiclePoseMtx[3][0] = vehicle->pose.origin[0];
+    vehiclePoseMtx[3][1] = vehicle->pose.origin[1];
+    vehiclePoseMtx[3][2] = vehicle->pose.origin[2];
+    if (cgameGlob->vehicleInitView)
+    {
+        MatrixTranspose(vehiclePoseMtx, cgameGlob->prevVehicleInvAxis);
+        cgameGlob->vehicleInitView = 0;
+    }
+    MatrixMultiply(cgameGlob->prevVehicleInvAxis, vehiclePoseMtx, vehicleDeltaAxis);
+    MatrixTranspose(vehiclePoseMtx, cgameGlob->prevVehicleInvAxis);
+    // gVehicleRelativeGunnerAngles: compensate vehicle frame delta so mouse input stays stable (CoDMPServer.c:175385-175388).
+    if (gVehicleRelativeGunnerAngles)
+    {
+        MatrixTranspose(vehicleDeltaAxis, vehicleDeltaTranspose);
+        AxisCopy(vehicleDeltaTranspose, vehicleDeltaAxis);
+    }
+
+    barrelViewAngles[0] = cgameGlob->refdefViewAngles[0];
+    barrelViewAngles[1] = cgameGlob->refdefViewAngles[1];
+    barrelViewAngles[2] = cgameGlob->refdefViewAngles[2];
+    AnglesToAxis(barrelViewAngles, barrelViewAxis);
+    MatrixMultiply(barrelViewAxis, vehicleDeltaAxis, vehicleCorrectedAxis);
+    AxisToAngles(vehicleCorrectedAxis, vehicleCorrectedAngles);
+
+    if (ps->fWeaponPosFrac == 1.0f || ((ps->eFlags & 0x40) != 0 && weapDef->weapType != WEAPTYPE_PROJECTILE))
+    {
+        vehiclePitchInfluence = cg_viewVehicleInfluenceGunnerFiring->current.value;
+        vehicleYawInfluence = cg_viewVehicleInfluenceGunnerFiring->current.vector[1];
+    }
+    else
+    {
+        vehiclePitchInfluence = cg_viewVehicleInfluenceGunner->current.value;
+        vehicleYawInfluence = cg_viewVehicleInfluenceGunner->current.vector[1];
+    }
+    if (gVehicleRelativeGunnerAngles)
+    {
+        vehiclePitchInfluence = 1.0f - vehiclePitchInfluence;
+        vehicleYawInfluence = 1.0f - vehicleYawInfluence;
+    }
+    else
+    {
+        vehiclePitchInfluence = 0.0f;
+        vehicleYawInfluence = 0.0f;
+    }
+
+    barrelPitch = cgameGlob->refdefViewAngles[0];
+    pitchAngleDelta = AngleNormalize180(vehicleCorrectedAngles[0] - barrelPitch);
+    pitchAngleDelta = pitchAngleDelta * vehiclePitchInfluence + barrelPitch;
+    pitchAngleDelta -= barrelPitch;
+
+    barrelYaw = cgameGlob->refdefViewAngles[1];
+    yawAngleDelta = AngleNormalize180(vehicleCorrectedAngles[1] - barrelYaw);
+    yawAngleDelta = yawAngleDelta * vehicleYawInfluence + barrelYaw;
+    yawAngleDelta -= barrelYaw;
+
+    // Retail writes influence into ps->viewangles + CL_SetViewAngles only, not refdefViewAngles (CoDMPServer.c:175396+).
+    ps->viewangles[0] += pitchAngleDelta;
+    ps->viewangles[1] += yawAngleDelta;
+    ps->viewangles[2] += 0.0f;
+
+    clientViewAngles[0] = ps->viewangles[0] - ps->delta_angles[0];
+    clientViewAngles[1] = ps->viewangles[1] - ps->delta_angles[1];
+    clientViewAngles[2] = ps->viewangles[2] - ps->delta_angles[2];
+    CL_SetViewAngles(localClientNum, clientViewAngles);
+    Com_Printf(0, "CL_SetViewAngles() - TANGO - (%3.0f, %3.0f, %3.0f)\n", clientViewAngles[0], clientViewAngles[1], clientViewAngles[2]);
+    //EpikIzCool Debug Chopper Gunner
+    /*
+        Com_Printf(0, "CG_OffsetVehicleGunner - vieworg (%3.0f, %3.0f, %3.0f) barrelTag (%3.0f, %3.0f, %3.0f) refdefAngles (%3.0f, %3.0f, %3.0f) fWeaponPosFrac %3.2f adsOffset (%3.1f, %3.1f, %3.1f)\n",
+        cgameGlob->refdef.vieworg[0], cgameGlob->refdef.vieworg[1], cgameGlob->refdef.vieworg[2],
+        barrelTagMtx[3][0], barrelTagMtx[3][1], barrelTagMtx[3][2],
+        cgameGlob->refdefViewAngles[0], cgameGlob->refdefViewAngles[1], cgameGlob->refdefViewAngles[2],
+        ps->fWeaponPosFrac, adsOffset[0], adsOffset[1], adsOffset[2]);
+    */
+    if (!Demo_IsPaused()
+        && !Demo_IsCompleted()
+        && !Demo_GetClipPausedState()
+        && cl_paused->current.value == 0.0f
+        && vehicle->vehicle
+        && vehicle->vehicle->lastGunnerFire[gunnerIndex] > cgameGlob->time - 100)
+    {
+        cgameGlob->refdefViewAngles[0] += crandom() * weapDef->vertViewJitter;
+        cgameGlob->refdefViewAngles[1] += crandom() * weapDef->horizViewJitter;
     }
 }
 
@@ -1388,6 +1424,20 @@ void __cdecl CG_CalcMissileViewValues(int localClientNum)
     centity_s *missile; // [esp+3Ch] [ebp-8h]
 
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+    if ( cgameGlob->predictedPlayerState.viewlocked_entNum == 1023 )
+    {
+        // BlackOpsMP.retail.c:285851 sub_4E2640 — post-unlink static cam keeps stored POV until
+        // UnlinkGuidedMissileCamera (loc_51EDD0); live ent path invalid once viewlocked is 1023.
+        if ( !CG_IsInGuidedMissileStatic(&cgameGlob->predictedPlayerState) )
+            return;
+        cgameGlob->refdef.vieworg[0] = cgameGlob->storedRemoteCameraOrigin[0];
+        cgameGlob->refdef.vieworg[1] = cgameGlob->storedRemoteCameraOrigin[1];
+        cgameGlob->refdef.vieworg[2] = cgameGlob->storedRemoteCameraOrigin[2];
+        cgameGlob->refdefViewAngles[0] = cgameGlob->storedRemoteCameraAngles[0];
+        cgameGlob->refdefViewAngles[1] = cgameGlob->storedRemoteCameraAngles[1];
+        cgameGlob->refdefViewAngles[2] = cgameGlob->storedRemoteCameraAngles[2];
+        return;
+    }
     missile = CG_GetEntity(localClientNum, cgameGlob->predictedPlayerState.viewlocked_entNum);
     if ( missile->nextState.eType == 4 )
     {
@@ -2017,7 +2067,7 @@ void __cdecl CG_Calc3rdPersonSpringDamp(
     velocity = deltaTime * (float)(*prevTrgPos - *trgPos);
     velocity_4 = deltaTime * (float)(prevTrgPos[1] - trgPos[1]);
     velocity_8 = deltaTime * (float)(prevTrgPos[2] - trgPos[2]);
-    dispLength = Vec3Length(disp);
+    dispLength = Abs(disp);
     forceMag = (float)((float)(springLen - dispLength) * springConst)
                      + (float)((float)((float)((float)((float)(disp[0] * velocity) + (float)(disp[1] * velocity_4))
                                                                      + (float)(disp[2] * velocity_8))
@@ -2558,6 +2608,7 @@ double __cdecl ThirdPersonViewTrace(
     float testEnd[3]; // [esp+58h] [ebp-48h] BYREF
     trace_t trace; // [esp+64h] [ebp-3Ch] BYREF
 
+    memset(&trace, 0, 16);
     ////col_context_t::col_context_t(&context);
     if ( (cgameGlob->predictedPlayerState.eFlags & 0x4000) != 0 )
         CG_TraceCapsule(
@@ -2691,6 +2742,7 @@ void __cdecl MovieCameraViewTrace(int localClientNum, int contentMask)
     float into; // [esp+1A8h] [ebp-4h]
 
     ////col_context_t::col_context_t(&context);
+    memset(&trace, 0, 16);
     numplanes = 0;
     numbumps = 4;
     traceFractionScale = 0.01667f;

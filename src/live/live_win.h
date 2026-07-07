@@ -79,12 +79,16 @@ void __cdecl Live_RevokeInvite_f();
 void __cdecl Live_JoinSessionInProgress_f();
 void __cdecl Live_ToggleMute_f();
 void __cdecl Live_InitPlatform();
+#ifdef KISAK_SP
+void __cdecl Live_RegisterSPOfflineDvars();
+#endif
 bool __cdecl Live_HandleDWChallengeResponse(
                 unsigned __int64 senderID,
                 unsigned __int8 *message,
                 unsigned int messageSize);
 int __cdecl Live_GetControllerFromXUID(unsigned __int64 player);
 void __cdecl Live_GiveAchievement(int localControllerIndex, const char *achievementName);
+void __cdecl Live_GiveGamerPicture(int localControllerIndex, const char *pictureName);
 bool __cdecl Live_IsInLiveGame();
 void __cdecl Session_CleanUpStatsWrites();
 taskCompleteResults __cdecl Live_SetPlayerTeamRankComplete(int slot);

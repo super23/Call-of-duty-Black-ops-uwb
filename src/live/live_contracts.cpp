@@ -2,13 +2,19 @@
 #include <ui/ui_playlists.h>
 #include <universal/q_parse.h>
 #include <stringed/stringed_hooks.h>
+#ifdef KISAK_SP
+#include <ui_sp/ui_main_sp.h>
+#include <server_sp/sv_main_sp.h>
+#include <client_sp/sv_client_sp.h>
+#else
 #include <ui_mp/ui_main_mp.h>
+#include <server_mp/sv_main_mp.h>
+#include <client_mp/sv_client_mp.h>
+#endif
 #include "live_stats.h"
 #include "live_win.h"
 #include <qcommon/com_clients.h>
 #include <client/client.h>
-#include <server_mp/sv_main_mp.h>
-#include <client_mp/sv_client_mp.h>
 
 const char *CONTRACT_STAT_LAST_TIME_DEACTIVATED = "lastTimeDeactivated";
 const char *CONTRACT_STAT_INDEX = "contractIndex";

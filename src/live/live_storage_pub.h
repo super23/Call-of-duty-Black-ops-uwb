@@ -10,6 +10,7 @@ struct WADEntry // sizeof=0x2C
 };
 
 bool __cdecl LiveStorage_DoWeHaveContracts();
+void __cdecl LiveStorage_SetHaveContracts(bool val);
 bool __cdecl LiveStorage_DoWeHavePlaylists();
 void __cdecl LiveStorage_SetHavePlaylists(bool val);
 TaskRecord *__cdecl LiveStorage_FetchOnlineWAD(int controllerIndex);

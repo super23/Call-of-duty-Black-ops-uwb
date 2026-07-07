@@ -1,11 +1,23 @@
 #include "g_targets.h"
+#ifdef KISAK_SP
+#include <server_sp/sv_init_sp.h>
+#else
 #include <server_mp/sv_init_mp.h>
+#endif
 #include <clientscript/cscr_vm.h>
-#include <game_mp/g_spawn_mp.h>
-#include <game_mp/g_utils_mp.h>
+#include <game/g_spawn_wrapper.h>
+#include <game/g_utils_wrapper.h>
+#ifdef KISAK_SP
+#include <client_sp/g_client_sp.h>
+#else
 #include <client_mp/g_client_mp.h>
+#endif
 #include <server/sv_game.h>
+#ifdef KISAK_SP
+#include <server_sp/sv_main_sp.h>
+#else
 #include <server_mp/sv_main_mp.h>
+#endif
 #include <clientscript/scr_const.h>
 
 
@@ -17,8 +29,10 @@ struct //$A5C519FFED38118F396585C413DE405F // sizeof=0x384
 
 void __cdecl G_InitTargets()
 {
+    int i; // [esp+0h] [ebp-4h]
+
     targGlob.targetCount = 0;
-    for ( int i = 0; i < 32; ++i )
+    for ( i = 0; i < 32; ++i )
     {
         targGlob.targets[i].ent = 0;
         SV_SetConfigstring(i + 387, 0);
@@ -102,7 +116,7 @@ void __cdecl Scr_Target_GetArray()
     unsigned int targIdx; // [esp+0h] [ebp-4h]
 
     Scr_MakeArray(SCRIPTINSTANCE_SERVER);
-    for ( targIdx = 0; targIdx < MAX_TARGETS; ++targIdx )
+    for ( targIdx = 0; targIdx < 0x20; ++targIdx )
     {
         if ( targGlob.targets[targIdx].ent )
         {
@@ -117,13 +131,14 @@ void __cdecl Scr_Target_GetArray()
 
 unsigned int __cdecl Target_GetTargetIndex(gentity_s *ent)
 {
-    for ( unsigned int targIdx = 0; targIdx < MAX_TARGETS; ++targIdx )
+    unsigned int targIdx; // [esp+0h] [ebp-4h]
+
+    for ( targIdx = 0; targIdx < 0x20; ++targIdx )
     {
         if ( targGlob.targets[targIdx].ent == ent )
             return targIdx;
     }
-
-    return MAX_TARGETS;
+    return 32;
 }
 
 void __cdecl Scr_Target_IsTarget()
@@ -133,10 +148,10 @@ void __cdecl Scr_Target_IsTarget()
     if ( !Scr_GetNumParam(SCRIPTINSTANCE_SERVER) )
         Scr_Error("Too few arguments\n", 0);
     ent = Scr_GetEntity(0);
-    if ( Target_GetTargetIndex(ent) == MAX_TARGETS )
+    if ( Target_GetTargetIndex(ent) == 32 )
         Scr_AddBool(0, SCRIPTINSTANCE_SERVER);
     else
-        Scr_AddBool(1, SCRIPTINSTANCE_SERVER);
+        Scr_AddBool(1u, SCRIPTINSTANCE_SERVER);
 }
 
 void __cdecl Scr_Target_SetTurretAquire()
@@ -151,7 +166,7 @@ void __cdecl Scr_Target_SetTurretAquire()
     targIdx = Target_GetTargetIndex(ent);
     if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) > 1 )
         ignoreTarg = Scr_GetInt(1u, SCRIPTINSTANCE_SERVER) != 0;
-    if ( targIdx != MAX_TARGETS )
+    if ( targIdx != 32 )
     {
         if ( ignoreTarg )
             v0 = targGlob.targets[targIdx].flags & 0xFFFFFFFB;
@@ -179,14 +194,23 @@ void __cdecl Scr_Target_Set()
     ent = Scr_GetEntity(0);
     for (targetIndex = 0; targetIndex < 0x20 && targGlob.targets[targetIndex].ent != ent; ++targetIndex)
         ;
-    if (targetIndex == MAX_TARGETS)
+    if (targetIndex == 32)
     {
         if (targGlob.targetCount >= 0x20)
             Scr_Error("Maximum number of targets exceeded", 0);
         for (targetIndex = 0; targetIndex < 0x20 && targGlob.targets[targetIndex].ent; ++targetIndex)
             ;
-        bcassert(targetIndex, MAX_TARGETS);
-        
+        if (targetIndex >= 0x20
+            && !Assert_MyHandler(
+                "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_targets.cpp",
+                301,
+                0,
+                "targetIndex doesn't index MAX_TARGETS\n\t%i not in [0, %i)",
+                targetIndex,
+                32))
+        {
+            __debugbreak();
+        }
         targGlob.targets[targetIndex].ent = ent;
         ent->flags |= 0x1000000u;
         targGlob.targets[targetIndex].materialIndex = -1;
@@ -227,42 +251,61 @@ void __cdecl Scr_Target_Set()
     SV_SetConfigstring(targetIndex + 387, configString);
 }
 
-bool Targ_Remove(gentity_s *ent)
+char __cdecl Targ_Remove(gentity_s *ent)
 {
     unsigned int targetIndex; // [esp+0h] [ebp-4h]
 
     for ( targetIndex = 0; ; ++targetIndex )
     {
-        if ( targetIndex >= MAX_TARGETS )
+        if ( targetIndex >= 0x20 )
             return 0;
         if ( targGlob.targets[targetIndex].ent == ent )
             break;
     }
     targGlob.targets[targetIndex].ent = 0;
-    targGlob.targetCount--;
-    bcassert(targGlob.targetCount, MAX_TARGETS);
-    
-    SV_SetConfigstring(CS_TARGETS + targetIndex, (char *)"");
+    if ( --targGlob.targetCount >= 0x20
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_targets.cpp",
+                    340,
+                    0,
+                    "targGlob.targetCount doesn't index MAX_TARGETS\n\t%i not in [0, %i)",
+                    targGlob.targetCount,
+                    32) )
+    {
+        __debugbreak();
+    }
+    SV_SetConfigstring(targetIndex + 387, (char *)"");
     return 1;
 }
 
 void __cdecl Targ_RemoveAll()
 {
-    for ( unsigned int targetIndex = 0; targetIndex < MAX_TARGETS; ++targetIndex )
+    unsigned int targetIndex; // [esp+0h] [ebp-4h]
+
+    for ( targetIndex = 0; targetIndex < 0x20; ++targetIndex )
     {
         if ( targGlob.targets[targetIndex].ent )
         {
             targGlob.targets[targetIndex].ent = 0;
-            targGlob.targetCount--;
-            bcassert(targGlob.targetCount, MAX_TARGETS);
-            
-            SV_SetConfigstring(CS_TARGETS + targetIndex, (char *)"");
+            if ( --targGlob.targetCount >= 0x20
+                && !Assert_MyHandler(
+                            "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_targets.cpp",
+                            361,
+                            0,
+                            "targGlob.targetCount doesn't index MAX_TARGETS\n\t%i not in [0, %i)",
+                            targGlob.targetCount,
+                            32) )
+            {
+                __debugbreak();
+            }
+            SV_SetConfigstring(targetIndex + 387, (char *)"");
         }
     }
 }
 
 void __cdecl Scr_Target_Remove()
 {
+    const char *v0; // eax
     gentity_s *ent; // [esp+0h] [ebp-4h]
 
     if ( !Scr_GetNumParam(SCRIPTINSTANCE_SERVER) )
@@ -270,7 +313,8 @@ void __cdecl Scr_Target_Remove()
     ent = Scr_GetEntity(0);
     if ( !Targ_Remove(ent) )
     {
-        Scr_Error(va("Entity %i is not a target", ent->s.number), 0);
+        v0 = va("Entity %i is not a target", ent->s.number);
+        Scr_Error(v0, 0);
     }
 }
 

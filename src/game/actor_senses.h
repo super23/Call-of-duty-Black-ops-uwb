@@ -42,3 +42,4 @@ void __fastcall Actor_GetDebugEyePosition(actor_s *self, float *vEyePosOut);
 void __fastcall Actor_GetEyeDirection(actor_s *self, float *vEyeDir);
 void __fastcall Actor_GetEyeOffset(actor_s *self, float *vEyePosOut);
 int __fastcall Actor_GetMuzzleInfo(actor_s *self, float *vOrigin, float *vForward);
+int __fastcall Actor_CanShootFrom(actor_s *self, const float *targetPos, const float *muzzlePos);

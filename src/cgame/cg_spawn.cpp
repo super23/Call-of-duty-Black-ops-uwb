@@ -1,13 +1,21 @@
-#include "cg_spawn.h"
+ #include "cg_spawn.h"
 #include <game/g_load_utils.h>
 #include "cg_scr_main.h"
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#include <cgame_sp/cg_main_sp.h>
+#include <cgame_sp/cg_ents_sp.h>
+#include <cgame_sp/cg_snapshot_sp.h>
+#include <cgame_sp/cg_animtree_sp.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
 #include <cgame_mp/cg_main_mp.h>
-#include <xanim/xmodel.h>
 #include <cgame_mp/cg_ents_mp.h>
-#include <gfx_d3d/r_shader_constant_set.h>
 #include <cgame_mp/cg_snapshot_mp.h>
 #include <cgame_mp/cg_animtree_mp.h>
+#endif
+#include <xanim/xmodel.h>
+#include <gfx_d3d/r_shader_constant_set.h>
 #include <EffectsCore/fx_system.h>
 #include <clientscript/cscr_stringlist.h>
 #include <clientscript/cscr_vm.h>
@@ -677,7 +685,7 @@ LABEL_55:
                             if ( *forceString )
                                 sscanf(forceString, "%f %f %f", force, &force[1], &force[2]);
                         }
-                        fmag = Vec3Length(force);
+                        fmag = Abs(force);
                         v2 = undertow_forces[num_undertow_volumes];
                         v3 = 1.0 / fmag;
                         *v2 = (float)(1.0 / fmag) * force[0];

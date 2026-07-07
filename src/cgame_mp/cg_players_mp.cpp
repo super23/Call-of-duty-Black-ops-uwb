@@ -962,6 +962,7 @@ void __cdecl CG_PlayerTurretPositionAndBlend(int localClientNum, centity_s *cent
     float turretAxis[4][3]; // [esp+268h] [ebp-3Ch] BYREF
     float vDelta[3]; // [esp+298h] [ebp-Ch]
 
+    memset(&trace, 0, 16);
     if ( cent->nextState.otherEntityNum >= 32 && cent->nextState.otherEntityNum != 1023 )
     {
         cgameGlob = CG_GetLocalClientGlobals(localClientNum);
@@ -1066,9 +1067,23 @@ void __cdecl CG_PlayerTurretPositionAndBlend(int localClientNum, centity_s *cent
                                         }
                                     }
                                     if ( (cent->currentState.eFlags & 0x4000) != 0 )
-                                        tag_gunner_barrel1 = scr_const.tag_gunner_barrel1;
+                                    {
+                                        unsigned __int16 gunnerBarrelTags[4];
+
+                                        gunnerBarrelTags[0] = scr_const.tag_gunner_barrel1;
+                                        gunnerBarrelTags[1] = scr_const.tag_gunner_barrel2;
+                                        gunnerBarrelTags[2] = scr_const.tag_gunner_barrel3;
+                                        gunnerBarrelTags[3] = scr_const.tag_gunner_barrel4;
+                                        gunnerNum = cent->currentState.u.player.vehicleSeat - 1;
+                                        if ( (unsigned int)gunnerNum < 4 )
+                                            tag_gunner_barrel1 = gunnerBarrelTags[gunnerNum];
+                                        else
+                                            tag_gunner_barrel1 = scr_const.tag_gunner_barrel1;
+                                    }
                                     else
+                                    {
                                         tag_gunner_barrel1 = scr_const.tag_weapon;
+                                    }
                                     tagName = tag_gunner_barrel1;
                                     if ( CG_DObjGetWorldTagMatrix(&pTurretCEnt->pose, turretObj, tag_gunner_barrel1, tagAxis, tagOrigin) )
                                     {
@@ -1927,6 +1942,7 @@ bool __cdecl CG_IsWeaponVisible(int localClientNum, centity_s *cent, XModel *wea
     float weapLen; // [esp+B4h] [ebp-10h] BYREF
     float eye[3]; // [esp+B8h] [ebp-Ch] BYREF
 
+    memset(&trace, 0, 16);
     if ( !weapModel
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_players_mp.cpp", 1996, 0, "%s", "weapModel") )
     {

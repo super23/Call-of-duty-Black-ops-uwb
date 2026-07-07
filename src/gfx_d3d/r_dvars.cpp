@@ -168,6 +168,9 @@ const dvar_s *sm_sunShadowCenter;
 const dvar_s *sm_sunShadowScale;
 const dvar_s *sm_sunShadowSmall;
 const dvar_s *sm_sunShadowSmallEnable;
+const dvar_s *sm_sunShadowSmallScriptPS3OnlyEnable;
+const dvar_s *r_zombieDisableSlideEffect;
+const dvar_s *r_zombieDisableEarthEffect;
 const dvar_s *r_backBufferSize;
 const dvar_s *r_backBufferSizeY;
 const dvar_s *sm_spotShadowLargeRadiusScale;
@@ -824,11 +827,20 @@ void __cdecl R_RegisterDvars()
                                      "Show this many rows of light grid points for the vis cache");
     r_showLightGrid = _Dvar_RegisterBool("r_showLightGrid", 0, 0x80u, "Show light grid debugging information");
     r_showLightingOrigins = _Dvar_RegisterBool("r_showLightingOrigins", 0, 0x80u, "Show lighting origins for models");
+#if defined(NDEBUG)
+    // Decomp: BlackOpsMP.retail.c:644678 (client Release default 0, flags 0x80u)
+    r_showMissingLightGrid = _Dvar_RegisterBool(
+        "r_showMissingLightGrid",
+        0,
+        0x80u,
+        "Use rainbow colors for entities that are outside the light grid");
+#else
     r_showMissingLightGrid = _Dvar_RegisterBool(
                                                          "r_showMissingLightGrid",
                                                          1,
                                                          0,
                                                          "Use rainbow colors for entities that are outside the light grid");
+#endif
     r_cacheSModelLighting = _Dvar_RegisterBool(
                                                         "r_cacheSModelLighting",
                                                         1,
@@ -1313,7 +1325,7 @@ void __cdecl R_RegisterDvars()
                              1,
                              0x20u,
                              "Allocate a float z buffer (required for effects such as floatz, dof, and laser light)");
-    r_depthPrepass = _Dvar_RegisterBool("r_depthPrepass", 1, 1u, "Enable depth prepass (usually improves performance)");
+    r_depthPrepass = _Dvar_RegisterBool("r_depthPrepass", 0, 1u, "Enable depth prepass (usually improves performance)");
     r_highLodDist = _Dvar_RegisterFloat(
                                         "r_highLodDist",
                                         -1.0,
@@ -1405,6 +1417,13 @@ void __cdecl R_RegisterDvars()
     sm_sunShadowScale = _Dvar_RegisterFloat("sm_sunShadowScale", 1.0, 0.25, 1.0, 0x1080u, "Sun shadow scale optimization");
     sm_sunShadowSmall = _Dvar_RegisterBool("sm_sunShadowSmall", 0, 0, "force quarter resolution sun shadow map");
     sm_sunShadowSmallEnable = _Dvar_RegisterBool("sm_sunShadowSmallEnable", 0, 0, "use quarter resolution sun shadow map");
+    sm_sunShadowSmallScriptPS3OnlyEnable = _Dvar_RegisterBool(
+        "sm_sunShadowSmallScriptPS3OnlyEnable",
+        0,
+        0x1000u,
+        "use quarter resolution sun shadow map");
+    r_zombieDisableSlideEffect = _Dvar_RegisterBool("r_zombieDisableSlideEffect", 0, 0x5000u, "Disable Slide Effect");
+    r_zombieDisableEarthEffect = _Dvar_RegisterBool("r_zombieDisableEarthEffect", 0, 0x5000u, "Disable Earth Effect");
     r_backBufferSize = _Dvar_RegisterInt("r_backBufferSize", 960, 128, 1024, 1u, "Size of Back Buffer");
     r_backBufferSizeY = _Dvar_RegisterInt("r_backBufferSizeY", 544, 128, 608, 1u, "Size of Back Buffer Y");
     sm_spotShadowLargeRadiusScale = _Dvar_RegisterFloat(
@@ -2624,8 +2643,7 @@ void __cdecl R_RegisterDvars()
                                                              1u,
                                                              "Use the driver convergence values instead of the game defined values.");
     r_convergence = _Dvar_RegisterFloat("r_convergence", 6.06253, -3.4028235e38, 3.4028235e38, 0, "Stereo convergence.");
-    // LWSS: changed to 1 by default (2011 BLOPS default)
-    r_multithreaded_device = _Dvar_RegisterBool("r_multithreaded_device", 1, 0x21u, "Create a multithreaded d3d device.");
+    r_multithreaded_device = _Dvar_RegisterBool("r_multithreaded_device", 0, 1u, "Create a multithreaded d3d device.");
     r_warm_dpvs = _Dvar_RegisterBool("r_warm_dpvs", 0, 0, "shader warming: disable dpvs culling");
     r_warm_bsp = _Dvar_RegisterBool("r_warm_bsp", 0, 0, "shader warming: bsp objects");
     r_warm_static = _Dvar_RegisterBool("r_warm_static", 0, 0, "shader warming: static objects");

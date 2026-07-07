@@ -1,6 +1,7 @@
 #pragma once
 #include "rigid_body.h"
 #include <qcommon/ent.h>
+#include <client/client_limits.h>
 
 struct XModel;
 struct centity_s;
@@ -175,6 +176,7 @@ struct centity_s;
 struct environment_rigid_body;
 
 bool __cdecl hasLabel(DestructibleDef *ddef, unsigned __int16 label);
+bool __cdecl Destructible_HasNotify(const DestructibleDef *ddef, unsigned int notifyName);
 int __cdecl Destructible_GetPieceIndexForLabel(DestructibleDef *ddef, unsigned __int16 enableLabel);
 int __cdecl Destructible_GetPieceMaxHealth(DestructibleDef *ddef, int pieceIndex);
 int __cdecl Destructible_GetPieceHealth(Destructible *destructible, int pieceIndex);
@@ -380,4 +382,4 @@ void __cdecl Scr_DestructibleCallback(gentity_s *self, unsigned __int16 event, i
 void __cdecl Scr_DestructibleCallback(gentity_s *self, unsigned __int16 event, char *notify, gentity_s *attacker);
 void __cdecl CScr_DestructibleCallback(centity_s *self, unsigned __int16 event, int piece, float time, int damage);
 
-extern Destructible *cg_destructibles[1];
+extern Destructible *cg_destructibles[MAX_LOCAL_CLIENTS];

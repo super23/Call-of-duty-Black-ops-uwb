@@ -1,6 +1,10 @@
 #include "ui_commands.h"
 #include <universal/dvar.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_main_sp.h>
+#else
 #include <client_mp/cl_main_mp.h>
+#endif
 #include <win32/win_gamerprofile.h>
 
 void __cdecl UI_SetClanName_f()

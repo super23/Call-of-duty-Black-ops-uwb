@@ -1,14 +1,15 @@
 #include "actor_fields.h"
 #include <clientscript/cscr_vm.h>
-#include <game_mp/g_utils_mp.h>
+#include <stddef.h>
+#include <game/g_utils_wrapper.h>
 #include <clientscript/cscr_stringlist.h>
 #include <clientscript/scr_const.h>
-#include <game_mp/actor_mp.h>
+#include <game/actor_wrapper.h>
 #include "g_weapon.h"
 #include <universal/surfaceflags.h>
-#include <game_mp/g_cmds_mp.h>
-#include <game_mp/g_main_mp.h>
-#include <game_mp/g_spawn_mp.h>
+#include <game/g_cmds_wrapper.h>
+#include <game/g_main_wrapper.h>
+#include <game/g_spawn_wrapper.h>
 #include <flame/flame_system.h>
 #include <bgame/bg_weapons_def.h>
 
@@ -59,12 +60,21 @@ const actor_fields_s aifields[80] =
   { "maxsightdistsqrd", 3864, { 4 }, F_FLOAT, NULL, NULL },
   { "ignoreclosefoliage", 3868, { 4 }, F_INT, NULL, NULL },
   { "interval", 3576, { 4 }, F_FLOAT, NULL, NULL },
+#ifdef KISAK_SP
+  { "damagetaken", offsetof(actor_s, iDamageTaken), { 4 }, F_INT, ActorScr_ReadOnly, NULL },
+  { "damagedir", offsetof(actor_s, damageDir), { 12 }, F_VECTOR, ActorScr_ReadOnly, NULL },
+  { "damageyaw", offsetof(actor_s, iDamageYaw), { 4 }, F_INT, ActorScr_ReadOnly, NULL },
+  { "damagelocation", offsetof(actor_s, damageHitLoc), { 2 }, F_STRING, ActorScr_ReadOnly, NULL },
+  { "damageweapon", offsetof(actor_s, damageWeapon), { 2 }, F_STRING, ActorScr_ReadOnly, NULL },
+  { "damagemod", offsetof(actor_s, damageMod), { 2 }, F_STRING, ActorScr_ReadOnly, NULL },
+#else
   { "damagetaken", 496, { 4 }, F_INT, ActorScr_ReadOnly, NULL },
   { "damagedir", 504, { 12 }, F_VECTOR, ActorScr_ReadOnly, NULL },
   { "damageyaw", 500, { 4 }, F_INT, ActorScr_ReadOnly, NULL },
   { "damagelocation", 516, { 2 }, F_STRING, ActorScr_ReadOnly, NULL },
   { "damageweapon", 518, { 2 }, F_STRING, ActorScr_ReadOnly, NULL },
   { "damagemod", 520, { 2 }, F_STRING, ActorScr_ReadOnly, NULL },
+#endif
   { "proneok", 332, { 4 }, F_INT, ActorScr_ReadOnly, NULL },
   { "walkdist", 3564, { 4 }, F_FLOAT, NULL, NULL },
   { "desiredangle", 316, { 4 }, F_FLOAT, ActorScr_ReadOnly, NULL },
@@ -99,17 +109,16 @@ const actor_fields_s aifields[80] =
   { "dropweapon", 5948, { 4 }, F_INT, NULL, NULL },
   { "drawoncompass", 5952, { 4 }, F_INT, NULL, NULL },
   { "activatecrosshair", 5956, { 4 }, F_INT, NULL, NULL },
-  {
-    "groundtype",
-    604,
-    { 4 },
-    F_STRING,
-    ActorScr_ReadOnly,
-    ActorScr_GetGroundType
-  },
+  { "groundtype", 604, { 4 }, F_STRING, ActorScr_ReadOnly, ActorScr_GetGroundType },
+#ifdef KISAK_SP
+  { "scriptstate", offsetof(actor_s, scriptState), { 2 }, F_STRING, ActorScr_ReadOnly, NULL },
+  { "lastscriptstate", offsetof(actor_s, lastScriptState), { 2 }, F_STRING, ActorScr_ReadOnly, NULL },
+  { "statechangereason", offsetof(actor_s, stateChangeReason), { 2 }, F_STRING, ActorScr_ReadOnly, NULL },
+#else
   { "scriptstate", 5992, { 2 }, F_STRING, ActorScr_ReadOnly, NULL },
   { "lastscriptstate", 5994, { 2 }, F_STRING, ActorScr_ReadOnly, NULL },
   { "statechangereason", 5996, { 2 }, F_STRING, ActorScr_ReadOnly, NULL },
+#endif
   { "goalradius", 3716, { 4 }, F_FLOAT, ActorScr_SetGoalRadius, NULL },
   { "goalheight", 3720, { 4 }, F_FLOAT, ActorScr_SetGoalHeight, NULL },
   { "goalpos", 3648, { 12 }, F_VECTOR, ActorScr_ReadOnly, NULL },
@@ -176,7 +185,17 @@ const actor_fields_s aifields[80] =
 actor_fields_s aifield_list =
 { NULL, 0, { 0 }, F_INT, NULL, NULL };
 
+#ifdef KISAK_SP
+const unsigned __int16 *g_AISpeciesNames[4] =
+{
+    (const unsigned __int16 *)&scr_const.human,
+    (const unsigned __int16 *)&scr_const.dog,
+    (const unsigned __int16 *)&scr_const.zombie,
+    (const unsigned __int16 *)&scr_const.zombie_dog,
+};
+#else
 const unsigned __int16 *g_AISpeciesNames[1] = { (const unsigned __int16 *)&scr_const.dog };
+#endif
 
 void __cdecl ActorScr_SetSpecies(actor_s *pSelf, const actor_fields_s *pField)
 {
@@ -188,7 +207,7 @@ void __cdecl ActorScr_SetSpecies(actor_s *pSelf, const actor_fields_s *pField)
     if ( !pSelf && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_fields.cpp", 304, 0, "%s", "pSelf") )
         __debugbreak();
     type = Scr_GetConstString(0, SCRIPTINSTANCE_SERVER);
-    for ( i = AI_SPECIES_DOG; i < MAX_AI_SPECIES; ++i )
+    for ( i = (AISpecies)0; i < MAX_AI_SPECIES; ++i )
     {
         if ( type == *g_AISpeciesNames[i] )
         {
@@ -207,6 +226,19 @@ void __cdecl ActorScr_GetSpecies(actor_s *pSelf, const actor_fields_s *pField)
 {
     if ( !pSelf && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_fields.cpp", 330, 0, "%s", "pSelf") )
         __debugbreak();
+#ifdef KISAK_SP
+    if ( pSelf->species >= MAX_AI_SPECIES
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_fields.cpp",
+                    331,
+                    0,
+                    "pSelf->species doesn't index MAX_AI_SPECIES\n\t%i not in [0, %i)",
+                    pSelf->species,
+                    MAX_AI_SPECIES) )
+    {
+        __debugbreak();
+    }
+#else
     if ( pSelf->species
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_fields.cpp",
@@ -218,15 +250,27 @@ void __cdecl ActorScr_GetSpecies(actor_s *pSelf, const actor_fields_s *pField)
     {
         __debugbreak();
     }
+#endif
     Scr_AddConstString(*g_AISpeciesNames[pSelf->species], SCRIPTINSTANCE_SERVER);
 }
 
 void __cdecl ActorScr_GetIsDog(actor_s *pSelf, const actor_fields_s *pField)
 {
-    unsigned __int8 LocalClientSourceRange; // al
-
     if ( !pSelf && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_fields.cpp", 343, 0, "%s", "pSelf") )
         __debugbreak();
+#ifdef KISAK_SP
+    if ( pSelf->species >= MAX_AI_SPECIES
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_fields.cpp",
+                    344,
+                    0,
+                    "pSelf->species doesn't index MAX_AI_SPECIES\n\t%i not in [0, %i)",
+                    pSelf->species,
+                    MAX_AI_SPECIES) )
+    {
+        __debugbreak();
+    }
+#else
     if ( pSelf->species
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_fields.cpp",
@@ -238,8 +282,8 @@ void __cdecl ActorScr_GetIsDog(actor_s *pSelf, const actor_fields_s *pField)
     {
         __debugbreak();
     }
-    LocalClientSourceRange = Flame_GetLocalClientSourceRange();
-    Scr_AddBool(LocalClientSourceRange, SCRIPTINSTANCE_SERVER);
+#endif
+    Scr_AddBool(G_IsSpeciesDog(pSelf->species), SCRIPTINSTANCE_SERVER);
 }
 
 void __cdecl ActorScr_Clamp_0_1(actor_s *pSelf, const actor_fields_s *pField)
@@ -594,16 +638,16 @@ void __cdecl ActorScr_GetMoveMode(actor_s *pSelf, const actor_fields_s *pField)
     }
     switch ( pSelf->moveMode )
     {
-        case AI_MOVE_STOP:
+        case 0u:
             Scr_AddConstString(scr_const.stop, SCRIPTINSTANCE_SERVER);
             break;
-        case AI_MOVE_STOP_SOON:
+        case 1u:
             Scr_AddConstString(scr_const.stop_soon, SCRIPTINSTANCE_SERVER);
             break;
-        case AI_MOVE_WALK:
+        case 2u:
             Scr_AddConstString(scr_const.walk, SCRIPTINSTANCE_SERVER);
             break;
-        case AI_MOVE_RUN:
+        case 3u:
             Scr_AddConstString(scr_const.run, SCRIPTINSTANCE_SERVER);
             break;
         default:
@@ -1032,7 +1076,7 @@ void __cdecl Cmd_AI_DisplayValue(actor_s *pSelf, unsigned __int8 *pBase, const a
             case F_ENTITY:
                 if ( !*(unsigned int *)&pBase[pField->ofs] )
                     goto LABEL_43;
-                i = (signed int)(*(unsigned int *)&pBase[pField->ofs] - (unsigned int)level.gentities) / 760;
+                i = (signed int)(*(unsigned int *)&pBase[pField->ofs] - (unsigned int)level.gentities) / (int)sizeof(gentity_s);
                 if ( i >= 0x400
                     && !Assert_MyHandler(
                                 "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_fields.cpp",

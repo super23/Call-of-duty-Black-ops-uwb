@@ -8,6 +8,9 @@ struct AIEventListener // sizeof=0x8
 };
 
 void __cdecl RemoveSwapWithLast(unsigned int listenerIndex);
+ai_event_t __cdecl Actor_FindEventFromString(unsigned __int16 eventString);
+void __cdecl Actor_EventListener_Add(unsigned int entIndex, unsigned __int16 eventString);
+void __cdecl Actor_EventListener_Remove(unsigned int entIndex, unsigned __int16 eventString);
 void __cdecl Actor_EventListener_RemoveEntity(int entIndex);
 int __cdecl Actor_EventListener_First(ai_event_t event, int teamFlags);
 int __cdecl Actor_EventListener_Next(int index, ai_event_t event, int teamFlags);

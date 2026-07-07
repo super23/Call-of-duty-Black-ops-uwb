@@ -1,19 +1,41 @@
 #include "cg_weapons.h"
 #include <bgame/bg_local.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#include <ui_sp/ui_gametype_variants_sp.h>
+#include <cgame_sp/cg_main_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <client_sp/cl_scrn_sp.h>
+#include <cgame_sp/cg_ents_sp.h>
+#include <cgame_sp/cg_view_sp.h>
+#include <cgame_sp/cg_vehicles_sp.h>
+#include <game/g_main.h>
+#include <server_sp/sv_init_sp.h>
+#include <cgame_sp/cg_pose_sp.h>
+#include <cgame_sp/cg_servercmds_sp.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
+#include <ui_mp/ui_gametype_variants_mp.h>
+#include <cgame_mp/cg_main_mp.h>
+#include <client_mp/cl_cgame_mp.h>
+#include <client_mp/cl_scrn_mp.h>
+#include <cgame_mp/cg_ents_mp.h>
+#include <cgame_mp/cg_view_mp.h>
+#include <cgame_mp/cg_vehicles_mp.h>
+#include <game_mp/g_main_mp.h>
+#include <server_mp/sv_init_mp.h>
+#include <cgame_mp/cg_pose_mp.h>
+#include <cgame_mp/cg_servercmds_mp.h>
+#endif
 #include <bgame/bg_weapons.h>
 #include <bgame/bg_weapons_def.h>
 #include "cg_camera.h"
 #include <bgame/bg_perks.h>
-#include <ui_mp/ui_gametype_variants_mp.h>
-#include <cgame_mp/cg_main_mp.h>
 #include <bgame/bg_mantle.h>
 #include <client/splitscreen.h>
-#include <client_mp/cl_cgame_mp.h>
 #include <xanim/dobj_utils.h>
 #include <clientscript/cscr_stringlist.h>
 #include <qcommon/dobj_management.h>
-#include <client_mp/cl_scrn_mp.h>
 #include <stringed/stringed_hooks.h>
 #include <gfx_d3d/r_stream.h>
 #include <bgame/bg_misc.h>
@@ -22,20 +44,14 @@
 #include <demo/demo_playback.h>
 #include "cg_event.h"
 #include <gfx_d3d/r_model.h>
-#include <cgame_mp/cg_ents_mp.h>
 #include <sound/snd_bank.h>
 #include "cg_sound.h"
 #include <sound/snd_dvar.h>
-#include <cgame_mp/cg_view_mp.h>
-#include <cgame_mp/cg_vehicles_mp.h>
 #include <sound/snd_public_async.h>
 #include <win32/win_shared.h>
-#include <game_mp/g_main_mp.h>
 #include "cg_drawtools.h"
 #include <DynEntity/DynEntity_client.h>
 #include <gfx_d3d/r_dpvs.h>
-#include <server_mp/sv_init_mp.h>
-#include <cgame_mp/cg_pose_mp.h>
 #include <game/g_debug.h>
 #include "cg_world.h"
 #include <universal/com_math_anglevectors.h>
@@ -50,7 +66,6 @@
 #include "cg_scr_main.h"
 #include "cg_draw_reticles.h"
 #include <bgame/bg_weapons_view.h>
-#include <cgame_mp/cg_servercmds_mp.h>
 #include <bgame/bg_weapons_ammo.h>
 #include <gfx_d3d/r_foliage.h>
 #include <game/bullet.h>
@@ -1178,13 +1193,21 @@ void __cdecl CG_RegisterItemVisuals(int localClientNum, unsigned int weapIdx)
 void __cdecl CG_RegisterItems(int localClientNum)
 {
     char v1; // dl
-    char *v2; // [esp+8h] [ebp-818h]
-    const char *ConfigString; // [esp+Ch] [ebp-814h]
-    char items[2052]; // [esp+10h] [ebp-810h] BYREF
-    int i; // [esp+818h] [ebp-8h]
-    int digit; // [esp+81Ch] [ebp-4h]
+    char *v2;
+    const char *ConfigString;
+#ifdef KISAK_SP
+    char items[128];
+#else
+    char items[2052];
+#endif
+    int i;
+    int digit;
 
+#ifdef KISAK_SP
+    ConfigString = CL_GetConfigString(3035);
+#else
     ConfigString = CL_GetConfigString(3147);
+#endif
     v2 = items;
     do
     {
@@ -1192,7 +1215,11 @@ void __cdecl CG_RegisterItems(int localClientNum)
         *v2++ = *ConfigString++;
     }
     while ( v1 );
+#ifdef KISAK_SP
+    for ( i = 1; i < 128 && items[i / 4]; ++i )
+#else
     for ( i = 1; i < 2048 && items[i / 4]; ++i )
+#endif
     {
         digit = items[i / 4];
         if ( digit > '9' )
@@ -1615,6 +1642,7 @@ void __cdecl BulletTrace_Start(
     bool traceHit; // [esp+57h] [ebp-1h]
 
     traceHit = 0;
+    memset(&br, 0, 16);
     FireBulletPenetrate(localClientNum, bp, weaponIndex, attacker, tracerStart, drawTracer, isPlayer, &br);
 }
 
@@ -1690,6 +1718,7 @@ void __cdecl FireBulletPenetrate(
 
     PROF_SCOPED("FireBulletPenetrate");
 
+    memset(&revBr, 0, 16);
     if ( !bp && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_weapons.cpp", 2837, 0, "%s", "bp") )
         __debugbreak();
     if ( !attacker
@@ -3714,8 +3743,14 @@ void __cdecl CG_AddViewWeapon(int localClientNum)
         && player_topDownCamMode->current.integer <= 0
         && !BG_UsingVehicleWeapon(ps) )
     {
-        if ( cgameGlob->cubemapShot || !cg_drawGun->current.enabled || CG_GetWeapReticleZoom(cgameGlob, &fZoom) )
+        if ( cgameGlob->cubemapShot
+            || !cg_drawGun->current.enabled
+            || CG_GetWeapReticleZoom(cgameGlob, &fZoom) )
             drawgun = 0;
+#ifdef KISAK_SP
+        if ( cgameGlob->hideViewModel )
+            drawgun = 0;
+#endif
         weaponIndex = BG_GetViewmodelWeaponIndex(ps);
         if ( weaponIndex <= 0 )
         {
@@ -5170,7 +5205,7 @@ void __cdecl DrawBulletImpacts(
                 velocity[1] = v15 * velocity[1];
                 velocity[2] = v15 * velocity[2];
             }
-            v14 = Vec3Length(velocity);
+            v14 = Abs(velocity);
             if ( (float)(v14 - 255.0) < 0.0 )
                 v8 = v14;
             else
@@ -5334,7 +5369,7 @@ LABEL_52:
                 velocity[1] = v11 * velocity[1];
                 velocity[2] = v11 * velocity[2];
             }
-            v10 = Vec3Length(velocity);
+            v10 = Abs(velocity);
             if ( (float)(v10 - 255.0) < 0.0 )
                 v7 = v10;
             else
@@ -7069,6 +7104,10 @@ void __cdecl CG_SetBaseWeaponForStats(const WeaponVariantDef *weapVariantDef)
     {
         if ( weapVariantDef->weapDef->parentWeaponName && *weapVariantDef->weapDef->parentWeaponName )
         {
+#ifdef KISAK_SP
+            // Decomp: CoDSP_rdBlackOps.map.c — SP never runs LiveStats_Init / mp/statstable.csv unlockables table.
+            return;
+#endif
             itemIndex = BG_UnlockablesGetItemIndexFromRef(weapVariantDef->weapDef->parentWeaponName);
             if ( itemIndex == -1 )
                 Com_Error(
@@ -7097,6 +7136,12 @@ void __cdecl CG_SetupWeaponConfigString(int configStringIndex)
     unsigned int weaponIndex; // [esp+810h] [ebp-Ch]
     const char *token; // [esp+814h] [ebp-8h]
     const char *weaponConfigString; // [esp+818h] [ebp-4h] BYREF
+
+#ifdef KISAK_SP
+    // PC SP: CS 3035 holds registered items (360 uses 2724+199=2923 for weapons; PC weapons use 2836+199=3035).
+    if ( configStringIndex == 3035 - 2836 )
+        return;
+#endif
 
     // LWSS ADD - sv.configstrings is not set at this point (FOR CLIENTS CONNECTING TO A DEDICATED)
     // So I'm calling CL_GetConfigString() instead for clients - this IS set in CL_ParseGameState()
@@ -7155,10 +7200,33 @@ void __cdecl CG_SetupWeaponDef()
 {
     unsigned int configStringIndex; // [esp+0h] [ebp-4h]
 
-    CG_GetWeaponIndexForName((char*)"defaultweapon_mp");
+#ifdef KISAK_SP
+    // Decomp: CoDSP_rdBlackOps.map.c — client mirrors server defaultweapon bootstrap on SP load.
+    CG_GetWeaponIndexForName((char *)"defaultweapon");
+    if ( zombiemode && zombiemode->current.enabled )
+    {
+        static const char *zmWeapons[] =
+        {
+            "m1911_zm",
+            "knife_zm",
+            "bowie_knife_zm",
+            "frag_grenade_zm",
+            "claymore_zm",
+            nullptr
+        };
+        int i;
+
+        for ( i = 0; zmWeapons[i]; ++i )
+            CG_GetWeaponIndexForName((char *)zmWeapons[i]);
+    }
+#else
+    CG_GetWeaponIndexForName((char *)"defaultweapon_mp");
+#endif
     if ( !G_ExitAfterToolComplete() )
     {
+#ifndef KISAK_SP
         BG_LoadWeaponTable("_mp", 0);
+#endif
         for ( configStringIndex = 0; configStringIndex < 0x100; ++configStringIndex )
             CG_SetupWeaponConfigString(configStringIndex);
     }
@@ -7516,6 +7584,12 @@ void __cdecl CG_ApplyWeaponTurnRateCap(int localClientNum)
         weaponDef = BG_GetWeaponDef(weapon);
         if ( weaponDef )
         {
+            if ( weaponDef->guidedMissileType == MISSILE_GUIDANCE_TVGUIDED
+                && !CG_RenderPlayerFromMissilePOV(localClientNum) )
+            {
+                CL_CapTurnRate(localClientNum, 0.0f, 0.0f);
+                return;
+            }
             if ( weaponDef->maxTurnSpeed[1] != 0.0 && weaponDef->maxTurnSpeed[0] != 0.0 )
             {
                 pitchRate = weaponDef->maxTurnSpeed[0];
@@ -7524,6 +7598,14 @@ void __cdecl CG_ApplyWeaponTurnRateCap(int localClientNum)
                     yawRate = CG_GetPlayerVehicleHandbrakeTurnSpeedValue(localClientNum) + yawRate;
                 CL_CapTurnRate(localClientNum, pitchRate, yawRate);
             }
+            else
+            {
+                CL_CapTurnRate(localClientNum, 0.0f, 0.0f);
+            }
+        }
+        else
+        {
+            CL_CapTurnRate(localClientNum, 0.0f, 0.0f);
         }
     }
 }

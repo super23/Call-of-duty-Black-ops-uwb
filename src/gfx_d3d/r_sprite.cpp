@@ -390,13 +390,14 @@ void __cdecl R_GenerateQuadStampCodeMeshVertsArray(
             vup.v[1] = (float)(c * viewUp.v[1]) - (float)(s * viewLeft.v[1]);
             vup.v[2] = (float)(c * viewUp.v[2]) - (float)(s * viewLeft.v[2]);
             vup.v[3] = (float)(c * viewUp.v[3]) - (float)(s * viewLeft.v[3]);
+            // CoDMPServer.c:1057278-1057280 — clamp atlas frame before (signed int) cast.
             if ( (float)(numFramesMax - (float)(quads[i].lifeFrac * numFrames)) < 0.0 )
                 v14 = numFramesMax;
             else
                 v14 = quads[i].lifeFrac * numFrames;
-            *(float *)&s0 = (float)((int)v14 % material->info.textureAtlasColumnCount) * v56;
+            *(float *)&s0 = (float)((signed int)v14 % (unsigned __int8)material->info.textureAtlasColumnCount) * v56;
             *(float *)&s1 = *(float *)&s0 + v56;
-            t0 = (float)((int)v14 / material->info.textureAtlasColumnCount) * dt;
+            t0 = (float)((signed int)v14 / (unsigned __int8)material->info.textureAtlasColumnCount) * dt;
             *(float *)&t1 = t0 + dt;
             v4 = &quads[i];
             vcenter = *(_QWORD *)v4->pos;
@@ -486,24 +487,33 @@ void __cdecl R_GenerateQuadStampCodeMeshVertsArray(
                 v6 = -16384;
             tex3.packed = (v6 & 0x3FFF | (t1 >> 16) & 0xC000) + ((v7 & 0x3FFF | (s0 >> 16) & 0xC000) << 16);
             out = verts;
-            v5 = verts;
-            *(_QWORD *)verts->xyz = *(_QWORD *)pos0.v;
-            *(_QWORD *)&v5->xyz[2] = *(_QWORD *)&pos0.unitVec[2].packed;
+            // CoDMPServer.c:1057394-1057410 — explicit xyz + binormalSign (pos.w from renderQuad_t).
+            // BlackOpsMP.retail.c:709654 uses float4 stores; pos[3] still lands in binormalSign.
+            out->xyz[0] = pos0.v[0];
+            out->xyz[1] = pos0.v[1];
+            out->xyz[2] = pos0.v[2];
+            out->binormalSign = pos0.v[3];
             *(_QWORD *)&out->color.packed = *(_QWORD *)prototype.v;
             *(_QWORD *)&out->normal.packed = *(_QWORD *)&prototype.unitVec[2].packed;
             out->texCoord = tex0;
-            *(_QWORD *)out[1].xyz = *(_QWORD *)pos1.v;
-            *(_QWORD *)&out[1].xyz[2] = *(_QWORD *)&pos1.unitVec[2].packed;
+            out[1].xyz[0] = pos1.v[0];
+            out[1].xyz[1] = pos1.v[1];
+            out[1].xyz[2] = pos1.v[2];
+            out[1].binormalSign = pos1.v[3];
             *(_QWORD *)&out[1].color.packed = *(_QWORD *)prototype.v;
             *(_QWORD *)&out[1].normal.packed = *(_QWORD *)&prototype.unitVec[2].packed;
             out[1].texCoord = tex1;
-            *(_QWORD *)out[2].xyz = *(_QWORD *)pos2.v;
-            *(_QWORD *)&out[2].xyz[2] = *(_QWORD *)&pos2.unitVec[2].packed;
+            out[2].xyz[0] = pos2.v[0];
+            out[2].xyz[1] = pos2.v[1];
+            out[2].xyz[2] = pos2.v[2];
+            out[2].binormalSign = pos2.v[3];
             *(_QWORD *)&out[2].color.packed = *(_QWORD *)prototype.v;
             *(_QWORD *)&out[2].normal.packed = *(_QWORD *)&prototype.unitVec[2].packed;
             out[2].texCoord = tex2;
-            *(_QWORD *)out[3].xyz = *(_QWORD *)pos3.v;
-            *(_QWORD *)&out[3].xyz[2] = *(_QWORD *)&pos3.unitVec[2].packed;
+            out[3].xyz[0] = pos3.v[0];
+            out[3].xyz[1] = pos3.v[1];
+            out[3].xyz[2] = pos3.v[2];
+            out[3].binormalSign = pos3.v[3];
             *(_QWORD *)&out[3].color.packed = *(_QWORD *)prototype.v;
             *(_QWORD *)&out[3].normal.packed = *(_QWORD *)&prototype.unitVec[2].packed;
             out[3].texCoord = tex3;

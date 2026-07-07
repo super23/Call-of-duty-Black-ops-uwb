@@ -1,7 +1,11 @@
 #pragma once
 #include <qcommon/cmd.h>
 #include "ui_shared.h"
+#ifdef KISAK_SP
+#include <ui_sp/ui_gametype_variants_sp.h>
+#else
 #include <ui_mp/ui_gametype_variants_mp.h>
+#endif
 
 int __cdecl UI_FeederCount(int localClientNum, int contextIndex, float feederID, listBoxDef_s *listPtr);
 void __cdecl UI_BuildPlayerList(int localClientNum);

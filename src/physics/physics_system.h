@@ -4,19 +4,16 @@
 struct phys_sys // sizeof=0x0
 {
     static environment_rigid_body *__cdecl get_environment_rigid_body();
-
     static void __cdecl set_max_delta_t(float max_delta_t);
     static double __cdecl get_max_delta_t();
     static void __cdecl set_v_tol(int max_v_iters);
     static void __cdecl get_v_tol(int *max_v_iters);
     static void __cdecl set_vp_tol(int max_vp_iters);
     static void __cdecl get_vp_tol(int *max_vp_iters);
-
     static void __cdecl set_collision_callback(void(__cdecl *collision_callback)());
     static void __cdecl phys_frame_advance(float delta_t);
     static void __cdecl phys_init();
     static void __cdecl phys_shutdown();
-
     static int __cdecl get_rigid_body_alloc_count();
     static int __cdecl get_user_rigid_body_alloc_count();
     static int __cdecl get_rbc_point_alloc_count();
@@ -29,13 +26,13 @@ struct phys_sys // sizeof=0x0
     static int __cdecl get_rbc_custom_orientation_alloc_count();
     static int __cdecl get_rbc_custom_path_alloc_count();
     static int __cdecl get_rbc_contact_alloc_count();
-
-    user_rigid_body *get_user_rigid_body(const phys_mat44 *const dictactor);
+    phys_free_list<user_rigid_body>::T_internal_base *__cdecl get_user_rigid_body(
+        const phys_mat44 *const dictactor);
     rigid_body_constraint_contact *__cdecl get_rbc_contact(
         environment_rigid_body *b1,
         environment_rigid_body *b2);
     static void __cdecl fixup_wheel_constraints(rigid_body *const rb);
-    void __cdecl update_constraint_infos(); // Unused!
+    void __cdecl update_constraint_infos();
     static rigid_body *__cdecl create_rigid_body(int no_error);
     static rigid_body_constraint_point *__cdecl create_rbc_point(
         environment_rigid_body *b1,

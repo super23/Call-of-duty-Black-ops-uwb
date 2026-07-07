@@ -1,12 +1,12 @@
 #include "g_scr_mover.h"
-#include <game_mp/g_main_mp.h>
+#include <game/g_main_wrapper.h>
 #include <clientscript/cscr_vm.h>
 #include <bgame/bg_misc.h>
 #include <server/sv_world.h>
-#include <game_mp/g_spawn_mp.h>
+#include <game/g_spawn_wrapper.h>
 #include <clientscript/scr_const.h>
 #include <server/sv_game.h>
-#include <game_mp/g_utils_mp.h>
+#include <game/g_utils_wrapper.h>
 #include <qcommon/dobj_management.h>
 #include <universal/com_math_anglevectors.h>
 #include <qcommon/cm_load.h>
@@ -15,10 +15,8 @@
 
 void __cdecl Reached_ScriptMover(gentity_s *pEnt)
 {
-    int bMoveFinished; // [esp+20h] [ebp-4h]
-    int bMoveFinisheda; // [esp+20h] [ebp-4h]
-    int savedregs; // [esp+24h] [ebp+0h] BYREF
-
+    int bMoveFinished;
+    int bRotateFinished;
     if ( pEnt->s.lerp.pos.trType )
     {
         if ( pEnt->s.lerp.pos.trDuration + pEnt->s.lerp.pos.trTime <= level.time )
@@ -29,8 +27,8 @@ void __cdecl Reached_ScriptMover(gentity_s *pEnt)
                                                 pEnt->mover.speed,
                                                 pEnt->mover.midTime,
                                                 pEnt->mover.decelTime,
-                                                &pEnt->trigger.exposureLerpToLighter,
-                                                &pEnt->trigger.exposureFeather[1],
+                                                pEnt->mover.pos1,
+                                                pEnt->mover.pos2,
                                                 pEnt->mover.pos3);
             BG_EvaluateTrajectory(&pEnt->s.lerp.pos, level.time, pEnt->r.currentOrigin);
             SV_LinkEntity(pEnt);
@@ -40,7 +38,7 @@ void __cdecl Reached_ScriptMover(gentity_s *pEnt)
     }
     if ( pEnt->s.lerp.apos.trType && pEnt->s.lerp.apos.trDuration + pEnt->s.lerp.apos.trTime <= level.time )
     {
-        bMoveFinisheda = ScriptMover_UpdateMove(
+        bRotateFinished = ScriptMover_UpdateMove(
                                              &pEnt->s.lerp.apos,
                                              pEnt->r.currentAngles,
                                              pEnt->mover.aSpeed,
@@ -51,7 +49,7 @@ void __cdecl Reached_ScriptMover(gentity_s *pEnt)
                                              pEnt->mover.apos3);
         BG_EvaluateTrajectory(&pEnt->s.lerp.apos, level.time, pEnt->r.currentAngles);
         SV_LinkEntity(pEnt);
-        if ( bMoveFinisheda )
+        if ( bRotateFinished )
         {
             pEnt->r.currentAngles[0] = AngleNormalize180(pEnt->r.currentAngles[0]);
             pEnt->r.currentAngles[1] = AngleNormalize360(pEnt->r.currentAngles[1]);
@@ -71,10 +69,9 @@ int __cdecl ScriptMover_UpdateMove(
                 const float *vPos2,
                 const float *vPos3)
 {
-    float fDelta; // [esp+38h] [ebp-14h]
-    float vMove[3]; // [esp+3Ch] [ebp-10h] BYREF
-    int trDuration; // [esp+48h] [ebp-4h]
-
+    float fDelta;
+    float vMove[3];
+    int trDuration;
     trDuration = (int)(float)(fMidTime * 1000.0);
     if ( pTr->trType == 8 && trDuration > 0 )
     {
@@ -163,9 +160,8 @@ void __cdecl ScriptMover_SetupPhysicsLaunch(
                 const float *contact_point,
                 const float *initial_force)
 {
-    float currPos[3]; // [esp+10h] [ebp-18h] BYREF
-    float currApos[3]; // [esp+1Ch] [ebp-Ch] BYREF
-
+    float currPos[3];
+    float currApos[3];
     if ( pTr->trType == 10 )
         ++pTr->trDuration;
     else
@@ -194,6 +190,7 @@ void __cdecl InitScriptMover(gentity_s *pSelf)
     pSelf->handler = 8;
     pSelf->s.lerp.eFlags |= 0x10u;
     pSelf->r.svFlags = 0;
+    // Decomp: CoDMPServer.c:426001 — InitScriptMover always sets ET_SCRIPTMOVER.
     pSelf->s.eType = ET_SCRIPTMOVER;
     pSelf->s.lerp.pos.trBase[0] = pSelf->r.currentOrigin[0];
     pSelf->s.lerp.pos.trBase[1] = pSelf->r.currentOrigin[1];
@@ -213,9 +210,7 @@ void __cdecl SP_script_brushmodel(gentity_s *self, SpawnVar *v)
         InitScriptMover(self);
         SV_LinkEntity(self);
         if ( (self->spawnflags & 1) != 0 )
-            self->flags |= (FL_DYNAMICPATH | FL_AUTO_BLOCKPATHS);
-
-        static_assert(0x40000800u == (FL_DYNAMICPATH | FL_AUTO_BLOCKPATHS));
+            self->flags |= 0x40000800u;
     }
     else
     {
@@ -231,9 +226,7 @@ void __cdecl SP_script_brushmodel(gentity_s *self, SpawnVar *v)
 
 void __cdecl SP_script_model(gentity_s *pSelf, SpawnVar *v)
 {
-    DObj *obj; // [esp+0h] [ebp-4h]
-    int savedregs; // [esp+4h] [ebp+0h] BYREF
-
+    DObj *obj;
     G_DObjUpdate(pSelf);
     InitScriptMover(pSelf);
     pSelf->r.svFlags |= 4u;
@@ -245,19 +238,24 @@ void __cdecl SP_script_model(gentity_s *pSelf, SpawnVar *v)
         DObjCalcBounds(obj, pSelf->r.mins, pSelf->r.maxs);
     }
     SV_LinkEntity(pSelf);
-
-    iassert(pSelf->handler == ENT_HANDLER_SCRIPT_MOVER);
-    pSelf->handler = ENT_HANDLER_SCRIPT_MODEL;
+    if ( pSelf->handler != 8
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_mover.cpp",
+                    476,
+                    0,
+                    "%s",
+                    "pSelf->handler == ENT_HANDLER_SCRIPT_MOVER") )
+    {
+        __debugbreak();
+    }
+    pSelf->handler = 9;
+    pSelf->flags |= 0x2000u;
     if ( (pSelf->spawnflags & 1) != 0 )
-        pSelf->flags |= (FL_DYNAMICPATH | FL_AUTO_BLOCKPATHS);
-
-    static_assert(0x40000800u == (FL_DYNAMICPATH | FL_AUTO_BLOCKPATHS));
+        pSelf->flags |= 0x40000800u;
 }
 
 void __cdecl SP_script_origin(gentity_s *pSelf, SpawnVar *v)
 {
-    int savedregs; // [esp+0h] [ebp+0h] BYREF
-
     InitScriptMover(pSelf);
     pSelf->r.contents = 0;
     SV_LinkEntity(pSelf);
@@ -266,9 +264,8 @@ void __cdecl SP_script_origin(gentity_s *pSelf, SpawnVar *v)
 
 void __cdecl ScriptEntCmdGetCommandTimes(float *pfTotalTime, float *pfAccelTime, float *pfDecelTime)
 {
-    float fTotalTimeRoundedUp; // [esp+0h] [ebp-8h]
-    int iNumParms; // [esp+4h] [ebp-4h]
-
+    float fTotalTimeRoundedUp;
+    int iNumParms;
     *pfTotalTime = Scr_GetFloat(1u, SCRIPTINSTANCE_SERVER);
     if ( *pfTotalTime <= 0.0 )
         Scr_ParamError(1u, "total time must be positive", SCRIPTINSTANCE_SERVER);
@@ -308,13 +305,12 @@ void __cdecl ScriptEntCmdGetCommandTimes(float *pfTotalTime, float *pfAccelTime,
 
 void __cdecl ScriptEntCmd_MoveTo(scr_entref_t entref)
 {
-    const char *v1; // eax
-    gentity_s *pSelf; // [esp+Ch] [ebp-1Ch]
-    float fTotalTime; // [esp+10h] [ebp-18h] BYREF
-    float fAccelTime; // [esp+14h] [ebp-14h] BYREF
-    float fDecelTime; // [esp+18h] [ebp-10h] BYREF
-    float vPos[3]; // [esp+1Ch] [ebp-Ch] BYREF
-
+    const char *entityTypeError;
+    gentity_s *pSelf;
+    float fTotalTime;
+    float fAccelTime;
+    float fDecelTime;
+    float vPos[3];
     if ( entref.classnum )
     {
         Scr_ObjectError("not an entity", SCRIPTINSTANCE_SERVER);
@@ -338,8 +334,8 @@ void __cdecl ScriptEntCmd_MoveTo(scr_entref_t entref)
             && pSelf->classname != scr_const.script_origin
             && pSelf->classname != scr_const.light )
         {
-            v1 = va("entity %i is not a script_brushmodel, script_model, script_origin, or light", entref.entnum);
-            Scr_ObjectError(v1, SCRIPTINSTANCE_SERVER);
+            entityTypeError = va("entity %i is not a script_brushmodel, script_model, script_origin, or light", entref.entnum);
+            Scr_ObjectError(entityTypeError, SCRIPTINSTANCE_SERVER);
         }
     }
     Scr_GetVector(0, vPos, SCRIPTINSTANCE_SERVER);
@@ -349,13 +345,10 @@ void __cdecl ScriptEntCmd_MoveTo(scr_entref_t entref)
 
 void __cdecl ScriptMover_Move(gentity_s *pEnt, const float *vPos, float fTotalTime, float fAccelTime, float fDecelTime)
 {
-    float origin[3]; // [esp+2Ch] [ebp-Ch] BYREF
-    int savedregs; // [esp+38h] [ebp+0h] BYREF
-
+    float origin[3];
     origin[0] = pEnt->r.currentOrigin[0];
     origin[1] = pEnt->r.currentOrigin[1];
     origin[2] = pEnt->r.currentOrigin[2];
-
     ScriptMover_SetupMove(
         &pEnt->s.lerp.pos,
         vPos,
@@ -369,7 +362,6 @@ void __cdecl ScriptMover_Move(gentity_s *pEnt, const float *vPos, float fTotalTi
         pEnt->mover.pos1,
         pEnt->mover.pos2,
         pEnt->mover.pos3);
-
     SV_LinkEntity(pEnt);
 }
 
@@ -387,15 +379,14 @@ void __cdecl ScriptMover_SetupMove(
                 float *vPos2,
                 float *vPos3)
 {
-    float v12; // [esp+0h] [ebp-8Ch]
-    float v13; // [esp+28h] [ebp-64h]
-    float v14; // [esp+44h] [ebp-48h]
-    float fDist; // [esp+6Ch] [ebp-20h]
-    float fDelta; // [esp+70h] [ebp-1Ch]
-    float fDeltaa; // [esp+70h] [ebp-1Ch]
-    float vMaxSpeed[3]; // [esp+74h] [ebp-18h] BYREF
-    float vMove[3]; // [esp+80h] [ebp-Ch] BYREF
-
+    float midTime;
+    float midTimeCached;
+    float moveSpeed;
+    float fDist;
+    float fDelta;
+    float invDuration;
+    float vMaxSpeed[3];
+    float vMove[3];
     vMove[0] = *vPos - *vCurrPos;
     vMove[1] = vPos[1] - vCurrPos[1];
     vMove[2] = vPos[2] - vCurrPos[2];
@@ -441,7 +432,7 @@ void __cdecl ScriptMover_SetupMove(
     {
         *pfMidTime = (float)(fTotalTime - fAccelTime) - fDecelTime;
         *pfDecelTime = fDecelTime;
-        fDist = Vec3Length(vMove);
+        fDist = Abs(vMove);
         if ( (float)((float)((float)(2.0 * fTotalTime) - fAccelTime) - fDecelTime) == 0.0
             && !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_mover.cpp",
@@ -454,10 +445,10 @@ void __cdecl ScriptMover_SetupMove(
         }
         *pfSpeed = (float)(2.0 * fDist) / (float)((float)((float)(2.0 * fTotalTime) - fAccelTime) - fDecelTime);
         Vec3NormalizeTo(vMove, vMaxSpeed);
-        v14 = *pfSpeed;
+        moveSpeed = *pfSpeed;
         vMaxSpeed[0] = *pfSpeed * vMaxSpeed[0];
-        vMaxSpeed[1] = v14 * vMaxSpeed[1];
-        vMaxSpeed[2] = v14 * vMaxSpeed[2];
+        vMaxSpeed[1] = moveSpeed * vMaxSpeed[1];
+        vMaxSpeed[2] = moveSpeed * vMaxSpeed[2];
         if ( fAccelTime == 0.0 )
         {
             *vPos1 = *vCurrPos;
@@ -494,10 +485,10 @@ void __cdecl ScriptMover_SetupMove(
                 pTr->trBase[0] = *vCurrPos;
                 pTr->trBase[1] = vCurrPos[1];
                 pTr->trBase[2] = vCurrPos[2];
-                v13 = *pfMidTime;
+                midTimeCached = *pfMidTime;
                 vMove[0] = *pfMidTime * vMaxSpeed[0];
-                vMove[1] = v13 * vMaxSpeed[1];
-                vMove[2] = v13 * vMaxSpeed[2];
+                vMove[1] = midTimeCached * vMaxSpeed[1];
+                vMove[2] = midTimeCached * vMaxSpeed[2];
                 if ( !pTr->trDuration
                     && !Assert_MyHandler(
                                 "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_mover.cpp",
@@ -508,10 +499,10 @@ void __cdecl ScriptMover_SetupMove(
                 {
                     __debugbreak();
                 }
-                fDeltaa = 1000.0 / (float)pTr->trDuration;
-                pTr->trDelta[0] = fDeltaa * vMove[0];
-                pTr->trDelta[1] = fDeltaa * vMove[1];
-                pTr->trDelta[2] = fDeltaa * vMove[2];
+                invDuration = 1000.0 / (float)pTr->trDuration;
+                pTr->trDelta[0] = invDuration * vMove[0];
+                pTr->trDelta[1] = invDuration * vMove[1];
+                pTr->trDelta[2] = invDuration * vMove[2];
                 if ( ((LODWORD(pTr->trDelta[0]) & 0x7F800000) == 0x7F800000
                      || (LODWORD(pTr->trDelta[1]) & 0x7F800000) == 0x7F800000
                      || (LODWORD(pTr->trDelta[2]) & 0x7F800000) == 0x7F800000)
@@ -552,10 +543,10 @@ void __cdecl ScriptMover_SetupMove(
             pTr->trType = 8;
             BG_EvaluateTrajectory(pTr, pTr->trDuration + level.time, vPos1);
         }
-        v12 = *pfMidTime;
+        midTime = *pfMidTime;
         *vPos2 = (float)(*pfMidTime * vMaxSpeed[0]) + *vPos1;
-        vPos2[1] = (float)(v12 * vMaxSpeed[1]) + vPos1[1];
-        vPos2[2] = (float)(v12 * vMaxSpeed[2]) + vPos1[2];
+        vPos2[1] = (float)(midTime * vMaxSpeed[1]) + vPos1[1];
+        vPos2[2] = (float)(midTime * vMaxSpeed[2]) + vPos1[2];
         *vPos3 = *vPos;
         vPos3[1] = vPos[1];
         vPos3[2] = vPos[2];
@@ -565,12 +556,11 @@ void __cdecl ScriptMover_SetupMove(
 
 void __cdecl ScriptEntCmd_GravityMove(scr_entref_t entref)
 {
-    const char *v1; // eax
-    const char *v2; // eax
-    float velocity[3]; // [esp+28h] [ebp-14h] BYREF
-    gentity_s *pSelf; // [esp+34h] [ebp-8h]
-    float fTotalTime; // [esp+38h] [ebp-4h]
-
+    const char *entityTypeError;
+    const char *velocityErrorMsg;
+    float velocity[3];
+    gentity_s *pSelf;
+    float fTotalTime;
     if ( entref.classnum )
     {
         Scr_ObjectError("not an entity", SCRIPTINSTANCE_SERVER);
@@ -594,8 +584,8 @@ void __cdecl ScriptEntCmd_GravityMove(scr_entref_t entref)
             && pSelf->classname != scr_const.script_origin
             && pSelf->classname != scr_const.light )
         {
-            v1 = va("entity %i is not a script_brushmodel, script_model, script_origin, or light", entref.entnum);
-            Scr_ObjectError(v1, SCRIPTINSTANCE_SERVER);
+            entityTypeError = va("entity %i is not a script_brushmodel, script_model, script_origin, or light", entref.entnum);
+            Scr_ObjectError(entityTypeError, SCRIPTINSTANCE_SERVER);
         }
     }
     Scr_GetVector(0, velocity, SCRIPTINSTANCE_SERVER);
@@ -603,8 +593,8 @@ void __cdecl ScriptEntCmd_GravityMove(scr_entref_t entref)
         || (LODWORD(velocity[1]) & 0x7F800000) == 0x7F800000
         || (LODWORD(velocity[2]) & 0x7F800000) == 0x7F800000 )
     {
-        v2 = va("invalid velocity parameter in movegravity command: %f %f %f", velocity[0], velocity[1], velocity[2]);
-        Scr_Error(v2, 0);
+        velocityErrorMsg = va("invalid velocity parameter in movegravity command: %f %f %f", velocity[0], velocity[1], velocity[2]);
+        Scr_Error(velocityErrorMsg, 0);
     }
     fTotalTime = Scr_GetFloat(1u, SCRIPTINSTANCE_SERVER);
     ScriptMover_GravityMove(pSelf, velocity, fTotalTime);
@@ -612,14 +602,10 @@ void __cdecl ScriptEntCmd_GravityMove(scr_entref_t entref)
 
 void __cdecl ScriptMover_GravityMove(gentity_s *mover, const float *velocity, float totalTime)
 {
-    trajectory_t *trajectory; // [esp+24h] [ebp-4h]
-    int savedregs; // [esp+28h] [ebp+0h] BYREF
-
+    trajectory_t *trajectory;
     if ( !mover && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_mover.cpp", 356, 0, "%s", "mover") )
         __debugbreak();
-
     nanassertvec3(velocity);
-
     trajectory = &mover->s.lerp.pos;
     mover->s.lerp.pos.trTime = level.time;
     mover->s.lerp.pos.trDuration = (int)(float)(totalTime * 1000.0);
@@ -648,14 +634,13 @@ void __cdecl ScriptMover_GravityMove(gentity_s *mover, const float *velocity, fl
 
 void __cdecl ScriptEnt_MoveAxis(scr_entref_t entref, int iAxis)
 {
-    const char *v2; // eax
-    gentity_s *pSelf; // [esp+10h] [ebp-20h]
-    float fTotalTime; // [esp+14h] [ebp-1Ch] BYREF
-    float fAccelTime; // [esp+18h] [ebp-18h] BYREF
-    float fDecelTime; // [esp+1Ch] [ebp-14h] BYREF
-    float vPos[3]; // [esp+20h] [ebp-10h] BYREF
-    float fMove; // [esp+2Ch] [ebp-4h]
-
+    const char *entityTypeError;
+    gentity_s *pSelf;
+    float fTotalTime;
+    float fAccelTime;
+    float fDecelTime;
+    float vPos[3];
+    float fMove;
     if ( entref.classnum )
     {
         Scr_ObjectError("not an entity", SCRIPTINSTANCE_SERVER);
@@ -679,8 +664,8 @@ void __cdecl ScriptEnt_MoveAxis(scr_entref_t entref, int iAxis)
             && pSelf->classname != scr_const.script_origin
             && pSelf->classname != scr_const.light )
         {
-            v2 = va("entity %i is not a script_brushmodel, script_model, script_origin, or light", entref.entnum);
-            Scr_ObjectError(v2, SCRIPTINSTANCE_SERVER);
+            entityTypeError = va("entity %i is not a script_brushmodel, script_model, script_origin, or light", entref.entnum);
+            Scr_ObjectError(entityTypeError, SCRIPTINSTANCE_SERVER);
         }
     }
     fMove = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
@@ -709,16 +694,15 @@ void __cdecl ScriptEntCmd_MoveZ(scr_entref_t entref)
 
 void __cdecl ScriptEntCmd_RotateTo(scr_entref_t entref)
 {
-    const char *v1; // eax
-    float v2; // [esp+Ch] [ebp-3Ch]
-    gentity_s *pSelf; // [esp+1Ch] [ebp-2Ch]
-    float fTotalTime; // [esp+20h] [ebp-28h] BYREF
-    float fAccelTime; // [esp+24h] [ebp-24h] BYREF
-    float vDest[3]; // [esp+28h] [ebp-20h] BYREF
-    float fDecelTime; // [esp+34h] [ebp-14h] BYREF
-    float vRot[3]; // [esp+38h] [ebp-10h] BYREF
-    int i; // [esp+44h] [ebp-4h]
-
+    const char *entityTypeError;
+    float angleDelta;
+    gentity_s *pSelf;
+    float fTotalTime;
+    float fAccelTime;
+    float vDest[3];
+    float fDecelTime;
+    float vRot[3];
+    int i;
     if ( entref.classnum )
     {
         Scr_ObjectError("not an entity", SCRIPTINSTANCE_SERVER);
@@ -742,16 +726,16 @@ void __cdecl ScriptEntCmd_RotateTo(scr_entref_t entref)
             && pSelf->classname != scr_const.script_origin
             && pSelf->classname != scr_const.light )
         {
-            v1 = va("entity %i is not a script_brushmodel, script_model, script_origin, or light", entref.entnum);
-            Scr_ObjectError(v1, SCRIPTINSTANCE_SERVER);
+            entityTypeError = va("entity %i is not a script_brushmodel, script_model, script_origin, or light", entref.entnum);
+            Scr_ObjectError(entityTypeError, SCRIPTINSTANCE_SERVER);
         }
     }
     Scr_GetVector(0, vDest, SCRIPTINSTANCE_SERVER);
     ScriptEntCmdGetCommandTimes(&fTotalTime, &fAccelTime, &fDecelTime);
     for ( i = 0; i < 3; ++i )
     {
-        v2 = AngleNormalize180(vDest[i] - pSelf->r.currentAngles[i]);
-        vRot[i] = pSelf->r.currentAngles[i] + v2;
+        angleDelta = AngleNormalize180(vDest[i] - pSelf->r.currentAngles[i]);
+        vRot[i] = pSelf->r.currentAngles[i] + angleDelta;
     }
     ScriptMover_Rotate(pSelf, vRot, fTotalTime, fAccelTime, fDecelTime);
 }
@@ -763,9 +747,7 @@ void __cdecl ScriptMover_Rotate(
                 float fAccelTime,
                 float fDecelTime)
 {
-    float angles[3]; // [esp+2Ch] [ebp-Ch] BYREF
-    int savedregs; // [esp+38h] [ebp+0h] BYREF
-
+    float angles[3];
     angles[0] = pEnt->r.currentAngles[0];
     angles[1] = pEnt->r.currentAngles[1];
     angles[2] = pEnt->r.currentAngles[2];
@@ -792,17 +774,15 @@ void __cdecl ScriptEntCmd_DevAddPitch(scr_entref_t entref)
 
 void __cdecl ScriptEnt_DevAddRotate(scr_entref_t entref, unsigned int iAxis)
 {
-    const char *v2; // eax
-    long double v3; // st7
-    int i; // [esp+18h] [ebp-5Ch]
-    gentity_s *pSelf; // [esp+1Ch] [ebp-58h]
-    float axisOut[3][3]; // [esp+20h] [ebp-54h] BYREF
-    float fDelta; // [esp+44h] [ebp-30h]
-    float axisIn[3][3]; // [esp+48h] [ebp-2Ch] BYREF
-    float fCos; // [esp+6Ch] [ebp-8h]
-    float fSin; // [esp+70h] [ebp-4h]
-    int savedregs; // [esp+74h] [ebp+0h] BYREF
-
+    const char *entityTypeError;
+    float angleRadians;
+    int axisComponentIndex;
+    gentity_s *pSelf;
+    float axisOut[3][3];
+    float fDelta;
+    float axisIn[3][3];
+    float fCos;
+    float fSin;
     if ( iAxis > 2
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_mover.cpp",
@@ -836,24 +816,24 @@ void __cdecl ScriptEnt_DevAddRotate(scr_entref_t entref, unsigned int iAxis)
             && pSelf->classname != scr_const.script_origin
             && pSelf->classname != scr_const.light )
         {
-            v2 = va("entity %i is not a script_brushmodel, script_model, script_origin, or light", entref.entnum);
-            Scr_ObjectError(v2, SCRIPTINSTANCE_SERVER);
+            entityTypeError = va("entity %i is not a script_brushmodel, script_model, script_origin, or light", entref.entnum);
+            Scr_ObjectError(entityTypeError, SCRIPTINSTANCE_SERVER);
         }
     }
     if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) == 1 )
     {
         fDelta = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
-        v3 = (float)(fDelta * 0.017453292);
-        fCos = cos(v3);
-        fSin = sin(v3);
+        angleRadians = (float)(fDelta * 0.017453292);
+        fCos = cos(angleRadians);
+        fSin = sin(angleRadians);
         AnglesToAxis(pSelf->r.currentAngles, axisIn);
-        for ( i = 0; i < 3; ++i )
+        for ( axisComponentIndex = 0; axisComponentIndex < 3; ++axisComponentIndex )
         {
-            axisOut[iAxis][i] = axisIn[iAxis][i];
-            axisOut[(int)(iAxis + 1) % 3][i] = (float)(axisIn[(int)(iAxis + 1) % 3][i] * fCos)
-                                                                             + (float)(axisIn[(int)(iAxis + 2) % 3][i] * fSin);
-            axisOut[(int)(iAxis + 2) % 3][i] = (float)(axisIn[(int)(iAxis + 2) % 3][i] * fCos)
-                                                                             - (float)(axisIn[(int)(iAxis + 1) % 3][i] * fSin);
+            axisOut[iAxis][axisComponentIndex] = axisIn[iAxis][axisComponentIndex];
+            axisOut[(int)(iAxis + 1) % 3][axisComponentIndex] = (float)(axisIn[(int)(iAxis + 1) % 3][axisComponentIndex] * fCos)
+                                                                 + (float)(axisIn[(int)(iAxis + 2) % 3][axisComponentIndex] * fSin);
+            axisOut[(int)(iAxis + 2) % 3][axisComponentIndex] = (float)(axisIn[(int)(iAxis + 2) % 3][axisComponentIndex] * fCos)
+                                                                 - (float)(axisIn[(int)(iAxis + 1) % 3][axisComponentIndex] * fSin);
         }
         AxisToAngles(axisOut, pSelf->r.currentAngles);
         pSelf->s.lerp.apos.trType = 0;
@@ -880,14 +860,13 @@ void __cdecl ScriptEntCmd_DevAddRoll(scr_entref_t entref)
 
 void __cdecl ScriptEnt_RotateAxis(scr_entref_t entref, int iAxis)
 {
-    const char *v2; // eax
-    gentity_s *pSelf; // [esp+10h] [ebp-20h]
-    float fTotalTime; // [esp+14h] [ebp-1Ch] BYREF
-    float fAccelTime; // [esp+18h] [ebp-18h] BYREF
-    float fDecelTime; // [esp+1Ch] [ebp-14h] BYREF
-    float vRot[3]; // [esp+20h] [ebp-10h] BYREF
-    float fMove; // [esp+2Ch] [ebp-4h]
-
+    const char *entityTypeError;
+    gentity_s *pSelf;
+    float fTotalTime;
+    float fAccelTime;
+    float fDecelTime;
+    float vRot[3];
+    float fMove;
     if ( entref.classnum )
     {
         Scr_ObjectError("not an entity", SCRIPTINSTANCE_SERVER);
@@ -911,8 +890,8 @@ void __cdecl ScriptEnt_RotateAxis(scr_entref_t entref, int iAxis)
             && pSelf->classname != scr_const.script_origin
             && pSelf->classname != scr_const.light )
         {
-            v2 = va("entity %i is not a script_brushmodel, script_model, script_origin, or light", entref.entnum);
-            Scr_ObjectError(v2, SCRIPTINSTANCE_SERVER);
+            entityTypeError = va("entity %i is not a script_brushmodel, script_model, script_origin, or light", entref.entnum);
+            Scr_ObjectError(entityTypeError, SCRIPTINSTANCE_SERVER);
         }
     }
     fMove = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
@@ -941,17 +920,16 @@ void __cdecl ScriptEntCmd_RotateRoll(scr_entref_t entref)
 
 void __cdecl ScriptEntCmd_Vibrate(scr_entref_t entref)
 {
-    const char *v1; // eax
-    gentity_s *pSelf; // [esp+24h] [ebp-5Ch]
-    float impulseVector[3]; // [esp+28h] [ebp-58h] BYREF
-    float amplitude; // [esp+34h] [ebp-4Ch]
-    float scaledImpulseVector[3]; // [esp+38h] [ebp-48h]
-    const char *error; // [esp+44h] [ebp-3Ch]
-    float time; // [esp+48h] [ebp-38h]
-    float vibrationAngles[3]; // [esp+4Ch] [ebp-34h]
-    float period; // [esp+58h] [ebp-28h]
-    float axis[3][3]; // [esp+5Ch] [ebp-24h] BYREF
-
+    const char *entityTypeError;
+    gentity_s *pSelf;
+    float impulseVector[3];
+    float amplitude;
+    float scaledImpulseVector[3];
+    const char *error;
+    float time;
+    float vibrationAngles[3];
+    float period;
+    float axis[3][3];
     error = "illegal call to vibrate()\n";
     if ( entref.classnum )
     {
@@ -976,8 +954,8 @@ void __cdecl ScriptEntCmd_Vibrate(scr_entref_t entref)
             && pSelf->classname != scr_const.script_origin
             && pSelf->classname != scr_const.light )
         {
-            v1 = va("entity %i is not a script_brushmodel, script_model, script_origin, or light", entref.entnum);
-            Scr_ObjectError(v1, SCRIPTINSTANCE_SERVER);
+            entityTypeError = va("entity %i is not a script_brushmodel, script_model, script_origin, or light", entref.entnum);
+            Scr_ObjectError(entityTypeError, SCRIPTINSTANCE_SERVER);
         }
     }
     if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) == 4 )
@@ -1019,13 +997,12 @@ void __cdecl ScriptEntCmd_Vibrate(scr_entref_t entref)
 
 void __cdecl ScriptEntCmd_RotateVelocity(scr_entref_t entref)
 {
-    const char *v1; // eax
-    gentity_s *pSelf; // [esp+Ch] [ebp-1Ch]
-    float fTotalTime; // [esp+10h] [ebp-18h] BYREF
-    float fAccelTime; // [esp+14h] [ebp-14h] BYREF
-    float fDecelTime; // [esp+18h] [ebp-10h] BYREF
-    float vSpeed[3]; // [esp+1Ch] [ebp-Ch] BYREF
-
+    const char *entityTypeError;
+    gentity_s *pSelf;
+    float fTotalTime;
+    float fAccelTime;
+    float fDecelTime;
+    float vSpeed[3];
     if ( entref.classnum )
     {
         Scr_ObjectError("not an entity", SCRIPTINSTANCE_SERVER);
@@ -1049,8 +1026,8 @@ void __cdecl ScriptEntCmd_RotateVelocity(scr_entref_t entref)
             && pSelf->classname != scr_const.script_origin
             && pSelf->classname != scr_const.light )
         {
-            v1 = va("entity %i is not a script_brushmodel, script_model, script_origin, or light", entref.entnum);
-            Scr_ObjectError(v1, SCRIPTINSTANCE_SERVER);
+            entityTypeError = va("entity %i is not a script_brushmodel, script_model, script_origin, or light", entref.entnum);
+            Scr_ObjectError(entityTypeError, SCRIPTINSTANCE_SERVER);
         }
     }
     Scr_GetVector(0, vSpeed, SCRIPTINSTANCE_SERVER);
@@ -1065,8 +1042,6 @@ void __cdecl ScriptMover_RotateSpeed(
                 float fAccelTime,
                 float fDecelTime)
 {
-    int savedregs; // [esp+28h] [ebp+0h] BYREF
-
     ScriptMover_SetupMoveSpeed(
         &pEnt->s.lerp.apos,
         vRotSpeed,
@@ -1097,9 +1072,8 @@ void __cdecl ScriptMover_SetupMoveSpeed(
                 float *vPos2,
                 float *vPos3)
 {
-    float v12; // [esp+Ch] [ebp-7Ch]
-    trajectory_t tr; // [esp+64h] [ebp-24h] BYREF
-
+    float midTime;
+    trajectory_t tr;
     if ( pTr->trType )
         BG_EvaluateTrajectory(pTr, level.time, vCurrPos);
     if ( fAccelTime == 0.0 && fDecelTime == 0.0 )
@@ -1134,7 +1108,7 @@ void __cdecl ScriptMover_SetupMoveSpeed(
     {
         *pfMidTime = (float)(fTotalTime - fAccelTime) - fDecelTime;
         *pfDecelTime = fDecelTime;
-        *pfSpeed = Vec3Length(vSpeed);
+        *pfSpeed = Abs(vSpeed);
         if ( fAccelTime == 0.0 )
         {
             *vPos1 = *vCurrPos;
@@ -1214,10 +1188,10 @@ void __cdecl ScriptMover_SetupMoveSpeed(
             pTr->trType = 8;
             BG_EvaluateTrajectory(pTr, pTr->trDuration + level.time, vPos1);
         }
-        v12 = *pfMidTime;
+        midTime = *pfMidTime;
         *vPos2 = (float)(*pfMidTime * *vSpeed) + *vPos1;
-        vPos2[1] = (float)(v12 * vSpeed[1]) + vPos1[1];
-        vPos2[2] = (float)(v12 * vSpeed[2]) + vPos1[2];
+        vPos2[1] = (float)(midTime * vSpeed[1]) + vPos1[1];
+        vPos2[2] = (float)(midTime * vSpeed[2]) + vPos1[2];
         if ( *pfDecelTime == 0.0 )
         {
             *vPos3 = *vPos2;
@@ -1255,8 +1229,7 @@ void __cdecl ScriptMover_SetupMoveSpeed(
 
 void __cdecl ScriptEntCmd_SetCanDamage(scr_entref_t entref)
 {
-    gentity_s *pSelf; // [esp+0h] [ebp-Ch]
-
+    gentity_s *pSelf;
     if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) == 1 )
     {
         if ( entref.classnum )
@@ -1288,15 +1261,11 @@ void __cdecl ScriptEntCmd_SetCanDamage(scr_entref_t entref)
 
 void __cdecl ScriptEntCmd_PhysicsLaunch(scr_entref_t entref)
 {
-    const char *v1; // eax
-    char *v2; // eax
-    double v3; // [esp+0h] [ebp-3Ch]
-    double v4; // [esp+8h] [ebp-34h]
-    double v5; // [esp+10h] [ebp-2Ch]
-    gentity_s *pSelf; // [esp+20h] [ebp-1Ch]
-    float contact_point[3]; // [esp+24h] [ebp-18h] BYREF
-    float initial_force[3]; // [esp+30h] [ebp-Ch] BYREF
-
+    const char *entityTypeError;
+    char *targetName;
+    gentity_s *pSelf;
+    float contact_point[3];
+    float initial_force[3];
     if ( entref.classnum )
     {
         Scr_ObjectError("not an entity", SCRIPTINSTANCE_SERVER);
@@ -1320,8 +1289,8 @@ void __cdecl ScriptEntCmd_PhysicsLaunch(scr_entref_t entref)
             && pSelf->classname != scr_const.script_origin
             && pSelf->classname != scr_const.light )
         {
-            v1 = va("entity %i is not a script_brushmodel, script_model, script_origin, or light", entref.entnum);
-            Scr_ObjectError(v1, SCRIPTINSTANCE_SERVER);
+            entityTypeError = va("entity %i is not a script_brushmodel, script_model, script_origin, or light", entref.entnum);
+            Scr_ObjectError(entityTypeError, SCRIPTINSTANCE_SERVER);
         }
     }
     if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) == 2 )
@@ -1341,15 +1310,18 @@ void __cdecl ScriptEntCmd_PhysicsLaunch(scr_entref_t entref)
     }
     else
     {
-        v5 = pSelf->r.currentOrigin[2];
-        v4 = pSelf->r.currentOrigin[1];
-        v3 = pSelf->r.currentOrigin[0];
-        v2 = SL_ConvertToString(pSelf->targetname, SCRIPTINSTANCE_SERVER);
-        Com_PrintWarning(20, "WARNING: Brushmodel without brushes '%s' (%.1f %.1f %.1f)\n", v2, v3, v4, v5);
+        targetName = SL_ConvertToString(pSelf->targetname, SCRIPTINSTANCE_SERVER);
+        Com_PrintWarning(
+            20,
+            "WARNING: Brushmodel without brushes '%s' (%.1f %.1f %.1f)\n",
+            targetName,
+            pSelf->r.currentOrigin[0],
+            pSelf->r.currentOrigin[1],
+            pSelf->r.currentOrigin[2]);
     }
 }
 
-gentity_s *__cdecl GetEntity_0(scr_entref_t entref)
+gentity_s *__cdecl ScriptEnt_GetEntity(scr_entref_t entref)
 {
     if (entref.classnum)
     {
@@ -1374,10 +1346,8 @@ gentity_s *__cdecl GetEntity_0(scr_entref_t entref)
 
 void __cdecl ScriptEntCmd_Solid(scr_entref_t entref)
 {
-    gentity_s *pSelf; // [esp+8h] [ebp-4h]
-    int savedregs; // [esp+Ch] [ebp+0h] BYREF
-
-    pSelf = GetEntity_0(entref);
+    gentity_s *pSelf;
+    pSelf = ScriptEnt_GetEntity(entref);
     if ( pSelf->classname == scr_const.script_origin )
     {
         Com_DPrintf(24, "cannot use the solid/notsolid commands on a script_origin entity( number %i )\n", pSelf->s.number);
@@ -1395,10 +1365,8 @@ void __cdecl ScriptEntCmd_Solid(scr_entref_t entref)
 
 void __cdecl ScriptEntCmd_NotSolid(scr_entref_t entref)
 {
-    gentity_s *pSelf; // [esp+8h] [ebp-4h]
-    int savedregs; // [esp+Ch] [ebp+0h] BYREF
-
-    pSelf = GetEntity_0(entref);
+    gentity_s *pSelf;
+    pSelf = ScriptEnt_GetEntity(entref);
     if ( pSelf->classname == scr_const.script_origin )
     {
         Com_DPrintf(24, "cannot use the solid/notsolid commands on a script_origin entity( number %i )\n", pSelf->s.number);
@@ -1412,13 +1380,14 @@ void __cdecl ScriptEntCmd_NotSolid(scr_entref_t entref)
 }
 
 // Looks congruent to retail blops MP latest
-const BuiltinMethodDef methods_1[18] =
+const BuiltinMethodDef s_scriptEntMethods[19] =
 {
   { "moveto", &ScriptEntCmd_MoveTo, 0 },
   { "movex", &ScriptEntCmd_MoveX, 0 },
   { "movey", &ScriptEntCmd_MoveY, 0 },
   { "movez", &ScriptEntCmd_MoveZ, 0 },
   { "movegravity", &ScriptEntCmd_GravityMove, 0 },
+  { "gravitymove", &ScriptEntCmd_GravityMove, 0 },
   { "rotateto", &ScriptEntCmd_RotateTo, 0 },
   { "rotatepitch", &ScriptEntCmd_RotatePitch, 0 },
   { "rotateyaw", &ScriptEntCmd_RotateYaw, 0 },
@@ -1436,16 +1405,14 @@ const BuiltinMethodDef methods_1[18] =
 
 void (__cdecl *__cdecl ScriptEnt_GetMethod(const char **pName))(scr_entref_t)
 {
-    unsigned int i; // [esp+18h] [ebp-4h]
-
-    for ( i = 0; i < ARRAY_COUNT(methods_1); ++i )
+    unsigned int methodIndex;
+    for ( methodIndex = 0; methodIndex < ARRAY_COUNT(s_scriptEntMethods); ++methodIndex )
     {
-        if ( !strcmp(*pName, methods_1[i].actionString) )
+        if ( !strcmp(*pName, s_scriptEntMethods[methodIndex].actionString) )
         {
-            *pName = methods_1[i].actionString;
-            return methods_1[i].actionFunc;
+            *pName = s_scriptEntMethods[methodIndex].actionString;
+            return s_scriptEntMethods[methodIndex].actionFunc;
         }
     }
     return 0;
 }
-

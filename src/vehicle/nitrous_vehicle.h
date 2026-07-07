@@ -6,6 +6,9 @@
 #include <physics/rigid_body.h>
 #include "nitrous_vehicle_controller.h"
 
+struct gentity_s;
+struct centity_s;
+
 enum WheelEffectState : __int32
 {                                       // XREF: WheelState/r
     WHEEL_STATE_ROLLING  = 0x0,
@@ -289,18 +292,19 @@ struct rigid_body_constraint_wheel;
 struct XModel;
 struct rigid_body_constraint_custom_orientation;
 struct rigid_body_constraint_custom_path;
+struct gjk_geom_list_t;
 
 struct alignas(16) NitrousVehicle // sizeof=0x440
 {                                       // XREF: phys_free_list<NitrousVehicle>::T_internal/r
     NitrousVehicle();
 
-    static NitrousVehicle *__cdecl add_vehicle(int id);
+    static NitrousVehicle *add_vehicle(int id);
     static void remove_vehicle(NitrousVehicle *const v);
 
-    void init(struct gentity_s *owner, const struct VehicleParameter *parameter);
+    void init(gentity_s *owner, const VehicleParameter *parameter);
     void init(
         int localClientNum,
-        struct centity_s *owner,
+        centity_s *owner,
         const VehicleParameter *parameter);
 
     void update_script_target(float *goal_position);
@@ -334,11 +338,11 @@ struct alignas(16) NitrousVehicle // sizeof=0x440
     void start_path(int attach_mode);
     void end_path();
     void cleanup_path();
-    static void __cdecl frame_prolog_all_systems(float delta_t);
-    static void __cdecl frame_epilog_all_systems(float delta_t);
-    static void __cdecl reinit_parms();
-    static void __cdecl reset_vehicle_physics();
-    static void __cdecl debug_render_all();
+    static void frame_prolog_all_systems(float delta_t);
+    static void frame_epilog_all_systems(float delta_t);
+    static void reinit_parms();
+    static void reset_vehicle_physics();
+    static void debug_render_all();
     void debug_render();
     void remove_wheels();
     void set(
@@ -396,7 +400,7 @@ struct alignas(16) NitrousVehicle // sizeof=0x440
     // padding byte
     phys_vec3 m_ground_vel;
     float m_hand_brake_friction_time;
-    struct gentity_s *m_owner;
+    gentity_s *m_owner;
     int m_entnum;
     const vehicle_info_t *m_vehicle_info;
     struct PhysObjUserData *m_phys_user_data;
@@ -484,22 +488,22 @@ struct alignas(16) NitrousVehicle // sizeof=0x440
 };
 static_assert(sizeof(NitrousVehicle) == 0x440);
 
-struct PhysObjUserData *__cdecl Phys_ObjCreateNitrousVehicle(
+struct PhysObjUserData *Phys_ObjCreateNitrousVehicle(
                 const float *position,
                 const float *angles,
                 const float *velocity,
                 const float *translation,
                 const PhysPreset *physPreset,
-                struct gjk_geom_list_t *gjk_geom_list);
+                gjk_geom_list_t *gjk_geom_list);
 
 
-double __cdecl AbsSquared(const phys_vec3 *a);
+double AbsSquared(const phys_vec3 *a);
 
-bool __cdecl CompareVec3ToPhysVec(const float *a, const phys_vec3 *b, float acceptableError);
+bool CompareVec3ToPhysVec(const float *a, const phys_vec3 *b, float acceptableError);
 
-void __cdecl G_SetVehDriverInputs(int localClientNum, int vehEntNum, usercmd_s *cmd);
-void __cdecl G_ClearVehicleInputs();
-void __cdecl CG_SetVehDriverInputs(int localClientNum, int vehEntNum, usercmd_s *cmd);
-void __cdecl Vehicle_Launch(int localClientNum, centity_s *cent, float *hitp, const float *force, bool relative);
+void G_SetVehDriverInputs(int localClientNum, int vehEntNum, usercmd_s *cmd);
+void G_ClearVehicleInputs();
+void CG_SetVehDriverInputs(int localClientNum, int vehEntNum, usercmd_s *cmd);
+void Vehicle_Launch(int localClientNum, centity_s *cent, float *hitp, const float *force, bool relative);
 
 

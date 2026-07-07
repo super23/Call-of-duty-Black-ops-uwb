@@ -1,13 +1,24 @@
 #include "sv_game.h"
 #include <bgame/bg_local.h>
+#ifdef KISAK_SP
+#include <server_sp/sv_init_sp.h>
+#include <server_sp/sv_main_sp.h>
+#include <client_sp/sv_client_sp.h>
+#include <qcommon/common.h>
+#else
 #include <server_mp/sv_main_mp.h>
 #include <client_mp/sv_client_mp.h>
 #include <server_mp/sv_init_mp.h>
+#endif
 #include <qcommon/cm_load.h>
 #include <qcommon/dobj_management.h>
 #include "sv_world.h"
 #include <qcommon/cm_test.h>
+#ifdef KISAK_SP
+#include <game/g_main.h>
+#else
 #include <game_mp/g_main_mp.h>
+#endif
 #include <qcommon/dvar_cmds.h>
 #include <universal/com_memory.h>
 #include <xanim/dobj_utils.h>
@@ -24,7 +35,8 @@
 #include <win32/win_shared.h>
 #include <game/g_svcmds.h>
 
-int boxVerts_1[24][3] =
+// Unit-cube edge pairs (12 edges x 2 verts) for XModelDebugBoxes wireframe.
+static int s_xmodelDebugBoxVerts[24][3] =
 {
   { 0, 0, 0 },
   { 1, 0, 0 },
@@ -126,16 +138,17 @@ void __cdecl SV_GameDropClient(int clientNum, const char *reason)
 
 void __cdecl SV_SetMapCenter(float *mapCenter)
 {
-    char *v1; // eax
+    char *configString;
 
     svs.mapCenter[0] = *mapCenter;
     svs.mapCenter[1] = mapCenter[1];
     svs.mapCenter[2] = mapCenter[2];
+    // Match retail: truncate to whole units before broadcasting on CS_MAP_CENTER.
     svs.mapCenter[0] = (float)(int)svs.mapCenter[0];
     svs.mapCenter[1] = (float)(int)svs.mapCenter[1];
     svs.mapCenter[2] = (float)(int)svs.mapCenter[2];
-    v1 = va("%g %g %g", svs.mapCenter[0], svs.mapCenter[1], svs.mapCenter[2]);
-    SV_SetConfigstring(13, v1);
+    configString = va("%g %g %g", svs.mapCenter[0], svs.mapCenter[1], svs.mapCenter[2]);
+    SV_SetConfigstring(13, configString);
 }
 
 float (*__cdecl SV_GetMapCenter())[3]
@@ -145,33 +158,33 @@ float (*__cdecl SV_GetMapCenter())[3]
 
 void __cdecl SV_SetGameEndTime(int gameEndTime)
 {
-    char *v1; // eax
-    char lastGameEndTime[12]; // [esp+0h] [ebp-10h] BYREF
+    char *configString;
+    char lastGameEndTime[12];
 
     SV_GetConfigstring(0xCu, lastGameEndTime, 12);
+    // Avoid spamming CS_GAME_END_TIME when the value only drifts slightly.
     if ( (int)abs(atoi(lastGameEndTime) - gameEndTime) > 500 )
     {
-        v1 = va("%i", gameEndTime);
-        SV_SetConfigstring(12, v1);
+        configString = va("%i", gameEndTime);
+        SV_SetConfigstring(12, configString);
     }
 }
 
 void __cdecl SV_SetTimeScale(float endTimeScale, int endTime)
 {
-    char *v2; // eax
+    char *configString;
 
-    v2 = va("%g %d", endTimeScale, endTime);
-    SV_SetConfigstring(14, v2);
+    configString = va("%g %d", endTimeScale, endTime);
+    SV_SetConfigstring(14, configString);
 }
 
 char __cdecl SV_SetBrushModel(gentity_s *ent)
 {
-    DObj *obj; // [esp+8h] [ebp-34h]
-    float mins[3]; // [esp+Ch] [ebp-30h] BYREF
-    float mx[3]; // [esp+18h] [ebp-24h] BYREF
-    float maxs[3]; // [esp+24h] [ebp-18h] BYREF
-    float mn[3]; // [esp+30h] [ebp-Ch] BYREF
-    int savedregs; // [esp+3Ch] [ebp+0h] BYREF
+    DObj *obj;
+    float mins[3];
+    float dobjMaxs[3];
+    float maxs[3];
+    float dobjMins[3];
 
     if ( !ent->r.inuse
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_game.cpp", 213, 0, "%s", "ent->r.inuse") )
@@ -194,9 +207,9 @@ char __cdecl SV_SetBrushModel(gentity_s *ent)
     {
         if ( (ent->r.svFlags & 4) != 0 )
         {
-            DObjCalcBounds(obj, mn, mx);
-            Vec3Min(ent->r.mins, mn, ent->r.mins);
-            Vec3Max(ent->r.maxs, mx, ent->r.maxs);
+            DObjCalcBounds(obj, dobjMins, dobjMaxs);
+            Vec3Min(ent->r.mins, dobjMins, ent->r.mins);
+            Vec3Max(ent->r.maxs, dobjMaxs, ent->r.maxs);
             ent->r.contents |= DObjGetContents(obj);
         }
     }
@@ -206,16 +219,16 @@ char __cdecl SV_SetBrushModel(gentity_s *ent)
 
 bool __cdecl SV_inSnapshot(const float *origin, int iEntityNum)
 {
-    int clientcluster; // [esp+8h] [ebp-24h]
-    float fogOpaqueDistSqrd; // [esp+Ch] [ebp-20h]
-    svEntity_s *svEnt; // [esp+10h] [ebp-1Ch]
-    int l; // [esp+14h] [ebp-18h]
-    unsigned int leafnum; // [esp+18h] [ebp-14h]
-    gentity_s *ent; // [esp+1Ch] [ebp-10h]
-    int i; // [esp+20h] [ebp-Ch]
-    unsigned __int8 *bitvector; // [esp+24h] [ebp-8h]
+    int clientCluster;
+    float fogOpaqueDistSqrd;
+    svEntity_s *svEnt;
+    int cluster;
+    unsigned int leafnum;
+    gentity_s *ent;
+    int clusterIndex;
+    unsigned __int8 *pvs;
 
-    ent = (gentity_s *)((char *)sv.gentities + iEntityNum * sv.gentitySize);
+    ent = SV_GentityNum(iEntityNum);
     if ( !ent->r.linked )
         return 0;
     if ( ent->r.broadcastTime )
@@ -228,39 +241,45 @@ bool __cdecl SV_inSnapshot(const float *origin, int iEntityNum)
     leafnum = CM_PointLeafnum(origin);
     if ( !svEnt->numClusters )
         return 0;
-    clientcluster = CM_LeafCluster(leafnum);
-    bitvector = CM_ClusterPVS(clientcluster);
-    l = 0;
-    for ( i = 0; i < svEnt->numClusters; ++i )
+    clientCluster = CM_LeafCluster(leafnum);
+    pvs = CM_ClusterPVS(clientCluster);
+    cluster = 0;
+    for ( clusterIndex = 0; clusterIndex < svEnt->numClusters; ++clusterIndex )
     {
-        l = svEnt->clusternums[i];
-        if ( ((1 << (l & 7)) & bitvector[l >> 3]) != 0 )
+        cluster = svEnt->clusternums[clusterIndex];
+        if ( ((1 << (cluster & 7)) & pvs[cluster >> 3]) != 0 )
             break;
     }
-    if ( i == svEnt->numClusters )
+    // If no explicit cluster hit, walk the span up to lastCluster (portal/flood fill).
+    if ( clusterIndex == svEnt->numClusters )
     {
         if ( !svEnt->lastCluster )
             return 0;
-        while ( l <= svEnt->lastCluster && ((1 << (l & 7)) & bitvector[l >> 3]) == 0 )
-            ++l;
-        if ( l == svEnt->lastCluster )
+        while ( cluster <= svEnt->lastCluster && ((1 << (cluster & 7)) & pvs[cluster >> 3]) == 0 )
+            ++cluster;
+        if ( cluster == svEnt->lastCluster )
             return 0;
     }
     fogOpaqueDistSqrd = G_GetFogOpaqueDistSqrd();
-    return fogOpaqueDistSqrd == 3.4028235e38
-            || !BoxDistSqrdExceeds(ent->r.absmin, ent->r.absmax, origin, fogOpaqueDistSqrd);
+    if ( fogOpaqueDistSqrd == 3.4028235e38 )
+        return 1;
+    return !BoxDistSqrdExceeds(ent->r.absmin, ent->r.absmax, origin, fogOpaqueDistSqrd);
 }
 
 bool __cdecl SV_EntityContact(const float *mins, const float *maxs, const gentity_s *gEnt)
 {
-    unsigned int model; // [esp+20h] [ebp-50h]
-    float dist; // [esp+24h] [ebp-4Ch]
-    float dista; // [esp+24h] [ebp-4Ch]
-    trace_t trace; // [esp+2Ch] [ebp-44h] BYREF
-    float center[2]; // [esp+68h] [ebp-8h]
+    unsigned int clipHandle;
+    float cylinderRadius;
+    float diskRadius;
+    trace_t trace;
+    float traceCenter[2];
+    float distSq;
+    float radiusSq;
 
+    memset(&trace, 0, 16);
     if ( (gEnt->r.svFlags & 0x60) != 0 )
     {
+        // SVF_CYLINDER / SVF_DISK: cheap 2D overlap tests for oversized touch volumes.
         if ( (gEnt->r.svFlags & 0x20) != 0 )
         {
             if ( gEnt->r.mins[2] != 0.0
@@ -268,78 +287,57 @@ bool __cdecl SV_EntityContact(const float *mins, const float *maxs, const gentit
             {
                 __debugbreak();
             }
-            if ( gEnt->r.currentOrigin[2] < maxs[2] )
-            {
-                if ( mins[2] < (float)(gEnt->r.currentOrigin[2] + gEnt->r.maxs[2]) )
-                {
-                    center[0] = *mins + *maxs;
-                    center[1] = mins[1] + maxs[1];
-                    center[0] = 0.5 * center[0];
-                    center[1] = 0.5 * center[1];
-                    dist = (float)(*maxs - center[0]) + gEnt->r.maxs[0];
-                    return (float)(dist * dist) > (float)((float)((float)(center[0] - gEnt->r.currentOrigin[0])
-                                                                                                            * (float)(center[0] - gEnt->r.currentOrigin[0]))
-                                                                                            + (float)((float)(center[1] - gEnt->r.currentOrigin[1])
-                                                                                                            * (float)(center[1] - gEnt->r.currentOrigin[1])));
-                }
-                else
-                {
-                    return 0;
-                }
-            }
-            else
-            {
+            if ( gEnt->r.currentOrigin[2] >= maxs[2] )
                 return 0;
-            }
+            if ( mins[2] >= (float)(gEnt->r.currentOrigin[2] + gEnt->r.maxs[2]) )
+                return 0;
+            traceCenter[0] = 0.5f * (*mins + *maxs);
+            traceCenter[1] = 0.5f * (mins[1] + maxs[1]);
+            cylinderRadius = (float)(*maxs - traceCenter[0]) + gEnt->r.maxs[0];
+            distSq = (float)((traceCenter[0] - gEnt->r.currentOrigin[0]) * (traceCenter[0] - gEnt->r.currentOrigin[0]))
+                   + (float)((traceCenter[1] - gEnt->r.currentOrigin[1]) * (float)(traceCenter[1] - gEnt->r.currentOrigin[1]));
+            return cylinderRadius * cylinderRadius > distSq;
         }
-        else
+        if ( (gEnt->r.svFlags & 0x40) == 0
+            && !Assert_MyHandler(
+                        "C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_game.cpp",
+                        349,
+                        0,
+                        "%s",
+                        "gEnt->r.svFlags & SVF_DISK") )
         {
-            if ( (gEnt->r.svFlags & 0x40) == 0
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_game.cpp",
-                            349,
-                            0,
-                            "%s",
-                            "gEnt->r.svFlags & SVF_DISK") )
-            {
-                __debugbreak();
-            }
-            center[0] = *mins + *maxs;
-            center[1] = mins[1] + maxs[1];
-            center[0] = 0.5 * center[0];
-            center[1] = 0.5 * center[1];
-            dista = (float)((float)(*maxs - center[0]) + gEnt->r.maxs[0]) - 64.0;
-            return (float)((float)((float)(center[0] - gEnt->r.currentOrigin[0])
-                                                     * (float)(center[0] - gEnt->r.currentOrigin[0]))
-                                     + (float)((float)(center[1] - gEnt->r.currentOrigin[1])
-                                                     * (float)(center[1] - gEnt->r.currentOrigin[1]))) >= (float)(dista * dista);
+            __debugbreak();
         }
+        traceCenter[0] = 0.5f * (*mins + *maxs);
+        traceCenter[1] = 0.5f * (mins[1] + maxs[1]);
+        diskRadius = (float)((float)(*maxs - traceCenter[0]) + gEnt->r.maxs[0]) - 64.0f;
+        distSq = (float)((traceCenter[0] - gEnt->r.currentOrigin[0]) * (traceCenter[0] - gEnt->r.currentOrigin[0]))
+               + (float)((traceCenter[1] - gEnt->r.currentOrigin[1]) * (traceCenter[1] - gEnt->r.currentOrigin[1]));
+        radiusSq = diskRadius * diskRadius;
+        return distSq >= radiusSq;
     }
-    else
-    {
-        model = SV_ClipHandleForEntity(gEnt);
-        CM_TransformedBoxTraceExternal(
-            &trace,
-            vec3_origin,
-            vec3_origin,
-            mins,
-            maxs,
-            model,
-            -1,
-            gEnt->r.currentOrigin,
-            gEnt->r.currentAngles);
-        return trace.startsolid;
-    }
+    clipHandle = SV_ClipHandleForEntity(gEnt);
+    CM_TransformedBoxTraceExternal(
+        &trace,
+        vec3_origin,
+        vec3_origin,
+        mins,
+        maxs,
+        clipHandle,
+        -1,
+        gEnt->r.currentOrigin,
+        gEnt->r.currentAngles);
+    return trace.startsolid;
 }
 
 void __cdecl SV_GetServerinfo(char *buffer, int bufferSize)
 {
-    char *v2; // eax
+    const char *infoString;
 
     if ( bufferSize < 1 )
         Com_Error(ERR_DROP, "SV_GetServerinfo: bufferSize == %i", bufferSize);
-    v2 = Dvar_InfoString(0, 4);
-    I_strncpyz(buffer, v2, bufferSize);
+    infoString = Dvar_InfoString(0, 4);
+    I_strncpyz(buffer, infoString, bufferSize);
 }
 
 void __cdecl SV_LocateGameData(
@@ -407,7 +405,7 @@ unsigned __int8 *__cdecl SV_AllocXModelPrecacheColl(unsigned int size)
 
 void __cdecl SV_DObjDumpInfo(gentity_s *ent)
 {
-    const DObj *obj; // [esp+0h] [ebp-4h]
+    const DObj *obj;
 
     if ( com_developer->current.integer )
     {
@@ -421,7 +419,8 @@ void __cdecl SV_DObjDumpInfo(gentity_s *ent)
 
 void __cdecl SV_ResetSkeletonCache()
 {
-    if (!++sv.skelTimeStamp)
+    // Never use timestamp 0; DObjSkelExists treats it as invalid.
+    if ( !++sv.skelTimeStamp )
         sv.skelTimeStamp = 1;
     g_sv_skel_memory_start = (char *)((unsigned int)&g_sv_skel_memory[15] & 0xFFFFFFF0);
     sv.skelMemPos = 0;
@@ -429,8 +428,8 @@ void __cdecl SV_ResetSkeletonCache()
 
 bool __cdecl SV_DObjCreateSkelForBone(DObj *obj, int boneIndex)
 {
-    char *buf; // [esp+0h] [ebp-8h]
-    unsigned int len; // [esp+4h] [ebp-4h]
+    char *buf;
+    unsigned int len;
 
     if (DObjSkelExists(obj, sv.skelTimeStamp))
         return DObjSkelIsBoneUpToDate(obj, boneIndex);
@@ -442,13 +441,14 @@ bool __cdecl SV_DObjCreateSkelForBone(DObj *obj, int boneIndex)
 
 char *__cdecl SV_AllocSkelMemory(unsigned int size)
 {
-    char *result; // [esp+0h] [ebp-4h]
-    unsigned int sizea; // [esp+Ch] [ebp+8h]
+    char *alloc;
+    unsigned int alignedSize;
+    static int s_skelMemWarnTimeStamp;
 
     if (!size && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_game.cpp", 628, 0, "%s", "size"))
         __debugbreak();
-    sizea = (size + 15) & 0xFFFFFFF0;
-    if (sizea > 0x3FFF0
+    alignedSize = (size + 15) & 0xFFFFFFF0;
+    if (alignedSize > 0x3FFF0
         && !Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_game.cpp",
             631,
@@ -468,29 +468,28 @@ char *__cdecl SV_AllocSkelMemory(unsigned int size)
     {
         __debugbreak();
     }
-    while (1)
+    while ( 1 )
     {
-        result = &g_sv_skel_memory_start[sv.skelMemPos];
-        sv.skelMemPos += sizea;
-        if (sv.skelMemPos <= 262128)
+        alloc = &g_sv_skel_memory_start[sv.skelMemPos];
+        sv.skelMemPos += alignedSize;
+        if ( sv.skelMemPos <= 262128 )
             break;
-        static int warnCount_2;
-        if (warnCount_2 != sv.skelTimeStamp)
+        if ( s_skelMemWarnTimeStamp != sv.skelTimeStamp )
         {
-            warnCount_2 = sv.skelTimeStamp;
+            s_skelMemWarnTimeStamp = sv.skelTimeStamp;
             Com_PrintWarning(15, "WARNING: SV_SKEL_MEMORY_SIZE exceeded\n");
         }
         SV_ResetSkeletonCache();
     }
-    if (!result && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_game.cpp", 641, 0, "%s", "result"))
+    if ( !alloc && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_game.cpp", 641, 0, "%s", "alloc") )
         __debugbreak();
-    return result;
+    return alloc;
 }
 
 int __cdecl SV_DObjCreateSkelForBones(DObj *obj, int *partBits)
 {
-    char *buf; // [esp+0h] [ebp-8h]
-    unsigned int len; // [esp+4h] [ebp-4h]
+    char *buf;
+    unsigned int len;
 
     if (DObjSkelExists(obj, sv.skelTimeStamp))
         return DObjSkelAreBonesUpToDate(obj, partBits);
@@ -502,7 +501,7 @@ int __cdecl SV_DObjCreateSkelForBones(DObj *obj, int *partBits)
 
 void __cdecl SV_DObjUpdateServerTime(gentity_s *ent, float dtime, int bNotify)
 {
-    DObj *obj; // [esp+8h] [ebp-4h]
+    DObj *obj;
 
     obj = Com_GetServerDObj(ent->s.number);
     if ( obj )
@@ -511,7 +510,7 @@ void __cdecl SV_DObjUpdateServerTime(gentity_s *ent, float dtime, int bNotify)
 
 void __cdecl SV_DObjInitServerTime(gentity_s *ent, float dtime)
 {
-    DObj *obj; // [esp+4h] [ebp-4h]
+    DObj *obj;
 
     obj = Com_GetServerDObj(ent->s.number);
     if ( obj )
@@ -520,8 +519,8 @@ void __cdecl SV_DObjInitServerTime(gentity_s *ent, float dtime)
 
 int __cdecl SV_DObjGetBoneIndex(const gentity_s *ent, unsigned int boneName)
 {
-    const DObj *obj; // [esp+0h] [ebp-8h]
-    unsigned __int8 index; // [esp+7h] [ebp-1h] BYREF
+    const DObj *obj;
+    unsigned __int8 index;
 
     obj = Com_GetServerDObj(ent->s.number);
     if ( !obj )
@@ -535,7 +534,7 @@ int __cdecl SV_DObjGetBoneIndex(const gentity_s *ent, unsigned int boneName)
 
 DObjAnimMat *__cdecl SV_DObjGetMatrixArray(const gentity_s *ent)
 {
-    const DObj *obj; // [esp+0h] [ebp-4h]
+    const DObj *obj;
 
     obj = Com_GetServerDObj(ent->s.number);
     if ( !obj && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_game.cpp", 783, 0, "%s", "obj") )
@@ -545,7 +544,7 @@ DObjAnimMat *__cdecl SV_DObjGetMatrixArray(const gentity_s *ent)
 
 void __cdecl SV_DObjDisplayAnim(gentity_s *ent, const char *header)
 {
-    const DObj *obj; // [esp+0h] [ebp-4h]
+    const DObj *obj;
 
     obj = Com_GetServerDObj(ent->s.number);
     if ( obj )
@@ -554,7 +553,7 @@ void __cdecl SV_DObjDisplayAnim(gentity_s *ent, const char *header)
 
 DObjAnimMat *__cdecl SV_DObjGetRotTransArray(const gentity_s *ent)
 {
-    const DObj *obj; // [esp+0h] [ebp-4h]
+    const DObj *obj;
 
     obj = Com_GetServerDObj(ent->s.number);
     if ( !obj && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_game.cpp", 806, 0, "%s", "obj") )
@@ -564,7 +563,7 @@ DObjAnimMat *__cdecl SV_DObjGetRotTransArray(const gentity_s *ent)
 
 int __cdecl SV_DObjSetRotTransIndex(const gentity_s *ent, int *partBits, int boneIndex)
 {
-    const DObj *obj; // [esp+0h] [ebp-4h]
+    const DObj *obj;
 
     obj = Com_GetServerDObj(ent->s.number);
     if ( !obj && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_game.cpp", 817, 0, "%s", "obj") )
@@ -574,7 +573,7 @@ int __cdecl SV_DObjSetRotTransIndex(const gentity_s *ent, int *partBits, int bon
 
 void __cdecl SV_DObjGetBounds(gentity_s *ent, float *mins, float *maxs)
 {
-    const DObj *obj; // [esp+0h] [ebp-4h]
+    const DObj *obj;
 
     obj = Com_GetServerDObj(ent->s.number);
     if ( !obj && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_game.cpp", 839, 0, "%s", "obj") )
@@ -584,7 +583,7 @@ void __cdecl SV_DObjGetBounds(gentity_s *ent, float *mins, float *maxs)
 
 XAnimTree_s *__cdecl SV_DObjGetTree(gentity_s *ent)
 {
-    const DObj *obj; // [esp+4h] [ebp-4h]
+    const DObj *obj;
 
     obj = Com_GetServerDObj(ent->s.number);
     if ( obj )
@@ -595,31 +594,39 @@ XAnimTree_s *__cdecl SV_DObjGetTree(gentity_s *ent)
 
 void __cdecl SV_XModelDebugBoxes(gentity_s *ent, const float *color, int *partBits, int duration)
 {
-    DObjAnimMat *boneMatrix; // [esp+58h] [ebp-330h]
-    unsigned int j; // [esp+5Ch] [ebp-32Ch]
-    XBoneInfo *boneInfoArray[160]; // [esp+60h] [ebp-328h] BYREF
-    int numBones; // [esp+2E0h] [ebp-A8h]
-    int boneIndex; // [esp+2E4h] [ebp-A4h]
-    DObj *obj; // [esp+2E8h] [ebp-A0h]
-    float start[3]; // [esp+2ECh] [ebp-9Ch] BYREF
-    float end[3]; // [esp+2F8h] [ebp-90h] BYREF
-    int size; // [esp+304h] [ebp-84h]
-    float boneAxis[4][3]; // [esp+308h] [ebp-80h] BYREF
-    int localBoneIndex; // [esp+338h] [ebp-50h]
-    int (*tempBoxVerts)[3]; // [esp+33Ch] [ebp-4Ch]
-    float org[3]; // [esp+340h] [ebp-48h] BYREF
-    XBoneInfo *boneInfo; // [esp+34Ch] [ebp-3Ch]
-    float axis[3][3]; // [esp+350h] [ebp-38h] BYREF
-    float vec[3]; // [esp+374h] [ebp-14h] BYREF
-    int modelCount; // [esp+380h] [ebp-8h]
-    int modelIndex; // [esp+384h] [ebp-4h]
+    DObjAnimMat *boneMatrix;
+    unsigned int edgeIndex;
+    XBoneInfo *boneInfoArray[160];
+    int numBones;
+    int boneIndex;
+    DObj *obj;
+    float start[3];
+    float end[3];
+    int bonesInModel;
+    float boneAxis[4][3];
+    int localBoneIndex;
+    int (*boxVertPtr)[3];
+    float org[3];
+    XBoneInfo *boneInfo;
+    float axis[3][3];
+    float vec[3];
+    int modelCount;
+    int modelIndex;
 
     obj = Com_GetServerDObj(ent->s.number);
     if ( !obj && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_game.cpp", 887, 0, "%s", "obj") )
         __debugbreak();
     numBones = DObjNumBones(obj);
-    iassert(numBones <= DOBJ_MAX_PARTS);
-
+    if ( numBones > 160
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\server\\sv_game.cpp",
+                    890,
+                    0,
+                    "%s",
+                    "numBones <= DOBJ_MAX_PARTS") )
+    {
+        __debugbreak();
+    }
     DObjGetBoneInfo(obj, boneInfoArray);
     boneMatrix = DObjGetRotTransArray(obj);
     AnglesToAxis(ent->r.currentAngles, axis);
@@ -627,44 +634,40 @@ void __cdecl SV_XModelDebugBoxes(gentity_s *ent, const float *color, int *partBi
     boneIndex = 0;
     for ( modelIndex = 0; modelIndex < modelCount; ++modelIndex )
     {
-        size = XModelNumBones(DObjGetModel(obj, modelIndex));
+        bonesInModel = XModelNumBones(DObjGetModel(obj, modelIndex));
         if ( DObjIgnoreCollision(obj, modelIndex) )
         {
-            boneIndex += size;
-            boneMatrix += size;
+            boneIndex += bonesInModel;
+            boneMatrix += bonesInModel;
         }
         else
         {
             localBoneIndex = 0;
-            while ( localBoneIndex < size )
+            while ( localBoneIndex < bonesInModel )
             {
                 if ( !partBits || (partBits[boneIndex >> 5] & (0x80000000 >> (boneIndex & 0x1F))) != 0 )
                 {
                     boneInfo = boneInfoArray[boneIndex];
-                    tempBoxVerts = boxVerts_1;
+                    boxVertPtr = s_xmodelDebugBoxVerts;
                     ConvertQuatToMat(boneMatrix, boneAxis);
                     boneAxis[3][0] = boneMatrix->trans[0];
                     boneAxis[3][1] = boneMatrix->trans[1];
                     boneAxis[3][2] = boneMatrix->trans[2];
-                    for ( j = 0; j < 0xC; ++j )
+                    for ( edgeIndex = 0; edgeIndex < 12; ++edgeIndex )
                     {
-                        org[0] = boneInfo->bounds[(*tempBoxVerts)[0]][0];
-                        org[1] = boneInfo->bounds[(*tempBoxVerts)[1]][1];
-                        org[2] = boneInfo->bounds[(*tempBoxVerts)[2]][2];
+                        org[0] = boneInfo->bounds[(*boxVertPtr)[0]][0];
+                        org[1] = boneInfo->bounds[(*boxVertPtr)[1]][1];
+                        org[2] = boneInfo->bounds[(*boxVertPtr)[2]][2];
                         MatrixTransformVector43(org, boneAxis, vec);
                         MatrixTransformVector(vec, axis, start);
-                        start[0] = start[0] + ent->r.currentOrigin[0];
-                        start[1] = start[1] + ent->r.currentOrigin[1];
-                        start[2] = start[2] + ent->r.currentOrigin[2];
-                        org[0] = boneInfo->bounds[(*++tempBoxVerts)[0]][0];
-                        org[1] = boneInfo->bounds[(*tempBoxVerts)[1]][1];
-                        org[2] = boneInfo->bounds[(*tempBoxVerts)[2]][2];
+                        Vec3Add(start, ent->r.currentOrigin, start);
+                        org[0] = boneInfo->bounds[(*++boxVertPtr)[0]][0];
+                        org[1] = boneInfo->bounds[(*boxVertPtr)[1]][1];
+                        org[2] = boneInfo->bounds[(*boxVertPtr)[2]][2];
                         MatrixTransformVector43(org, boneAxis, vec);
                         MatrixTransformVector(vec, axis, end);
-                        end[0] = end[0] + ent->r.currentOrigin[0];
-                        end[1] = end[1] + ent->r.currentOrigin[1];
-                        end[2] = end[2] + ent->r.currentOrigin[2];
-                        ++tempBoxVerts;
+                        Vec3Add(end, ent->r.currentOrigin, end);
+                        ++boxVertPtr;
                         CL_AddDebugLine(start, end, color, 0, duration);
                     }
                 }
@@ -678,8 +681,8 @@ void __cdecl SV_XModelDebugBoxes(gentity_s *ent, const float *color, int *partBi
 
 bool __cdecl SV_MapExists(char *name)
 {
-    char fullpath[256]; // [esp+0h] [ebp-108h] BYREF
-    const char *basename; // [esp+104h] [ebp-4h]
+    char fullpath[256];
+    const char *basename;
 
     basename = SV_GetMapBaseName(name);
     Com_GetBspFilename(fullpath, 0x100u, basename);
@@ -760,22 +763,44 @@ void __cdecl SV_ShutdownGameProgs()
 
 void __cdecl SV_SetGametype()
 {
-    char gametype[64]; // [esp+0h] [ebp-48h] BYREF
-    char *s; // [esp+44h] [ebp-4h]
+    char gametype[64];
+    char *ch;
 
+#ifdef KISAK_SP
+    // Decomp: BlackOps.singleplayer.c @ 600235 — g_gametype default "cmp" (off_A30458).
+    if ( !sv_gametype )
+        sv_gametype = _Dvar_RegisterString("g_gametype", "cmp", 0x24u, "Current game type");
+#else
     _Dvar_RegisterString("g_gametype", "tdm", 0x24u, "Game Type");
-    if (com_sv_running->current.enabled && G_GetSavePersist())
+#endif
+    if ( com_sv_running->current.enabled && G_GetSavePersist() )
         I_strncpyz(gametype, sv.gametype, 64);
+#ifdef KISAK_SP
+    else if ( sv_mapname && sv_mapname->current.string[0] )
+    {
+        if ( I_stristr(sv_mapname->current.string, "zombie") )
+            I_strncpyz(gametype, "zombie", 64);
+        else if ( Com_IsMenuLevel(sv_mapname->current.string) )
+            I_strncpyz(gametype, "solo", 64);
+        else
+            I_strncpyz(gametype, "cmp", 64);
+    }
+#endif
     else
         I_strncpyz(gametype, sv_gametype->current.string, 64);
-    for (s = gametype; *s; ++s)
-        *s = tolower(*s);
-    if (!Scr_IsValidGameType(gametype))
+    for ( ch = gametype; *ch; ++ch )
+        *ch = tolower(*ch);
+    if ( !Scr_IsValidGameType(gametype) )
     {
+#ifdef KISAK_SP
+        Com_Printf(15, "g_gametype %s is not a valid gametype, defaulting to cmp\n", gametype);
+        strcpy(gametype, "cmp");
+#else
         Com_Printf(15, "g_gametype %s is not a valid gametype, defaulting to dm\n", gametype);
         strcpy(gametype, "dm");
+#endif
     }
-    Dvar_SetString((dvar_s*)sv_gametype, gametype);
+    Dvar_SetString((dvar_s *)sv_gametype, gametype);
 }
 
 void __cdecl SV_ShutdownGameVM(int clearScripts)
@@ -789,7 +814,7 @@ void __cdecl SV_ShutdownGameVM(int clearScripts)
     G_ShutdownGame(clearScripts);
 }
 
-void __cdecl    SV_RestartGameProgs(int savepersist)
+void __cdecl SV_RestartGameProgs(int savepersist)
 {
     Com_SyncThreads();
     SV_ShutdownGameVM(0);
@@ -797,9 +822,9 @@ void __cdecl    SV_RestartGameProgs(int savepersist)
     SV_InitGameVM(1, savepersist == 0);
 }
 
-void __cdecl    SV_InitGameVM(int restart, int registerDvars)
+void __cdecl SV_InitGameVM(int restart, int registerDvars)
 {
-    int i; // [esp+Ch] [ebp-4h]
+    int clientIndex;
 
     PROF_SCOPED("SV_InitGameVM");
 
@@ -818,16 +843,17 @@ void __cdecl    SV_InitGameVM(int restart, int registerDvars)
         __debugbreak();
     }
 
-    for ( i = 0; i < com_maxclients->current.integer; ++i )
-        svs.clients[i].gentity = 0;
+    for ( clientIndex = 0; clientIndex < com_maxclients->current.integer; ++clientIndex )
+        svs.clients[clientIndex].gentity = 0;
 
     Sys_LoadingKeepAlive();
     G_InitGame(svs.time, Sys_MillisecondsRaw(), restart, registerDvars);
 
-    if (IsDedicatedServer())
+    // Dedicated servers: copy gametype script sprint limit into the live player dvar.
+    if ( IsDedicatedServer() )
     {
-        float sprinttime = Dvar_GetFloat("scr_player_sprinttime");
-        Dvar_SetFromStringByNameFromSource("player_sprintTime", va("%f", sprinttime), DVAR_SOURCE_SCRIPT, 0);
+        float sprintTime = Dvar_GetFloat("scr_player_sprintTime");
+        Dvar_SetFromStringByNameFromSource("player_sprintTime", va("%f", sprintTime), DVAR_SOURCE_SCRIPT, 0);
     }
 
     SV_SetConfigstring(3, va("%i", sv_serverId_value));
@@ -839,7 +865,7 @@ void __cdecl    SV_InitGameVM(int restart, int registerDvars)
     }
 }
 
-void __cdecl    SV_InitGameProgs(int savepersist)
+void __cdecl SV_InitGameProgs(int savepersist)
 {
     gameInitialized = 1;
     SV_InitGameVM(0, savepersist == 0);

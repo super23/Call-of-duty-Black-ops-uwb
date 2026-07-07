@@ -11,9 +11,10 @@
 #include "actor_mp.h"
 #include <qcommon/cm_world.h>
 
+// Decomp: CoDMPServer.c:446519
 void __cdecl G_Trigger(gentity_s *self, gentity_s *other)
 {
-    trigger_info_t *trigger_info; // [esp+0h] [ebp-4h]
+    trigger_info_t *trigger_info;
 
     if ( !self->r.inuse
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_trigger_mp.cpp", 11, 0, "%s", "self->r.inuse") )
@@ -43,6 +44,7 @@ void __cdecl G_Trigger(gentity_s *self, gentity_s *other)
     }
 }
 
+// Decomp: CoDMPServer.c:446564
 char __cdecl InitTrigger(gentity_s *self)
 {
     if ( SV_SetBrushModel(self) )
@@ -67,6 +69,7 @@ char __cdecl InitTrigger(gentity_s *self)
     }
 }
 
+// Decomp: CoDMPServer.c:446593
 void __cdecl InitSentientTrigger(gentity_s *self)
 {
     if ( !self && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_trigger_mp.cpp", 70, 0, "%s", "self") )
@@ -84,21 +87,23 @@ void __cdecl InitSentientTrigger(gentity_s *self)
         self->r.contents |= 8u;
 }
 
+// Decomp: CoDMPServer.c:446620
 void __cdecl multi_trigger(gentity_s *ent)
 {
     if ( (ent->spawnflags & 0x40) != 0 )
         G_FreeEntityDelay(ent);
 }
 
+// Decomp: CoDMPServer.c:446627
 void __cdecl Touch_Multi(gentity_s *self, gentity_s *other, int __formal)
 {
     G_Trigger(self, other);
     multi_trigger(self);
 }
 
+// Decomp: CoDMPServer.c:446634
 void __cdecl SP_trigger_multiple(gentity_s *ent, SpawnVar *spawnVar)
 {
-    int savedregs; // [esp+0h] [ebp+0h] BYREF
 
     if ( (ent->spawnflags & 0x80) != 0 )
     {
@@ -116,41 +121,42 @@ void __cdecl SP_trigger_multiple(gentity_s *ent, SpawnVar *spawnVar)
     }
 }
 
+// Decomp: CoDMPServer.c:446655
 void __cdecl InitTriggerWait(gentity_s *ent, int spawnflag, SpawnVar *spawnVar)
 {
-    float wait; // [esp+0h] [ebp-4h] BYREF
+    float wait;
 
     if ( spawnVar && G_SpawnFloat(spawnVar, "wait", "", &wait) && wait <= 0.0 )
         ent->spawnflags |= spawnflag;
 }
 
+// Decomp: CoDMPServer.c:446665
 void __cdecl SP_trigger_radius(gentity_s *ent, SpawnVar *spawnVar)
 {
-    const char *v2; // eax
-    const char *v3; // eax
-    float height; // [esp+18h] [ebp-8h] BYREF
-    float radius; // [esp+1Ch] [ebp-4h] BYREF
-    int savedregs; // [esp+20h] [ebp+0h] BYREF
+    const char *fmtMsg;
+    const char *fmtMsg2;
+    float height;
+    float radius;
 
     if ( spawnVar )
     {
         if ( !G_SpawnFloat(spawnVar, "radius", "", &radius) )
         {
-            v2 = va(
+            fmtMsg = va(
                          "radius not specified for trigger_radius at (%g %g %g)",
                          ent->r.currentOrigin[0],
                          ent->r.currentOrigin[1],
                          ent->r.currentOrigin[2]);
-            Com_Error(ERR_DROP, v2);
+            Com_Error(ERR_DROP, fmtMsg);
         }
         if ( !G_SpawnFloat(spawnVar, "height", "", &height) )
         {
-            v3 = va(
+            fmtMsg2 = va(
                          "height not specified for trigger_radius at (%g %g %g)",
                          ent->r.currentOrigin[0],
                          ent->r.currentOrigin[1],
                          ent->r.currentOrigin[2]);
-            Com_Error(ERR_DROP, v3);
+            Com_Error(ERR_DROP, fmtMsg2);
         }
     }
     else
@@ -166,6 +172,7 @@ void __cdecl SP_trigger_radius(gentity_s *ent, SpawnVar *spawnVar)
     SV_LinkEntity(ent);
 }
 
+// Decomp: CoDMPServer.c:446710
 void __cdecl init_trigger_radius(gentity_s *ent, float radius, float height)
 {
     ent->r.mins[0] = -radius;
@@ -184,29 +191,29 @@ void __cdecl init_trigger_radius(gentity_s *ent, float radius, float height)
     ent->s.otherEntityNum = 1023;
 }
 
+// Decomp: CoDMPServer.c:446730
 void __cdecl SP_trigger_radius_use(gentity_s *ent, SpawnVar *v)
 {
-    int savedregs; // [esp+8h] [ebp+0h] BYREF
 
     init_trigger_radius(ent, 128.0, 96.0);
     ent->handler = 22;
     SV_LinkEntity(ent);
 }
 
+// Decomp: CoDMPServer.c:446741
 void __cdecl SP_trigger_disk(gentity_s *ent, SpawnVar *spawnVar)
 {
-    const char *v2; // eax
-    float radius; // [esp+18h] [ebp-4h] BYREF
-    int savedregs; // [esp+1Ch] [ebp+0h] BYREF
+    const char *fmtMsg;
+    float radius;
 
     if ( !G_SpawnFloat(spawnVar, "radius", "", &radius) )
     {
-        v2 = va(
+        fmtMsg = va(
                      "radius not specified for trigger_radius at (%g %g %g)",
                      ent->r.currentOrigin[0],
                      ent->r.currentOrigin[1],
                      ent->r.currentOrigin[2]);
-        Com_Error(ERR_DROP, v2);
+        Com_Error(ERR_DROP, fmtMsg);
     }
     if ( (ent->spawnflags & 0x80) != 0 )
     {
@@ -229,6 +236,7 @@ void __cdecl SP_trigger_disk(gentity_s *ent, SpawnVar *spawnVar)
     }
 }
 
+// Decomp: CoDMPServer.c:446784
 void __cdecl hurt_touch(gentity_s *self, gentity_s *other, int __formal)
 {
     if ( other->takedamage && self->item[0].index <= level.time )
@@ -253,6 +261,7 @@ void __cdecl hurt_touch(gentity_s *self, gentity_s *other, int __formal)
     }
 }
 
+// Decomp: CoDMPServer.c:446810
 void __cdecl hurt_use(gentity_s *self, gentity_s *__formal, gentity_s *__formal2)
 {
     if ( self->handler == 6 )
@@ -275,9 +284,10 @@ void __cdecl hurt_use(gentity_s *self, gentity_s *__formal, gentity_s *__formal2
     }
 }
 
+// Decomp: CoDMPServer.c:446834
 void __cdecl SP_trigger_hurt(gentity_s *self, SpawnVar *spawnVar)
 {
-    const char *sound; // [esp+0h] [ebp-4h] BYREF
+    const char *sound;
 
     if ( InitTrigger(self) )
     {
@@ -292,9 +302,9 @@ void __cdecl SP_trigger_hurt(gentity_s *self, SpawnVar *spawnVar)
     }
 }
 
+// Decomp: CoDMPServer.c:446853
 void __cdecl SP_trigger_once(gentity_s *ent, SpawnVar *spawnVar)
 {
-    int savedregs; // [esp+0h] [ebp+0h] BYREF
 
     if ( (ent->spawnflags & 0x80) != 0 )
     {
@@ -312,6 +322,7 @@ void __cdecl SP_trigger_once(gentity_s *ent, SpawnVar *spawnVar)
     }
 }
 
+// Decomp: CoDMPServer.c:446874
 bool __cdecl Respond_trigger_damage(gentity_s *pEnt, int iMOD)
 {
     if ( (pEnt->spawnflags & 1) != 0 && iMOD == 1 )
@@ -329,6 +340,7 @@ bool __cdecl Respond_trigger_damage(gentity_s *pEnt, int iMOD)
     return (pEnt->spawnflags & 0x100) == 0 || iMOD && (iMOD <= 9 || iMOD > 14);
 }
 
+// Decomp: CoDMPServer.c:446894
 void __cdecl Activate_trigger_damage(gentity_s *pEnt, gentity_s *pOther, int iDamage, int iMOD)
 {
     if ( pEnt->item[0].ammoCount <= 0 || iDamage >= pEnt->item[0].ammoCount )
@@ -348,16 +360,28 @@ void __cdecl Activate_trigger_damage(gentity_s *pEnt, gentity_s *pOther, int iDa
     }
 }
 
+// Decomp: CoDMPServer.c:446914
 void __cdecl Use_trigger_damage(gentity_s *pEnt, gentity_s *pOther, gentity_s *__formal)
 {
     Activate_trigger_damage(pEnt, pOther, pEnt->item[0].clipAmmoCount + 1, -1);
 }
 
+// Decomp: CoDMPServer.c:446920
 void __cdecl Pain_trigger_damage(gentity_s *pSelf, gentity_s *pAttacker, int iDamage, const float *vPoint, const int iMod, const float *__formal, const hitLocation_t __formal2, const int __formal3)
 {
+    if ( pSelf->classname == scr_const.trigger_damage && (pSelf->spawnflags & 0x40) == 0 )
+    {
+        Scr_AddConstString(*modNames[iMod], SCRIPTINSTANCE_SERVER);
+        Scr_AddVector((float *)vPoint, SCRIPTINSTANCE_SERVER);
+        Scr_AddVector((float *)vec3_origin, SCRIPTINSTANCE_SERVER);
+        Scr_AddEntity(pAttacker, SCRIPTINSTANCE_SERVER);
+        Scr_AddInt(iDamage, SCRIPTINSTANCE_SERVER);
+        Scr_Notify(pSelf, scr_const.damage, 5u);
+    }
     Activate_trigger_damage(pSelf, pAttacker, iDamage, iMod);
 }
 
+// Decomp: CoDMPServer.c:446926
 void __cdecl Flame_trigger_damage(
                 gentity_s *pSelf,
                 gentity_s *pAttacker,
@@ -378,36 +402,64 @@ void __cdecl Flame_trigger_damage(
     }
 }
 
+// Decomp: CoDMPServer.c:446941
 void __cdecl Die_trigger_damage(gentity_s *pSelf, gentity_s *pInflictor, gentity_s *pAttacker, int iDamage, int iMod, const int __formal, const float *__formal2, const hitLocation_t __formal3, int __formal4)
 {
     Activate_trigger_damage(pSelf, pAttacker, iDamage, iMod);
 }
 
+// Decomp: CoDMPServer.c:446947
 void __cdecl SP_trigger_damage(gentity_s *pSelf, SpawnVar *spawnVar)
 {
-    int savedregs; // [esp+0h] [ebp+0h] BYREF
-
-    G_SpawnInt(spawnVar, "accumulate", "0", &pSelf->trigger.accumulate);
-    G_SpawnInt(spawnVar, "threshold", "0", &pSelf->trigger.threshold);
+    float height;
+    float radius;
 
     pSelf->health = 32000;
     pSelf->takedamage = 1;
     pSelf->handler = 7;
-    InitTriggerWait(pSelf, 512, spawnVar);
-    if ( InitTrigger(pSelf) )
+
+    if ( spawnVar )
+    {
+        G_SpawnInt(spawnVar, "accumulate", "0", &pSelf->trigger.accumulate);
+        G_SpawnInt(spawnVar, "threshold", "0", &pSelf->trigger.threshold);
+        InitTriggerWait(pSelf, 512, spawnVar);
+        if ( InitTrigger(pSelf) )
+            SV_LinkEntity(pSelf);
+    }
+    else
+    {
+        if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) < 5 )
+            Scr_Error("USAGE: spawn( \"trigger_damage\", <origin>, <spawnflags>, <radius>, <height> )", 0);
+        radius = Scr_GetFloat(3u, SCRIPTINSTANCE_SERVER);
+        height = Scr_GetFloat(4u, SCRIPTINSTANCE_SERVER);
+        pSelf->r.mins[0] = -radius;
+        pSelf->r.mins[1] = -radius;
+        pSelf->r.mins[2] = 0.0f;
+        pSelf->r.maxs[0] = radius;
+        pSelf->r.maxs[1] = radius;
+        pSelf->r.maxs[2] = height;
+        InitTriggerWait(pSelf, 512, spawnVar);
+        pSelf->r.svFlags |= 1u;
+        pSelf->r.svFlags |= 32u;
+        pSelf->r.contents = 1079771144;
+        pSelf->s.lerp.eFlags |= 1u;
+        if ( !pSelf->model )
+            pSelf->s.lerp.eFlags |= 0x20u;
         SV_LinkEntity(pSelf);
+    }
 }
 
+// Decomp: CoDMPServer.c:446962
 void __cdecl G_CheckHitTriggerDamage(gentity_s *pActivator, float *vStart, float *vEnd, int iDamage, unsigned int iMOD)
 {
-    int v5; // [esp+Ch] [ebp-107Ch]
-    int entityList[1024]; // [esp+10h] [ebp-1078h] BYREF
-    sightclip_t clip; // [esp+1010h] [ebp-78h] BYREF
-    float value[3]; // [esp+105Ch] [ebp-2Ch] BYREF
-    float mins[3]; // [esp+1068h] [ebp-20h] BYREF
-    int i; // [esp+1074h] [ebp-14h]
-    gentity_s *pEnt; // [esp+1078h] [ebp-10h]
-    float maxs[3]; // [esp+107Ch] [ebp-Ch] BYREF
+    int tmp5;
+    int entityList[1024];
+    sightclip_t clip;
+    float value[3];
+    float mins[3];
+    int i;
+    gentity_s *pEnt;
+    float maxs[3];
 
     if ( iMOD >= 0x15
         && !Assert_MyHandler(
@@ -448,7 +500,7 @@ void __cdecl G_CheckHitTriggerDamage(gentity_s *pActivator, float *vStart, float
     value[1] = vEnd[1] - vStart[1];
     value[2] = vEnd[2] - vStart[2];
     Vec3Normalize(value);
-    v5 = CM_AreaEntities(mins, maxs, entityList, 1024, 0x400000);
+    tmp5 = CM_AreaEntities(mins, maxs, entityList, 1024, 0x400000);
     clip.start[0] = *vStart;
     clip.start[1] = vStart[1];
     clip.start[2] = vStart[2];
@@ -459,7 +511,7 @@ void __cdecl G_CheckHitTriggerDamage(gentity_s *pActivator, float *vStart, float
     clip.contentmask = -1;
     clip.passEntityNum[1] = 1023;
     clip.passEntityNum[0] = 1023;
-    for ( i = 0; i < v5; ++i )
+    for ( i = 0; i < tmp5; ++i )
     {
         pEnt = &g_entities[entityList[i]];
         if ( pEnt->classname == scr_const.trigger_damage && SV_SightTraceCapsuleToEntity(&clip, pEnt->s.number) )
@@ -477,16 +529,17 @@ void __cdecl G_CheckHitTriggerDamage(gentity_s *pActivator, float *vStart, float
     }
 }
 
+// Decomp: CoDMPServer.c:447071
 void __cdecl G_GrenadeTouchTriggerDamage(gentity_s *pActivator, float *vStart, float *vEnd, int iDamage, int iMOD)
 {
-    int v5; // [esp+Ch] [ebp-107Ch]
-    int entityList[1024]; // [esp+10h] [ebp-1078h] BYREF
-    sightclip_t clip; // [esp+1010h] [ebp-78h] BYREF
-    float value[3]; // [esp+105Ch] [ebp-2Ch] BYREF
-    float mins[3]; // [esp+1068h] [ebp-20h] BYREF
-    int i; // [esp+1074h] [ebp-14h]
-    gentity_s *pEnt; // [esp+1078h] [ebp-10h]
-    float maxs[3]; // [esp+107Ch] [ebp-Ch] BYREF
+    int tmp5;
+    int entityList[1024];
+    sightclip_t clip;
+    float value[3];
+    float mins[3];
+    int i;
+    gentity_s *pEnt;
+    float maxs[3];
 
     mins[0] = *vStart;
     mins[1] = vStart[1];
@@ -499,7 +552,7 @@ void __cdecl G_GrenadeTouchTriggerDamage(gentity_s *pActivator, float *vStart, f
     value[1] = vEnd[1] - vStart[1];
     value[2] = vEnd[2] - vStart[2];
     Vec3Normalize(value);
-    v5 = CM_AreaEntities(mins, maxs, entityList, 1024, 0x400000);
+    tmp5 = CM_AreaEntities(mins, maxs, entityList, 1024, 0x400000);
     clip.start[0] = *vStart;
     clip.start[1] = vStart[1];
     clip.start[2] = vStart[2];
@@ -510,7 +563,7 @@ void __cdecl G_GrenadeTouchTriggerDamage(gentity_s *pActivator, float *vStart, f
     clip.contentmask = -1;
     clip.passEntityNum[1] = 1023;
     clip.passEntityNum[0] = 1023;
-    for ( i = 0; i < v5; ++i )
+    for ( i = 0; i < tmp5; ++i )
     {
         pEnt = &g_entities[entityList[i]];
         if ( pEnt->classname == scr_const.trigger_damage
@@ -530,6 +583,7 @@ void __cdecl G_GrenadeTouchTriggerDamage(gentity_s *pActivator, float *vStart, f
     }
 }
 
+// Decomp: CoDMPServer.c:447137
 void __cdecl SP_trigger_lookat(gentity_s *self, SpawnVar *v)
 {
     if ( SV_SetBrushModel(self) )
@@ -552,6 +606,7 @@ void __cdecl SP_trigger_lookat(gentity_s *self, SpawnVar *v)
     }
 }
 
+// Decomp: CoDMPServer.c:447161
 void __cdecl trigger_ik_playerclip_terrain_touch(gentity_s *ent, gentity_s *other, int __formal)
 {
     if ( other->client || other->actor )
@@ -561,15 +616,16 @@ void __cdecl trigger_ik_playerclip_terrain_touch(gentity_s *ent, gentity_s *othe
     }
 }
 
+// Decomp: CoDMPServer.c:447171
 void __cdecl SP_trigger_ik_playerclip_terrain(gentity_s *self, SpawnVar *v)
 {
-    int savedregs; // [esp+0h] [ebp+0h] BYREF
 
     self->handler = 29;
     if ( InitTrigger(self) )
         SV_LinkEntity(self);
 }
 
+// Decomp: CoDMPServer.c:447181
 void __cdecl trigger_ik_disable_terrain_mapping_touch(gentity_s *ent, gentity_s *other, int __formal)
 {
     if ( other->client || other->actor )

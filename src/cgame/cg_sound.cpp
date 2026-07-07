@@ -1,13 +1,21 @@
 #include "cg_sound.h"
 #include <client/splitscreen.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#include <cgame_sp/cg_main_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <cgame_sp/cg_animscripted_sp.h>
+#include <game/g_utils_sp.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
 #include <cgame_mp/cg_main_mp.h>
+#include <client_mp/cl_cgame_mp.h>
+#include <cgame_mp/cg_animscripted_mp.h>
+#endif
 #include <gfx_d3d/r_scene.h>
 #include <sound/snd_public_async.h>
 #include <sound/snd_bank.h>
 #include <sound/snd_utils.h>
-#include <client_mp/cl_cgame_mp.h>
-#include <cgame_mp/cg_animscripted_mp.h>
 #include <bgame/bg_misc.h>
 #include <universal/com_math_anglevectors.h>
 #include <bgame/bg_weapons.h>
@@ -255,6 +263,31 @@ void __cdecl CG_PumpEntityLoopSound(int localClientNum, const centity_s *cent)
         cent->nextState.loopSoundId);
 }
 
+void __cdecl CG_PumpEntitySoundBlend(int localClientNum, const centity_s *cent)
+{
+    unsigned int aliasA;
+    unsigned int aliasB;
+    float blend;
+    float volA;
+    float volB;
+
+    aliasA = cent->nextState.lerp.u.anonymous.data[1];
+    aliasB = cent->nextState.lerp.u.anonymous.data[2];
+    if ( !aliasA && !aliasB )
+        return;
+    blend = cent->nextState.anim.fTorsoPitch;
+    if ( blend < 0.0f )
+        blend = 0.0f;
+    if ( blend > 1.0f )
+        blend = 1.0f;
+    volA = 1.0f - blend;
+    volB = blend;
+    if ( aliasA && volA > 0.001f )
+        CG_PlaySound(localClientNum, cent->nextState.number, 0, 0, 0, volA, aliasA);
+    if ( aliasB && volB > 0.001f )
+        CG_PlaySound(localClientNum, cent->nextState.number, 0, 0, 0, volB, aliasB);
+}
+
 void __cdecl CG_PlayAnimScriptSoundAlias(int clientIndex, snd_alias_list_t *aliasList)
 {
     int ClientNumForLocalClient; // eax
@@ -327,6 +360,13 @@ void __cdecl CG_SubtitlePrint(int msec, const char *subtitle)
 void __cdecl CG_SubtitleSndLengthNotify(int msec, const char *lengthNotifyData)
 {
     CG_SubtitlePrint(msec, lengthNotifyData);
+}
+
+void __cdecl CG_ScriptSndLengthNotify(unsigned int entNum, unsigned int lengthMs)
+{
+#ifdef KISAK_SP
+    G_UpdateEntityScriptSoundLength(entNum, lengthMs);
+#endif
 }
 
 int __cdecl CG_SoundGetUseCount(SndEntHandle sndEnt)

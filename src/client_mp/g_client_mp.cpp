@@ -158,7 +158,15 @@ void __cdecl G_GetPlayerViewOrigin_Internal(const playerState_s *ps, float *orig
         }
         else
         {
-            vehicleTag = scr_const.tag_gunner_barrel1;
+            static const unsigned __int16 gunnerBarrelTags[4] =
+            {
+                scr_const.tag_gunner_barrel1,
+                scr_const.tag_gunner_barrel2,
+                scr_const.tag_gunner_barrel3,
+                scr_const.tag_gunner_barrel4,
+            };
+
+            vehicleTag = gunnerBarrelTags[ps->vehiclePos - 1];
         }
         if (G_DObjGetWorldTagMatrix(vehicle, vehicleTag, playerMtx)
             || (vehicleTag = scr_const.tag_player, G_DObjGetWorldTagMatrix(vehicle, scr_const.tag_player, playerMtx)))
@@ -302,6 +310,30 @@ void __cdecl ClientUserinfoChanged(unsigned int clientNum)
         }
         client->sess.cs.xuid = xuid;
     }
+    s = Info_ValueForKey(userinfo, "rank");
+    if ( *s )
+    {
+        int r;
+
+        r = atoi(s);
+        if ( r < 0 )
+            r = 0;
+        if ( r > 998 )
+            r = 998;
+        client->sess.cs.rank = r;
+    }
+    s = Info_ValueForKey(userinfo, "prestige");
+    if ( *s )
+    {
+        int p;
+
+        p = atoi(s);
+        if ( p < 0 )
+            p = 0;
+        if ( p > 255 )
+            p = 255;
+        client->sess.cs.prestige = p;
+    }
     if ( clientNum >= 0x20
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_client_mp.cpp",
@@ -322,6 +354,8 @@ void __cdecl ClientUserinfoChanged(unsigned int clientNum)
     ci->clientNum = clientNum;
     I_strncpyz(ci->name, client->sess.cs.name, 32);
     ci->team = client->sess.cs.team;
+    ci->rank = client->sess.cs.rank;
+    ci->prestige = client->sess.cs.prestige;
     if ( !ent->sentient
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_client_mp.cpp", 385, 0, "%s", "ent->sentient") )
     {

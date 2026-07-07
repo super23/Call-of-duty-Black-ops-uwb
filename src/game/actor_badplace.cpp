@@ -1,13 +1,13 @@
 #include "actor_badplace.h"
 #include <universal/assertive.h>
 #include "pathnode.h"
-#include <game_mp/actor_mp.h>
-#include <game_mp/g_main_mp.h>
+#include <game/actor_wrapper.h>
+#include <game/g_main_wrapper.h>
 #include <clientscript/cscr_stringlist.h>
 #include <clientscript/cscr_vm.h>
 #include "actor_events.h"
 #include "g_debug.h"
-#include <game_mp/g_utils_mp.h>
+#include <game/g_utils_wrapper.h>
 #include <server/sv_game.h>
 #include "actor_state.h"
 #include "actor_orientation.h"
@@ -256,6 +256,50 @@ badplace_t *__cdecl Path_AllocBadPlace(unsigned int name, int duration)
     Scr_SetString(&g_badplaces[best].name, name, SCRIPTINSTANCE_SERVER);
     g_badplaces[best].endtime = endtime;
     return &g_badplaces[best];
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (Path_MakeBadPlace ~5922829)
+void __cdecl Path_MakeBadPlace(unsigned int name, int duration, int teamflags, int type, badplace_parms_t *parms)
+{
+    if ( ai_enableBadPlaces->current.enabled )
+    {
+        Path_MakeBadPlaceEx(name, duration, teamflags, type, parms);
+        Actor_BadPlacesChanged();
+    }
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (Path_MakeArcBadPlace ~5922752)
+void __cdecl Path_MakeArcBadPlace(unsigned int name, int duration, int teamflags, badplace_arc_t *arc)
+{
+    badplace_parms_t parms;
+
+    iassert(arc);
+    parms.arc = *arc;
+    Path_MakeBadPlace(name, duration, teamflags, 1, &parms);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (Path_MakeBrushBadPlace ~5922921)
+void __cdecl Path_MakeBrushBadPlace(unsigned int name, int duration, int teamflags, gentity_s *brushEnt)
+{
+    badplace_parms_t parms;
+
+    iassert(brushEnt);
+    parms.brush.volume = brushEnt;
+    parms.brush.radius = 0.0f;
+    Path_MakeBadPlace(name, duration, teamflags, 2, &parms);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (Path_RemoveBadPlace ~82528E40)
+void __cdecl Path_RemoveBadPlace(unsigned int name)
+{
+    int index;
+
+    index = Path_FindBadPlace(name);
+    if ( index >= 0 )
+    {
+        Path_FreeBadPlace(index);
+        Actor_BadPlace_UpdateFleeingActors();
+    }
 }
 
 void __cdecl Path_DrawBadPlaces()

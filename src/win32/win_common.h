@@ -78,7 +78,8 @@ enum CriticalSection : __int32
     CRITSECT_FXBEAM                                    = 0x48,
     CRITSECT_GLASS_ACTIONS                     = 0x49,
     CRITSECT_DBHASH                                    = 0x4A,
-    CRITSECT_COUNT                                     = 0x4B,
+    CRITSECT_HUNK                                      = 0x4B,
+    CRITSECT_COUNT                                     = 0x4C,
 };
 
 

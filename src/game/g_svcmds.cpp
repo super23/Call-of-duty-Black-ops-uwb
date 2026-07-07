@@ -1,11 +1,15 @@
 #include "g_svcmds.h"
 #include <universal/q_shared.h>
-#include <game_mp/g_main_mp.h>
-#include <game_mp/g_cmds_mp.h>
-#include <game_mp/g_utils_mp.h>
+#include <game/g_main_wrapper.h>
+#include <game/g_cmds_wrapper.h>
+#include <game/g_utils_wrapper.h>
 #include <clientscript/cscr_stringlist.h>
 #include <server/sv_game.h>
+#ifdef KISAK_SP
+#include <server_sp/sv_main_sp.h>
+#else
 #include <server_mp/sv_main_mp.h>
+#endif
 
 int numIPFilters;
 ipFilter_s ipFilters[1024];

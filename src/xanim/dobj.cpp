@@ -531,7 +531,7 @@ void __cdecl DObjComputeBounds(DObj *obj)
         {
             if ( boneIndex >= (int)baseModelNumBones )
                 continue;
-            modelRadius = Vec3Length(boneMtxList[boneIndex].trans) + modelRadius;
+            modelRadius = Abs(boneMtxList[boneIndex].trans) + modelRadius;
         }
         if ( modelRadius > maxRadius )
             maxRadius = modelRadius;
@@ -1382,7 +1382,7 @@ LABEL_25:
                                             Vec2NormalizeTo(start, trace->normal);
                                             if ( !Vec3IsNormalized(trace->normal) )
                                             {
-                                                v5 = Vec3Length(trace->normal);
+                                                v5 = Abs(trace->normal);
                                                 v6 = va("(%g %g %g) len %g", trace->normal[0], trace->normal[1], trace->normal[2], v5);
                                                 if ( !Assert_MyHandler(
                                                                 "C:\\projects_pc\\cod\\codsrc\\src\\xanim\\dobj.cpp",
@@ -1517,6 +1517,7 @@ void __cdecl DObjGeomTraceline(DObj *obj, float *localStart, float *localEnd, in
 
     PROF_SCOPED("geomtraceline");
 
+    memset(&trace, 0, 16);
     results->modelIndex = 0;
     results->partName = 0;
     results->partGroup = 0;

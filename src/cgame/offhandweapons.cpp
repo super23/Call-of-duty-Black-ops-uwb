@@ -1,6 +1,15 @@
 #include "offhandweapons.h"
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#include <cgame_sp/cg_newDraw_sp.h>
+#include <cgame_sp/cg_ents_sp.h>
+#include <cgame_sp/cg_servercmds_sp.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
 #include <cgame_mp/cg_newDraw_mp.h>
+#include <cgame_mp/cg_ents_mp.h>
+#include <cgame_mp/cg_servercmds_mp.h>
+#endif
 #include <bgame/bg_weapons_def.h>
 #include <ui/ui_atoms.h>
 #include <bgame/bg_mantle.h>
@@ -9,9 +18,7 @@
 #include "cg_event.h"
 #include <clientscript/scr_const.h>
 #include "cg_local.h"
-#include <cgame_mp/cg_ents_mp.h>
 #include <qcommon/dobj_management.h>
-#include <cgame_mp/cg_servercmds_mp.h>
 
 const char *offhandStrings[5] =
 {

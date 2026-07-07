@@ -948,13 +948,6 @@ public:
         m_dummy_head.m_prev_T_internal = &m_dummy_head;
     }
 
-    // lwss add
-    bool empty() const
-    {
-        return m_dummy_head.m_next_T_internal == &m_dummy_head;
-    }
-    // lwss end
-
     void debug_add(T_internal *T_i)
     {
         int m_list_count; // [esp+0h] [ebp-10h]

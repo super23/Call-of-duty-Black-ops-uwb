@@ -27,6 +27,9 @@ scrVmPub_t gScrVmPub[2];
 scrVmDebugPub_t gScrVmDebugPub[2];
 
 function_stack_t gFs[2];
+// MP regression guard: shared VM used by both targets. Builtin frame-end wait is only for
+// waitforclient (ZM CSC). post_builtin must finish normal return-value cleanup before archiving.
+static bool gScrBuiltinWaittillFrameEnd[2];
 int gThreadCount[2];
 int gOpcode[2];
 int gCaseCount[2];
@@ -34,6 +37,8 @@ int gCaseCount[2];
 int gScrExecuteTime[2];
 
 const dvar_t *logScriptTimes;
+// KISAK / LinkerMod: optional fatal script-error suppression (LinkerMod-development game_mod/dvar.cpp)
+const dvar_t *scr_suppressErrors;
 const dvar_t *scrVmEnableScripts;
 const dvar_t *scrShowVarUseage;
 const dvar_t *scrShowStrUsage;
@@ -105,6 +110,8 @@ void __cdecl Scr_VM_Init(scriptInstance_t inst)
     gScrVarPub[inst].numScriptThreads = 0;
     gScrVarPub[inst].varUsagePos = 0;
     logScriptTimes = _Dvar_RegisterBool("logScriptTimes", 0, 0, "Log times for every print called from script");
+    // KISAK / LinkerMod: set scr_suppressErrors 1 to log script errors without Com_Error drop (revert: remove dvar + cscr_parser check)
+    scr_suppressErrors = _Dvar_RegisterBool("scr_suppressErrors", 0, 0, "Suppress fatal script errors");
     scrVmEnableScripts = _Dvar_RegisterBool("scrVmEnableScripts", 1, 0, "Enables script execution");
     scrShowVarUseage = _Dvar_RegisterBool("scrShowVarUseage", 0, 0, "Displays var useage at compile time."); // they seriously spelled it this way
     scrShowStrUsage = _Dvar_RegisterBool("scrShowStrUsage", 0, 0, "Displays script string usage at compile time.");
@@ -130,15 +137,17 @@ void __cdecl Scr_Settings(int developer, int developer_script, int abort_on_erro
     {
         __debugbreak();
     }
-#if 0
+//#if 0
+    // KISAK / LinkerMod: retail Scr_Settings — was hard-forced false here, which hid file/line on script diagnostics.
+    // Revert to old Kisak behavior: force all three to false below and remove these three assignments.
     gScrVarPub[inst].developer = developer != 0;
     gScrVarPub[inst].developer_script = developer_script != 0;
     gScrVmPub[inst].abort_on_error = abort_on_error != 0;
-#endif
+//#endif
     // KISAKTODO: script debug "potential infinite loop!!!"
-    gScrVarPub[inst].developer = false;
-    gScrVarPub[inst].developer_script = false;
-    gScrVmPub[inst].abort_on_error = false;
+ //    gScrVarPub[inst].developer = false;
+ //   gScrVarPub[inst].developer_script = false;
+ //   gScrVmPub[inst].abort_on_error = false;
 }
 
 void __cdecl Scr_Shutdown(scriptInstance_t inst)
@@ -178,6 +187,23 @@ void __cdecl Scr_ClearOutParams(scriptInstance_t inst)
         --gScrVmPub[inst].top;
         --gScrVmPub[inst].outparamcount;
     }
+}
+
+// Suspends the current script thread until the next frame (same effect as waittillframeend).
+// Called from CScr_WaitForClient when client/snapshot is not ready. MP ZM CSC depends on this.
+bool __cdecl Scr_BuiltinWaittillFrameEnd(scriptInstance_t inst)
+{
+    function_stack_t *stack;
+    int size;
+
+    stack = &gFs[inst];
+    if ( !stack->startTop || !stack->top || stack->top < stack->startTop )
+        return false;
+    size = stack->top - stack->startTop;
+    if ( size != (unsigned __int16)size )
+        return false;
+    gScrBuiltinWaittillFrameEnd[inst] = true;
+    return true;
 }
 
 char *__cdecl Scr_GetReturnPos(scriptInstance_t inst, unsigned int *localId)
@@ -1887,6 +1913,8 @@ unsigned __int16 __cdecl Scr_ExecThread(scriptInstance_t inst, int handle, unsig
     const char *varUsagePos; // [esp+18h] [ebp-8h]
     unsigned int id; // [esp+1Ch] [ebp-4h]
 
+    if ( !handle )
+        return 0;
     pos = (char *)&gScrVarPub[inst].programBuffer[handle];
     _mm_prefetch(pos, 1);
     if (!gScrVmPub[inst].function_count)
@@ -1910,11 +1938,6 @@ unsigned __int16 __cdecl Scr_ExecThread(scriptInstance_t inst, int handle, unsig
             0,
             "%s",
             "gScrVarPub[inst].timeArrayId"))
-    {
-        __debugbreak();
-    }
-    if (!handle
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\clientscript\\cscr_vm.cpp", 4590, 0, "%s", "handle"))
     {
         __debugbreak();
     }
@@ -2244,6 +2267,8 @@ unsigned __int16 __cdecl Scr_ExecEntThreadNum(
     unsigned int objId; // [esp+1Ch] [ebp-8h]
     unsigned int id; // [esp+20h] [ebp-4h]
 
+    if ( !handle )
+        return 0;
     pos = (char *)&gScrVarPub[inst].programBuffer[handle];
     _mm_prefetch(pos, 1);
     if (!gScrVmPub[inst].function_count)
@@ -2267,11 +2292,6 @@ unsigned __int16 __cdecl Scr_ExecEntThreadNum(
             0,
             "%s",
             "gScrVarPub[inst].timeArrayId"))
-    {
-        __debugbreak();
-    }
-    if (!handle
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\clientscript\\cscr_vm.cpp", 4653, 0, "%s", "handle"))
     {
         __debugbreak();
     }
@@ -2385,6 +2405,8 @@ void __cdecl Scr_AddExecThread(scriptInstance_t inst, int handle, unsigned int p
 
 void __cdecl Scr_FreeThread(unsigned __int16 handle, scriptInstance_t inst)
 {
+    if ( !handle )
+        return;
     if (!gScrVarPub[inst].timeArrayId
         && !Assert_MyHandler(
             "C:\\projects_pc\\cod\\codsrc\\src\\clientscript\\cscr_vm.cpp",
@@ -2392,11 +2414,6 @@ void __cdecl Scr_FreeThread(unsigned __int16 handle, scriptInstance_t inst)
             0,
             "%s",
             "gScrVarPub[inst].timeArrayId"))
-    {
-        __debugbreak();
-    }
-    if (!handle
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\clientscript\\cscr_vm.cpp", 4796, 0, "%s", "handle"))
     {
         __debugbreak();
     }
@@ -4535,6 +4552,7 @@ error_1:
         case OP_CallBuiltinMethod4:
         case OP_CallBuiltinMethod5:
         case OP_CallBuiltinMethod:
+            gScrBuiltinWaittillFrameEnd[inst] = false;
             Scr_ClearOutParams(inst);
             localFs.top = gScrVmPub[inst].top + 1;
             localFs.top->type = 0;
@@ -5428,6 +5446,7 @@ CallBuiltin:
                     outparamcount);
                 gScrVmPub[inst].outparamcount = outparamcount;
             }
+            gFs[inst] = localFs;
             gScrVmPub[inst].top = localFs.top;
             ((void (*)(void))gScrCompilePub[inst].func_table[builtinIndex])();
             goto post_builtin;
@@ -5455,6 +5474,28 @@ CallBuiltin:
             objectId = localFs.top->u.stringValue;
             if (GetObjectType(inst, objectId) != VAR_ENTITY)
             {
+#ifdef KISAK_SP
+                // Retail SP: utility.gsc calls has_spawnflag on level.struct (VAR_OBJECT/struct).
+                if ( inst == SCRIPTINSTANCE_SERVER && GetObjectType(inst, objectId) == VAR_OBJECT )
+                {
+                    entref.entnum = 0;
+                    entref.classnum = 1;
+                    entref.client = 0;
+                    RemoveRefToObject(inst, objectId);
+                    gScrVmPub[inst].function_frame->fs.pos = localFs.pos;
+                    if ( gScrVmDebugPub[inst].func_table[builtinIndex].breakpointCount )
+                    {
+                        iassert(gScrVmPub[inst].top == localFs.top - 1);
+                        v105 = gScrVmPub[inst].outparamcount;
+                        Scr_HitBuiltinBreakpoint(inst, localFs.top, debugpos, localFs.localId, gOpcode[inst], builtinIndex, v105 + 1);
+                        gScrVmPub[inst].outparamcount = v105;
+                        gScrVmPub[inst].top = localFs.top - 1;
+                    }
+                    gFs[inst] = localFs;
+                    ((void(*)(scr_entref_t))gScrCompilePub[inst].func_table[builtinIndex])(entref);
+                    goto post_builtin;
+                }
+#endif
                 type = GetObjectType(inst, objectId);
                 RemoveRefToObject(inst, objectId);
                 gScrVarPub[inst].error_index = -1;
@@ -5506,14 +5547,18 @@ WAIT:
                 {
                     if (waitTime)
                         Scr_ResetTimeout(inst);
-                    waitTime = (waitTime + gScrVarPub[inst].time) & 0xFFFFFF;
+                    unsigned int scheduleTime = (waitTime + gScrVarPub[inst].time) & 0xFFFFFFu;
+                    // Scheduling for the current script time would re-enter VM_Resume on the same bucket in one pass
+                    // (e.g. wait(0) or tiny float seconds rounding to 0 ticks), freezing or spinning scripts.
+                    if ( scheduleTime == gScrVarPub[inst].time )
+                        scheduleTime = (gScrVarPub[inst].time + 1u) & 0xFFFFFFu;
                     --localFs.top;
                     stackValue.type = VAR_STACK;
                     stackValue.u.stackValue = VM_ArchiveStack(inst, &localFs);
-                    id = GetArray(inst, GetVariable(inst, gScrVarPub[inst].timeArrayId, waitTime));
+                    id = GetArray(inst, GetVariable(inst, gScrVarPub[inst].timeArrayId, scheduleTime));
                     stackId = GetNewObjectVariable(inst, id, localFs.localId);
                     SetNewVariableValue(inst, stackId, &stackValue);
-                    Scr_SetThreadWaitTime(inst, localFs.localId, waitTime);
+                    Scr_SetThreadWaitTime(inst, localFs.localId, scheduleTime);
                     goto thread_end;
                 }
 
@@ -5558,6 +5603,8 @@ negWait:
 post_builtin:
             localFs.top = gScrVmPub[inst].top;
             localFs.pos = gScrVmPub[inst].function_frame->fs.pos;
+            // Always complete builtin epilogue (pop args, push undefined return) before waittill
+            // archive. Skipping the return push causes VM_Resume stack underflow on MP CSC.
             if (gScrVmPub[inst].outparamcount)
             {
                 paramcount = gScrVmPub[inst].outparamcount;
@@ -5581,6 +5628,18 @@ post_builtin:
                 iassert(localFs.top == gScrVmPub[inst].top);
                 localFs.top[1].type = 0;
                 ++localFs.top;
+            }
+            if ( gScrBuiltinWaittillFrameEnd[inst] )
+            {
+                gScrBuiltinWaittillFrameEnd[inst] = false;
+                gFs[inst] = localFs;
+                stackValue.type = VAR_STACK;
+                stackValue.u.stackValue = VM_ArchiveStack(inst, &localFs);
+                id = GetArray(inst, GetVariable(inst, gScrVarPub[inst].timeArrayId, gScrVarPub[inst].time));
+                stackId = GetNewObjectVariableReverse(inst, id, localFs.localId);
+                SetNewVariableValue(inst, stackId, &stackValue);
+                Scr_SetThreadWaitTime(inst, localFs.localId, gScrVarPub[inst].time);
+                goto thread_end;
             }
             continue;
         case OP_wait:
@@ -5865,7 +5924,7 @@ function_call:
 
                 if (!gScrVmGlob[inst].loading)
                 {
-                    if (RETURN_ZERO32())
+                    if (Scr_IgnoreErrors(inst))
                         goto ignore_error;
 
                     VM_PrintJumpHistory(inst);

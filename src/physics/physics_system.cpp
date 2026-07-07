@@ -48,6 +48,7 @@ void __cdecl phys_sys::set_collision_callback(void (__cdecl *collision_callback)
 
 void __cdecl phys_sys::phys_frame_advance(float delta_t)
 {
+    //physics_system::frame_advance(g_physics_system, delta_t);
     g_physics_system->frame_advance(delta_t);
 }
 
@@ -123,25 +124,36 @@ int __cdecl phys_sys::get_rbc_contact_alloc_count()
     return g_physics_system->m_list_rbc_contact.m_list_count;
 }
 
-user_rigid_body *phys_sys::get_user_rigid_body(const phys_mat44 *const dictactor)
+phys_free_list<user_rigid_body>::T_internal_base *__cdecl phys_sys::get_user_rigid_body(
+                const phys_mat44 *const dictactor)
 {
-    // this seems un-needed
-    //if (g_physics_system->m_list_user_rigid_body.empty())
-    //{
-    //    return NULL;
-    //}
+    phys_free_list<user_rigid_body>::T_internal_base *m_next_T_internal; // esi
+    phys_free_list<user_rigid_body> *p_m_list_user_rigid_body; // ebx
 
-    for (user_rigid_body *rb : g_physics_system->m_list_user_rigid_body)
+    m_next_T_internal = g_physics_system->m_list_user_rigid_body.m_dummy_head.m_next_T_internal;
+    p_m_list_user_rigid_body = &g_physics_system->m_list_user_rigid_body;
+    if ( &g_physics_system->m_list_user_rigid_body == (phys_free_list<user_rigid_body> *)m_next_T_internal )
+        return 0;
+    while ( 1 )
     {
-        iassert(rb->is_user_rigid_body());
-
-        if (rb->m_dictator == dictactor)
+        if ( ((int)m_next_T_internal[33].m_next_T_internal & 0x20) == 0 )
         {
-            return rb;
+            if ( _tlAssert(
+                         "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\rigid_body_internal.h",
+                         31,
+                         "rb->is_user_rigid_body()",
+                         "") )
+            {
+                __debugbreak();
+            }
         }
+        if ( (const phys_mat44 *const)m_next_T_internal[46].m_prev_T_internal == dictactor )
+            break;
+        m_next_T_internal = m_next_T_internal->m_next_T_internal;
+        if ( p_m_list_user_rigid_body == (phys_free_list<user_rigid_body> *)m_next_T_internal )
+            return 0;
     }
-
-    return NULL;
+    return m_next_T_internal + 2;
 }
 
 rigid_body_constraint_contact *__cdecl phys_sys::get_rbc_contact(
@@ -162,125 +174,75 @@ rigid_body_constraint_contact *__cdecl phys_sys::get_rbc_contact(
 
 void __cdecl phys_sys::fixup_wheel_constraints(rigid_body *const rb)
 {
-    for (rigid_body_constraint_wheel *wci : g_physics_system->m_list_rbc_wheel)
+    physics_system *v1; // eax
+    phys_free_list<rigid_body_constraint_wheel>::T_internal_base *m_next_T_internal; // esi
+
+    v1 = g_physics_system;
+    m_next_T_internal = g_physics_system->m_list_rbc_wheel.m_dummy_head.m_next_T_internal;
+    if ( &g_physics_system->m_list_rbc_wheel != (phys_free_list<rigid_body_constraint_wheel> *)m_next_T_internal )
     {
-        if (wci->b2 == rb)
+        do
         {
-            wci->set_no_collision();
+            if ( (rigid_body *const)m_next_T_internal[2].m_next_T_internal == rb )
+            {
+                //rigid_body_constraint_wheel::set_no_collision((rigid_body_constraint_wheel *)&m_next_T_internal[2]);
+                ((rigid_body_constraint_wheel *)&m_next_T_internal[2])->set_no_collision();
+                v1 = g_physics_system;
+            }
+            else
+            {
+                m_next_T_internal = m_next_T_internal->m_next_T_internal;
+            }
         }
+        while ( &v1->m_list_rbc_wheel != (phys_free_list<rigid_body_constraint_wheel> *)m_next_T_internal );
     }
 }
 
 void __cdecl phys_sys::update_constraint_infos()
 {
-    // This function is not used 
-    iassert(0);
-#if 0
-    g_physics_system->m_environment_rigid_body.m_constraint_count = 0;
-    g_physics_system->m_environment_rigid_body.m_contact_count = 0;
-
-    for (user_rigid_body *urb : g_physics_system->m_list_user_rigid_body)
-    {
-        urb->m_constraint_count = 0;
-        urb->m_contact_count = 0;
-    }
-
-    for (rigid_body *rb : g_physics_system->m_list_rigid_body)
-    {
-        rb->m_constraint_count = 0;
-        rb->m_contact_count = 0;
-    }
-
-    for (rigid_body_constraint_point *rbcp : g_physics_system->m_list_rbc_point)
-    {
-        if (rbcp->b1)
-            rbcp->b1->m_constraint_count++;
-
-        if (rbcp->b2)
-            rbcp->b2->m_constraint_count++;
-    }
-
-    for (rigid_body_constraint_hinge *rbch : g_physics_system->m_list_rbc_hinge)
-    {
-        if (rbch->b1)
-            rbch->b1->m_constraint_count++;
-
-        if (rbch->b2)
-            rbch->b2->m_constraint_count++;
-    }
-
-    for (rigid_body_constraint_distance *rbcd : g_physics_system->m_list_rbc_dist)
-    {
-        if (rbcd->b1)
-            rbcd->b1->m_constraint_count++;
-
-        if (rbcd->b2)
-            rbcd->b2->m_constraint_count++;
-    }
-
-    for (rigid_body_constraint_ragdoll *rbcr : g_physics_system->m_list_rbc_ragdoll)
-    {
-        if (rbcr->b1)
-            rbcr->b1->m_constraint_count++;
-
-        if (rbcr->b2)
-            rbcr->b2->m_constraint_count++;
-    }
-
-    for (rigid_body_constraint_wheel *rbcw : g_physics_system->m_list_rbc_wheel)
-    {
-        if (rbcw->b1)
-            rbcw->b1->m_constraint_count++;
-
-        if (rbcw->b2)
-            rbcw->b2->m_constraint_count++;
-
-        if ((rbcw->m_wheel_flags & 1) != 0)
-        {
-            if (rbcw->b1)
-                rbcw->b1->m_contact_count++;
-
-            if (rbcw->b2)
-                rbcw->b2->m_contact_count++;
-        }
-    }
-
-    for (rigid_body_constraint_angular_actuator *rbcaa : g_physics_system->m_list_rbc_angular_actuator)
-    {
-        if (rbcaa->b1)
-            rbcaa->b1->m_constraint_count++;
-
-        if (rbcaa->b2)
-            rbcaa->b2->m_constraint_count++;
-    }
-
-    for (rigid_body_constraint_upright *rbcu : g_physics_system->m_list_rbc_upright)
-    {
-        if (rbcu->b1)
-            rbcu->b1->m_constraint_count++;
-
-        if (rbcu->b2)
-            rbcu->b2->m_constraint_count++;
-    }
-
-    for (rigid_body_constraint_custom_orientation *rbcco : g_physics_system->m_list_rbc_custom_orientation)
-    {
-        if (rbcco->b1)
-            rbcco->b1->m_constraint_count++;
-
-        if (rbcco->b2)
-            rbcco->b2->m_constraint_count++;
-    }
-
-    for (rigid_body_constraint_custom_path *rbccp : g_physics_system->m_list_rbc_custom_path)
-    {
-        if (rbccp->b1)
-            rbccp->b1->m_constraint_count++;
-
-        if (rbccp->b2)
-            rbccp->b2->m_constraint_count++;
-    }
-
+    environment_rigid_body *p_m_environment_rigid_body; // eax
+    physics_system *v1; // eax
+    phys_free_list<user_rigid_body>::T_internal_base *m_next_T_internal; // ecx
+    phys_free_list<user_rigid_body> *p_m_list_user_rigid_body; // edx
+    phys_free_list<rigid_body> *v4; // ecx
+    phys_free_list<rigid_body_constraint_point> *v5; // ecx
+    phys_free_list<rigid_body_constraint_point> *p_m_list_rbc_point; // edx
+    rigid_body_constraint_point *v7; // eax
+    rigid_body_constraint_point *v8; // eax
+    phys_free_list<rigid_body_constraint_hinge> *v9; // ecx
+    phys_free_list<rigid_body_constraint_hinge> *p_m_list_rbc_hinge; // edx
+    rigid_body_constraint_hinge *v11; // eax
+    rigid_body_constraint_hinge *v12; // eax
+    phys_free_list<rigid_body_constraint_distance> *v13; // ecx
+    phys_free_list<rigid_body_constraint_distance> *p_m_list_rbc_dist; // edx
+    rigid_body_constraint_distance *v15; // eax
+    rigid_body_constraint_distance *v16; // eax
+    phys_free_list<rigid_body_constraint_ragdoll> *v17; // ecx
+    phys_free_list<rigid_body_constraint_ragdoll> *p_m_list_rbc_ragdoll; // edx
+    rigid_body_constraint_ragdoll *v19; // eax
+    rigid_body_constraint_ragdoll *v20; // eax
+    phys_free_list<rigid_body_constraint_wheel>::T_internal_base *v21; // ecx
+    phys_free_list<rigid_body_constraint_wheel> *p_m_list_rbc_wheel; // edx
+    phys_free_list<rigid_body_constraint_wheel>::T_internal_base *m_prev_T_internal; // eax
+    phys_free_list<rigid_body_constraint_wheel>::T_internal_base *v24; // eax
+    phys_free_list<rigid_body_constraint_wheel>::T_internal_base *v25; // eax
+    phys_free_list<rigid_body_constraint_wheel>::T_internal_base *v26; // eax
+    phys_free_list<rigid_body_constraint_angular_actuator> *v27; // ecx
+    phys_free_list<rigid_body_constraint_angular_actuator> *p_m_list_rbc_angular_actuator; // edx
+    rigid_body_constraint_angular_actuator *v29; // eax
+    rigid_body_constraint_angular_actuator *v30; // eax
+    phys_free_list<rigid_body_constraint_upright> *v31; // ecx
+    phys_free_list<rigid_body_constraint_upright> *p_m_list_rbc_upright; // edx
+    rigid_body_constraint_upright *v33; // eax
+    rigid_body_constraint_upright *v34; // eax
+    phys_free_list<rigid_body_constraint_custom_orientation> *v35; // ecx
+    phys_free_list<rigid_body_constraint_custom_orientation> *p_m_list_rbc_custom_orientation; // edx
+    int m_list_count; // eax
+    int m_list_count_high_water; // eax
+    phys_free_list<rigid_body_constraint_custom_path> *v39; // ecx
+    phys_free_list<rigid_body_constraint_custom_path> *p_m_list_rbc_custom_path; // edx
+    rigid_body_constraint_custom_path *v41; // eax
+    rigid_body_constraint_custom_path *v42; // eax
     phys_free_list<rigid_body_constraint_contact> *v43; // esi
     phys_free_list<rigid_body_constraint_contact> *i; // edi
     rigid_body_constraint_contact *b2; // eax
@@ -289,8 +251,200 @@ void __cdecl phys_sys::update_constraint_infos()
     int k; // ecx
     int v49; // eax
     int v50; // eax
-    v43 = (phys_free_list<rigid_body_constraint_contact> *)g_physics_system->m_list_rbc_contact.m_dummy_head.m_next_T_internal;
-    for ( i = &g_physics_system->m_list_rbc_contact;
+
+    p_m_environment_rigid_body = &g_physics_system->m_environment_rigid_body;
+    g_physics_system->m_environment_rigid_body.m_constraint_count = 0;
+    p_m_environment_rigid_body->m_contact_count = 0;
+    v1 = g_physics_system;
+    m_next_T_internal = g_physics_system->m_list_user_rigid_body.m_dummy_head.m_next_T_internal;
+    p_m_list_user_rigid_body = &g_physics_system->m_list_user_rigid_body;
+    if ( &g_physics_system->m_list_user_rigid_body != (phys_free_list<user_rigid_body> *)m_next_T_internal )
+    {
+        do
+        {
+            m_next_T_internal[35].m_prev_T_internal = 0;
+            m_next_T_internal[35].m_next_T_internal = 0;
+            m_next_T_internal = m_next_T_internal->m_next_T_internal;
+        }
+        while ( p_m_list_user_rigid_body != (phys_free_list<user_rigid_body> *)m_next_T_internal );
+        v1 = g_physics_system;
+    }
+    v4 = (phys_free_list<rigid_body> *)v1->m_list_rigid_body.m_dummy_head.m_next_T_internal;
+    if ( &v1->m_list_rigid_body != v4 )
+    {
+        do
+        {
+            v4->m_ptr_list[66] = 0;
+            v4->m_ptr_list[67] = 0;
+            v4 = (phys_free_list<rigid_body> *)v4->m_dummy_head.m_next_T_internal;
+        }
+        while ( &v1->m_list_rigid_body != v4 );
+        v1 = g_physics_system;
+    }
+    v5 = (phys_free_list<rigid_body_constraint_point> *)v1->m_list_rbc_point.m_dummy_head.m_next_T_internal;
+    p_m_list_rbc_point = &v1->m_list_rbc_point;
+    if ( &v1->m_list_rbc_point != v5 )
+    {
+        do
+        {
+            v7 = v5->m_ptr_list[0];
+            if ( v7 )
+                ++LODWORD(v7[3].m_b1_r_loc.z);
+            v8 = v5->m_ptr_list[1];
+            if ( v8 )
+                ++LODWORD(v8[3].m_b1_r_loc.z);
+            v5 = (phys_free_list<rigid_body_constraint_point> *)v5->m_dummy_head.m_next_T_internal;
+        }
+        while ( p_m_list_rbc_point != v5 );
+        v1 = g_physics_system;
+    }
+    v9 = (phys_free_list<rigid_body_constraint_hinge> *)v1->m_list_rbc_hinge.m_dummy_head.m_next_T_internal;
+    p_m_list_rbc_hinge = &v1->m_list_rbc_hinge;
+    if ( &v1->m_list_rbc_hinge != v9 )
+    {
+        do
+        {
+            v11 = v9->m_ptr_list[0];
+            if ( v11 )
+                ++LODWORD(v11[1].m_b1_axis_loc.z);
+            v12 = v9->m_ptr_list[1];
+            if ( v12 )
+                ++LODWORD(v12[1].m_b1_axis_loc.z);
+            v9 = (phys_free_list<rigid_body_constraint_hinge> *)v9->m_dummy_head.m_next_T_internal;
+        }
+        while ( p_m_list_rbc_hinge != v9 );
+        v1 = g_physics_system;
+    }
+    v13 = (phys_free_list<rigid_body_constraint_distance> *)v1->m_list_rbc_dist.m_dummy_head.m_next_T_internal;
+    p_m_list_rbc_dist = &v1->m_list_rbc_dist;
+    if ( &v1->m_list_rbc_dist != v13 )
+    {
+        do
+        {
+            v15 = v13->m_ptr_list[0];
+            if ( v15 )
+                ++LODWORD(v15[2].m_ps_cache_list[0].m_pulse_sum);
+            v16 = v13->m_ptr_list[1];
+            if ( v16 )
+                ++LODWORD(v16[2].m_ps_cache_list[0].m_pulse_sum);
+            v13 = (phys_free_list<rigid_body_constraint_distance> *)v13->m_dummy_head.m_next_T_internal;
+        }
+        while ( p_m_list_rbc_dist != v13 );
+        v1 = g_physics_system;
+    }
+    v17 = (phys_free_list<rigid_body_constraint_ragdoll> *)v1->m_list_rbc_ragdoll.m_dummy_head.m_next_T_internal;
+    p_m_list_rbc_ragdoll = &v1->m_list_rbc_ragdoll;
+    if ( &v1->m_list_rbc_ragdoll != v17 )
+    {
+        do
+        {
+            v19 = v17->m_ptr_list[0];
+            if ( v19 )
+                ++LODWORD(v19->m_joint_limits[1].m_b1_ud_active_limit_co_);
+            v20 = v17->m_ptr_list[1];
+            if ( v20 )
+                ++LODWORD(v20->m_joint_limits[1].m_b1_ud_active_limit_co_);
+            v17 = (phys_free_list<rigid_body_constraint_ragdoll> *)v17->m_dummy_head.m_next_T_internal;
+        }
+        while ( p_m_list_rbc_ragdoll != v17 );
+        v1 = g_physics_system;
+    }
+    v21 = v1->m_list_rbc_wheel.m_dummy_head.m_next_T_internal;
+    p_m_list_rbc_wheel = &v1->m_list_rbc_wheel;
+    if ( &v1->m_list_rbc_wheel != (phys_free_list<rigid_body_constraint_wheel> *)v21 )
+    {
+        do
+        {
+            m_prev_T_internal = v21[2].m_prev_T_internal;
+            if ( m_prev_T_internal )
+                ++m_prev_T_internal[33].m_prev_T_internal;
+            v24 = v21[2].m_next_T_internal;
+            if ( v24 )
+                ++v24[33].m_prev_T_internal;
+            if ( ((int)v21[24].m_prev_T_internal & 1) != 0 )
+            {
+                v25 = v21[2].m_prev_T_internal;
+                if ( v25 )
+                    ++v25[33].m_next_T_internal;
+                v26 = v21[2].m_next_T_internal;
+                if ( v26 )
+                    ++v26[33].m_next_T_internal;
+            }
+            v21 = v21->m_next_T_internal;
+        }
+        while ( p_m_list_rbc_wheel != (phys_free_list<rigid_body_constraint_wheel> *)v21 );
+        v1 = g_physics_system;
+    }
+    v27 = (phys_free_list<rigid_body_constraint_angular_actuator> *)v1->m_list_rbc_angular_actuator.m_dummy_head.m_next_T_internal;
+    p_m_list_rbc_angular_actuator = &v1->m_list_rbc_angular_actuator;
+    if ( &v1->m_list_rbc_angular_actuator != v27 )
+    {
+        do
+        {
+            v29 = v27->m_ptr_list[0];
+            if ( v29 )
+                ++LODWORD(v29[1].m_target_mat.w.z);
+            v30 = v27->m_ptr_list[1];
+            if ( v30 )
+                ++LODWORD(v30[1].m_target_mat.w.z);
+            v27 = (phys_free_list<rigid_body_constraint_angular_actuator> *)v27->m_dummy_head.m_next_T_internal;
+        }
+        while ( p_m_list_rbc_angular_actuator != v27 );
+        v1 = g_physics_system;
+    }
+    v31 = (phys_free_list<rigid_body_constraint_upright> *)v1->m_list_rbc_upright.m_dummy_head.m_next_T_internal;
+    p_m_list_rbc_upright = &v1->m_list_rbc_upright;
+    if ( &v1->m_list_rbc_upright != v31 )
+    {
+        do
+        {
+            v33 = v31->m_ptr_list[0];
+            if ( v33 )
+                ++LODWORD(v33[1].m_b2_up_axis_loc.z);
+            v34 = v31->m_ptr_list[1];
+            if ( v34 )
+                ++LODWORD(v34[1].m_b2_up_axis_loc.z);
+            v31 = (phys_free_list<rigid_body_constraint_upright> *)v31->m_dummy_head.m_next_T_internal;
+        }
+        while ( p_m_list_rbc_upright != v31 );
+        v1 = g_physics_system;
+    }
+    v35 = (phys_free_list<rigid_body_constraint_custom_orientation> *)v1->m_list_rbc_custom_orientation.m_dummy_head.m_next_T_internal;
+    p_m_list_rbc_custom_orientation = &v1->m_list_rbc_custom_orientation;
+    if ( &v1->m_list_rbc_custom_orientation != v35 )
+    {
+        do
+        {
+            m_list_count = v35->m_list_count;
+            if ( m_list_count )
+                ++*(unsigned int *)(m_list_count + 264);
+            m_list_count_high_water = v35->m_list_count_high_water;
+            if ( m_list_count_high_water )
+                ++*(unsigned int *)(m_list_count_high_water + 264);
+            v35 = (phys_free_list<rigid_body_constraint_custom_orientation> *)v35->m_dummy_head.m_next_T_internal;
+        }
+        while ( p_m_list_rbc_custom_orientation != v35 );
+        v1 = g_physics_system;
+    }
+    v39 = (phys_free_list<rigid_body_constraint_custom_path> *)v1->m_list_rbc_custom_path.m_dummy_head.m_next_T_internal;
+    p_m_list_rbc_custom_path = &v1->m_list_rbc_custom_path;
+    if ( &v1->m_list_rbc_custom_path != v39 )
+    {
+        do
+        {
+            v41 = v39->m_ptr_list[0];
+            if ( v41 )
+                ++v41[2].m_next;
+            v42 = v39->m_ptr_list[1];
+            if ( v42 )
+                ++v42[2].m_next;
+            v39 = (phys_free_list<rigid_body_constraint_custom_path> *)v39->m_dummy_head.m_next_T_internal;
+        }
+        while ( p_m_list_rbc_custom_path != v39 );
+        v1 = g_physics_system;
+    }
+    v43 = (phys_free_list<rigid_body_constraint_contact> *)v1->m_list_rbc_contact.m_dummy_head.m_next_T_internal;
+    for ( i = &v1->m_list_rbc_contact;
                 i != v43;
                 v43 = (phys_free_list<rigid_body_constraint_contact> *)v43->m_dummy_head.m_next_T_internal )
     {
@@ -309,11 +463,14 @@ void __cdecl phys_sys::update_constraint_infos()
         if ( v50 )
             *(unsigned int *)(v50 + 268) += k;
     }
-#endif
 }
 
 rigid_body *__cdecl phys_sys::create_rigid_body(int no_error)
 {
+    //return phys_free_list<rigid_body>::add(
+    //                 &g_physics_system->m_list_rigid_body,
+    //                 no_error,
+    //                 "POOL OUT OF MEMORY, rigid_body, INCREASE phys_mem_info::m_num_rigid_body.");
     return g_physics_system->m_list_rigid_body.add(no_error, "POOL OUT OF MEMORY, rigid_body, INCREASE phys_mem_info::m_num_rigid_body.");
 }
 
@@ -322,12 +479,17 @@ rigid_body_constraint_point *__cdecl phys_sys::create_rbc_point(
                 environment_rigid_body *b2,
                 int no_error)
 {
+    phys_free_list<rigid_body_constraint_point> *p_m_list_rbc_point; // esi
     rigid_body_constraint_point *result; // eax
 
+    p_m_list_rbc_point = &g_physics_system->m_list_rbc_point;
     g_physics_system->validate_member(b1);
     g_physics_system->validate_member(b2);
-
-    result = g_physics_system->m_list_rbc_point.add(no_error, "OUT_OF_MEMORY, rbc_point, INCREASE phys_mem_info::m_num_rbc_point.");
+    //result = phys_free_list<rigid_body_constraint_point>::add(
+    //                     p_m_list_rbc_point,
+    //                     no_error,
+    //                     "OUT_OF_MEMORY, rbc_point, INCREASE phys_mem_info::m_num_rbc_point.");
+    result = p_m_list_rbc_point->add(no_error, "OUT_OF_MEMORY, rbc_point, INCREASE phys_mem_info::m_num_rbc_point.");
     if ( result )
     {
         result->b1 = b1;
@@ -345,6 +507,11 @@ rigid_body_constraint_custom_orientation *__cdecl phys_sys::create_rbc_custom_or
 
     g_physics_system->validate_member(b1);
     g_physics_system->validate_member(b2);
+
+    //result = phys_free_list<rigid_body_constraint_custom_orientation>::add(
+    //                     p_m_list_rbc_custom_orientation,
+    //                     no_error,
+    //                     "OUT_OF_MEMORY, rbc_custom_orientation, INCREASE phys_mem_info::m_num_rbc_custom_orientation.");
 
     result = g_physics_system->m_list_rbc_custom_orientation.add(no_error, "OUT_OF_MEMORY, rbc_custom_orientation, INCREASE phys_mem_info::m_num_rbc_custom_orientation.");
 
@@ -527,68 +694,125 @@ void __cdecl phys_sys::destroy(rigid_body_constraint_custom_path *const rbc)
 
 void __cdecl phys_sys::destroy_all_rbc_point()
 {
+    //phys_free_list<rigid_body_constraint_point>::remove_all(&g_physics_system->m_list_rbc_point);
     g_physics_system->m_list_rbc_point.remove_all();
 }
 
 void __cdecl phys_sys::destroy_all_rbc_hinge()
 {
+    //phys_free_list<rigid_body_constraint_wheel>::remove_all((phys_free_list<rigid_body_constraint_wheel> *)&g_physics_system->m_list_rbc_hinge);
     g_physics_system->m_list_rbc_hinge.remove_all();
 }
 
 void __cdecl phys_sys::destroy_all_rbc_dist()
 {
+    //phys_free_list<rigid_body_constraint_distance>::remove_all((phys_free_list<broad_phase_group> *)&g_physics_system->m_list_rbc_dist);
     g_physics_system->m_list_rbc_dist.remove_all();
 }
 
 void __cdecl phys_sys::destroy_all_rbc_ragdoll()
 {
+    //phys_free_list<rigid_body_constraint_ragdoll>::remove_all(&g_physics_system->m_list_rbc_ragdoll);
     g_physics_system->m_list_rbc_ragdoll.remove_all();
 }
 
 void __cdecl phys_sys::destroy_all_rbc_wheel()
 {
+    //phys_free_list<rigid_body_constraint_wheel>::remove_all(&g_physics_system->m_list_rbc_wheel);
     g_physics_system->m_list_rbc_wheel.remove_all();
 }
 
 void __cdecl phys_sys::destroy_all_rbc_angular_actuator()
 {
+    //phys_free_list<rigid_body_constraint_angular_actuator>::remove_all(&g_physics_system->m_list_rbc_angular_actuator);
     g_physics_system->m_list_rbc_angular_actuator.remove_all();
 }
 
 void __cdecl phys_sys::destroy_all_rbc_upright()
 {
+    //phys_free_list<rigid_body_constraint_upright>::remove_all(&g_physics_system->m_list_rbc_upright);
     g_physics_system->m_list_rbc_upright.remove_all();
 }
 
 void __cdecl phys_sys::destroy_all_rbc_custom_orientation()
 {
+    //phys_free_list<rigid_body_constraint_custom_orientation>::remove_all(&g_physics_system->m_list_rbc_custom_orientation);
     g_physics_system->m_list_rbc_custom_orientation.remove_all();
 }
 
 void __cdecl phys_sys::destroy_all_rbc_custom_path()
 {
+    //phys_free_list<rigid_body_constraint_custom_path>::remove_all(&g_physics_system->m_list_rbc_custom_path);
     g_physics_system->m_list_rbc_custom_path.remove_all();
 }
 
 void __cdecl phys_sys::destroy_all_unused_user_rigid_body()
 {
-    // This function is not used
-    iassert(0);
-#if 0
-    // this does not use range-based for because it's removing elements
-    for (auto it = g_physics_system->m_list_user_rigid_body.begin(); it != g_physics_system->m_list_user_rigid_body.end();)
+    physics_system *v0; // ecx
+    phys_free_list<user_rigid_body>::T_internal_base *m_next_T_internal; // eax
+    phys_free_list<user_rigid_body> *p_m_list_user_rigid_body; // edi
+    bool v3; // zf
+    phys_free_list<user_rigid_body>::T_internal_base *v4; // eax
+    phys_free_list<user_rigid_body>::T_internal_base *v5; // ebx
+    phys_free_list<user_rigid_body>::T_internal *v6; // esi
+    phys_free_list<user_rigid_body>::T_internal_base *v7; // eax
+    phys_free_list<user_rigid_body>::T_internal_base *m_prev_T_internal; // ecx
+
+    v0 = g_physics_system;
+    m_next_T_internal = g_physics_system->m_list_user_rigid_body.m_dummy_head.m_next_T_internal;
+    p_m_list_user_rigid_body = &g_physics_system->m_list_user_rigid_body;
+    if ( &g_physics_system->m_list_user_rigid_body != (phys_free_list<user_rigid_body> *)m_next_T_internal )
     {
-        user_rigid_body *urb = *it;
-        auto next = it; ++next;
-        if (urb->m_constraint_count == 0)
-            g_physics_system->m_list_user_rigid_body.remove(urb);
-        it = next;
+        do
+        {
+            if ( m_next_T_internal[35].m_prev_T_internal )
+            {
+                m_next_T_internal = m_next_T_internal->m_next_T_internal;
+            }
+            else
+            {
+                v3 = &m_next_T_internal[2] == 0;
+                v4 = m_next_T_internal + 2;
+                v5 = v4[-2].m_next_T_internal;
+                if ( !v3 )
+                {
+                    v6 = (phys_free_list<user_rigid_body>::T_internal *)&v4[-2];
+                    PMM_VALIDATE((char *)&v4[-2], 0x1D0u, 0x10u);
+                    if ( !v6 )
+                    {
+                        if ( _tlAssert(
+                                     "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
+                                     477,
+                                     "data",
+                                     "") )
+                        {
+                            __debugbreak();
+                        }
+                    }
+                    --p_m_list_user_rigid_body->m_list_count;
+                    //phys_free_list<user_rigid_body>::debug_remove(p_m_list_user_rigid_body, v6);
+                    p_m_list_user_rigid_body->debug_remove(v6);
+                    v7 = v6->m_next_T_internal;
+                    m_prev_T_internal = v6->m_prev_T_internal;
+                    m_prev_T_internal->m_next_T_internal = v7;
+                    v7->m_prev_T_internal = m_prev_T_internal;
+                    PMM_FREE((unsigned __int8 *)v6, 0x1D0u, 0x10u);
+                    v0 = g_physics_system;
+                }
+                m_next_T_internal = v5;
+            }
+            p_m_list_user_rigid_body = &v0->m_list_user_rigid_body;
+        }
+        while ( &v0->m_list_user_rigid_body != (phys_free_list<user_rigid_body> *)m_next_T_internal );
     }
-#endif
 }
 
 user_rigid_body *__cdecl phys_sys::create_user_rigid_body(int no_error)
 {
+    //return phys_free_list<user_rigid_body>::add(
+    //                 &g_physics_system->m_list_user_rigid_body,
+    //                 no_error,
+    //                 "POOL OUT OF MEMORY, user_rigid_body, INCREASE phys_mem_info::m_num_user_rigid_body.");
     return g_physics_system->m_list_user_rigid_body.add(no_error, "POOL OUT OF MEMORY, user_rigid_body, INCREASE phys_mem_info::m_num_user_rigid_body.");
 }
 
@@ -601,7 +825,9 @@ rigid_body_constraint_hinge *__cdecl phys_sys::create_rbc_hinge(
 
     g_physics_system->validate_member(b1);
     g_physics_system->validate_member(b2);
-    result = g_physics_system->m_list_rbc_hinge.add(no_error, "OUT_OF_MEMORY, rbc_hinge, INCREASE phys_mem_info::m_num_rbc_hinge.");
+    result = g_physics_system->m_list_rbc_hinge.add(
+                         no_error,
+                         "OUT_OF_MEMORY, rbc_hinge, INCREASE phys_mem_info::m_num_rbc_hinge.");
     if ( result )
     {
         result->b1 = b1;
@@ -721,6 +947,18 @@ rigid_body_constraint_custom_path *__cdecl phys_sys::create_rbc_custom_path(
 
 void __cdecl phys_sys::destroy_all_rigid_body()
 {
+    //phys_free_list<rigid_body_constraint_point>::remove_all(&g_physics_system->m_list_rbc_point);
+    //phys_free_list<rigid_body_constraint_wheel>::remove_all((phys_free_list<rigid_body_constraint_wheel> *)&g_physics_system->m_list_rbc_hinge);
+    //phys_free_list<rigid_body_constraint_distance>::remove_all((phys_free_list<broad_phase_group> *)&g_physics_system->m_list_rbc_dist);
+    //phys_free_list<rigid_body_constraint_ragdoll>::remove_all(&g_physics_system->m_list_rbc_ragdoll);
+    //phys_free_list<rigid_body_constraint_wheel>::remove_all(&g_physics_system->m_list_rbc_wheel);
+    //phys_free_list<rigid_body_constraint_angular_actuator>::remove_all(&g_physics_system->m_list_rbc_angular_actuator);
+    //phys_free_list<rigid_body_constraint_upright>::remove_all(&g_physics_system->m_list_rbc_upright);
+    //phys_free_list<rigid_body_constraint_custom_orientation>::remove_all(&g_physics_system->m_list_rbc_custom_orientation);
+    //phys_free_list<rigid_body_constraint_custom_path>::remove_all(&g_physics_system->m_list_rbc_custom_path);
+    //phys_free_list<rigid_body_constraint_contact>::remove_all(&g_physics_system->m_list_rbc_contact);
+    //phys_free_list<rigid_body>::remove_all(&g_physics_system->m_list_rigid_body);
+
     g_physics_system->m_list_rbc_point.remove_all();
     g_physics_system->m_list_rbc_hinge.remove_all();
     g_physics_system->m_list_rbc_dist.remove_all();
@@ -736,9 +974,6 @@ void __cdecl phys_sys::destroy_all_rigid_body()
 
 void __cdecl phys_sys::destroy_all_user_rigid_body()
 {
-    // This function is not used
-    iassert(0);
-#if 0
     physics_system *v0; // esi
     phys_free_list<rigid_body_constraint_point>::T_internal_base *m_next_T_internal; // eax
     phys_free_list<rigid_body_constraint_point> *p_m_list_rbc_point; // edi
@@ -1186,11 +1421,11 @@ void __cdecl phys_sys::destroy_all_user_rigid_body()
     }
     //phys_free_list<user_rigid_body>::remove_all(&v0->m_list_user_rigid_body);
     v0->m_list_user_rigid_body.remove_all();
-#endif
 }
 
 void __cdecl phys_sys::destroy_all_rbc_contact()
 {
+    //phys_free_list<rigid_body_constraint_contact>::remove_all(&g_physics_system->m_list_rbc_contact);
     g_physics_system->m_list_rbc_contact.remove_all();
 }
 
@@ -1689,9 +1924,6 @@ void __cdecl phys_sys::destroy_all_constraint(rigid_body *const rb)
 
 void __cdecl phys_sys::destroy_all_constraint_with_user_rigid_body(rigid_body *const rb)
 {
-    // This function is not used
-    iassert(0);
-#if 0
     physics_system *v1; // ebx
     phys_free_list<rigid_body_constraint_point>::T_internal_base *m_next_T_internal; // eax
     phys_free_list<rigid_body_constraint_point> *p_m_list_rbc_point; // edi
@@ -2186,7 +2418,6 @@ void __cdecl phys_sys::destroy_all_constraint_with_user_rigid_body(rigid_body *c
             v73 = v73->m_next_T_internal;
         }
     }
-#endif
 }
 
 rigid_body_constraint_contact *__cdecl create(

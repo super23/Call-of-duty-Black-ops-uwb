@@ -5,6 +5,7 @@
 #include <win32/win_main.h>
 #include <qcommon/threads.h>
 #include <win32/win_shared.h>
+#include <win32/win_common.h>
 #include "com_files.h"
 #include <qcommon/common.h>
 #include <qcommon/mem_track.h>
@@ -710,17 +711,6 @@ int __cdecl Hunk_Used()
 
 unsigned __int8 *__cdecl Hunk_Alloc(unsigned int size, const char *name, int type)
 {
-    if ( !Sys_IsMainThread()
-        && !Sys_IsRenderThread()
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\com_memory.cpp",
-                    1222,
-                    0,
-                    "%s",
-                    "Sys_IsMainThread() || Sys_IsRenderThread()") )
-    {
-        __debugbreak();
-    }
     return Hunk_AllocAlign(size, 32, name, type);
 }
 
@@ -731,17 +721,7 @@ unsigned __int8 *__cdecl Hunk_AllocAlign(unsigned int size, int alignment, const
     unsigned __int8 *endBuf; // [esp+8h] [ebp-Ch]
     int alignmenta; // [esp+20h] [ebp+Ch]
 
-    if ( !Sys_IsMainThread()
-        && !Sys_IsRenderThread()
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\com_memory.cpp",
-                    1255,
-                    0,
-                    "%s",
-                    "Sys_IsMainThread() || Sys_IsRenderThread()") )
-    {
-        __debugbreak();
-    }
+    Sys_EnterCriticalSection(CRITSECT_HUNK);
     if ( !s_hunkData
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\universal\\com_memory.cpp", 1259, 0, "%s", "s_hunkData") )
     {
@@ -777,6 +757,7 @@ unsigned __int8 *__cdecl Hunk_AllocAlign(unsigned int size, int alignment, const
     if ( hunk_high.permanent + hunk_low.temp > s_hunkTotal )
     {
         track_PrintAllInfo();
+        Sys_LeaveCriticalSection(CRITSECT_HUNK);
         Com_Error(ERR_DROP, "Hunk_AllocAlign failed on %i bytes (total %i MB, low %i MB, high %i MB)", size, s_hunkTotal / 0x100000, hunk_low.temp / 0x100000, hunk_high.temp / 0x100000);
     }
     buf = &s_hunkData[s_hunkTotal - hunk_high.permanent];
@@ -794,6 +775,7 @@ unsigned __int8 *__cdecl Hunk_AllocAlign(unsigned int size, int alignment, const
         Z_VirtualCommit((char *)((unsigned int)buf & 0xFFFFF000), (int)&endBuf[-(int)((unsigned int)buf & 0xFFFFF000)], 11);
     track_hunk_alloc(hunk_high.permanent - old_permanent, hunk_high.temp, name, type);
     memset(buf, 0, size);
+    Sys_LeaveCriticalSection(CRITSECT_HUNK);
     return buf;
 }
 
@@ -867,16 +849,6 @@ void Hunk_ClearTempMemoryHigh()
 
 unsigned __int8 *__cdecl Hunk_AllocLow(unsigned int size, const char *name, int type)
 {
-    if ( !Sys_IsMainThread()
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\com_memory.cpp",
-                    1403,
-                    0,
-                    "%s",
-                    "Sys_IsMainThread()") )
-    {
-        __debugbreak();
-    }
     return Hunk_AllocLowAlign(size, 32, name, type);
 }
 
@@ -888,16 +860,7 @@ unsigned __int8 *__cdecl Hunk_AllocLowAlign(unsigned int size, int alignment, co
     unsigned __int8 *beginBuf; // [esp+10h] [ebp-4h]
     int alignmenta; // [esp+20h] [ebp+Ch]
 
-    if ( !Sys_IsMainThread()
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\com_memory.cpp",
-                    1433,
-                    0,
-                    "%s",
-                    "Sys_IsMainThread()") )
-    {
-        __debugbreak();
-    }
+    Sys_EnterCriticalSection(CRITSECT_HUNK);
     if ( !s_hunkData
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\universal\\com_memory.cpp", 1434, 0, "%s", "s_hunkData") )
     {
@@ -944,6 +907,7 @@ unsigned __int8 *__cdecl Hunk_AllocLowAlign(unsigned int size, int alignment, co
     if ( hunk_high.temp + hunk_low.permanent > s_hunkTotal )
     {
         track_PrintAllInfo();
+        Sys_LeaveCriticalSection(CRITSECT_HUNK);
         Com_Error(ERR_DROP, "Hunk_AllocLowAlign failed on %i bytes (total %i MB, low %i MB, high %i MB)", size, s_hunkTotal / 0x100000, hunk_low.temp / 0x100000, hunk_high.temp / 0x100000);
     }
     commitSize = ((unsigned int)&s_hunkData[hunk_low.permanent + 4095] & 0xFFFFF000) - (unsigned int)beginBuf;
@@ -951,6 +915,7 @@ unsigned __int8 *__cdecl Hunk_AllocLowAlign(unsigned int size, int alignment, co
         Z_VirtualCommit((char *)beginBuf, commitSize, 11);
     track_hunk_allocLow(hunk_low.permanent - old_permanent, hunk_low.permanent, name, type);
     memset(buf, 0, size);
+    Sys_LeaveCriticalSection(CRITSECT_HUNK);
     return buf;
 }
 

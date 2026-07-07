@@ -1,6 +1,10 @@
 #include "ui_utils.h"
 #include <universal/assertive.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_scrn_sp.h>
+#else
 #include <client_mp/cl_scrn_mp.h>
+#endif
 #include "ui_feeders.h"
 #include <universal/com_expressions_eval.h>
 #include <universal/com_memory.h>
@@ -8,8 +12,13 @@
 #include <universal/q_parse.h>
 #include <universal/com_files.h>
 #include <win32/win_shared.h>
+#ifdef KISAK_SP
+#include <game/g_main.h>
+#include <cgame_sp/cg_main_sp.h>
+#else
 #include <game_mp/g_main_mp.h>
 #include <cgame_mp/cg_main_mp.h>
+#endif
 
 stringDef_s *g_strHandle[2048];
 
@@ -681,6 +690,12 @@ void __cdecl UI_GetGameTypesList()
     sharedUiInfo.numJoinGameTypes = 0;
     I_strncpyz(sharedUiInfo.joinGameTypes[0].gameType, "All", 12);
     sharedUiInfo.joinGameTypes[sharedUiInfo.numJoinGameTypes++].gameTypeName[0] = 0;
+#ifdef KISAK_SP
+    I_strncpyz(sharedUiInfo.gameTypes[0].gameType, "solo", 12);
+    sharedUiInfo.gameTypes[0].gameTypeName[0] = 0;
+    sharedUiInfo.numGameTypes = 1;
+    return;
+#endif
     if (useFastFile->current.enabled)
         UI_GetGameTypesList_FastFile();
     else

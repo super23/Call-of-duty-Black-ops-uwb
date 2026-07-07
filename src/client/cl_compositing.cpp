@@ -4,6 +4,7 @@
 #include <gfx_d3d/r_stream.h>
 #include <qcommon/threads.h>
 #include <bgame/bg_emblems.h>
+#include <gfx_d3d/r_singlethreaded_device_pc.h>
 #include <gfx_d3d/rb_logfile.h>
 #include <gfx_d3d/r_dvars.h>
 #include <gfx_d3d/r_init.h>
@@ -210,13 +211,21 @@ void __cdecl CL_CompositeEmblemCallback(GfxImage *result)
 void __cdecl R_HW_InsertFence(IDirect3DQuery9 **fence)
 {
     const char *v1; // eax
+    int v2; // [esp+0h] [ebp-Ch]
     int hr; // [esp+4h] [ebp-8h]
+    int semaphore; // [esp+8h] [ebp-4h]
 
+    R_AssertDXDeviceOwnership();
     *fence = dx.fencePool[dx.nextFence];
     dx.nextFence = (dx.nextFence + 1) % 8;
+    semaphore = R_AcquireDXDeviceOwnership(0);
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("(*fence)->Issue( (1 << 0) )\n");
+    v2 = R_AcquireDXDeviceOwnership(0);
     hr = (*fence)->Issue(D3DISSUE_END);
+    if ( v2 )
+        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -227,6 +236,8 @@ void __cdecl R_HW_InsertFence(IDirect3DQuery9 **fence)
             17,
             v1);
     }
+    if ( semaphore )
+        R_ReleaseDXDeviceOwnership();
 }
 
 void __cdecl CL_PCCopyImageGenMIPCallback(unsigned int *job)
@@ -347,20 +358,25 @@ void __cdecl CL_CompositeRender()
     }
 }
 
-// LWSS: changed to blops2011
 bool __cdecl R_HW_IsFencePending(IDirect3DQuery9 *const *fence)
 {
     HRESULT hr; // [esp+4h] [ebp-Ch]
     unsigned int data; // [esp+8h] [ebp-8h] BYREF
+    int sem; // [esp+Ch] [ebp-4h]
 
+    sem = R_AcquireDXDeviceOwnership(0);
     if ( *fence )
     {
         //hr = (*(int (__stdcall **)(unsigned int, unsigned int *, int, int))(**(unsigned int **)fence + 28))(*fence, &data, 4, 1);
         hr = (*fence)->GetData(&data, 4, D3DGETDATA_FLUSH);
+        if ( sem )
+            R_ReleaseDXDeviceOwnership();
         return hr && hr != -2005530520;
     }
     else
     {
+        if ( sem )
+            R_ReleaseDXDeviceOwnership();
         return 0;
     }
 }

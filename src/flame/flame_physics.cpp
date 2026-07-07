@@ -2,6 +2,7 @@
 #include "flame_system.h"
 #include "flame_class_stream.h"
 #include <tl/tl_system.h>
+#include <universal/assertive.h>
 #include <DynEntity/DynEntity_coll.h>
 #include <server_mp/sv_main_mp.h>
 #include <qcommon/cm_tracebox.h>
@@ -26,6 +27,7 @@
 #include <gfx_d3d/r_dpvs.h>
 #include <qcommon/cm_world.h>
 #include <algorithm>
+#include <cmath>
 #include <client/splitscreen.h>
 #include <cgame/cg_drawtools.h>
 
@@ -37,74 +39,69 @@ colgeom_visitor_inlined_t<500> sv_flame_chunks_proximity_cache;
 
 float FLAME_OVERCLIP = 0.001f;
 
-float mins[3] = { -8.0, -8.0, -8.0 };
-float maxs[3] = { 8.0, 8.0, 8.0 };
-float size[3] = { 8.0, 8.0, 8.0 };
+float mins[3] = { -8.0f, -8.0f, -8.0f };
+float maxs[3] = { 8.0f, 8.0f, 8.0f };
+float size[3] = { 8.0f, 8.0f, 8.0f };
 
-
+float radius_2 = 1.0f;
+float radius_3 = 1.0f;
 
 void __cdecl Flame_ClipVelocity(const float *in, const float *normal, float *out)
 {
-    float v3; // xmm2_4
-    float v4; // [esp+0h] [ebp-Ch]
+    float dot;
+    float backoff;
 
-    v3 = (float)((float)(*in * *normal) + (float)(in[1] * normal[1])) + (float)(in[2] * normal[2]);
-    //LODWORD(v4) = COERCE_UNSIGNED_INT(v3 - (float)(FLAME_OVERCLIP * fabs(v3))) ^ _mask__NegFloat_;
-    v4 = -(v3 - (float)(FLAME_OVERCLIP * fabs(v3)));
-    *out = (float)(v4 * *normal) + *in;
-    out[1] = (float)(v4 * normal[1]) + in[1];
-    out[2] = (float)(v4 * normal[2]) + in[2];
+    dot = in[0] * normal[0] + in[1] * normal[1] + in[2] * normal[2];
+    backoff = -(dot - FLAME_OVERCLIP * fabsf(dot));
+    out[0] = in[0] + backoff * normal[0];
+    out[1] = in[1] + backoff * normal[1];
+    out[2] = in[2] + backoff * normal[2];
 }
 
 void __cdecl trace_sphere(trace_t *trace, const float *start, const float *end, float radius, col_context_t *context)
 {
-    const CollisionAabbTree *tree; // [esp+20h] [ebp-70h]
-    const float *v8; // [esp+28h] [ebp-68h]
-    const CollisionAabbTree *v9; // [esp+2Ch] [ebp-64h]
-    const float *halfSize; // [esp+30h] [ebp-60h]
-    const CollisionAabbTree *v11; // [esp+34h] [ebp-5Ch]
-    int i; // [esp+40h] [ebp-50h]
-    float dir[3]; // [esp+44h] [ebp-4Ch] BYREF
-    float rvec[3]; // [esp+50h] [ebp-40h]
-    const col_prim_t *prim; // [esp+5Ch] [ebp-34h]
-    float mx[3]; // [esp+60h] [ebp-30h]
-    float bounds[2][3]; // [esp+6Ch] [ebp-24h] BYREF
-    float mn[3]; // [esp+84h] [ebp-Ch]
+    const col_prim_t *prim;
+    float dir[3];
+    float boundsMin[3];
+    float boundsMax[3];
+    float partitionMin[3];
+    float partitionMax[3];
+    int primIndex;
 
-    rvec[0] = radius;
-    rvec[1] = radius;
-    rvec[2] = radius;
-    Vec3Min(start, end, bounds[0]);
-    Vec3Max(start, end, bounds[1]);
-    bounds[0][0] = bounds[0][0] - radius;
-    bounds[0][1] = bounds[0][1] - radius;
-    bounds[0][2] = bounds[0][2] - radius;
-    bounds[1][0] = bounds[1][0] + radius;
-    bounds[1][1] = bounds[1][1] + radius;
-    bounds[1][2] = bounds[1][2] + radius;
-    dir[0] = *end - *start;
+    Vec3Min(start, end, boundsMin);
+    Vec3Max(start, end, boundsMax);
+    boundsMin[0] = boundsMin[0] - radius;
+    boundsMin[1] = boundsMin[1] - radius;
+    boundsMin[2] = boundsMin[2] - radius;
+    boundsMax[0] = boundsMax[0] + radius;
+    boundsMax[1] = boundsMax[1] + radius;
+    boundsMax[2] = boundsMax[2] + radius;
+    dir[0] = end[0] - start[0];
     dir[1] = end[1] - start[1];
     dir[2] = end[2] - start[2];
     trace->fraction = 1.0f;
     prim = context->prims;
-    for ( i = 0; i < context->nprims; ++i )
+    for ( primIndex = 0; primIndex < context->nprims; ++primIndex )
     {
         if ( prim->type )
         {
-            tree = prim->tree;
-            if ( tree->halfSize[0] >= bounds[0][0]
-                && prim->tree->halfSize[1] >= bounds[0][1]
-                && prim->tree->halfSize[2] >= bounds[0][2]
-                && bounds[1][0] >= tree->origin[0]
-                && bounds[1][1] >= tree->origin[1]
-                && bounds[1][2] >= tree->origin[2] )
+            // Port fix: decomp compares tree halfSize/origin here (bogus AABB test).
+            // Match trace_sphere_vs_env — use brush mins/maxs for overlap.
+            const cbrush_t *brush = prim->brush;
+            if ( brush
+                && brush->maxs[0] >= boundsMin[0]
+                && brush->maxs[1] >= boundsMin[1]
+                && brush->maxs[2] >= boundsMin[2]
+                && boundsMax[0] >= brush->mins[0]
+                && boundsMax[1] >= brush->mins[1]
+                && boundsMax[2] >= brush->mins[2] )
             {
                 trace_sphere_through_brush(
                     start,
                     dir,
                     &trace->fraction,
                     radius,
-                    prim->brush,
+                    brush,
                     trace->normal.vec.v,
                     &trace->sflags,
                     NULL);
@@ -112,22 +109,20 @@ void __cdecl trace_sphere(trace_t *trace, const float *start, const float *end, 
         }
         else
         {
-            halfSize = prim->tree->halfSize;
-            v11 = prim->tree;
-            mn[0] = v11->origin[0] - *halfSize;
-            mn[1] = v11->origin[1] - halfSize[1];
-            mn[2] = v11->origin[2] - halfSize[2];
-            v8 = prim->tree->halfSize;
-            v9 = prim->tree;
-            mx[0] = v9->origin[0] + *v8;
-            mx[1] = v9->origin[1] + v8[1];
-            mx[2] = v9->origin[2] + v8[2];
-            if ( mx[0] >= bounds[0][0]
-                && mx[1] >= bounds[0][1]
-                && mx[2] >= bounds[0][2]
-                && bounds[1][0] >= mn[0]
-                && bounds[1][1] >= mn[1]
-                && bounds[1][2] >= mn[2] )
+            const CollisionAabbTree *tree = prim->tree;
+            const float *halfSize = prim->tree->halfSize;
+            partitionMin[0] = tree->origin[0] - halfSize[0];
+            partitionMin[1] = tree->origin[1] - halfSize[1];
+            partitionMin[2] = tree->origin[2] - halfSize[2];
+            partitionMax[0] = tree->origin[0] + halfSize[0];
+            partitionMax[1] = tree->origin[1] + halfSize[1];
+            partitionMax[2] = tree->origin[2] + halfSize[2];
+            if ( partitionMax[0] >= boundsMin[0]
+                && partitionMax[1] >= boundsMin[1]
+                && partitionMax[2] >= boundsMin[2]
+                && boundsMax[0] >= partitionMin[0]
+                && boundsMax[1] >= partitionMin[1]
+                && boundsMax[2] >= partitionMin[2] )
             {
                 trace_sphere_through_partition(
                     start,
@@ -141,29 +136,21 @@ void __cdecl trace_sphere(trace_t *trace, const float *start, const float *end, 
         }
         ++prim;
     }
-    if ( trace->fraction == 1.0 )
+    if ( trace->fraction == 1.0f )
     {
-        if ( !trace
-            && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\physics\\../qcommon/cm_public.h", 175, 0, "%s", "trace") )
-        {
-            __debugbreak();
-        }
+        iassert(trace);
         trace->hitType = TRACE_HITTYPE_NONE;
         trace->hitId = 0;
     }
     else
     {
-        if ( !trace
-            && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\physics\\../qcommon/cm_public.h", 175, 0, "%s", "trace") )
-        {
-            __debugbreak();
-        }
+        iassert(trace);
         trace->hitType = TRACE_HITTYPE_ENTITY;
         trace->hitId = 1022;
     }
-    if ( trace->fraction > 0.0 )
+    if ( trace->fraction > 0.0f )
     {
-        if ( trace->fraction > 1.0 )
+        if ( trace->fraction > 1.0f )
             trace->fraction = 1.0f;
     }
     else
@@ -186,8 +173,8 @@ void __cdecl Flame_Phys_Collision(
                 int *close_triggers,
                 int *close_triggers_count)
 {
-    float endPos[3]; // [esp+20h] [ebp-18h] BYREF
-    float startPos[3]; // [esp+2Ch] [ebp-Ch] BYREF
+    float startPos[3];
+    float endPos[3];
 
     startPos[0] = gen->phys.origin[0];
     startPos[1] = gen->phys.origin[1];
@@ -195,18 +182,7 @@ void __cdecl Flame_Phys_Collision(
     endPos[0] = gen->phys.newPos[0];
     endPos[1] = gen->phys.newPos[1];
     endPos[2] = gen->phys.newPos[2];
-    if ( ((LODWORD(startPos[0]) & 0x7F800000) == 0x7F800000
-         || (LODWORD(startPos[1]) & 0x7F800000) == 0x7F800000
-         || (LODWORD(startPos[2]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_physics.cpp",
-                    392,
-                    0,
-                    "%s",
-                    "!IS_NAN((startPos)[0]) && !IS_NAN((startPos)[1]) && !IS_NAN((startPos)[2])") )
-    {
-        __debugbreak();
-    }
+    nanassertvec3(startPos);
     if ( is_server )
     {
         sv_flame_proftimer.stamp = tlPcGetTick().QuadPart;
@@ -227,7 +203,6 @@ void __cdecl Flame_Phys_Collision(
             close_characters_count,
             close_triggers,
             close_triggers_count);
-        //sv_flame_proftimer.value += tlPcGetTick().QuadPart - sv_flame_proftimer.stamp;
         sv_flame_proftimer.value += tlPcGetTick().QuadPart - sv_flame_proftimer.stamp;
     }
     else
@@ -248,12 +223,10 @@ void __cdecl Flame_Phys_Collision(
             entsCount,
             close_characters,
             close_characters_count);
-        //cl_flame_proftimer.value += tlPcGetTick().QuadPart - cl_flame_proftimer.stamp;
         cl_flame_proftimer.value += tlPcGetTick().QuadPart - cl_flame_proftimer.stamp;
     }
 }
 
-float radius_2 = 1.0f;
 void __cdecl Flame_Server_Trace(
                 trace_t *trace,
                 flameGeneric_s *gen,
@@ -271,165 +244,160 @@ void __cdecl Flame_Server_Trace(
                 int *close_triggers,
                 int *close_triggers_count)
 {
-    float hitDir[3]; // [esp+68h] [ebp-138h] BYREF
-    float hitPos[3]; // [esp+74h] [ebp-12Ch] BYREF
-    const DynEntityColl *coll; // [esp+80h] [ebp-120h]
-    DynEntityCollType colType; // [esp+84h] [ebp-11Ch]
-    unsigned __int16 id; // [esp+88h] [ebp-118h]
-    int j; // [esp+8Ch] [ebp-114h]
-    int num; // [esp+90h] [ebp-110h]
-    int drawType; // [esp+94h] [ebp-10Ch]
-    trace_t old_trace; // [esp+98h] [ebp-108h] BYREF
-    float center[3]; // [esp+D0h] [ebp-D0h] BYREF
-    float size; // [esp+DCh] [ebp-C4h]
-    float dist2; // [esp+E0h] [ebp-C0h]
-    bool character_collision; // [esp+E7h] [ebp-B9h]
-    gentity_s *ent; // [esp+E8h] [ebp-B8h]
-    int i; // [esp+ECh] [ebp-B4h]
-    pointtrace_t clip; // [esp+F0h] [ebp-B0h] BYREF
-    IgnoreEntParams ignoreEntParams; // [esp+134h] [ebp-6Ch] BYREF
-    gentity_s *owner; // [esp+140h] [ebp-60h]
-    trace_t trace2; // [esp+144h] [ebp-5Ch] BYREF
-    float bounds[2][3]; // [esp+180h] [ebp-20h] BYREF
-    unsigned int entnum; // [esp+198h] [ebp-8h]
-    svEntity_s *check; // [esp+19Ch] [ebp-4h]
+    pointtrace_t clip;
+    IgnoreEntParams ignoreEntParams;
+    trace_t old_trace;
+    trace_t trace2;
+    float boundsMin[3];
+    float boundsMax[3];
+    float center[3];
+    float hitDir[3];
+    float hitPos[3];
+    float collisionRadius;
+    float dist2;
+    int entIndex;
 
-    //TraceExtents::TraceExtents(&clip.extents);
     trace_sphere(trace, startPos, endPos, radius_2, context);
-    if (trace->fraction > 0.0)
+    if ( trace->fraction <= 0.0f )
+        return;
+
+    Vec3Min(startPos, endPos, boundsMin);
+    Vec3Max(startPos, endPos, boundsMax);
+    clip.contentmask = 0x2C0EC33;
+    clip.extents.start.vec.v[0] = startPos[0];
+    clip.extents.start.vec.v[1] = startPos[1];
+    clip.extents.start.vec.v[2] = startPos[2];
+    clip.extents.end.vec.v[0] = endPos[0];
+    clip.extents.end.vec.v[1] = endPos[1];
+    clip.extents.end.vec.v[2] = endPos[2];
+    CM_CalcTraceExtents(&clip.extents);
+    clip.bLocational = 1;
+    clip.priorityMap = bulletPriorityMap;
+    SV_SetupIgnoreEntParams(&ignoreEntParams, gen->stream->entityNum);
+    ignoreEntParams.ignoreChildren = 0;
+    clip.ignoreEntParams = &ignoreEntParams;
+    for ( entIndex = 0; entIndex < entsCount; ++entIndex )
     {
-        Vec3Min(startPos, endPos, bounds[0]);
-        Vec3Max(startPos, endPos, bounds[1]);
-        clip.contentmask = 0x2C0EC33;
-        *(_QWORD *)clip.extents.start.vec.v = *(_QWORD *)startPos;
-        clip.extents.start.vec.v[2] = startPos[2];
-        *(_QWORD *)clip.extents.end.vec.v = *(_QWORD *)endPos;
-        clip.extents.end.vec.v[2] = endPos[2];
-        CM_CalcTraceExtents(&clip.extents);
+        const unsigned int entnum = ents[entIndex];
+        bool character_collision = false;
+        gentity_s *ent = (gentity_s *)((char *)sv.gentities + entnum * sv.gentitySize);
+
         clip.bLocational = 1;
-        clip.priorityMap = bulletPriorityMap;
-        SV_SetupIgnoreEntParams(&ignoreEntParams, gen->stream->entityNum);
-        owner = &g_entities[gen->stream->entityNum];
-        ignoreEntParams.ignoreChildren = 0;
-        clip.ignoreEntParams = &ignoreEntParams;
-        for (i = 0; i < entsCount; ++i)
+        if ( ent && ent->client )
+            character_collision = true;
+        if ( character_collision )
         {
-            clip.bLocational = 1;
-            entnum = ents[i];
-            character_collision = 0;
-            ent = (gentity_s *)((char *)sv.gentities + entnum * sv.gentitySize);
-            if (ent)
-                character_collision = ent->client != 0;
-            if (character_collision)
+            if ( *close_characters_count < 16 )
             {
-                if (*close_characters_count < 16)
+                dist2 = point_aabb_dist2(endPos, ent->r.absmin, ent->r.absmax);
+                collisionRadius = gen->size.current * gen->stream->flameVars->flameVar_collisionVolumeScale;
+                if ( collisionRadius * collisionRadius > dist2 && gen->stream->entityNum != entnum )
                 {
-                    dist2 = point_aabb_dist2(endPos, ent->r.absmin, ent->r.absmax);
-                    size = gen->size.current * gen->stream->flameVars->flameVar_collisionVolumeScale;
-                    if ((float)(size * size) > dist2 && gen->stream->entityNum != entnum)
+                    int existingIndex;
+                    for ( existingIndex = 0; existingIndex < *close_characters_count; ++existingIndex )
                     {
-                        center[0] = (float)(0.5 * ent->r.absmin[0]) + (float)(0.5 * ent->r.absmax[0]);
-                        center[1] = (float)(0.5 * ent->r.absmin[1]) + (float)(0.5 * ent->r.absmax[1]);
-                        center[2] = (float)(0.5 * ent->r.absmin[2]) + (float)(0.5 * ent->r.absmax[2]);
-                        if (!collide_segment(startPos, center, context))
-                            close_characters[(*close_characters_count)++] = entnum;
+                        if ( close_characters[existingIndex] == (int)entnum )
+                            break;
                     }
-                }
-            }
-            else
-            {
-                check = &sv.svEntities[entnum];
-                if (check->linkmax[0] >= bounds[0][0]
-                    && sv.svEntities[entnum].linkmax[1] >= bounds[0][1]
-                    && sv.svEntities[entnum].linkmax[2] >= bounds[0][2]
-                    && bounds[1][0] >= sv.svEntities[entnum].linkmin[0]
-                    && bounds[1][1] >= sv.svEntities[entnum].linkmin[1]
-                    && bounds[1][2] >= sv.svEntities[entnum].linkmin[2])
-                {
-                    if (ent->classname == scr_const.trigger_damage)
-                    {
-                        memcpy(&old_trace, trace, sizeof(old_trace));
-                        SV_TracePointToEntity(&clip, check, trace);
-                        if (old_trace.fraction > trace->fraction)
-                        {
-                            if (*close_triggers_count < 16)
-                                close_triggers[(*close_triggers_count)++] = entnum;
-                            memcpy(trace, &old_trace, sizeof(trace_t));
-                        }
-                    }
-                    else
-                    {
-                        SV_TracePointToEntity(&clip, check, trace);
-                        if (trace->fraction <= 0.0)
-                            return;
-                    }
+                    if ( existingIndex < *close_characters_count )
+                        continue;
+                    center[0] = 0.5f * ent->r.absmin[0] + 0.5f * ent->r.absmax[0];
+                    center[1] = 0.5f * ent->r.absmin[1] + 0.5f * ent->r.absmax[1];
+                    center[2] = 0.5f * ent->r.absmin[2] + 0.5f * ent->r.absmax[2];
+                    if ( !collide_segment(startPos, center, context) )
+                        close_characters[(*close_characters_count)++] = entnum;
                 }
             }
         }
-        for (drawType = 0; drawType < 2; ++drawType)
+        else
         {
-            num = dynEntsCount[drawType];
-            for (j = 0; j < num; ++j)
+            svEntity_s *check = &sv.svEntities[entnum];
+            if ( check->linkmax[0] >= boundsMin[0]
+                && sv.svEntities[entnum].linkmax[1] >= boundsMin[1]
+                && sv.svEntities[entnum].linkmax[2] >= boundsMin[2]
+                && boundsMax[0] >= sv.svEntities[entnum].linkmin[0]
+                && boundsMax[1] >= sv.svEntities[entnum].linkmin[1]
+                && boundsMax[2] >= sv.svEntities[entnum].linkmin[2] )
             {
-                id = (*dynEnts)[drawType][j];
-                colType = (DynEntityCollType)(drawType + 2);
-                coll = &cm.dynEntCollList[drawType + 2][id];
-                if (bounds[0][2] > coll->linkMaxs[2])
-                    break;
-                if (coll->linkMaxs[0] >= bounds[0][0]
-                    && coll->linkMaxs[1] >= bounds[0][1]
-                    && coll->linkMaxs[2] >= bounds[0][2]
-                    && bounds[1][0] >= coll->linkMins[0]
-                    && bounds[1][1] >= coll->linkMins[1]
-                    && bounds[1][2] >= coll->linkMins[2])
+                if ( ent->classname == scr_const.trigger_damage )
                 {
-                    DynEntSv_PointTrace(id, (DynEntityDrawType)drawType, &clip, trace);
-                    if (trace->fraction <= 0.0)
+                    memcpy(&old_trace, trace, sizeof(old_trace));
+                    SV_TracePointToEntity(&clip, check, trace);
+                    if ( old_trace.fraction > trace->fraction )
+                    {
+                        if ( *close_triggers_count < 16 )
+                            close_triggers[(*close_triggers_count)++] = entnum;
+                        memcpy(trace, &old_trace, sizeof(trace_t));
+                    }
+                }
+                else
+                {
+                    SV_TracePointToEntity(&clip, check, trace);
+                    if ( trace->fraction <= 0.0f )
                         return;
                 }
             }
         }
-        memcpy(&trace2, trace, sizeof(trace2));
-        GlassSv_PointTrace(&clip, &trace2);
-        if (trace->fraction > trace2.fraction && trace2.hitType == TRACE_HITTYPE_GLASS)
+    }
+    for ( int drawType = 0; drawType < 2; ++drawType )
+    {
+        const int dynEntCount = dynEntsCount[drawType];
+        for ( int dynEntIndex = 0; dynEntIndex < dynEntCount; ++dynEntIndex )
         {
-            Vec3Lerp(clip.extents.start.vec.v, clip.extents.end.vec.v, trace2.fraction, hitPos);
-            hitDir[0] = clip.extents.end.vec.v[0] - clip.extents.start.vec.v[0];
-            hitDir[1] = clip.extents.end.vec.v[1] - clip.extents.start.vec.v[1];
-            hitDir[2] = clip.extents.end.vec.v[2] - clip.extents.start.vec.v[2];
-            Vec3Normalize(hitDir);
-            GlassSv_Damage(trace2.hitId, 10000, 17, hitPos, hitDir);
+            const unsigned __int16 id = (*dynEnts)[drawType][dynEntIndex];
+            const DynEntityColl *coll = &cm.dynEntCollList[drawType + 2][id];
+            if ( boundsMin[2] > coll->linkMaxs[2] )
+                break;
+            if ( coll->linkMaxs[0] >= boundsMin[0]
+                && coll->linkMaxs[1] >= boundsMin[1]
+                && coll->linkMaxs[2] >= boundsMin[2]
+                && boundsMax[0] >= coll->linkMins[0]
+                && boundsMax[1] >= coll->linkMins[1]
+                && boundsMax[2] >= coll->linkMins[2] )
+            {
+                DynEntSv_PointTrace(id, (DynEntityDrawType)drawType, &clip, trace);
+                if ( trace->fraction <= 0.0f )
+                    return;
+            }
         }
+    }
+    memcpy(&trace2, trace, sizeof(trace2));
+    GlassSv_PointTrace(&clip, &trace2);
+    if ( trace->fraction > trace2.fraction && trace2.hitType == TRACE_HITTYPE_GLASS )
+    {
+        Vec3Lerp(clip.extents.start.vec.v, clip.extents.end.vec.v, trace2.fraction, hitPos);
+        hitDir[0] = clip.extents.end.vec.v[0] - clip.extents.start.vec.v[0];
+        hitDir[1] = clip.extents.end.vec.v[1] - clip.extents.start.vec.v[1];
+        hitDir[2] = clip.extents.end.vec.v[2] - clip.extents.start.vec.v[2];
+        Vec3Normalize(hitDir);
+        GlassSv_Damage(trace2.hitId, 10000, 17, hitPos, hitDir);
     }
 }
 
-double __cdecl point_aabb_dist2(float *a, const float *mn, float *mx)
+double __cdecl point_aabb_dist2(const float *point, const float *boxMin, const float *boxMax)
 {
-    float a_proj; // [esp+Ch] [ebp-Ch]
-    float a_proj_4; // [esp+10h] [ebp-8h]
-    float a_proj_8; // [esp+14h] [ebp-4h]
+    float closest[3];
 
-    a_proj = *a;
-    a_proj_4 = a[1];
-    a_proj_8 = a[2];
-    if ( *a > *mx )
-        a_proj = *mx;
-    if ( a_proj_4 > mx[1] )
-        a_proj_4 = mx[1];
-    if ( a_proj_8 > mx[2] )
-        a_proj_8 = mx[2];
-    if ( *mn > a_proj )
-        a_proj = *mn;
-    if ( mn[1] > a_proj_4 )
-        a_proj_4 = mn[1];
-    if ( mn[2] > a_proj_8 )
-        a_proj_8 = mn[2];
-    return (float)(a[2] - a_proj_8) * (float)(a[2] - a_proj_8)
-             + (float)(a[1] - a_proj_4) * (float)(a[1] - a_proj_4)
-             + (float)(*a - a_proj) * (float)(*a - a_proj);
+    closest[0] = point[0];
+    closest[1] = point[1];
+    closest[2] = point[2];
+    if ( point[0] > boxMax[0] )
+        closest[0] = boxMax[0];
+    if ( closest[1] > boxMax[1] )
+        closest[1] = boxMax[1];
+    if ( closest[2] > boxMax[2] )
+        closest[2] = boxMax[2];
+    if ( boxMin[0] > closest[0] )
+        closest[0] = boxMin[0];
+    if ( boxMin[1] > closest[1] )
+        closest[1] = boxMin[1];
+    if ( boxMin[2] > closest[2] )
+        closest[2] = boxMin[2];
+    return (point[0] - closest[0]) * (point[0] - closest[0])
+         + (point[1] - closest[1]) * (point[1] - closest[1])
+         + (point[2] - closest[2]) * (point[2] - closest[2]);
 }
 
-float radius_3 = 1.0f;
 void __cdecl Flame_Client_Trace(
                 trace_t *trace,
                 flameGeneric_s *gen,
@@ -445,342 +413,275 @@ void __cdecl Flame_Client_Trace(
                 int *close_characters,
                 int *close_characters_count)
 {
-    float absMin[3]; // [esp+50h] [ebp-108h] BYREF
-    float absMax[3]; // [esp+5Ch] [ebp-FCh] BYREF
-    float actorMins[3]; // [esp+68h] [ebp-F0h]
-    float size; // [esp+74h] [ebp-E4h]
-    float dist2; // [esp+78h] [ebp-E0h]
-    float actorMaxs[3]; // [esp+7Ch] [ebp-DCh]
-    int contents; // [esp+88h] [ebp-D0h]
-    DObj *dobj; // [esp+8Ch] [ebp-CCh]
-    bool character_collision; // [esp+93h] [ebp-C5h]
-    centity_s *ent; // [esp+94h] [ebp-C4h]
-    int entnum; // [esp+98h] [ebp-C0h]
-    int j; // [esp+9Ch] [ebp-BCh]
-    DynEntityPose *dynEntPose; // [esp+A0h] [ebp-B8h]
-    const DynEntityDef *dynEntDef; // [esp+A4h] [ebp-B4h]
-    const DynEntityColl *coll; // [esp+A8h] [ebp-B0h]
-    DynEntityCollType colType; // [esp+ACh] [ebp-ACh]
-    unsigned __int16 id; // [esp+B0h] [ebp-A8h]
-    int i; // [esp+B4h] [ebp-A4h]
-    int num; // [esp+B8h] [ebp-A0h]
-    int drawType; // [esp+BCh] [ebp-9Ch]
-    pointtrace_t clip; // [esp+C0h] [ebp-98h] BYREF
-    trace_t trace2; // [esp+104h] [ebp-54h] BYREF
-    float bounds[2][3]; // [esp+140h] [ebp-18h] BYREF
+    pointtrace_t clip;
+    trace_t trace2;
+    float boundsMin[3];
+    float boundsMax[3];
+    float absMin[3];
+    float absMax[3];
+    float actorMins[3];
+    float actorMaxs[3];
+    float collisionRadius;
+    float dist2;
 
-    ////TraceExtents::TraceExtents(&clip.extents);
     trace_sphere(trace, startPos, endPos, radius_3, context);
-    if ( trace->fraction > 0.0 )
+    if ( trace->fraction <= 0.0f )
+        return;
+
+    Vec3Min(startPos, endPos, boundsMin);
+    Vec3Max(startPos, endPos, boundsMax);
+    clip.contentmask = 0x2C0EC33;
+    clip.extents.start.vec.v[0] = startPos[0];
+    clip.extents.start.vec.v[1] = startPos[1];
+    clip.extents.start.vec.v[2] = startPos[2];
+    clip.extents.end.vec.v[0] = endPos[0];
+    clip.extents.end.vec.v[1] = endPos[1];
+    clip.extents.end.vec.v[2] = endPos[2];
+    CM_CalcTraceExtents(&clip.extents);
+    clip.bLocational = 1;
+    clip.priorityMap = bulletPriorityMap;
+    clip.ignoreEntParams = 0;
+    for ( int drawType = 0; drawType < 2; ++drawType )
     {
-        Vec3Min(startPos, endPos, bounds[0]);
-        Vec3Max(startPos, endPos, bounds[1]);
-        clip.contentmask = 0x2C0EC33;
-        *(_QWORD *)clip.extents.start.vec.v = *(_QWORD *)startPos;
-        clip.extents.start.vec.v[2] = startPos[2];
-        *(_QWORD *)clip.extents.end.vec.v = *(_QWORD *)endPos;
-        clip.extents.end.vec.v[2] = endPos[2];
-        CM_CalcTraceExtents(&clip.extents);
-        clip.bLocational = 1;
-        clip.priorityMap = bulletPriorityMap;
-        clip.ignoreEntParams = 0;
-        for ( drawType = 0; drawType < 2; ++drawType )
+        const int dynEntCount = dynEntsCount[drawType];
+        for ( int dynEntIndex = 0; dynEntIndex < dynEntCount; ++dynEntIndex )
         {
-            num = dynEntsCount[drawType];
-            for ( i = 0; i < num; ++i )
+            const unsigned __int16 id = (*dynEnts)[drawType][dynEntIndex];
+            const DynEntityColl *coll = &cm.dynEntCollList[drawType][id];
+            if ( boundsMin[2] > coll->linkMaxs[2] )
+                break;
+            if ( coll->linkMaxs[0] >= boundsMin[0]
+                && coll->linkMaxs[1] >= boundsMin[1]
+                && coll->linkMaxs[2] >= boundsMin[2]
+                && boundsMax[0] >= coll->linkMins[0]
+                && boundsMax[1] >= coll->linkMins[1]
+                && boundsMax[2] >= coll->linkMins[2] )
             {
-                id = (*dynEnts)[drawType][i];
-                colType = (DynEntityCollType)drawType;
-                coll = &cm.dynEntCollList[drawType][id];
-                if ( bounds[0][2] > coll->linkMaxs[2] )
-                    break;
-                if ( coll->linkMaxs[0] >= bounds[0][0]
-                    && coll->linkMaxs[1] >= bounds[0][1]
-                    && coll->linkMaxs[2] >= bounds[0][2]
-                    && bounds[1][0] >= coll->linkMins[0]
-                    && bounds[1][1] >= coll->linkMins[1]
-                    && bounds[1][2] >= coll->linkMins[2] )
+                const DynEntityDef *dynEntDef = DynEnt_GetEntityDef(id, (DynEntityDrawType)drawType);
+                DynEntityPose *dynEntPose = DynEnt_GetClientPose(id, (DynEntityDrawType)drawType);
+                if ( drawType )
                 {
-                    dynEntDef = DynEnt_GetEntityDef(id, (DynEntityDrawType)drawType);
-                    dynEntPose = DynEnt_GetClientPose(id, (DynEntityDrawType)drawType);
-                    if ( drawType )
-                    {
-                        if ( drawType != 1
-                            && !Assert_MyHandler(
-                                        "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_physics.cpp",
-                                        307,
-                                        0,
-                                        "%s\n\t(drawType) = %i",
-                                        "(drawType == DYNENT_DRAW_BRUSH)",
-                                        drawType) )
-                        {
-                            __debugbreak();
-                        }
-                        DynEnt_PointTraceToBrush(dynEntDef, &dynEntPose->pose, &clip, trace);
-                    }
-                    else
-                    {
-                        DynEnt_PointTraceToModel(dynEntDef, &dynEntPose->pose, &clip, trace);
-                    }
-                    if ( trace->fraction <= 0.0 )
+                    iassert(drawType == DYNENT_DRAW_BRUSH);
+                    DynEnt_PointTraceToBrush(dynEntDef, &dynEntPose->pose, &clip, trace);
+                }
+                else
+                {
+                    DynEnt_PointTraceToModel(dynEntDef, &dynEntPose->pose, &clip, trace);
+                }
+                if ( trace->fraction <= 0.0f )
+                    return;
+            }
+        }
+    }
+    for ( int entIndex = 0; entIndex < entsCount; ++entIndex )
+    {
+        const int entnum = ents[entIndex];
+        if ( (gen->stream->entityNum <= 32 || gen->stream->entityNum != entnum + 32) && gen->stream->entityNum != entnum )
+        {
+            centity_s *ent = CG_GetEntity(0, entnum);
+            DObj *dobj = Com_GetClientDObj(entnum, 0);
+            if ( dobj )
+            {
+                const int contents = CG_GetEntityDObjContents(ent, dobj);
+                if ( (contents & 0x2008000) != 0 )
+                {
+                    actorMins[0] = -15.0f;
+                    actorMins[1] = -15.0f;
+                    actorMins[2] = 0.0f;
+                    actorMaxs[0] = 15.0f;
+                    actorMaxs[1] = 15.0f;
+                    actorMaxs[2] = 48.0f;
+                    absMin[0] = ent->pose.origin[0] - 15.0f;
+                    absMin[1] = ent->pose.origin[1] - 15.0f;
+                    absMin[2] = ent->pose.origin[2];
+                    absMax[0] = ent->pose.origin[0] + 15.0f;
+                    absMax[1] = ent->pose.origin[1] + 15.0f;
+                    absMax[2] = ent->pose.origin[2] + 48.0f;
+                    dist2 = point_aabb_dist2(endPos, absMin, absMax);
+                    collisionRadius = gen->size.current * gen->stream->flameVars->flameVar_collisionVolumeScale;
+                    if ( collisionRadius * collisionRadius > dist2 && gen->stream->entityNum != entnum && *close_characters_count < 16 )
+                        close_characters[(*close_characters_count)++] = entnum;
+                }
+                else if ( ent->destructible && CG_DestructibleIsClientOnly(ent->destructible) )
+                {
+                    CG_PointTraceToEntity(&clip, entnum, trace);
+                    if ( trace->fraction <= 0.0f )
                         return;
                 }
             }
         }
-        for ( j = 0; j < entsCount; ++j )
-        {
-            entnum = ents[j];
-            if ( (gen->stream->entityNum <= 32 || gen->stream->entityNum != entnum + 32) && gen->stream->entityNum != entnum )
-            {
-                character_collision = 0;
-                ent = CG_GetEntity(0, entnum);
-                dobj = Com_GetClientDObj(entnum, 0);
-                if ( dobj )
-                {
-                    contents = CG_GetEntityDObjContents(ent, dobj);
-                    character_collision = (contents & 0x2008000) != 0;
-                    if ((contents & 0x2008000) != 0)
-                    {
-                        actorMins[0] = -15.0f;
-                        actorMins[1] = -15.0f;
-                        actorMins[2] = 0.0f;
-                        actorMaxs[0] = 15.0f;
-                        actorMaxs[1] = 15.0f;
-                        actorMaxs[2] = 48.0f;
-                        absMin[0] = ent->pose.origin[0] + -15.0;
-                        absMin[1] = ent->pose.origin[1] + -15.0;
-                        absMin[2] = ent->pose.origin[2] + 0.0;
-                        absMax[0] = ent->pose.origin[0] + 15.0;
-                        absMax[1] = ent->pose.origin[1] + 15.0;
-                        absMax[2] = ent->pose.origin[2] + 48.0;
-                        dist2 = point_aabb_dist2(endPos, absMin, absMax);
-                        size = gen->size.current * gen->stream->flameVars->flameVar_collisionVolumeScale;
-                        if ( (float)(size * size) > dist2 && gen->stream->entityNum != entnum && *close_characters_count < 16 )
-                            close_characters[(*close_characters_count)++] = entnum;
-                    }
-                    else if ( ent->destructible )
-                    {
-                        if ( CG_DestructibleIsClientOnly(ent->destructible) )
-                        {
-                            CG_PointTraceToEntity(&clip, entnum, trace);
-                            if ( trace->fraction <= 0.0 )
-                                return;
-                        }
-                    }
-                }
-            }
-        }
-        memcpy(&trace2, trace, sizeof(trace2));
-        GlassCl_TracePoint(&clip, &trace2);
     }
+    memcpy(&trace2, trace, sizeof(trace2));
+    GlassCl_TracePoint(&clip, &trace2);
 }
 
 void __cdecl Flame_Phys_Collision_Response(bool is_server, trace_t *trace, flameGeneric_s *gen)
 {
-    float v3; // [esp+0h] [ebp-70h]
-    float fraction; // [esp+4h] [ebp-6Ch]
-    float flameVar_collisionSpeedScale; // [esp+Ch] [ebp-64h]
-    float len; // [esp+30h] [ebp-40h]
-    float endPos; // [esp+34h] [ebp-3Ch]
-    float endPos_4; // [esp+38h] [ebp-38h]
-    float endPos_8; // [esp+3Ch] [ebp-34h]
-    float dir[3]; // [esp+40h] [ebp-30h] BYREF
-    float startPos[3]; // [esp+4Ch] [ebp-24h]
-    float newVel[3]; // [esp+58h] [ebp-18h] BYREF
-    float hitPos[3]; // [esp+64h] [ebp-Ch]
+    float dir[3];
+    float startPos[3];
+    float newVel[3];
+    float hitPos[3];
+    float speedScale;
+    float fraction;
 
     startPos[0] = gen->phys.origin[0];
     startPos[1] = gen->phys.origin[1];
     startPos[2] = gen->phys.origin[2];
-    endPos = gen->phys.newPos[0];
-    endPos_4 = gen->phys.newPos[1];
-    endPos_8 = gen->phys.newPos[2];
-    if ( ((LODWORD(startPos[0]) & 0x7F800000) == 0x7F800000
-         || (LODWORD(startPos[1]) & 0x7F800000) == 0x7F800000
-         || (LODWORD(startPos[2]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_physics.cpp",
-                    417,
-                    0,
-                    "%s",
-                    "!IS_NAN((startPos)[0]) && !IS_NAN((startPos)[1]) && !IS_NAN((startPos)[2])") )
+    nanassertvec3(startPos);
+    dir[0] = gen->phys.newPos[0] - startPos[0];
+    dir[1] = gen->phys.newPos[1] - startPos[1];
+    dir[2] = gen->phys.newPos[2] - startPos[2];
+    if ( trace->fraction == 1.0f )
     {
-        __debugbreak();
-    }
-    dir[0] = endPos - startPos[0];
-    dir[1] = endPos_4 - startPos[1];
-    dir[2] = endPos_8 - startPos[2];
-    if ( trace->fraction == 1.0 )
-    {
-        gen->phys.origin[0] = endPos;
-        gen->phys.origin[1] = endPos_4;
-        gen->phys.origin[2] = endPos_8;
+        gen->phys.origin[0] = gen->phys.newPos[0];
+        gen->phys.origin[1] = gen->phys.newPos[1];
+        gen->phys.origin[2] = gen->phys.newPos[2];
         return;
     }
-    if ( trace->fraction == 0.0 )
+    if ( trace->fraction == 0.0f )
     {
-        *(_QWORD *)trace->normal.vec.v = *(_QWORD *)dir;
+        trace->normal.vec.v[0] = dir[0];
+        trace->normal.vec.v[1] = dir[1];
         trace->normal.vec.v[2] = dir[2];
-        len = Vec3Length(dir);
-        if ( len <= 0.000099999997 )
+        const float len = Abs(dir);
+        if ( len <= 0.000099999997f )
         {
             gen->phys.origin[0] = startPos[0];
             gen->phys.origin[1] = startPos[1];
             gen->phys.origin[2] = startPos[2];
             return;
         }
-        trace->normal.vec.v[0] = (float)(-1.0 / len) * trace->normal.vec.v[0];
-        trace->normal.vec.v[1] = (float)(-1.0 / len) * trace->normal.vec.v[1];
-        trace->normal.vec.v[2] = (float)(-1.0 / len) * trace->normal.vec.v[2];
+        trace->normal.vec.v[0] = (-1.0f / len) * trace->normal.vec.v[0];
+        trace->normal.vec.v[1] = (-1.0f / len) * trace->normal.vec.v[1];
+        trace->normal.vec.v[2] = (-1.0f / len) * trace->normal.vec.v[2];
     }
-    if ( ((*((unsigned int *)gen + 23) >> 4) & 0xFFFFFFFu) > flame_freeze_id )
-        flame_freeze_id = (*((unsigned int *)gen + 23) >> 4) & 0xFFFFFFF;
+    if ( gen->id > flame_freeze_id )
+        flame_freeze_id = gen->id;
     if ( Flame_Random(is_server) < 0.69999999 )
-        *((unsigned int *)gen + 23) |= 8u;
+        gen->delete_chunk = 1;
     Flame_ClipVelocity(gen->phys.velocity, trace->normal.vec.v, newVel);
     gen->phys.velocity[0] = newVel[0];
     gen->phys.velocity[1] = newVel[1];
     gen->phys.velocity[2] = newVel[2];
-    flameVar_collisionSpeedScale = gen->stream->flameVars->flameVar_collisionSpeedScale;
-    gen->phys.velocity[0] = flameVar_collisionSpeedScale * gen->phys.velocity[0];
-    gen->phys.velocity[1] = flameVar_collisionSpeedScale * gen->phys.velocity[1];
-    gen->phys.velocity[2] = flameVar_collisionSpeedScale * gen->phys.velocity[2];
+    speedScale = gen->stream->flameVars->flameVar_collisionSpeedScale;
+    gen->phys.velocity[0] = speedScale * gen->phys.velocity[0];
+    gen->phys.velocity[1] = speedScale * gen->phys.velocity[1];
+    gen->phys.velocity[2] = speedScale * gen->phys.velocity[2];
     fraction = trace->fraction;
-    hitPos[0] = (float)(fraction * dir[0]) + startPos[0];
-    hitPos[1] = (float)(fraction * dir[1]) + startPos[1];
-    hitPos[2] = (float)(fraction * dir[2]) + startPos[2];
-    v3 = FLAME_OVERCLIP;
-    gen->phys.origin[0] = (float)(FLAME_OVERCLIP * trace->normal.vec.v[0]) + hitPos[0];
-    gen->phys.origin[1] = (float)(v3 * trace->normal.vec.v[1]) + hitPos[1];
-    gen->phys.origin[2] = (float)(v3 * trace->normal.vec.v[2]) + hitPos[2];
+    hitPos[0] = fraction * dir[0] + startPos[0];
+    hitPos[1] = fraction * dir[1] + startPos[1];
+    hitPos[2] = fraction * dir[2] + startPos[2];
+    gen->phys.origin[0] = FLAME_OVERCLIP * trace->normal.vec.v[0] + hitPos[0];
+    gen->phys.origin[1] = FLAME_OVERCLIP * trace->normal.vec.v[1] + hitPos[1];
+    gen->phys.origin[2] = FLAME_OVERCLIP * trace->normal.vec.v[2] + hitPos[2];
 }
 
 void __cdecl Flame_Impact_Process(bool is_server, flameGeneric_s *gen, trace_t *trace, int *models, int models_count)
 {
-    int Time; // eax
-    int WeaponIndexForName; // eax
-    bool v7; // [esp+20h] [ebp-94h]
-    float damageInterval; // [esp+24h] [ebp-90h]
-    float damageDuration; // [esp+28h] [ebp-8Ch]
-    int damage; // [esp+2Ch] [ebp-88h]
-    bool v11; // [esp+30h] [ebp-84h]
-    gentity_s *v12; // [esp+34h] [ebp-80h]
-    gentity_s *v13; // [esp+38h] [ebp-7Ch]
-    float v14[3]; // [esp+50h] [ebp-64h] BYREF
-    centity_s *cent; // [esp+5Ch] [ebp-58h]
-    bool isWall; // [esp+63h] [ebp-51h]
-    DynEntityDrawType v17; // [esp+64h] [ebp-50h] BYREF
-    unsigned __int16 EntityHitId; // [esp+68h] [ebp-4Ch]
-    bool targetIsAlive; // [esp+6Eh] [ebp-46h]
-    bool targetWasAlive; // [esp+6Fh] [ebp-45h]
-    float v21[3]; // [esp+70h] [ebp-44h] BYREF
-    int dflags; // [esp+7Ch] [ebp-38h]
-    hitLocation_t hitLoc; // [esp+80h] [ebp-34h]
-    float dir[3]; // [esp+84h] [ebp-30h] BYREF
-    float flameDamageDuration; // [esp+90h] [ebp-24h]
-    DynEntityDrawType drawType; // [esp+94h] [ebp-20h] BYREF
-    int flameDamage; // [esp+98h] [ebp-1Ch]
-    float flameDamageInterval; // [esp+9Ch] [ebp-18h]
-    unsigned __int16 DynEntHitId; // [esp+A0h] [ebp-14h]
-    bool hitFlesh; // [esp+A7h] [ebp-Dh]
-    gentity_s *attacker; // [esp+A8h] [ebp-Ch]
-    gentity_s *hitEnt; // [esp+ACh] [ebp-8h]
-    unsigned __int16 hitEntId; // [esp+B0h] [ebp-4h]
-
     if ( is_server )
     {
-        hitEntId = Trace_GetEntityHitId(trace);
+        const unsigned __int16 hitEntId = Trace_GetEntityHitId(trace);
+        gentity_s *hitEnt;
+        gentity_s *attacker;
+
         if ( hitEntId == 1022 )
-            v13 = 0;
+            hitEnt = 0;
         else
-            v13 = (gentity_s *)((char *)sv.gentities + sv.gentitySize * hitEntId);
-        hitEnt = v13;
+            hitEnt = (gentity_s *)((char *)sv.gentities + sv.gentitySize * hitEntId);
         if ( hitEntId == 1022 )
-            v12 = 0;
+            attacker = 0;
         else
-            v12 = (gentity_s *)((char *)sv.gentities + gen->stream->entityNum * sv.gentitySize);
-        attacker = v12;
+            attacker = (gentity_s *)((char *)sv.gentities + gen->stream->entityNum * sv.gentitySize);
         if ( hitEnt )
         {
-            v11 = hitEnt->s.eType == 1 || hitEnt->s.eType == 2 && !trace->sflags;
-            hitFlesh = v11;
-            if ( v11 )
+            const bool hitFlesh = hitEnt->s.eType == 1 || hitEnt->s.eType == 2 && !trace->sflags;
+            if ( hitFlesh )
                 trace->sflags = 0x700000;
-            if ( attacker->s.number != hitEntId )
+            if ( attacker && attacker->s.number != hitEntId )
             {
-                if ( (float)gen->stream->damage > 0.0 )
-                    damage = gen->stream->damage;
+                int flameDamage;
+                float flameDamageDuration;
+                float flameDamageInterval;
+                float damageDir[3];
+                int damageIntervalMs;
+
+                // Port fix: decomp reads dvar floats via .current.integer; use .value here.
+                if ( (float)gen->stream->damage > 0.0f )
+                    flameDamage = gen->stream->damage;
                 else
-                    damage = (int)default_flameVars_initialHitDamage->current.value;
-                flameDamage = damage;
-                if ( gen->stream->damageDuration > 0.0 )
-                    damageDuration = gen->stream->damageDuration;
+                    flameDamage = (int)default_flameVars_initialHitDamage->current.value;
+                if ( gen->stream->damageDuration > 0.0f )
+                    flameDamageDuration = gen->stream->damageDuration;
                 else
-                    damageDuration = default_flameVars_timedDamageDuration->current.value;
-                flameDamageDuration = damageDuration;
-                if ( gen->stream->damageInterval > 0.0 )
-                    damageInterval = gen->stream->damageInterval;
+                    flameDamageDuration = default_flameVars_timedDamageDuration->current.value;
+                if ( gen->stream->damageInterval > 0.0f )
+                    flameDamageInterval = gen->stream->damageInterval;
                 else
-                    damageInterval = default_flameVars_timedDamageInterval->current.value;
-                flameDamageInterval = damageInterval;
+                    flameDamageInterval = default_flameVars_timedDamageInterval->current.value;
+                // Port fix: (int)0.3 == 0 makes end_timestamp gate fire every chunk.
+                if ( flameDamageInterval < 1.0f )
+                    flameDamageInterval = 1.0f;
+                damageIntervalMs = (int)flameDamageInterval;
                 Flame_trigger_damage(hitEnt, attacker, flameDamage, gen->phys.origin, 17, gen->phys.velocity);
-                DynEntHitId = Trace_GetDynEntHitId(trace, &drawType);
-                if ( DynEntHitId != 0xFFFF )
+                DynEntityDrawType drawType;
+                const unsigned __int16 dynEntHitId = Trace_GetDynEntHitId(trace, &drawType);
+                if ( dynEntHitId != 0xFFFF )
                 {
-                    dir[0] = 0.0f;
-                    dir[1] = 1.0f;
-                    dir[2] = 0.0f;
-                    DynEntSv_Damage(DynEntHitId, drawType, gen->phys.origin, dir, flameDamage, 0);
+                    damageDir[0] = 0.0f;
+                    damageDir[1] = 1.0f;
+                    damageDir[2] = 0.0f;
+                    DynEntSv_Damage(dynEntHitId, drawType, gen->phys.origin, damageDir, flameDamage, 0);
                 }
                 if ( hitEnt )
                 {
-                    v21[0] = 0.0f;
-                    v21[1] = 1.0f;
-                    v21[2] = 0.0f;
-                    dflags = 0;
-                    targetWasAlive = hitEnt->health > 0;
-                    hitLoc = (hitLocation_t)trace->partGroup;
+                    float damageVec[3];
+                    const hitLocation_t hitLoc = (hitLocation_t)trace->partGroup;
+
+                    damageVec[0] = 0.0f;
+                    damageVec[1] = 1.0f;
+                    damageVec[2] = 0.0f;
+                    // Decomp: CoDMPServer.c:706362 — throttle direct G_Damage to damageInterval ms.
                     if ( G_GetTime() >= hitEnt->flame_timed_damage[0].end_timestamp
                         || !hitEnt->flame_timed_damage[0].end_timestamp )
                     {
                         hitEnt->flame_timed_damage[0].attacker = attacker;
+                        // Decomp: CoDMPServer.c:706366 — slot damage stays 0; players never
+                        // get SV_Flame_Apply_Damage, so burn HP is only applied here.
                         hitEnt->flame_timed_damage[0].damage = 0;
                         hitEnt->flame_timed_damage[0].damageDuration = flameDamageDuration;
                         hitEnt->flame_timed_damage[0].damageInterval = flameDamageInterval;
                         hitEnt->flame_timed_damage[0].start_timestamp = G_GetTime();
-                        hitEnt->flame_timed_damage[0].end_timestamp = (int)flameDamageInterval + G_GetTime();
+                        hitEnt->flame_timed_damage[0].lastupdate_timestamp = 0;
+                        hitEnt->flame_timed_damage[0].end_timestamp = G_GetTime() + damageIntervalMs;
                         if ( attacker->r.inuse )
                         {
-                            Time = G_GetTime();
+                            const int damageTime = G_GetTime();
                             G_Damage(
                                 hitEnt,
                                 attacker,
                                 attacker,
-                                v21,
+                                damageVec,
                                 gen->phys.origin,
                                 flameDamage,
-                                dflags,
+                                0,
                                 17,
                                 0xFFFFFFFF,
                                 hitLoc,
                                 trace->modelIndex,
                                 trace->partName,
-                                level.time - Time);
+                                level.time - damageTime);
                         }
                     }
-                    v7 = hitEnt->r.inuse && hitEnt->health > 0;
-                    targetIsAlive = v7;
                 }
             }
         }
     }
     else
     {
-        if ( trace->fraction > 0.0 )
+        if ( trace->fraction > 0.0f )
         {
-            //isWall = COERCE_FLOAT(trace->normal.vec.u[2] & _mask__AbsFloat_) < 0.30000001;
-            isWall = fabsf(trace->normal.vec.u[2]) < 0.30000001;
-            if ((trace->sflags & 0x3F00000) != 0x1400000)
+            const bool isWall = fabsf(trace->normal.vec.u[2]) < 0.30000001f;
+            if ( (trace->sflags & 0x3F00000) != 0x1400000 )
             {
                 if ( isWall )
                 {
@@ -788,38 +689,39 @@ void __cdecl Flame_Impact_Process(bool is_server, flameGeneric_s *gen, trace_t *
                 }
                 else
                 {
-                    WeaponIndexForName = G_GetWeaponIndexForName((char*)"m2_flamethrower_mp");
+                    const int weaponIndex = G_GetWeaponIndexForName((char*)"m2_flamethrower_mp");
                     CG_SetFireToTerrain(
                         gen->phys.origin,
-                        1.0,
+                        1.0f,
                         gen->stream->entityNum,
-                        WeaponIndexForName,
-                        1.0,
+                        weaponIndex,
+                        1.0f,
                         models,
                         models_count,
                         TFS_FLAMETHROWER);
                 }
             }
         }
-        EntityHitId = Trace_GetDynEntHitId(trace, &v17);
-        if ( EntityHitId != 0xFFFF )
-            DynEntCl_FlameDamage(0, EntityHitId, (DynEntityCollType)v17, gen->phys.origin, gen->phys.velocity, 5);
-        EntityHitId = Trace_GetEntityHitId(trace);
-        if ( EntityHitId != 1023 && EntityHitId != 1022 )
+        DynEntityDrawType dynDrawType;
+        unsigned __int16 entityHitId = Trace_GetDynEntHitId(trace, &dynDrawType);
+        if ( entityHitId != 0xFFFF )
+            DynEntCl_FlameDamage(0, entityHitId, (DynEntityCollType)dynDrawType, gen->phys.origin, gen->phys.velocity, 5);
+        entityHitId = Trace_GetEntityHitId(trace);
+        if ( entityHitId != 1023 && entityHitId != 1022 )
         {
-            cent = CG_GetEntity(0, EntityHitId);
+            centity_s *cent = CG_GetEntity(0, entityHitId);
             if ( cent->destructible )
             {
-                v14[0] = 0.0f;
-                v14[1] = 1.0f;
-                v14[2] = 0.0f;
-                CG_DestructibleDamage(cent, 0, v14, gen->phys.origin, gen->stream->damage, 17, 0, 0, 1);
+                float damageDir[3];
+                damageDir[0] = 0.0f;
+                damageDir[1] = 1.0f;
+                damageDir[2] = 0.0f;
+                CG_DestructibleDamage(cent, 0, damageDir, gen->phys.origin, gen->stream->damage, 17, 0, 0, 1);
             }
         }
     }
 }
 
-// Comparator based on stream pointer (can be customized)
 struct Flame_SortByStream
 {
     bool operator()(flameGeneric_s *a, flameGeneric_s *b) const
@@ -830,359 +732,240 @@ struct Flame_SortByStream
 
 void __cdecl Flame_Phys_Update_Items(bool is_server)
 {
-    flameGeneric_s **v1; // eax
-    flameGeneric_s **v2; // eax
-    phys_static_array<flameGeneric_s *,1000> *v3; // [esp+0h] [ebp-50h]
-    flameGeneric_s **v4; // [esp+10h] [ebp-40h]
-    flameGeneric_s **_First; // [esp+14h] [ebp-3Ch]
-    int i; // [esp+34h] [ebp-1Ch]
-    flameStream_s *prevStream; // [esp+38h] [ebp-18h]
-    int startIndex; // [esp+44h] [ebp-Ch]
-    int nflames; // [esp+48h] [ebp-8h]
-    int count; // [esp+4Ch] [ebp-4h]
+    phys_static_array<flameGeneric_s *,1000> *flames;
+    int nflames;
 
     if ( is_server )
-        v3 = &sv_flames;
+        flames = &sv_flames;
     else
-        v3 = &cl_flames;
-    nflames = v3->m_alloc_count;
-    if ( nflames )
+        flames = &cl_flames;
+    nflames = flames->m_alloc_count;
+    if ( !nflames )
+        return;
+
+    flameGeneric_s **sortBegin = flames->m_slot_array;
+    flameGeneric_s **sortEnd = &flames->m_slot_array[nflames];
+    std::sort(sortBegin, sortEnd, Flame_SortByStream{});
+
+    flameStream_s *prevStream = (*sortBegin)->stream;
+    int startIndex = 0;
+    int count = 0;
+    for ( int flameIndex = 0; flameIndex < nflames; ++flameIndex )
     {
-        if (is_server)
+        flameGeneric_s *flameItem = flames->m_slot_array[flameIndex];
+        if ( flameItem->stream == prevStream )
         {
-            //PIXBeginNamedEvent(-1, "sv_flame_physics");
+            ++count;
         }
         else
         {
-            //PIXBeginNamedEvent(-1, "cl_flame_physics");
+            iassert(count > 0);
+            Flame_Phys_Update_Items_PerStream(is_server, count, &flames->m_slot_array[startIndex]);
+            // Port fix: retail decomp resets count to 0 and sets prevStream from
+            // items[i+1], dropping the first particle of each new stream group.
+            startIndex = flameIndex;
+            count = 1;
+            prevStream = flameItem->stream;
         }
-        //v4 = &phys_static_array<flameGeneric_s *,1000>::operator[](v3, 0)[nflames];
-        v4 = v3->operator[](nflames);
-
-        //_First = phys_static_array<flameGeneric_s *,1000>::operator[](v3, 0);
-        //std::_Sort<flameGeneric_s * *,int,Flame_SortByStream>(_First, v4, v4 - _First, 0);
-        std::sort(v3->operator[](0), v4, Flame_SortByStream{});
-        //prevStream = (*phys_static_array<flameGeneric_s *,1000>::operator[](v3, 0))->stream;
-        prevStream = (flameStream_s*)((*v3->operator[](0))->stream);
-        startIndex = 0;
-        count = 0;
-        for ( i = 0; i < nflames; ++i )
-        {
-            //if ( (*phys_static_array<flameGeneric_s *,1000>::operator[](v3, i))->stream == prevStream )
-            if ( (*v3->operator[](i))->stream == prevStream )
-            {
-                ++count;
-            }
-            else
-            {
-                if ( count <= 0
-                    && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_physics.cpp", 684, 0, "%s", "count > 0") )
-                {
-                    __debugbreak();
-                }
-                //v1 = phys_static_array<flameGeneric_s *,1000>::operator[](v3, startIndex);
-                v1 = v3->operator[](startIndex);
-                Flame_Phys_Update_Items_PerStream(is_server, count, v1);
-                startIndex += count;
-                count = 0;
-                if (i >= nflames - 1)
-                {
-                    prevStream = 0;
-                }
-                else
-                {
-                    //prevStream = (*phys_static_array<flameGeneric_s *, 1000>::operator[](v3, i + 1))->stream;
-                    prevStream = (*v3->operator[](i + 1))->stream;
-                }
-            }
-        }
-        if ( count > 0 )
-        {
-            //v2 = phys_static_array<flameGeneric_s *,1000>::operator[](v3, startIndex);
-            v2 = v3->operator[](startIndex);
-            Flame_Phys_Update_Items_PerStream(is_server, count, v2);
-        }
-        v3->m_alloc_count = 0;
-        //if ( g_DXDeviceThread == GetCurrentThreadId() )
-            //D3DPERF_EndEvent();
     }
+    if ( count > 0 )
+        Flame_Phys_Update_Items_PerStream(is_server, count, &flames->m_slot_array[startIndex]);
+    flames->m_alloc_count = 0;
 }
 
 void __cdecl Flame_Phys_Update_Items_PerStream(bool is_server, int nitems, flameGeneric_s **items)
 {
-    colgeom_visitor_inlined_t<500> *v3; // [esp+1Ch] [ebp-9ACh]
-    float v4; // [esp+20h] [ebp-9A8h]
-    float v5; // [esp+24h] [ebp-9A4h]
-    unsigned __int16 v6; // [esp+28h] [ebp-9A0h]
-    unsigned __int16 v7; // [esp+2Ah] [ebp-99Eh]
-    float v8; // [esp+3Ch] [ebp-98Ch]
-    int ti; // [esp+50h] [ebp-978h]
-    int ci; // [esp+54h] [ebp-974h]
-    float genClr[4]; // [esp+58h] [ebp-970h] BYREF
-    float *point; // [esp+68h] [ebp-960h]
-    int k; // [esp+6Ch] [ebp-95Ch]
-    int num; // [esp+70h] [ebp-958h]
-    int drawType; // [esp+74h] [ebp-954h]
-    float clr[4]; // [esp+78h] [ebp-950h] BYREF
-    float origin[3]; // [esp+88h] [ebp-940h] BYREF
-    cg_s *cgameGlob; // [esp+94h] [ebp-934h]
-    float dist; // [esp+98h] [ebp-930h]
-    int j; // [esp+9Ch] [ebp-92Ch]
-    flameGeneric_s *gen; // [esp+A0h] [ebp-928h]
-    int i; // [esp+A4h] [ebp-924h]
-    col_context_t context; // [esp+A8h] [ebp-920h] BYREF
-    int close_characters_count; // [esp+D0h] [ebp-8F8h] BYREF
-    int models_count; // [esp+D4h] [ebp-8F4h] BYREF
-    float nearestClientDist; // [esp+D8h] [ebp-8F0h]
-    int numLocalClients; // [esp+DCh] [ebp-8ECh]
-    int ents[128]; // [esp+E0h] [ebp-8E8h] BYREF
-    int dynEntsCount[2]; // [esp+318h] [ebp-6B0h] BYREF
-    float mx[3]; // [esp+320h] [ebp-6A8h] BYREF
-    int close_triggers_count; // [esp+32Ch] [ebp-69Ch] BYREF
-    int close_characters[16]; // [esp+330h] [ebp-698h] BYREF
-    float lod; // [esp+374h] [ebp-654h]
-    float expand_vec[3]; // [esp+378h] [ebp-650h] BYREF
-    int max_models; // [esp+384h] [ebp-644h]
-    int skip; // [esp+388h] [ebp-640h]
-    colgeom_visitor_inlined_t<500> *proximity_cache; // [esp+3C4h] [ebp-604h]
-    float mn[3]; // [esp+3C8h] [ebp-600h] BYREF
-    int entsCount; // [esp+3D4h] [ebp-5F4h]
-    int models[257]; // [esp+3D8h] [ebp-5F0h] BYREF
-    int skipcounter; // [esp+7DCh] [ebp-1ECh]
-    int close_triggers[16]; // [esp+7E0h] [ebp-1E8h] BYREF
-    float center[3]; // [esp+824h] [ebp-1A4h] BYREF
-    unsigned __int16 dynEnts[2][100]; // [esp+830h] [ebp-198h] BYREF
+    col_context_t context;
+    colgeom_visitor_inlined_t<500> *proximity_cache;
+    trace_t trace;
+    trace_t trace2;
+    float boundsMin[3];
+    float boundsMax[3];
+    float center[3];
+    float expand_vec[3];
+    float lod;
+    float nearestClientDist;
+    int ents[128];
+    int models[256];
+    int close_characters[16];
+    int close_triggers[16];
+    int dynEntsCount[2];
+    unsigned __int16 dynEnts[2][100];
+    int entsCount;
+    int close_characters_count;
+    int close_triggers_count;
+    int models_count;
+    int skip;
+    int skipcounter;
 
-    mn[0] = FLT_MAX;
-    mn[1] = FLT_MAX;
-    mn[2] = FLT_MAX;
-    mx[0] = -FLT_MAX;
-    mx[1] = -FLT_MAX;
-    mx[2] = -FLT_MAX;
-    if ( nitems <= 0
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_physics.cpp", 711, 0, "%s", "nitems > 0") )
+    boundsMin[0] = FLT_MAX;
+    boundsMin[1] = FLT_MAX;
+    boundsMin[2] = FLT_MAX;
+    boundsMax[0] = -FLT_MAX;
+    boundsMax[1] = -FLT_MAX;
+    boundsMax[2] = -FLT_MAX;
+    iassert(nitems > 0);
+    if ( !(*items)->stream )
+        return;
+
+    for ( int boundsIndex = 0; boundsIndex < nitems; ++boundsIndex )
     {
-        __debugbreak();
+        flameGeneric_s *gen = items[boundsIndex];
+        Vec3Min(gen->phys.origin, boundsMin, boundsMin);
+        Vec3Min(gen->phys.newPos, boundsMin, boundsMin);
+        Vec3Max(gen->phys.origin, boundsMax, boundsMax);
+        Vec3Max(gen->phys.newPos, boundsMax, boundsMax);
     }
-    if ( (*items)->stream )
+    boundsMin[0] = boundsMin[0] - size[0];
+    boundsMin[1] = boundsMin[1] - size[1];
+    boundsMin[2] = boundsMin[2] - size[2];
+    boundsMax[0] = boundsMax[0] + size[0];
+    boundsMax[1] = boundsMax[1] + size[1];
+    boundsMax[2] = boundsMax[2] + size[2];
+    Vec3Lerp(boundsMin, boundsMax, 0.5f, center);
+    nearestClientDist = FLT_MAX;
+    const int numLocalClients = CL_LocalClient_GetActiveCount();
+    for ( int clientIndex = 0; clientIndex < numLocalClients; ++clientIndex )
     {
-        for ( i = 0; i < nitems; ++i )
-        {
-            gen = items[i];
-            Vec3Min(gen->phys.origin, mn, mn);
-            Vec3Min(gen->phys.newPos, mn, mn);
-            Vec3Max(gen->phys.origin, mx, mx);
-            Vec3Max(gen->phys.newPos, mx, mx);
-        }
-
-        mn[0] = mn[0] - size[0];
-        mn[1] = mn[1] - size[1];
-        mn[2] = mn[2] - size[2];
-
-        mx[0] = mx[0] + size[0];
-        mx[1] = mx[1] + size[1];
-        mx[2] = mx[2] + size[2];
-
-        Vec3Lerp(mn, mx, 0.5, center);
-        nearestClientDist = FLT_MAX;
-        numLocalClients = CL_LocalClient_GetActiveCount();
-        for ( j = 0; j < numLocalClients; ++j )
-        {
-            cgameGlob = CG_GetLocalClientGlobals(j);
-            dist = Vec3Distance(cgameGlob->refdef.vieworg, center);
-            if ( (float)(dist - nearestClientDist) < 0.0 )
-                v5 = dist;
-            else
-                v5 = nearestClientDist;
-            nearestClientDist = v5;
-        }
-        if ( (float)((float)(nearestClientDist / 1000.0) - 1.0) < 0.0 )
-            v8 = nearestClientDist / 1000.0;
+        cg_s *cgameGlob = CG_GetLocalClientGlobals(clientIndex);
+        const float dist = Vec3Distance(cgameGlob->refdef.vieworg, center);
+        nearestClientDist = dist < nearestClientDist ? dist : nearestClientDist;
+    }
+    lod = nearestClientDist / 1000.0f;
+    if ( lod > 1.0f )
+        lod = 1.0f;
+    if ( lod < 0.0f )
+        lod = 0.0f;
+    (void)lod;
+    if ( flame_debug_render && flame_debug_render->current.integer > 1 )
+    {
+        float origin[3] = { 0.0f, 0.0f, 0.0f };
+        float clr[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+        CG_DebugBox(origin, boundsMin, boundsMax, 0.0f, clr, 1, 3);
+    }
+    if ( is_server )
+        proximity_cache = &sv_flame_chunks_proximity_cache;
+    else
+        proximity_cache = &cl_flame_chunks_proximity_cache;
+    proximity_cache->reset();
+    expand_vec[0] = 1.0f;
+    expand_vec[1] = 1.0f;
+    expand_vec[2] = 1.0f;
+    proximity_cache->update(boundsMin, boundsMax, 0x2C0EC33, expand_vec);
+    context.prims = proximity_cache->prims;
+    context.nprims = proximity_cache->nprims;
+    for ( int drawType = 0; drawType < 2; ++drawType )
+    {
+        if ( is_server )
+            dynEntsCount[drawType] = DynEntSv_AreaEntities((DynEntityDrawType)drawType, boundsMin, boundsMax, -1, 0x64u, dynEnts[drawType]);
         else
-            v8 = 1.0f;
-        if ( (float)(0.0 - (float)(nearestClientDist / 1000.0)) < 0.0 )
-            v4 = v8;
-        else
-            v4 = 0.0f;
-        lod = v4;
+            dynEntsCount[drawType] = DynEntCl_AreaEntities((DynEntityDrawType)drawType, boundsMin, boundsMax, -1, 0x64u, dynEnts[drawType]);
+    }
+    if ( is_server )
+        entsCount = CM_AreaEntities(boundsMin, boundsMax, ents, 128, 0x2C0EC33);
+    else
+        entsCount = CG_AreaEntities(boundsMin, boundsMax, ents, 128, 0x2C0EC33);
+    close_characters_count = 0;
+    close_triggers_count = 0;
+    models_count = 0;
+    R_GetStaticModels(boundsMin, boundsMax, models, &models_count, 256);
+    skip = 1;
+    skipcounter = 1;
+    memset(&trace, 0, sizeof(trace));
+    memset(&trace2, 0, sizeof(trace2));
+    for ( int itemIndex = 0; itemIndex < nitems; ++itemIndex )
+    {
+        flameGeneric_s *gen = items[itemIndex];
         if ( flame_debug_render && flame_debug_render->current.integer > 1 )
         {
-            memset(origin, 0, sizeof(origin));
-            clr[0] = 1.0f;
-            clr[1] = 1.0f;
-            clr[2] = 1.0f;
-            clr[3] = 1.0f;
-            CG_DebugBox(origin, mn, mx, 0.0, clr, 1, 3);
-        }
-        if ( is_server )
-            v3 = &sv_flame_chunks_proximity_cache;
-        else
-            v3 = &cl_flame_chunks_proximity_cache;
-        proximity_cache = v3;
-        //colgeom_visitor_inlined_t<500>::reset((colgeom_visitor_inlined_t<200> *)v3);
-        v3->reset();
-        expand_vec[0] = 1.0f;
-        expand_vec[1] = 1.0f;
-        expand_vec[2] = 1.0f;
-        proximity_cache->update(mn, mx, 0x2C0EC33, expand_vec);
-        ////col_context_t::col_context_t(&context);
-        context.prims = proximity_cache->prims;
-        context.nprims = proximity_cache->nprims;
-        for ( drawType = 0; drawType < 2; ++drawType )
-        {
+            float genClr[4];
             if ( is_server )
-                num = DynEntSv_AreaEntities((DynEntityDrawType)drawType, mn, mx, -1, 0x64u, dynEnts[drawType]);
+            {
+                genClr[0] = 0.0f;
+                genClr[1] = 0.0f;
+                genClr[2] = 1.0f;
+            }
             else
-                num = DynEntCl_AreaEntities((DynEntityDrawType)drawType, mn, mx, -1, 0x64u, dynEnts[drawType]);
-            dynEntsCount[drawType] = num;
+            {
+                genClr[0] = 1.0f;
+                genClr[1] = 0.0f;
+                genClr[2] = 0.0f;
+            }
+            genClr[3] = 1.0f;
+            G_DebugStar(gen->phys.origin, genClr, 3);
         }
-        if ( is_server )
-            entsCount = CM_AreaEntities(mn, mx, ents, 128, 0x2C0EC33);
-        else
-            entsCount = CG_AreaEntities(mn, mx, ents, 128, 0x2C0EC33);
-        close_characters_count = 0;
-        close_triggers_count = 0;
-        max_models = 256;
-        models_count = 0;
-        R_GetStaticModels(mn, mx, models, &models_count, 256);
-        skip = 1;
-        skipcounter = 1;
-
-        trace_t trace; // [esp+38Ch] [ebp-63Ch] BYREF
-        trace_t trace2; // [esp+2E0h] [ebp-6E8h] BYREF
-        for ( k = 0; k < nitems; ++k )
+        --skipcounter;
+        if ( !itemIndex || !skipcounter )
         {
-            point = items[k]->phys.origin;
-            if ( flame_debug_render && flame_debug_render->current.integer > 1 )
-            {
-                if ( is_server )
-                {
-                    genClr[0] = 0.0f;
-                    genClr[1] = 0.0f;
-                    genClr[2] = 1.0f;
-                }
-                else
-                {
-                    genClr[0] = 1.0f;
-                    genClr[1] = 0.0f;
-                    genClr[2] = 0.0f;
-                }
-                genClr[3] = 1.0f;
-                G_DebugStar(point, genClr, 3);
-            }
-            --skipcounter;
-            if ( !k || !skipcounter )
-            {
-                Flame_Phys_Collision(
-                    is_server,
-                    &trace,
-                    (flameGeneric_s *)point,
-                    &context,
-                    (unsigned __int16 (*)[2][100])dynEnts,
-                    dynEntsCount,
-                    ents,
-                    entsCount,
-                    close_characters,
-                    &close_characters_count,
-                    close_triggers,
-                    &close_triggers_count);
-                memcpy(&trace2, &trace, sizeof(trace2));
-                skipcounter = skip;
-            }
-            Flame_Phys_Collision_Response(is_server, &trace, (flameGeneric_s *)point);
-            if ( trace.fraction < 1.0 && trace.fraction > 0.0 )
-                Flame_Impact_Process(is_server, (flameGeneric_s *)point, &trace, models, models_count);
-            for ( ci = 0; ci < close_characters_count; ++ci )
-            {
-                v7 = close_characters[ci];
-                if ( !&trace2
-                    && !Assert_MyHandler(
-                                "c:\\projects_pc\\cod\\codsrc\\src\\physics\\../qcommon/cm_public.h",
-                                175,
-                                0,
-                                "%s",
-                                "trace") )
-                {
-                    __debugbreak();
-                }
-                trace2.hitType = TRACE_HITTYPE_ENTITY;
-                trace2.hitId = v7;
-                trace2.fraction = 0.0f;
-                trace2.cflags = 0x8000;
-                trace2.modelIndex = 0;
-                trace2.partName = 0;
-                trace2.partGroup = 0;
-                Flame_Impact_Process(is_server, (flameGeneric_s *)point, &trace2, models, models_count);
-            }
-            for ( ti = 0; ti < close_triggers_count; ++ti )
-            {
-                v6 = close_triggers[ti];
-                if ( !&trace2
-                    && !Assert_MyHandler(
-                                "c:\\projects_pc\\cod\\codsrc\\src\\physics\\../qcommon/cm_public.h",
-                                175,
-                                0,
-                                "%s",
-                                "trace") )
-                {
-                    __debugbreak();
-                }
-                trace2.hitType = TRACE_HITTYPE_ENTITY;
-                trace2.hitId = v6;
-                trace2.fraction = 0.0f;
-                trace2.cflags = 0x8000;
-                trace2.modelIndex = 0;
-                trace2.partName = 0;
-                trace2.partGroup = 0;
-                Flame_Impact_Process(is_server, (flameGeneric_s *)point, &trace2, models, models_count);
-            }
+            // Port fix: retail (CoDMPServer.c:706705) only zeroes close_characters once per
+            // stream batch, so players stay in the list for every later chunk and take extra
+            // proximity damage attempts. Reset each collision pass to match LOS re-check.
+            close_characters_count = 0;
+            close_triggers_count = 0;
+            Flame_Phys_Collision(
+                is_server,
+                &trace,
+                gen,
+                &context,
+                (unsigned __int16 (*)[2][100])dynEnts,
+                dynEntsCount,
+                ents,
+                entsCount,
+                close_characters,
+                &close_characters_count,
+                close_triggers,
+                &close_triggers_count);
+            memcpy(&trace2, &trace, sizeof(trace2));
+            skipcounter = skip;
+        }
+        Flame_Phys_Collision_Response(is_server, &trace, gen);
+        if ( trace.fraction < 1.0f && trace.fraction > 0.0f )
+            Flame_Impact_Process(is_server, gen, &trace, models, models_count);
+        for ( int characterIndex = 0; characterIndex < close_characters_count; ++characterIndex )
+        {
+            trace2.hitType = TRACE_HITTYPE_ENTITY;
+            trace2.hitId = close_characters[characterIndex];
+            trace2.fraction = 0.0f;
+            trace2.cflags = 0x8000;
+            trace2.modelIndex = 0;
+            trace2.partName = 0;
+            trace2.partGroup = 0;
+            Flame_Impact_Process(is_server, gen, &trace2, models, models_count);
+        }
+        for ( int triggerIndex = 0; triggerIndex < close_triggers_count; ++triggerIndex )
+        {
+            trace2.hitType = TRACE_HITTYPE_ENTITY;
+            trace2.hitId = close_triggers[triggerIndex];
+            trace2.fraction = 0.0f;
+            trace2.cflags = 0x8000;
+            trace2.modelIndex = 0;
+            trace2.partName = 0;
+            trace2.partGroup = 0;
+            Flame_Impact_Process(is_server, gen, &trace2, models, models_count);
         }
     }
 }
 
 void __cdecl Flame_Phys_Update_Item_Stream(flameGeneric_s *gen, int time)
 {
-    float v2; // [esp+0h] [ebp-1Ch]
-    float frametime; // [esp+10h] [ebp-Ch]
-    float sizeAdd; // [esp+14h] [ebp-8h]
-    float lifeFrac; // [esp+18h] [ebp-4h]
+    if ( time <= gen->age.lastUpdateTime )
+        return;
 
-    if ( time > gen->age.lastUpdateTime )
-    {
-        frametime = (float)(time - gen->age.lastUpdateTime) * 0.001;
-        gen->age.lastUpdateTime = time;
-        v2 = (float)(gen->age.lastUpdateTime - gen->age.startTime);
-        lifeFrac = Flame_CalcTimeScale(gen->age.startTime, gen->age.endTime) * v2;
-        if ( lifeFrac < 1.0 )
-        {
-            if ( (LODWORD(gen->size.rate) & 0x7F800000) == 0x7F800000
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_physics.cpp",
-                            896,
-                            0,
-                            "%s",
-                            "!IS_NAN(gen->size.rate)") )
-            {
-                __debugbreak();
-            }
-            sizeAdd = gen->size.rate * frametime;
-            gen->phys.rotation = (float)(gen->phys.rotVel * frametime) + gen->phys.rotation;
-            gen->size.current = gen->size.current + sizeAdd;
-            if ( (LODWORD(gen->size.current) & 0x7F800000) == 0x7F800000
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_physics.cpp",
-                            904,
-                            0,
-                            "%s",
-                            "!IS_NAN(gen->size.current)") )
-            {
-                __debugbreak();
-            }
-            gen->phys.newPos[0] = (float)(frametime * gen->phys.velocity[0]) + gen->phys.origin[0];
-            gen->phys.newPos[1] = (float)(frametime * gen->phys.velocity[1]) + gen->phys.origin[1];
-            gen->phys.newPos[2] = (float)(frametime * gen->phys.velocity[2]) + gen->phys.origin[2];
-        }
-    }
+    const float frametime = (float)(time - gen->age.lastUpdateTime) * 0.001f;
+    gen->age.lastUpdateTime = time;
+    const float age = (float)(gen->age.lastUpdateTime - gen->age.startTime);
+    const float lifeFrac = Flame_CalcTimeScale(gen->age.startTime, gen->age.endTime) * age;
+    if ( lifeFrac >= 1.0f )
+        return;
+
+    iassert(!IS_NAN(gen->size.rate));
+    const float sizeAdd = gen->size.rate * frametime;
+    gen->phys.rotation = gen->phys.rotVel * frametime + gen->phys.rotation;
+    gen->size.current = gen->size.current + sizeAdd;
+    iassert(!IS_NAN(gen->size.current));
+    gen->phys.newPos[0] = frametime * gen->phys.velocity[0] + gen->phys.origin[0];
+    gen->phys.newPos[1] = frametime * gen->phys.velocity[1] + gen->phys.origin[1];
+    gen->phys.newPos[2] = frametime * gen->phys.velocity[2] + gen->phys.origin[2];
 }
 
 void __cdecl Flame_Phys_Update_Item_Chunk(
@@ -1190,214 +973,126 @@ void __cdecl Flame_Phys_Update_Item_Chunk(
                 int time,
                 phys_static_array<flameGeneric_s *,1000> *flames)
 {
-    float v3; // [esp+0h] [ebp-5Ch]
-    float v4; // [esp+4h] [ebp-58h]
-    float v5; // [esp+8h] [ebp-54h]
-    float v6; // [esp+Ch] [ebp-50h]
-    flameGeneric_s **v7; // [esp+14h] [ebp-48h]
-    flameTable *vars; // [esp+34h] [ebp-28h]
-    float ageScale; // [esp+38h] [ebp-24h]
-    float frametime; // [esp+3Ch] [ebp-20h]
-    float sizeAdd; // [esp+40h] [ebp-1Ch]
-    float sizeAdda; // [esp+40h] [ebp-1Ch]
-    float gravityStart; // [esp+44h] [ebp-18h]
-    float lifeFrac; // [esp+48h] [ebp-14h]
-    float gravityEnd; // [esp+50h] [ebp-Ch]
-    float friction; // [esp+54h] [ebp-8h]
-    float speedScale; // [esp+58h] [ebp-4h]
+    if ( time <= gen->age.lastUpdateTime )
+        return;
 
-    if ( time > gen->age.lastUpdateTime )
+    flameTable *vars = gen->stream->flameVars;
+    const float gravityStart = vars->flameVar_streamChunkGravityStart;
+    const float gravityEnd = vars->flameVar_streamChunkGravityEnd;
+    const float friction = vars->flameVar_streamChunkDecel;
+    const float speedScale = vars->flameVar_streamChunkSizeSpeedScale;
+    const float ageScale = vars->flameVar_streamChunkSizeAgeScale;
+    const float frametime = (float)(time - gen->age.lastUpdateTime) * 0.001f;
+    gen->age.lastUpdateTime = time;
+    const float age = (float)(gen->age.lastUpdateTime - gen->age.startTime);
+    const float lifeFrac = Flame_CalcTimeScale(gen->age.startTime, gen->age.endTime) * age;
+    if ( lifeFrac >= 1.0f )
+        return;
+
+    iassert(!IS_NAN(gen->size.rate));
+    const float baseSizeAdd = ((1.0f - ageScale) + (2.0f * ageScale * lifeFrac)) * (gen->size.rate * frametime);
+    const float speedFactor = (1.0f - Abs(gen->phys.velocity) * gen->phys.invStartSpeed) * (2.0f * speedScale) + (1.0f - speedScale);
+    const float sizeAdd = speedFactor * baseSizeAdd;
+    float frictionScale = 1.0f - frametime * friction;
+    if ( frictionScale < 0.0f )
+        frictionScale = 0.0f;
+
+    gen->phys.rotation = gen->phys.rotVel * frametime + gen->phys.rotation;
+    gen->size.current = gen->size.current + sizeAdd;
+    iassert(!IS_NAN(gen->size.current));
+    gen->phys.velocity[0] = frictionScale * gen->phys.velocity[0];
+    gen->phys.velocity[1] = frictionScale * gen->phys.velocity[1];
+    gen->phys.velocity[2] = frictionScale * gen->phys.velocity[2];
+    gen->phys.gravity = (gravityEnd - gravityStart) * lifeFrac + gravityStart;
+    gen->phys.velocity[2] = gen->phys.velocity[2] - frametime * gen->phys.gravity;
+    gen->phys.newPos[0] = frametime * gen->phys.velocity[0] + gen->phys.origin[0];
+    gen->phys.newPos[1] = frametime * gen->phys.velocity[1] + gen->phys.origin[1];
+    gen->phys.newPos[2] = frametime * gen->phys.velocity[2] + gen->phys.origin[2];
+    if ( flames->m_alloc_count != 1000 )
     {
-        vars = gen->stream->flameVars;
-        gravityStart = vars->flameVar_streamChunkGravityStart;
-        gravityEnd = vars->flameVar_streamChunkGravityEnd;
-        friction = vars->flameVar_streamChunkDecel;
-        speedScale = vars->flameVar_streamChunkSizeSpeedScale;
-        ageScale = vars->flameVar_streamChunkSizeAgeScale;
-        frametime = (float)(time - gen->age.lastUpdateTime) * 0.001;
-        gen->age.lastUpdateTime = time;
-        v6 = (float)(gen->age.lastUpdateTime - gen->age.startTime);
-        lifeFrac = Flame_CalcTimeScale(gen->age.startTime, gen->age.endTime) * v6;
-        if ( lifeFrac < 1.0 )
-        {
-            if ( (LODWORD(gen->size.rate) & 0x7F800000) == 0x7F800000
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_physics.cpp",
-                            939,
-                            0,
-                            "%s",
-                            "!IS_NAN(gen->size.rate)") )
-            {
-                __debugbreak();
-            }
-            sizeAdd = (float)((float)(1.0 - ageScale) + (float)((float)(2.0 * ageScale) * lifeFrac))
-                            * (float)(gen->size.rate * frametime);
-            v5 = 1.0 - speedScale;
-            v4 = 2.0 * speedScale;
-            sizeAdda = ((1.0 - Vec3Length(gen->phys.velocity) * gen->phys.invStartSpeed) * v4 + v5) * sizeAdd;
-            gen->phys.rotation = (float)(gen->phys.rotVel * frametime) + gen->phys.rotation;
-            gen->size.current = gen->size.current + sizeAdda;
-            if ( (LODWORD(gen->size.current) & 0x7F800000) == 0x7F800000
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_physics.cpp",
-                            951,
-                            0,
-                            "%s",
-                            "!IS_NAN(gen->size.current)") )
-            {
-                __debugbreak();
-            }
-            if ( (float)((float)(1.0 - (float)(frametime * friction)) - 0.0) < 0.0 )
-                v3 = 0.0f;
-            else
-                v3 = 1.0 - (float)(frametime * friction);
-            gen->phys.velocity[0] = v3 * gen->phys.velocity[0];
-            gen->phys.velocity[1] = v3 * gen->phys.velocity[1];
-            gen->phys.velocity[2] = v3 * gen->phys.velocity[2];
-            gen->phys.gravity = (float)((float)(gravityEnd - gravityStart) * lifeFrac) + gravityStart;
-            gen->phys.velocity[2] = gen->phys.velocity[2] - (float)(frametime * gen->phys.gravity);
-            gen->phys.newPos[0] = (float)(frametime * gen->phys.velocity[0]) + gen->phys.origin[0];
-            gen->phys.newPos[1] = (float)(frametime * gen->phys.velocity[1]) + gen->phys.origin[1];
-            gen->phys.newPos[2] = (float)(frametime * gen->phys.velocity[2]) + gen->phys.origin[2];
-            if ( flames->m_alloc_count != 1000 )
-            {
-                v7 = flames->add(0, "phys array add overflow.");
-                *v7 = gen;
-            }
-        }
+        flameGeneric_s **slot;
+        if ( flames->m_alloc_count < 1000 )
+            slot = &flames->m_slot_array[flames->m_alloc_count++];
+        else
+            tlFatal("phys array add overflow.");
+        *slot = gen;
     }
 }
 
 void __cdecl Flame_Phys_Update_Item_Fire(flameGeneric_s *gen, int time)
 {
-    float v2; // [esp+0h] [ebp-40h]
-    float v3; // [esp+4h] [ebp-3Ch]
-    flameTable *vars; // [esp+20h] [ebp-20h]
-    float frametime; // [esp+24h] [ebp-1Ch]
-    float sizeAdd; // [esp+28h] [ebp-18h]
-    float gravityStart; // [esp+2Ch] [ebp-14h]
-    float lifeFrac; // [esp+30h] [ebp-10h]
-    float gravityEnd; // [esp+38h] [ebp-8h]
-    float friction; // [esp+3Ch] [ebp-4h]
+    if ( time <= gen->age.lastUpdateTime )
+        return;
 
-    if ( time > gen->age.lastUpdateTime )
-    {
-        vars = gen->stream->flameVars;
-        gravityStart = vars->flameVar_fireGravity;
-        gravityEnd = vars->flameVar_fireGravityEnd;
-        friction = vars->flameVar_fireFriction;
-        frametime = (float)(time - gen->age.lastUpdateTime) * 0.001;
-        gen->age.lastUpdateTime = time;
-        v3 = (float)(gen->age.lastUpdateTime - gen->age.startTime);
-        lifeFrac = Flame_CalcTimeScale(gen->age.startTime, gen->age.endTime) * v3;
-        if ( lifeFrac < 1.0 )
-        {
-            if ( (LODWORD(gen->size.rate) & 0x7F800000) == 0x7F800000
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_physics.cpp",
-                            999,
-                            0,
-                            "%s",
-                            "!IS_NAN(gen->size.rate)") )
-            {
-                __debugbreak();
-            }
-            sizeAdd = gen->size.rate * frametime;
-            gen->phys.rotation = (float)(gen->phys.rotVel * frametime) + gen->phys.rotation;
-            gen->size.current = gen->size.current + sizeAdd;
-            if ( (LODWORD(gen->size.current) & 0x7F800000) == 0x7F800000
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_physics.cpp",
-                            1007,
-                            0,
-                            "%s",
-                            "!IS_NAN(gen->size.current)") )
-            {
-                __debugbreak();
-            }
-            if ( (float)((float)(1.0 - (float)(frametime * friction)) - 0.0) < 0.0 )
-                v2 = 0.0f;
-            else
-                v2 = 1.0 - (float)(frametime * friction);
-            gen->phys.velocity[0] = v2 * gen->phys.velocity[0];
-            gen->phys.velocity[1] = v2 * gen->phys.velocity[1];
-            gen->phys.velocity[2] = v2 * gen->phys.velocity[2];
-            gen->phys.gravity = (float)((float)(gravityEnd - gravityStart) * lifeFrac) + gravityStart;
-            gen->phys.velocity[2] = gen->phys.velocity[2] - (float)(frametime * gen->phys.gravity);
-            gen->phys.newPos[0] = (float)(frametime * gen->phys.velocity[0]) + gen->phys.origin[0];
-            gen->phys.newPos[1] = (float)(frametime * gen->phys.velocity[1]) + gen->phys.origin[1];
-            gen->phys.newPos[2] = (float)(frametime * gen->phys.velocity[2]) + gen->phys.origin[2];
-            gen->phys.origin[0] = gen->phys.newPos[0];
-            gen->phys.origin[1] = gen->phys.newPos[1];
-            gen->phys.origin[2] = gen->phys.newPos[2];
-        }
-    }
+    flameTable *vars = gen->stream->flameVars;
+    const float gravityStart = vars->flameVar_fireGravity;
+    const float gravityEnd = vars->flameVar_fireGravityEnd;
+    const float friction = vars->flameVar_fireFriction;
+    const float frametime = (float)(time - gen->age.lastUpdateTime) * 0.001f;
+    gen->age.lastUpdateTime = time;
+    const float age = (float)(gen->age.lastUpdateTime - gen->age.startTime);
+    const float lifeFrac = Flame_CalcTimeScale(gen->age.startTime, gen->age.endTime) * age;
+    if ( lifeFrac >= 1.0f )
+        return;
+
+    iassert(!IS_NAN(gen->size.rate));
+    const float sizeAdd = gen->size.rate * frametime;
+    float frictionScale = 1.0f - frametime * friction;
+    if ( frictionScale < 0.0f )
+        frictionScale = 0.0f;
+
+    gen->phys.rotation = gen->phys.rotVel * frametime + gen->phys.rotation;
+    gen->size.current = gen->size.current + sizeAdd;
+    iassert(!IS_NAN(gen->size.current));
+    gen->phys.velocity[0] = frictionScale * gen->phys.velocity[0];
+    gen->phys.velocity[1] = frictionScale * gen->phys.velocity[1];
+    gen->phys.velocity[2] = frictionScale * gen->phys.velocity[2];
+    gen->phys.gravity = (gravityEnd - gravityStart) * lifeFrac + gravityStart;
+    gen->phys.velocity[2] = gen->phys.velocity[2] - frametime * gen->phys.gravity;
+    gen->phys.newPos[0] = frametime * gen->phys.velocity[0] + gen->phys.origin[0];
+    gen->phys.newPos[1] = frametime * gen->phys.velocity[1] + gen->phys.origin[1];
+    gen->phys.newPos[2] = frametime * gen->phys.velocity[2] + gen->phys.origin[2];
+    gen->phys.origin[0] = gen->phys.newPos[0];
+    gen->phys.origin[1] = gen->phys.newPos[1];
+    gen->phys.origin[2] = gen->phys.newPos[2];
 }
 
 void __cdecl Flame_Phys_Update_Item_Smoke(flameGeneric_s *gen, int time)
 {
-    float v2; // [esp+0h] [ebp-40h]
-    float v3; // [esp+4h] [ebp-3Ch]
-    flameTable *vars; // [esp+20h] [ebp-20h]
-    float frametime; // [esp+24h] [ebp-1Ch]
-    float sizeAdd; // [esp+28h] [ebp-18h]
-    float gravityStart; // [esp+2Ch] [ebp-14h]
-    float lifeFrac; // [esp+30h] [ebp-10h]
-    float gravityEnd; // [esp+38h] [ebp-8h]
-    float friction; // [esp+3Ch] [ebp-4h]
+    if ( time <= gen->age.lastUpdateTime )
+        return;
 
-    if ( time > gen->age.lastUpdateTime )
-    {
-        vars = gen->stream->flameVars;
-        gravityStart = vars->flameVar_smokeGravity;
-        gravityEnd = vars->flameVar_smokeGravityEnd;
-        friction = vars->flameVar_smokeFriction;
-        frametime = (float)(time - gen->age.lastUpdateTime) * 0.001;
-        gen->age.lastUpdateTime = time;
-        v3 = (float)(gen->age.lastUpdateTime - gen->age.startTime);
-        lifeFrac = Flame_CalcTimeScale(gen->age.startTime, gen->age.endTime) * v3;
-        if ( lifeFrac < 1.0 )
-        {
-            if ( (LODWORD(gen->size.rate) & 0x7F800000) == 0x7F800000
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_physics.cpp",
-                            1051,
-                            0,
-                            "%s",
-                            "!IS_NAN(gen->size.rate)") )
-            {
-                __debugbreak();
-            }
-            sizeAdd = gen->size.rate * frametime;
-            gen->phys.rotation = (float)(gen->phys.rotVel * frametime) + gen->phys.rotation;
-            gen->size.current = gen->size.current + sizeAdd;
-            if ( (LODWORD(gen->size.current) & 0x7F800000) == 0x7F800000
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_physics.cpp",
-                            1059,
-                            0,
-                            "%s",
-                            "!IS_NAN(gen->size.current)") )
-            {
-                __debugbreak();
-            }
-            if ( (float)((float)(1.0 - (float)(frametime * friction)) - 0.0) < 0.0 )
-                v2 = 0.0f;
-            else
-                v2 = 1.0 - (float)(frametime * friction);
-            gen->phys.velocity[0] = v2 * gen->phys.velocity[0];
-            gen->phys.velocity[1] = v2 * gen->phys.velocity[1];
-            gen->phys.velocity[2] = v2 * gen->phys.velocity[2];
-            gen->phys.gravity = (float)((float)(gravityEnd - gravityStart) * lifeFrac) + gravityStart;
-            gen->phys.velocity[2] = gen->phys.velocity[2] - (float)(frametime * gen->phys.gravity);
-            gen->phys.newPos[0] = (float)(frametime * gen->phys.velocity[0]) + gen->phys.origin[0];
-            gen->phys.newPos[1] = (float)(frametime * gen->phys.velocity[1]) + gen->phys.origin[1];
-            gen->phys.newPos[2] = (float)(frametime * gen->phys.velocity[2]) + gen->phys.origin[2];
-            gen->phys.origin[0] = gen->phys.newPos[0];
-            gen->phys.origin[1] = gen->phys.newPos[1];
-            gen->phys.origin[2] = gen->phys.newPos[2];
-        }
-    }
+    flameTable *vars = gen->stream->flameVars;
+    const float gravityStart = vars->flameVar_smokeGravity;
+    const float gravityEnd = vars->flameVar_smokeGravityEnd;
+    const float friction = vars->flameVar_smokeFriction;
+    const float frametime = (float)(time - gen->age.lastUpdateTime) * 0.001f;
+    gen->age.lastUpdateTime = time;
+    const float age = (float)(gen->age.lastUpdateTime - gen->age.startTime);
+    const float lifeFrac = Flame_CalcTimeScale(gen->age.startTime, gen->age.endTime) * age;
+    if ( lifeFrac >= 1.0f )
+        return;
+
+    iassert(!IS_NAN(gen->size.rate));
+    const float sizeAdd = gen->size.rate * frametime;
+    float frictionScale = 1.0f - frametime * friction;
+    if ( frictionScale < 0.0f )
+        frictionScale = 0.0f;
+
+    gen->phys.rotation = gen->phys.rotVel * frametime + gen->phys.rotation;
+    gen->size.current = gen->size.current + sizeAdd;
+    iassert(!IS_NAN(gen->size.current));
+    gen->phys.velocity[0] = frictionScale * gen->phys.velocity[0];
+    gen->phys.velocity[1] = frictionScale * gen->phys.velocity[1];
+    gen->phys.velocity[2] = frictionScale * gen->phys.velocity[2];
+    gen->phys.gravity = (gravityEnd - gravityStart) * lifeFrac + gravityStart;
+    gen->phys.velocity[2] = gen->phys.velocity[2] - frametime * gen->phys.gravity;
+    gen->phys.newPos[0] = frametime * gen->phys.velocity[0] + gen->phys.origin[0];
+    gen->phys.newPos[1] = frametime * gen->phys.velocity[1] + gen->phys.origin[1];
+    gen->phys.newPos[2] = frametime * gen->phys.velocity[2] + gen->phys.origin[2];
+    gen->phys.origin[0] = gen->phys.newPos[0];
+    gen->phys.origin[1] = gen->phys.newPos[1];
+    gen->phys.origin[2] = gen->phys.newPos[2];
 }
 
 void __cdecl Flame_Phys_Update_Item_Drip(
@@ -1405,69 +1100,44 @@ void __cdecl Flame_Phys_Update_Item_Drip(
                 int time,
                 phys_static_array<flameGeneric_s *,1000> *flames)
 {
-    float v3; // [esp+0h] [ebp-48h]
-    float v4; // [esp+4h] [ebp-44h]
-    flameGeneric_s **v5; // [esp+Ch] [ebp-3Ch]
-    flameTable *vars; // [esp+28h] [ebp-20h]
-    float frametime; // [esp+2Ch] [ebp-1Ch]
-    float sizeAdd; // [esp+30h] [ebp-18h]
-    float gravityStart; // [esp+34h] [ebp-14h]
-    float lifeFrac; // [esp+38h] [ebp-10h]
-    float gravityEnd; // [esp+40h] [ebp-8h]
-    float friction; // [esp+44h] [ebp-4h]
+    if ( time <= gen->age.lastUpdateTime )
+        return;
 
-    if ( time > gen->age.lastUpdateTime )
+    flameTable *vars = gen->stream->flameVars;
+    const float gravityStart = vars->flameVar_dripsGravity;
+    const float gravityEnd = vars->flameVar_dripsGravityEnd;
+    const float friction = vars->flameVar_dripsFriction;
+    const float frametime = (float)(time - gen->age.lastUpdateTime) * 0.001f;
+    gen->age.lastUpdateTime = time;
+    const float age = (float)(gen->age.lastUpdateTime - gen->age.startTime);
+    const float lifeFrac = Flame_CalcTimeScale(gen->age.startTime, gen->age.endTime) * age;
+    if ( lifeFrac >= 1.0f )
+        return;
+
+    iassert(!IS_NAN(gen->size.rate));
+    const float sizeAdd = gen->size.rate * frametime;
+    float frictionScale = 1.0f - frametime * friction;
+    if ( frictionScale < 0.0f )
+        frictionScale = 0.0f;
+
+    gen->phys.rotation = gen->phys.rotVel * frametime + gen->phys.rotation;
+    gen->size.current = gen->size.current + sizeAdd;
+    iassert(!IS_NAN(gen->size.current));
+    gen->phys.velocity[0] = frictionScale * gen->phys.velocity[0];
+    gen->phys.velocity[1] = frictionScale * gen->phys.velocity[1];
+    gen->phys.velocity[2] = frictionScale * gen->phys.velocity[2];
+    gen->phys.gravity = (gravityEnd - gravityStart) * lifeFrac + gravityStart;
+    gen->phys.velocity[2] = gen->phys.velocity[2] - frametime * gen->phys.gravity;
+    gen->phys.newPos[0] = frametime * gen->phys.velocity[0] + gen->phys.origin[0];
+    gen->phys.newPos[1] = frametime * gen->phys.velocity[1] + gen->phys.origin[1];
+    gen->phys.newPos[2] = frametime * gen->phys.velocity[2] + gen->phys.origin[2];
+    if ( flames->m_alloc_count != 1000 )
     {
-        vars = gen->stream->flameVars;
-        gravityStart = vars->flameVar_dripsGravity;
-        gravityEnd = vars->flameVar_dripsGravityEnd;
-        friction = vars->flameVar_dripsFriction;
-        frametime = (float)(time - gen->age.lastUpdateTime) * 0.001;
-        gen->age.lastUpdateTime = time;
-        v4 = (float)(gen->age.lastUpdateTime - gen->age.startTime);
-        lifeFrac = Flame_CalcTimeScale(gen->age.startTime, gen->age.endTime) * v4;
-        if ( lifeFrac < 1.0 )
-        {
-            if ( (LODWORD(gen->size.rate) & 0x7F800000) == 0x7F800000
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_physics.cpp",
-                            1103,
-                            0,
-                            "%s",
-                            "!IS_NAN(gen->size.rate)") )
-            {
-                __debugbreak();
-            }
-            sizeAdd = gen->size.rate * frametime;
-            gen->phys.rotation = (float)(gen->phys.rotVel * frametime) + gen->phys.rotation;
-            gen->size.current = gen->size.current + sizeAdd;
-            if ( (LODWORD(gen->size.current) & 0x7F800000) == 0x7F800000
-                && !Assert_MyHandler(
-                            "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_physics.cpp",
-                            1111,
-                            0,
-                            "%s",
-                            "!IS_NAN(gen->size.current)") )
-            {
-                __debugbreak();
-            }
-            if ( (float)((float)(1.0 - (float)(frametime * friction)) - 0.0) < 0.0 )
-                v3 = 0.0f;
-            else
-                v3 = 1.0 - (float)(frametime * friction);
-            gen->phys.velocity[0] = v3 * gen->phys.velocity[0];
-            gen->phys.velocity[1] = v3 * gen->phys.velocity[1];
-            gen->phys.velocity[2] = v3 * gen->phys.velocity[2];
-            gen->phys.gravity = (float)((float)(gravityEnd - gravityStart) * lifeFrac) + gravityStart;
-            gen->phys.velocity[2] = gen->phys.velocity[2] - (float)(frametime * gen->phys.gravity);
-            gen->phys.newPos[0] = (float)(frametime * gen->phys.velocity[0]) + gen->phys.origin[0];
-            gen->phys.newPos[1] = (float)(frametime * gen->phys.velocity[1]) + gen->phys.origin[1];
-            gen->phys.newPos[2] = (float)(frametime * gen->phys.velocity[2]) + gen->phys.origin[2];
-            if ( flames->m_alloc_count != 1000 )
-            {
-                v5 = flames->add(0, "phys array add overflow.");
-                *v5 = gen;
-            }
-        }
+        flameGeneric_s **slot;
+        if ( flames->m_alloc_count < 1000 )
+            slot = &flames->m_slot_array[flames->m_alloc_count++];
+        else
+            tlFatal("phys array add overflow.");
+        *slot = gen;
     }
 }

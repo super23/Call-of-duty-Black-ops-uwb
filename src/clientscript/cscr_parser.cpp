@@ -10,6 +10,7 @@
 #include <universal/q_shared.h>
 #include <zlib/zlib.h>
 #include <qcommon/common.h>
+#include <qcommon/com_sp_map_mp.h>
 #include <monkey/monkey.h>
 #include "cscr_parsetree.h"
 #include "cscr_stringlist.h"
@@ -1202,8 +1203,13 @@ char *__cdecl Scr_ReadFile_FastFile(
     }
     else
     {
+#if KISAK_MP_SP_MAP_SUPPORT
+        // Changed-For-SP-Map: SP campaign scripts are often load_obj on disk, not in the map fastfile.
+        return Scr_ReadFile_LoadObj(inst, filename, (char *)extFilename, codePos, archive);
+#else
         Scr_AddSourceBufferInternal(inst, extFilename, codePos, 0, -1, 1, archive);
         return 0;
+#endif
     }
 }
 
@@ -1890,6 +1896,11 @@ void __cdecl RuntimeError(
         if (abort_on_error)
         {
         error:
+            // KISAK / LinkerMod: scr_suppressErrors — after RuntimeErrorInternal prints the callstack, skip Com_Error.
+            // Source: LinkerMod-development/components/game_mod/cscr_parser.cpp (scr_suppressErrors dvar).
+            // Revert: remove this if-block and scr_suppressErrors registration in cscr_vm.cpp.
+            if (scr_suppressErrors && scr_suppressErrors->current.enabled)
+                return;
             if (gScrVmPub[inst].terminal_error)
                 Scr_IgnoreLeaks(inst);
             Monkey_Error(0);

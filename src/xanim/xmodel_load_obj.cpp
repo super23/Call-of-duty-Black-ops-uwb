@@ -693,7 +693,7 @@ void __cdecl XModelLoadCollData(
                 v24 = *(float *)*pos;
                 *pos += 4;
                 plane[3] = v24;
-                v23 = Vec3Length(plane) - 1.0;
+                v23 = Abs(plane) - 1.0;
                 if ( fabs(v23) >= 0.0099999998
                     && !Assert_MyHandler(
                                 "C:\\projects_pc\\cod\\codsrc\\src\\xanim\\xmodel_load_obj.cpp",

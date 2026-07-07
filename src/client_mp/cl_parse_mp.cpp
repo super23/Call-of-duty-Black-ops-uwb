@@ -246,80 +246,71 @@ void __cdecl CL_ServerIdChanged(int localClientNum)
 
 void __cdecl CL_SystemInfoChanged(int localClientNum)
 {
-    const char *v1; // eax
-    const char *v2; // eax
-    const char *String; // eax
-    char *v4; // eax
-    char *t; // [esp+4h] [ebp-24h]
-    char *ta; // [esp+4h] [ebp-24h]
-    LargeLocal value_large_local(0x2000); // [esp+8h] [ebp-20h] BYREF
-    const char *systemInfo; // [esp+10h] [ebp-18h]
-    char (*key)[8192]; // [esp+14h] [ebp-14h]
-    LargeLocal key_large_local(0x2000); // [esp+18h] [ebp-10h] BYREF
-    const char *s; // [esp+20h] [ebp-8h] BYREF
-    char (*value)[8192]; // [esp+24h] [ebp-4h]
+    LargeLocal keyBuf(0x2000);
+    LargeLocal valueBuf(0x2000);
+    char (*key)[8192];
+    char (*value)[8192];
+    const char *systemInfo;
+    const char *pairKey;
+    const char *fsGame;
+    const char *referencedIwdNames;
+    const char *referencedFFNames;
 
-    //LargeLocal::LargeLocal(&key_large_local, 0x2000);
-    key = (char (*)[8192])key_large_local.GetBuf(); // LargeLocal::GetBuf(&key_large_local);
-    //LargeLocal::LargeLocal(&value_large_local, 0x2000);
-    value = (char (*)[8192])value_large_local.GetBuf(); // LargeLocal::GetBuf(&value_large_local);
+    key = (char (*)[8192])keyBuf.GetBuf();
+    value = (char (*)[8192])valueBuf.GetBuf();
     systemInfo = CL_GetConfigString(1u);
+
     if ( CL_GetLocalClientConnection(localClientNum)->demoplaying )
     {
-        s = Info_ValueForKey((char *)systemInfo, (char*)"fs_game");
-        if ( *s && (v1 = Dvar_GetString("fs_game"), I_strcmp(s, v1)) )
-        {
-            v2 = va("PATCH_LOADMOD_DEMO", s);
-            Com_Error(ERR_DROP, v2);
-        }
-        else
-        {
-            String = Dvar_GetString("fs_game");
-            if ( I_strcmp(s, String) )
-                Dvar_SetStringByName("fs_game", (char *)s);
-        }
-        goto LABEL_9;
+        fsGame = Info_ValueForKey((char *)systemInfo, "fs_game");
+        if ( *fsGame && I_strcmp(fsGame, Dvar_GetString("fs_game")) )
+            Com_Error(ERR_DROP, va("PATCH_LOADMOD_DEMO", fsGame));
+        else if ( I_strcmp(fsGame, Dvar_GetString("fs_game")) )
+            Dvar_SetStringByName("fs_game", (char *)fsGame);
     }
-    if ( Demo_IsPlaying() )
+    else if ( Demo_IsPlaying() )
     {
-LABEL_9:
-        //LargeLocal::~LargeLocal(&value_large_local);
-        //LargeLocal::~LargeLocal(&key_large_local);
         return;
     }
-    if ( !com_sv_running->current.enabled && CL_GetLocalClientConnectionState(localClientNum) < 10 )
+    else
     {
-        s = Info_ValueForKey((char *)systemInfo, "sv_cheats");
-        if ( !atoi(s) )
+        if ( !com_sv_running->current.enabled && CL_GetLocalClientConnectionState(localClientNum) < 10 )
         {
-            Dvar_SetCheatState();
-            UI_Gametype_CustomGameModeDataToDvars();
+            pairKey = Info_ValueForKey((char *)systemInfo, "sv_cheats");
+            if ( !atoi(pairKey) )
+            {
+                Dvar_SetCheatState();
+                UI_Gametype_CustomGameModeDataToDvars();
+            }
         }
-    }
-    s = Info_ValueForKey((char *)systemInfo, "sv_iwds");
-    t = Info_ValueForKey((char *)systemInfo, "sv_iwdNames");
-    if ( FS_PureServerSetLoadedIwds((char *)s, t) )
-        cls.doVidRestart = 1;
-    s = Info_ValueForKey((char *)systemInfo, "sv_referencedIwds");
-    v4 = Info_ValueForKey((char *)systemInfo, "sv_referencedIwdNames");
-    FS_ServerSetReferencedIwds(s, v4);
-    s = Info_ValueForKey((char *)systemInfo, "sv_referencedFFCheckSums");
-    ta = Info_ValueForKey((char *)systemInfo, "sv_referencedFFNames");
-    FS_ServerSetReferencedFFs(s, ta);
-    if ( !com_sv_running->current.enabled )
-    {
-        s = systemInfo;
-        while ( s )
+
+        pairKey = Info_ValueForKey((char *)systemInfo, "sv_iwds");
+        referencedIwdNames = Info_ValueForKey((char *)systemInfo, "sv_iwdNames");
+        if ( FS_PureServerSetLoadedIwds((char *)pairKey, (char *)referencedIwdNames) )
+            cls.doVidRestart = 1;
+
+        pairKey = Info_ValueForKey((char *)systemInfo, "sv_referencedIwds");
+        referencedIwdNames = Info_ValueForKey((char *)systemInfo, "sv_referencedIwdNames");
+        FS_ServerSetReferencedIwds(pairKey, referencedIwdNames);
+
+        pairKey = Info_ValueForKey((char *)systemInfo, "sv_referencedFFCheckSums");
+        referencedFFNames = Info_ValueForKey((char *)systemInfo, "sv_referencedFFNames");
+        FS_ServerSetReferencedFFs(pairKey, referencedFFNames);
+
+        if ( !com_sv_running->current.enabled )
         {
-            Info_NextPair(&s, (char *)key, (char *)value);
-            if ( !*(_BYTE *)key )
-                break;
-            Dvar_SetFromStringByName((const char *)key, (char *)value);
+            pairKey = systemInfo;
+            while ( pairKey )
+            {
+                Info_NextPair(&pairKey, (char *)key, (char *)value);
+                if ( !*(_BYTE *)key )
+                    break;
+                Dvar_SetFromStringByName((const char *)key, (char *)value);
+            }
         }
+
+        cl_connectedToPureServer = Dvar_GetBool("sv_pure");
     }
-    cl_connectedToPureServer = Dvar_GetBool("sv_pure");
-    //LargeLocal::~LargeLocal(&value_large_local);
-    //LargeLocal::~LargeLocal(&key_large_local);
 }
 
 void __cdecl CL_ParseMapCenter()

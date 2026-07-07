@@ -170,7 +170,7 @@ void __cdecl MovieCameraMove(int localClientNum, usercmd_s *cmd)
     else
     {
 LABEL_6:
-        speed = Vec3Length(cgameGlob->movieCameraVelocity);
+        speed = Abs(cgameGlob->movieCameraVelocity);
         if ( speed >= 1.0 )
         {
             drop = 0.0f;
@@ -327,6 +327,7 @@ void __cdecl CG_PredictPlayerState(int localClientNum)
     float *trBase; // [esp+2Ch] [ebp-B4h]
     float v5; // [esp+34h] [ebp-ACh]
     float v6; // [esp+38h] [ebp-A8h]
+    float *v7; // [esp+48h] [ebp-98h]
     float absAxis[3][3]; // [esp+54h] [ebp-8Ch] BYREF
     centity_s *vehicle; // [esp+78h] [ebp-68h]
     float original_angles[3]; // [esp+7Ch] [ebp-64h]
@@ -352,7 +353,10 @@ void __cdecl CG_PredictPlayerState(int localClientNum)
     CG_PredictPlayerState_Internal(localClientNum);
     Entity = CG_GetEntity(localClientNum, ps->clientNum);
     playerEnt = Entity;
-    Vec3Copy(ps->origin, Entity->pose.origin);
+    v7 = ps->origin;
+    Entity->pose.origin[0] = ps->origin[0];
+    Entity->pose.origin[1] = v7[1];
+    Entity->pose.origin[2] = v7[2];
     BG_EvaluateTrajectory(&playerEnt->currentState.apos, cgameGlob->time, playerEnt->pose.angles);
     weapDef = BG_GetWeaponDef(ps->weapon);
     if ( (cgameGlob->nextSnap->ps.otherFlags & 4) != 0 && CG_GetWeapReticleZoom(cgameGlob, &fZoom) )
@@ -619,7 +623,7 @@ void __cdecl CG_PredictPlayerState_Internal(int localClientNum)
                             delta[0] = cgameGlob->oldOrigin[0] - adjusted[0];
                             delta[1] = cgameGlob->oldOrigin[1] - adjusted[1];
                             delta[2] = cgameGlob->oldOrigin[2] - adjusted[2];
-                            len = Vec3Length(delta);
+                            len = Abs(delta);
                             if (len > 0.1)
                             {
                                 if (cg_showmiss->current.integer)

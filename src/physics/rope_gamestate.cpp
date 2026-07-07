@@ -1,5 +1,9 @@
 #include "rope_gamestate.h"
+#ifdef KISAK_SP
+#include <game/g_main.h>
+#else
 #include <game_mp/g_main_mp.h>
+#endif
 #include <qcommon/cm_load.h>
 #include <DynEntity/DynEntity_client.h>
 #include "physconstraints_load_obj.h"

@@ -4,17 +4,24 @@
 #include <cstring>
 #include <universal/com_files.h>
 #include <universal/com_shared.h>
+#ifdef KISAK_SP
+#include <server_sp/sv_init_sp.h>
+#include <cgame_sp/cg_main_sp.h>
+#else
 #include <server_mp/sv_init_mp.h>
+#include <cgame_mp/cg_main_mp.h>
+#endif
 #include <stringed/stringed_hooks.h>
 #include <win32/win_shared.h>
 #include <DW/dwUtils_pc.h>
 #include <live/live_win.h>
-#include <cgame_mp/cg_main_mp.h>
 #include <client/splitscreen.h>
 #include <live/live_pcache.h>
 #include <live/live_steam.h>
 #include <live/live_pcache_profile.h>
 #include <bgame/bg_emblems.h>
+#include <live/live_stats.h>
+#include <qcommon/com_clients.h>
 
 char info1[1024];
 char info2[16384];
@@ -594,20 +601,45 @@ void __cdecl Com_DvarDump(int channel, const char *match)
     DvarDumpInfo dumpInfo; // [esp+0h] [ebp-94h] BYREF
     char summary[132]; // [esp+Ch] [ebp-88h] BYREF
 
-    if ( channel != 6 || com_logfile && com_logfile->current.integer )
+    // Retail T5 unconditionally dumps every dvar to channel 6 (logfile-only)
+    // three times during a typical startup+map load: at the end of
+    // Common_Init, inside CL_StartHunkUsers, and inside SV_InitGameVM.
+    // With ~2700 dvars per dump that's ~8000 synchronous Com_PrintMessage
+    // calls (each taking a console critsec + a logfile fwrite + a Tracy
+    // event in debug builds), which adds several seconds to every load.
+    // Suppress the automatic file-only dumps unless explicitly requested
+    // via the `com_dumpStartupDvars` dvar; manual `dvarDump` / `dvarDump_re`
+    // commands use channel 0 and remain unaffected.
+    if ( channel == 6 )
     {
-        Com_PrintMessage(channel, (char*)"=============================== DVAR DUMP ========================================\n", 0);
-        dumpInfo.count = 0;
-        dumpInfo.channel = channel;
-        dumpInfo.match = match;
-        Dvar_ForEach(Com_DvarDumpSingle, &dumpInfo);
-        Com_sprintf(summary, 0x80u, "\n%i total dvars\n%i dvar indexes\n", dumpInfo.count, dvarCount);
-        Com_PrintMessage(channel, summary, 0);
-        Com_PrintMessage(
-            channel,
-            (char*)"=============================== END DVAR DUMP =====================================\n",
-            0);
+        if ( !com_logfile || !com_logfile->current.integer )
+            return;
+        static const dvar_s *com_dumpStartupDvars = NULL;
+        if ( !com_dumpStartupDvars )
+        {
+            com_dumpStartupDvars = _Dvar_RegisterBool(
+                "com_dumpStartupDvars",
+                0,
+                0,
+                "Dump every dvar to console_mp.log at Common_Init, "
+                "CL_StartHunkUsers, and SV_InitGameVM (retail T5 default behavior). "
+                "Off by default for faster loads.");
+        }
+        if ( !com_dumpStartupDvars->current.enabled )
+            return;
     }
+
+    Com_PrintMessage(channel, (char*)"=============================== DVAR DUMP ========================================\n", 0);
+    dumpInfo.count = 0;
+    dumpInfo.channel = channel;
+    dumpInfo.match = match;
+    Dvar_ForEach(Com_DvarDumpSingle, &dumpInfo);
+    Com_sprintf(summary, 0x80u, "\n%i total dvars\n%i dvar indexes\n", dumpInfo.count, dvarCount);
+    Com_PrintMessage(channel, summary, 0);
+    Com_PrintMessage(
+        channel,
+        (char*)"=============================== END DVAR DUMP =====================================\n",
+        0);
 }
 
 void __cdecl Com_DvarDumpSingle(const dvar_s *dvar, void *userData)
@@ -737,6 +769,30 @@ char *__cdecl Dvar_InfoString(int localClientNum, int bit)
         }
         v6 = va("%i", clc->qport);
         Info_SetValueForKey(info1, (char *)"qport", v6);
+        {
+            int controllerIndex;
+            int rk;
+            int pr;
+
+            controllerIndex = Com_LocalClient_GetControllerIndex(localClientNum);
+            if ( controllerIndex >= 0 && g_statsDDL )
+            {
+                rk = LiveStats_GetRank(controllerIndex);
+                pr = LiveStats_GetPrestige(controllerIndex);
+                if ( rk < 0 )
+                    rk = 0;
+                if ( rk > 998 )
+                    rk = 998;
+                if ( pr < 0 )
+                    pr = 0;
+                if ( pr > 255 )
+                    pr = 255;
+                Com_sprintf(temp64buff, sizeof(temp64buff), "%i", rk);
+                Info_SetValueForKey(info1, (char *)"rank", temp64buff);
+                Com_sprintf(temp64buff, sizeof(temp64buff), "%i", pr);
+                Info_SetValueForKey(info1, (char *)"prestige", temp64buff);
+            }
+        }
 #ifdef KISAK_LIVE_SERVICE
         bdTrulyRandomImpl *Instance; // eax
         bdTrulyRandomImpl *v9; // eax
@@ -1009,30 +1065,28 @@ void __cdecl Dvar_RegisterColor_f()
 
 void __cdecl Dvar_SetFromLocalizedStr_f()
 {
-    const char *v0; // eax
-    const char *v1; // eax
-    char combined; // [esp+24h] [ebp-1010h] BYREF
-    char pszInputBuffer[4099]; // [esp+25h] [ebp-100Fh] BYREF
-    char *dvarName; // [esp+102Ch] [ebp-8h]
-    char *src; // [esp+1030h] [ebp-4h]
+    const char *v0;
+    const char *src;
+    char combined[4096];
+    char *dvarName;
 
     if ( Cmd_Argc() >= 3 )
     {
         dvarName = (char *)Cmd_Argv(1);
         if ( Dvar_IsValidName(dvarName) )
         {
-            Dvar_GetCombinedString(&combined, 2);
-            if ( combined == 64 )
+            // IDA mis-decoded this as a single `char combined` plus a separate
+            // 4099-byte buffer. Dvar_GetCombinedString writes up to 4096 bytes
+            // — the old layout corrupted the stack (RTC: "combined").
+            Dvar_GetCombinedString(combined, 2);
+            // '@' (64): treat the combined args as a localization token / key.
+            if ( combined[0] == '@' )
             {
-                src = SEH_LocalizeTextMessage(pszInputBuffer, "dvar string", LOCMSG_NOERR);
-                if ( src )
-                {
-                    if ( *src )
-                        I_strncpyz(&combined, src, 4096);
-                }
+                src = SEH_LocalizeTextMessage(combined, "dvar string", LOCMSG_NOERR);
+                if ( src && *src )
+                    I_strncpyz(combined, src, sizeof(combined));
             }
-            v1 = Cmd_Argv(1);
-            Dvar_SetCommand(v1, &combined);
+            Dvar_SetCommand(dvarName, combined);
         }
         else
         {

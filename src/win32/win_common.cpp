@@ -9,7 +9,7 @@
 char cwd[256];
 char exePath[256];
 
-_RTL_CRITICAL_SECTION s_criticalSection[75];
+_RTL_CRITICAL_SECTION s_criticalSection[76];
 
 void __cdecl Sys_Mkdir(const char *path)
 {
@@ -235,7 +235,7 @@ void __cdecl Sys_InitializeCriticalSections()
     if ( !inited_1 )
     {
         inited_1 = 1;
-        for ( critSect = 0; critSect < 75; ++critSect )
+        for ( critSect = 0; critSect < (int)CRITSECT_COUNT; ++critSect )
             InitializeCriticalSection(&s_criticalSection[critSect]);
     }
 }
@@ -249,7 +249,7 @@ void __cdecl Sys_EnterCriticalSection(CriticalSection critSect)
                     0,
                     "critSect doesn't index CRITSECT_COUNT\n\t%i not in [0, %i)",
                     critSect,
-                    75) )
+                    (int)CRITSECT_COUNT) )
     {
         __debugbreak();
     }
@@ -265,7 +265,7 @@ bool __cdecl Sys_TryEnterCriticalSection(CriticalSection critSect)
                     0,
                     "critSect doesn't index CRITSECT_COUNT\n\t%i not in [0, %i)",
                     critSect,
-                    75) )
+                    (int)CRITSECT_COUNT) )
     {
         __debugbreak();
     }
@@ -281,7 +281,7 @@ void __cdecl Sys_LeaveCriticalSection(CriticalSection critSect)
                     0,
                     "critSect doesn't index CRITSECT_COUNT\n\t%i not in [0, %i)",
                     critSect,
-                    75) )
+                    (int)CRITSECT_COUNT) )
     {
         __debugbreak();
     }

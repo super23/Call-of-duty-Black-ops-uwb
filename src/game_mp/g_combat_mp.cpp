@@ -75,13 +75,14 @@ const char *g_HitLocNames[19] =
 unsigned __int16 g_HitLocConstNames[19];
 float g_fHitLocDamageMult[19];
 
+// Decomp: CoDMPServer.c:384519
 void __cdecl G_ParseHitLocDmgTable()
 {
-    unsigned __int16 v0; // ax
-    char *pszBuffer; // [esp+4h] [ebp-40F4h]
-    cspField_t pFieldList[19]; // [esp+8h] [ebp-40F0h] BYREF
-    char loadBuffer[16384]; // [esp+F0h] [ebp-4008h] BYREF
-    int i; // [esp+40F4h] [ebp-4h]
+    unsigned __int16 tmp0; // ax
+    char *pszBuffer;
+    cspField_t pFieldList[19];
+    char loadBuffer[16384];
+    int i;
 
     for (i = 0; i < 19; ++i)
     {
@@ -89,8 +90,8 @@ void __cdecl G_ParseHitLocDmgTable()
         pFieldList[i].szName = g_HitLocNames[i];
         pFieldList[i].iOffset = 4 * i;
         pFieldList[i].iFieldType = 7;
-        v0 = Scr_AllocString((char *)g_HitLocNames[i], 1, SCRIPTINSTANCE_SERVER);
-        g_HitLocConstNames[i] = v0;
+        tmp0 = Scr_AllocString((char *)g_HitLocNames[i], 1, SCRIPTINSTANCE_SERVER);
+        g_HitLocConstNames[i] = tmp0;
     }
     g_fHitLocDamageMult[18] = 0.0f;
     pszBuffer = Com_LoadInfoString((char*)"info/mp_lochit_dmgtable", "hitloc damage table", "LOCDMGTABLE", loadBuffer);
@@ -105,9 +106,10 @@ void __cdecl G_ParseHitLocDmgTable()
         Com_Error(ERR_DROP, "Error parsing hitloc damage table %s", "info/mp_lochit_dmgtable");
 }
 
+// Decomp: CoDMPServer.c:384562
 void __cdecl LookAtKiller(gentity_s *self, gentity_s *inflictor, gentity_s *attacker)
 {
-    float dir[3]; // [esp+10h] [ebp-18h] BYREF
+    float dir[3];
 
     if ( attacker && attacker != self )
     {
@@ -134,12 +136,13 @@ LABEL_11:
     self->client->ps.stats[1] = (int)self->r.currentAngles[1];
 }
 
+// Decomp: CoDMPServer.c:384601
 int __cdecl G_MeansOfDeathFromScriptParam(unsigned int scrParam)
 {
-    char *v2; // eax
-    const char *v3; // eax
-    unsigned __int16 modName; // [esp+0h] [ebp-8h]
-    int i; // [esp+4h] [ebp-4h]
+    char *slStr;
+    const char *fmtMsg;
+    unsigned __int16 modName;
+    int i;
 
     modName = (unsigned __int16)Scr_GetConstString(scrParam, SCRIPTINSTANCE_SERVER);
     for ( i = 0; i < 21; ++i )
@@ -147,12 +150,13 @@ int __cdecl G_MeansOfDeathFromScriptParam(unsigned int scrParam)
         if ( *modNames[i] == modName )
             return i;
     }
-    v2 = SL_ConvertToString(modName, SCRIPTINSTANCE_SERVER);
-    v3 = va("Unknown means of death \"%s\"\n", v2);
-    Scr_ParamError(scrParam, v3, SCRIPTINSTANCE_SERVER);
+    slStr = SL_ConvertToString(modName, SCRIPTINSTANCE_SERVER);
+    fmtMsg = va("Unknown means of death \"%s\"\n", slStr);
+    Scr_ParamError(scrParam, fmtMsg, SCRIPTINSTANCE_SERVER);
     return 0;
 }
 
+// Decomp: CoDMPServer.c:384621
 void __cdecl player_die(
                 gentity_s *self,
                 gentity_s *inflictor,
@@ -164,15 +168,14 @@ void __cdecl player_die(
                 const hitLocation_t hitLoc,
                 int psTimeOffset)
 {
-    float *viewangles; // [esp+4h] [ebp-2Ch]
-    float *velocity; // [esp+Ch] [ebp-24h]
-    gentity_s *turret; // [esp+14h] [ebp-1Ch]
-    const char *weaponName; // [esp+18h] [ebp-18h]
-    int deathAnimDuration; // [esp+1Ch] [ebp-14h]
-    int i; // [esp+24h] [ebp-Ch]
-    const WeaponDef *weapDef; // [esp+28h] [ebp-8h]
-    unsigned int isFlared; // [esp+2Ch] [ebp-4h]
-    int savedregs; // [esp+30h] [ebp+0h] BYREF
+    float *viewangles;
+    float *velocity;
+    gentity_s *turret;
+    const char *weaponName;
+    int deathAnimDuration;
+    int i;
+    const WeaponDef *weapDef;
+    unsigned int isFlared;
 
     SV_CheckThread();
     if ( !self->client
@@ -335,26 +338,32 @@ void __cdecl player_die(
     }
 }
 
+// Decomp: CoDMPServer.c:384821
 void __cdecl DeathGrenadeDrop(gentity_s *self)
 {
-    unsigned __int8 PlayerWeaponModel; // al
-    unsigned __int8 v2; // al
-    gentity_s *v3; // edx
-    int grenadeTimeLeft; // [esp-4h] [ebp-5Ch]
-    int fuseTime; // [esp-4h] [ebp-5Ch]
-    const WeaponDef *weapDef2; // [esp+34h] [ebp-24h]
-    unsigned int grenadeWeaponIndex; // [esp+38h] [ebp-20h]
-    int grenadeWeaponIndexa; // [esp+38h] [ebp-20h]
-    float launchvel[3]; // [esp+3Ch] [ebp-1Ch] BYREF
-    float launchspot[3]; // [esp+48h] [ebp-10h] BYREF
-    const WeaponDef *weapDef; // [esp+54h] [ebp-4h]
+    unsigned __int8 PlayerWeaponModel;
+    unsigned __int8 tmp2;
+    gentity_s *tmp3;
+    int grenadeTimeLeft;
+    int fuseTime;
+    const WeaponDef *weapDef2;
+    unsigned int grenadeWeaponIndex;
+    int grenadeWeaponAlt;
+    float launchvel[3];
+    float launchspot[3];
+    const WeaponDef *weapDef;
 
     if (self->client->ps.grenadeTimeLeft && (self->client->ps.eFlags & 0x4000) == 0)
     {
-        if ((self->client->ps.weapFlags & 2) != 0)
-            grenadeWeaponIndex = self->client->ps.offHandIndex;
+        // Cooking uses off-hand when WEAPFLAG_FRAGMENT (2) is set, but offHandIndex can be 0 in bad
+        // timing (e.g. post-kill script clears hand before DeathGrenadeDrop). BG_GetWeaponDef(0) is
+        // the default gun, not null — we must not call G_FireGrenade(…, 0, …) or G_InitGrenadeEntity asserts.
+        if ((self->client->ps.weapFlags & 2) != 0 && self->client->ps.offHandIndex > 0)
+            grenadeWeaponIndex = (unsigned int)self->client->ps.offHandIndex;
         else
-            grenadeWeaponIndex = self->client->ps.weapon;
+            grenadeWeaponIndex = (unsigned int)self->client->ps.weapon;
+        if (!grenadeWeaponIndex)
+            goto death_grenade_skip_cooked;
         launchvel[0] = G_crandom();
         launchvel[1] = G_crandom();
         launchvel[2] = G_crandom();
@@ -371,17 +380,18 @@ void __cdecl DeathGrenadeDrop(gentity_s *self)
         {
             grenadeTimeLeft = self->client->ps.grenadeTimeLeft;
             PlayerWeaponModel = BG_GetPlayerWeaponModel(&self->client->ps, grenadeWeaponIndex);
-            G_FireGrenade(self, launchspot, launchvel, grenadeWeaponIndex, PlayerWeaponModel, 1, grenadeTimeLeft);
+            G_FireGrenade(self, launchspot, launchvel, (int)grenadeWeaponIndex, PlayerWeaponModel, 1, grenadeTimeLeft);
         }
     }
+death_grenade_skip_cooked:
     if ((self->client->ps.weapFlags & 0x40000) != 0
         && (self->client->ps.perks[0] & 0x4000000) != 0
         && ((self->client->ps.eFlags & 0x4000) == 0 || self->client->ps.vehicleType == 6))
     {
-        grenadeWeaponIndexa = BG_FindWeaponIndexForName(perk_grenadeDeath->current.string);
-        if (grenadeWeaponIndexa)
+        grenadeWeaponAlt = BG_FindWeaponIndexForName(perk_grenadeDeath->current.string);
+        if (grenadeWeaponAlt)
         {
-            weapDef2 = BG_GetWeaponDef(grenadeWeaponIndexa);
+            weapDef2 = BG_GetWeaponDef(grenadeWeaponAlt);
             launchvel[0] = G_crandom();
             launchvel[1] = G_crandom();
             launchvel[2] = G_crandom();
@@ -393,9 +403,10 @@ void __cdecl DeathGrenadeDrop(gentity_s *self)
             launchspot[2] = self->r.currentOrigin[2];
             launchspot[2] = launchspot[2] + 40.0;
             fuseTime = weapDef2->fuseTime;
-            v2 = BG_GetPlayerWeaponModel(&self->client->ps, grenadeWeaponIndexa);
-            v3 = G_FireGrenade(self, launchspot, launchvel, grenadeWeaponIndexa, v2, 1, fuseTime);
-            v3->flags |= 0x8000u;
+            tmp2 = BG_GetPlayerWeaponModel(&self->client->ps, grenadeWeaponAlt);
+            tmp3 = G_FireGrenade(self, launchspot, launchvel, grenadeWeaponAlt, tmp2, 1, fuseTime);
+            if ( tmp3 )
+                tmp3->flags |= 0x8000u;
         }
         else
         {
@@ -404,9 +415,10 @@ void __cdecl DeathGrenadeDrop(gentity_s *self)
     }
 }
 
+// Decomp: CoDMPServer.c:384898
 double __cdecl G_GetWeaponHitLocationMultiplier(hitLocation_t hitLoc, unsigned int weapon)
 {
-    const WeaponDef *weapDef; // [esp+0h] [ebp-4h]
+    const WeaponDef *weapDef;
 
     if ( (unsigned int)hitLoc > HITLOC_GUN
         && !Assert_MyHandler(
@@ -434,6 +446,7 @@ double __cdecl G_GetWeaponHitLocationMultiplier(hitLocation_t hitLoc, unsigned i
     }
 }
 
+// Decomp: CoDMPServer.c:384925
 void __cdecl G_DamageClient(
                 gentity_s *targ,
                 gentity_s *inflictor,
@@ -447,8 +460,8 @@ void __cdecl G_DamageClient(
                 hitLocation_t hitLoc,
                 int timeOffset)
 {
-    unsigned int NumWeapons; // eax
-    float v12; // [esp+0h] [ebp-4h]
+    unsigned int NumWeapons;
+    float tmp12;
 
     if ( targ->takedamage
         && damage > 0
@@ -496,8 +509,8 @@ void __cdecl G_DamageClient(
         }
         if ( mod != 7 )
         {
-            v12 = (float)damage;
-            damage = (int)(G_GetWeaponHitLocationMultiplier(hitLoc, weapon) * v12);
+            tmp12 = (float)damage;
+            damage = (int)(G_GetWeaponHitLocationMultiplier(hitLoc, weapon) * tmp12);
         }
         if ( damage <= 0 )
             damage = 1;
@@ -512,9 +525,10 @@ void __cdecl G_DamageClient(
     }
 }
 
+// Decomp: CoDMPServer.c:384993
 unsigned int __cdecl G_GetWeaponIndexForEntity(const gentity_s *ent)
 {
-    gclient_s *client; // [esp+8h] [ebp-4h]
+    gclient_s *client;
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_combat_mp.cpp", 544, 0, "%s", "ent") )
         __debugbreak();
@@ -541,6 +555,7 @@ unsigned int __cdecl G_GetWeaponIndexForEntity(const gentity_s *ent)
     return g_entities[client->ps.viewlocked_entNum].s.weapon;
 }
 
+// Decomp: CoDMPServer.c:385039
 void __cdecl G_DamageActor(
                 gentity_s *targ,
                 gentity_s *inflictor,
@@ -554,8 +569,8 @@ void __cdecl G_DamageActor(
                 hitLocation_t hitLoc,
                 int timeOffset)
 {
-    unsigned int NumWeapons; // eax
-    float v12; // [esp+0h] [ebp-4h]
+    unsigned int NumWeapons;
+    float tmp12;
 
     if ( targ->takedamage && damage > 0 && targ->actor->Physics.bIsAlive )
     {
@@ -598,8 +613,8 @@ void __cdecl G_DamageActor(
         }
         if ( mod != 7 )
         {
-            v12 = (float)damage;
-            damage = (int)(G_GetWeaponHitLocationMultiplier(hitLoc, weapon) * v12);
+            tmp12 = (float)damage;
+            damage = (int)(G_GetWeaponHitLocationMultiplier(hitLoc, weapon) * tmp12);
         }
         if ( damage <= 0 )
             damage = 1;
@@ -607,6 +622,7 @@ void __cdecl G_DamageActor(
     }
 }
 
+// Decomp: CoDMPServer.c:385097
 void __cdecl G_DamageVehicle(
                 gentity_s *targ,
                 gentity_s *inflictor,
@@ -622,9 +638,8 @@ void __cdecl G_DamageVehicle(
                 unsigned int modelIndex,
                 unsigned int partName)
 {
-    unsigned int NumWeapons; // eax
-    int damageFromUnderneath; // [esp+0h] [ebp-4h] BYREF
-    int savedregs; // [esp+4h] [ebp+0h] BYREF
+    unsigned int NumWeapons;
+    int damageFromUnderneath;
 
     damageFromUnderneath = 0;
     if ( targ->takedamage && damage > 0 && targ->health > 0 )
@@ -682,6 +697,7 @@ void __cdecl G_DamageVehicle(
     }
 }
 
+// Decomp: CoDMPServer.c:385165
 void __cdecl G_DamageNotify(
                 unsigned __int16 notify,
                 gentity_s *targ,
@@ -695,7 +711,7 @@ void __cdecl G_DamageNotify(
                 unsigned int partName,
                 char *weaponName)
 {
-    unsigned int modelName; // [esp+0h] [ebp-4h]
+    unsigned int modelName;
 
     Scr_AddInt(dFlags, SCRIPTINSTANCE_SERVER);
     Scr_AddString(weaponName, SCRIPTINSTANCE_SERVER);
@@ -710,26 +726,36 @@ void __cdecl G_DamageNotify(
     }
     else
     {
-        if ( !targ->attachModelNames[modelIndex + 18]
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_combat_mp.cpp",
-                        756,
-                        0,
-                        "%s",
-                        "targ->attachTagNames[modelIndex - 1]") )
+        const unsigned int attachSlot = modelIndex + 18;
+
+        if ( attachSlot >= 19u || !targ->attachModelNames[attachSlot] )
         {
-            __debugbreak();
+            Scr_AddString((char *)"", SCRIPTINSTANCE_SERVER);
+            Scr_AddString((char *)"", SCRIPTINSTANCE_SERVER);
         }
-        modelName = SV_GetConfigstringConst(*((unsigned __int16 *)&targ->tagChildren + modelIndex + 1) + 1568);
-        if ( !modelName
-            && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_combat_mp.cpp", 759, 1, "%s", "modelName") )
+        else
         {
-            __debugbreak();
+            modelName = SV_GetConfigstringConst(*((unsigned __int16 *)&targ->tagChildren + modelIndex + 1) + 1568);
+            if ( !modelName )
+            {
+                Scr_AddString((char *)"", SCRIPTINSTANCE_SERVER);
+                Scr_AddString((char *)"", SCRIPTINSTANCE_SERVER);
+            }
+            else
+            {
+                Scr_AddConstString(targ->attachModelNames[attachSlot], SCRIPTINSTANCE_SERVER);
+                Scr_AddConstString(modelName, SCRIPTINSTANCE_SERVER);
+            }
         }
-        Scr_AddConstString(targ->attachModelNames[modelIndex + 18], SCRIPTINSTANCE_SERVER);
-        Scr_AddConstString(modelName, SCRIPTINSTANCE_SERVER);
     }
-    Scr_AddConstString(*modNames[mod], SCRIPTINSTANCE_SERVER);
+    {
+        int modNotify;
+
+        modNotify = mod;
+        if ( (unsigned int)modNotify >= 21u )
+            modNotify = 0;
+        Scr_AddConstString(*modNames[modNotify], SCRIPTINSTANCE_SERVER);
+    }
     if ( point )
         Scr_AddVector(point, SCRIPTINSTANCE_SERVER);
     else
@@ -743,6 +769,7 @@ void __cdecl G_DamageNotify(
     Scr_Notify(targ, notify, 0xAu);
 }
 
+// Decomp: CoDMPServer.c:385231
 void __cdecl G_Damage(
                 gentity_s *targ,
                 gentity_s *inflictor,
@@ -758,11 +785,11 @@ void __cdecl G_Damage(
                 unsigned int partName,
                 int timeOffset)
 {
-    unsigned int NumWeapons; // eax
-    const char *v14; // eax
-    float localdir[3]; // [esp+Ch] [ebp-14h] BYREF
-    void (__cdecl *die)(gentity_s *, gentity_s *, gentity_s *, int, int, const int, const float *, const hitLocation_t, int); // [esp+18h] [ebp-8h]
-    void (__cdecl *pain)(gentity_s *, gentity_s *, int, const float *, const int, const float *, const hitLocation_t, const int); // [esp+1Ch] [ebp-4h]
+    unsigned int NumWeapons;
+    const char *weaponName;
+    float localdir[3];
+    void (__cdecl *die)(gentity_s *, gentity_s *, gentity_s *, int, int, const int, const float *, const hitLocation_t, int);
+    void (__cdecl *pain)(gentity_s *, gentity_s *, int, const float *, const int, const float *, const hitLocation_t, const int);
 
     if ( targ->client )
     {
@@ -851,8 +878,8 @@ void __cdecl G_Damage(
                 }
                 if ( targ->classname != scr_const.trigger_damage )
                     targ->health -= damage;
-                v14 = BG_WeaponName(weapon);
-                G_DamageNotify(scr_const.damage, targ, attacker, (float *)dir, (float *)point, damage, mod, dFlags, modelIndex, partName, (char*)v14);
+                weaponName = BG_WeaponName(weapon);
+                G_DamageNotify(scr_const.damage, targ, attacker, (float *)dir, (float *)point, damage, mod, dFlags, modelIndex, partName, (char*)weaponName);
                 if ( targ->health > 0 )
                 {
                     pain = entityHandlers[targ->handler].pain;
@@ -875,6 +902,7 @@ void __cdecl G_Damage(
     }
 }
 
+// Decomp: CoDMPServer.c:385359
 double __cdecl CanDamage(
                 gentity_s *targ,
                 gentity_s *inflictor,
@@ -883,39 +911,30 @@ double __cdecl CanDamage(
                 float *coneDirection,
                 int contentMask)
 {
-    float v7; // [esp+E4h] [ebp-134h] BYREF
-    float v8; // [esp+E8h] [ebp-130h]
-    float v9; // [esp+ECh] [ebp-12Ch]
-    float v10; // [esp+F0h] [ebp-128h] BYREF
-    float v11; // [esp+F4h] [ebp-124h]
-    float v12; // [esp+F8h] [ebp-120h]
-    char success_1; // [esp+FFh] [ebp-119h]
-    float *color_; // [esp+100h] [ebp-118h]
-    float centerToCorner[3]; // [esp+104h] [ebp-114h]
-    DObj *obj; // [esp+110h] [ebp-108h]
-    float radiusUp; // [esp+114h] [ebp-104h]
-    float absMaxs[3]; // [esp+118h] [ebp-100h] BYREF
-    float v1[3]; // [esp+124h] [ebp-F4h] BYREF
-    float v0[3]; // [esp+130h] [ebp-E8h] BYREF
-    float up[3]; // [esp+13Ch] [ebp-DCh] BYREF
-    float radiusRight; // [esp+148h] [ebp-D0h]
-    float absMins[3]; // [esp+14Ch] [ebp-CCh] BYREF
-    float v; // [esp+158h] [ebp-C0h] BYREF
-    float v25; // [esp+15Ch] [ebp-BCh]
-    float v26; // [esp+160h] [ebp-B8h]
-    float dir[3]; // [esp+164h] [ebp-B4h] BYREF
-    bool success; // [esp+173h] [ebp-A5h]
-    const float *color; // [esp+174h] [ebp-A4h]
-    float halfWidth; // [esp+178h] [ebp-A0h]
-    float right[3]; // [esp+17Ch] [ebp-9Ch]
-    float forward[3]; // [esp+188h] [ebp-90h] BYREF
-    float eyeOrigin[3]; // [esp+194h] [ebp-84h] BYREF
-    float halfHeight; // [esp+1A0h] [ebp-78h]
-    int hits; // [esp+1A4h] [ebp-74h]
-    int hitnum; // [esp+1A8h] [ebp-70h] BYREF
-    int inflictorNum; // [esp+1D4h] [ebp-44h]
-    float dest[5][3]; // [esp+1D8h] [ebp-40h] BYREF
-    int i; // [esp+214h] [ebp-4h]
+    char success_1;
+    float *color_;
+    float centerToCorner[3];
+    DObj *obj;
+    float radiusUp;
+    float absMaxs[3];
+    float tmp1[3];
+    float tmp0[3];
+    float up[3];
+    float radiusRight;
+    float absMins[3];
+    float dir[3];
+    bool success;
+    const float *color;
+    float halfWidth;
+    float right[3];
+    float forward[3];
+    float eyeOrigin[3];
+    float halfHeight;
+    int hits;
+    int hitnum;
+    int inflictorNum;
+    float dest[5][3];
+    int i;
 
     if ( inflictor )
     {
@@ -934,7 +953,7 @@ double __cdecl CanDamage(
     }
 
     //col_context_t::col_context_t(&context, contentMask);
-    col_context_t context(contentMask); // [esp+1ACh] [ebp-6Ch] BYREF
+    col_context_t context(contentMask);
 
     context.init_locational(targ->s.number, inflictorNum);
     //col_context_t::init_locational(&context, targ->s.number, inflictorNum);
@@ -1018,12 +1037,12 @@ double __cdecl CanDamage(
             {
                 if ( coneDirection )
                 {
-                    v = dest[i][0] - *centerPos;
-                    v25 = dest[i][1] - centerPos[1];
-                    v26 = dest[i][2] - centerPos[2];
-                    Vec3Normalize(&v);
-                    if ( coneAngleCos > (float)((float)((float)(v * *coneDirection) + (float)(v25 * coneDirection[1]))
-                                                                        + (float)(v26 * coneDirection[2])) )
+                    dir[0] = dest[i][0] - *centerPos;
+                    dir[1] = dest[i][1] - centerPos[1];
+                    dir[2] = dest[i][2] - centerPos[2];
+                    Vec3Normalize(dir);
+                    if ( coneAngleCos > (float)((float)((float)(dir[0] * *coneDirection) + (float)(dir[1] * coneDirection[1]))
+                                                                        + (float)(dir[2] * coneDirection[2])) )
                         continue;
                 }
             }
@@ -1047,13 +1066,25 @@ double __cdecl CanDamage(
         if ( targ->classname == scr_const.script_model && targ->model )
         {
             obj = Com_GetServerDObj(targ->s.number);
-            DObjPhysicsGetBounds(obj, absMins, absMaxs);
-            absMins[0] = targ->r.currentOrigin[0] + absMins[0];
-            absMins[1] = targ->r.currentOrigin[1] + absMins[1];
-            absMins[2] = targ->r.currentOrigin[2] + absMins[2];
-            absMaxs[0] = targ->r.currentOrigin[0] + absMaxs[0];
-            absMaxs[1] = targ->r.currentOrigin[1] + absMaxs[1];
-            absMaxs[2] = targ->r.currentOrigin[2] + absMaxs[2];
+            if ( obj )
+            {
+                DObjPhysicsGetBounds(obj, absMins, absMaxs);
+                absMins[0] = targ->r.currentOrigin[0] + absMins[0];
+                absMins[1] = targ->r.currentOrigin[1] + absMins[1];
+                absMins[2] = targ->r.currentOrigin[2] + absMins[2];
+                absMaxs[0] = targ->r.currentOrigin[0] + absMaxs[0];
+                absMaxs[1] = targ->r.currentOrigin[1] + absMaxs[1];
+                absMaxs[2] = targ->r.currentOrigin[2] + absMaxs[2];
+            }
+            else
+            {
+                absMins[0] = targ->r.absmin[0];
+                absMins[1] = targ->r.absmin[1];
+                absMins[2] = targ->r.absmin[2];
+                absMaxs[0] = targ->r.absmax[0];
+                absMaxs[1] = targ->r.absmax[1];
+                absMaxs[2] = targ->r.absmax[2];
+            }
         }
         else
         {
@@ -1067,50 +1098,50 @@ double __cdecl CanDamage(
         dest[0][0] = 0.5 * (float)(absMins[0] + absMaxs[0]);
         dest[0][1] = 0.5 * (float)(absMins[1] + absMaxs[1]);
         dest[0][2] = 0.5 * (float)(absMins[2] + absMaxs[2]);// G_EntityCentroidWithBounds
-        v0[0] = *centerPos - dest[0][0];
-        v0[1] = centerPos[1] - dest[0][1];
-        v0[2] = centerPos[2] - dest[0][2];
-        Vec3Normalize(v0);
-        if ( (float)((float)(v0[0] * v0[0]) + (float)(v0[1] * v0[1])) < 0.001 )
+        tmp0[0] = *centerPos - dest[0][0];
+        tmp0[1] = centerPos[1] - dest[0][1];
+        tmp0[2] = centerPos[2] - dest[0][2];
+        Vec3Normalize(tmp0);
+        if ( (float)((float)(tmp0[0] * tmp0[0]) + (float)(tmp0[1] * tmp0[1])) < 0.001 )
         {
-            v0[0] = 1.0f;
-            v0[1] = 0.0f;
-            v0[2] = 0.0f;
+            tmp0[0] = 1.0f;
+            tmp0[1] = 0.0f;
+            tmp0[2] = 0.0f;
         }
-        v1[0] = -v0[1];
-        v1[1] = v0[0];
-        v1[2] = 0.0f;
-        Vec3Normalize(v1);
-        Vec3Cross(v0, v1, up);
+        tmp1[0] = -tmp0[1];
+        tmp1[1] = tmp0[0];
+        tmp1[2] = 0.0f;
+        Vec3Normalize(tmp1);
+        Vec3Cross(tmp0, tmp1, up);
         centerToCorner[0] = absMaxs[0] - dest[0][0];
         centerToCorner[1] = absMaxs[1] - dest[0][1];
         centerToCorner[2] = absMaxs[2] - dest[0][2];
-        radiusRight = fabs(v1[1] * (float)(absMaxs[1] - dest[0][1]))
-                                + fabs(v1[0] * (float)(absMaxs[0] - dest[0][0]));
+        radiusRight = fabs(tmp1[1] * (float)(absMaxs[1] - dest[0][1]))
+                                + fabs(tmp1[0] * (float)(absMaxs[0] - dest[0][0]));
         radiusUp = (float)(fabs(up[0] * (float)(absMaxs[0] - dest[0][0]))
                                          + fabs(up[1] * (float)(absMaxs[1] - dest[0][1])))
                          + fabs(up[2] * (float)(absMaxs[2] - dest[0][2]));
-        v1[0] = radiusRight * v1[0];
-        v1[1] = radiusRight * v1[1];
-        v1[2] = radiusRight * v1[2];
+        tmp1[0] = radiusRight * tmp1[0];
+        tmp1[1] = radiusRight * tmp1[1];
+        tmp1[2] = radiusRight * tmp1[2];
         up[0] = radiusUp * up[0];
         up[1] = radiusUp * up[1];
         up[2] = radiusUp * up[2];
-        dest[1][0] = (float)(dest[0][0] + v1[0]) + up[0];
-        dest[1][1] = (float)(dest[0][1] + v1[1]) + up[1];
-        dest[1][2] = (float)(dest[0][2] + v1[2]) + up[2];
-        dest[2][0] = (float)(-1.0 * v1[0]) + dest[0][0];
-        dest[2][1] = (float)(-1.0 * v1[1]) + dest[0][1];
-        dest[2][2] = (float)(-1.0 * v1[2]) + dest[0][2];
+        dest[1][0] = (float)(dest[0][0] + tmp1[0]) + up[0];
+        dest[1][1] = (float)(dest[0][1] + tmp1[1]) + up[1];
+        dest[1][2] = (float)(dest[0][2] + tmp1[2]) + up[2];
+        dest[2][0] = (float)(-1.0 * tmp1[0]) + dest[0][0];
+        dest[2][1] = (float)(-1.0 * tmp1[1]) + dest[0][1];
+        dest[2][2] = (float)(-1.0 * tmp1[2]) + dest[0][2];
         dest[2][0] = dest[2][0] + up[0];
         dest[2][1] = dest[2][1] + up[1];
         dest[2][2] = dest[2][2] + up[2];
-        dest[3][0] = (float)(-1.0 * up[0]) + (float)(dest[0][0] + v1[0]);
-        dest[3][1] = (float)(-1.0 * up[1]) + (float)(dest[0][1] + v1[1]);
-        dest[3][2] = (float)(-1.0 * up[2]) + (float)(dest[0][2] + v1[2]);
-        dest[4][0] = (float)(-1.0 * v1[0]) + dest[0][0];
-        dest[4][1] = (float)(-1.0 * v1[1]) + dest[0][1];
-        dest[4][2] = (float)(-1.0 * v1[2]) + dest[0][2];
+        dest[3][0] = (float)(-1.0 * up[0]) + (float)(dest[0][0] + tmp1[0]);
+        dest[3][1] = (float)(-1.0 * up[1]) + (float)(dest[0][1] + tmp1[1]);
+        dest[3][2] = (float)(-1.0 * up[2]) + (float)(dest[0][2] + tmp1[2]);
+        dest[4][0] = (float)(-1.0 * tmp1[0]) + dest[0][0];
+        dest[4][1] = (float)(-1.0 * tmp1[1]) + dest[0][1];
+        dest[4][2] = (float)(-1.0 * tmp1[2]) + dest[0][2];
         dest[4][0] = (float)(-1.0 * up[0]) + dest[4][0];
         dest[4][1] = (float)(-1.0 * up[1]) + dest[4][1];
         dest[4][2] = (float)(-1.0 * up[2]) + dest[4][2];
@@ -1124,12 +1155,12 @@ double __cdecl CanDamage(
                 {
                     if ( coneDirection )
                     {
-                        v10 = dest[i][0] - *centerPos;
-                        v11 = dest[i][1] - centerPos[1];
-                        v12 = dest[i][2] - centerPos[2];
-                        Vec3Normalize(&v10);
-                        if ( coneAngleCos > (float)((float)((float)(v10 * *coneDirection) + (float)(v11 * coneDirection[1]))
-                                                                            + (float)(v12 * coneDirection[2])) )
+                        dir[0] = dest[i][0] - *centerPos;
+                        dir[1] = dest[i][1] - centerPos[1];
+                        dir[2] = dest[i][2] - centerPos[2];
+                        Vec3Normalize(dir);
+                        if ( coneAngleCos > (float)((float)((float)(dir[0] * *coneDirection) + (float)(dir[1] * coneDirection[1]))
+                                                                            + (float)(dir[2] * coneDirection[2])) )
                         {
                             success_1 = 0;
                             color_ = (float *)colorOrange;
@@ -1147,12 +1178,12 @@ double __cdecl CanDamage(
             {
                 if ( coneDirection )
                 {
-                    v7 = dest[i][0] - *centerPos;
-                    v8 = dest[i][1] - centerPos[1];
-                    v9 = dest[i][2] - centerPos[2];
-                    Vec3Normalize(&v7);
-                    if ( coneAngleCos > (float)((float)((float)(v7 * *coneDirection) + (float)(v8 * coneDirection[1]))
-                                                                        + (float)(v9 * coneDirection[2])) )
+                    dir[0] = dest[i][0] - *centerPos;
+                    dir[1] = dest[i][1] - centerPos[1];
+                    dir[2] = dest[i][2] - centerPos[2];
+                    Vec3Normalize(dir);
+                    if ( coneAngleCos > (float)((float)((float)(dir[0] * *coneDirection) + (float)(dir[1] * coneDirection[1]))
+                                                                        + (float)(dir[2] * coneDirection[2])) )
                         continue;
                 }
             }
@@ -1163,12 +1194,13 @@ double __cdecl CanDamage(
     }
 }
 
+// Decomp: CoDMPServer.c:385675
 void __cdecl G_FlashbangBlast(float *origin, float radius_max, float radius_min, gentity_s *attacker, team_t team)
 {
-    int i; // [esp+ACh] [ebp-100Ch]
-    int entList[1024]; // [esp+B0h] [ebp-1008h] BYREF
-    gentity_s *ent; // [esp+10B0h] [ebp-8h]
-    int entListCount; // [esp+10B4h] [ebp-4h] BYREF
+    int i;
+    int entList[1024];
+    gentity_s *ent;
+    int entListCount;
 
     if ( radius_min < 1.0 )
         radius_min = 1.0f;
@@ -1184,6 +1216,7 @@ void __cdecl G_FlashbangBlast(float *origin, float radius_max, float radius_min,
     }
 }
 
+// Decomp: CoDMPServer.c:385707
 void __cdecl GetEntListForRadius(
                 const float *origin,
                 float radius_max,
@@ -1191,10 +1224,10 @@ void __cdecl GetEntListForRadius(
                 int *entList,
                 int *entListCount)
 {
-    float mins[3]; // [esp+0h] [ebp-20h] BYREF
-    float boxradius; // [esp+Ch] [ebp-14h]
-    float maxs[3]; // [esp+10h] [ebp-10h] BYREF
-    int i; // [esp+1Ch] [ebp-4h]
+    float mins[3];
+    float boxradius;
+    float maxs[3];
+    int i;
 
     boxradius = 1.4142135 * radius_max;
     for ( i = 0; i < 3; ++i )
@@ -1205,6 +1238,7 @@ void __cdecl GetEntListForRadius(
     *entListCount = CM_AreaEntities(mins, maxs, entList, 1024, -1);
 }
 
+// Decomp: CoDMPServer.c:385724
 void __cdecl FlashbangBlastEnt(
                 gentity_s *ent,
                 const float *blastOrigin,
@@ -1213,13 +1247,13 @@ void __cdecl FlashbangBlastEnt(
                 gentity_s *attacker,
                 team_t team)
 {
-    float percent_distance; // [esp+48h] [ebp-5Ch]
-    float percent_angle; // [esp+4Ch] [ebp-58h]
-    float forward[3]; // [esp+50h] [ebp-54h] BYREF
-    float toBlast[3]; // [esp+5Ch] [ebp-48h] BYREF
-    float dist; // [esp+90h] [ebp-14h]
-    int hitNum; // [esp+94h] [ebp-10h] BYREF
-    float playerEyes[3]; // [esp+98h] [ebp-Ch] BYREF
+    float percent_distance;
+    float percent_angle;
+    float forward[3];
+    float toBlast[3];
+    float dist;
+    int hitNum;
+    float playerEyes[3];
 
     hitNum = -1;
     if ( CanEntityBeFlashbanged(ent) )
@@ -1231,7 +1265,7 @@ void __cdecl FlashbangBlastEnt(
             {
                 GetFlashbangViewPos(ent, playerEyes);
                 //col_context_t::col_context_t(&context, 8419363);
-                col_context_t context(0x807823); // [esp+68h] [ebp-3Ch] BYREF
+                col_context_t context(0x807823);
 
                 context.passEntityNum0 = ent->s.number;
                 SV_SightTracePoint(&hitNum, playerEyes, blastOrigin, &context);
@@ -1264,10 +1298,11 @@ void __cdecl FlashbangBlastEnt(
     }
 }
 
+// Decomp: CoDMPServer.c:385784
 double __cdecl EntDistToPoint(const float *origin, gentity_s *ent)
 {
-    unsigned int i; // [esp+10h] [ebp-10h]
-    float v[3]; // [esp+14h] [ebp-Ch] BYREF
+    unsigned int i;
+    float v[3];
 
     if ( ent->r.bmodel )
     {
@@ -1285,17 +1320,18 @@ double __cdecl EntDistToPoint(const float *origin, gentity_s *ent)
                 v[i] = ent->r.absmin[i] - origin[i];
             }
         }
-        return Vec3Length(v);
+        return Abs(v);
     }
     else
     {
         v[0] = ent->r.currentOrigin[0] - *origin;
         v[1] = ent->r.currentOrigin[1] - origin[1];
         v[2] = ent->r.currentOrigin[2] - origin[2];
-        return Vec3Length(v);
+        return Abs(v);
     }
 }
 
+// Decomp: CoDMPServer.c:385821
 void __cdecl AddScrTeamName(team_t team)
 {
     switch ( team )
@@ -1319,6 +1355,7 @@ void __cdecl AddScrTeamName(team_t team)
     }
 }
 
+// Decomp: CoDMPServer.c:385845
 bool __cdecl CanEntityBeFlashbanged(gentity_s *ent)
 {
     if ( ent->client )
@@ -1328,9 +1365,10 @@ bool __cdecl CanEntityBeFlashbanged(gentity_s *ent)
             && G_IsVehicleRemoteControl(ent->s.vehicleState.vehicleInfoIndex);
 }
 
+// Decomp: CoDMPServer.c:385859
 void __cdecl GetFlashbangViewPos(gentity_s *ent, float *origin)
 {
-    gclient_s *client; // edx
+    gclient_s *client;
 
     if ( ent->client )
     {
@@ -1348,9 +1386,10 @@ void __cdecl GetFlashbangViewPos(gentity_s *ent, float *origin)
     }
 }
 
+// Decomp: CoDMPServer.c:385880
 void __cdecl GetFlashbangViewDirection(gentity_s *ent, float *dir)
 {
-    gentity_s *driver; // [esp+0h] [ebp-4h]
+    gentity_s *driver;
 
     if ( ent->client )
     {
@@ -1366,9 +1405,10 @@ void __cdecl GetFlashbangViewDirection(gentity_s *ent, float *dir)
     }
 }
 
+// Decomp: CoDMPServer.c:385899
 bool __cdecl G_WithinDamageRadius(const float *damageOrigin, float radiusSquared, gentity_s *ent)
 {
-    float distSqrd; // [esp+4h] [ebp-4h]
+    float distSqrd;
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_combat_mp.cpp", 1405, 0, "%s", "ent") )
         __debugbreak();
@@ -1376,10 +1416,11 @@ bool __cdecl G_WithinDamageRadius(const float *damageOrigin, float radiusSquared
     return radiusSquared > distSqrd;
 }
 
+// Decomp: CoDMPServer.c:385919
 double __cdecl G_GetRadiusDamageDistanceSquared(const float *damageOrigin, gentity_s *ent)
 {
-    int i; // [esp+8h] [ebp-10h]
-    float v[3]; // [esp+Ch] [ebp-Ch]
+    int i;
+    float v[3];
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_combat_mp.cpp", 1373, 0, "%s", "ent") )
         __debugbreak();
@@ -1409,6 +1450,7 @@ double __cdecl G_GetRadiusDamageDistanceSquared(const float *damageOrigin, genti
     return v[2] * v[2] + v[1] * v[1] + v[0] * v[0];
 }
 
+// Decomp: CoDMPServer.c:385964
 int __cdecl G_RadiusDamage(
                 float *origin,
                 gentity_s *inflictor,
@@ -1422,48 +1464,48 @@ int __cdecl G_RadiusDamage(
                 int mod,
                 unsigned int weapon)
 {
-    int j; // [esp+2Ch] [ebp-1054h]
-    float damage; // [esp+30h] [ebp-1050h]
-    float dir[3]; // [esp+34h] [ebp-104Ch] BYREF
-    //float v15; // [esp+3Ch] [ebp-1044h]
-    float v16; // [esp+40h] [ebp-1040h]
-    float mins[3]; // [esp+44h] [ebp-103Ch] BYREF
-    float v18; // [esp+50h] [ebp-1030h]
-    float v19; // [esp+54h] [ebp-102Ch]
-    float RadiusDamageDistanceSquared; // [esp+58h] [ebp-1028h]
-    int v21; // [esp+5Ch] [ebp-1024h]
-    float maxs[3]; // [esp+60h] [ebp-1020h] BYREF
-    float v23; // [esp+6Ch] [ebp-1014h]
-    int entityList[1024]; // [esp+70h] [ebp-1010h] BYREF
-    gentity_s *ent; // [esp+1070h] [ebp-10h]
-    int dflags; // [esp+1074h] [ebp-Ch]
-    int i; // [esp+1078h] [ebp-8h]
-    int v28; // [esp+107Ch] [ebp-4h]
+    int j;
+    float damage;
+    float dir[3];
+    //float tmp15;
+    float tmp16;
+    float mins[3];
+    float tmp18;
+    float tmp19;
+    float RadiusDamageDistanceSquared;
+    int tmp21;
+    float maxs[3];
+    float tmp23;
+    int entityList[1024];
+    gentity_s *ent;
+    int dflags;
+    int i;
+    int ret;
 
-    v28 = 0;
+    ret = 0;
     dflags = 5;
     if ( !attacker )
         return 0;
     if ( radius < 1.0 )
         radius = 1.0f;
-    v18 = radius * radius;
-    v19 = 1.4142135 * radius;
+    tmp18 = radius * radius;
+    tmp19 = 1.4142135 * radius;
     for ( i = 0; i < 3; ++i )
     {
-        mins[i] = origin[i] - v19;
-        maxs[i] = origin[i] + v19;
+        mins[i] = origin[i] - tmp19;
+        maxs[i] = origin[i] + tmp19;
     }
-    v21 = CM_AreaEntities(mins, maxs, entityList, 1024, -1);
-    for ( j = 0; j < v21; ++j )
+    tmp21 = CM_AreaEntities(mins, maxs, entityList, 1024, -1);
+    for ( j = 0; j < tmp21; ++j )
     {
         ent = &g_entities[entityList[j]];
         if ( ent != ignore && ent->takedamage && (!ent->client || !level.bPlayerIgnoreRadiusDamage) )
         {
             RadiusDamageDistanceSquared = G_GetRadiusDamageDistanceSquared(origin, ent);
-            if ( RadiusDamageDistanceSquared < v18 )
+            if ( RadiusDamageDistanceSquared < tmp18 )
             {
-                v16 = sqrtf(RadiusDamageDistanceSquared);
-                damage = (float)((float)(fInnerDamage - fOuterDamage) * (float)(1.0 - (float)(v16 / radius))) + fOuterDamage;
+                tmp16 = sqrtf(RadiusDamageDistanceSquared);
+                damage = (float)((float)(fInnerDamage - fOuterDamage) * (float)(1.0 - (float)(tmp16 / radius))) + fOuterDamage;
                 if ( ent->scr_vehicle )
                 {
                     Scr_VehicleRadiusDamage(
@@ -1484,11 +1526,11 @@ int __cdecl G_RadiusDamage(
                 }
                 else
                 {
-                    v23 = CanDamage(ent, inflictor, origin, coneAngleCos, coneDirection, 8396819);
-                    if ( v23 > 0.0 )
+                    tmp23 = CanDamage(ent, inflictor, origin, coneAngleCos, coneDirection, 8396819);
+                    if ( tmp23 > 0.0 )
                     {
                         if ( LogAccuracyHit(ent, attacker) )
-                            v28 = 1;
+                            ret = 1;
                         dir[0] = ent->r.currentOrigin[0] - *origin;
                         dir[1] = ent->r.currentOrigin[1] - origin[1];
                         dir[2] = ent->r.currentOrigin[2] - origin[2];
@@ -1501,7 +1543,7 @@ int __cdecl G_RadiusDamage(
                             attacker,
                             dir,
                             origin,
-                            (int)(float)(damage * v23),
+                            (int)(float)(damage * tmp23),
                             dflags,
                             mod,
                             weapon,
@@ -1516,9 +1558,10 @@ int __cdecl G_RadiusDamage(
     }
     DynEntSv_RadiusDamage(origin, radius, coneAngleCos, coneDirection, fInnerDamage, fOuterDamage);
     GlassSv_RadiusDamage(origin, radius, coneAngleCos, coneDirection, fInnerDamage, fOuterDamage, mod);
-    return v28;
+    return ret;
 }
 
+// Decomp: CoDMPServer.c:386071
 unsigned __int16 __cdecl G_GetHitLocationString(hitLocation_t hitLoc)
 {
     if ( (unsigned int)hitLoc >= HITLOC_NUM
@@ -1534,9 +1577,10 @@ unsigned __int16 __cdecl G_GetHitLocationString(hitLocation_t hitLoc)
     return g_HitLocConstNames[hitLoc];
 }
 
+// Decomp: CoDMPServer.c:386088
 int __cdecl G_GetHitLocationIndexFromString(unsigned __int16 sString)
 {
-    int i; // [esp+0h] [ebp-4h]
+    int i;
 
     for ( i = 0; i < 19; ++i )
     {

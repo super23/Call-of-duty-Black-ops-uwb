@@ -1854,6 +1854,40 @@ void    do_initial_tunnel_test(
     }
 }
 
+//broad_phase_info *__cdecl create_broad_phase_info()
+//{
+//    phys_free_list<broad_phase_info> *p_g_list_broad_phase_info; // edi
+//    phys_free_list<broad_phase_info>::T_internal *v1; // eax
+//    phys_free_list<broad_phase_info>::T_internal *v2; // esi
+//
+//    p_g_list_broad_phase_info = &G_BPM->g_list_broad_phase_info;
+//    v1 = (phys_free_list<broad_phase_info>::T_internal *)PMM_ALLOC(0x90u, 0x10u);
+//    v2 = v1;
+//    if ( v1 )
+//    {
+//        v1->m_prev_T_internal = &p_g_list_broad_phase_info->m_dummy_head;
+//        v1->m_next_T_internal = p_g_list_broad_phase_info->m_dummy_head.m_next_T_internal;
+//        p_g_list_broad_phase_info->m_dummy_head.m_next_T_internal->m_prev_T_internal = v1;
+//        ++p_g_list_broad_phase_info->m_list_count;
+//        p_g_list_broad_phase_info->m_dummy_head.m_next_T_internal = v1;
+//        //phys_free_list<broad_phase_info>::debug_add(p_g_list_broad_phase_info, v1);
+//        p_g_list_broad_phase_info->debug_add(v1);
+//        return &v2->m_data;
+//    }
+//    else
+//    {
+//        if ( _tlAssert(
+//                     "c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h",
+//                     470,
+//                     "no_error",
+//                     "phys_free_list error: out of memory.") )
+//        {
+//            __debugbreak();
+//        }
+//        return 0;
+//    }
+//}
+
 void __cdecl destroy_broad_phase_info(broad_phase_info *bpi)
 {
     environment_collision_list_remove(bpi);

@@ -8,7 +8,11 @@
 #include "assertive.h"
 #include "q_shared.h"
 #include <qcommon/common.h>
+#ifdef KISAK_SP
+#include <server_sp/sv_bot_sp.h>
+#else
 #include <server_mp/sv_bot_mp.h>
+#endif
 #include <win32/win_common.h>
 #include <win32/win_net.h>
 #include "com_memory.h"
@@ -2493,7 +2497,8 @@ const dvar_s *__cdecl _Dvar_RegisterColor(
     b = min(1.0f, max(0.0f, b));
     a = min(1.0f, max(0.0f, a));
 
-    // Convert to 0-255 range, +.5 for rounding
+    // Convert to 0-255 range, +.5 for rounding (write color[]; never bool
+    // `enabled` — it aliases color[0] in DvarValue and would truncate red).
     dvarValue.color[0] = (int)(r * 255.0f + 0.5f);
     dvarValue.color[1] = (int)(g * 255.0f + 0.5f);
     dvarValue.color[2] = (int)(b * 255.0f + 0.5f);
@@ -2853,7 +2858,7 @@ void __cdecl Dvar_SetColorFromSource(dvar_s *dvar, float r, float g, float b, fl
                 v9 = v13;
             else
                 v9 = 0.0f;
-            newValue.enabled = (int)((float)(255.0 * v9) + 9.313225746154785e-10);
+            newValue.color[0] = (int)((float)(255.0 * v9) + 9.313225746154785e-10);
             if ((float)(g - 1.0) < 0.0)
                 v12 = g;
             else

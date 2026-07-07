@@ -1,10 +1,14 @@
 #include "actor_physics.h"
 
+#ifdef KISAK_SP
+#include <cgame_sp/cg_predict_sp.h>
+#else
 #include <cgame_mp/cg_predict_mp.h>
+#endif
 #include <bgame/bg_slidemove.h>
 #include <bgame/bg_misc.h>
-#include <game_mp/g_main_mp.h>
-#include <game_mp/g_utils_mp.h>
+#include <game/g_main_wrapper.h>
+#include <game/g_utils_wrapper.h>
 #include "g_mover.h"
 #include "bullet.h"
 #include "actor_events.h"
@@ -116,10 +120,11 @@ void __cdecl AIPhys_FoliageSounds(actor_physics_t *pPhys)
     float vMins[3]; // [esp+FCh] [ebp-18h] BYREF
     float vMaxs[3]; // [esp+108h] [ebp-Ch] BYREF
 
+    memset(&trace, 0, 16);
     vVel[0] = pPhys->vVelocity[0];
     vVel[1] = pPhys->vVelocity[1];
     vVel[2] = 0.0f;
-    xyspeed = Vec3Length(vVel);
+    xyspeed = Abs(vVel);
     if ( bg_foliagesnd_minspeed->current.value <= xyspeed )
     {
         if ( (float)(bg_foliagesnd_maxspeed->current.value - bg_foliagesnd_minspeed->current.value) <= 0.0
@@ -299,7 +304,9 @@ bool __cdecl AIPhys_StepSlideMove(actor_physics_t *pPhys, int gravity, int zonly
     float up[3]; // [esp+954h] [ebp-18h] BYREF
     float down[3]; // [esp+960h] [ebp-Ch] BYREF
 
+    memset(&trace, 0, 16);
     //colgeom_visitor_inlined_t<200>::colgeom_visitor_inlined_t<200>(&phys.proximity_data);
+    memset(&localPhys.groundTrace, 0, 16);
     start_o[0] = pPhys->vOrigin[0];
     start_o[1] = pPhys->vOrigin[1];
     start_o[2] = pPhys->vOrigin[2];
@@ -496,12 +503,15 @@ int __cdecl AIPhys_SlideMove(actor_physics_t *pPhys, int gravity, int zonly)
 LABEL_66:
             if ( gravity )
             {
-                Vec3Copy(vEndVelocity, g_pPhys->vVelocity);
+                pPhys->vVelocity[0] = vEndVelocity[0];
+                pPhys->vVelocity[1] = vEndVelocity[1];
+                pPhys->vVelocity[2] = vEndVelocity[2];
             }
             return iBumpCount != 0;
         }
-        Vec3Mad(pPhys->vOrigin, fTimeLeft, pPhys->vVelocity, vEnd);
-
+        vEnd[0] = (float)(fTimeLeft * pPhys->vVelocity[0]) + pPhys->vOrigin[0];
+        vEnd[1] = (float)(fTimeLeft * pPhys->vVelocity[1]) + pPhys->vOrigin[1];
+        vEnd[2] = (float)(fTimeLeft * pPhys->vVelocity[2]) + pPhys->vOrigin[2];
         ai_physics_trace(&trace, pPhys->vOrigin, pPhys->vMins, pPhys->vMaxs, vEnd, pPhys->iEntNum, g_apl.iTraceMask, pPhys);
         if ( trace.fraction <= 0.0 )
             break;
@@ -523,8 +533,10 @@ LABEL_23:
         fTimeLeft = fTimeLeft - (float)(fTimeLeft * trace.fraction);
         if ( iNumPlanes >= 5 )
         {
-            Vec3Clear(pPhys->vVelocity);
-            return SLIDEMOVE_CLIPPED;
+            pPhys->vVelocity[0] = 0.0f;
+            pPhys->vVelocity[1] = 0.0f;
+            pPhys->vVelocity[2] = 0.0f;
+            return 1;
         }
         for ( i = 0; i < iNumPlanes; ++i )
         {
@@ -649,6 +661,7 @@ void __thiscall ai_gjk_slide_move_input_t::custom_process(gjk_trace_output_t *gt
     trace_t trace; // [esp+10h] [ebp-3Ch] BYREF
 
     this->m_pPhys->bDeflected = 1;
+    memset(&trace, 0, 16);
     fill_results_type_and_id(gto, &trace);
     EntID = Trace_GetEntityHitId(&trace);
     EntityHitId = Trace_GetEntityHitId(&trace);
@@ -817,6 +830,7 @@ void __cdecl AIPhys_GroundTrace(actor_physics_t *pPhys)
     bool last_ground_entity_was_a_mover; // [esp+8Fh] [ebp-5h]
     const gjkcc_input_t *gjkcc_in; // [esp+90h] [ebp-4h]
 
+    memset(&trace, 0, 16);
     last_ground_entity_was_a_mover = entity_is_a_mover(pPhys->groundEntNum);
     start[0] = pPhys->vOrigin[0];
     start[1] = pPhys->vOrigin[1];
@@ -963,8 +977,9 @@ int __cdecl Actor_Physics_z(actor_physics_t *pPhys)
 {
     int retv; // [esp+0h] [ebp-24h]
     gjkcc_input_t gjkcc_in; // [esp+4h] [ebp-20h] BYREF
-    int savedregs; // [esp+24h] [ebp+0h] BYREF
 
+    if ( pPhys->m_gjkcc_input )
+        return Actor_Physics(pPhys);
     setup_gjkcc_input(pPhys, &gjkcc_in);
     pPhys->m_gjkcc_input = &gjkcc_in;
     gjkcc_prolog(&gjkcc_in, pPhys->vOrigin);

@@ -3,7 +3,12 @@
 #include <universal/q_shared.h>
 #include <qcommon/common.h>
 #include "bg_unlockable_items.h"
+#ifdef KISAK_SP
+#include <game/g_main.h>
+#include "bg_sp_assets.h"
+#else
 #include <game_mp/g_main_mp.h>
+#endif
 #include <universal/q_parse.h>
 
 const char *s_attachmentPointNames[5] =
@@ -461,9 +466,23 @@ void __cdecl BG_LoadWeaponAttachmentTable()
     if ( !G_ExitAfterToolComplete() )
     {
         attachmentTable = 0;
+#ifdef KISAK_SP
+        // Decomp: CoDSP_rdBlackOps.map.c — retail uses mp/attachmenttable.csv (often in common_zombie.ff for Zombies).
+        if ( !BG_SP_TryGetStringTableAsset(
+                "mp/attachmenttable.csv",
+                "attachmenttable.csv",
+                &attachmentTable) )
+        {
+            Com_PrintWarning(
+                16,
+                "SP: no attachmenttable.csv — using builtin s_attachmentNames only (CoDSP_rdBlackOps.map.c)\n");
+            return;
+        }
+#else
         StringTable_GetAsset("mp/attachmenttable.csv", (XAssetHeader *)&attachmentTable);
         if ( !attachmentTable->columnCount || !attachmentTable->rowCount )
             Com_Error(ERR_DROP, "Couldn't load file or file is invalid '%s'", "mp/attachmenttable.csv");
+#endif
         count = 0;
         while ( 1 )
         {

@@ -1295,19 +1295,16 @@ void __cdecl CL_ClearState(int localClientNum)
 
 void __cdecl CL_UploadStatsForController(int localControllerIndex)
 {
+    if ( Demo_IsPlaying() || Demo_IsShutdownInProgress() )
+        return;
 #ifdef KISAK_LIVE
-    if ( !Demo_IsPlaying() && !Demo_IsShutdownInProgress() )
-    {
-        if ( Com_GameMode_IsPublicOnlineGame() )
-            LB_UploadPlayerStats(localControllerIndex);
-        LiveStats_CompareStatsVsStableBuffer(localControllerIndex);
-        if ( xblive_basictraining )
-        {
-            if ( xblive_basictraining->current.enabled )
-                LiveStorage_UploadStatsForController();
-        }
-        Session_CleanUpStatsWrites();
-    }
+    if ( Com_GameMode_IsPublicOnlineGame() )
+        LB_UploadPlayerStats(localControllerIndex);
+#endif
+    LiveStats_CompareStatsVsStableBuffer(localControllerIndex);
+    LiveStorage_UploadStatsForController();
+#ifdef KISAK_LIVE
+    Session_CleanUpStatsWrites();
 #endif
 }
 
@@ -1448,8 +1445,7 @@ void __cdecl CL_Disconnect(unsigned int localClientNum, bool deactivateClient)
             Dvar_SetBool((dvar_s *)sv_disableClientConsole, 0);
             cl_connectedToPureServer = 0;
             fs_checksumFeed = 0;
-            if ( xblive_basictraining && xblive_basictraining->current.enabled )
-                LiveStorage_UploadStats();
+            LiveStorage_UploadStats();
             LiveStorage_ReadStatsIfDirChanged();
         }
         if ( !Demo_IsIdle() )
@@ -2669,30 +2665,71 @@ unsigned __int8 *perLocalClientMemBuffer;
 HunkUser *perLocalClientMemHunk;
 int cl_allocatedClients = 32;
 unsigned int cl_lastAllocFlags;
+int cl_perLocalClientMemSize;
+bool cl_perLocalClientResized;
 void __cdecl AllocatePerLocalClientMemory(int maxLocalClients, int maxClients, unsigned int flags)
 {
     int mem_needed; // [esp+0h] [ebp-4h]
     int mem_neededa; // [esp+0h] [ebp-4h]
     int mem_neededb; // [esp+0h] [ebp-4h]
 
-    CL_FreePerLocalClientMemory();
     mem_needed = 2449480 * maxLocalClients;
     if ( (flags & 1) == 0 )
         mem_needed += (int)SV_AllocateClientMemory_SizeRequired(maxLocalClients, maxClients);
     mem_neededa = mem_needed + CG_AllocateClientMemory_SizeRequired(maxLocalClients);
     mem_neededb = mem_neededa + FX_AllocateClientMemory_SizeRequired(maxLocalClients);
-    PMem_BeginAlloc(PerLocalClientMemoryName, 1u, TRACK_CLIENT);
-    perLocalClientMemBuffer = _PMem_AllocNamed(mem_neededb, 0x80u, 4, 1u, PerLocalClientMemoryName, TRACK_CLIENT);
-    memset(perLocalClientMemBuffer, 0, mem_neededb);
-    PMem_EndAlloc(PerLocalClientMemoryName, 1u);
-    perLocalClientMemHunk = Hunk_UserCreateFromBuffer(
-                                                        perLocalClientMemBuffer,
-                                                        mem_neededb,
-                                                        HU_SCHEME_DEFAULT,
-                                                        8u,
-                                                        0,
-                                                        "PerLocalClient Memory",
-                                                        42);
+    if ( cl_perLocalClientMemSize >= mem_neededb && cl_lastAllocFlags == flags && perLocalClientMemHunk )
+    {
+        Hunk_UserDestroy(perLocalClientMemHunk);
+        perLocalClientMemBuffer = PMem_Shrink(PerLocalClientMemoryName, mem_neededb, 0x80u, 4, 0);
+        if ( !perLocalClientMemBuffer )
+        {
+            CL_FreePerLocalClientMemory();
+            PMem_BeginAlloc(PerLocalClientMemoryName, 1u, TRACK_CLIENT);
+            perLocalClientMemBuffer = _PMem_AllocNamed(mem_neededb, 0x80u, 4, 1u, PerLocalClientMemoryName, TRACK_CLIENT);
+            memset(perLocalClientMemBuffer, 0, mem_neededb);
+            PMem_EndAlloc(PerLocalClientMemoryName, 1u);
+            perLocalClientMemHunk = Hunk_UserCreateFromBuffer(
+                                                                perLocalClientMemBuffer,
+                                                                mem_neededb,
+                                                                HU_SCHEME_DEFAULT,
+                                                                8u,
+                                                                0,
+                                                                "PerLocalClient Memory",
+                                                                42);
+            cl_perLocalClientResized = 0;
+            goto finish_alloc;
+        }
+        memset(perLocalClientMemBuffer, 0, mem_neededb);
+        perLocalClientMemHunk = Hunk_UserCreateFromBuffer(
+                                                            perLocalClientMemBuffer,
+                                                            mem_neededb,
+                                                            HU_SCHEME_DEFAULT,
+                                                            8u,
+                                                            0,
+                                                            "PerLocalClient Memory",
+                                                            42);
+        cl_perLocalClientResized = 1;
+    }
+    else
+    {
+        CL_FreePerLocalClientMemory();
+        PMem_BeginAlloc(PerLocalClientMemoryName, 1u, TRACK_CLIENT);
+        perLocalClientMemBuffer = _PMem_AllocNamed(mem_neededb, 0x80u, 4, 1u, PerLocalClientMemoryName, TRACK_CLIENT);
+        memset(perLocalClientMemBuffer, 0, mem_neededb);
+        PMem_EndAlloc(PerLocalClientMemoryName, 1u);
+        perLocalClientMemHunk = Hunk_UserCreateFromBuffer(
+                                                            perLocalClientMemBuffer,
+                                                            mem_neededb,
+                                                            HU_SCHEME_DEFAULT,
+                                                            8u,
+                                                            0,
+                                                            "PerLocalClient Memory",
+                                                            42);
+        cl_perLocalClientResized = 0;
+    }
+finish_alloc:
+    cl_perLocalClientMemSize = mem_neededb;
     clients = (clientActive_t *)Hunk_UserAlloc(perLocalClientMemHunk, 1728768 * maxLocalClients, 4, "clients");
     clientConnections = (clientConnection_t *)Hunk_UserAlloc(
                                                                                             perLocalClientMemHunk,
@@ -2710,6 +2747,16 @@ void __cdecl AllocatePerLocalClientMemory(int maxLocalClients, int maxClients, u
     cl_maxLocalClients = maxLocalClients;
     cl_allocatedClients = maxClients;
     cl_lastAllocFlags = flags;
+}
+
+unsigned int __cdecl CL_ShrinkPerLocalClientMemory()
+{
+    if ( cl_perLocalClientResized )
+    {
+        cl_perLocalClientResized = 0;
+        return (unsigned int)PMem_Shrink(PerLocalClientMemoryName, cl_perLocalClientMemSize, 0x80u, 4, 1u);
+    }
+    return 0;
 }
 
 void __cdecl CL_FreePerLocalClientMemory()
@@ -2732,10 +2779,13 @@ void __cdecl CL_FreePerLocalClientMemory()
     }
     if ( cl_maxLocalClients > 0 )
     {
-        PMem_Free(PerLocalClientMemoryName);
+        if ( PMem_SafeToFree(PerLocalClientMemoryName) )
+            PMem_Free(PerLocalClientMemoryName);
         clients = 0;
         clientConnections = 0;
         perLocalClientMemBuffer = 0;
+        cl_perLocalClientMemSize = 0;
+        cl_perLocalClientResized = 0;
     }
     FX_FreeClientMemory(perLocalClientMemHunk);
     CG_FreeClientMemory(perLocalClientMemHunk, cl_maxLocalClients);

@@ -10,7 +10,7 @@
 //#include <tracy/Tracy.hpp>
 //#include <tracy/TracyC.h>
 
-#define PROF_SCOPED_RUNTIME_NAME(name) ZoneScoped; ZoneName(name, strlen(name));
+#define PROF_SCOPED_RUNTIME_NAME(name) ZoneScoped; ZoneText(name, strlen(name));
 #define PROF_SCOPED(name) ZoneScopedN(name)
 #define PROFLOAD_SCOPED(name) PROF_SCOPED(name)
 #define PROF_THREADNAME(threadname) tracy::SetThreadName(threadname)

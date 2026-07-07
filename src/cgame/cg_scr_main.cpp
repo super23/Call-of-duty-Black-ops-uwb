@@ -1,22 +1,35 @@
 #include "cg_scr_main.h"
 #include <clientscript/cscr_stringlist.h>
 #include <clientscript/scr_const.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_scr_main_sp.h>
+#include <cgame_sp/cg_ents_sp.h>
+#include <cgame_sp/cg_actors_sp.h>
+#include <cgame_sp/cg_vehicles_sp.h>
+#include <cgame_sp/cg_local_sp.h>
+#include <cgame_sp/cg_main_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <cgame_sp/cg_animscripted_sp.h>
+#else
 #include <cgame_mp/cg_scr_main_mp.h>
-#include <clientscript/cscr_vm.h>
-#include <bgame/bg_weapons.h>
 #include <cgame_mp/cg_ents_mp.h>
 #include <cgame_mp/cg_actors_mp.h>
-#include <xanim/xmodel.h>
 #include <cgame_mp/cg_vehicles_mp.h>
-#include <bgame/bg_misctables.h>
-#include <universal/surfaceflags.h>
 #include <cgame_mp/cg_local_mp.h>
 #include <cgame_mp/cg_main_mp.h>
+#include <client_mp/cl_cgame_mp.h>
+#include <cgame_mp/cg_animscripted_mp.h>
+#endif
+#include <clientscript/cscr_vm.h>
+#include <bgame/bg_weapons.h>
+#include <game/actor.h>
+#include <xanim/xmodel.h>
+#include <bgame/bg_misctables.h>
+#include <universal/surfaceflags.h>
 #include "cg_spawn.h"
 #include <clientscript/cscr_evaluate.h>
 #include <client/cl_debugdata.h>
 #include <universal/com_math_anglevectors.h>
-#include <client_mp/cl_cgame_mp.h>
 #include <ui/ui_shared.h>
 #include <universal/com_shared.h>
 #include <sound/snd_bank.h>
@@ -33,6 +46,7 @@
 #include <gfx_d3d/r_cinematic.h>
 #include <EffectsCore/fx_system.h>
 #include <EffectsCore/fx_dvars.h>
+#include <EffectsCore/fx_marks.h>
 #include "cg_world.h"
 #include <universal/com_files.h>
 #include <universal/q_parse.h>
@@ -46,7 +60,6 @@
 #include "cg_camerashake.h"
 #include <DynEntity/DynEntity_client.h>
 #include <clientscript/cscr_memorytree.h>
-#include <cgame_mp/cg_animscripted_mp.h>
 #include "cg_event.h"
 #include <game/g_load_utils.h>
 #include <stringed/stringed_hooks.h>
@@ -76,8 +89,11 @@ const BuiltinMethodDef client_methods[] =
   { "forcedelete", CScrCmd_ForceDelete, 0 },
   { "earthquake", CScrCmd_Earthquake, 0 },
   { "playsound", CScr_PlaySoundOnEntity, 0 },
+  { "playsoundonentity", CScr_PlaySoundOnEntity, 0 },
   { "playloopsound", CScr_PlayLoopSoundOnEntity, 0 },
+  { "playloopsoundonentity", CScr_PlayLoopSoundOnEntity, 0 },
   { "stoploopsound", CScr_StopLoopSoundOnEntity, 0 },
+  { "stoploopsoundonentity", CScr_StopLoopSoundOnEntity, 0 },
   { "isplayingloopsound", CScr_IsPlayingLoopSound, 0 },
   { "makelight", CScrCmd_MakeLight, 0 },
   { "getlightcolor", CScr_GetLightColor, 0 },
@@ -112,6 +128,7 @@ const BuiltinMethodDef client_methods[] =
   { "launchragdoll", CScr_LaunchRagdoll, 0 },
   { "show", CScr_Show, 0 },
   { "hide", CScr_Hide, 0 },
+  { "useweaponhidetags", CScr_UseWeaponHideTags, 0 },
   { "getthrottle", CScrCmd_GetThrottle, 0 },
   { "getbrake", CScrCmd_GetBrake, 0 },
   { "getmaxspeed", CScrCmd_GetMaxSpeed, 0 },
@@ -120,6 +137,7 @@ const BuiltinMethodDef client_methods[] =
   { "getlocalclientdriver", CScrCmd_GetLocalClientDriver, 0 },
   { "getwheelsurface", CScrCmd_GetWheelSurface, 0 },
   { "ispeelingout", CScrCmd_IsVehiclePeelingOut, 0 },
+  { "isvehiclepeelingout", CScrCmd_IsVehiclePeelingOut, 0 },
   { "iswheelsliding", CScrCmd_IsWheelSliding, 0 },
   { "iswheelcolliding", CScrCmd_IsWheelColliding, 0 },
   { "getlocalgunnerangles", CScrCmd_GetLocalGunnerAngles, 0 },
@@ -131,18 +149,30 @@ const BuiltinMethodDef client_methods[] =
   { "rotateto", CScrCmd_RotateTo, 0 },
   { "moveto", CScrCmd_MoveTo, 0 },
   { "movegravity", CScrCmd_MoveGravity, 0 },
+  { "setphysicsgravity", CScr_SetPhysicsGravity, 0 },
+  { "clearphysicsgravity", CScr_ClearPhysicsGravity, 0 },
   { "movex", CScrEntCmd_MoveX, 0 },
   { "movey", CScrEntCmd_MoveY, 0 },
   { "movez", CScrEntCmd_MoveZ, 0 },
   { "rotatevelocity", CScrCmd_RotateVelocity, 0 },
+#ifdef KISAK_SP
+  { "playrumbleonentity", CScrCmd_PlayRumbleOnEntity, 0 },
+  { "playrumblelooponentity", CScrCmd_PlayRumbleLoopOnEntity, 0 },
+  { "stoprumble", CScrCmd_StopRumble, 0 },
+#else
   { "playrumbleonentity", NULLSUB2, 0 },
   { "playrumblelooponentity", NULLSUB2, 0 },
   { "stoprumble", NULLSUB2, 0 },
+#endif
   { "startpoisoning", CScr_StartPoisoning, 0 },
   { "stoppoisoning", CScr_StopPoisoning, 0 },
   { "ispoisoned", CScr_IsPoisoned, 0 },
   { "issplitscreenhost", CScrCmd_IsSplitScreenHost, 0 },
+#ifdef KISAK_SP
+  { "setwatchstyle", CScr_SetWatchStyle, 0 },
+#else
   { "setwatchstyle", NULLSUB2, 0 },
+#endif
   { "getcampos", CScrCmd_GetCamPos, 0 },
   { "getcamangles", CScrCmd_GetCamAngles, 0 },
   { "useanimtree", CScr_UseAnimTree, 0 },
@@ -193,7 +223,7 @@ const BuiltinMethodDef client_methods[] =
 
 
 
-BuiltinFunctionDef client_functions[154] =
+BuiltinFunctionDef client_functions[] =
 {
   { "print", print, 1 },
   { "print3d", &CScr_Print3D, 1 },
@@ -219,6 +249,8 @@ BuiltinFunctionDef client_functions[154] =
   { "getlocalclientangles", &CScr_GetLocalClientAngles, 0 },
   { "getmaxlocalclients", &CScr_GetMaxLocalClients, 0 },
   { "localclientactive", &CScr_LocalClientActive, 0 },
+  // MP ZM CSC only (thundergun/tesla/freezegun). Not in CoDSP backup; needs Scr_BuiltinWaittillFrameEnd in cscr_vm.cpp.
+  { "waitforclient", &CScr_WaitForClient, 0 },
   { "issplitscreenhost", &CScr_IsSplitScreenHost, 0 },
   { "issplitscreen", &CScr_IsSplitScreen, 0 },
   { "aimingatfriendly", &CScr_AimingAtFriendly, 0 },
@@ -233,7 +265,10 @@ BuiltinFunctionDef client_functions[154] =
   { "acos", &CScr_acos, 0 },
   { "atan", &CScr_atan, 0 },
   { "int", &CScr_CastInt, 0 },
+  { "castint", &CScr_CastInt, 0 },
   { "float", &CScr_CastFloat, 0 },
+  { "castfloat", &CScr_CastFloat, 0 },
+  { "fprint_internal", CScr_FPrintln, 0 },
   { "abs", &CScr_abs, 0 },
   { "min", &CScr_min, 0 },
   { "max", &CScr_max, 0 },
@@ -263,6 +298,7 @@ BuiltinFunctionDef client_functions[154] =
   { "anglestoforward", &CScr_AnglesToForward, 0 },
   { "combineangles", &CScr_CombineAngles, 0 },
   { "angleclamp180", &CScr_ClampAngle180, 0 },
+  { "clampangle180", &CScr_ClampAngle180, 0 },
   { "absangleclamp180", &CScr_AbsAngleClamp180, 0 },
   { "getsubstr", &CScr_GetSubStr, 0 },
   { "tolower", &CScr_ToLower, 0 },
@@ -281,6 +317,7 @@ BuiltinFunctionDef client_functions[154] =
   { "isalive", &CScr_IsAlive, 0 },
   { "getweaponmodel", &CScr_GetWeaponModel, 0 },
   { "loadfx", &CScr_LoadedFX, 0 },
+  { "loadedfx", &CScr_LoadedFX, 0 },
   { "playfx", &CScr_PlayFX, 0 },
   { "playloopedfx", &CScr_PlayLoopedFX, 0 },
   { "stopfx", &CScr_StopFX, 0 },
@@ -313,12 +350,19 @@ BuiltinFunctionDef client_functions[154] =
   { "soundlineemitter", &CScr_SoundLineEmitter, 0 },
   { "soundstoplineemitter", &CScr_SoundStopLineEmitter, 0 },
   { "getsoundname", &CScr_GetAliasName, 0 },
+  { "getaliasname", &CScr_GetAliasName, 0 },
   { "getsoundcount", &CScr_GetAliasCount, 0 },
+  { "getaliascount", &CScr_GetAliasCount, 0 },
   { "issoundloop", &CScr_IsAliasLoop, 0 },
+  { "isaliasloop", &CScr_IsAliasLoop, 0 },
   { "stoplocalsound", &CScr_StopLocalSound, 0 },
   { "soundtimescale", &CScr_SoundTimescale, 0 },
   { "precacherumble", &CScr_PrecacheRumble, 0 },
+#ifdef KISAK_SP
+  { "playrumbleonposition", &CScr_PlayRumbleOnPosition, 0 },
+#else
   { "playrumbleonposition", &NULLSUB, 0 },
+#endif
   { "getdvar", &CScr_GetDvar, 0 },
   { "getdvarcolorred", &CScr_GetDvarColorRed, 0 },
   { "getdvarcolorgreen", &CScr_GetDvarColorGreen, 0 },
@@ -341,14 +385,15 @@ BuiltinFunctionDef client_functions[154] =
   { "freadln", &CScr_FReadLn, 1 },
   { "fgetarg", &CScr_FGetArg, 1 },
   { "ui3dsetwindow", &CScr_SetUI3DTextureWindow, 0 },
-  { "playbink", &CScr_StopBink, 0 },
+  { "setui3dtexturewindow", &CScr_SetUI3DTextureWindow, 0 },
+  { "playbink", &CScr_PlayBink, 0 },
   { "stopbink", &CScr_StopBink, 0 },
   { "getbinklength", &CScr_GetBinkLength, 0 },
   { "isbinkfinished", &CScr_IsBinkFinished, 0 },
   { "isinvehicle", &CScr_IsInVehicle, 0 },
-  { "isps3", &CScr_PrecacheRumble, 0 },
-  { "ispc", &CScr_GetMaxLocalClients, 0 },
-  { "isxenon", &CScr_PrecacheRumble, 0 }
+  { "isps3", &CScr_IsPS3, 0 },
+  { "ispc", &CScr_IsPC, 0 },
+  { "isxenon", &CScr_IsXenon, 0 }
 };
 
 const cent_field_s cent_fields[25] =
@@ -1473,7 +1518,7 @@ void CScr_Length()
     float v[3]; // [esp+10h] [ebp-Ch] BYREF
 
     Scr_GetVector(0, v, SCRIPTINSTANCE_CLIENT);
-    value = Vec3Length(v);
+    value = Abs(v);
     Scr_AddFloat(value, SCRIPTINSTANCE_CLIENT);
 }
 
@@ -3995,7 +4040,7 @@ void __cdecl CScr_GetIsDog(centity_s *cent, const cent_field_s *pField)
     }
     if ( cent->nextState.eType == 17 || cent->nextState.eType == 19 )
     {
-        value = Flame_GetLocalClientSourceRange();
+        value = G_IsSpeciesDog((AISpecies)cent->nextState.lerp.u.actor.species);
         Scr_AddBool(value, SCRIPTINSTANCE_CLIENT);
     }
     else
@@ -4055,6 +4100,8 @@ void __cdecl CScr_PlayerFootstepEvent(
     unsigned __int16 t; // [esp+8h] [ebp-4h]
 
     ReportBadFootsteps(localClientNum, cent, surfaceType, isPlayerView);
+    if ( !cg_scr_data.playerFootstep )
+        return;
     Scr_AddInt(quiet, SCRIPTINSTANCE_CLIENT);
     Scr_AddInt(isPlayerView, SCRIPTINSTANCE_CLIENT);
     value = (char *)Com_SurfaceTypeToName(surfaceType);
@@ -4072,6 +4119,8 @@ void __cdecl CScr_PlayerJumpEvent(int localClientNum, centity_s *cent, bool isPl
     char *value; // [esp+0h] [ebp-8h]
     unsigned __int16 t; // [esp+4h] [ebp-4h]
 
+    if ( !cg_scr_data.playerJump )
+        return;
     Scr_AddInt(quiet, SCRIPTINSTANCE_CLIENT);
     Scr_AddInt(isPlayerView, SCRIPTINSTANCE_CLIENT);
     value = (char *)Com_SurfaceTypeToName(surfaceType);
@@ -4094,6 +4143,8 @@ void __cdecl CScr_PlayerLandEvent(
     unsigned __int16 t; // [esp+4h] [ebp-4h]
 
     ReportBadFootsteps(localClientNum, cent, surfaceType, isPlayerView);
+    if ( !cg_scr_data.playerLand )
+        return;
     Scr_AddInt(damagePlayer, SCRIPTINSTANCE_CLIENT);
     Scr_AddInt(quiet, SCRIPTINSTANCE_CLIENT);
     Scr_AddInt(isPlayerView, SCRIPTINSTANCE_CLIENT);
@@ -4109,6 +4160,8 @@ void __cdecl CScr_PlayerFoliageEvent(int localClientNum, centity_s *cent, bool i
 {
     unsigned __int16 t; // [esp+0h] [ebp-4h]
 
+    if ( !cg_scr_data.playerFoliage )
+        return;
     Scr_AddInt(quiet, SCRIPTINSTANCE_CLIENT);
     Scr_AddInt(isPlayerView, SCRIPTINSTANCE_CLIENT);
     CScr_AddEntity(cent, (unsigned __int16)localClientNum);
@@ -4798,7 +4851,63 @@ void CScr_IsInVehicle()
 
 void CScr_PrecacheRumble()
 {
+    const char *name;
+    signed int i;
+    char *configString;
+
+    name = Scr_GetString(0, SCRIPTINSTANCE_CLIENT);
+    if ( !name )
+        Scr_ParamError(0, "name", SCRIPTINSTANCE_CLIENT);
+    for ( i = 0; i < 32; ++i )
+    {
+        configString = CL_GetConfigString(i + 1520);
+        if ( !I_stricmp(configString, name) )
+        {
+            Scr_AddInt(i, SCRIPTINSTANCE_CLIENT);
+            return;
+        }
+    }
+    Scr_ParamError(
+        0,
+        va(
+            "Rumble %s needs to be precached in server script, before it's refered to in client script.",
+            name),
+        SCRIPTINSTANCE_CLIENT);
+}
+
+void CScr_IsPS3()
+{
     Scr_AddInt(0, SCRIPTINSTANCE_CLIENT);
+}
+
+void CScr_IsPC()
+{
+    Scr_AddInt(1, SCRIPTINSTANCE_CLIENT);
+}
+
+void CScr_IsXenon()
+{
+    Scr_AddInt(0, SCRIPTINSTANCE_CLIENT);
+}
+
+void __cdecl CScr_PlayBink()
+{
+    const char *name;
+    int mode;
+    unsigned int playbackFlags;
+
+    name = Scr_GetString(0, SCRIPTINSTANCE_CLIENT);
+    mode = Scr_GetInt(1u, SCRIPTINSTANCE_CLIENT);
+    playbackFlags = 1;
+    if ( mode == 1 )
+        playbackFlags = 5;
+    else if ( mode == 2 )
+        playbackFlags = 3;
+    else if ( mode == 3 )
+        playbackFlags = 131;
+    playbackFlags |= 0x40u;
+    Dvar_SetBoolByName("cg_cinematicFullscreen", false);
+    R_Cinematic_StartPlayback_Internal(name, playbackFlags, 0);
 }
 
 void __cdecl CScrCmd_IsVehiclePeelingOut(scr_entref_t entref)
@@ -5016,13 +5125,29 @@ void CScr_LocalClientActive()
     Scr_AddBool(value, SCRIPTINSTANCE_CLIENT);
 }
 
+void CScr_WaitForClient()
+{
+    int localClientNum;
+    cg_s *cgameGlob;
+
+    localClientNum = Com_ClampLocalClientNum(Scr_GetInt(0, SCRIPTINSTANCE_CLIENT));
+    if ( CL_LocalClient_IsActive(localClientNum) )
+    {
+        cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+        if ( cgameGlob && cgameGlob->nextSnap )
+            return;
+    }
+    if ( !Scr_BuiltinWaittillFrameEnd(SCRIPTINSTANCE_CLIENT) )
+        return;
+}
+
 void __cdecl CScr_IsSplitScreenHost()
 {
     bool value; // [esp+0h] [ebp-8h]
-    VariableUnion localClientNum; // [esp+4h] [ebp-4h]
+    int localClientNum; // [esp+4h] [ebp-4h]
 
-    localClientNum.intValue = Scr_GetInt(0, SCRIPTINSTANCE_CLIENT);
-    value = Com_LocalClient_IsPrimary(localClientNum.intValue);
+    localClientNum = Scr_GetInt(0, SCRIPTINSTANCE_CLIENT);
+    value = Com_LocalClient_IsPrimary(localClientNum);
     Scr_AddInt(value, SCRIPTINSTANCE_CLIENT);
 }
 
@@ -5030,13 +5155,14 @@ void __cdecl CScr_IsSplitScreen()
 {
     bool value; // [esp+0h] [ebp-4h]
 
-    value = CG_IsShowingZombieMap();
+    value = CL_IsRenderingSplitScreen();
     Scr_AddInt(value, SCRIPTINSTANCE_CLIENT);
 }
 
 void __cdecl CScr_StopBink()
 {
-    Com_Printf(13, "DEBUG: Cinematic disabled\n");
+    R_Cinematic_StopPlayback();
+    Dvar_SetBoolByName("cg_cinematicFullscreen", true);
 }
 
 void __cdecl CScr_GetBinkLength()
@@ -6038,8 +6164,10 @@ void(__cdecl *__cdecl CScr_GetFunction(const char **pName, int *type))()
 {
     unsigned int i; // [esp+18h] [ebp-4h]
 
-    for (i = 0; i < 0x9A; ++i)
+    for (i = 0; i < ARRAY_COUNT(client_functions); ++i)
     {
+        if ( !client_functions[i].actionString )
+            break;
         if (!strcmp(*pName, client_functions[i].actionString))
         {
             *pName = client_functions[i].actionString;
@@ -6354,7 +6482,7 @@ void __cdecl CScrCmd_GetSpeed(scr_entref_t entref)
         if ( pSelf->nitrousVeh )
             speed = pSelf->nitrousVeh->m_forward_vel;
         else
-            speed = Vec3Length(pSelf->nextState.lerp.pos.trDelta);
+            speed = Abs(pSelf->nextState.lerp.pos.trDelta);
     }
     else if ( CG_IsLocalPlayer(entref.entnum) )
     {
@@ -6382,7 +6510,7 @@ void __cdecl CScrCmd_GetSpeed(scr_entref_t entref)
             {
                 if ( cgg->nextSnap )
                 {
-                    speed = Vec3Length(cgg->predictedPlayerState.velocity);
+                    speed = Abs(cgg->predictedPlayerState.velocity);
                     if ( (LODWORD(speed) & 0x7F800000) == 0x7F800000
                         && !Assert_MyHandler(
                                     "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_scr_main.cpp",
@@ -6410,7 +6538,7 @@ void __cdecl CScrCmd_GetSpeed(scr_entref_t entref)
             time = LocalClientGlobals->nextSnap->serverTime - LocalClientGlobals->snap->serverTime;
             if ( time )
             {
-                v1 = Vec3Length(velocity_out);
+                v1 = Abs(velocity_out);
                 speed = v1 / (double)time * 1000.0;
             }
             if ( (LODWORD(speed) & 0x7F800000) == 0x7F800000
@@ -7201,6 +7329,86 @@ void __cdecl CScrCmdGetCommandTimes(float *pfTotalTime, float *pfAccelTime, floa
     }
 }
 
+struct CScrPhysicsGravitySlot
+{
+    centity_s *ent;
+    int gravity;
+};
+
+static CScrPhysicsGravitySlot s_physicsGravity[MAX_LOCAL_CLIENTS][32];
+
+static centity_s *__cdecl CScr_ResolveScriptEnt(scr_entref_t entref)
+{
+    if ( entref.classnum )
+    {
+        Scr_Error(SCRIPTINSTANCE_CLIENT, "not an entity", 0);
+        return 0;
+    }
+    if ( entref.entnum >= 0x600u )
+        return 0;
+    if ( CG_GetClientNumForLocalClient(entref.client) == entref.entnum )
+        return &CG_GetLocalClientGlobals(entref.client)->predictedPlayerEntity;
+    return CG_GetEntity(entref.client, entref.entnum);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (CScr_SetPhysicsGravity @ 823DB628)
+void __cdecl CScr_SetPhysicsGravity(scr_entref_t entref)
+{
+    centity_s *ent;
+    int localClientNum;
+    int gravity;
+    int i;
+
+    if ( !zombiemode->current.enabled )
+        return;
+    ent = CScr_ResolveScriptEnt(entref);
+    if ( !ent )
+        return;
+    localClientNum = ent->pose.localClientNum;
+    gravity = Scr_GetInt(0, SCRIPTINSTANCE_CLIENT);
+    for ( i = 0; i < 32; ++i )
+    {
+        if ( s_physicsGravity[localClientNum][i].ent == ent )
+        {
+            s_physicsGravity[localClientNum][i].gravity = gravity;
+            return;
+        }
+    }
+    for ( i = 0; i < 32; ++i )
+    {
+        if ( !s_physicsGravity[localClientNum][i].ent )
+        {
+            s_physicsGravity[localClientNum][i].ent = ent;
+            s_physicsGravity[localClientNum][i].gravity = gravity;
+            return;
+        }
+    }
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (CScr_ClearPhysicsGravity @ 823DB768)
+void __cdecl CScr_ClearPhysicsGravity(scr_entref_t entref)
+{
+    centity_s *ent;
+    int localClientNum;
+    int i;
+
+    if ( !zombiemode->current.enabled )
+        return;
+    ent = CScr_ResolveScriptEnt(entref);
+    if ( !ent )
+        return;
+    localClientNum = ent->pose.localClientNum;
+    for ( i = 0; i < 32; ++i )
+    {
+        if ( s_physicsGravity[localClientNum][i].ent == ent )
+        {
+            s_physicsGravity[localClientNum][i].ent = 0;
+            s_physicsGravity[localClientNum][i].gravity = 0;
+            return;
+        }
+    }
+}
+
 void __cdecl CScrCmd_MoveGravity(scr_entref_t entref)
 {
     char *error; // [esp+1Ch] [ebp-40h]
@@ -7434,7 +7642,7 @@ void __cdecl CScriptMover_SetupMove(
     {
         *pfMidTime = (float)(fTotalTime - fAccelTime) - fDecelTime;
         *pfDecelTime = fDecelTime;
-        fDist = Vec3Length(vMove);
+        fDist = Abs(vMove);
         if ((float)((float)((float)(2.0 * fTotalTime) - fAccelTime) - fDecelTime) == 0.0
             && !Assert_MyHandler(
                 "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_scr_main.cpp",
@@ -7886,7 +8094,7 @@ void __cdecl CScriptMover_SetupMoveSpeed(
     {
         *pfMidTime = (float)(fTotalTime - fAccelTime) - fDecelTime;
         *pfDecelTime = fDecelTime;
-        *pfSpeed = Vec3Length(vSpeed);
+        *pfSpeed = Abs(vSpeed);
         if (fAccelTime == 0.0)
         {
             *vPos1 = *vCurrPos;
@@ -9268,7 +9476,7 @@ void __cdecl CScrCmd_IsSplitScreenHost(scr_entref_t entref)
     bIsHost = 0;
     if ( CG_IsLocalPlayer(entref.entnum) )
     {
-        for ( localClientNum = 0; localClientNum < 1; ++localClientNum )
+        for ( localClientNum = 0; localClientNum < MAX_LOCAL_CLIENTS; ++localClientNum )
         {
             if ( CL_LocalClient_IsActive(localClientNum) )
             {
@@ -10060,12 +10268,65 @@ void __cdecl CScr_Hide(scr_entref_t entref)
     Entity->nextState.lerp.eFlags |= 0x20u;
 }
 
+// Decomp: BlackOps.singleplayer.c sub_8974D0
+void __cdecl CScr_UseWeaponHideTags(scr_entref_t entref)
+{
+    centity_s *cent;
+    DObj *obj;
+    const char *weaponName;
+    unsigned int weaponIndex;
+    const WeaponVariantDef *weapVariantDef;
+    unsigned int oldPartBits[5];
+    int tagIndex;
+    unsigned __int8 boneIndex;
+
+    if ( !Scr_GetNumParam(SCRIPTINSTANCE_CLIENT) )
+        Scr_Error(SCRIPTINSTANCE_CLIENT, "useweaponhidetags <weaponName>.\n", 0);
+    weaponName = Scr_GetString(0u, SCRIPTINSTANCE_CLIENT);
+    weaponIndex = CG_GetWeaponIndexForName((char *)weaponName);
+    if ( !weaponIndex )
+        Scr_Error(
+            SCRIPTINSTANCE_CLIENT,
+            va("useweaponhidetags called with unknown weapon name %s\n", weaponName),
+            0);
+    if ( entref.classnum )
+    {
+        Scr_Error(SCRIPTINSTANCE_CLIENT, "not an entity", 0);
+        return;
+    }
+    if ( CG_GetClientNumForLocalClient(entref.client) == entref.entnum )
+        cent = &CG_GetLocalClientGlobals(entref.client)->predictedPlayerEntity;
+    else
+        cent = CG_GetEntity(entref.client, entref.entnum);
+    weapVariantDef = BG_GetWeaponVariantDef(weaponIndex);
+    cent->nextState.partBits[0] = 0;
+    cent->nextState.partBits[1] = 0;
+    cent->nextState.partBits[2] = 0;
+    cent->nextState.partBits[3] = 0;
+    cent->nextState.partBits[4] = 0;
+    obj = Com_GetClientDObj(cent->nextState.number, cent->pose.localClientNum);
+    if ( !obj )
+        return;
+    for ( tagIndex = 0; tagIndex < 32 && weapVariantDef->hideTags[tagIndex]; ++tagIndex )
+    {
+        boneIndex = -2;
+        if ( DObjGetBoneIndex(obj, weapVariantDef->hideTags[tagIndex], &boneIndex, -1) )
+            cent->nextState.partBits[(int)boneIndex >> 5] |= 0x80000000 >> (boneIndex & 0x1F);
+    }
+    DObjGetHidePartBits(obj, oldPartBits);
+    DObjSetHidePartBits(obj, cent->nextState.partBits);
+    FX_MarkEntUpdateHidePartBits(
+        oldPartBits, cent->nextState.partBits, cent->pose.localClientNum, cent->nextState.number);
+}
+
 void (__cdecl *__cdecl CScr_GetMethod(const char **pName, int *type))(scr_entref_t)
 {
     unsigned int i; // [esp+18h] [ebp-4h]
 
     for ( i = 0; i < ARRAY_COUNT(client_methods); ++i )
     {
+        if ( !client_methods[i].actionString )
+            break;
         if ( !strcmp(*pName, client_methods[i].actionString) )
         {
             *pName = client_methods[i].actionString;
@@ -10372,6 +10633,7 @@ bool __cdecl CG_EntityContact(const float *mins, const float *maxs, const centit
     trace_t trace; // [esp+1Ch] [ebp-44h] BYREF
     float center[2]; // [esp+58h] [ebp-8h]
 
+    memset(&trace, 0, 16);
     if ( ((*((unsigned int *)cent + 201) >> 15) & 1) == 0 )
         return 0;
     if ( (*((unsigned int *)cent + 201) & 0x10000) != 0 )
@@ -10696,5 +10958,8 @@ void __cdecl CScr_PostLoadScripts()
         Scr_SetClassMap(SCRIPTINSTANCE_CLIENT, classnum);
     CScr_AddFieldsForEntity();
     CScr_AddFieldsForRadiant();
+#ifdef KISAK_SP
+    CScr_AddFieldsForDynEntity();
+#endif
 }
 

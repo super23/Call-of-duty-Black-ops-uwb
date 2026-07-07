@@ -185,6 +185,8 @@ struct __declspec(align(4)) AimOutput // sizeof=0x10
         // padding byte
 };
 
+void __cdecl AimAssist_SetAdsWidthAndLerp(int localClientNum, float width, float lerp);
+void __cdecl AimAssist_ResetAdsWidthAndLerp(int localClientNum);
 void __cdecl AimAssist_Init(int localClientNum);
 void AimAssist_RegisterDvars();
 void __cdecl AimAssist_Setup(int localClientNum, const playerState_s *ps);
@@ -261,3 +263,10 @@ void __cdecl AimAssist_DrawCenterBox(
                 float clipHalfHeight,
                 const float *color);
 void __cdecl AimAssist_DrawTargets(int localClientNum, const playerState_s *ps, const float *color);
+
+float *__cdecl TopDown_FindBestTarget(int a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8, double a9, int a10, int a11, int a12, int a13, int a14);
+int __cdecl TopDown_UpdateAngles(int a1, int a2, float *a3);
+const char *__cdecl TopDown_UpdateGamePadInput(int a1, float *a2);
+void *__cdecl TopDown_RestoreState(void *result, float *a2);
+int __cdecl TopDown_UpdateMouseInput(int a1, float *a2);
+void *__cdecl TopDown_SaveState(const void *a1, int a2);

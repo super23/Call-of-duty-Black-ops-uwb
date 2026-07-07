@@ -400,6 +400,8 @@ void __cdecl R_AddWorldSurfacesDpvs(const GfxViewParms *viewParms, int cameraCel
 void __cdecl R_AddWorldSurfacesPortalWalk(int cameraCellIndex);
 void __cdecl R_SetCellVisible(const GfxCell *cell);
 unsigned int __cdecl R_CellIsForcedInvisible(const GfxCell *cell);
+bool __cdecl R_ForcedInvisibleCell_TurnOn(int cellIndex);
+bool __cdecl R_ForcedInvisibleCell_TurnOff(int cellIndex);
 void __cdecl R_VisitPortals(const GfxCell *cell, const DpvsPlane *parentPlane, DpvsPlane *planes, int planeCount);
 unsigned int __cdecl R_PortalClipPlanes(
                 DpvsPlane *planes,

@@ -5,18 +5,26 @@
 #include <qcommon/common.h>
 #include <ddl/ddl_api.h>
 #include "live_stats.h"
+#ifdef KISAK_SP
+#include <server_sp/sv_main_pc_sp.h>
+#include <game/g_main.h>
+#include <client_sp/cl_main_pc_sp.h>
+#include <client_sp/sv_client_sp.h>
+#include <server_sp/sv_main_sp.h>
+#else
 #include <server_mp/sv_main_pc_mp.h>
 #include <game_mp/g_main_mp.h>
+#include <client_mp/cl_main_pc_mp.h>
+#include <client_mp/sv_client_mp.h>
+#include <server_mp/sv_main_mp.h>
+#endif
 #include <stringed/stringed_hooks.h>
 #include <qcommon/com_gamemodes.h>
 #include "live_storage.h"
-#include <client_mp/cl_main_pc_mp.h>
 #include "live_storage_pub.h"
 #include "live_presence_win.h"
 #include <ui/ui_playlists.h>
-#include <client_mp/sv_client_mp.h>
 #include "live_leaderboard.h"
-#include <server_mp/sv_main_mp.h>
 #include <client/cl_rank.h>
 #include <bgame/bg_unlockable_items.h>
 #include <ctime>
@@ -210,7 +218,6 @@ const int lbViewIds_0[160] =
 bool s_firstTimeRunning = true;
 
 const dvar_t *stats_backup;
-const dvar_t *presell;
 const dvar_t *sv_playlistFetchInterval;
 
 LbPlayerStat g_playerStats[32];
@@ -235,8 +242,14 @@ void __cdecl LiveStorage_ResetStats(unsigned __int8 *buffer)
     {
         __debugbreak();
     }
-    if ( !stat_version->current.integer )
-        Com_Error(ERR_DROP, "stat_version is zero\n");
+    if ( !stat_version || !stat_version->current.integer )
+    {
+        if ( !stat_version )
+            Com_PrintWarning(16, "LiveStorage_ResetStats: stat_version dvar not registered\n");
+        else
+            Com_Error(ERR_DROP, "stat_version is zero\n");
+        return;
+    }
     if ( buffer )
     {
         Com_Printf(
@@ -244,8 +257,8 @@ void __cdecl LiveStorage_ResetStats(unsigned __int8 *buffer)
             "LiveStorage_ResetStats: resetstats called - writing statversion %i to buffer\n",
             stat_version->current.integer);
         memset(buffer, 0, 0x9CE8u);
-        DDL_AssociateBuffer((char *)buffer, 40168, g_statsDDL);
-        LiveStats_WriteChecksumToBuffer(buffer, 40168);
+        DDL_AssociateBuffer((char *)buffer, LIVE_STATS_DDL_BUFFER_BYTES, g_statsDDL);
+        LiveStats_WriteChecksumToBuffer(buffer, LIVE_STATS_DDL_BUFFER_BYTES);
         LiveStats_SetPlayerStatByKey(
             "PlayerStatsList",
             MP_PLAYERSTATSKEY_STATS_VERSION,
@@ -293,16 +306,218 @@ static void __cdecl ResetCreateAClassNames(int controllerIndex)
     SetDvarFromLocString(controllerIndex, "prestigeclass5", (char*)"CLASS_PRESTIGE5");
 }
 
-void __cdecl LiveStorage_ReadStats(int __formal, bool validate, bool silent)
+// ---------------------------------------------------------------------------
+// KISAK: local-file persistence for stats / rank / custom classes / prestige.
+//
+// Stock T5 stored these in the cloud via Demonware (bdStorage::readUserFile /
+// writeUserFile keyed off the user's XUID). We don't have a Demonware backend
+// in this build, so the stats system was previously volatile - every rank-up,
+// class edit, and prestige reset would vanish when the user quit.
+//
+// The fix below mirrors the cloud read/write into a single local file under
+// the user's profile dir. Two buffers are persisted:
+//   - controllerNetworkData[i].playerStats          (40172 bytes, online ranked)
+//   - controllerNetworkData[i].basicTrainingStats   (40172 bytes, offline / bots)
+// Plus a small header so we can version-bump without nuking everyone's data.
+// ---------------------------------------------------------------------------
+
+extern playerNetworkData controllerNetworkData[1];   // defined in live_storage.cpp
+
+#define LIVE_LOCAL_STATS_MAGIC   0x53545358u   // 'XSTS' (Xtra-stats little-endian)
+#define LIVE_LOCAL_STATS_VERSION 1u
+#define LIVE_LOCAL_STATS_SIZE    LIVE_STATS_DDL_BUFFER_BYTES          // sizeof(playerNetworkData::playerStats)
+
+struct LiveLocalStatsHeader
 {
-#ifdef KISAK_LIVE_SERVICE
-    if ( live_service->current.enabled )
+    unsigned int magic;
+    unsigned int version;
+    unsigned int playerStatsSize;
+    unsigned int basicTrainingSize;
+};
+
+static void LiveStorage_LocalStatsPath(int controllerIndex, char *out, int outSize)
+{
+    Com_sprintf(out, outSize, "players/userstats_%d.bin", controllerIndex);
+}
+
+#define LIVE_LOCAL_LEGACY_STATS_40168 40168u
+#define LIVE_LOCAL_LEGACY_STATS_40172 40172u
+
+static bool LiveStorage_LocalLoadStats(int controllerIndex)
+{
+    char path[256];
+    int handle = 0;
+    LiveLocalStatsHeader header = {};
+    LiveStorage_LocalStatsPath(controllerIndex, path, sizeof(path));
+
+    int len = FS_FOpenFileRead(path, &handle);
+    if ( len <= 0 || handle == 0 )
+        return false;
+
+    if ( len < (int)sizeof(header) + (int)LIVE_LOCAL_LEGACY_STATS_40168 * 2 )
     {
-        LiveStorage_ReadBasicTrainingStats(0, validate, silent);
-        LiveStorage_ReadPlayerGlobalBlob();
-        LiveStorage_InitCustomClassesNames();
+        Com_PrintWarning(16, "LiveStorage: local stats file '%s' is truncated (%d bytes), ignoring\n", path, len);
+        FS_FCloseFile(handle);
+        return false;
     }
-#endif
+
+    FS_Read((unsigned __int8 *)&header, sizeof(header), handle);
+    if ( header.magic != LIVE_LOCAL_STATS_MAGIC )
+    {
+        Com_PrintWarning(16, "LiveStorage: local stats file '%s' has bad magic 0x%X, ignoring\n", path, header.magic);
+        FS_FCloseFile(handle);
+        return false;
+    }
+    if ( header.version != LIVE_LOCAL_STATS_VERSION )
+    {
+        Com_PrintWarning(
+            16,
+            "LiveStorage: local stats file '%s' has unsupported version %u, ignoring\n",
+            path,
+            header.version);
+        FS_FCloseFile(handle);
+        return false;
+    }
+    if ( header.playerStatsSize > LIVE_LOCAL_STATS_SIZE || header.basicTrainingSize > LIVE_LOCAL_STATS_SIZE )
+    {
+        Com_PrintWarning(
+            16,
+            "LiveStorage: local stats file '%s' claims oversized buffers (%u / %u), ignoring\n",
+            path,
+            header.playerStatsSize,
+            header.basicTrainingSize);
+        FS_FCloseFile(handle);
+        return false;
+    }
+    if ( header.playerStatsSize != LIVE_LOCAL_STATS_SIZE && header.playerStatsSize != LIVE_LOCAL_LEGACY_STATS_40168
+         && header.playerStatsSize != LIVE_LOCAL_LEGACY_STATS_40172 )
+    {
+        Com_PrintWarning(
+            16,
+            "LiveStorage: local stats file '%s' has unknown playerStatsSize %u, ignoring\n",
+            path,
+            header.playerStatsSize);
+        FS_FCloseFile(handle);
+        return false;
+    }
+    if ( header.basicTrainingSize != LIVE_LOCAL_STATS_SIZE && header.basicTrainingSize != LIVE_LOCAL_LEGACY_STATS_40168
+         && header.basicTrainingSize != LIVE_LOCAL_LEGACY_STATS_40172 )
+    {
+        Com_PrintWarning(
+            16,
+            "LiveStorage: local stats file '%s' has unknown basicTrainingSize %u, ignoring\n",
+            path,
+            header.basicTrainingSize);
+        FS_FCloseFile(handle);
+        return false;
+    }
+
+    if ( len < (int)sizeof(header) + (int)header.playerStatsSize + (int)header.basicTrainingSize )
+    {
+        Com_PrintWarning(16, "LiveStorage: local stats file '%s' shorter than header claims, ignoring\n", path);
+        FS_FCloseFile(handle);
+        return false;
+    }
+
+    memset(controllerNetworkData[controllerIndex].playerStats, 0, LIVE_LOCAL_STATS_SIZE);
+    memset(controllerNetworkData[controllerIndex].basicTrainingStats, 0, LIVE_LOCAL_STATS_SIZE);
+    FS_Read(controllerNetworkData[controllerIndex].playerStats, header.playerStatsSize, handle);
+    FS_Read(controllerNetworkData[controllerIndex].basicTrainingStats, header.basicTrainingSize, handle);
+    FS_FCloseFile(handle);
+
+    // Tell the rest of the engine these buffers are now populated; otherwise
+    // every UI menu that reads stats falls back to "loading..." or refuses
+    // to open (create-a-class, prestige, leaderboards, ...).
+    LiveStorage_SetStatsFetched(controllerIndex, STATS_LOCATION_FORCE_NORMAL, 1);
+    LiveStorage_SetStatsFetched(controllerIndex, STATS_LOCATION_BASICTRAINING, 1);
+    LiveStorage_SetStatsChecksumValid(controllerIndex, STATS_LOCATION_FORCE_NORMAL, 1);
+    LiveStorage_SetStatsChecksumValid(controllerIndex, STATS_LOCATION_BASICTRAINING, 1);
+    LiveStorage_SetStatsDDLValidated(controllerIndex, STATS_LOCATION_FORCE_NORMAL, 1);
+    LiveStorage_SetStatsDDLValidated(controllerIndex, STATS_LOCATION_BASICTRAINING, 1);
+    controllerNetworkData[controllerIndex].firstTimeRunning = 0;
+
+    Com_Printf(16, "LiveStorage: loaded local stats from '%s' (%d bytes)\n", path, len);
+
+    if ( header.playerStatsSize != LIVE_LOCAL_STATS_SIZE || header.basicTrainingSize != LIVE_LOCAL_STATS_SIZE )
+        LiveStorage_LocalSaveStats(controllerIndex);
+
+    return true;
+}
+
+void LiveStorage_LocalSaveStats(int controllerIndex)
+{
+    char path[256];
+    LiveStorage_LocalStatsPath(controllerIndex, path, sizeof(path));
+
+    int handle = FS_FOpenFileWrite(path);
+    if ( handle <= 0 )
+    {
+        Com_PrintWarning(16, "LiveStorage: could not open '%s' for writing\n", path);
+        return;
+    }
+
+    LiveLocalStatsHeader header;
+    header.magic             = LIVE_LOCAL_STATS_MAGIC;
+    header.version           = LIVE_LOCAL_STATS_VERSION;
+    header.playerStatsSize   = LIVE_LOCAL_STATS_SIZE;
+    header.basicTrainingSize = LIVE_LOCAL_STATS_SIZE;
+
+    FS_Write((const char *)&header, sizeof(header), handle);
+    FS_Write((const char *)controllerNetworkData[controllerIndex].playerStats,        LIVE_LOCAL_STATS_SIZE, handle);
+    FS_Write((const char *)controllerNetworkData[controllerIndex].basicTrainingStats, LIVE_LOCAL_STATS_SIZE, handle);
+    FS_FCloseFile(handle);
+
+    Com_DPrintf(16, "LiveStorage: saved local stats to '%s'\n", path);
+}
+
+void __cdecl LiveStorage_ReadStats(int controllerIndex, bool validate, bool silent)
+{
+    // Local profile load must run even when live_service is 0 (LAN / offline
+    // / DemonWare-stub builds); stock gated this on DW "online service".
+    (void)validate;
+    (void)silent;
+    LiveStorage_InitCustomClassesNames();
+
+    if ( !LiveStorage_LocalLoadStats(controllerIndex) )
+    {
+        if ( !g_statsDDL )
+        {
+            Com_PrintWarning(
+                16,
+                "LiveStorage: stats DDL not loaded; cannot create default profile for missing userstats file\n");
+            return;
+        }
+        if ( !stat_version || !stat_version->current.integer )
+        {
+            Com_PrintWarning(
+                16,
+                "LiveStorage: stat_version unset; cannot create default profile for missing userstats file\n");
+            return;
+        }
+
+        // First time running on this profile, or the file is missing/corrupt.
+        // Initialise both buffers to a known-good "empty" state so that the
+        // first save will be valid and the menus open without errors.
+        LiveStats_ResetStats(controllerIndex, 0);
+        if ( xblive_basictraining )
+        {
+            bool wasBT = xblive_basictraining->current.enabled;
+            Dvar_SetBool((dvar_s *)xblive_basictraining, 1);
+            LiveStats_ResetStats(controllerIndex, 0);
+            Dvar_SetBool((dvar_s *)xblive_basictraining, wasBT);
+        }
+        LiveStorage_SetStatsFetched(controllerIndex, STATS_LOCATION_FORCE_NORMAL,  1);
+        LiveStorage_SetStatsFetched(controllerIndex, STATS_LOCATION_BASICTRAINING, 1);
+        LiveStorage_SetStatsChecksumValid(controllerIndex, STATS_LOCATION_FORCE_NORMAL,  1);
+        LiveStorage_SetStatsChecksumValid(controllerIndex, STATS_LOCATION_BASICTRAINING, 1);
+        LiveStorage_SetStatsDDLValidated (controllerIndex, STATS_LOCATION_FORCE_NORMAL,  1);
+        LiveStorage_SetStatsDDLValidated (controllerIndex, STATS_LOCATION_BASICTRAINING, 1);
+        controllerNetworkData[controllerIndex].firstTimeRunning = 1;
+        Com_Printf(16, "LiveStorage: no local stats file found, starting fresh profile\n");
+        // Write players/userstats_<n>.bin immediately so the profile exists
+        // before the first match-end upload path runs.
+        LiveStorage_LocalSaveStats(controllerIndex);
+    }
 }
 
 void LiveStorage_InitCustomClassesNames()
@@ -310,24 +525,14 @@ void LiveStorage_InitCustomClassesNames()
     int allUnitialized; // [esp+0h] [ebp-8h]
     int i; // [esp+4h] [ebp-4h]
 
-    if ( !customclass
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\live\\live_storage_win.cpp", 448, 0, "%s", "customclass") )
-    {
-        __debugbreak();
-    }
+    if ( !customclass )
+        return;
+
     allUnitialized = 1;
     for ( i = 0; i < 10; ++i )
     {
-        if ( !customclass[i]
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\live\\live_storage_win.cpp",
-                        453,
-                        0,
-                        "%s",
-                        "customclass[i]") )
-        {
-            __debugbreak();
-        }
+        if ( !customclass[i] )
+            continue;
         if ( *(_BYTE *)customclass[i]->current.integer )
             allUnitialized = 0;
     }
@@ -349,18 +554,27 @@ void __cdecl LiveStorage_ReadStatsIfDirChanged()
 
 void __cdecl LiveStorage_UploadStats()
 {
-    if ( !G_ExitAfterToolComplete() )
+    if ( G_ExitAfterToolComplete() )
+        return;
+
+    // Retail T5 path: hand off to either the Basic Training upload or the
+    // Custom-A-Class validation request. Both eventually call into Demonware
+    // (LiveStorage_WriteStats -> LiveStorage_WriteDWUserFile) which is a
+    // no-op on this build, so we still call them for any side-effects (e.g.
+    // making the "stable stats" snapshot) but additionally mirror the data
+    // out to a local profile file so it actually survives a restart.
+    if ( xblive_basictraining->current.enabled )
     {
-        if ( xblive_basictraining->current.enabled )
-        {
-            LiveStorage_WriteBasicTrainingStats(0);
-            LiveStats_MakeStableStatsBuffer(0);
-        }
-        else
-        {
-            CL_CACValidateRequest_f();
-        }
+        LiveStorage_WriteBasicTrainingStats(0);
+        LiveStats_MakeStableStatsBuffer(0);
     }
+    else
+    {
+        CL_CACValidateRequest_f();
+        LiveStats_MakeStableStatsBuffer(0);
+    }
+
+    LiveStorage_LocalSaveStats(0);
 }
 
 void __cdecl LiveStorage_UploadStatsForController()
@@ -439,14 +653,6 @@ void __cdecl LiveStorage_Init_Platform()
 {
     stats_backup = _Dvar_RegisterBool("stats_backup", 1, 1u, "Backup stats file every time the stats file is saved");
     collectors = _Dvar_RegisterBool("collectors", 0, 0x40u, "Set to true if the player has the collector's edition");
-    presell = _Dvar_RegisterBool("presell", 0, 0x40u, "Set to true if the player has preordered");
-    primaryWeaponOffset = _Dvar_RegisterInt(
-                                                    "primaryWeaponOffset",
-                                                    0,
-                                                    0,
-                                                    7,
-                                                    0x40u,
-                                                    "Primary Weapon Offset for CE and Presell");
     sv_playlistFetchInterval = _Dvar_RegisterInt(
                                                              "sv_playlistFetchInterval",
                                                              3600,
@@ -1606,7 +1812,7 @@ void __cdecl SV_DWReadClientStats(client_t *client)
                 fileInfo->isCompressedFile = 1;
                 fileInfo->fileTask.m_filename = (char*)"globalstatsCompressed";
                 fileInfo->fileBuffer = client->globalStats;
-                fileInfo->bufferSize = 40168;
+                fileInfo->bufferSize = LIVE_STATS_DDL_BUFFER_BYTES;
                 fileInfo->fileOperationSucessFunction = (void (__cdecl *)(const int, void *))SV_DWReadClientGlobalStatsSuccess;
                 fileInfo->fileNotFoundFunction = (taskCompleteResults (__cdecl *)(const int, void *))SV_DWReadClientGlobalStatsFailure;
                 fileInfo->ownerID = client->dw_userID;
@@ -1676,16 +1882,16 @@ void __cdecl SV_DWReadClientGlobalStatsSuccess(const int controllerIndex, _QWORD
 
 char __cdecl SV_IsStatsBlobOK(char *data)
 {
-    char backupBuffer[40172]; // [esp+0h] [ebp-9CF8h] BYREF
+    char backupBuffer[LIVE_STATS_DDL_BUFFER_BYTES]; // [esp+0h] [ebp-9CF8h] BYREF
     char *buffer; // [esp+9CF0h] [ebp-8h]
     char v4; // [esp+9CF7h] [ebp-1h]
 
     v4 = 0;
     buffer = data;
-    if ( DDL_AssociateBuffer(data, 40168, g_statsDDL) )
+    if ( DDL_AssociateBuffer(data, LIVE_STATS_DDL_BUFFER_BYTES, g_statsDDL) )
         return 1;
-    if ( DDL_FixBufferVersion(buffer, g_statsDDL, "ddl_mp/stats.ddl", backupBuffer, 40168)
-        || DDL_FixBufferVersion(buffer, g_statsDDL, "ddl_mp/stats_archive.ddl", backupBuffer, 40168) )
+    if ( DDL_FixBufferVersion(buffer, g_statsDDL, "ddl_mp/stats.ddl", backupBuffer, LIVE_STATS_DDL_BUFFER_BYTES)
+        || DDL_FixBufferVersion(buffer, g_statsDDL, "ddl_mp/stats_archive.ddl", backupBuffer, LIVE_STATS_DDL_BUFFER_BYTES) )
     {
         DDL_NoCheckPrintWarning("DDL: Stats buffer updated to version %d\n", g_statsDDL->version);
         return 1;
@@ -1745,7 +1951,7 @@ void __cdecl SV_DWReadClientCAC(client_t *client)
                 v1 = "mpstatsCompressed";
             fileInfo->fileTask.m_filename = (char *)v1;
             fileInfo->fileBuffer = client->stats;
-            fileInfo->bufferSize = 40168;
+            fileInfo->bufferSize = LIVE_STATS_DDL_BUFFER_BYTES;
             fileInfo->fileOperationSucessFunction = (void (__cdecl *)(const int, void *))SV_DWReadClientCACSuccess;
             fileInfo->fileNotFoundFunction = (taskCompleteResults (__cdecl *)(const int, void *))SV_DWReadClientCACFailure;
             fileInfo->ownerID = client->dw_userID;
@@ -1855,7 +2061,7 @@ void __cdecl SV_DWWriteClientStats(client_t *client)
                     fileInfo->isCompressedFile = 1;
                     fileInfo->fileTask.m_filename = (char*)"globalstatsCompressed";
                     fileInfo->fileBuffer = client->globalStats;
-                    fileInfo->bufferSize = 40168;
+                    fileInfo->bufferSize = LIVE_STATS_DDL_BUFFER_BYTES;
                     fileInfo->fileOperationSucessFunction = (void (__cdecl *)(const int, void *))SV_DWWriteClientGlobalStatsSuccess;
                     fileInfo->ownerID = client->dw_userID;
                     checksum = (int *)client->globalStats;
@@ -1932,7 +2138,7 @@ void __cdecl SV_DWWriteClientGlobalStatsSuccess(int controllerIndex, unsigned __
     {
         uid = SV_GetBdUidFromFileInfo((uint64*)data);
     }
-    LiveStorage_SendStatsBufferToClient(uid, data[62], 40168, BLOB_TYPE_GLOBAL, 0);
+    LiveStorage_SendStatsBufferToClient(uid, data[62], LIVE_STATS_DDL_BUFFER_BYTES, BLOB_TYPE_GLOBAL, 0);
     SV_ResetFileOp((dwFileOperationInfo*)data);
 }
 
@@ -2451,7 +2657,7 @@ void __cdecl SV_CACValidate_EvaluateStatsBlobs(
                 int oldcacsize,
                 int globalsize)
 {
-    unsigned __int8 dst[40172]; // [esp+0h] [ebp-9CF0h] BYREF
+    unsigned __int8 dst[LIVE_STATS_DDL_BUFFER_BYTES]; // [esp+0h] [ebp-9CF0h] BYREF
 
     if ( (!globalok || !oldcacok)
         && !Assert_MyHandler(
@@ -2467,15 +2673,15 @@ void __cdecl SV_CACValidate_EvaluateStatsBlobs(
     *oldcacok = 0;
     if ( globalsize > 0 )
     {
-        if ( DDL_AssociateBuffer(globalblob, 40168, g_statsDDL) )
+        if ( DDL_AssociateBuffer(globalblob, LIVE_STATS_DDL_BUFFER_BYTES, g_statsDDL) )
         {
             *globalok = 1;
         }
         else
         {
             memset(dst, 0, 0x9CE8u);
-            if ( DDL_FixBufferVersion(globalblob, g_statsDDL, "ddl_mp/stats.ddl", (char *)dst, 40168)
-                || DDL_FixBufferVersion(globalblob, g_statsDDL, "ddl_mp/stats_archive.ddl", (char *)dst, 40168) )
+            if ( DDL_FixBufferVersion(globalblob, g_statsDDL, "ddl_mp/stats.ddl", (char *)dst, LIVE_STATS_DDL_BUFFER_BYTES)
+                || DDL_FixBufferVersion(globalblob, g_statsDDL, "ddl_mp/stats_archive.ddl", (char *)dst, LIVE_STATS_DDL_BUFFER_BYTES) )
             {
                 DDL_NoCheckPrintWarning("CACValidate: Globalbuffer updated to version %d\n", g_statsDDL->version);
                 *globalok = 1;
@@ -2484,15 +2690,15 @@ void __cdecl SV_CACValidate_EvaluateStatsBlobs(
     }
     if ( oldcacsize > 0 )
     {
-        if ( DDL_AssociateBuffer(oldcacblob, 40168, g_statsDDL) )
+        if ( DDL_AssociateBuffer(oldcacblob, LIVE_STATS_DDL_BUFFER_BYTES, g_statsDDL) )
         {
             *oldcacok = 1;
         }
         else
         {
             memset(dst, 0, 0x9CE8u);
-            if ( DDL_FixBufferVersion(oldcacblob, g_statsDDL, "ddl_mp/stats.ddl", (char *)dst, 40168)
-                || DDL_FixBufferVersion(oldcacblob, g_statsDDL, "ddl_mp/stats_archive.ddl", (char *)dst, 40168) )
+            if ( DDL_FixBufferVersion(oldcacblob, g_statsDDL, "ddl_mp/stats.ddl", (char *)dst, LIVE_STATS_DDL_BUFFER_BYTES)
+                || DDL_FixBufferVersion(oldcacblob, g_statsDDL, "ddl_mp/stats_archive.ddl", (char *)dst, LIVE_STATS_DDL_BUFFER_BYTES) )
             {
                 DDL_NoCheckPrintWarning("CACValidate: Oldcacbuffer updated to version %d\n", g_statsDDL->version);
                 *oldcacok = 1;
@@ -2564,7 +2770,7 @@ void __cdecl SV_CACValidateWriteCACSuccess(int controllerIndex, void *data)
     LiveStorage_SendStatsBufferToClient(
         *((_QWORD *)data + 34),
         *((unsigned __int8 **)data + 62),
-        40168,
+        LIVE_STATS_DDL_BUFFER_BYTES,
         BLOB_TYPE_CAC,
         g_cacvalidateState == CAC_IDLE);
     SV_ResetFileOp(data);
@@ -2591,7 +2797,7 @@ void __cdecl SV_CACValidateWriteGlobal(unsigned __int64 client, unsigned __int8 
         if ( !globalsize )
         {
             LiveStorage_ResetStats(globalblob);
-            globalsize = 40168;
+            globalsize = LIVE_STATS_DDL_BUFFER_BYTES;
         }
         if ( (int)g_newCACBlobSize <= 0
             && !Assert_MyHandler(
@@ -2632,7 +2838,7 @@ void __cdecl SV_CACValidateWriteGlobalSuccess(int controllerIndex, void *data)
     LiveStorage_SendStatsBufferToClient(
         *((_QWORD *)data + 34),
         *((unsigned __int8 **)data + 62),
-        40168,
+        LIVE_STATS_DDL_BUFFER_BYTES,
         BLOB_TYPE_GLOBAL,
         g_cacvalidateState == CAC_IDLE);
     SV_ResetFileOp(data);
@@ -2959,9 +3165,9 @@ void __cdecl Live_OnNewStatsFromServer(unsigned __int8 *compressedblob, unsigned
     persistentStats *v7; // [esp-4h] [ebp-9D00h]
     persistentStats *StatsBuffer; // [esp+4h] [ebp-9CF8h]
     persistentStats *v9; // [esp+8h] [ebp-9CF4h]
-    unsigned __int8 to[40172]; // [esp+Ch] [ebp-9CF0h] BYREF
+    unsigned __int8 to[LIVE_STATS_DDL_BUFFER_BYTES]; // [esp+Ch] [ebp-9CF0h] BYREF
 
-    memset(to, 0, 40168);
+    memset(to, 0, LIVE_STATS_DDL_BUFFER_BYTES);
     if ( blobtype )
     {
         if ( blobtype == BLOB_TYPE_GLOBAL )
@@ -3008,11 +3214,11 @@ char __cdecl Live_CACValidate_DispatchMessage(
     int v4; // [esp+0h] [ebp-13A38h]
     unsigned int v5; // [esp+4h] [ebp-13A34h]
     blobtype_t blobtype; // [esp+Ch] [ebp-13A2Ch]
-    unsigned __int8 compressedblob[40168]; // [esp+10h] [ebp-13A28h] BYREF
+    unsigned __int8 compressedblob[LIVE_STATS_DDL_BUFFER_BYTES]; // [esp+10h] [ebp-13A28h] BYREF
     int v8; // [esp+9CF8h] [ebp-9D40h]
     _BYTE v9[5]; // [esp+9CFFh] [ebp-9D39h] BYREF
     int v10; // [esp+9D04h] [ebp-9D34h] BYREF
-    unsigned __int8 compressedcac[40172]; // [esp+9D08h] [ebp-9D30h] BYREF
+    unsigned __int8 compressedcac[LIVE_STATS_DDL_BUFFER_BYTES]; // [esp+9D08h] [ebp-9D30h] BYREF
     int v12; // [esp+139F8h] [ebp-40h]
     int len; // [esp+139FCh] [ebp-3Ch] BYREF
     int v14; // [esp+13A00h] [ebp-38h] BYREF
@@ -3037,7 +3243,7 @@ char __cdecl Live_CACValidate_DispatchMessage(
                 return v16;
             }
             MSG_ReadData(&buf, (unsigned __int8 *)&v14, 4);
-            memset(compressedcac, 0, 40168);
+            memset(compressedcac, 0, LIVE_STATS_DDL_BUFFER_BYTES);
             MSG_ReadData(&buf, compressedcac, len);
             v12 = Com_BlockChecksumKey32(compressedcac, len, 0);
             if ( v12 == v14 )
@@ -3166,7 +3372,7 @@ TaskRecord *__cdecl LiveStorage_ReadPlayerGlobalBlob()
         fileInfo->isCompressedFile = 1;
         fileInfo->fileTask.m_filename = "globalstatsCompressed";
         fileInfo->fileBuffer = s_tempGlobalStatsBuffer;
-        fileInfo->bufferSize = 40168;
+        fileInfo->bufferSize = LIVE_STATS_DDL_BUFFER_BYTES;
         fileInfo->fileTask.m_optional = 1;
         fileInfo->fileOperationSucessFunction = (void (__cdecl *)(const int, void *))LiveStorage_GetGlobalBlobSuccess;
         fileInfo->fileNotFoundFunction = (taskCompleteResults (__cdecl *)(const int, void *))LiveStorage_GetGlobalBlobFileNotFound;

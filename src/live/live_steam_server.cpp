@@ -1,10 +1,16 @@
 #include "live_steam_server.h"
 #include <win32/win_shared.h>
 #include <qcommon/common.h>
+#ifdef KISAK_SP
+#include <server_sp/sv_main_sp.h>
+#include <server_sp/sv_main_pc_sp.h>
+#include <client_sp/sv_client_sp.h>
+#else
 #include <server_mp/sv_main_mp.h>
 #include <server_mp/sv_main_pc_mp.h>
-#include <qcommon/cmd.h>
 #include <client_mp/sv_client_mp.h>
+#endif
+#include <qcommon/cmd.h>
 #include <steam/steam_gameserver.h>
 #include "live_steam.h"
 

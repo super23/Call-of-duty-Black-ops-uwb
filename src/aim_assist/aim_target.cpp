@@ -37,21 +37,23 @@ const dvar_s *aim_target_frustum_min_distance;
 const dvar_s *aim_target_aim_tag_fast_update_interval;
 const dvar_s *aim_target_aim_tag_slow_update_interval;
 
+// Decomp: CoDMPServer.c:115868
 AimTargetGlob *__cdecl AimTarget_GetGlobArray(int localClientNum)
 {
     return &atGlobArray[localClientNum];
 }
 
+// Decomp: CoDMPServer.c:115880
 void __cdecl AimTarget_Init(int localClientNum)
 {
-    unsigned __int8 *GlobArray; // eax
+    AimTargetGlob *atGlob = AimTarget_GetGlobArray(localClientNum);
 
-    GlobArray = (unsigned __int8 *)AimTarget_GetGlobArray(localClientNum);
-    memset(GlobArray, 0, 0xC04u);
+    memset(atGlob, 0, 0xC04u);
     AimTarget_RegisterDvars();
     Cbuf_InsertText(0, "exec devgui_aimassist\n");
 }
 
+// Decomp: CoDMPServer.c:115891
 void AimTarget_RegisterDvars()
 {
     aim_target_sentient_radius = _Dvar_RegisterFloat(
@@ -107,6 +109,7 @@ void AimTarget_RegisterDvars()
                          "How often the aim target tag is updated instead of pulled from cache inside of the \"fast\" zone.");
 }
 
+// Decomp: CoDMPServer.c:115954
 void __cdecl expandMins(float *mins, float *point)
 {
     if ( *mins > *point )
@@ -117,6 +120,7 @@ void __cdecl expandMins(float *mins, float *point)
         mins[2] = point[2];
 }
 
+// Decomp: CoDMPServer.c:115965
 void __cdecl expandMaxs(float *maxs, float *point)
 {
     if ( *point > *maxs )
@@ -127,11 +131,12 @@ void __cdecl expandMaxs(float *maxs, float *point)
         maxs[2] = point[2];
 }
 
+// Decomp: CoDMPServer.c:115976
 void __cdecl AimTarget_ProcessEntityInternal(int localClientNum, const centity_s *ent)
 {
-    const cg_s *cgameGlob; // [esp+3Ch] [ebp-38h]
-    AimTarget target; // [esp+40h] [ebp-34h] BYREF
-    unsigned int visBone; // [esp+70h] [ebp-4h]
+    const cg_s *cgameGlob;
+    AimTarget target;
+    unsigned int visBone;
 
     PROF_SCOPED("AimTarget_ProcessEntity");
 
@@ -203,19 +208,18 @@ void __cdecl AimTarget_ProcessEntityInternal(int localClientNum, const centity_s
     }
 }
 
+// Decomp: CoDMPServer.c:116092
 bool __cdecl AimTarget_IsTargetValid(const cg_s *cgameGlob, const centity_s *targetEnt)
 {
-    const clientInfo_t *playerInfo; // [esp+24h] [ebp-40h]
-    team_t playerInfoTeam; // [esp+2Ch] [ebp-38h]
-    const clientInfo_t *localTargetInfo; // [esp+30h] [ebp-34h]
-    float targetDir; // [esp+34h] [ebp-30h]
-    float targetDir_4; // [esp+38h] [ebp-2Ch]
-    float targetDir_8; // [esp+3Ch] [ebp-28h]
-    float top[3]; // [esp+40h] [ebp-24h] BYREF
-    float radius; // [esp+4Ch] [ebp-18h]
-    const playerState_s *predictedPlayerState; // [esp+50h] [ebp-14h]
-    float playerDir[3]; // [esp+54h] [ebp-10h]
-    float dot; // [esp+60h] [ebp-4h]
+    const clientInfo_t *playerInfo;
+    team_t playerInfoTeam;
+    const clientInfo_t *localTargetInfo;
+    float toTarget[3];
+    float top[3];
+    float radius;
+    const playerState_s *predictedPlayerState;
+    float viewForward[3];
+    float dot;
 
     if ( !cgameGlob
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\aim_assist\\aim_target.cpp", 582, 0, "%s", "cgameGlob") )
@@ -320,16 +324,16 @@ bool __cdecl AimTarget_IsTargetValid(const cg_s *cgameGlob, const centity_s *tar
     {
         return 0;
     }
-    targetDir = targetEnt->pose.origin[0] - predictedPlayerState->origin[0];
-    targetDir_4 = targetEnt->pose.origin[1] - predictedPlayerState->origin[1];
-    targetDir_8 = targetEnt->pose.origin[2] - predictedPlayerState->origin[2];
+    toTarget[0] = targetEnt->pose.origin[0] - predictedPlayerState->origin[0];
+    toTarget[1] = targetEnt->pose.origin[1] - predictedPlayerState->origin[1];
+    toTarget[2] = targetEnt->pose.origin[2] - predictedPlayerState->origin[2];
     if ( player_topDownCamMode->current.integer > 0 )
         return 1;
-    *(_QWORD *)playerDir = *(_QWORD *)&cgameGlob->refdef.viewaxis[0][0];
-    playerDir[2] = cgameGlob->refdef.viewaxis[0][2];
+    *(_QWORD *)viewForward = *(_QWORD *)&cgameGlob->refdef.viewaxis[0][0];
+    viewForward[2] = cgameGlob->refdef.viewaxis[0][2];
     radius = AimTarget_GetTargetRadius(targetEnt);
-    dot = (float)((float)((float)(playerDir[0] * targetDir) + (float)(playerDir[1] * targetDir_4))
-                            + (float)(playerDir[2] * targetDir_8))
+    dot = (float)((float)((float)(viewForward[0] * toTarget[0]) + (float)(viewForward[1] * toTarget[1]))
+                            + (float)(viewForward[2] * toTarget[2]))
             + radius;
     if ( dot < 0.0 )
         return 0;
@@ -343,10 +347,11 @@ bool __cdecl AimTarget_IsTargetValid(const cg_s *cgameGlob, const centity_s *tar
     return R_CullPoint(cgameGlob->localClientNum, top, aim_target_frustum_expand_on_screen->current.value) == 0;
 }
 
+// Decomp: CoDMPServer.c:116264
 double __cdecl AimTarget_GetTargetRadius(const centity_s *targetEnt)
 {
-    float mins[3]; // [esp+0h] [ebp-1Ch] BYREF
-    float maxs[3]; // [esp+10h] [ebp-Ch] BYREF
+    float mins[3];
+    float maxs[3];
 
     if ( !targetEnt
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\aim_assist\\aim_target.cpp", 519, 0, "%s", "targetEnt") )
@@ -359,13 +364,12 @@ double __cdecl AimTarget_GetTargetRadius(const centity_s *targetEnt)
     return (float)RadiusFromBounds(mins, maxs);
 }
 
+// Decomp: CoDMPServer.c:116416 — internal tag lookup (distinct from AimTarget_GetTagPos in aim_assist.cpp)
 void __cdecl AimTarget_GetTagPos_0(const centity_s *ent, unsigned int tagName, float *pos)
 {
-    char *v3; // eax
-    char *v4; // eax
-    DObj *dobj; // [esp+0h] [ebp-Ch]
-    bool target_last_frame; // [esp+7h] [ebp-5h]
-    int update_interval; // [esp+8h] [ebp-4h]
+    DObj *dobj;
+    bool wasPrevTarget;
+    int tagUpdateInterval;
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\aim_assist\\aim_target.cpp", 314, 0, "%s", "ent") )
         __debugbreak();
@@ -373,12 +377,12 @@ void __cdecl AimTarget_GetTagPos_0(const centity_s *ent, unsigned int tagName, f
         __debugbreak();
     if ( ent->nextState.eType == 1 )
     {
-        target_last_frame = AimAssist_IsPrevTargetEntity(ent->pose.localClientNum, ent->nextState.number);
-        update_interval = AimTarget_GetTagUpdateInterval(ent);
-        if ( !CachedTag_GetTagPos(ent, tagName, pos, update_interval, target_last_frame) )
+        wasPrevTarget = AimAssist_IsPrevTargetEntity(ent->pose.localClientNum, ent->nextState.number);
+        tagUpdateInterval = AimTarget_GetTagUpdateInterval(ent);
+        if ( !CachedTag_GetTagPos(ent, tagName, pos, tagUpdateInterval, wasPrevTarget) )
         {
-            v3 = SL_ConvertToString(tagName, SCRIPTINSTANCE_SERVER);
-            Com_Error(ERR_DROP, "AimTarget_GetTagPos: Cannot find tag [%s] on entity\n", v3);
+            const char *tagNameStr = SL_ConvertToString(tagName, SCRIPTINSTANCE_SERVER);
+            Com_Error(ERR_DROP, "AimTarget_GetTagPos: Cannot find tag [%s] on entity\n", tagNameStr);
         }
     }
     else
@@ -391,26 +395,21 @@ void __cdecl AimTarget_GetTagPos_0(const centity_s *ent, unsigned int tagName, f
         }
         if ( !CG_DObjGetWorldTagPos(&ent->pose, dobj, tagName, pos) )
         {
-            v4 = SL_ConvertToString(tagName, SCRIPTINSTANCE_SERVER);
-            Com_Error(ERR_DROP, "AimTarget_GetTagPos: Cannot find tag [%s] on entity\n", v4);
+            const char *tagNameStr = SL_ConvertToString(tagName, SCRIPTINSTANCE_SERVER);
+            Com_Error(ERR_DROP, "AimTarget_GetTagPos: Cannot find tag [%s] on entity\n", tagNameStr);
         }
     }
 }
 
+// Decomp: CoDMPServer.c:116287
 void __cdecl AimTarget_GetTargetBounds(const centity_s *targetEnt, float *mins, float *maxs)
 {
-    float v3; // [esp+0h] [ebp-5Ch]
-    float v4; // [esp+4h] [ebp-58h]
-    float value; // [esp+8h] [ebp-54h]
-    const DObj *dobj; // [esp+Ch] [ebp-50h]
-    float head; // [esp+14h] [ebp-48h]
-    float head_4; // [esp+18h] [ebp-44h]
-    float head_8; // [esp+1Ch] [ebp-40h]
-    float right[3]; // [esp+20h] [ebp-3Ch] BYREF
-    float forward[3]; // [esp+2Ch] [ebp-30h] BYREF
-    float left[3]; // [esp+38h] [ebp-24h] BYREF
-    float tail[3]; // [esp+44h] [ebp-18h] BYREF
-    float highBonePos[3]; // [esp+50h] [ebp-Ch] BYREF
+    const DObj *dobj;
+    float right[3];
+    float forward[3];
+    float left[3];
+    float tail[3];
+    float highBonePos[3];
 
     if ( !targetEnt
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\aim_assist\\aim_target.cpp", 427, 0, "%s", "targetEnt") )
@@ -423,77 +422,81 @@ void __cdecl AimTarget_GetTargetBounds(const centity_s *targetEnt, float *mins, 
         __debugbreak();
     if ( targetEnt->nextState.eType == 17 )
     {
+        const float sentientRadius = aim_target_sentient_radius->current.value;
+        const float tailScale = -(sentientRadius + dog_length);
+        float headForward[3];
+
         AimTarget_GetTagPos_0(targetEnt, scr_const.aim_highest_bone, highBonePos);
         AngleVectors(targetEnt->pose.angles, forward, right, 0);
-        value = aim_target_sentient_radius->current.value;
-        right[0] = value * right[0];
-        right[1] = value * right[1];
-        right[2] = value * right[2];
-        left[0] = -1.0 * right[0];
-        left[1] = -1.0 * right[1];
-        left[2] = -1.0 * right[2];
-        v4 = aim_target_sentient_radius->current.value;
-        head = v4 * forward[0];
-        head_4 = v4 * forward[1];
-        head_8 = v4 * forward[2];
-        v3 = (float)(v4 + dog_length) * -1.0;
-        tail[0] = v3 * forward[0];
-        tail[1] = v3 * forward[1];
-        tail[2] = v3 * forward[2];
-        *mins = v4 * forward[0];
-        mins[1] = head_4;
-        mins[2] = head_8;
+        right[0] = sentientRadius * right[0];
+        right[1] = sentientRadius * right[1];
+        right[2] = sentientRadius * right[2];
+        left[0] = -right[0];
+        left[1] = -right[1];
+        left[2] = -right[2];
+        headForward[0] = sentientRadius * forward[0];
+        headForward[1] = sentientRadius * forward[1];
+        headForward[2] = sentientRadius * forward[2];
+        tail[0] = tailScale * forward[0];
+        tail[1] = tailScale * forward[1];
+        tail[2] = tailScale * forward[2];
+        *mins = headForward[0];
+        mins[1] = headForward[1];
+        mins[2] = headForward[2];
         expandMins(mins, tail);
         expandMins(mins, right);
         expandMins(mins, left);
-        *maxs = head;
-        maxs[1] = head_4;
-        maxs[2] = head_8;
+        *maxs = headForward[0];
+        maxs[1] = headForward[1];
+        maxs[2] = headForward[2];
         expandMaxs(maxs, tail);
         expandMaxs(maxs, right);
         expandMaxs(maxs, left);
         maxs[2] = (float)(highBonePos[2] - targetEnt->pose.origin[2]) + maxs[2];
     }
-    else if ( targetEnt->nextState.eType == 1 || targetEnt->nextState.eType == 17 )
+    else if ( targetEnt->nextState.eType != 1 )
     {
-        AimTarget_GetTagPos_0(targetEnt, scr_const.aim_highest_bone, highBonePos);
-        //*(unsigned int *)mins = aim_target_sentient_radius->current.integer ^ _mask__NegFloat_;
-        //*((unsigned int *)mins + 1) = aim_target_sentient_radius->current.integer ^ _mask__NegFloat_;
-        mins[0] = -aim_target_sentient_radius->current.integer;
-        mins[1] = -aim_target_sentient_radius->current.integer;
-        mins[2] = 0.0f;
-
-        maxs[0] = aim_target_sentient_radius->current.value;
-        maxs[1] = aim_target_sentient_radius->current.value;
-        maxs[2] = highBonePos[2] - targetEnt->pose.origin[2];
-    }
-    else if (targetEnt->nextState.solid == 0xFFFFFF)
-    {
-        CM_ModelBounds(targetEnt->nextState.index.brushmodel, mins, maxs);
-    }
-    else
-    {
-        dobj = Com_GetClientDObj(targetEnt->nextState.number, targetEnt->pose.localClientNum);
-        if ( dobj )
+        if ( targetEnt->nextState.solid == 0xFFFFFF )
         {
-            DObjGetBounds(dobj, mins, maxs);
+            CM_ModelBounds(targetEnt->nextState.index.brushmodel, mins, maxs);
         }
         else
         {
-            *mins = -1.0f;
-            mins[1] = -1.0f;
-            mins[2] = -1.0f;
-            *maxs = 1.0f;
-            maxs[1] = 1.0f;
-            maxs[2] = 1.0f;
+            dobj = Com_GetClientDObj(targetEnt->nextState.number, targetEnt->pose.localClientNum);
+            if ( dobj )
+            {
+                DObjGetBounds(dobj, mins, maxs);
+            }
+            else
+            {
+                *mins = -1.0f;
+                mins[1] = -1.0f;
+                mins[2] = -1.0f;
+                *maxs = 1.0f;
+                maxs[1] = 1.0f;
+                maxs[2] = 1.0f;
+            }
         }
+    }
+    else
+    {
+        const float sentientRadius = aim_target_sentient_radius->current.value;
+
+        AimTarget_GetTagPos_0(targetEnt, scr_const.aim_highest_bone, highBonePos);
+        mins[0] = -sentientRadius;
+        mins[1] = -sentientRadius;
+        mins[2] = 0.0f;
+        maxs[0] = sentientRadius;
+        maxs[1] = sentientRadius;
+        maxs[2] = highBonePos[2] - targetEnt->pose.origin[2];
     }
 }
 
+// Decomp: CoDMPServer.c:116479
 int __cdecl AimTarget_GetTagUpdateInterval(const centity_s *ent)
 {
-    const cg_s *cgameGlob; // [esp+14h] [ebp-10h]
-    float center[3]; // [esp+18h] [ebp-Ch] BYREF
+    const cg_s *cgameGlob;
+    float center[3];
 
     cgameGlob = CG_GetLocalClientGlobals(ent->pose.localClientNum);
     center[0] = ent->pose.origin[0];
@@ -508,10 +511,11 @@ int __cdecl AimTarget_GetTagUpdateInterval(const centity_s *ent)
     return aim_target_aim_tag_fast_update_interval->current.integer;
 }
 
+// Decomp: CoDMPServer.c:116505
 void __cdecl AimTarget_GetTargetTop(const centity_s *targetEnt, float *top)
 {
-    float mins[3]; // [esp+4h] [ebp-18h] BYREF
-    float maxs[3]; // [esp+10h] [ebp-Ch] BYREF
+    float mins[3];
+    float maxs[3];
 
     if ( !targetEnt
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\aim_assist\\aim_target.cpp", 558, 0, "%s", "targetEnt") )
@@ -533,17 +537,18 @@ void __cdecl AimTarget_GetTargetTop(const centity_s *targetEnt, float *top)
     top[2] = targetEnt->pose.origin[2] + top[2];
 }
 
+// Decomp: CoDMPServer.c:116551
 bool __cdecl AimTarget_IsTargetVisible(int localClientNum, const centity_s *targetEnt, unsigned int visBone)
 {
-    col_context_t context; // [esp+8h] [ebp-98h] BYREF
-    float endPos[3]; // [esp+30h] [ebp-70h] BYREF
-    const cg_s *cgameGlob; // [esp+3Ch] [ebp-64h]
-    const float (*localViewOrg)[3]; // [esp+40h] [ebp-60h]
-    const playerState_s *predictedPlayerState; // [esp+44h] [ebp-5Ch]
-    trace_t trace; // [esp+4Ch] [ebp-54h] BYREF
-    float playerEyePos[3]; // [esp+88h] [ebp-18h] BYREF
-    float targetEyePos[3]; // [esp+94h] [ebp-Ch] BYREF
+    col_context_t context;
+    float endPos[3];
+    const cg_s *cgameGlob;
+    const playerState_s *predictedPlayerState;
+    trace_t trace;
+    float playerEyePos[3];
+    float targetEyePos[3];
 
+    memset(&trace, 0, 16);
     if ( !targetEnt
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\aim_assist\\aim_target.cpp", 736, 0, "%s", "targetEnt") )
     {
@@ -554,7 +559,6 @@ bool __cdecl AimTarget_IsTargetVisible(int localClientNum, const centity_s *targ
     else
         AimTarget_GetTargetCenter(targetEnt, targetEyePos);
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
-    localViewOrg = (const float (*)[3])cgameGlob->refdef.vieworg;
     playerEyePos[0] = cgameGlob->refdef.vieworg[0];
     playerEyePos[1] = cgameGlob->refdef.vieworg[1];
     playerEyePos[2] = cgameGlob->refdef.vieworg[2];
@@ -584,10 +588,11 @@ bool __cdecl AimTarget_IsTargetVisible(int localClientNum, const centity_s *targ
     return FX_ClientVisibilityTest(localClientNum, playerEyePos, targetEyePos);
 }
 
+// Decomp: CoDMPServer.c:116621
 void __cdecl AimTarget_GetTargetCenter(const centity_s *targetEnt, float *center)
 {
-    float mins[3]; // [esp+4h] [ebp-18h] BYREF
-    float maxs[3]; // [esp+10h] [ebp-Ch] BYREF
+    float mins[3];
+    float maxs[3];
 
     if ( !targetEnt
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\aim_assist\\aim_target.cpp", 539, 0, "%s", "targetEnt") )
@@ -611,15 +616,15 @@ void __cdecl AimTarget_GetTargetCenter(const centity_s *targetEnt, float *center
     center[2] = targetEnt->pose.origin[2] + center[2];
 }
 
+// Decomp: CoDMPServer.c:116666
 void __cdecl AimTarget_CreateTarget(int localClientNum, const centity_s *targetEnt, AimTarget *target)
 {
-    float v3; // [esp+8h] [ebp-4Ch]
-    int snapServerTime; // [esp+20h] [ebp-34h]
-    const cg_s *cgameGlob; // [esp+24h] [ebp-30h]
-    int nextSnapServerTime; // [esp+30h] [ebp-24h]
-    float currentPos[3]; // [esp+38h] [ebp-1Ch] BYREF
-    float nextPos[3]; // [esp+44h] [ebp-10h] BYREF
-    float deltaTime; // [esp+50h] [ebp-4h]
+    int snapServerTime;
+    const cg_s *cgameGlob;
+    int nextSnapServerTime;
+    float currentPos[3];
+    float nextPos[3];
+    float deltaTime;
 
     if ( !targetEnt
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\aim_assist\\aim_target.cpp", 805, 0, "%s", "targetEnt") )
@@ -649,23 +654,25 @@ void __cdecl AimTarget_CreateTarget(int localClientNum, const centity_s *targetE
     {
         BG_EvaluateTrajectory(&targetEnt->currentState.pos, snapServerTime, currentPos);
         BG_EvaluateTrajectory(&targetEnt->nextState.lerp.pos, nextSnapServerTime, nextPos);
+        const float invDeltaTime = 1.0f / deltaTime;
+
         target->velocity[0] = nextPos[0] - currentPos[0];
         target->velocity[1] = nextPos[1] - currentPos[1];
         target->velocity[2] = nextPos[2] - currentPos[2];
-        v3 = 1.0 / deltaTime;
-        target->velocity[0] = (float)(1.0 / deltaTime) * target->velocity[0];
-        target->velocity[1] = v3 * target->velocity[1];
-        target->velocity[2] = v3 * target->velocity[2];
+        target->velocity[0] = invDeltaTime * target->velocity[0];
+        target->velocity[1] = invDeltaTime * target->velocity[1];
+        target->velocity[2] = invDeltaTime * target->velocity[2];
     }
     AimTarget_AddTargetToList(localClientNum, target);
 }
 
+// Decomp: CoDMPServer.c:116740
 void __cdecl AimTarget_AddTargetToList(int localClientNum, const AimTarget *target)
 {
-    int targetIndex; // [esp+8h] [ebp-14h]
-    int low; // [esp+Ch] [ebp-10h]
-    AimTargetGlob *atGlob; // [esp+14h] [ebp-8h]
-    int high; // [esp+18h] [ebp-4h]
+    int targetIndex;
+    int insertIndex;
+    AimTargetGlob *atGlob;
+    int searchEndIndex;
 
     if ( !target
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\aim_assist\\aim_target.cpp", 239, 0, "%s", "target") )
@@ -686,28 +693,31 @@ void __cdecl AimTarget_AddTargetToList(int localClientNum, const AimTarget *targ
             __debugbreak();
         }
     }
-    low = 0;
-    high = atGlob->targetCount;
-    while ( low < high )
+    insertIndex = 0;
+    searchEndIndex = atGlob->targetCount;
+    while ( insertIndex < searchEndIndex )
     {
-        if ( AimTarget_CompareTargets(target, &atGlob->targets[(high + low) / 2]) <= 0 )
-            low = (high + low) / 2 + 1;
+        const int midIndex = (searchEndIndex + insertIndex) / 2;
+
+        if ( AimTarget_CompareTargets(target, &atGlob->targets[midIndex]) <= 0 )
+            insertIndex = midIndex + 1;
         else
-            high = (high + low) / 2;
+            searchEndIndex = midIndex;
     }
-    if ( low < 64 )
+    if ( insertIndex < 64 )
     {
         if ( atGlob->targetCount == 64 )
             --atGlob->targetCount;
         memmove(
-            (unsigned __int8 *)&atGlob->targets[low + 1],
-            (unsigned __int8 *)&atGlob->targets[low],
-            48 * (atGlob->targetCount - low));
-        memcpy(&atGlob->targets[low], target, sizeof(atGlob->targets[low]));
+            (unsigned __int8 *)&atGlob->targets[insertIndex + 1],
+            (unsigned __int8 *)&atGlob->targets[insertIndex],
+            48 * (atGlob->targetCount - insertIndex));
+        memcpy(&atGlob->targets[insertIndex], target, sizeof(atGlob->targets[insertIndex]));
         ++atGlob->targetCount;
     }
 }
 
+// Decomp: CoDMPServer.c:116793
 int __cdecl AimTarget_CompareTargets(const AimTarget *targetA, const AimTarget *targetB)
 {
     if ( !targetA
@@ -727,14 +737,13 @@ int __cdecl AimTarget_CompareTargets(const AimTarget *targetA, const AimTarget *
     return -1;
 }
 
+// Decomp: CoDMPServer.c:116825
 bool __cdecl AimTarget_PlayerInValidState(const playerState_s *ps)
 {
-    bool result; // al
-
     if ( !ps && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\aim_assist\\aim_target.cpp", 865, 0, "%s", "ps") )
         __debugbreak();
     if ( (ps->otherFlags & 2) != 0 )
-        return 0;
+        return false;
     switch ( ps->pm_type )
     {
         case 2:
@@ -743,21 +752,19 @@ bool __cdecl AimTarget_PlayerInValidState(const playerState_s *ps)
         case 5:
         case 9:
         case 0xA:
-            result = 0;
-            break;
+            return false;
         default:
-            result = 1;
-            break;
+            return true;
     }
-    return result;
 }
 
+// Decomp: CoDMPServer.c:116860
 void __cdecl AimTarget_UpdateClientTargets(int localClientNum)
 {
-    int eType; // [esp+0h] [ebp-30h]
-    cg_s *cgameGlob; // [esp+18h] [ebp-18h]
-    const centity_s *cent; // [esp+1Ch] [ebp-14h]
-    int snapEntIndex; // [esp+2Ch] [ebp-4h]
+    int entityType;
+    cg_s *cgameGlob;
+    const centity_s *cent;
+    int snapEntIndex;
 
     if ( localClientNum
         && !Assert_MyHandler(
@@ -790,23 +797,25 @@ void __cdecl AimTarget_UpdateClientTargets(int localClientNum)
             && ((*((unsigned int *)cent + 201) >> 1) & 1) != 0
             && cgameGlob->predictedPlayerState.clientNum != cent->nextState.number )
         {
-            eType = cent->nextState.eType;
-            if ( eType == 1 )
+            bool processTarget = false;
+
+            entityType = cent->nextState.eType;
+            if ( entityType == 1 )
             {
-                if ( (cent->nextState.lerp.eFlags & 0x40000) != 0 )
-                    continue;
-LABEL_23:
+                if ( (cent->nextState.lerp.eFlags & 0x40000) == 0 )
+                    processTarget = true;
+            }
+            else if ( entityType == 6 )
+            {
+                if ( (cent->nextState.lerp.eFlags & 0x800) != 0 )
+                    processTarget = true;
+            }
+            else if ( entityType == 17 && (cent->nextState.lerp.eFlags & 0x40000) == 0 )
+            {
+                processTarget = true;
+            }
+            if ( processTarget )
                 AimTarget_ProcessEntity((int)localClientNum, cent);
-                continue;
-            }
-            if ( eType == 6 )
-            {
-                if ( (cent->nextState.lerp.eFlags & 0x800) == 0 )
-                    continue;
-                goto LABEL_23;
-            }
-            if ( eType == 17 && (cent->nextState.lerp.eFlags & 0x40000) == 0 )
-                goto LABEL_23;
         }
     }
 
@@ -816,19 +825,22 @@ LABEL_23:
     }
 }
 
+// Decomp: CoDMPServer.c:116927
 void __cdecl AimTarget_ClearTargetList(int localClientNum)
 {
     AimTarget_GetGlobArray(localClientNum)->targetCount = 0;
 }
 
+// Decomp: CoDMPServer.c:116933
 void __cdecl AimTarget_ProcessEntity(int localClientNum, const centity_s *ent)
 {
     AimTarget_ProcessEntityInternal(localClientNum, ent);
 }
 
+// Decomp: CoDMPServer.c:116939
 void __cdecl AimTarget_GetClientTargetList(int localClientNum, AimTargetGlob **targetList, int *targetCount)
 {
-    AimTargetGlob *GlobArray; // eax
+    AimTargetGlob *atGlob;
 
     if ( !targetList
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\aim_assist\\aim_target.cpp", 1145, 0, "%s", "targetList") )
@@ -840,8 +852,8 @@ void __cdecl AimTarget_GetClientTargetList(int localClientNum, AimTargetGlob **t
     {
         __debugbreak();
     }
-    GlobArray = AimTarget_GetGlobArray(localClientNum);
-    *targetList = GlobArray;
-    *targetCount = GlobArray->targetCount;
+    atGlob = AimTarget_GetGlobArray(localClientNum);
+    *targetList = atGlob;
+    *targetCount = atGlob->targetCount;
 }
 

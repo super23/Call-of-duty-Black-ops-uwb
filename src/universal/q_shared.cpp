@@ -1186,10 +1186,17 @@ bool __cdecl KeyValueToField(
                 *(unsigned int *)&pStruct[pField->iOffset] = (int)(atof(pszKeyValue) * 1000.0);
                 return 1;
             case 9:
+                // FxEffectDef (e.g. viewFlashEffect, viewShellEjectEffect, ...).
+                // The original IDA fall-through into the Material handler below
+                // would clobber the just-registered FxEffectDef* with a
+                // Material*, which then crashed FX_EffectAffectsGameplay when
+                // CG_EjectWeaponBrass/CG_FireWeapon dereferenced the bogus
+                // "FxEffectDef" pointer.  Must return after registering.
                 if (!IsDedicatedServer())
                 {
                     *(FxEffectDef **)&pStruct[pField->iOffset] = (FxEffectDef*)FX_Register(pszKeyValue);
                 }
+                return 1;
             case 0xB:
             case 0xC:
                 if (!IsDedicatedServer())
@@ -1257,13 +1264,8 @@ bool __cdecl ParseConfigStringToStructMerged(
     char v19; // [esp+407Ch] [ebp-2018h] BYREF
     cspField_t *pField; // [esp+6080h] [ebp-14h]
     int v21; // [esp+6084h] [ebp-10h]
-    char *dest; // [esp+6088h] [ebp-Ch] BYREF
-    char *v23; // [esp+608Ch] [ebp-8h]
-    char *v24; // [esp+6090h] [ebp-4h]
+    char destBuffers[3][8192];
 
-    dest = &v19;
-    v23 = &v17;
-    v24 = &v15;
     v16 = 0;
     v21 = 0;
     pField = pFieldList;
@@ -1272,17 +1274,23 @@ bool __cdecl ParseConfigStringToStructMerged(
         for ( i = 0; i < 3; ++i )
         {
             v11 = Info_ValueForKey((char *)pszBuffer[i], (char *)pField->szName);
-            I_strncpyz((&dest)[i], v11, 0x2000);
+            I_strncpyz(destBuffers[i], v11, sizeof(destBuffers[i]));
         }
-        if ( !strcmp(v23, v24) )
+        if ( !strcmp(destBuffers[1], destBuffers[2]))
         {
-            value = v23;
+            value = destBuffers[1];
         }
-        else if ( strcmp(dest, v24) || !strcmp(dest, v23) )
+        else if ( strcmp(destBuffers[0], destBuffers[2]) || !strcmp(destBuffers[0], destBuffers[1]))
         {
-            if ( strcmp(dest, v23) || !strcmp(dest, v24) )
+            if ( strcmp(destBuffers[0], destBuffers[1]) || !strcmp(destBuffers[0], destBuffers[2]) )
             {
-                if ( !parseMergeSpecialCase(pField->szName, &dest, dest, 0x2000) )
+                char *mergeArgPtrs[3];
+                char mergeSpecialOut[8192];
+
+                mergeArgPtrs[0] = destBuffers[0];
+                mergeArgPtrs[1] = destBuffers[1];
+                mergeArgPtrs[2] = destBuffers[2];
+                if ( !parseMergeSpecialCase(pField->szName, mergeArgPtrs, mergeSpecialOut, sizeof(mergeSpecialOut)))
                 {
                     Com_PrintError(
                         1,
@@ -1290,23 +1298,27 @@ bool __cdecl ParseConfigStringToStructMerged(
                         pField->szName,
                         mergedName,
                         *sourceName,
-                        dest,
+                        destBuffers[0],
                         sourceName[1],
-                        v23,
+                        destBuffers[1],
                         sourceName[2],
-                        v24);
+                        destBuffers[2]);
                     v16 = 1;
                 }
-                value = dest;
+                else
+                {
+                    I_strncpyz(destBuffers[0], mergeSpecialOut, sizeof(destBuffers[0]));
+                }
+                value = destBuffers[0];
             }
             else
             {
-                value = v24;
+                value = destBuffers[2];
             }
         }
         else
         {
-            value = v23;
+            value = destBuffers[1];
         }
         if ( *value )
         {

@@ -1,15 +1,23 @@
 #include "cg_hudelem.h"
 #include <stringed/stringed_hooks.h>
 #include <ui/ui_shared.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <cgame_sp/cg_main_sp.h>
+#include <cgame_sp/cg_view_sp.h>
+#include <cgame_sp/cg_newDraw_sp.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
 #include <client_mp/cl_cgame_mp.h>
 #include <cgame_mp/cg_main_mp.h>
 #include <cgame_mp/cg_view_mp.h>
+#include <cgame_mp/cg_newDraw_mp.h>
+#endif
 #include <demo/demo_playback.h>
 #include <gfx_d3d/r_ui3d.h>
 #include <bgame/bg_misc.h>
 #include <client/cl_console.h>
-#include <cgame_mp/cg_newDraw_mp.h>
 #include "cg_drawtools.h"
 #include <gfx_d3d/rb_corona.h>
 #include <EffectsCore/fx_sprite.h>
@@ -1071,11 +1079,14 @@ void __cdecl GetHudElemInfo(int localClientNum, const hudelem_s *elem, cg_hudele
     char *v8; // eax
     float v9; // [esp+20h] [ebp-1Ch]
     float v10; // [esp+20h] [ebp-1Ch]
-    int fontEnum; // [esp+24h] [ebp-18h]
-    const ScreenPlacement *scrPlace; // [esp+28h] [ebp-14h]
-    float baseFontScale; // [esp+2Ch] [ebp-10h]
-    int namedClientIndex; // [esp+34h] [ebp-8h]
-    const cg_s *clientGlob; // [esp+38h] [ebp-4h]
+#ifdef KISAK_SP
+    float lerpedFontScale; // [esp+24h] [ebp-18h]
+#endif
+    int fontEnum; // [esp+28h] [ebp-14h]
+    const ScreenPlacement *scrPlace; // [esp+2Ch] [ebp-10h]
+    float baseFontScale; // [esp+30h] [ebp-Ch]
+    int namedClientIndex; // [esp+38h] [ebp-4h]
+    const cg_s *clientGlob; // [esp+3Ch] [ebp+0h]
 
     scrPlace = &scrPlaceView[localClientNum];
     switch ( elem->font )
@@ -1114,7 +1125,12 @@ $LN32_2:
             fontEnum = 0;
             break;
     }
+#ifdef KISAK_SP
+    BG_LerpFontScale(elem, cghe->timeNow, &lerpedFontScale);
+    v9 = lerpedFontScale * baseFontScale;
+#else
     v9 = elem->fontScale * baseFontScale;
+#endif
     v10 = ScrPlace_HiResGetScale() * v9;
     cghe->fontScale = v10 * scrPlace->scaleVirtualToReal[1];
     cghe->font = UI_GetFontHandle(scrPlace, fontEnum, cghe->fontScale);

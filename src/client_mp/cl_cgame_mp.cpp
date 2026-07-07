@@ -60,6 +60,14 @@ const float g_color_table[17][4] =
 
 char bigConfigString[16384];
 
+enum configStringIndex_e
+{
+    CS_SERVERINFO = 0,
+    CS_SYSTEMINFO = 1,
+    CS_GAME_VERSION = 2,
+    CS_SERVERID = 3,
+};
+
 void __cdecl CL_GetScreenDimensions(int *width, int *height, float *aspect)
 {
     if ( !width
@@ -334,22 +342,13 @@ void __cdecl CL_DumpReliableCommands(int localClientNum)
 
 int __cdecl CL_CGameNeedsServerCommand(int localClientNum, int serverCommandNumber)
 {
-    int result; // eax
-    const char *v3; // eax
-    char *v4; // eax
-    char *v5; // eax
-    const char *v6; // eax
-    const char *v7; // eax
-    const char *v8; // eax
-    const char *v9; // [esp-4h] [ebp-DCh]
-    const char *v10; // [esp-4h] [ebp-DCh]
-    clientActive_t *LocalClientGlobals; // [esp+C4h] [ebp-14h]
-    clientConnection_t *clc; // [esp+C8h] [ebp-10h]
-    char *s; // [esp+CCh] [ebp-Ch]
-    const char *sa; // [esp+CCh] [ebp-Ch]
-    const char *sb; // [esp+CCh] [ebp-Ch]
-    const char *cmd; // [esp+D0h] [ebp-8h]
-    int argc; // [esp+D4h] [ebp-4h]
+    int result;
+    clientConnection_t *clc;
+    clientActive_t *localClient;
+    const char *commandString;
+    const char *cmd;
+    const char *fragment;
+    int argc;
 
     clc = CL_GetLocalClientConnection(localClientNum);
     if ( serverCommandNumber <= clc->serverCommandSequence - 128 )
@@ -365,77 +364,82 @@ int __cdecl CL_CGameNeedsServerCommand(int localClientNum, int serverCommandNumb
     }
     if ( serverCommandNumber > clc->serverCommandSequence && !Demo_IsPlaying() )
         Com_Error(ERR_DROP, "CL_CGameNeedsServerCommand: EXE_ERR_NOT_RECEIVED");
-    s = clc->serverCommands[serverCommandNumber & 0x7F];
+
+    commandString = clc->serverCommands[serverCommandNumber & 0x7F];
     clc->lastExecutedServerCommand = serverCommandNumber;
     if ( cl_showServerCommands->current.enabled )
-        Com_DPrintf(14, "serverCommand: %i : %s\n", serverCommandNumber, s);
+        Com_DPrintf(14, "serverCommand: %i : %s\n", serverCommandNumber, commandString);
+
     while ( 2 )
     {
-        Cmd_TokenizeStringNoEval(s);
+        Cmd_TokenizeStringNoEval(commandString);
         cmd = Cmd_Argv(0);
         argc = Cmd_Argc();
+
         switch ( *cmd )
         {
             case 'B':
             case 'n':
                 Con_ClearNotify(localClientNum);
-                LocalClientGlobals = CL_GetLocalClientGlobals(localClientNum);
-                memset((unsigned __int8 *)LocalClientGlobals->cmds, 0, sizeof(LocalClientGlobals->cmds));
+                localClient = CL_GetLocalClientGlobals(localClientNum);
+                memset(localClient->cmds, 0, sizeof(localClient->cmds));
                 return 1;
+
             case 'd':
                 Cmd_EndTokenizedString();
-                Cmd_TokenizeStringWithLimit(s, 3);
+                Cmd_TokenizeStringWithLimit(commandString, 3);
                 CL_ConfigstringModified(localClientNum);
                 return 1;
+
             case 'w':
-                if ( argc >= 3 && (v3 = Cmd_Argv(2), !_stricmp(v3, "PB")) )
+                if ( argc >= 3 && !_stricmp(Cmd_Argv(2), "PB") )
                 {
-                    v9 = Cmd_Argv(1);
-                    v4 = SEH_SafeTranslateString("EXE_SERVERDISCONNECTREASON");
-                    v5 = UI_ReplaceConversionString(v4, v9);
-                    v6 = va("%s", v5);
-                    Com_Error(ERR_SERVERDISCONNECT, v6);
+                    const char *disconnectReason = Cmd_Argv(1);
+                    char *translatedTemplate = SEH_SafeTranslateString("EXE_SERVERDISCONNECTREASON");
+                    char *translatedReason = UI_ReplaceConversionString(translatedTemplate, disconnectReason);
+                    Com_Error(ERR_SERVERDISCONNECT, va("%s", translatedReason));
                 }
                 else if ( argc >= 2 )
                 {
-                    v7 = Cmd_Argv(1);
-                    CL_DisconnectError(v7);
+                    CL_DisconnectError(Cmd_Argv(1));
                 }
                 else
                 {
                     Com_Error(ERR_SERVERDISCONNECT, "EXE_SERVER_DISCONNECTED");
                 }
-                goto $LN7_31;
+                goto bigConfigStringStart;
+
             case 'x':
-$LN7_31:
+            bigConfigStringStart:
                 Cmd_EndTokenizedString();
-                Cmd_TokenizeStringWithLimit(s, 3);
-                v10 = Cmd_Argv(2);
-                v8 = Cmd_Argv(1);
-                Com_sprintf(bigConfigString, 0x4000u, "%c %s %s", 100, v8, v10);
+                Cmd_TokenizeStringWithLimit(commandString, 3);
+                Com_sprintf(bigConfigString, 0x4000u, "%c %s %s", 'd', Cmd_Argv(1), Cmd_Argv(2));
                 Cmd_EndTokenizedString();
                 result = 0;
                 break;
+
             case 'y':
                 Cmd_EndTokenizedString();
-                Cmd_TokenizeStringWithLimit(s, 3);
-                sa = Cmd_Argv(2);
-                if ( strlen(sa) + strlen(bigConfigString) >= 0x4000 )
+                Cmd_TokenizeStringWithLimit(commandString, 3);
+                fragment = Cmd_Argv(2);
+                if ( strlen(fragment) + strlen(bigConfigString) >= 0x4000 )
                     Com_Error(ERR_DROP, "bcs exceeded BIG_INFO_STRING");
-                strcat(bigConfigString, sa);
+                strcat(bigConfigString, fragment);
                 Cmd_EndTokenizedString();
                 result = 0;
                 break;
+
             case 'z':
                 Cmd_EndTokenizedString();
-                Cmd_TokenizeStringWithLimit(s, 3);
-                sb = Cmd_Argv(2);
-                if ( strlen(bigConfigString) + strlen(sb) + 1 >= 0x4000 )
+                Cmd_TokenizeStringWithLimit(commandString, 3);
+                fragment = Cmd_Argv(2);
+                if ( strlen(bigConfigString) + strlen(fragment) + 1 >= 0x4000 )
                     Com_Error(ERR_DROP, "bcs exceeded BIG_INFO_STRING");
-                strcat(bigConfigString, sb);
-                s = bigConfigString;
+                strcat(bigConfigString, fragment);
+                commandString = bigConfigString;
                 Cmd_EndTokenizedString();
                 continue;
+
             default:
                 result = 1;
                 break;
@@ -446,70 +450,73 @@ $LN7_31:
 
 void __cdecl CL_ConfigstringModified(int localClientNum)
 {
-    const char *v2; // eax
-    unsigned int v3; // [esp+0h] [ebp-5Ch]
-    clientActive_t *LocalClientGlobals; // [esp+34h] [ebp-28h]
-    gameState_t *oldGs; // [esp+38h] [ebp-24h]
-    char *dup; // [esp+3Ch] [ebp-20h]
-    int index; // [esp+4Ch] [ebp-10h]
-    const char *s; // [esp+50h] [ebp-Ch]
-    int i; // [esp+54h] [ebp-8h]
-    const char *old; // [esp+58h] [ebp-4h]
+    LargeLocal oldGameStateBuf(sizeof(gameState_t));
+    gameState_t *oldGameState;
+    clientActive_t *localClient;
+    const char *newString;
+    const char *oldString;
+    const char *sourceString;
+    int configStringIndex;
+    int index;
+    unsigned int stringLen;
 
-    LargeLocal oldGs_large_local(sizeof(gameState_t)); // [esp+44h] [ebp-18h] BYREF
-    //LargeLocal::LargeLocal(&oldGs_large_local, 78584);
-    //oldGs = (gameState_t *)LargeLocal::GetBuf(&oldGs_large_local);
-    oldGs = (gameState_t *)oldGs_large_local.GetBuf();
-    v2 = Cmd_Argv(1);
-    index = atoi(v2);
-    if ((unsigned int)index >= 0xCBC)
+    oldGameState = (gameState_t *)oldGameStateBuf.GetBuf();
+    index = atoi(Cmd_Argv(1));
+    if ( index < 0 || (unsigned int)index >= MAX_CONFIGSTRINGS )
         Com_Error(ERR_DROP, "configstring > MAX_CONFIGSTRINGS");
-    s = Cmd_Argv(2);
-    LocalClientGlobals = CL_GetLocalClientGlobals(localClientNum);
-    old = CL_GetConfigString(index);
-    if (!strcmp(old, s))
+
+    newString = Cmd_Argv(2);
+    localClient = CL_GetLocalClientGlobals(localClientNum);
+    oldString = CL_GetConfigString(index);
+    if ( !strcmp(oldString, newString) )
     {
-        if (LocalClientGlobals->serverId != cls.serverId && index == 3)
+        if ( localClient->serverId != cls.serverId && index == CS_SERVERID )
             CL_ServerIdChanged(localClientNum);
     }
     else
     {
-        memcpy(oldGs, &cls.gameState, sizeof(gameState_t));
+        memcpy(oldGameState, &cls.gameState, sizeof(gameState_t));
         memset(cls.gameState.stringOffsets, 0, sizeof(cls.gameState.stringOffsets));
         memset(cls.gameState.stringData, 0, sizeof(cls.gameState.stringData));
-
         cls.gameState.dataCount = 1;
 
-        for (i = 0; i < MAX_CONFIGSTRINGS; ++i)
+        for ( configStringIndex = 0; configStringIndex < MAX_CONFIGSTRINGS; ++configStringIndex )
         {
-            if (i == index)
-                dup = (char *)s;
+            if ( configStringIndex == index )
+                sourceString = newString;
             else
-                dup = &oldGs->stringData[oldGs->stringOffsets[i]];
-            if (*dup)
+                sourceString = &oldGameState->stringData[oldGameState->stringOffsets[configStringIndex]];
+
+            if ( *sourceString )
             {
-                v3 = strlen(dup);
-                if ((int)(v3 + cls.gameState.dataCount + 1) > 0x10000)
+                stringLen = strlen(sourceString);
+                if ( (int)(stringLen + cls.gameState.dataCount + 1) > (int)sizeof(cls.gameState.stringData) )
                     Com_Error(ERR_DROP, "MAX_GAMESTATE_CHARS exceeded");
-                cls.gameState.stringOffsets[i] = cls.gameState.dataCount;
-                memcpy((unsigned __int8 *)&cls.gameState.stringData[cls.gameState.dataCount], (unsigned __int8 *)dup, v3 + 1);
-                cls.gameState.dataCount += v3 + 1;
+                cls.gameState.stringOffsets[configStringIndex] = cls.gameState.dataCount;
+                memcpy(&cls.gameState.stringData[cls.gameState.dataCount], sourceString, stringLen + 1);
+                cls.gameState.dataCount += stringLen + 1;
             }
         }
-        if (index == 1
+
+        if ( index == CS_SYSTEMINFO )
+            CL_SystemInfoChanged(localClientNum);
+
+        // Retail decomp (cl_cgame_mp.cpp:466): IW debug fired here for mid-game CS_SYSTEMINFO updates.
+        // Preserved for accuracy; gated with alwaysfails so CL_SystemInfoChanged above handles live updates.
+        if ( index == CS_SYSTEMINFO
+            && alwaysfails
             && !Assert_MyHandler(
                 "C:\\projects_pc\\cod\\codsrc\\src\\client_mp\\cl_cgame_mp.cpp",
                 466,
                 0,
                 "%s",
-                "index != CS_SYSTEMINFO"))
+                "index != CS_SYSTEMINFO") )
         {
             __debugbreak();
         }
-        if (index == 3)
+        if ( index == CS_SERVERID )
             CL_ServerIdChanged(localClientNum);
     }
-    //LargeLocal::~LargeLocal(&oldGs_large_local);
 }
 
 void __cdecl CL_SetExpectedHunkUsage(const char *mapname)
@@ -682,15 +689,24 @@ LABEL_8:
 
 char *__cdecl CL_GetConfigString(unsigned int configStringIndex)
 {
-    bcassert(configStringIndex, MAX_CONFIGSTRINGS);
-    
+    if ( configStringIndex >= MAX_CONFIGSTRINGS
+        && !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\client_mp\\cl_cgame_mp.cpp",
+            848,
+            0,
+            "configStringIndex doesn't index MAX_CONFIGSTRINGS\n\t%i not in [0, %i)",
+            configStringIndex,
+            MAX_CONFIGSTRINGS) )
+    {
+        __debugbreak();
+    }
     if ( cls.gameState.stringData[0]
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\client_mp\\cl_cgame_mp.cpp",
-                    850,
-                    0,
-                    "%s",
-                    "!cls.gameState.stringData[0]") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\client_mp\\cl_cgame_mp.cpp",
+            850,
+            0,
+            "%s",
+            "!cls.gameState.stringData[0]") )
     {
         __debugbreak();
     }

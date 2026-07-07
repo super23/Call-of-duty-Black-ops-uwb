@@ -439,6 +439,7 @@ void __cdecl SND_InitDvar()
                                          0x80u,
                                          "Print out tracking information about a particular alias");
     snd_entityRandomize = _Dvar_RegisterBool("snd_entityRandomize", 1, 0x80u, "entity randomization");
+    // CoDMPServer.c:806993-806996 / BlackOpsMP.retail.c:519221 — default 0 (was wrongly 1 in Kisak).
     snd_touchStreamFilesOnLoad = _Dvar_RegisterBool(
                                                                  "snd_touchStreamFilesOnLoad",
                                                                  0,

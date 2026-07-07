@@ -33,6 +33,7 @@
 #include <server_mp/sv_init_mp.h>
 #include <cgame_mp/cg_pose_mp.h>
 #include <cgame_mp/cg_ents_mp.h>
+#include <cgame/cg_camera.h>
 #include <demo/demo_recording.h>
 #include <game/turret.h>
 #include <client/cl_debugdata.h>
@@ -52,15 +53,16 @@ float thresh_0 = 88.0;
 
 hudelem_s g_dummyHudCurrent;
 
+// Decomp: CoDMPServer.c:369035
 void __cdecl P_DamageFeedback(gentity_s *player)
 {
-    gclient_s *client; // [esp+Ch] [ebp-40h]
-    int damage; // [esp+10h] [ebp-3Ch]
-    int damagea; // [esp+10h] [ebp-3Ch]
-    float kick; // [esp+14h] [ebp-38h]
-    float angles[3]; // [esp+18h] [ebp-34h] BYREF
-    float viewaxis[3][3]; // [esp+24h] [ebp-28h] BYREF
-    int DAMAGE_COUNT_DURATION; // [esp+48h] [ebp-4h]
+    gclient_s *client;
+    int damage;
+    int damagea;
+    float kick;
+    float angles[3];
+    float viewaxis[3][3];
+    int DAMAGE_COUNT_DURATION;
 
     DAMAGE_COUNT_DURATION = 500;
     client = player->client;
@@ -120,14 +122,15 @@ void __cdecl P_DamageFeedback(gentity_s *player)
     }
 }
 
+// Decomp: CoDMPServer.c:369123
 void __cdecl ClientImpacts(gentity_s *ent, pmove_t *pm)
 {
-    int j; // [esp+4h] [ebp-14h]
-    void(__cdecl * entTouch)(gentity_s *, gentity_s *, int); // [esp+8h] [ebp-10h]
-    gentity_s *other; // [esp+Ch] [ebp-Ch]
-    void(__cdecl * otherTouch)(gentity_s *, gentity_s *, int); // [esp+10h] [ebp-8h]
-    int i; // [esp+14h] [ebp-4h]
-    int ia; // [esp+14h] [ebp-4h]
+    int j;
+    void(__cdecl * entTouch)(gentity_s *, gentity_s *, int);
+    gentity_s *other;
+    void(__cdecl * otherTouch)(gentity_s *, gentity_s *, int);
+    int i;
+    int ia;
 
     entTouch = entityHandlers[ent->handler].touch;
     for (i = 0; i < pm->numtouch; ++i)
@@ -155,20 +158,21 @@ void __cdecl ClientImpacts(gentity_s *ent, pmove_t *pm)
         GlassSv_Touch(pm->touchGlasses[ia], ent);
 }
 
+// Decomp: CoDMPServer.c:369164
 void __cdecl G_DoTouchTriggers(gentity_s *ent)
 {
-    gclient_s *client; // edx
-    float v3; // xmm0_4
-    float *origin; // [esp+1Ch] [ebp-103Ch]
-    int entityList[1024]; // [esp+28h] [ebp-1030h] BYREF
-    int contentmask; // [esp+1028h] [ebp-30h]
-    float mins[3]; // [esp+102Ch] [ebp-2Ch] BYREF
-    void(__cdecl * touch)(gentity_s *, gentity_s *, int); // [esp+1038h] [ebp-20h]
-    gentity_s *hit; // [esp+103Ch] [ebp-1Ch]
-    float maxs[3]; // [esp+1040h] [ebp-18h] BYREF
-    void(__cdecl * v11)(gentity_s *, gentity_s *, int); // [esp+104Ch] [ebp-Ch]
-    int v12; // [esp+1050h] [ebp-8h]
-    int i; // [esp+1054h] [ebp-4h]
+    gclient_s *client;
+    float tmp3; // xmm0_4
+    float *origin;
+    int entityList[1024];
+    int contentmask;
+    float mins[3];
+    void(__cdecl * touch)(gentity_s *, gentity_s *, int);
+    gentity_s *hit;
+    float maxs[3];
+    void(__cdecl * tmp11)(gentity_s *, gentity_s *, int);
+    int tmp12;
+    int i;
 
     if (!ent->client
         && !ent->actor
@@ -198,7 +202,7 @@ void __cdecl G_DoTouchTriggers(gentity_s *ent)
         {
             contentmask = 8;
         LABEL_26:
-            v12 = CM_AreaEntities(mins, maxs, entityList, 1024, contentmask);
+            tmp12 = CM_AreaEntities(mins, maxs, entityList, 1024, contentmask);
             if (ent->client)
             {
                 origin = ent->client->ps.origin;
@@ -208,7 +212,7 @@ void __cdecl G_DoTouchTriggers(gentity_s *ent)
                 client = ent->client;
                 maxs[0] = client->ps.origin[0] + ent->r.maxs[0];
                 maxs[1] = client->ps.origin[1] + ent->r.maxs[1];
-                v3 = client->ps.origin[2];
+                tmp3 = client->ps.origin[2];
             }
             else
             {
@@ -217,14 +221,14 @@ void __cdecl G_DoTouchTriggers(gentity_s *ent)
                 mins[2] = ent->r.currentOrigin[2] + ent->r.mins[2];
                 maxs[0] = ent->r.currentOrigin[0] + ent->r.maxs[0];
                 maxs[1] = ent->r.currentOrigin[1] + ent->r.maxs[1];
-                v3 = ent->r.currentOrigin[2];
+                tmp3 = ent->r.currentOrigin[2];
             }
-            maxs[2] = v3 + ent->r.maxs[2];
+            maxs[2] = tmp3 + ent->r.maxs[2];
             ExpandBoundsToWidth(mins, maxs);
             touch = entityHandlers[ent->handler].touch;
             for (i = 0; ; ++i)
             {
-                if (i >= v12)
+                if (i >= tmp12)
                     return;
                 hit = &g_entities[entityList[i]];
                 if ((hit->r.contents & 0x405C0008) == 0
@@ -247,8 +251,8 @@ void __cdecl G_DoTouchTriggers(gentity_s *ent)
                 {
                     __debugbreak();
                 }
-                v11 = entityHandlers[hit->handler].touch;
-                if ((v11 || touch)
+                tmp11 = entityHandlers[hit->handler].touch;
+                if ((tmp11 || touch)
                     && (!ent->client
                         || (hit->r.clientMask[(int)ent->client->ps.clientNum >> 5] & (1 << (ent->client->ps.clientNum & 0x1F))) == 0))
                 {
@@ -268,8 +272,8 @@ void __cdecl G_DoTouchTriggers(gentity_s *ent)
                         Scr_AddEntity(hit, SCRIPTINSTANCE_SERVER);
                         Scr_Notify(ent, scr_const.touch, 1u);
                     }
-                    if (v11)
-                        v11(hit, ent, 1);
+                    if (tmp11)
+                        tmp11(hit, ent, 1);
                     if (ent->actor)
                     {
                         if (touch)
@@ -303,19 +307,20 @@ void __cdecl G_DoTouchTriggers(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:369322
 void __cdecl SpectatorThink(gentity_s *ent, usercmd_s *ucmd)
 {
-    bool v2; // esi
-    int jj; // [esp+14h] [ebp-2Ch]
-    int ii; // [esp+18h] [ebp-28h]
-    int n; // [esp+1Ch] [ebp-24h]
-    int m; // [esp+20h] [ebp-20h]
-    int k; // [esp+24h] [ebp-1Ch]
-    int j; // [esp+28h] [ebp-18h]
-    int i; // [esp+2Ch] [ebp-14h]
-    gclient_s *client; // [esp+30h] [ebp-10h]
-    pmove_t *pm; // [esp+34h] [ebp-Ch]
-    bitarray<51> changedButton_bits; // [esp+38h] [ebp-8h]
+    bool tmp2; // esi
+    int jj;
+    int ii;
+    int n;
+    int m;
+    int k;
+    int j;
+    int i;
+    gclient_s *client;
+    pmove_t *pm;
+    bitarray<51> changedButton_bits;
 
     client = ent->client;
     for ( i = 0; i < 2; ++i )
@@ -339,8 +344,8 @@ void __cdecl SpectatorThink(gentity_s *ent, usercmd_s *ucmd)
         {
             if ( client->spectatorClient >= 0 )
             {
-                v2 = client->button_bits.testBit(2u);
-                if ( v2 != client->oldbutton_bits.testBit(2u) )
+                tmp2 = client->button_bits.testBit(2u);
+                if ( tmp2 != client->oldbutton_bits.testBit(2u) )
                     StopFollowing(ent);
             }
         }
@@ -375,9 +380,10 @@ void __cdecl SpectatorThink(gentity_s *ent, usercmd_s *ucmd)
     }
 }
 
+// Decomp: CoDMPServer.c:369406
 int __cdecl ClientInactivityTimer(gclient_s *client)
 {
-    const char *v2; // eax
+    const char *fmtMsg;
 
     if ( (unsigned int)(client - level.clients) >= level.maxclients
         && !Assert_MyHandler(
@@ -410,8 +416,8 @@ int __cdecl ClientInactivityTimer(gclient_s *client)
             if ( level.time > client->inactivityTime - 10000 && !client->inactivityWarning )
             {
                 client->inactivityWarning = 1;
-                v2 = va("%c \"GAME_INACTIVEDROPWARNING\"", 99);
-                SV_GameSendServerCommand(client - level.clients, SV_CMD_CAN_IGNORE, v2);
+                fmtMsg = va("%c \"GAME_INACTIVEDROPWARNING\"", 99);
+                SV_GameSendServerCommand(client - level.clients, SV_CMD_CAN_IGNORE, fmtMsg);
             }
         }
     }
@@ -423,17 +429,18 @@ int __cdecl ClientInactivityTimer(gclient_s *client)
     return 1;
 }
 
+// Decomp: CoDMPServer.c:369456
 void __cdecl ClientIntermissionThink(gentity_s *ent)
 {
-    int jj; // [esp+8h] [ebp-28h]
-    int ii; // [esp+Ch] [ebp-24h]
-    int n; // [esp+10h] [ebp-20h]
-    int m; // [esp+14h] [ebp-1Ch]
-    int k; // [esp+18h] [ebp-18h]
-    int j; // [esp+1Ch] [ebp-14h]
-    int i; // [esp+20h] [ebp-10h]
-    gclient_s *client; // [esp+24h] [ebp-Ch]
-    bitarray<51> changedButton_bits; // [esp+28h] [ebp-8h]
+    int jj;
+    int ii;
+    int n;
+    int m;
+    int k;
+    int j;
+    int i;
+    gclient_s *client;
+    bitarray<51> changedButton_bits;
 
     client = ent->client;
     for ( i = 0; i < 2; ++i )
@@ -452,9 +459,10 @@ void __cdecl ClientIntermissionThink(gentity_s *ent)
         client->button_bitsSinceLastFrame.array[jj] |= changedButton_bits.array[jj];
 }
 
+// Decomp: CoDMPServer.c:369486
 void __cdecl NotifyGrenadePullback(gentity_s *ent, unsigned int weaponIndex)
 {
-    char *v2; // eax
+    char *tmp2;
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp", 507, 0, "%s", "ent") )
         __debugbreak();
@@ -473,24 +481,25 @@ void __cdecl NotifyGrenadePullback(gentity_s *ent, unsigned int weaponIndex)
     {
         __debugbreak();
     }
-    v2 = (char *)BG_WeaponName(weaponIndex);
-    Scr_AddString(v2, SCRIPTINSTANCE_SERVER);
+    tmp2 = (char *)BG_WeaponName(weaponIndex);
+    Scr_AddString(tmp2, SCRIPTINSTANCE_SERVER);
     Scr_Notify(ent, scr_const.grenade_pullback, 1u);
 }
 
+// Decomp: CoDMPServer.c:369529
 void __cdecl HandleClientEvent(gclient_s *client, gentity_s *ent, int event, int eventParm)
 {
-    unsigned __int8 PlayerWeaponModel; // al
-    int height; // [esp+0h] [ebp-80h]
-    int iTeamFlags; // [esp+3Ch] [ebp-44h]
-    float vSentientPos[3]; // [esp+40h] [ebp-40h] BYREF
-    team_t eEnemyTeam; // [esp+4Ch] [ebp-34h]
-    gentity_s *attacker; // [esp+50h] [ebp-30h]
-    int grenadeWeaponIndex; // [esp+54h] [ebp-2Ch]
-    float launchvel[3]; // [esp+58h] [ebp-28h] BYREF
-    float launchspot[3]; // [esp+64h] [ebp-1Ch] BYREF
-    float damage; // [esp+70h] [ebp-10h]
-    float dir[3]; // [esp+74h] [ebp-Ch]
+    unsigned __int8 PlayerWeaponModel;
+    int height;
+    int iTeamFlags;
+    float vSentientPos[3];
+    team_t eEnemyTeam;
+    gentity_s *attacker;
+    int grenadeWeaponIndex;
+    float launchvel[3];
+    float launchspot[3];
+    float damage;
+    float dir[3];
 
     switch ( event )
     {
@@ -648,11 +657,12 @@ LABEL_54:
     }
 }
 
+// Decomp: CoDMPServer.c:369747
 void __cdecl AttemptLiveGrenadePickup(gentity_s *clientEnt)
 {
-    void(__cdecl * touch)(gentity_s *, gentity_s *, int); // [esp+14h] [ebp-Ch]
-    gentity_s *grenadeEnt; // [esp+18h] [ebp-8h]
-    int weapIdx; // [esp+1Ch] [ebp-4h]
+    void(__cdecl * touch)(gentity_s *, gentity_s *, int);
+    gentity_s *grenadeEnt;
+    int weapIdx;
 
     if (!clientEnt
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp", 539, 0, "%s", "clientEnt"))
@@ -751,9 +761,10 @@ int __thiscall EntHandle::entnum() const
     return this->number - 1;
 }
 
+// Decomp: CoDMPServer.c:369868
 bool __cdecl IsLiveGrenade(gentity_s *ent)
 {
-    const WeaponDef *weapDef; // [esp+0h] [ebp-4h]
+    const WeaponDef *weapDef;
 
     if ( ent->s.eType != 4 )
         return 0;
@@ -766,10 +777,11 @@ bool __cdecl IsLiveGrenade(gentity_s *ent)
     return weapDef->bThrowBack;
 }
 
+// Decomp: CoDMPServer.c:369890
 void __cdecl ClientEvents(gentity_s *ent, __int16 oldEventSequence)
 {
-    gclient_s *client; // [esp+0h] [ebp-10h]
-    __int16 i; // [esp+Ch] [ebp-4h]
+    gclient_s *client;
+    __int16 i;
 
     client = ent->client;
     if ( oldEventSequence < client->ps.predictableEventSequence - 4 )
@@ -780,9 +792,10 @@ void __cdecl ClientEvents(gentity_s *ent, __int16 oldEventSequence)
         HandleClientEvent(client, ent, client->ps.predictableEvents[i & 3], client->ps.predictableEventParms[i & 3]);
 }
 
+// Decomp: CoDMPServer.c:369905
 void __cdecl G_SetLastServerTime(int clientNum, int lastServerTime)
 {
-    gentity_s *ent; // [esp+0h] [ebp-4h]
+    gentity_s *ent;
 
     ent = &g_entities[clientNum];
     if ( !ent->client
@@ -796,6 +809,7 @@ void __cdecl G_SetLastServerTime(int clientNum, int lastServerTime)
         ent->client->lastServerTime = lastServerTime;
 }
 
+// Decomp: CoDMPServer.c:369928
 void __cdecl G_SetClientContents(gentity_s *pEnt)
 {
     if ( !pEnt->client
@@ -817,10 +831,11 @@ void __cdecl G_SetClientContents(gentity_s *pEnt)
     }
 }
 
+// Decomp: CoDMPServer.c:369956
 void __cdecl ClientVehicleInteraction(gentity_s *ent)
 {
-    gclient_s *client; // [esp+0h] [ebp-8h]
-    gentity_s *vehicle; // [esp+4h] [ebp-4h]
+    gclient_s *client;
+    gentity_s *vehicle;
 
     client = ent->client;
     if ( !client
@@ -846,12 +861,13 @@ void __cdecl ClientVehicleInteraction(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:370003
 void __cdecl ClientVehicleJumpOff(gentity_s *ent)
 {
-    float *velocity; // [esp+0h] [ebp-30h]
-    float xyVec[3]; // [esp+1Ch] [ebp-14h] BYREF
-    gclient_s *client; // [esp+28h] [ebp-8h]
-    gentity_s *groundEnt; // [esp+2Ch] [ebp-4h]
+    float *velocity;
+    float xyVec[3];
+    gclient_s *client;
+    gentity_s *groundEnt;
 
     client = ent->client;
     if ( !client
@@ -884,70 +900,72 @@ void __cdecl ClientVehicleJumpOff(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:370048
 void __cdecl G_PlayerVehiclePositionAndBlend(gentity_s *ent, gentity_s *pTurretEnt)
 {
-    const char *v2; // eax
-    const XModel *Model; // eax
-    const char *Name; // eax
-    const XModel *v5; // eax
-    unsigned __int8 *v6; // eax
-    char *v7; // eax
-    float v8; // xmm1_4
-    const char *AnimDebugName; // eax
-    const char *v10; // eax
-    double v11; // st7
-    float *v12; // [esp+1Ch] [ebp-2DCh]
-    float *origin; // [esp+24h] [ebp-2D4h]
-    float *v14; // [esp+54h] [ebp-2A4h]
-    float v15; // [esp+58h] [ebp-2A0h]
-    float *v16; // [esp+5Ch] [ebp-29Ch]
-    float *v17; // [esp+60h] [ebp-298h]
-    float v18; // [esp+64h] [ebp-294h]
-    float *v19; // [esp+68h] [ebp-290h]
-    float fHeightRatio; // [esp+DCh] [ebp-21Ch]
-    unsigned __int16 tagName; // [esp+E0h] [ebp-218h]
-    unsigned __int16 tagNamea; // [esp+E0h] [ebp-218h]
-    float plyrAxis[3][3]; // [esp+E4h] [ebp-214h] BYREF
-    int iPrevBlend; // [esp+108h] [ebp-1F0h]
-    float fPrevTransZ; // [esp+10Ch] [ebp-1ECh]
-    DObj *obj; // [esp+110h] [ebp-1E8h]
-    int numVertChildren; // [esp+114h] [ebp-1E4h]
-    DObj *turretObj; // [esp+118h] [ebp-1E0h]
-    float trans2[3]; // [esp+11Ch] [ebp-1DCh] BYREF
-    float tmpAxis[3][3]; // [esp+128h] [ebp-1D0h] BYREF
-    float yaw; // [esp+14Ch] [ebp-1ACh]
-    float trans[3]; // [esp+150h] [ebp-1A8h] BYREF
-    unsigned __int16 gunnerTags[4]; // [esp+15Ch] [ebp-19Ch]
-    int iBlend; // [esp+164h] [ebp-194h]
-    DObjAnimMat *tagMat; // [esp+168h] [ebp-190h]
-    unsigned int heightAnim; // [esp+16Ch] [ebp-18Ch]
-    float fDelta; // [esp+170h] [ebp-188h]
-    float fPrevBlend; // [esp+174h] [ebp-184h]
-    float rot[2]; // [esp+178h] [ebp-180h] BYREF
-    float tagAxis[4][3]; // [esp+180h] [ebp-178h] BYREF
-    unsigned int leafAnim1; // [esp+1B0h] [ebp-148h]
-    trace_t trace; // [esp+1B4h] [ebp-144h] BYREF
-    int numHorChildren; // [esp+1F0h] [ebp-108h]
-    clientInfo_t *ci; // [esp+1F4h] [ebp-104h]
-    float tagHeight; // [esp+1F8h] [ebp-100h]
-    int gunnerNum; // [esp+1FCh] [ebp-FCh]
-    int i; // [esp+200h] [ebp-F8h]
-    unsigned int baseAnim; // [esp+204h] [ebp-F4h]
-    float vehTagOriginMat[4][3]; // [esp+208h] [ebp-F0h] BYREF
-    float vehTagOriginMatInv[4][3]; // [esp+238h] [ebp-C0h] BYREF
-    int clientNum; // [esp+268h] [ebp-90h]
-    lerpFrame_t *pLerpAnim; // [esp+26Ch] [ebp-8Ch]
-    float fBlend; // [esp+270h] [ebp-88h]
-    float axis[4][3]; // [esp+274h] [ebp-84h] BYREF
-    XAnimTree_s *pAnimTree; // [esp+2A4h] [ebp-54h]
-    XAnim_s *pXAnims; // [esp+2A8h] [ebp-50h]
-    playerState_s *ps; // [esp+2ACh] [ebp-4Ch]
-    bool isT34; // [esp+2B3h] [ebp-45h]
-    unsigned int leafAnim2; // [esp+2B4h] [ebp-44h]
-    float localYaw; // [esp+2B8h] [ebp-40h]
-    float turretAxis[4][3]; // [esp+2BCh] [ebp-3Ch] BYREF
-    float vDelta[3]; // [esp+2ECh] [ebp-Ch]
+    const char *slStr;
+    const XModel *Model;
+    const char *Name;
+    const XModel *tmp5;
+    unsigned __int8 *tmp6;
+    char *tmp7;
+    float tmp8; // xmm1_4
+    const char *AnimDebugName;
+    const char *tmp10;
+    double tmp11;
+    float *tmp12;
+    float *origin;
+    float *tmp14;
+    float tmp15;
+    float *tmp16;
+    float *tmp17;
+    float tmp18;
+    float *tmp19;
+    float fHeightRatio;
+    unsigned __int16 tagName;
+    unsigned __int16 tagNamea;
+    float plyrAxis[3][3];
+    int iPrevBlend;
+    float fPrevTransZ;
+    DObj *obj;
+    int numVertChildren;
+    DObj *turretObj;
+    float trans2[3];
+    float tmpAxis[3][3];
+    float yaw;
+    float trans[3];
+    unsigned __int16 gunnerTags[4];
+    int iBlend;
+    DObjAnimMat *tagMat;
+    unsigned int heightAnim;
+    float fDelta;
+    float fPrevBlend;
+    float rot[2];
+    float tagAxis[4][3];
+    unsigned int leafAnim1;
+    trace_t trace;
+    int numHorChildren;
+    clientInfo_t *ci;
+    float tagHeight;
+    int gunnerNum;
+    int i;
+    unsigned int baseAnim;
+    float vehTagOriginMat[4][3];
+    float vehTagOriginMatInv[4][3];
+    int clientNum;
+    lerpFrame_t *pLerpAnim;
+    float fBlend;
+    float axis[4][3];
+    XAnimTree_s *pAnimTree;
+    XAnim_s *pXAnims;
+    playerState_s *ps;
+    bool isT34;
+    unsigned int leafAnim2;
+    float localYaw;
+    float turretAxis[4][3];
+    float vDelta[3];
 
+    memset(&trace, 0, 16);
     clientNum = ent->s.clientNum;
     if ( (unsigned int)clientNum >= 0x20
         && !Assert_MyHandler(
@@ -977,10 +995,16 @@ void __cdecl G_PlayerVehiclePositionAndBlend(gentity_s *ent, gentity_s *pTurretE
                 turretObj = Com_GetServerDObj(pTurretEnt->s.number);
                 if ( turretObj )
                 {
+                    unsigned __int16 gunnerBarrelTags[4];
+
                     gunnerTags[0] = scr_const.tag_gunner1;
                     gunnerTags[1] = scr_const.tag_gunner2;
                     gunnerTags[2] = scr_const.tag_gunner3;
                     gunnerTags[3] = scr_const.tag_gunner4;
+                    gunnerBarrelTags[0] = scr_const.tag_gunner_barrel1;
+                    gunnerBarrelTags[1] = scr_const.tag_gunner_barrel2;
+                    gunnerBarrelTags[2] = scr_const.tag_gunner_barrel3;
+                    gunnerBarrelTags[3] = scr_const.tag_gunner_barrel4;
                     gunnerNum = ent->s.lerp.u.player.vehicleSeat - 1;
                     if ( (unsigned int)gunnerNum >= 4
                         && !Assert_MyHandler(
@@ -1033,8 +1057,8 @@ void __cdecl G_PlayerVehiclePositionAndBlend(gentity_s *ent, gentity_s *pTurretE
                     ent->r.currentOrigin[0] = tagAxis[3][0];
                     ent->r.currentOrigin[1] = tagAxis[3][1];
                     ent->r.currentOrigin[2] = tagAxis[3][2];
-                    tagNamea = scr_const.tag_gunner_barrel1;
-                    tagMat = G_DObjGetLocalTagMatrix(pTurretEnt, scr_const.tag_gunner_barrel1);
+                    tagNamea = gunnerBarrelTags[gunnerNum];
+                    tagMat = G_DObjGetLocalTagMatrix(pTurretEnt, tagNamea);
                     if ( tagMat )
                     {
                         obj = Com_GetServerDObj(ent->s.number);
@@ -1056,26 +1080,26 @@ void __cdecl G_PlayerVehiclePositionAndBlend(gentity_s *ent, gentity_s *pTurretE
                             Name = XModelGetName(Model);
                             if ( I_stristr(Name, "panzer") )
                             {
-                                v17 = tagMat->trans;
-                                v18 = handOfs_2;
-                                v19 = tagMat->trans;
+                                tmp17 = tagMat->trans;
+                                tmp18 = handOfs_2;
+                                tmp19 = tagMat->trans;
                                 tagMat->trans[0] = (float)(handOfs_2 * tagAxis[0][0]) + tagMat->trans[0];
-                                v17[1] = (float)(v18 * tagAxis[0][1]) + v19[1];
-                                v17[2] = (float)(v18 * tagAxis[0][2]) + v19[2];
+                                tmp17[1] = (float)(tmp18 * tagAxis[0][1]) + tmp19[1];
+                                tmp17[2] = (float)(tmp18 * tagAxis[0][2]) + tmp19[2];
                             }
                             else
                             {
-                                v5 = DObjGetModel(turretObj, 0);
-                                v6 = (unsigned __int8 *)XModelGetName(v5);
-                                v7 = strstr((char*)v6, "t34");
-                                if ( v7 )
+                                tmp5 = DObjGetModel(turretObj, 0);
+                                tmp6 = (unsigned __int8 *)XModelGetName(tmp5);
+                                tmp7 = strstr((char*)tmp6, "t34");
+                                if ( tmp7 )
                                 {
-                                    v14 = tagMat->trans;
-                                    v15 = handOfs_1;
-                                    v16 = tagMat->trans;
+                                    tmp14 = tagMat->trans;
+                                    tmp15 = handOfs_1;
+                                    tmp16 = tagMat->trans;
                                     tagMat->trans[0] = (float)(handOfs_1 * tagAxis[0][0]) + tagMat->trans[0];
-                                    v14[1] = (float)(v15 * tagAxis[0][1]) + v16[1];
-                                    v14[2] = (float)(v15 * tagAxis[0][2]) + v16[2];
+                                    tmp14[1] = (float)(tmp15 * tagAxis[0][1]) + tmp16[1];
+                                    tmp14[2] = (float)(tmp15 * tagAxis[0][2]) + tmp16[2];
                                     isT34 = 1;
                                 }
                             }
@@ -1090,12 +1114,12 @@ void __cdecl G_PlayerVehiclePositionAndBlend(gentity_s *ent, gentity_s *pTurretE
                             if ( ent->client->ps.leanf > 0.0 )
                             {
                                 if ( isT34 )
-                                    v8 = (float)((float)(1.0 - ent->client->ps.leanf) * tagMat->trans[2])
+                                    tmp8 = (float)((float)(1.0 - ent->client->ps.leanf) * tagMat->trans[2])
                                          + (float)(fCrouchHeightT34_0 * ent->client->ps.leanf);
                                 else
-                                    v8 = (float)((float)(1.0 - ent->client->ps.leanf) * tagMat->trans[2])
+                                    tmp8 = (float)((float)(1.0 - ent->client->ps.leanf) * tagMat->trans[2])
                                          + (float)(fCrouchHeightPanzer_0 * ent->client->ps.leanf);
-                                tagMat->trans[2] = v8;
+                                tagMat->trans[2] = tmp8;
                             }
                             fDelta = tagHeight - (float)(tagMat->trans[2] - turretAxis[3][2]);
                             if ( !numVertChildren )
@@ -1110,8 +1134,8 @@ void __cdecl G_PlayerVehiclePositionAndBlend(gentity_s *ent, gentity_s *pTurretE
                                 numHorChildren = XAnimGetNumChildren(pXAnims, heightAnim);
                                 if ( !numHorChildren )
                                 {
-                                    v10 = XAnimGetAnimDebugName(pXAnims, heightAnim);
-                                    Com_Error(ERR_DROP, "player anim '%s' has no children", v10);
+                                    tmp10 = XAnimGetAnimDebugName(pXAnims, heightAnim);
+                                    Com_Error(ERR_DROP, "player anim '%s' has no children", tmp10);
                                 }
                                 fBlend = (float)numHorChildren * 0.5;
                                 if ( fBlend >= 0.0 )
@@ -1178,8 +1202,8 @@ void __cdecl G_PlayerVehiclePositionAndBlend(gentity_s *ent, gentity_s *pTurretE
                             axis[3][0] = trans[0] + tagMat->trans[0];
                             axis[3][1] = trans[1] + tagMat->trans[1];
                             axis[3][2] = tagHeight + turretAxis[3][2];
-                            v11 = RotationToYaw(rot);
-                            yaw = v11 + yaw;
+                            tmp11 = RotationToYaw(rot);
+                            yaw = tmp11 + yaw;
                             YawToAxis(yaw, axis);
                             AxisToAngles(axis, ent->r.currentAngles);
                             ent->r.currentOrigin[0] = axis[3][0];
@@ -1193,10 +1217,10 @@ void __cdecl G_PlayerVehiclePositionAndBlend(gentity_s *ent, gentity_s *pTurretE
                             *origin = ent->r.currentOrigin[0];
                             origin[1] = ent->r.currentOrigin[1];
                             origin[2] = ent->r.currentOrigin[2];
-                            v12 = ent->client->ps.origin;
-                            *v12 = ent->r.currentOrigin[0];
-                            v12[1] = ent->r.currentOrigin[1];
-                            v12[2] = ent->r.currentOrigin[2];
+                            tmp12 = ent->client->ps.origin;
+                            *tmp12 = ent->r.currentOrigin[0];
+                            tmp12[1] = ent->r.currentOrigin[1];
+                            tmp12[2] = ent->r.currentOrigin[2];
                             BG_PlayerStateToEntityState(&ent->client->ps, &ent->s, 1, 1u);
                             ent->r.mins[0] = -gunnerXYradius;
                             ent->r.mins[1] = -gunnerXYradius;
@@ -1209,8 +1233,8 @@ void __cdecl G_PlayerVehiclePositionAndBlend(gentity_s *ent, gentity_s *pTurretE
                     }
                     else
                     {
-                        v2 = SL_ConvertToString(tagNamea, SCRIPTINSTANCE_SERVER);
-                        Com_PrintWarning(17, "WARNING: aborting player positioning on turret since '%s' does not exist\n", v2);
+                        slStr = SL_ConvertToString(tagNamea, SCRIPTINSTANCE_SERVER);
+                        Com_PrintWarning(17, "WARNING: aborting player positioning on turret since '%s' does not exist\n", slStr);
                     }
                 }
             }
@@ -1218,50 +1242,50 @@ void __cdecl G_PlayerVehiclePositionAndBlend(gentity_s *ent, gentity_s *pTurretE
     }
 }
 
+// Decomp: CoDMPServer.c:370450
 void __cdecl ClientThink_real(gentity_s *ent, usercmd_s *ucmd)
 {
-    int v2; // ecx
-    float *origin; // [esp+1Ch] [ebp-240h]
-    float *maxs; // [esp+2Ch] [ebp-230h]
-    float *mins; // [esp+34h] [ebp-228h]
-    float v6; // [esp+8Ch] [ebp-1D0h]
-    bitarray<51> *v7; // [esp+98h] [ebp-1C4h]
-    int i2; // [esp+9Ch] [ebp-1C0h]
-    bitarray<51> *v9; // [esp+A0h] [ebp-1BCh]
-    int i1; // [esp+A4h] [ebp-1B8h]
-    bitarray<51> *p_button_bits; // [esp+A8h] [ebp-1B4h]
-    int nn; // [esp+ACh] [ebp-1B0h]
-    char v13; // [esp+B3h] [ebp-1A9h]
-    int mm; // [esp+B4h] [ebp-1A8h]
-    bitarray<51> *p_button_bitsSinceLastFrame; // [esp+B8h] [ebp-1A4h]
-    int kk; // [esp+BCh] [ebp-1A0h]
-    bitarray<51> *p_latched_button_bits; // [esp+C0h] [ebp-19Ch]
-    int jj; // [esp+C4h] [ebp-198h]
-    int ii; // [esp+C8h] [ebp-194h]
-    int n; // [esp+CCh] [ebp-190h]
-    int m; // [esp+D0h] [ebp-18Ch]
-    int k; // [esp+D4h] [ebp-188h]
-    int j; // [esp+D8h] [ebp-184h]
-    int i; // [esp+DCh] [ebp-180h]
-    gentity_s *vehicle; // [esp+E0h] [ebp-17Ch]
-    float loc2d; // [esp+E4h] [ebp-178h]
-    float loc2d_4; // [esp+E8h] [ebp-174h]
-    float loc[3]; // [esp+ECh] [ebp-170h] BYREF
-    int yaw; // [esp+F8h] [ebp-164h]
-    gclient_s *client; // [esp+104h] [ebp-158h]
-    float vAxis3[3][3]; // [esp+108h] [ebp-154h] BYREF
-    weaponState_t ws; // [esp+12Ch] [ebp-130h] BYREF
-    int msec; // [esp+1C0h] [ebp-9Ch]
-    bitarray<51> temp_oldbits; // [esp+1C4h] [ebp-98h]
-    __int16 oldEventSequence; // [esp+1CCh] [ebp-90h]
-    float vAxis2[3][3]; // [esp+1D0h] [ebp-8Ch] BYREF
-    float angles[3]; // [esp+1F4h] [ebp-68h] BYREF
-    pmove_t *pm; // [esp+200h] [ebp-5Ch]
-    float viewangles[3]; // [esp+204h] [ebp-58h] BYREF
-    viewState_t vs; // [esp+210h] [ebp-4Ch] BYREF
-    const WeaponDef *weapDef; // [esp+234h] [ebp-28h]
-    float vAxis[3][3]; // [esp+238h] [ebp-24h] BYREF
-    int savedregs; // [esp+25Ch] [ebp+0h] BYREF
+    int tmp2;
+    float *origin;
+    float *maxs;
+    float *mins;
+    float tmp6;
+    bitarray<51> *tmp7;
+    int i2;
+    bitarray<51> *tmp9;
+    int i1;
+    bitarray<51> *p_button_bits;
+    int nn;
+    char tmp13;
+    int mm;
+    bitarray<51> *p_button_bitsSinceLastFrame;
+    int kk;
+    bitarray<51> *p_latched_button_bits;
+    int jj;
+    int ii;
+    int n;
+    int m;
+    int k;
+    int j;
+    int i;
+    gentity_s *vehicle;
+    float loc2d;
+    float loc2d_4;
+    float loc[3];
+    int yaw;
+    gclient_s *client;
+    float vAxis3[3][3];
+    weaponState_t ws;
+    int msec;
+    bitarray<51> temp_oldbits;
+    __int16 oldEventSequence;
+    float vAxis2[3][3];
+    float angles[3];
+    pmove_t *pm;
+    float viewangles[3];
+    viewState_t vs;
+    const WeaponDef *weapDef;
+    float vAxis[3][3];
 
     client = ent->client;
     pm = &g_pmove[client->ps.clientNum];
@@ -1321,13 +1345,13 @@ void __cdecl ClientThink_real(gentity_s *ent, usercmd_s *ucmd)
                     {
                         if ( client->button_bitsSinceLastFrame.array[mm] )
                         {
-                            v13 = 1;
+                            tmp13 = 1;
                             goto LABEL_53;
                         }
                     }
-                    v13 = 0;
+                    tmp13 = 0;
 LABEL_53:
-                    if ( v13 )
+                    if ( tmp13 )
                     {
                         yaw = 2 * ucmd->selectedYaw;
                         loc2d = (float)((float)((float)ucmd->selectedLocation[0] + 128.0) / 255.0) * level.compassMapWorldSize[0];
@@ -1346,17 +1370,17 @@ LABEL_53:
                     }
                     if ( client->button_bitsSinceLastFrame.testBit(0x11u) )
                         Scr_Notify(ent, scr_const.cancel_location, 0);
-                    bitarray<51> mask_bits(0xCu, 8, 9, -1); // [esp+FCh] [ebp-160h] BYREF
+                    bitarray<51> mask_bits(0xCu, 8, 9, -1);
                     //bitarray<51>::bitarray<51>(&mask_bits, 0xCu, 8, 9, -1);
                     p_button_bits = &client->button_bits;
                     for ( nn = 0; nn < 2; ++nn )
                         p_button_bits->array[nn] &= mask_bits.array[nn];
-                    v9 = &client->latched_button_bits;
+                    tmp9 = &client->latched_button_bits;
                     for ( i1 = 0; i1 < 2; ++i1 )
-                        v9->array[i1] &= mask_bits.array[i1];
-                    v7 = &client->button_bitsSinceLastFrame;
+                        tmp9->array[i1] &= mask_bits.array[i1];
+                    tmp7 = &client->button_bitsSinceLastFrame;
                     for ( i2 = 0; i2 < 2; ++i2 )
-                        v7->array[i2] &= mask_bits.array[i2];
+                        tmp7->array[i2] &= mask_bits.array[i2];
                 }
                 oldEventSequence = client->ps.predictableEventSequence;
                 memset((unsigned __int8 *)pm, 0, 0x258u);
@@ -1377,39 +1401,42 @@ LABEL_53:
                 if ( (client->ps.pm_flags & 8) != 0 )
                 {
                     if ( level.time - client->ps.jumpTime >= 500 )
-                        v6 = client->ps.velocity[2];
+                        tmp6 = client->ps.velocity[2];
                     else
-                        v6 = 0.0f;
+                        tmp6 = 0.0f;
                 }
                 else
                 {
-                    v6 = Vec2Length(client->ps.velocity);
+                    tmp6 = Vec2Length(client->ps.velocity);
                 }
-                vs.xyspeed = v6;
+                vs.xyspeed = tmp6;
                 vs.frametime = (float)msec * 0.001;
                 vs.fLastIdleFactor = client->fLastIdleFactor;
                 vs.weapIdleTime = &client->weapIdleTime;
                 client->ps.speed = g_speed->current.integer;
                 if ( (client->ps.perks[1] & 1) != 0 )
                     client->ps.speed = (int)(float)((float)client->ps.speed * perk_speedMultiplier->current.value);
-                BG_CalculateViewMovementAngles(&vs, angles);
+                BG_CalculateViewMovementAngles(&vs, angles, false);
                 viewangles[0] = client->ps.viewangles[0] + angles[0];
                 viewangles[1] = client->ps.viewangles[1] + angles[1];
                 viewangles[2] = client->ps.viewangles[2] + angles[2];
-                weapDef = BG_GetWeaponDef(client->ps.weapon);
-                G_BuildWeaponState(client, &vs, &ws);
-                BG_CalculateWeaponMovement(&ws, 0, angles);
-                G_SaveWeaponState(&ws, client);
-                if ( level.time > client->ps.shellshockDuration + client->ps.shellshockTime )
-                    client->ps.pm_flags &= ~0x10000u;
-                if ( BG_IsAimDownSightWeapon(ws.ps->weapon)
-                    && ws.ps->fWeaponPosFrac != 0.0
-                    && weapDef->overlayReticle == WEAPOVERLAYRETICLE_NONE )
                 {
-                    AnglesToAxis(angles, vAxis);
-                    AnglesToAxis(viewangles, vAxis2);
-                    MatrixMultiply(vAxis, vAxis2, vAxis3);
-                    AxisToAngles(vAxis3, viewangles);
+                    unsigned int playerWeap = G_GetPlayerWeapon(&client->ps, 0);
+                    weapDef = BG_GetWeaponDef(playerWeap);
+                    G_BuildWeaponState(client, &vs, &ws);
+                    BG_CalculateWeaponMovement(&ws, 0, angles);
+                    G_SaveWeaponState(&ws, client);
+                    if ( level.time > client->ps.shellshockDuration + client->ps.shellshockTime )
+                        client->ps.pm_flags &= ~0x10000u;
+                    if ( BG_IsAimDownSightWeapon(playerWeap)
+                        && ws.ps->fWeaponPosFrac != 0.0
+                        && weapDef->overlayReticle == WEAPOVERLAYRETICLE_NONE )
+                    {
+                        AnglesToAxis(angles, vAxis);
+                        AnglesToAxis(viewangles, vAxis2);
+                        MatrixMultiply(vAxis, vAxis2, vAxis3);
+                        AxisToAngles(vAxis3, viewangles);
+                    }
                 }
                 if ( ((LODWORD(viewangles[0]) & 0x7F800000) == 0x7F800000
                      || (LODWORD(viewangles[1]) & 0x7F800000) == 0x7F800000
@@ -1426,10 +1453,10 @@ LABEL_53:
                 client->fGunPitch = viewangles[0];
                 client->fGunYaw = viewangles[1];
                 if ( Player_IsPlayerUsingTurretNearby(ent) )
-                    v2 = client->ps.mantleState.flags | 0x200;
+                    tmp2 = client->ps.mantleState.flags | 0x200;
                 else
-                    v2 = client->ps.mantleState.flags & 0xFFFFFDFF;
-                client->ps.mantleState.flags = v2;
+                    tmp2 = client->ps.mantleState.flags & 0xFFFFFDFF;
+                client->ps.mantleState.flags = tmp2;
                 if ( g_debugServerAiming->current.enabled )
                     G_DrawServerAiming(client);
                 if ( pm->mantleStarted
@@ -1523,12 +1550,13 @@ LABEL_53:
     }
 }
 
+// Decomp: CoDMPServer.c:370817
 void __cdecl Player_WaterUpdate(gentity_s *ent)
 {
-    int waterDamage; // [esp+4h] [ebp-28h]
-    gclient_s *client; // [esp+10h] [ebp-1Ch]
-    float dir[3]; // [esp+14h] [ebp-18h] BYREF
-    float point[3]; // [esp+20h] [ebp-Ch] BYREF
+    int waterDamage;
+    gclient_s *client;
+    float dir[3];
+    float point[3];
 
     client = ent->client;
     if ( client->ps.waterlevel < 4 )
@@ -1549,6 +1577,7 @@ void __cdecl Player_WaterUpdate(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:370850
 void __cdecl G_PlayerStateToEntityStateExtrapolate(playerState_s *ps, entityState_s *s, int time, int snap)
 {
     s->lerp.pos.trDelta[0] = ps->velocity[0];
@@ -1572,11 +1601,11 @@ void __cdecl G_PlayerStateToEntityStateExtrapolate(playerState_s *ps, entityStat
     s->lerp.pos.trType = 4;
 }
 
+// Decomp: CoDMPServer.c:370878
 void __cdecl G_AddPlayerMantleBlockage(float *endPos, int duration, pmove_t *pm)
 {
-    gentity_s *owner; // [esp+10h] [ebp-Ch]
-    gentity_s *ent; // [esp+18h] [ebp-4h]
-    int savedregs; // [esp+1Ch] [ebp+0h] BYREF
+    gentity_s *owner;
+    gentity_s *ent;
 
     owner = &g_entities[pm->ps->clientNum];
     ent = G_Spawn();
@@ -1598,12 +1627,13 @@ void __cdecl G_AddPlayerMantleBlockage(float *endPos, int duration, pmove_t *pm)
     ent->nextthink = g_mantleBlockTimeBuffer->current.integer + duration + level.time;
 }
 
+// Decomp: CoDMPServer.c:370909
 void __cdecl G_DrawServerAiming(const gclient_s *client)
 {
-    float origin[3]; // [esp+18h] [ebp-30h] BYREF
-    float end[3]; // [esp+24h] [ebp-24h] BYREF
-    float forward[3]; // [esp+30h] [ebp-18h] BYREF
-    float viewang[3]; // [esp+3Ch] [ebp-Ch] BYREF
+    float origin[3];
+    float end[3];
+    float forward[3];
+    float viewang[3];
 
     viewang[0] = client->ps.viewangles[0];
     viewang[1] = client->ps.viewangles[1];
@@ -1618,6 +1648,7 @@ void __cdecl G_DrawServerAiming(const gclient_s *client)
     CG_DebugSphere(end, 1.0, colorRed, 6, 0, 2);
 }
 
+// Decomp: CoDMPServer.c:370939
 void __cdecl G_BuildWeaponState(gclient_s *client, const viewState_t *vs, weaponState_t *ws)
 {
     ws->frametime = vs->frametime;
@@ -1655,6 +1686,7 @@ void __cdecl G_BuildWeaponState(gclient_s *client, const viewState_t *vs, weapon
     ws->swayViewAngles[2] = client->swayViewAngles[2];
 }
 
+// Decomp: CoDMPServer.c:370992
 void __cdecl G_SaveWeaponState(const weaponState_t *ws, gclient_s *client)
 {
     client->fLastIdleFactor = ws->fLastIdleFactor;
@@ -1681,9 +1713,10 @@ void __cdecl G_SaveWeaponState(const weaponState_t *ws, gclient_s *client)
     client->swayViewAngles[2] = ws->swayViewAngles[2];
 }
 
+// Decomp: CoDMPServer.c:371034
 void __cdecl ClientThink(int clientNum)
 {
-    gentity_s *ent; // [esp+8h] [ebp-4h]
+    gentity_s *ent;
 
     iassert(Sys_IsServerThread());
 
@@ -1704,10 +1737,10 @@ void __cdecl ClientThink(int clientNum)
     bgs = 0;
 }
 
+// Decomp: CoDMPServer.c:371100
 void __cdecl G_RunClient(gentity_s *ent)
 {
-    float *origin; // [esp+0h] [ebp-10h]
-    int savedregs; // [esp+10h] [ebp+0h] BYREF
+    float *origin;
 
     if ( !ent->client
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp", 1753, 0, "%s", "ent->client") )
@@ -1764,9 +1797,10 @@ void __cdecl G_RunClient(gentity_s *ent)
     SV_DrawBotThreat();
 }
 
+// Decomp: CoDMPServer.c:371173
 void __cdecl IntermissionClientEndFrame(gentity_s *ent)
 {
-    gclient_s *client; // [esp+0h] [ebp-4h]
+    gclient_s *client;
 
     client = ent->client;
     ent->r.svFlags &= ~2u;
@@ -1781,35 +1815,36 @@ void __cdecl IntermissionClientEndFrame(gentity_s *ent)
     ent->s.eType = ET_INVISIBLE;
 }
 
+// Decomp: CoDMPServer.c:371191
 bool __cdecl G_ClientCanSpectateTeam(gclient_s *client, team_t team)
 {
     return (client->sess.noSpectate & (1 << team)) == 0;
 }
 
+// Decomp: CoDMPServer.c:371197
 bool __cdecl G_ClientCanSpectateTeamOrLocalPlayer(gclient_s *client, clientState_s *cs)
 {
     return G_ClientCanSpectateTeam(client, cs->team);
 }
 
+// Decomp: CoDMPServer.c:371203
 void __cdecl SpectatorClientEndFrame(gentity_s *ent)
 {
-    unsigned int v2; // ecx
-    int number; // [esp+0h] [ebp-2828h]
-    gclient_s *client; // [esp+4h] [ebp-2824h]
-    playerState_s ps; // [esp+8h] [ebp-2820h] BYREF
-    int health; // [esp+2734h] [ebp-F4h] BYREF
-    int otherFlags; // [esp+2738h] [ebp-F0h] BYREF
-    int EarliestArchivedClientInfoTime; // [esp+273Ch] [ebp-ECh]
-    clientState_s v9; // [esp+2740h] [ebp-E8h] BYREF
-    int v10; // [esp+2814h] [ebp-14h]
-    unsigned int v11; // [esp+2818h] [ebp-10h]
-    int clientNum; // [esp+281Ch] [ebp-Ch]
-    //playerState_s *ps; // [esp+2820h] [ebp-8h]
-    int pArchiveTime; // [esp+2824h] [ebp-4h] BYREF
-    int savedregs; // [esp+2828h] [ebp+0h] BYREF
+    unsigned int tmp2;
+    int number;
+    gclient_s *client;
+    playerState_s ps;
+    int health;
+    int otherFlags;
+    int EarliestArchivedClientInfoTime;
+    clientState_s tmp9;
+    int tmp10;
+    unsigned int tmp11;
+    int clientNum;
+    //playerState_s *ps;
+    int pArchiveTime;
 
     // LWSS: this is likely some 128bit aligned alloca
-    //ps = (playerState_s *)((char *)&playerstate + ((0x80 - (((unsigned __int8)&savedregs - 32) & 0x7F)) & 0x7F));
     //if (((unsigned __int8)ps & 0x7F) != 0
     //    && !Assert_MyHandler(
     //        "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_active_mp.cpp",
@@ -1821,7 +1856,7 @@ void __cdecl SpectatorClientEndFrame(gentity_s *ent)
     //    __debugbreak();
     //}
 
-    v10 = 1000;
+    tmp10 = 1000;
     client = ent->client;
     ent->r.svFlags &= ~2u;
     ent->r.svFlags |= 1u;
@@ -1841,7 +1876,7 @@ void __cdecl SpectatorClientEndFrame(gentity_s *ent)
         if (clientNum < 0)
             goto LABEL_45;
         pArchiveTime = client->sess.psOffsetTime + client->sess.archiveTime;
-        if (!SV_GetArchivedClientInfo(clientNum, &pArchiveTime, &ps, &v9, 0, &health, &otherFlags))
+        if (!SV_GetArchivedClientInfo(clientNum, &pArchiveTime, &ps, &tmp9, 0, &health, &otherFlags))
             goto LABEL_45;
         if ((otherFlags & 4) == 0
             && !Assert_MyHandler(
@@ -1853,7 +1888,7 @@ void __cdecl SpectatorClientEndFrame(gentity_s *ent)
         {
             __debugbreak();
         }
-        if (!G_ClientCanSpectateTeamOrLocalPlayer(client, &v9))
+        if (!G_ClientCanSpectateTeamOrLocalPlayer(client, &tmp9))
         {
         LABEL_45:
             StopFollowing(ent);
@@ -1886,7 +1921,7 @@ void __cdecl SpectatorClientEndFrame(gentity_s *ent)
                 client->sess.archiveTime = EarliestArchivedClientInfoTime + client->sess.psOffsetTime - 1000;
                 pArchiveTime = client->sess.archiveTime - client->sess.psOffsetTime;
             }
-            if (SV_GetArchivedClientInfo(clientNum, &pArchiveTime, &ps, &v9, 0, &health, &otherFlags))
+            if (SV_GetArchivedClientInfo(clientNum, &pArchiveTime, &ps, &tmp9, 0, &health, &otherFlags))
             {
                 if (client->sess.killCamEntity == -1)
                     ps.killCamEntity = 1023;
@@ -1904,7 +1939,7 @@ void __cdecl SpectatorClientEndFrame(gentity_s *ent)
                 {
                     __debugbreak();
                 }
-                if (G_ClientCanSpectateTeam(client, v9.team))
+                if (G_ClientCanSpectateTeam(client, tmp9.team))
                     break;
             }
             if (client->sess.archiveTime <= 0)
@@ -1932,12 +1967,12 @@ void __cdecl SpectatorClientEndFrame(gentity_s *ent)
             }
         }
     }
-    v11 = client->ps.eFlags & 0x100000 | ps.eFlags & 0xFFEFFFFF;
+    tmp11 = client->ps.eFlags & 0x100000 | ps.eFlags & 0xFFEFFFFF;
     Com_Memcpy(&client->ps, &ps, sizeof(playerState_s));
     HudElem_UpdateClient(client, ent->s.number, HUDELEM_UPDATE_CURRENT);
     if (client->sess.archiveTime && client->sess.killCamEntity >= 0)
         HudElem_ClearClient(client, HUDELEM_UPDATE_ARCHIVAL);
-    client->ps.eFlags = v11;
+    client->ps.eFlags = tmp11;
     client->ps.otherFlags &= ~4u;
     client->ps.otherFlags |= 2u;
     if (client->sess.forceSpectatorClient >= 0 || RETURN_ZERO32())
@@ -1948,17 +1983,18 @@ void __cdecl SpectatorClientEndFrame(gentity_s *ent)
     {
         client->ps.otherFlags |= 8u;
         if (G_ClientCanSpectateTeam(client, TEAM_NUM_TEAMS))
-            v2 = client->ps.otherFlags | 0x10;
+            tmp2 = client->ps.otherFlags | 0x10;
         else
-            v2 = client->ps.otherFlags & 0xFFFFFFEF;
-        client->ps.otherFlags = v2;
+            tmp2 = client->ps.otherFlags & 0xFFFFFFEF;
+        client->ps.otherFlags = tmp2;
     }
 }
 
+// Decomp: CoDMPServer.c:371370
 int __cdecl GetFollowPlayerState(unsigned int clientNum, playerState_s *ps)
 {
-    gclient_s *client; // [esp+8h] [ebp-8h]
-    unsigned int index; // [esp+Ch] [ebp-4h]
+    gclient_s *client;
+    unsigned int index;
 
     if ( clientNum >= level.maxclients
         && !Assert_MyHandler(
@@ -2027,19 +2063,20 @@ int __cdecl GetFollowPlayerState(unsigned int clientNum, playerState_s *ps)
     }
 }
 
+// Decomp: CoDMPServer.c:371473
 int __cdecl StuckInClient(gentity_s *self)
 {
-    float v2; // [esp+0h] [ebp-58h]
-    float integer; // [esp+4h] [ebp-54h]
-    float *v4; // [esp+8h] [ebp-50h]
-    float *velocity; // [esp+10h] [ebp-48h]
-    float fDist; // [esp+38h] [ebp-20h]
-    gentity_s *hit; // [esp+3Ch] [ebp-1Ch]
-    int i; // [esp+40h] [ebp-18h]
-    float selfSpeed; // [esp+44h] [ebp-14h]
-    float hitSpeed; // [esp+48h] [ebp-10h]
-    float vDelta[2]; // [esp+4Ch] [ebp-Ch] BYREF
-    int iPushTime; // [esp+54h] [ebp-4h]
+    float tmp2;
+    float integer;
+    float *tmp4;
+    float *velocity;
+    float fDist;
+    gentity_s *hit;
+    int i;
+    float selfSpeed;
+    float hitSpeed;
+    float vDelta[2];
+    int iPushTime;
 
     iPushTime = 300;
     if ( (self->client->ps.otherFlags & 4) == 0 )
@@ -2086,11 +2123,11 @@ int __cdecl StuckInClient(gentity_s *self)
         integer = (float)g_playerCollisionEjectSpeed->current.integer;
     hitSpeed = integer;
     if ( Vec2Length(self->client->ps.velocity) <= 0.0 )
-        v2 = 0.0f;
+        tmp2 = 0.0f;
     else
-        v2 = (float)g_playerCollisionEjectSpeed->current.integer;
-    selfSpeed = v2;
-    if ( integer < 0.000099999997 && v2 < 0.000099999997 )
+        tmp2 = (float)g_playerCollisionEjectSpeed->current.integer;
+    selfSpeed = tmp2;
+    if ( integer < 0.000099999997 && tmp2 < 0.000099999997 )
     {
         hitSpeed = (float)hit->client->ps.speed;
         selfSpeed = (float)self->client->ps.speed;
@@ -2100,9 +2137,9 @@ int __cdecl StuckInClient(gentity_s *self)
     velocity[1] = hitSpeed * vDelta[1];
     hit->client->ps.pm_time = 300;
     hit->client->ps.pm_flags |= 0x80u;
-    v4 = self->client->ps.velocity;
-    v4[0] = (-(selfSpeed)) * vDelta[0];
-    v4[1] = (-(selfSpeed)) * vDelta[1];
+    tmp4 = self->client->ps.velocity;
+    tmp4[0] = (-(selfSpeed)) * vDelta[0];
+    tmp4[1] = (-(selfSpeed)) * vDelta[1];
     self->client->ps.pm_time = 300;
     self->client->ps.pm_flags |= 0x80u;
     return 1;
@@ -2111,38 +2148,39 @@ int __cdecl StuckInClient(gentity_s *self)
 const float aiMins[3] = { -25.0, -25.0, 0.0 };
 const float aiMaxs[3] = { 25.0, 25.0, 70.0 };
 
+// Decomp: CoDMPServer.c:371559
 void __cdecl CM_CheckForTraps(gentity_s *ent)
 {
-    float dir[3]; // [esp+20h] [ebp-10D0h] BYREF
-    PhysGeomList *geoms; // [esp+2Ch] [ebp-10C4h]
-    float origin[3]; // [esp+30h] [ebp-10C0h] BYREF
-    DObj *obj; // [esp+3Ch] [ebp-10B4h]
-    unsigned int model; // [esp+40h] [ebp-10B0h]
-    float tvel[3]; // [esp+44h] [ebp-10ACh] BYREF
-    //float v7; // [esp+48h] [ebp-10A8h]
-    //float v8; // [esp+4Ch] [ebp-10A4h]
-    float avel[3]; // [esp+50h] [ebp-10A0h] BYREF
-    gentity_s *enta; // [esp+5Ch] [ebp-1094h]
-    int i; // [esp+60h] [ebp-1090h]
-    float v12; // [esp+64h] [ebp-108Ch]
-    float v13; // [esp+68h] [ebp-1088h]
-    float v14; // [esp+6Ch] [ebp-1084h]
-    float mins[6]; // [esp+70h] [ebp-1080h] BYREF
-    float start; // [esp+88h] [ebp-1068h] BYREF
-    float v17; // [esp+8Ch] [ebp-1064h]
-    float v18; // [esp+90h] [ebp-1060h]
-    float end[3]; // [esp+94h] [ebp-105Ch] BYREF
-    int entityList[1024]; // [esp+A0h] [ebp-1050h] BYREF
-    trace_t results; // [esp+10A0h] [ebp-50h] BYREF
-    float maxs[2]; // [esp+10DCh] [ebp-14h] BYREF
-    float v23; // [esp+10E4h] [ebp-Ch]
-    int contentmask; // [esp+10E8h] [ebp-8h]
-    int v25; // [esp+10ECh] [ebp-4h]
+    float dir[3];
+    PhysGeomList *geoms;
+    float origin[3];
+    DObj *obj;
+    unsigned int model;
+    float tvel[3];
+    //float tmp7;
+    //float tmp8;
+    float avel[3];
+    gentity_s *enta;
+    int i;
+    float tmp12;
+    float tmp13;
+    float tmp14;
+    float mins[6];
+    float start;
+    float tmp17;
+    float tmp18;
+    float end[3];
+    int entityList[1024];
+    trace_t results;
+    float maxs[2];
+    float tmp23;
+    int contentmask;
+    int tmp25;
 
     contentmask = 1;
-    v12 = 1.0f;
-    v13 = 1.0f;
-    v14 = 1.0f;
+    tmp12 = 1.0f;
+    tmp13 = 1.0f;
+    tmp14 = 1.0f;
     mins[3] = 55.0f;
     mins[4] = 55.0f;
     mins[5] = 0.0f;
@@ -2151,16 +2189,16 @@ void __cdecl CM_CheckForTraps(gentity_s *ent)
     mins[2] = ent->r.currentOrigin[2] - 0.0;
     maxs[0] = ent->r.currentOrigin[0] + 55.0;
     maxs[1] = ent->r.currentOrigin[1] + 55.0;
-    v23 = ent->r.currentOrigin[2] + 0.0;
-    v23 = v23 + 70.0;
+    tmp23 = ent->r.currentOrigin[2] + 0.0;
+    tmp23 = tmp23 + 70.0;
     start = ent->r.currentOrigin[0];
-    v17 = ent->r.currentOrigin[1];
-    v18 = ent->r.currentOrigin[2];
+    tmp17 = ent->r.currentOrigin[1];
+    tmp18 = ent->r.currentOrigin[2];
     end[0] = ent->r.currentOrigin[0] + 1.0;
     end[1] = ent->r.currentOrigin[1] + 1.0;
     end[2] = ent->r.currentOrigin[2] + 1.0;
-    v25 = CM_AreaEntities(mins, maxs, entityList, 1024, 1);
-    for ( i = 0; i < v25; ++i )
+    tmp25 = CM_AreaEntities(mins, maxs, entityList, 1024, 1);
+    for ( i = 0; i < tmp25; ++i )
     {
         enta = &g_entities[entityList[i]];
         if ( enta->physObjId )
@@ -2187,8 +2225,8 @@ void __cdecl CM_CheckForTraps(gentity_s *ent)
                 if ( results.startsolid )
                 {
                     dir[0] = start - enta->r.currentOrigin[0];
-                    dir[1] = v17 - enta->r.currentOrigin[1];
-                    dir[2] = v18 - enta->r.currentOrigin[2];
+                    dir[1] = tmp17 - enta->r.currentOrigin[1];
+                    dir[2] = tmp18 - enta->r.currentOrigin[2];
                     G_Damage(ent, enta, enta, dir, enta->r.currentOrigin, 500, 0, 18, 0xFFFFFFFF, HITLOC_NONE, 0, 0, 0);
                     if ( !ent->client )
                     {
@@ -2201,12 +2239,13 @@ void __cdecl CM_CheckForTraps(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:371679
 void __cdecl G_PlayerController(const gentity_s *self, int *partBits)
 {
-    const DObj *obj; // [esp+0h] [ebp-28h]
-    clientInfo_t *ci; // [esp+4h] [ebp-24h]
-    int i; // [esp+8h] [ebp-20h]
-    CEntPlayerInfo player; // [esp+Ch] [ebp-1Ch] BYREF
+    const DObj *obj;
+    clientInfo_t *ci;
+    int i;
+    CEntPlayerInfo player;
 
     SV_CheckThread();
     if ( self->s.clientNum >= 0x20u
@@ -2240,18 +2279,19 @@ void __cdecl G_PlayerController(const gentity_s *self, int *partBits)
     BG_Player_DoControllers(&player, obj, partBits);
 }
 
+// Decomp: CoDMPServer.c:371735
 int __cdecl G_UpdateClientInfo(gentity_s *ent)
 {
-    unsigned int v1; // eax
-    unsigned int v2; // eax
-    char *tagName; // [esp+3Ch] [ebp-1Ch]
-    int bChanged; // [esp+40h] [ebp-18h]
-    gclient_s *client; // [esp+44h] [ebp-14h]
-    char *modelName; // [esp+48h] [ebp-10h]
-    char *modelNamea; // [esp+48h] [ebp-10h]
-    clientInfo_t *ci; // [esp+4Ch] [ebp-Ch]
-    int i; // [esp+50h] [ebp-8h]
-    unsigned int clientNum; // [esp+54h] [ebp-4h]
+    unsigned int modelNameStr;
+    unsigned int modelNameStr2;
+    char *tagName;
+    int bChanged;
+    gclient_s *client;
+    char *modelName;
+    char *modelNamea;
+    clientInfo_t *ci;
+    int i;
+    unsigned int clientNum;
 
     client = ent->client;
     if ( !client
@@ -2288,8 +2328,8 @@ int __cdecl G_UpdateClientInfo(gentity_s *ent)
         __debugbreak();
     }
     bChanged = 0;
-    v1 = G_ModelName(ent->model);
-    modelName = SL_ConvertToString(v1, SCRIPTINSTANCE_SERVER);
+    modelNameStr = G_ModelName(ent->model);
+    modelName = SL_ConvertToString(modelNameStr, SCRIPTINSTANCE_SERVER);
     client->sess.cs.modelindex = ent->model;
     if ( strcmp(ci->model, modelName) )
     {
@@ -2300,8 +2340,8 @@ int __cdecl G_UpdateClientInfo(gentity_s *ent)
     {
         if ( ent->attachModelNames[i] )
         {
-            v2 = G_ModelName(ent->attachModelNames[i]);
-            modelNamea = SL_ConvertToString(v2, SCRIPTINSTANCE_SERVER);
+            modelNameStr2 = G_ModelName(ent->attachModelNames[i]);
+            modelNamea = SL_ConvertToString(modelNameStr2, SCRIPTINSTANCE_SERVER);
             client->sess.cs.attachModelIndex[i] = ent->attachModelNames[i];
             if ( strcmp(ci->attachModelNames[i], modelNamea) )
             {
@@ -2361,44 +2401,45 @@ int __cdecl G_UpdateClientInfo(gentity_s *ent)
     return bChanged;
 }
 
+// Decomp: CoDMPServer.c:371894
 void __cdecl ClientEndFrame(gentity_s *ent)
 {
-    int v1; // eax
-    int v2; // eax
-    unsigned int v3; // ecx
-    const char *v4; // eax
-    char *v5; // eax
-    int v6; // [esp+20h] [ebp-C0h]
-    bool v7; // [esp+24h] [ebp-BCh]
-    bitarray<51> *v8; // [esp+28h] [ebp-B8h]
-    int k; // [esp+2Ch] [ebp-B4h]
-    float *playerAngles; // [esp+30h] [ebp-B0h]
-    float *viewangles; // [esp+34h] [ebp-ACh]
-    bitarray<51> *v12; // [esp+38h] [ebp-A8h]
-    int m; // [esp+3Ch] [ebp-A4h]
-    float *origin; // [esp+4Ch] [ebp-94h]
-    bitarray<51> *v15; // [esp+54h] [ebp-8Ch]
-    int n; // [esp+58h] [ebp-88h]
-    float v17; // [esp+5Ch] [ebp-84h]
-    bitarray<51> *v18; // [esp+64h] [ebp-7Ch]
-    int j; // [esp+68h] [ebp-78h]
-    bitarray<51> *p_button_bitsSinceLastFrame; // [esp+6Ch] [ebp-74h]
-    int i; // [esp+70h] [ebp-70h]
-    bitarray<51> *v22; // [esp+74h] [ebp-6Ch]
-    int ii; // [esp+78h] [ebp-68h]
-    int partBits[5]; // [esp+7Ch] [ebp-64h] BYREF
-    gentity_s *vehicle; // [esp+90h] [ebp-50h]
-    float angles[3]; // [esp+94h] [ebp-4Ch]
-    const vehicle_info_t *info; // [esp+A0h] [ebp-40h]
-    gentity_s *veh; // [esp+A4h] [ebp-3Ch]
-    int bChanged; // [esp+A8h] [ebp-38h]
-    gclient_s *client; // [esp+ACh] [ebp-34h]
-    DObj *obj; // [esp+B0h] [ebp-30h]
-    float vViewPos[3]; // [esp+B4h] [ebp-2Ch] BYREF
-    clientInfo_t *ci; // [esp+C0h] [ebp-20h]
-    int clientNum; // [esp+C4h] [ebp-1Ch]
-    float spawn_angles[3]; // [esp+C8h] [ebp-18h] BYREF
-    float spawn_origin[3]; // [esp+D4h] [ebp-Ch] BYREF
+    int tmp1;
+    int tmp2;
+    unsigned int tmp3;
+    const char *fmtMsg;
+    char *fmtMsg2;
+    int tmp6;
+    bool tmp7;
+    bitarray<51> *tmp8;
+    int k;
+    float *playerAngles;
+    float *viewangles;
+    bitarray<51> *tmp12;
+    int m;
+    float *origin;
+    bitarray<51> *tmp15;
+    int n;
+    float tmp17;
+    bitarray<51> *tmp18;
+    int j;
+    bitarray<51> *p_button_bitsSinceLastFrame;
+    int i;
+    bitarray<51> *tmp22;
+    int ii;
+    int partBits[5];
+    gentity_s *vehicle;
+    float angles[3];
+    const vehicle_info_t *info;
+    gentity_s *veh;
+    int bChanged;
+    gclient_s *client;
+    DObj *obj;
+    float vViewPos[3];
+    clientInfo_t *ci;
+    int clientNum;
+    float spawn_angles[3];
+    float spawn_origin[3];
 
     client = ent->client;
     if ( !client
@@ -2420,11 +2461,19 @@ void __cdecl ClientEndFrame(gentity_s *ent)
     client->ps.deltaTime = 0;
     client->ps.gravity = (int)bg_gravity->current.value;
     client->ps.moveSpeedScaleMultiplier = ent->client->sess.moveSpeedScaleMultiplier;
+    // BlackOpsMP.retail.c:895191 sub_831680 (freezecontrols): client->flags bit 4 -> pm_flags 0x800
+    // via ClientEndFrame (same pattern as CoDOMPServer.c:371894).
     if ( (client->flags & 4) != 0 )
-        v1 = client->ps.pm_flags | 0x800;
+        tmp1 = client->ps.pm_flags | 0x800;
     else
-        v1 = client->ps.pm_flags & 0xFFFFF7FF;
-    client->ps.pm_flags = v1;
+        tmp1 = client->ps.pm_flags & 0xFFFFF7FF;
+    // BlackOpsMP.retail.c:895272 sub_831750 (freezecontrolsallowlook): client->flags bit 0x100 ->
+    // pm_flags 0x10; retail PM ~813233 zeros pitch/yaw usercmd and blocks mouse (cl ~874080).
+    if ( (client->flags & 0x100) != 0 )
+        tmp1 |= 0x10;
+    else
+        tmp1 &= ~0x10u;
+    client->ps.pm_flags = tmp1;
     bChanged = G_UpdateClientInfo(ent);
     if ( client->sess.connected == CON_CONNECTED )
     {
@@ -2440,9 +2489,9 @@ void __cdecl ClientEndFrame(gentity_s *ent)
         else if ( client->sess.sessionState == SESS_STATE_SPECTATOR )
         {
             SpectatorClientEndFrame(ent);
-            v18 = &ent->client->button_bitsSinceLastFrame;
+            tmp18 = &ent->client->button_bitsSinceLastFrame;
             for ( j = 0; j < 2; ++j )
-                v18->array[j] = 0;
+                tmp18->array[j] = 0;
         }
         else if ( client->ps.clientNum == ent->s.number )
         {
@@ -2483,8 +2532,8 @@ void __cdecl ClientEndFrame(gentity_s *ent)
             }
             else if ( client->ps.pm_type != 8 )
             {
-                v7 = ent->tagInfo && (client->ps.eFlags & 0x4000) == 0;
-                client->ps.pm_type = v7;
+                tmp7 = ent->tagInfo && (client->ps.eFlags & 0x4000) == 0;
+                client->ps.pm_type = tmp7;
             }
             client->currentAimSpreadScale = client->ps.aimSpreadScale / 255.0;
             if ( (ent->client->flags & 3) == 0 )
@@ -2506,10 +2555,10 @@ void __cdecl ClientEndFrame(gentity_s *ent)
             Player_UpdateCursorHints(ent);
             P_DamageFeedback(ent);
             if ( level.time - client->lastCmdTime <= 1000 )
-                v2 = ent->s.lerp.eFlags & 0xFFFFFF7F;
+                tmp2 = ent->s.lerp.eFlags & 0xFFFFFF7F;
             else
-                v2 = ent->s.lerp.eFlags | 0x80;
-            ent->s.lerp.eFlags = v2;
+                tmp2 = ent->s.lerp.eFlags | 0x80;
+            ent->s.lerp.eFlags = tmp2;
             client->ps.stats[0] = ent->health;
             client->ps.satelliteTypeEnabled = level.teamHasSatellite[client->sess.cs.team];
             if ( client->hasSatellite )
@@ -2572,10 +2621,10 @@ void __cdecl ClientEndFrame(gentity_s *ent)
             {
                 client->iLastCompassPlayerInfoEnt = client->ps.iCompassPlayerInfo & 0x3F;
                 if ( (g_entities[client->iLastCompassPlayerInfoEnt].s.lerp.eFlags & 0x400000) != 0 )
-                    v3 = 0x800000 | client->ps.eFlags;
+                    tmp3 = 0x800000 | client->ps.eFlags;
                 else
-                    v3 = client->ps.eFlags & 0xFF7FFFFF;
-                client->ps.eFlags = v3;
+                    tmp3 = client->ps.eFlags & 0xFF7FFFFF;
+                client->ps.eFlags = tmp3;
             }
             else
             {
@@ -2647,16 +2696,16 @@ void __cdecl ClientEndFrame(gentity_s *ent)
                     {
                         if ( level.gentities[client->ps.viewlocked_entNum].r.ownerNum.isDefined() )
                         {
-                            v6 = level.gentities[client->ps.viewlocked_entNum].r.ownerNum.entnum();
-                            v4 = va(
+                            tmp6 = level.gentities[client->ps.viewlocked_entNum].r.ownerNum.entnum();
+                            fmtMsg = va(
                                          "viewlocked_entNum is %i, ownerNum is %i, ent->s.number is %i",
                                          client->ps.viewlocked_entNum,
-                                         v6,
+                                         tmp6,
                                          ent->s.number);
                         }
                         else
                         {
-                            v4 = va(
+                            fmtMsg = va(
                                          "viewlocked_entNum is %i, ownerNum is %i, ent->s.number is %i",
                                          client->ps.viewlocked_entNum,
                                          1023,
@@ -2669,7 +2718,7 @@ void __cdecl ClientEndFrame(gentity_s *ent)
                                         "%s\n\t%s",
                                         "level.gentities[client->ps.viewlocked_entNum].r.ownerNum.isDefined() && (level.gentities[client->ps."
                                         "viewlocked_entNum].r.ownerNum.ent() == ent)",
-                                        v4) )
+                                        fmtMsg) )
                             __debugbreak();
                     }
                     turret_think_client(&level.gentities[client->ps.viewlocked_entNum]);
@@ -2686,23 +2735,23 @@ void __cdecl ClientEndFrame(gentity_s *ent)
                     memset(partBits, 255, sizeof(partBits));
                     G_DObjCalcPose(ent, partBits);
                     SV_XModelDebugBoxes(ent, colorWhite, 0, 0);
-                    v5 = va(
+                    fmtMsg2 = va(
                                  "[%i] %.3f, %.3f, %.3f\n",
                                  clientNum,
                                  level_bgs.clientinfo[clientNum].legs.yawAngle,
                                  level_bgs.clientinfo[clientNum].torso.yawAngle,
                                  level_bgs.clientinfo[clientNum].playerAngles[1]);
-                    CL_AddDebugStarWithText(ent->r.currentOrigin, colorYellow, colorYellow, v5, 0.25, 1);
+                    CL_AddDebugStarWithText(ent->r.currentOrigin, colorYellow, colorYellow, fmtMsg2, 0.25, 1);
                 }
-                v8 = &ent->client->button_bitsSinceLastFrame;
+                tmp8 = &ent->client->button_bitsSinceLastFrame;
                 for ( k = 0; k < 2; ++k )
-                    v8->array[k] = 0;
+                    tmp8->array[k] = 0;
             }
             else
             {
-                v12 = &ent->client->button_bitsSinceLastFrame;
+                tmp12 = &ent->client->button_bitsSinceLastFrame;
                 for ( m = 0; m < 2; ++m )
-                    v12->array[m] = 0;
+                    tmp12->array[m] = 0;
             }
         }
         else
@@ -2710,9 +2759,9 @@ void __cdecl ClientEndFrame(gentity_s *ent)
             spawn_origin[0] = client->ps.origin[0];
             spawn_origin[1] = client->ps.origin[1];
             spawn_origin[2] = client->ps.origin[2];
-            v17 = client->ps.viewangles[1];
+            tmp17 = client->ps.viewangles[1];
             spawn_angles[0] = 0.0f;
-            spawn_angles[1] = v17;
+            spawn_angles[1] = tmp17;
             spawn_angles[2] = 0.0f;
             ClientSpawn(ent, spawn_origin, spawn_angles);
             if ( client->ps.clientNum != ent->s.number
@@ -2725,22 +2774,23 @@ void __cdecl ClientEndFrame(gentity_s *ent)
             {
                 __debugbreak();
             }
-            v15 = &ent->client->button_bitsSinceLastFrame;
+            tmp15 = &ent->client->button_bitsSinceLastFrame;
             for ( n = 0; n < 2; ++n )
-                v15->array[n] = 0;
+                tmp15->array[n] = 0;
         }
     }
     else
     {
-        v22 = &ent->client->button_bitsSinceLastFrame;
+        tmp22 = &ent->client->button_bitsSinceLastFrame;
         for ( ii = 0; ii < 2; ++ii )
-            v22->array[ii] = 0;
+            tmp22->array[ii] = 0;
     }
 }
 
+// Decomp: CoDMPServer.c:372328
 void __cdecl G_AddClientKnife(clientInfo_t *ci, playerState_s *ps)
 {
-    bool addKnife; // [esp+0h] [ebp-4h]
+    bool addKnife;
 
     addKnife = BG_IsKnifeMeleeAnim(ci, ps->torsoAnim);
     if ( !addKnife || ci->usingKnife )
@@ -2758,6 +2808,7 @@ void __cdecl G_AddClientKnife(clientInfo_t *ci, playerState_s *ps)
     }
 }
 
+// Decomp: CoDMPServer.c:372352
 gentity_s *__cdecl G_GetPlayer(unsigned int clientNum)
 {
     if ( clientNum >= 0x20
@@ -2774,10 +2825,11 @@ gentity_s *__cdecl G_GetPlayer(unsigned int clientNum)
     return &level.gentities[clientNum];
 }
 
+// Decomp: CoDMPServer.c:372370
 void __cdecl G_PlayerEvent(int clientNum, int event)
 {
-    gclient_s *client; // [esp+4h] [ebp-10h]
-    float kickAVel[3]; // [esp+8h] [ebp-Ch] BYREF
+    gclient_s *client;
+    float kickAVel[3];
 
     client = g_entities[clientNum].client;
     if ( !client

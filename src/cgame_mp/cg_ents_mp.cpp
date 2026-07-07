@@ -1118,12 +1118,15 @@ void __cdecl CG_ProcessClientNote(
                 {
                     __debugbreak();
                 }
-                value = (char *)note->GetNotifyStringName();
-                Scr_AddString(value, SCRIPTINSTANCE_CLIENT);
-                CScr_AddEntity(cent, (unsigned __int16)localClientNum);
-                Scr_AddInt(localClientNum, SCRIPTINSTANCE_CLIENT);
-                t = Scr_ExecThread(SCRIPTINSTANCE_CLIENT, cg_scr_data.dogSoundNotify, 3u);
-                Scr_FreeThread(t, SCRIPTINSTANCE_CLIENT);
+                if ( cg_scr_data.dogSoundNotify )
+                {
+                    value = (char *)note->GetNotifyStringName();
+                    Scr_AddString(value, SCRIPTINSTANCE_CLIENT);
+                    CScr_AddEntity(cent, (unsigned __int16)localClientNum);
+                    Scr_AddInt(localClientNum, SCRIPTINSTANCE_CLIENT);
+                    t = Scr_ExecThread(SCRIPTINSTANCE_CLIENT, cg_scr_data.dogSoundNotify, 3u);
+                    Scr_FreeThread(t, SCRIPTINSTANCE_CLIENT);
+                }
             }
         }
         else
@@ -1837,6 +1840,14 @@ void __cdecl CG_General(int localClientNum, centity_s *cent)
 
 void __cdecl CG_GetLightingOrigin(centity_s *cent, float *lightingOrigin)
 {
+    // lerp.eFlags 0x8000000: set by script overridelightingorigin (g_scr_main_mp, late retail MP).
+    if ( (cent->nextState.lerp.eFlags & 0x8000000) != 0 )
+    {
+        lightingOrigin[0] = cent->pose.origin[0];
+        lightingOrigin[1] = cent->pose.origin[1];
+        lightingOrigin[2] = cent->pose.origin[2];
+        return;
+    }
     *lightingOrigin = (float)(cent->pose.absmin[0] + cent->pose.absmax[0]) * 0.5;
     lightingOrigin[1] = (float)(cent->pose.absmin[1] + cent->pose.absmax[1]) * 0.5;
     lightingOrigin[2] = (float)(cent->pose.absmin[2] + cent->pose.absmax[2]) * 0.5;
@@ -2146,7 +2157,7 @@ void __cdecl CG_ClampPrimaryLightDir(GfxLight *light, const ComPrimaryLight *ref
         light->dir[2] = (float)(rotationLimit * refLight->dir[2]) + (float)(perpScale * perpendicular_8);
         if ( !Vec3IsNormalized(light->dir) )
         {
-            v2 = Vec3Length(light->dir);
+            v2 = Abs(light->dir);
             v3 = va("(%g %g %g) len %g", light->dir[0], light->dir[1], light->dir[2], v2);
             if ( !Assert_MyHandler(
                             "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_ents_mp.cpp",
@@ -3852,6 +3863,7 @@ void __cdecl CG_ProcessEntity(int localClientNum, centity_s *cent)
         t = CScr_ExecEntThread(cent, cg_scr_data.entityspawned, 1u);
         Scr_FreeThread(t, SCRIPTINSTANCE_CLIENT);
     }
+    // BlackOpsMP.retail.c:561909-561912 (sub_675210)
     CG_ClientFlagCallback(localClientNum, cent);
     CG_ClientFlagResetAll(cent);
 }
@@ -4388,34 +4400,13 @@ void __cdecl CG_Vehicle(int localClientNum, centity_s *cent)
 
 void __cdecl CG_ClientFlagCallback(int localClientNum, centity_s *cent)
 {
-    unsigned __int16 t; // [esp+0h] [ebp-Ch]
-    bool flagSet; // [esp+4h] [ebp-8h]
-    int flagNum; // [esp+8h] [ebp-4h]
+    unsigned __int16 scriptThread;
+    bool flagSet;
+    int flagNum;
 
-    if ( !G_ExitAfterToolComplete() )
+    // BlackOpsMP.retail.c:831784-831814 (sub_7D0910 @ 0x007D0910)
+    if ( !G_ExitAfterToolComplete() && cg_scr_data.clientFlagCB )
     {
-        if ( !cg_scr_data.clientFlagCB
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_ents_mp.cpp",
-                        3540,
-                        0,
-                        "%s\n\t(cg_scr_data.clientFlagCB) = %p",
-                        "(cg_scr_data.clientFlagCB != 0)",
-                        0) )
-        {
-            __debugbreak();
-        }
-        if ( !cg_scr_data.clientFlagAsValCB
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_ents_mp.cpp",
-                        3541,
-                        0,
-                        "%s\n\t(cg_scr_data.clientFlagAsValCB) = %p",
-                        "(cg_scr_data.clientFlagAsValCB != 0)",
-                        0) )
-        {
-            __debugbreak();
-        }
         for ( flagNum = 0; flagNum < 16; ++flagNum )
         {
             if ( CG_ClientFlagIsActive(cent, flagNum) )
@@ -4424,10 +4415,11 @@ void __cdecl CG_ClientFlagCallback(int localClientNum, centity_s *cent)
                 Scr_AddInt(flagSet, SCRIPTINSTANCE_CLIENT);
                 Scr_AddInt(flagNum, SCRIPTINSTANCE_CLIENT);
                 Scr_AddInt(localClientNum, SCRIPTINSTANCE_CLIENT);
-                t = CScr_ExecEntThread(cent, cg_scr_data.clientFlagCB, 3u);
-                Scr_FreeThread(t, SCRIPTINSTANCE_CLIENT);
+                scriptThread = CScr_ExecEntThread(cent, cg_scr_data.clientFlagCB, 3u);
+                Scr_FreeThread(scriptThread, SCRIPTINSTANCE_CLIENT);
             }
         }
+        // BlackOpsMP.retail.c:831811 — clear bClientFlagsNeedProcessing via dword at cent+804
         *((unsigned int *)cent + 201) &= ~0x400000u;
     }
 }
@@ -4621,6 +4613,7 @@ void __cdecl CG_ClientFlagResetAll(centity_s *cent)
     {
         __debugbreak();
     }
+    // BlackOpsMP.retail.c:561911-561912 (sub_675210) / sub_6B43D0
     cent->flagIndex = 0;
     cent->flagState = 0;
 }
@@ -4649,6 +4642,7 @@ void __cdecl CG_ClientFlagSet(centity_s *cent, unsigned int flagNum)
     {
         __debugbreak();
     }
+    // BlackOpsMP.retail.c:485808-485810 (sub_604660)
     cent->flagIndex |= 1 << flagNum;
     cent->flagState |= 1 << flagNum;
     *((unsigned int *)cent + 201) |= 0x400000u;
@@ -4678,6 +4672,7 @@ void __cdecl CG_ClientFlagClear(centity_s *cent, unsigned int flagNum)
     {
         __debugbreak();
     }
+    // BlackOpsMP.retail.c:545540-545542 (sub_65BFD0)
     cent->flagIndex |= 1 << flagNum;
     cent->flagState &= ~(unsigned __int16)(1 << flagNum);
     *((unsigned int *)cent + 201) |= 0x400000u;

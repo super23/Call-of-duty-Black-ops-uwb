@@ -4,15 +4,15 @@ struct cbrush_t;
 struct menuDef_t;
 struct XAsset;
 
-struct PackIndexEntry // sizeof=0xC
+struct PackIndexEntry
 {
     unsigned int hash;
     unsigned int offset;
     unsigned int size;
 };
 
-struct PackIndexHeader // sizeof=0x14
-{                                       // XREF: PackIndex/r
+struct PackIndexHeader
+{
     unsigned int magic;
     unsigned int timestamp;
     unsigned int count;
@@ -20,9 +20,8 @@ struct PackIndexHeader // sizeof=0x14
     unsigned int data_start;
 };
 
-struct PackIndex // sizeof=0x1C
-{                                       // XREF: snd_pack_file/r
-                                        // XAssetPoolEntry<PackIndex>/r
+struct PackIndex
+{
     const char *name;
     PackIndexHeader header;
     PackIndexEntry *entries;

@@ -1,10 +1,16 @@
 #include "cg_ammocounter.h"
+#ifdef KISAK_SP
+#include <cgame_sp/cg_main_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <cgame_sp/cg_newDraw_sp.h>
+#else
 #include <cgame_mp/cg_main_mp.h>
-#include <bgame/bg_mantle.h>
 #include <client_mp/cl_cgame_mp.h>
+#include <cgame_mp/cg_newDraw_mp.h>
+#endif
+#include <bgame/bg_mantle.h>
 #include <bgame/bg_misc.h>
 #include <bgame/bg_weapons_ammo.h>
-#include <cgame_mp/cg_newDraw_mp.h>
 #include "cg_weapons.h"
 #include <qcommon/common.h>
 #include <ui/ui_shared.h>
@@ -932,7 +938,7 @@ void __cdecl CG_DrawPlayerActionSlot(
                             rect->vertAlign,
                             colorMod,
                             180.0,
-                            cgMedia.hudDpadLeftHighlight);
+                            cgMedia.ammoCounterRocket);
                     }
                 }
                 else
@@ -950,7 +956,7 @@ void __cdecl CG_DrawPlayerActionSlot(
                         rect->vertAlign,
                         colorMod,
                         90.0,
-                        cgMedia.hudDpadLeftHighlight);
+                        cgMedia.ammoCounterRocket);
                 }
                 if (!I_strcmp(weapVariantDef->szInternalName, "minigun_drop_mp")
                     || !I_strcmp(weapVariantDef->szInternalName, "supplydrop_mp")
@@ -1000,7 +1006,7 @@ void __cdecl CG_DrawPlayerActionSlot(
                         1.0,
                         1.0,
                         black,
-                        cgMedia.hudDpadCircle);
+                        cgMedia.ammoCounterRifleBullet);
                     DpadTextPos(localClientNum, rect, slotIdx, weapVariantDef, &x, &y);
                     Com_sprintf(str, 0x40u, "%3i", ammo);
                     colorMod[3] = ammoAlpha;
@@ -1046,7 +1052,7 @@ void __cdecl CG_DrawPlayerActionSlot(
                     rect->vertAlign,
                     colorMod,
                     0.0,
-                    cgMedia.hudDpadLeftHighlight);
+                    cgMedia.ammoCounterRocket);
             }
             CL_DrawStretchPic(
                 &scrPlaceView[localClientNum],
@@ -1077,7 +1083,7 @@ void __cdecl CG_DrawPlayerActionSlot(
                 1.0,
                 1.0,
                 black,
-                cgMedia.hudDpadCircle);
+                cgMedia.ammoCounterRifleBullet);
             ammo = BG_WeaponAmmo(ps, weapIdx);
             if (!ammo)
             {

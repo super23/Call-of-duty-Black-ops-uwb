@@ -328,46 +328,54 @@ gclient_s g_clients[32];
 
 playerState_s g_defaultPlayerState;
 
+// Decomp: CoDMPServer.c:393878
 int __cdecl G_GetTime()
 {
     return level.time;
 }
 
+// Decomp: CoDMPServer.c:393883
 void __cdecl G_RegisterConnectPaths()
 {
     g_connectpaths = _Dvar_RegisterInt("g_connectpaths", 0, 0, 3, 0, "Connect paths");
 }
 
+// Decomp: CoDMPServer.c:393894
 bool __cdecl G_OnlyConnectingPaths()
 {
     return g_connectpaths->current.integer >= 2;
 }
 
+// Decomp: CoDMPServer.c:393899
 void __cdecl G_RegisterRegisterToolDvars()
 {
-    bool v0; // al
+    bool tmp0;
 
     G_RegisterConnectPaths();
     R_ReflectionProbeRegisterDvars();
-    v0 = G_ExitAfterToolComplete();
-    g_loadScripts = _Dvar_RegisterBool("g_loadScripts", !v0, 0, "Disable scripts from loading");
+    tmp0 = G_ExitAfterToolComplete();
+    g_loadScripts = _Dvar_RegisterBool("g_loadScripts", !tmp0, 0, "Disable scripts from loading");
 }
 
+// Decomp: CoDMPServer.c:393924
 int __cdecl G_GetSavePersist()
 {
     return level.savepersist;
 }
 
+// Decomp: CoDMPServer.c:393930
 void __cdecl G_SetSavePersist(int savepersist)
 {
     level.savepersist = savepersist;
 }
 
+// Decomp: CoDMPServer.c:393936
 double __cdecl G_GetFogOpaqueDistSqrd()
 {
     return level.fFogOpaqueDistSqrd;
 }
 
+// Decomp: CoDMPServer.c:393942
 int __cdecl G_GetClientScore(unsigned int clientNum)
 {
     if ( clientNum >= level.maxclients
@@ -384,6 +392,7 @@ int __cdecl G_GetClientScore(unsigned int clientNum)
     return level.clients[clientNum].sess.cs.score.score;
 }
 
+// Decomp: CoDMPServer.c:393960
 int __cdecl G_GetClientKills(unsigned int clientNum)
 {
     if ( clientNum >= level.maxclients
@@ -400,6 +409,7 @@ int __cdecl G_GetClientKills(unsigned int clientNum)
     return level.clients[clientNum].sess.cs.score.kills;
 }
 
+// Decomp: CoDMPServer.c:393978
 int __cdecl G_GetClientAssists(unsigned int clientNum)
 {
     if ( clientNum >= level.maxclients
@@ -416,6 +426,7 @@ int __cdecl G_GetClientAssists(unsigned int clientNum)
     return level.clients[clientNum].sess.cs.score.assists;
 }
 
+// Decomp: CoDMPServer.c:393996
 int __cdecl G_GetClientRank(unsigned int clientNum)
 {
     if ( clientNum >= level.maxclients
@@ -432,6 +443,7 @@ int __cdecl G_GetClientRank(unsigned int clientNum)
     return level.clients[clientNum].sess.cs.rank;
 }
 
+// Decomp: CoDMPServer.c:394014
 int __cdecl G_GetClientPrestige(unsigned int clientNum)
 {
     if ( clientNum >= level.maxclients
@@ -448,6 +460,7 @@ int __cdecl G_GetClientPrestige(unsigned int clientNum)
     return level.clients[clientNum].sess.cs.prestige;
 }
 
+// Decomp: CoDMPServer.c:394032
 team_t __cdecl G_GetClientTeam(unsigned int clientNum)
 {
     if ( clientNum >= level.maxclients
@@ -464,6 +477,7 @@ team_t __cdecl G_GetClientTeam(unsigned int clientNum)
     return level.clients[clientNum].sess.cs.team;
 }
 
+// Decomp: CoDMPServer.c:394050
 int __cdecl G_GetClientDeaths(unsigned int clientNum)
 {
     if ( clientNum >= level.maxclients
@@ -480,6 +494,7 @@ int __cdecl G_GetClientDeaths(unsigned int clientNum)
     return level.clients[clientNum].sess.cs.score.deaths;
 }
 
+// Decomp: CoDMPServer.c:394068
 int __cdecl G_GetClientArchiveTime(unsigned int clientNum)
 {
     if ( clientNum >= level.maxclients
@@ -496,6 +511,7 @@ int __cdecl G_GetClientArchiveTime(unsigned int clientNum)
     return level.clients[clientNum].sess.archiveTime;
 }
 
+// Decomp: CoDMPServer.c:394086
 void __cdecl G_SetClientArchiveTime(unsigned int clientNum, int time)
 {
     if ( clientNum >= level.maxclients
@@ -517,6 +533,7 @@ MatchState *__cdecl G_GetMatchState()
     return &level.matchState;
 }
 
+// Decomp: CoDMPServer.c:394110
 clientState_s *__cdecl G_GetClientState(unsigned int clientNum)
 {
     if ( !Demo_IsPlaying()
@@ -534,6 +551,7 @@ clientState_s *__cdecl G_GetClientState(unsigned int clientNum)
     return &level.clients[clientNum].sess.cs;
 }
 
+// Decomp: CoDMPServer.c:394129
 gclient_s *__cdecl G_GetPlayerState(unsigned int clientNum)
 {
     if ( !Demo_IsPlaying()
@@ -551,17 +569,19 @@ gclient_s *__cdecl G_GetPlayerState(unsigned int clientNum)
     return &level.clients[clientNum];
 }
 
+// Decomp: CoDMPServer.c:394148
 int __cdecl G_GetClientSize()
 {
     return 10720;
 }
 
+// Decomp: CoDMPServer.c:394154
 void __cdecl G_FreeEntities(bool clearTargets)
 {
-    gentity_s *e; // [esp+0h] [ebp-Ch]
-    int i; // [esp+8h] [ebp-4h]
-    int ia; // [esp+8h] [ebp-4h]
-    int ib; // [esp+8h] [ebp-4h]
+    gentity_s *e;
+    int i;
+    int ia;
+    int ib;
 
     e = g_entities;
     for ( i = 0; i < level.num_entities; ++i )
@@ -570,8 +590,8 @@ void __cdecl G_FreeEntities(bool clearTargets)
             G_FreeEntity(e);
         ++e;
     }
-    if ( g_entities[ENTITYNUM_WORLD].r.inuse )
-        G_FreeEntity(&g_entities[ENTITYNUM_WORLD]);
+    if ( g_entities[1022].r.inuse )
+        G_FreeEntity(&g_entities[1022]);
     if ( clearTargets )
         Targ_RemoveAll();
     if ( level.actors )
@@ -603,21 +623,25 @@ void __cdecl G_FreeEntities(bool clearTargets)
     Path_CheckUserCountLeaks();
 }
 
+// Decomp: CoDMPServer.c:394203
 void *__cdecl Hunk_AllocXAnimServer(unsigned int size)
 {
     return Hunk_AllocLow(size, "Hunk_AllocXAnimServer", 13);
 }
 
+// Decomp: CoDMPServer.c:394209
 bool __cdecl G_ExitAfterConnectPaths()
 {
     return g_connectpaths && g_connectpaths->current.integer >= 2;
 }
 
+// Decomp: CoDMPServer.c:394215
 bool __cdecl G_ExitAfterToolComplete()
 {
     return G_ExitAfterConnectPaths() || R_ReflectionProbeGenerateExitWhenDone();
 }
 
+// Decomp: CoDMPServer.c:394227
 bool __cdecl G_ExitOnComError(int code)
 {
     if ( g_connectpaths && g_connectpaths->current.integer == 3 && !code )
@@ -627,6 +651,7 @@ bool __cdecl G_ExitOnComError(int code)
     return r_reflectionProbeGenerate && r_reflectionProbeGenerate->current.enabled;
 }
 
+// Decomp: CoDMPServer.c:394239
 int __cdecl G_IsServerGameSystem(int clientNum)
 {
     if ( !g_debugPlayerAnimScript )
@@ -639,6 +664,7 @@ int __cdecl G_IsServerGameSystem(int clientNum)
     return 1;
 }
 
+// Decomp: CoDMPServer.c:394252
 unsigned __int16 __cdecl G_GetWeaponAttachBone(clientInfo_t *ci, weapType_t weapType, weapInventoryType_t invType)
 {
     if ( weapType == WEAPTYPE_GRENADE || weapType == WEAPTYPE_MINE )
@@ -653,9 +679,10 @@ unsigned __int16 __cdecl G_GetWeaponAttachBone(clientInfo_t *ci, weapType_t weap
     return SL_FindString(bg_weaponrightbone->current.string, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDMPServer.c:394275
 void G_FreeAnimTreeInstances()
 {
-    int i; // [esp+0h] [ebp-4h]
+    int i;
 
     for ( i = 0; i < com_maxclients->current.integer; ++i )
     {
@@ -683,6 +710,7 @@ void G_FreeAnimTreeInstances()
     }
 }
 
+// Decomp: CoDMPServer.c:394307
 void __cdecl    G_InitGame(int levelTime, int randomSeed, int restart, int registerDvars)
 {
     if ( !Sys_IsMainThread()
@@ -699,7 +727,7 @@ void __cdecl    G_InitGame(int levelTime, int randomSeed, int restart, int regis
     PROF_SCOPED("G_InitGame");
 
     Com_Printf(15, "------- Game Initialization -------\n");
-    Com_Printf(15, "gamename: %s\n", "Call of Duty®");
+    Com_Printf(15, "gamename: %s\n", "Call of DutyÂ®");
     Com_Printf(15, "gamedate: %s\n", "Nov    5 2010");
     Rope_InitRopes();
     Swap_Init();
@@ -810,7 +838,7 @@ void __cdecl    G_InitGame(int levelTime, int randomSeed, int restart, int regis
 
         bgs->animData->animScriptData.soundAlias = SND_FindAlias;
         bgs->animData->animScriptData.playSoundAlias = G_AnimScriptSound;
-        //*(_DWORD *)(a1 - 2076) = Dvar_GetString("mapname");
+        //*(_DWORD *)(arg1 - 2076) = Dvar_GetString("mapname");
 
         {
             PROF_SCOPED("GScr_LoadScripts");
@@ -966,20 +994,21 @@ void __cdecl    G_InitGame(int levelTime, int randomSeed, int restart, int regis
     RunSavedRadiantCmds();
 
     //result = GetCurrentThreadId();
-    //*(_DWORD *)(a1 - 2140) = result;
-    //*(_DWORD *)(a1 - 2136) = 0;
-    //if (*(_DWORD *)(a1 - 2140) == (_DWORD)g_DXDeviceThread)
+    //*(_DWORD *)(arg1 - 2140) = result;
+    //*(_DWORD *)(arg1 - 2136) = 0;
+    //if (*(_DWORD *)(arg1 - 2140) == (_DWORD)g_DXDeviceThread)
     //{
-    //    result = *(_DWORD *)(a1 - 2136);
+    //    result = *(_DWORD *)(arg1 - 2136);
     //    if (result == HIDWORD(g_DXDeviceThread))
     //        return D3DPERF_EndEvent();
     //}
     //return result;
 }
 
+// Decomp: CoDMPServer.c:394343
 void G_RegisterDvars()
 {
-    const dvar_s *result; // eax
+    const dvar_s *result;
 
     g_cheats = _Dvar_RegisterBool("sv_cheats", 1, 0, "Enable cheats");
     g_erroronpathsnotconnected = _Dvar_RegisterBool(
@@ -2058,6 +2087,7 @@ void G_RegisterDvars()
 }
 
 //void(__cdecl *CreateDObj)(struct DObjModel_s *, unsigned __int16, XAnimTree_s *, int, int, clientInfo_t *);
+// Decomp: CoDMPServer.c:395472
 void __cdecl G_CreateDObj(
                 DObjModel_s *dobjModels,
                 unsigned __int16 numModels,
@@ -2080,6 +2110,7 @@ void __cdecl G_CreateDObj(
     Com_ServerDObjCreate(dobjModels, numModels, tree, handle);
 }
 
+// Decomp: CoDMPServer.c:395490
 DObj *__cdecl G_GetDObj(unsigned int handle, int unusedLocalClientNum)
 {
     if ( unusedLocalClientNum != -1
@@ -2096,6 +2127,7 @@ DObj *__cdecl G_GetDObj(unsigned int handle, int unusedLocalClientNum)
     return Com_GetServerDObj(handle);
 }
 
+// Decomp: CoDMPServer.c:448880
 void __cdecl G_SafeDObjFree(unsigned int handle, int unusedLocalClientNum)
 {
     if ( unusedLocalClientNum != -1
@@ -2112,9 +2144,10 @@ void __cdecl G_SafeDObjFree(unsigned int handle, int unusedLocalClientNum)
     Com_SafeServerDObjFree(handle);
 }
 
+// Decomp: CoDMPServer.c:395526
 void G_LoadAnimTreeInstances()
 {
-    XAnim_s *anims; // [esp+8h] [ebp-4h]
+    XAnim_s *anims;
 
     for ( int i = 0; i < com_maxclients->current.integer; ++i )
         level_bgs.clientinfo[i].pXAnimTree = XAnimCreateTree(level_bgs.animData->generic_human.tree.anims, Hunk_AllocXAnimServer);
@@ -2131,13 +2164,18 @@ void G_LoadAnimTreeInstances()
     }
 }
 
+// Decomp: CoDMPServer.c:395570
 void *__cdecl Hunk_AllocActorXAnimServer(int size)
 {
     return Hunk_AllocLow(size, "Hunk_AllocActorXAnimServer", 5);
 }
 
+// Decomp: CoDMPServer.c:395576
 void G_PrintAllFastFileErrors()
 {
+    char mapZoneName[64];
+    const char *mapFastfile;
+
     if ( !sv_mapname
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp", 1852, 0, "%s", "sv_mapname") )
     {
@@ -2145,24 +2183,23 @@ void G_PrintAllFastFileErrors()
     }
     G_PrintFastFileErrors((char*)"code_post_gfx_mp");
     G_PrintFastFileErrors((char*)"common_mp");
-    G_PrintFastFileErrors((char *)sv_mapname->current.integer);
+    mapFastfile = Com_GetLevelPrimaryFastfileZone(sv_mapname->current.string, mapZoneName, sizeof(mapZoneName));
+    G_PrintFastFileErrors((char *)mapFastfile);
 }
 
+// Decomp: CoDMPServer.c:395595
 void __cdecl G_PrintFastFileErrors(char *fastfile)
 {
-    RawFile *rawfile; // [esp+4h] [ebp-4h]
+    RawFile *rawfile;
 
     if ( !fastfile
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp", 1836, 0, "%s", "fastfile") )
     {
         __debugbreak();
     }
-    rawfile = DB_FindXAssetHeader(ASSET_TYPE_RAWFILE, fastfile, 1, -1).rawfile;
-    if ( !rawfile
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp", 1839, 1, "%s", "rawfile") )
-    {
-        __debugbreak();
-    }
+    rawfile = DB_FindXAssetHeader(ASSET_TYPE_RAWFILE, fastfile, 0, -1).rawfile;
+    if ( !rawfile )
+        return;
     if ( rawfile->len )
     {
         Com_PrintError(1, "There were errors when building fast file '%s'\n", fastfile);
@@ -2170,12 +2207,13 @@ void __cdecl G_PrintFastFileErrors(char *fastfile)
     }
 }
 
+// Decomp: CoDMPServer.c:395630
 unsigned __int16 __cdecl G_AttachWeapon(DObjModel_s *dobjModels, unsigned __int16 numModels, clientInfo_t *ci)
 {
-    int oldLeftHand; // [esp+4h] [ebp-Ch]
-    unsigned __int8 weaponModel; // [esp+Bh] [ebp-5h]
-    const WeaponDef *weapDef; // [esp+Ch] [ebp-4h]
-    const WeaponDef *weapDefa; // [esp+Ch] [ebp-4h]
+    int oldLeftHand;
+    unsigned __int8 weaponModel;
+    const WeaponDef *weapDef;
+    const WeaponDef *weapDefa;
 
     if ( ci->iDObjWeapon )
     {
@@ -2282,11 +2320,12 @@ unsigned __int16 __cdecl G_AttachWeapon(DObjModel_s *dobjModels, unsigned __int1
     return numModels;
 }
 
+// Decomp: CoDMPServer.c:395766
 void __cdecl G_ShutdownGame(int freeScripts)
 {
-    colgeom_visitor_inlined_t<200> *p_proximity_data; // [esp+0h] [ebp-14h]
-    int i; // [esp+Ch] [ebp-8h]
-    int file; // [esp+10h] [ebp-4h]
+    colgeom_visitor_inlined_t<200> *p_proximity_data;
+    int i;
+    int file;
 
     for ( i = 0; i < 32; ++i )
     {
@@ -2337,11 +2376,12 @@ void __cdecl G_ShutdownGame(int freeScripts)
     SV_track_shutdown();
 }
 
+// Decomp: CoDMPServer.c:395822
 void __cdecl CalculateRanks()
 {
-    unsigned int clientNum; // [esp+0h] [ebp-8h]
-    int i; // [esp+4h] [ebp-4h]
-    int ia; // [esp+4h] [ebp-4h]
+    unsigned int clientNum;
+    int i;
+    int ia;
 
     level.numConnectedClients = 0;
     level.numVotingClients = 0;
@@ -2374,10 +2414,11 @@ void __cdecl CalculateRanks()
     level.bUpdateScoresForIntermission = 1;
 }
 
+// Decomp: CoDMPServer.c:395864
 int __cdecl SortRanks(int *a, int *b)
 {
-    gclient_s *cb; // [esp+0h] [ebp-8h]
-    gclient_s *ca; // [esp+4h] [ebp-4h]
+    gclient_s *cb;
+    gclient_s *ca;
 
     if ( (unsigned int)*a >= level.maxclients
         && !Assert_MyHandler(
@@ -2442,9 +2483,10 @@ int __cdecl SortRanks(int *a, int *b)
     }
 }
 
+// Decomp: CoDMPServer.c:395941
 void __cdecl ExitLevel()
 {
-    int i; // [esp+0h] [ebp-4h]
+    int i;
 
     Cbuf_AddText(0, "map_rotate\n");
     for ( i = 0; i < level.maxclients; ++i )
@@ -2455,16 +2497,17 @@ void __cdecl ExitLevel()
     G_LogPrintf("ExitLevel: executed\n");
 }
 
+// Decomp: CoDMPServer.c:395955
 void G_LogPrintf(const char *fmt, ...)
 {
-    char string[1024]; // [esp+10h] [ebp-818h] BYREF
-    char *argptr; // [esp+410h] [ebp-418h]
-    int tens; // [esp+414h] [ebp-414h]
-    char string2[1024]; // [esp+418h] [ebp-410h] BYREF
-    int min; // [esp+81Ch] [ebp-Ch]
-    int sec; // [esp+820h] [ebp-8h]
-    int time1970; // [esp+824h] [ebp-4h]
-    va_list va; // [esp+834h] [ebp+Ch] BYREF
+    char string[1024];
+    char *argptr;
+    int tens;
+    char string2[1024];
+    int min;
+    int sec;
+    int time1970;
+    va_list va;
 
     va_start(va, fmt);
     if ( level.logFile )
@@ -2487,20 +2530,21 @@ void G_LogPrintf(const char *fmt, ...)
     }
 }
 
+// Decomp: CoDMPServer.c:395988
 void __cdecl CheckVote()
 {
-    const char *v0; // eax
-    const char *v1; // eax
-    const char *v2; // eax
-    int passCount; // [esp+20h] [ebp-4h]
+    const char *fmtMsg;
+    const char *fmtMsg2;
+    const char *fmtMsg3;
+    int passCount;
 
     if ( level.voteExecuteTime )
     {
         if ( level.voteExecuteTime < level.time )
         {
             level.voteExecuteTime = 0;
-            v0 = va("%s\n", level.voteString);
-            Cbuf_AddText(0, v0);
+            fmtMsg = va("%s\n", level.voteString);
+            Cbuf_AddText(0, fmtMsg);
         }
     }
     if ( level.voteTime )
@@ -2513,8 +2557,8 @@ void __cdecl CheckVote()
                                                     + level.voteNo )
                 goto LABEL_11;
 LABEL_9:
-            v1 = va("%c \"GAME_VOTEPASSED\"", 101);
-            SV_GameSendServerCommand(-1, SV_CMD_CAN_IGNORE, v1);
+            fmtMsg2 = va("%c \"GAME_VOTEPASSED\"", 101);
+            SV_GameSendServerCommand(-1, SV_CMD_CAN_IGNORE, fmtMsg2);
             level.voteExecuteTime = level.time + 3000;
 LABEL_13:
             level.voteTime = 0;
@@ -2527,21 +2571,22 @@ LABEL_13:
         if ( level.voteNo > level.numVotingClients - passCount )
         {
 LABEL_11:
-            v2 = va("%c \"GAME_VOTEFAILED\"", 101);
-            SV_GameSendServerCommand(-1, SV_CMD_CAN_IGNORE, v2);
+            fmtMsg3 = va("%c \"GAME_VOTEFAILED\"", 101);
+            SV_GameSendServerCommand(-1, SV_CMD_CAN_IGNORE, fmtMsg3);
             goto LABEL_13;
         }
     }
 }
 
+// Decomp: CoDMPServer.c:396046
 void __cdecl G_UpdateObjectiveToClients()
 {
-    objective_t *obj; // [esp+8h] [ebp-18h]
-    int team; // [esp+Ch] [ebp-14h]
-    gentity_s *ent; // [esp+10h] [ebp-10h]
-    int clientNum; // [esp+14h] [ebp-Ch]
-    int objNum; // [esp+18h] [ebp-8h]
-    playerState_s *ps; // [esp+1Ch] [ebp-4h]
+    objective_t *obj;
+    int team;
+    gentity_s *ent;
+    int clientNum;
+    int objNum;
+    playerState_s *ps;
 
     for ( clientNum = 0; clientNum < level.maxclients; ++clientNum )
     {
@@ -2573,10 +2618,11 @@ void __cdecl G_UpdateObjectiveToClients()
     }
 }
 
+// Decomp: CoDMPServer.c:396093
 void __cdecl G_UpdateHudElemsToClients()
 {
-    gentity_s *ent; // [esp+0h] [ebp-8h]
-    int clientNum; // [esp+4h] [ebp-4h]
+    gentity_s *ent;
+    int clientNum;
 
     for ( clientNum = 0; clientNum < level.maxclients; ++clientNum )
     {
@@ -2593,10 +2639,11 @@ void __cdecl G_UpdateHudElemsToClients()
     }
 }
 
+// Decomp: CoDMPServer.c:396120
 void __cdecl G_RunThink(gentity_s *ent)
 {
-    void (__cdecl *think)(gentity_s *); // [esp+0h] [ebp-8h]
-    int thinktime; // [esp+4h] [ebp-4h]
+    void (__cdecl *think)(gentity_s *);
+    int thinktime;
 
     thinktime = ent->nextthink;
     if ( thinktime > 0 && thinktime <= level.time )
@@ -2609,6 +2656,7 @@ void __cdecl G_RunThink(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:396137
 void __cdecl DebugDumpAnims()
 {
     if ( g_dumpAnims->current.integer >= 0 )
@@ -2627,6 +2675,7 @@ void __cdecl DebugDumpAnims()
     }
 }
 
+// Decomp: CoDMPServer.c:396157
 void __cdecl G_XAnimUpdateEnt(gentity_s *ent)
 {
     if ( ent->r.inuse )
@@ -2636,24 +2685,27 @@ void __cdecl G_XAnimUpdateEnt(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:396167
 void __cdecl ScriptPump()
 {
     Scr_RunCurrentThreads(SCRIPTINSTANCE_SERVER);
 }
 
 int lastEntTime;
+// Decomp: CoDMPServer.c:396173
 void __cdecl ShowEntityInfo()
 {
-    int v0; // [esp+0h] [ebp-A4h]
-    int integer; // [esp+4h] [ebp-A0h]
-    float vEnd[3]; // [esp+Ch] [ebp-98h] BYREF
-    float vForward[3]; // [esp+54h] [ebp-50h] BYREF
-    unsigned __int16 hitEntId; // [esp+60h] [ebp-44h]
-    void (__cdecl *entinfo)(gentity_s *, float *); // [esp+64h] [ebp-40h]
-    col_context_t context; // [esp+68h] [ebp-3Ch] BYREF
-    gentity_s *ent; // [esp+90h] [ebp-14h]
-    int i; // [esp+94h] [ebp-10h]
-    float vStart[3]; // [esp+98h] [ebp-Ch] BYREF
+    int tmp0;
+    int integer;
+    float vEnd[3];
+    trace_t trace;
+    float vForward[3];
+    unsigned __int16 hitEntId;
+    void (__cdecl *entinfo)(gentity_s *, float *);
+    col_context_t context;
+    gentity_s *ent;
+    int i;
+    float vStart[3];
 
     //col_context_t::col_context_t(&context);
     CL_GetDebugViewPos(vStart);
@@ -2666,7 +2718,7 @@ void __cdecl ShowEntityInfo()
             || g_entinfo->current.integer == 5
             || g_entinfo->current.integer == 7 )
         {
-            trace_t trace; // [esp+18h] [ebp-8Ch] BYREF
+            memset(&trace, 0, 16);
             CL_GetDebugViewForward(vForward);
             vEnd[0] = (float)(16000.0 * vForward[0]) + vStart[0];
             vEnd[1] = (float)(16000.0 * vForward[1]) + vStart[1];
@@ -2717,13 +2769,13 @@ void __cdecl ShowEntityInfo()
                 }
                 else
                 {
-                    v0 = g_entinfo_type->current.integer;
-                    if ( v0 == 1 )
+                    tmp0 = g_entinfo_type->current.integer;
+                    if ( tmp0 == 1 )
                     {
                         if ( !ent->actor )
                             goto LABEL_24;
                     }
-                    else if ( v0 == 2 && !ent->scr_vehicle )
+                    else if ( tmp0 == 2 && !ent->scr_vehicle )
                     {
                         goto LABEL_24;
                     }
@@ -2739,6 +2791,7 @@ LABEL_24:
     }
 }
 
+// Decomp: CoDMPServer.c:396322
 void __cdecl G_UpdateIKPlayerClipTerrainTimeout(gentity_s *ent)
 {
     if ( ent->client )
@@ -2752,6 +2805,7 @@ void __cdecl G_UpdateIKPlayerClipTerrainTimeout(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:396339
 void __cdecl G_UpdateIKDisableTerrainMappingTimeout(gentity_s *ent)
 {
     if ( ent->client )
@@ -2767,12 +2821,13 @@ void __cdecl G_UpdateIKDisableTerrainMappingTimeout(gentity_s *ent)
 
 static float dir[3];
 static float hitPos[3];
+// Decomp: CoDMPServer.c:396357
 void __cdecl G_UpdateTimedDamage(gentity_s *ent)
 {
-    int max; // [esp+Ch] [ebp-10h]
-    float dist; // [esp+10h] [ebp-Ch]
-    int i; // [esp+14h] [ebp-8h]
-    gentity_s *fireStarterEnt; // [esp+18h] [ebp-4h]
+    int max;
+    float dist;
+    int i;
+    gentity_s *fireStarterEnt;
 
     if ( level.time >= ent->last_timed_radius_damage )
     {
@@ -2812,9 +2867,10 @@ void __cdecl G_UpdateTimedDamage(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:396404
 void __cdecl G_DebugTimedDamage()
 {
-    int i; // [esp+14h] [ebp-4h]
+    int i;
 
     if ( fire_debug->current.enabled )
     {
@@ -2826,12 +2882,13 @@ void __cdecl G_DebugTimedDamage()
     }
 }
 
+// Decomp: CoDMPServer.c:396425
 void __cdecl G_UpdateClientLinkInfo(gentity_s *ent)
 {
-    char *v1; // eax
-    float *v2; // [esp+4h] [ebp-14h]
-    int tagIndex; // [esp+10h] [ebp-8h]
-    gentity_s *entParent; // [esp+14h] [ebp-4h]
+    char *slStr;
+    float *tmp2;
+    int tagIndex;
+    gentity_s *entParent;
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp", 3486, 0, "%s", "ent") )
         __debugbreak();
@@ -2878,8 +2935,8 @@ void __cdecl G_UpdateClientLinkInfo(gentity_s *ent)
                     AssignToSmallerType<short>((__int16 *)&ent->s.clientLinkInfo, ent->tagInfo->parent->s.number + 1);
                     if ( ent->tagInfo->name )
                     {
-                        v1 = SL_ConvertToString(ent->tagInfo->name, SCRIPTINSTANCE_SERVER);
-                        tagIndex = G_TagIndex(v1);
+                        slStr = SL_ConvertToString(ent->tagInfo->name, SCRIPTINSTANCE_SERVER);
+                        tagIndex = G_TagIndex(slStr);
                         AssignToSmallerType<unsigned char>(&ent->s.clientLinkInfo.tagIndex, tagIndex);
                         ent->s.clientLinkInfo.flags &= ~2u;
                     }
@@ -2889,10 +2946,10 @@ void __cdecl G_UpdateClientLinkInfo(gentity_s *ent)
                         ent->s.clientLinkInfo.flags |= 2u;
                     }
                 }
-                v2 = ent->tagInfo->axis[3];
-                ent->s.lerp.pos.trDelta[0] = *v2;
-                ent->s.lerp.pos.trDelta[1] = v2[1];
-                ent->s.lerp.pos.trDelta[2] = v2[2];
+                tmp2 = ent->tagInfo->axis[3];
+                ent->s.lerp.pos.trDelta[0] = *tmp2;
+                ent->s.lerp.pos.trDelta[1] = tmp2[1];
+                ent->s.lerp.pos.trDelta[2] = tmp2[2];
                 AxisToAngles(ent->tagInfo->axis, ent->s.lerp.apos.trDelta);
                 ResolveParentClientMask(ent, entParent);
             }
@@ -2905,11 +2962,12 @@ void __cdecl G_UpdateClientLinkInfo(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:396520
 bool __cdecl ResolveParentClientMask(const gentity_s *entChild, gentity_s *entParent)
 {
-    int checkBits; // [esp+0h] [ebp-Ch]
-    int seg; // [esp+4h] [ebp-8h]
-    bool changed; // [esp+Bh] [ebp-1h]
+    int checkBits;
+    int seg;
+    bool changed;
 
     if ( !entChild
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp", 3455, 0, "%s", "entChild") )
@@ -2934,20 +2992,21 @@ bool __cdecl ResolveParentClientMask(const gentity_s *entChild, gentity_s *entPa
     return changed;
 }
 
+// Decomp: CoDMPServer.c:396562
 void    G_RunFrame(int levelTime)
 {
-    int Time; // eax
-    int v3; // eax
-    trigger_info_t *v4; // eax
-    char *v5; // eax
-    gentity_s *other; // [esp+54h] [ebp-424h]
-    trigger_info_t *trigger_info; // [esp+58h] [ebp-420h]
-    unsigned __int8 index; // [esp+5Fh] [ebp-419h]
-    unsigned __int8 entIndex[1028]; // [esp+60h] [ebp-418h] BYREF
-    gentity_s *ent; // [esp+468h] [ebp-10h]
-    int bMoreTriggered; // [esp+46Ch] [ebp-Ch]
-    int i; // [esp+470h] [ebp-8h]
-    int entnum; // [esp+474h] [ebp-4h]
+    int Time;
+    int tmp3;
+    trigger_info_t *tmp4;
+    char *slStr;
+    gentity_s *other;
+    trigger_info_t *trigger_info;
+    unsigned __int8 index;
+    unsigned __int8 entIndex[1028];
+    gentity_s *ent;
+    int bMoreTriggered;
+    int i;
+    int entnum;
 
     gScrExecuteTime[0] = 0;
     SV_CheckThread();
@@ -3004,8 +3063,8 @@ void    G_RunFrame(int levelTime)
     G_DebugTimedDamage();
     Time = G_GetTime();
     SV_Flame_Age_All_Objects(Time);
-    v3 = G_GetTime();
-    IK_UpdateTimeAll(v3, -1, 0);
+    tmp3 = G_GetTime();
+    IK_UpdateTimeAll(tmp3, -1, 0);
 
     {
         PROF_SCOPED("G_XAnimUpdate");
@@ -3068,10 +3127,10 @@ void    G_RunFrame(int levelTime)
                 }
                 --level.currentTriggerListSize;
                 --i;
-                v4 = &level.currentTriggerList[level.currentTriggerListSize];
-                *(unsigned int *)&trigger_info->entnum = *(unsigned int *)&v4->entnum;
-                trigger_info->useCount = v4->useCount;
-                trigger_info->otherUseCount = v4->otherUseCount;
+                tmp4 = &level.currentTriggerList[level.currentTriggerListSize];
+                *(unsigned int *)&trigger_info->entnum = *(unsigned int *)&tmp4->entnum;
+                trigger_info->useCount = tmp4->useCount;
+                trigger_info->otherUseCount = tmp4->otherUseCount;
             }
 
             {
@@ -3202,8 +3261,8 @@ void    G_RunFrame(int levelTime)
     {
         for ( i = 0; i < 1024; ++i )
         {
-            v5 = SL_ConvertToString(g_entities[i].classname, SCRIPTINSTANCE_SERVER);
-            Com_Printf(15, "%4i: %s\n", i, v5);
+            slStr = SL_ConvertToString(g_entities[i].classname, SCRIPTINSTANCE_SERVER);
+            Com_Printf(15, "%4i: %s\n", i, slStr);
         }
         Dvar_SetBool((dvar_s *)g_listEntity, 0);
     }
@@ -3226,15 +3285,16 @@ void    G_RunFrame(int levelTime)
     LiveSteam_Server_RunCallbacks();
 }
 
+// Decomp: CoDMPServer.c:396902
 void __cdecl G_ClientDoPerFrameNotifies(gentity_s *ent)
 {
-    char *v1; // eax
-    bool v2; // al
-    bool IsSprinting; // al
-    bool previouslySprinting; // [esp-Ch] [ebp-14h]
-    unsigned __int16 sprint_begin; // [esp-8h] [ebp-10h]
-    unsigned __int16 sprint_end; // [esp-4h] [ebp-Ch]
-    gclient_s *client; // [esp+4h] [ebp-4h]
+    char *tmp1;
+    bool tmp2;
+    bool IsSprinting;
+    bool previouslySprinting;
+    unsigned __int16 sprint_begin;
+    unsigned __int16 sprint_end;
+    gclient_s *client;
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp", 2923, 0, "%s", "ent") )
         __debugbreak();
@@ -3256,18 +3316,25 @@ void __cdecl G_ClientDoPerFrameNotifies(gentity_s *ent)
     }
     if ( client->ps.weapon != LOWORD(client->lastWeapon) )
     {
-        v1 = (char *)BG_WeaponName(client->ps.weapon);
-        Scr_AddString(v1, SCRIPTINSTANCE_SERVER);
+        tmp1 = (char *)BG_WeaponName(client->ps.weapon);
+        Scr_AddString(tmp1, SCRIPTINSTANCE_SERVER);
         Scr_Notify(ent, scr_const.weapon_change, 1u);
         client->lastWeapon = client->ps.weapon;
     }
     if ( client->ps.lastDtpEnd && client->ps.lastDtpEnd == client->ps.commandTime )
         Scr_Notify(ent, scr_const.dtp_end, 0);
+    if ( (client->ps.weaponstate == WEAPON_RAISING || client->ps.weaponstate == WEAPON_RAISING_ALTSWITCH)
+        && !client->previouslyBeganWeaponRaise )
+    {
+        Scr_Notify(ent, scr_const.weapon_raising, 0);
+    }
+    client->previouslyBeganWeaponRaise = client->ps.weaponstate == WEAPON_RAISING
+        || client->ps.weaponstate == WEAPON_RAISING_ALTSWITCH;
     if ( (client->ps.weaponstate == 6 || client->ps.weaponstate == 31) && client->ps.pm_type < 9 )
-        v2 = DoPerFrameNotify(ent, 1, client->previouslyFiring, scr_const.begin_firing, scr_const.end_firing);
+        tmp2 = DoPerFrameNotify(ent, 1, client->previouslyFiring, scr_const.begin_firing, scr_const.end_firing);
     else
-        v2 = DoPerFrameNotify(ent, 0, client->previouslyFiring, scr_const.begin_firing, scr_const.end_firing);
-    client->previouslyFiring = v2;
+        tmp2 = DoPerFrameNotify(ent, 0, client->previouslyFiring, scr_const.begin_firing, scr_const.end_firing);
+    client->previouslyFiring = tmp2;
     client->previouslyUsingNightVision = DoPerFrameNotify(
                                                                                  ent,
                                                                                  (client->ps.weapFlags & 0x40) != 0,
@@ -3281,6 +3348,7 @@ void __cdecl G_ClientDoPerFrameNotifies(gentity_s *ent)
     client->previouslySprinting = DoPerFrameNotify(ent, IsSprinting, previouslySprinting, sprint_begin, sprint_end);
 }
 
+// Decomp: CoDMPServer.c:396974
 bool __cdecl DoPerFrameNotify(
                 gentity_s *ent,
                 bool isCurrently,
@@ -3297,6 +3365,7 @@ bool __cdecl DoPerFrameNotify(
     return isCurrently;
 }
 
+// Decomp: CoDMPServer.c:396986
 void __cdecl G_UpdateIKCulling(gentity_s *ent)
 {
     if ( ent->r.inuse )
@@ -3314,31 +3383,106 @@ void __cdecl G_UpdateIKCulling(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:397004
 void __cdecl G_RunFrameForEntity(gentity_s *ent)
 {
-    char *v1; // eax
-    const char *v2; // eax
-    char *v3; // eax
-    const char *v4; // eax
-    char *v5; // eax
-    const char *v6; // eax
+    char *slStr;
+    const char *fmtMsg;
+    char *slStr2;
+    const char *fmtMsg2;
+    char *slStr3;
+    const char *fmtMsg3;
 
-    iassert(ent->r.inuse);
-
+    if ( !ent->r.inuse
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp", 3102, 0, "%s", "ent->r.inuse") )
+    {
+        __debugbreak();
+    }
     if ( ent->processedFrame != level.framenum )
     {
         ent->processedFrame = level.framenum;
         if ( ent->tagInfo )
         {
-            iassert(ent->tagInfo->parent);
+            if ( !ent->tagInfo->parent
+                && !Assert_MyHandler(
+                            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp",
+                            3111,
+                            0,
+                            "%s",
+                            "ent->tagInfo->parent") )
+            {
+                __debugbreak();
+            }
             G_RunFrameForEntity(ent->tagInfo->parent);
         }
-
-        iassert(((ent->r.svFlags & ((1 << 1) | (1 << 2))) != ((1 << 1) | (1 << 2))));
-        iassert(ent->r.maxs[0] >= ent->r.mins[0]);
-        iassert(ent->r.maxs[1] >= ent->r.mins[1]);
-        iassert(ent->r.maxs[2] >= ent->r.mins[2]);
-
+        if ( (ent->r.svFlags & 6) == 6
+            && !Assert_MyHandler(
+                        "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp",
+                        3115,
+                        0,
+                        "%s\n\t(ent->s.number) = %i",
+                        "((ent->r.svFlags & ((1<<1) | (1<<2))) != ((1<<1) | (1<<2)))",
+                        ent->s.number) )
+        {
+            __debugbreak();
+        }
+        if ( ent->r.maxs[0] < ent->r.mins[0] )
+        {
+            slStr = SL_ConvertToString(ent->classname, SCRIPTINSTANCE_SERVER);
+            fmtMsg = va(
+                         "entnum: %d, origin: %g %g %g, classname: %s",
+                         ent->s.number,
+                         ent->r.currentOrigin[0],
+                         ent->r.currentOrigin[1],
+                         ent->r.currentOrigin[2],
+                         slStr);
+            if ( !Assert_MyHandler(
+                            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp",
+                            3117,
+                            0,
+                            "%s\n\t%s",
+                            "ent->r.maxs[0] >= ent->r.mins[0]",
+                            fmtMsg) )
+                __debugbreak();
+        }
+        if ( ent->r.maxs[1] < ent->r.mins[1] )
+        {
+            slStr2 = SL_ConvertToString(ent->classname, SCRIPTINSTANCE_SERVER);
+            fmtMsg2 = va(
+                         "entnum: %d, origin: %g %g %g, classname: %s",
+                         ent->s.number,
+                         ent->r.currentOrigin[0],
+                         ent->r.currentOrigin[1],
+                         ent->r.currentOrigin[2],
+                         slStr2);
+            if ( !Assert_MyHandler(
+                            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp",
+                            3118,
+                            0,
+                            "%s\n\t%s",
+                            "ent->r.maxs[1] >= ent->r.mins[1]",
+                            fmtMsg2) )
+                __debugbreak();
+        }
+        if ( ent->r.maxs[2] < ent->r.mins[2] )
+        {
+            slStr3 = SL_ConvertToString(ent->classname, SCRIPTINSTANCE_SERVER);
+            fmtMsg3 = va(
+                         "entnum: %d, origin: %g %g %g, classname: %s",
+                         ent->s.number,
+                         ent->r.currentOrigin[0],
+                         ent->r.currentOrigin[1],
+                         ent->r.currentOrigin[2],
+                         slStr3);
+            if ( !Assert_MyHandler(
+                            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp",
+                            3119,
+                            0,
+                            "%s\n\t%s",
+                            "ent->r.maxs[2] >= ent->r.mins[2]",
+                            fmtMsg3) )
+                __debugbreak();
+        }
         if ( ent->s.loopSoundId )
         {
             if ( ent->s.loopSoundFade < 0 )
@@ -3353,18 +3497,41 @@ void __cdecl G_RunFrameForEntity(gentity_s *ent)
         }
         if ( ent->scr_vehicle )
         {
-            iassert((unsigned)(ent->scr_vehicle - level.vehicles) < MAX_VEHICLES);
-            iassert(ent->scr_vehicle->entNum != ENTITYNUM_NONE);
+            if ( (unsigned int)(ent->scr_vehicle - level.vehicles) >= 0x10
+                && !Assert_MyHandler(
+                            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp",
+                            3135,
+                            0,
+                            "%s",
+                            "(unsigned)( ent->scr_vehicle - level.vehicles ) < MAX_VEHICLES") )
+            {
+                __debugbreak();
+            }
+            if ( ent->scr_vehicle->entNum == 1023
+                && !Assert_MyHandler(
+                            "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp",
+                            3136,
+                            0,
+                            "%s",
+                            "ent->scr_vehicle->entNum != ENTITYNUM_NONE") )
+            {
+                __debugbreak();
+            }
         }
-        else
+        else if ( ent->s.eType == 14
+                     && !Assert_MyHandler(
+                                 "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp",
+                                 3140,
+                                 0,
+                                 "%s",
+                                 "ent->s.eType != ET_VEHICLE") )
         {
-            iassert(ent->s.eType != ET_VEHICLE);
+            __debugbreak();
         }
-
         if ( !ent->client
-            && ent->s.eType != ET_VEHICLE
-            && ent->s.eType != ET_HELICOPTER
-            && ent->s.eType != ET_PLAYER_CORPSE
+            && ent->s.eType != 14
+            && ent->s.eType != 12
+            && ent->s.eType != 2
             && (ent->s.lerp.eFlags & 0x4000) != 0
             && level.time > ent->s.time2 )
         {
@@ -3389,12 +3556,12 @@ void __cdecl G_RunFrameForEntity(gentity_s *ent)
         {
             switch ( ent->s.eType )
             {
-                case ET_MISSILE:
+                case 4:
                     G_RunMissile(ent);
                     if ( ent->tagInfo )
                         G_GeneralLink(ent);
                     return;
-                case ET_ITEM:
+                case 3:
                     if ( ent->tagInfo )
                     {
                         G_GeneralLink(ent);
@@ -3404,10 +3571,10 @@ void __cdecl G_RunFrameForEntity(gentity_s *ent)
 LABEL_63:
                     G_RunItem(ent);
                     return;
-                case ET_PLAYER_CORPSE:
+                case 2:
                     G_RunCorpse(ent);
                     return;
-                case ET_ACTOR_CORPSE:
+                case 0x13:
                     G_RunThink(ent);
                     return;
             }
@@ -3436,9 +3603,10 @@ LABEL_63:
     }
 }
 
+// Decomp: CoDMPServer.c:397249
 void    G_UpdateWeapons(gentity_s *ent)
 {
-    weaponParms wp; // [esp+4h] [ebp-48h] BYREF
+    weaponParms wp;
 
     if ( ent->client )
     {
@@ -3461,16 +3629,17 @@ void    G_UpdateWeapons(gentity_s *ent)
         Weapon_Overheat_Update(ent);
 }
 
+// Decomp: CoDMPServer.c:397276
 int G_PopulateMatchState()
 {
-    const char *v0; // eax
-    int result; // eax
+    const char *fmtMsg;
+    int result;
 
     level.matchState.index = 0;
     level.matchState.unarchivedState.alliesScore = level.teamScores[2];
     level.matchState.unarchivedState.axisScore = level.teamScores[1];
-    v0 = va("scr_%s_scorelimit", g_gametype->current.string);
-    result = Dvar_GetInt(v0);
+    fmtMsg = va("scr_%s_scorelimit", g_gametype->current.string);
+    result = Dvar_GetInt(fmtMsg);
     level.matchState.unarchivedState.scoreLimit = result;
     level.matchState.unarchivedState.mapCenter[0] = svs.mapCenter[0];
     level.matchState.unarchivedState.mapCenter[1] = svs.mapCenter[1];
@@ -3478,14 +3647,16 @@ int G_PopulateMatchState()
     return result;
 }
 
+// Decomp: CoDMPServer.c:397294
 bool __cdecl G_IsEntWalkable(int localClientNum, int entityNum)
 {
     return g_entities[entityNum].client == 0;
 }
 
+// Decomp: CoDMPServer.c:397300
 bool __cdecl G_GetEntityOriginAngles(int localClientNum, int entityNum, float *origin, float *angles)
 {
-    gentity_s *ent; // [esp+8h] [ebp-4h]
+    gentity_s *ent;
 
     ent = &g_entities[entityNum];
     if ( !ent->r.inuse )
@@ -3499,9 +3670,10 @@ bool __cdecl G_GetEntityOriginAngles(int localClientNum, int entityNum, float *o
     return 1;
 }
 
+// Decomp: CoDMPServer.c:397317
 void __cdecl G_EntityLinkFromPMove(unsigned int entityNum, int parentEntityNum, int tagName)
 {
-    gentity_s *parent; // [esp+0h] [ebp-8h]
+    gentity_s *parent;
 
     if ( entityNum >= 0x20
         && !Assert_MyHandler(
@@ -3537,6 +3709,7 @@ void __cdecl G_EntityLinkFromPMove(unsigned int entityNum, int parentEntityNum, 
     G_EntLinkToWithOffset(&g_entities[entityNum], parent, tagName, vec3_origin, vec3_origin);
 }
 
+// Decomp: CoDMPServer.c:397370
 void __cdecl G_AddDebugString(const float *xyz, const float *color, float scale, char *pszText, int duration)
 {
     CL_AddDebugString(xyz, color, scale, pszText, duration);
@@ -3544,10 +3717,10 @@ void __cdecl G_AddDebugString(const float *xyz, const float *color, float scale,
 
 gclient_s::gclient_s()
 {
-    int m; // [esp+8h] [ebp-34h]
-    int k; // [esp+10h] [ebp-2Ch]
-    int j; // [esp+18h] [ebp-24h]
-    int i; // [esp+20h] [ebp-1Ch]
+    int m;
+    int k;
+    int j;
+    int i;
 
     //clientSession_t::clientSession_t(&this->sess);
     for ( i = 0; i < 2; ++i )

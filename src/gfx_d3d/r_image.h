@@ -89,7 +89,7 @@ inline GfxImage *__cdecl Image_Register(const char *imageName, unsigned __int8 s
     return Image_Register((char *)imageName, semantic, imageTrack);
 }
 GfxImage *__cdecl Image_Register_LoadObj(char *imageName, unsigned __int8 semantic, unsigned __int8 imageTrack);
-GfxImage *__cdecl Image_Register_FastFile(const char *imageName);
+GfxImage *__cdecl Image_Register_FastFile(char *imageName, unsigned __int8 semantic, int imageTrack);
 void __cdecl R_ReleaseLostImages();
 void __cdecl R_FreeLostImage(XAssetHeader header);
 void __cdecl R_ReloadLostImages();

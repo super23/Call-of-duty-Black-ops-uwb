@@ -2,7 +2,11 @@
 #include "com_profilemapload.h"
 #include <cstring>
 #include "cm_load.h"
+#ifdef KISAK_SP
+#include <server_sp/sv_main_sp.h>
+#else
 #include <server_mp/sv_main_mp.h>
+#endif
 #include <xanim/xmodel_utils.h>
 #include "cm_tracebox.h"
 #include <server/sv_game.h>

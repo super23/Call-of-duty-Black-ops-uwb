@@ -9,13 +9,18 @@
 #include <qcommon/cm_load.h>
 #include <bgame/bg_slidemove.h>
 #include <qcommon/cm_world.h>
+#ifdef KISAK_SP
+#include <game/g_main.h>
+#include <cgame_sp/cg_local_sp.h>
+#else
 #include <game_mp/g_main_mp.h>
+#include <cgame_mp/cg_local_mp.h>
+#endif
 #include <bgame/bg_misc.h>
 #include <qcommon/dobj_management.h>
 #include <glass/glass_server.h>
 #include <glass/glass_client.h>
 #include <new>
-#include <cgame_mp/cg_local_mp.h>
 
 phys_assert_info pai_gjk_cache_system_max_num_gjk_ci = { 0, 1, true };
 phys_assert_info pai_gjk_cache_system_create_gjk_ci = { 0, 1, true };
@@ -27,7 +32,7 @@ phys_vec3 *__cdecl phys_Unitize(phys_vec3 *result, const phys_vec3 *a)
 {
     float na; // [esp+14h] [ebp-4h]
 
-    na = Vec3Length(&a->x);
+    na = Abs(&a->x);
 
     iassert(na > 0.0f);
 
@@ -958,6 +963,12 @@ void __cdecl gjk_query_prims(const gjk_query_input &input, gjk_query_output *out
     int nprims; // [esp+54h] [ebp-10h]
     float query_mins[3]; // [esp+58h] [ebp-Ch] BYREF
 
+    if ( !input.m_proximity_data || input.m_proximity_data->overflow )
+    {
+        gjk_query_terrain(input, output);
+        return;
+    }
+
     iassert(input.m_proximity_data->overflow == false);
     
     prims = input.m_proximity_data->prims;
@@ -1183,22 +1194,36 @@ void __cdecl gjk_query(const gjk_query_input &input, gjk_query_output *output)
     float mins[3]; // [esp+0h] [ebp-24h] BYREF
     float expand_vec[3]; // [esp+Ch] [ebp-18h] BYREF
     float maxs[3]; // [esp+18h] [ebp-Ch] BYREF
+    colgeom_visitor_inlined_t<200> *prox_visitor;
 
     ++output->m_total_query_count;
     if ( (input.m_gjk_query_flags & 1) != 0 )
     {
-        if ( input.m_proximity_data )
+        prox_visitor = input.m_proximity_data;
+        if ( prox_visitor )
         {
             Phys_NitrousVecToVec3(&output->m_query_aabb_min, mins);
             Phys_NitrousVecToVec3(&output->m_query_aabb_max, maxs);
+            for ( int ax = 0; ax < 3; ++ax )
+            {
+                if ( mins[ax] > maxs[ax] )
+                {
+                    const float t = mins[ax];
+                    mins[ax] = maxs[ax];
+                    maxs[ax] = t;
+                }
+            }
             expand_vec[0] = 70.0f;
             expand_vec[1] = 70.0f;
             expand_vec[2] = 20.0f;
-            input.m_proximity_data->update(mins, maxs, input.m_proximity_mask, expand_vec);
+            // Non-virtual call: m_proximity_data is always colgeom_visitor_inlined_t<200> (retail uses vfptr[5] for the
+            // same override). Avoids AV when the object was memset or copied badly and the vptr is null.
+            prox_visitor->colgeom_visitor_inlined_t<200>::update(
+                mins, maxs, input.m_proximity_mask, expand_vec);
 
             iassert((input.m_proximity_mask & input.m_contents) == input.m_contents);
 
-            if ( input.m_proximity_data->overflow )
+            if ( prox_visitor->overflow )
                 gjk_query_terrain(input, output);
             else
                 gjk_query_prims(input, output);
@@ -2177,7 +2202,7 @@ bool    is_walkable(
 
         Vec3Cross(v0_v2, v0_v1, triNormalScaledByAreaX2);
         Phys_Vec3ToNitrousVec(triNormalScaledByAreaX2, &plane_dist);
-        walk_normal = Vec3Length(&plane_dist.x);
+        walk_normal = Abs(&plane_dist.x);
         if (walk_normal > 0.000099999997)
         {
             v9 = (float)((float)((float)(hit_point_loc->x * plane_dist.x) + (float)(hit_point_loc->y * plane_dist.y))

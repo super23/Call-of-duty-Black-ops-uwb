@@ -2,7 +2,7 @@
 #include <client/cl_debugdata.h>
 #include <universal/com_math.h>
 #include <cgame/cg_drawtools.h>
-#include <game_mp/g_main_mp.h>
+#include <game/g_main_wrapper.h>
 #include <universal/com_math_anglevectors.h>
 #include <qcommon/cm_load.h>
 #include <qcommon/cm_showcollision.h>

@@ -3,9 +3,6 @@
 #include "enthandle.h"
 #include "pathnode.h"
 
-#define SENTIENT_TEAM_DEAD 3
-#define MAX_SENTIENTS 48
-
 struct vis_cache_t // sizeof=0xC
 {                                       // XREF: sentient_info_t/r
     bool bVisible;

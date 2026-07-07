@@ -47,8 +47,6 @@
 #include <gfx_d3d/r_model.h>
 #include "cg_ui_animate_mp.h"
 
-GfxFog cg_serverVolFog;
-
 struct //__declspec(align(4)) $59835072FC2CD3936CE4A4C9F556010B // sizeof=0x48
 {                                       // XREF: .data:cg_waitingScriptMenu/r
     char name[64];                      // XREF: CG_CheckOpenWaitingScriptMenu(int)+A/r
@@ -302,24 +300,6 @@ void __cdecl CG_ParseFog(int localClientNum)
             sunEndAng,
             maxFogOpacity);
         R_SwitchFog(localClientNum, 1u, time, transitionTime);
-
-        cg_serverVolFog.fogStart = start;
-        cg_serverVolFog.color[0] = r;
-        cg_serverVolFog.color[1] = g;
-        cg_serverVolFog.color[2] = b;
-        cg_serverVolFog.density = density;
-        cg_serverVolFog.heightDensity = heightDensity;
-        cg_serverVolFog.baseHeight = baseHeight;
-        cg_serverVolFog.color[3] = fogColorScale;
-        cg_serverVolFog.sunFogColor[0] = sunColorR;
-        cg_serverVolFog.sunFogColor[1] = sunColorG;
-        cg_serverVolFog.sunFogColor[2] = sunColorB;
-        cg_serverVolFog.sunFogDir[0] = sunDirX;
-        cg_serverVolFog.sunFogDir[1] = sunDirY;
-        cg_serverVolFog.sunFogDir[2] = sunDirZ;
-        cg_serverVolFog.sunFogStartAng = sunStartAng;
-        cg_serverVolFog.sunFogEndAng = sunEndAng;
-        cg_serverVolFog.sunFogColor[3] = maxFogOpacity;
     }
     else
     {
@@ -598,9 +578,12 @@ void __cdecl CG_MapRestart(int localClientNum, int savepersist)
     {
         CG_InitFakeEntities(localClientNum, 1);
     }
-    Scr_AddInt(localClientNum, SCRIPTINSTANCE_CLIENT);
-    t = Scr_ExecThread(SCRIPTINSTANCE_CLIENT, cg_scr_data.localclientconnect, 1u);
-    Scr_FreeThread(t, SCRIPTINSTANCE_CLIENT);
+    if ( cg_scr_data.localclientconnect )
+    {
+        Scr_AddInt(localClientNum, SCRIPTINSTANCE_CLIENT);
+        t = Scr_ExecThread(SCRIPTINSTANCE_CLIENT, cg_scr_data.localclientconnect, 1u);
+        Scr_FreeThread(t, SCRIPTINSTANCE_CLIENT);
+    }
     CG_InitBolt(localClientNum);
     CreateRopes(localClientNum);
     cgameGlob->poisoned = 0;

@@ -1,8 +1,9 @@
 #include "pathnode.h"
 #include <clientscript/cscr_vm.h>
-#include <game_mp/g_spawn_mp.h>
+#include <game/g_spawn_wrapper.h>
 #include <bgame/bg_slidemove.h>
 #include <universal/com_math_anglevectors.h>
+#include <universal/com_math.h>
 #include <clientscript/cscr_stringlist.h>
 #include <universal/com_memory.h>
 #include <gfx_d3d/r_dvars.h>
@@ -13,18 +14,24 @@
 #include "actor_navigation.h"
 #include <clientscript/scr_const.h>
 #include <cgame/cg_drawtools.h>
-#include <game_mp/g_utils_mp.h>
+#include <game/g_utils_wrapper.h>
 #include "g_debug.h"
+#ifdef KISAK_SP
+#include <client_sp/cl_cgame_sp.h>
+#else
 #include <client_mp/cl_cgame_mp.h>
+#endif
 #include "actor_exposed.h"
+#include <physics/phys_collision.h>
 
 #include <algorithm>
-#include <game_mp/actor_mp.h>
+#include <game/actor_wrapper.h>
 #include <qcommon/dobj_management.h>
 #include <server/sv_game.h>
+#include <server/sv_world.h>
 #include "g_bsp.h"
 
-node_field_t fields_3[12] = // "fields"
+node_field_t fields_3[12] =
 {
   { "targetname", 6, { 2 }, F_STRING, NULL },
   { "target", 12, { 2 }, F_STRING, NULL },
@@ -110,7 +117,11 @@ int iValidBits;
 float vStartPos[3];
 const char *g_pathsError;
 pathstatic_t pathstatic;
+#ifdef KISAK_SP
+GameWorldMp *gameWorldCurrent = (GameWorldMp *)&gameWorldSp;
+#else
 GameWorldMp *gameWorldCurrent = &gameWorldMp;
+#endif
 void *g_oldContents;
 pathlink_s g_tempPathNodeLinks[2048];
 int g_tempPathNodeLinksCount;
@@ -203,7 +214,7 @@ void __cdecl Scr_GetPathnodeField(unsigned int entnum, unsigned int offset)
         GScr_GetGenericField((unsigned __int8 *)node, f->type, f->ofs, 0);
 }
 
-void __cdecl Path_CallFunctionForNodes(scriptInstance_t inst, void (__cdecl *function)(scriptInstance_t, pathnode_t *))
+void __cdecl Path_CallFunctionForNodes(scriptInstance_t inst, PathNodeCallback_t function, void *userData)
 {
     unsigned int nodeIndex; // [esp+0h] [ebp-8h]
     unsigned int nodeCount; // [esp+4h] [ebp-4h]
@@ -212,7 +223,7 @@ void __cdecl Path_CallFunctionForNodes(scriptInstance_t inst, void (__cdecl *fun
         __debugbreak();
     nodeCount = gameWorldCurrent->path.nodeCount;
     for ( nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex )
-        function(inst, &gameWorldCurrent->path.nodes[nodeIndex]);
+        function(inst, &gameWorldCurrent->path.nodes[nodeIndex], userData);
 }
 
 void __cdecl GScr_SetDynamicPathnodeField(pathnode_t *node, unsigned int index)
@@ -320,6 +331,8 @@ void __cdecl G_UpdateTrackExtraNodes()
 
 void __cdecl G_DropPathNodeToFloor(unsigned int nodeIndex)
 {
+    int savedregs; // [esp+4h] [ebp+0h] BYREF
+
     node_droptofloor(&gameWorldCurrent->path.nodes[nodeIndex]);
     G_InitPathBaseNode(&gameWorldCurrent->path.basenodes[nodeIndex], &gameWorldCurrent->path.nodes[nodeIndex]);
 }
@@ -344,39 +357,33 @@ void    node_droptofloor(pathnode_t *node)
     float vOrigin[4]; // [esp+F4h] [ebp-80h]
     col_context_t context; // [esp+104h] [ebp-70h] BYREF
     trace_t trace; // [esp+12Ch] [ebp-48h] BYREF
-
-    Vec3Copy(node->constant.vOrigin, vOrigin);
-
-    Vec3Copy(vOrigin, vEnd);
-    vEnd[2] -= 256.0f;
-
-    Vec3Copy(vOrigin, endpos);
-    endpos[2] += 1.0f;
-    
-    Vec3Copy(actorMins, dropMins);
-    Vec3Copy(actorMaxs, dropMaxs);
-
+    //_UNKNOWN *v20[2]; // [esp+168h] [ebp-Ch] BYREF
+    //int v21; // [esp+170h] [ebp-4h] BYREF
+    //int vars0; // [esp+174h] [ebp+0h]
+    //
+    //v20[0] = a1;
+    //v20[1] = (_UNKNOWN *)vars0;
+    //memset(&trace, 0, 16);
+    //col_context_t::col_context_t(&context);
+    //LODWORD(vOrigin[3]) = node->constant.vOrigin;
+    vOrigin[0] = node->constant.vOrigin[0];
+    vOrigin[1] = node->constant.vOrigin[1];
+    vOrigin[2] = node->constant.vOrigin[2];
+    vEnd[0] = vOrigin[0];
+    vEnd[1] = vOrigin[1];
+    vEnd[2] = vOrigin[2] - 256.0;
+    endpos[0] = vOrigin[0];
+    endpos[1] = vOrigin[1];
+    endpos[2] = vOrigin[2] + 1.0;
+    dropMins[0] = actorMins[0];
+    dropMins[1] = actorMins[1];
+    dropMins[2] = actorMins[2];
+    dropMaxs[0] = actorMaxs[0];
+    dropMaxs[1] = actorMaxs[1];
     dropMaxs[2] = (float)(15.0 - -15.0) + 0.0;
-
     G_TraceCapsule(&trace, endpos, dropMins, dropMaxs, vEnd, 1023, 0x820011, &context);
     if (trace.startsolid || trace.allsolid)
-    {
-        printf(
-            "ERROR: Pathnode (%s) at (%g %g %g) is in solid\n",
-            nodeStringTable[node->constant.type],
-            vOrigin[0],
-            vOrigin[1],
-            vOrigin[2]);
-        Com_PrintError(
-            1,
-            "ERROR: Pathnode (%s) at (%g %g %g) is in solid\n",
-            nodeStringTable[node->constant.type],
-            vOrigin[0],
-            vOrigin[1],
-            vOrigin[2]);
-        node->constant.type = NODE_BADNODE;
-        return;
-    }
+        goto LABEL_3;
     if (trace.fraction == 1.0)
     {
         printf(
@@ -402,6 +409,7 @@ void    node_droptofloor(pathnode_t *node)
         G_TraceCapsule(&trace, endpos, actorMins, actorMaxs, endpos, 1023, 0x820011, &context);
         if (trace.startsolid || trace.allsolid)
         {
+        LABEL_3:
             printf(
                 "ERROR: Pathnode (%s) at (%g %g %g) is in solid\n",
                 nodeStringTable[node->constant.type],
@@ -493,35 +501,47 @@ void __cdecl G_InitPathBaseNode(pathbasenode_t *pbnode, const pathnode_t *pnode)
 
 void __cdecl G_DropPathnodesToFloor()
 {
-    unsigned int backupEntContents[MAX_GENTITIES]; // [esp+Ch] [ebp-1008h]
+    unsigned int nodeIndex; // [esp+8h] [ebp-100Ch]
+    unsigned int nodeIndexa; // [esp+8h] [ebp-100Ch]
+    unsigned int v2[1024]; // [esp+Ch] [ebp-1008h]
+    int i; // [esp+100Ch] [ebp-8h]
+    gentity_s *ent; // [esp+1010h] [ebp-4h]
 
-    iassert(g_path.actualNodeCount <= gameWorldCurrent->path.nodeCount);
-
-    for ( int i = 0; i < level.num_entities; ++i )
+    if ( g_path.actualNodeCount > gameWorldCurrent->path.nodeCount
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\pathnode.cpp",
+                    1467,
+                    0,
+                    "%s",
+                    "g_path.actualNodeCount <= gameWorldCurrent.path.nodeCount") )
     {
-        gentity_s *ent = &level.gentities[i];
+        __debugbreak();
+    }
+    for ( i = 0; i < level.num_entities; ++i )
+    {
+        ent = &level.gentities[i];
         if ( ent->r.inuse )
         {
-            backupEntContents[i] = ent->r.contents;
+            v2[i] = ent->r.contents;
             if ( Path_IsDynamicBlockingEntity(ent) )
                 ent->r.contents = 0;
         }
     }
-    for ( unsigned int nodeIndex = 0; nodeIndex < gameWorldCurrent->path.nodeCount; ++nodeIndex )
+    for ( nodeIndex = 0; nodeIndex < gameWorldCurrent->path.nodeCount; ++nodeIndex )
     {
         if ( (gameWorldCurrent->path.nodes[nodeIndex].constant.spawnflags & 0x100) == 0 )
             G_DropPathNodeToFloor(nodeIndex);
     }
-    for ( int i = 0; i < level.num_entities; ++i )
+    for ( i = 0; i < level.num_entities; ++i )
     {
-        gentity_s *ent = &level.gentities[i];
+        ent = &level.gentities[i];
         if ( ent->r.inuse )
-            ent->r.contents = backupEntContents[i];
+            ent->r.contents = v2[i];
     }
-    for (unsigned int nodeIndex = 0; nodeIndex < gameWorldCurrent->path.nodeCount; ++nodeIndex )
+    for ( nodeIndexa = 0; nodeIndexa < gameWorldCurrent->path.nodeCount; ++nodeIndexa )
     {
-        if ( (gameWorldCurrent->path.nodes[nodeIndex].constant.spawnflags & 0x100) != 0 )
-            G_DropPathNodeToFloor(nodeIndex);
+        if ( (gameWorldCurrent->path.nodes[nodeIndexa].constant.spawnflags & 0x100) != 0 )
+            G_DropPathNodeToFloor(nodeIndexa);
     }
 }
 
@@ -747,9 +767,10 @@ void __cdecl PathNode_UpdateFloatField(const char *destKey, float *destFloat, co
 {
     float floatValue; // [esp+0h] [ebp-4h] BYREF
 
-    iassert(key);
-    iassert(destKey);
-
+    if ( !key && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\pathnode.cpp", 852, 0, "%s", "key") )
+        __debugbreak();
+    if ( !destKey && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\pathnode.cpp", 853, 0, "%s", "destKey") )
+        __debugbreak();
     if ( !I_stricmp(key, destKey) )
     {
         if ( sscanf(value, "%f", &floatValue) != 1 )
@@ -770,26 +791,43 @@ void __cdecl PathNode_OriginMatches(const char *value, const float *nodeOrigin)
 
 void __cdecl GScr_AddFieldsForPathnode()
 {
-    for ( node_field_t *f = fields_3; f->name; ++f )
+    node_field_t *f; // [esp+4h] [ebp-4h]
+
+    for ( f = fields_3; f->name; ++f )
     {
-        iassert((f - fields_3) == (unsigned short)(f - fields_3));
-        Scr_AddClassField(2, (char *)f->name, (unsigned __int16)(f - fields_3), SCRIPTINSTANCE_SERVER);
+        if ( f - fields_3 != (unsigned __int16)(f - fields_3)
+            && !Assert_MyHandler(
+                        "C:\\projects_pc\\cod\\codsrc\\src\\game\\pathnode.cpp",
+                        1604,
+                        0,
+                        "%s",
+                        "(f - fields) == (unsigned short)( f - fields )") )
+        {
+            __debugbreak();
+        }
+        Scr_AddClassField(2u, (char *)f->name, (unsigned __int16)(f - fields_3), SCRIPTINSTANCE_SERVER);
     }
 }
 
 void __cdecl Scr_FreePathnode(pathnode_t *node)
 {
+    unsigned int v1; // eax
+
     if ( !useFastFile->current.enabled )
         Scr_FreePathnodeFields(node);
 
     iassert(!node->dynamic.pOwner.isDefined());
 
-    Scr_FreeEntityNum(Path_ConvertNodeToIndex(node), 2u, SCRIPTINSTANCE_SERVER);
+    v1 = Path_ConvertNodeToIndex(node);
+    Scr_FreeEntityNum(v1, 2u, SCRIPTINSTANCE_SERVER);
 }
 
 void __cdecl Scr_AddPathnode(pathnode_t *node)
 {
-    Scr_AddEntityNum(Path_ConvertNodeToIndex(node), 2u, SCRIPTINSTANCE_SERVER, 0);
+    unsigned int v1; // eax
+
+    v1 = Path_ConvertNodeToIndex(node);
+    Scr_AddEntityNum(v1, 2u, SCRIPTINSTANCE_SERVER, 0);
 }
 
 void __cdecl Scr_GetNode()
@@ -833,6 +871,32 @@ void __cdecl Scr_GetNode()
         }
         if ( result )
             Scr_AddPathnode(result);
+    }
+}
+
+void __cdecl Scr_GetAnyNodeArray()
+{
+    float origin[3];
+    float maxDist;
+    pathsort_t nodes[1024];
+    int nodeCount;
+    int i;
+
+    Scr_GetVector(0u, origin, SCRIPTINSTANCE_SERVER);
+    maxDist = Scr_GetFloat(1u, SCRIPTINSTANCE_SERVER);
+    Path_NearestNode(
+        origin,
+        nodes,
+        -1,
+        maxDist,
+        &nodeCount,
+        1024,
+        NEAREST_NODE_DONT_DO_HEIGHT_CHECK);
+    Scr_MakeArray(SCRIPTINSTANCE_SERVER);
+    for (i = 0; i < nodeCount; ++i)
+    {
+        Scr_AddPathnode(nodes[i].node);
+        Scr_AddArray(SCRIPTINSTANCE_SERVER);
     }
 }
 
@@ -881,6 +945,25 @@ void __cdecl Scr_GetNodeArray()
     }
 }
 
+static path_t g_scrFindPathBuf;
+static path_t *g_scrFindPath;
+
+// Decomp: CoDSP_rdBlackOps.map.c (82662B90 Scr_FindPath)
+void __cdecl Scr_FindPath()
+{
+    float startPos[3];
+    float goalPos[3];
+    int found;
+
+    Scr_GetVector(0u, startPos, SCRIPTINSTANCE_SERVER);
+    Scr_GetVector(1u, goalPos, SCRIPTINSTANCE_SERVER);
+    if ( !g_scrFindPath )
+        g_scrFindPath = &g_scrFindPathBuf;
+    Path_Begin(g_scrFindPath);
+    found = Path_FindPath(g_scrFindPath, TEAM_FREE, startPos, goalPos, 1);
+    Scr_AddBool(found != 0, SCRIPTINSTANCE_SERVER);
+}
+
 void __cdecl Scr_GetAllNodes()
 {
     unsigned int i; // [esp+0h] [ebp-4h]
@@ -891,6 +974,334 @@ void __cdecl Scr_GetAllNodes()
         Scr_AddPathnode(&gameWorldCurrent->path.nodes[i]);
         Scr_AddArray(SCRIPTINSTANCE_SERVER);
     }
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (pathnode.obj script builtins)
+struct pathnode_resized_links_entry_t
+{
+    pathnode_t *node;
+    pathlink_s *original_links;
+    unsigned short original_link_count;
+    pathlink_s *backup_links;
+    unsigned int backup_link_count;
+};
+
+static const nodeType priorityAllowedNodes[] =
+{
+    NODE_TURRET,
+    NODE_COVER_STAND,
+    NODE_COVER_CROUCH,
+    NODE_COVER_PRONE,
+    NODE_CONCEALMENT_STAND,
+    NODE_CONCEALMENT_CROUCH,
+    NODE_CONCEALMENT_PRONE,
+    NODE_COVER_RIGHT,
+    NODE_COVER_LEFT,
+    NODE_COVER_PILLAR,
+};
+
+static bool NodeTypeCanHavePriority(nodeType type)
+{
+    unsigned int i;
+
+    for ( i = 0; i < ARRAY_COUNT( priorityAllowedNodes ); ++i )
+    {
+        if ( type == priorityAllowedNodes[i] )
+            return true;
+    }
+    return false;
+}
+
+static void destroy_pathnode_resized_links_entry(void *data)
+{
+    pathnode_resized_links_entry_t *entry;
+
+    entry = (pathnode_resized_links_entry_t *)data;
+    if ( !entry )
+        return;
+    if ( entry->node )
+    {
+        entry->node->constant.Links = entry->original_links;
+        entry->node->constant.totalLinkCount = entry->original_link_count;
+    }
+    if ( entry->backup_links )
+        Z_Free( (char *)entry->backup_links, 6 );
+    Z_Free( (char *)entry, 6 );
+}
+
+static void init_pathnode_resized_links(int restart)
+{
+    generic_avl_map_node_t *node;
+    void *data;
+
+    if ( !restart )
+        return;
+    while ( g_pathnode_resized_links_map.m_tree_root )
+    {
+        node = g_pathnode_resized_links_map.m_tree_root;
+        while ( node->m_avl_tree_node.m_left )
+            node = node->m_avl_tree_node.m_left;
+        data = generic_avl_map_destroy( &g_pathnode_resized_links_map, node->m_avl_key );
+        destroy_pathnode_resized_links_entry( data );
+    }
+}
+
+static pathnode_resized_links_entry_t *pathnode_resized_links_get(pathnode_t *node)
+{
+    pathnode_resized_links_entry_t *entry;
+    generic_avl_map_node_t *gamn;
+    unsigned int key;
+    unsigned int i;
+
+    key = (unsigned int)node;
+    gamn = g_pathnode_resized_links_map.find( key );
+    if ( gamn )
+        return (pathnode_resized_links_entry_t *)gamn->m_data;
+    entry = (pathnode_resized_links_entry_t *)Z_Malloc( sizeof( *entry ), "pathnode_resized_links", 6 );
+    entry->node = node;
+    entry->original_links = node->constant.Links;
+    entry->original_link_count = node->constant.totalLinkCount;
+    entry->backup_link_count = node->constant.totalLinkCount;
+    if ( entry->backup_link_count )
+    {
+        entry->backup_links = (pathlink_s *)Z_Malloc( 12 * entry->backup_link_count, "pathnode_resized_links", 6 );
+        for ( i = 0; i < entry->backup_link_count; ++i )
+            entry->backup_links[i] = entry->original_links[i];
+        node->constant.Links = entry->backup_links;
+    }
+    else
+    {
+        entry->backup_links = 0;
+    }
+    generic_avl_map_add( &g_pathnode_resized_links_map, entry, key );
+    return entry;
+}
+
+static void pathnode_resized_links_add(pathnode_t *fromNode, pathnode_t *toNode)
+{
+    pathnode_resized_links_entry_t *entry;
+    pathlink_s *newLinks;
+    pathlink_s *oldLinks;
+    float delta[3];
+    unsigned int i;
+    unsigned int newCount;
+    unsigned __int16 toIndex;
+
+    entry = pathnode_resized_links_get( fromNode );
+    toIndex = (unsigned __int16)Path_ConvertNodeToIndex( toNode );
+    for ( i = 0; i < fromNode->constant.totalLinkCount; ++i )
+    {
+        if ( fromNode->constant.Links[i].nodeNum == toIndex )
+        {
+            iassert(0 && "link already exists for these nodes.");
+            return;
+        }
+    }
+    newCount = fromNode->constant.totalLinkCount + 1;
+    newLinks = (pathlink_s *)Z_Malloc( 12 * newCount, "pathnode_resized_links", 6 );
+    for ( i = 0; i < fromNode->constant.totalLinkCount; ++i )
+        newLinks[i] = fromNode->constant.Links[i];
+    delta[0] = fromNode->constant.vOrigin[0] - toNode->constant.vOrigin[0];
+    delta[1] = fromNode->constant.vOrigin[1] - toNode->constant.vOrigin[1];
+    delta[2] = fromNode->constant.vOrigin[2] - toNode->constant.vOrigin[2];
+    newLinks[i].fDist = Vec3Length( delta );
+    newLinks[i].nodeNum = toIndex;
+    newLinks[i].disconnectCount = 0;
+    newLinks[i].negotiationLink = 0;
+    memset( newLinks[i].ubBadPlaceCount, 0, sizeof( newLinks[i].ubBadPlaceCount ) );
+    oldLinks = fromNode->constant.Links;
+    fromNode->constant.Links = newLinks;
+    fromNode->constant.totalLinkCount = (unsigned __int16)newCount;
+    ++fromNode->dynamic.wLinkCount;
+    if ( oldLinks && oldLinks != entry->original_links )
+        Z_Free( (char *)oldLinks, 6 );
+    entry->backup_links = newLinks;
+    entry->backup_link_count = newCount;
+}
+
+static void pathnode_resized_links_remove(pathnode_t *fromNode, pathnode_t *toNode)
+{
+    pathnode_resized_links_entry_t *entry;
+    pathlink_s *newLinks;
+    pathlink_s *oldLinks;
+    pathlink_s *removeLink;
+    unsigned int i;
+    unsigned int newCount;
+    unsigned int writeIndex;
+    unsigned __int16 toIndex;
+
+    entry = pathnode_resized_links_get( fromNode );
+    toIndex = (unsigned __int16)Path_ConvertNodeToIndex( toNode );
+    removeLink = 0;
+    for ( i = 0; i < fromNode->constant.totalLinkCount; ++i )
+    {
+        if ( fromNode->constant.Links[i].nodeNum == toIndex )
+        {
+            removeLink = &fromNode->constant.Links[i];
+            break;
+        }
+    }
+    if ( !removeLink )
+    {
+        iassert(0 && "link does not exist for these nodes.");
+        return;
+    }
+    newCount = fromNode->constant.totalLinkCount - 1;
+    newLinks = (pathlink_s *)Z_Malloc( 12 * newCount, "pathnode_resized_links", 6 );
+    writeIndex = 0;
+    for ( i = 0; i < fromNode->constant.totalLinkCount; ++i )
+    {
+        if ( &fromNode->constant.Links[i] != removeLink )
+            newLinks[writeIndex++] = fromNode->constant.Links[i];
+    }
+    oldLinks = fromNode->constant.Links;
+    if ( (unsigned int)( removeLink - oldLinks ) < fromNode->dynamic.wLinkCount )
+        --fromNode->dynamic.wLinkCount;
+    fromNode->constant.Links = newLinks;
+    fromNode->constant.totalLinkCount = (unsigned __int16)newCount;
+    if ( oldLinks && oldLinks != entry->original_links )
+        Z_Free( (char *)oldLinks, 6 );
+    entry->backup_links = newLinks;
+    entry->backup_link_count = newCount;
+}
+
+void __cdecl G_InitPathnodeScriptLinks(int restart)
+{
+    init_pathnode_resized_links( restart );
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (82662900 Scr_SetNodePriority)
+void __cdecl Scr_SetNodePriority()
+{
+    pathnode_t *node;
+    int priority;
+    unsigned int i;
+
+    if ( Scr_GetNumParam( SCRIPTINSTANCE_SERVER ) != 2 )
+        Scr_Error( "Illegal call to setnodepriority", 0 );
+    node = Scr_GetPathnode( 0, SCRIPTINSTANCE_SERVER );
+    priority = Scr_GetInt( 1u, SCRIPTINSTANCE_SERVER );
+    if ( !NodeTypeCanHavePriority( node->constant.type ) )
+    {
+        Scr_Error( "Cannot enable disable priority for this node type. Priority can only be set for :", 0 );
+        for ( i = 0; i < ARRAY_COUNT( priorityAllowedNodes ); ++i )
+            Scr_Error( nodeStringTable[priorityAllowedNodes[i]], 0 );
+    }
+    if ( priority )
+        node->constant.spawnflags |= 0x40u;
+    else
+        node->constant.spawnflags &= ~0x40u;
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (82662B08 Scr_GetNodeOwner)
+void __cdecl Scr_GetNodeOwner()
+{
+    pathnode_t *node;
+
+    if ( Scr_GetNumParam( SCRIPTINSTANCE_SERVER ) != 1 )
+        Scr_Error( "illegal call to getnodeowner()", 0 );
+    node = Scr_GetPathnode( 0, SCRIPTINSTANCE_SERVER );
+    if ( node->dynamic.pOwner.isDefined() )
+        Scr_AddEntity( node->dynamic.pOwner.sentient()->ent, SCRIPTINSTANCE_SERVER );
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (82662C38 Scr_SetTurretNode)
+void __cdecl Scr_SetTurretNode()
+{
+    gentity_s *ent;
+    pathnode_t *node;
+
+    if ( Scr_GetNumParam( SCRIPTINSTANCE_SERVER ) != 2 )
+        Scr_Error( "Wrong number of arguments to setturretnode", 0 );
+    node = Scr_GetPathnode( 0, SCRIPTINSTANCE_SERVER );
+    if ( node->constant.type != NODE_TURRET )
+        Scr_Error( "Can only set arc angle for node_turret", 0 );
+    ent = Scr_GetEntity( 1u );
+    if ( !ent->pTurretInfo )
+        Scr_Error( "Entity is not a turret", 0 );
+    node->dynamic.turretEntNumber = ent->s.number;
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (82662CF0 Scr_UnsetTurretNode)
+void __cdecl Scr_UnsetTurretNode()
+{
+    pathnode_t *node;
+
+    if ( Scr_GetNumParam( SCRIPTINSTANCE_SERVER ) != 1 )
+        Scr_Error( " USAGE : Must have a node_turret as a parameter.", 0 );
+    node = Scr_GetPathnode( 0, SCRIPTINSTANCE_SERVER );
+    if ( node->constant.type != NODE_TURRET )
+        Scr_Error( "Can only do this call for node_turret", 0 );
+    node->dynamic.turretEntNumber = -1;
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (826661A8 Scr_GetCoverNodeArray)
+void __cdecl Scr_GetCoverNodeArray()
+{
+    float origin[3];
+    float maxDist;
+    pathsort_t nodes[1024];
+    int nodeCount;
+    int i;
+
+    Scr_GetVector( 0u, origin, SCRIPTINSTANCE_SERVER );
+    maxDist = Scr_GetFloat( 1u, SCRIPTINSTANCE_SERVER );
+    Path_NearestNode(
+        origin,
+        nodes,
+        0x83FFC,
+        maxDist,
+        &nodeCount,
+        1024,
+        NEAREST_NODE_DO_HEIGHT_CHECK );
+    Scr_MakeArray( SCRIPTINSTANCE_SERVER );
+    for ( i = 0; i < nodeCount; ++i )
+    {
+        Scr_AddPathnode( nodes[i].node );
+        Scr_AddArray( SCRIPTINSTANCE_SERVER );
+    }
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (826663F0 Scr_SetEnableNode)
+void __cdecl Scr_SetEnableNode()
+{
+    pathnode_t *node;
+    int enabled;
+
+    enabled = 1;
+    if ( Scr_GetNumParam( SCRIPTINSTANCE_SERVER ) == 2 )
+        enabled = Scr_GetInt( 1u, SCRIPTINSTANCE_SERVER );
+    else if ( Scr_GetNumParam( SCRIPTINSTANCE_SERVER ) != 1 )
+        return;
+    node = Scr_GetPathnode( 0, SCRIPTINSTANCE_SERVER );
+    if ( enabled )
+        node->constant.spawnflags &= ~0x200u;
+    else
+        node->constant.spawnflags |= 0x200u;
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (826664B0 Scr_LinkNodes)
+void __cdecl Scr_LinkNodes()
+{
+    pathnode_t *fromNode;
+    pathnode_t *toNode;
+
+    iassert( Scr_GetNumParam( SCRIPTINSTANCE_SERVER ) == 2 );
+    fromNode = Scr_GetPathnode( 0, SCRIPTINSTANCE_SERVER );
+    toNode = Scr_GetPathnode( 1u, SCRIPTINSTANCE_SERVER );
+    pathnode_resized_links_add( fromNode, toNode );
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (82666548 Scr_UnLinkNodes)
+void __cdecl Scr_UnLinkNodes()
+{
+    pathnode_t *fromNode;
+    pathnode_t *toNode;
+
+    iassert( Scr_GetNumParam( SCRIPTINSTANCE_SERVER ) == 2 );
+    fromNode = Scr_GetPathnode( 0, SCRIPTINSTANCE_SERVER );
+    toNode = Scr_GetPathnode( 1u, SCRIPTINSTANCE_SERVER );
+    pathnode_resized_links_remove( fromNode, toNode );
 }
 
 pathnode_t *__cdecl Scr_GetPathnode(unsigned int index, scriptInstance_t inst)
@@ -1260,7 +1671,7 @@ void __cdecl Path_PreSpawnInitPaths()
 
 unsigned int Path_InitLinkCounts()
 {
-    unsigned int result; // eax
+    unsigned int result = 0;
     unsigned int j; // [esp+4h] [ebp-10h]
     unsigned int k; // [esp+8h] [ebp-Ch]
     unsigned int i; // [esp+10h] [ebp-4h]
@@ -1280,7 +1691,7 @@ unsigned int Path_InitLinkCounts()
 
 unsigned int Path_InitNodesDynamic()
 {
-    unsigned int result; // eax
+    unsigned int result = 0;
     unsigned int i; // [esp+0h] [ebp-4h]
 
     for ( i = 0; i < gameWorldCurrent->path.nodeCount; ++i )
@@ -1609,7 +2020,7 @@ double __cdecl Path_GetDebugStringScale(const float *cameraPos, const float *ori
         delta[1] = cameraPos[1] - origin[1];
         delta[2] = cameraPos[2] - origin[2];
         delta[2] = delta[2] + player->client->ps.viewHeightCurrent;
-        v2 = Vec3Length(delta);
+        v2 = Abs(delta);
         scale = v2 / 3600.0 * scale;
     }
     if ( (float)(scale - 0.5) < 0.0 )
@@ -2209,6 +2620,60 @@ bool __cdecl Path_NodesVisible(const pathnode_t *node0, const pathnode_t *node1)
     return gameWorldCurrent->path.pathVis && ((1 << (entry & 7)) & gameWorldCurrent->path.pathVis[entry >> 3]) != 0;
 }
 
+// Decomp: CoDSP_rdBlackOps.map.c
+
+bool __cdecl IsSolidProtectingTgtFromPt(
+    const float *targetPos,
+    const float *coverPos,
+    float maxAngle,
+    float maxDist,
+    float checkRadius)
+{
+    trace_t trace;
+    col_context_t context;
+    float delta[3];
+    float dirToCover[3];
+    float traceStart[3];
+    float traceEnd[3];
+    float mins[3];
+    float maxs[3];
+    float dist;
+    float cosMaxAngle;
+
+    iassert(targetPos);
+    iassert(coverPos);
+    delta[0] = coverPos[0] - targetPos[0];
+    delta[1] = coverPos[1] - targetPos[1];
+    delta[2] = coverPos[2] - targetPos[2];
+    dist = Vec3Length(delta);
+    if ( dist <= 0.1f )
+        return false;
+    dirToCover[0] = delta[0] / dist;
+    dirToCover[1] = delta[1] / dist;
+    dirToCover[2] = delta[2] / dist;
+    traceStart[0] = targetPos[0];
+    traceStart[1] = targetPos[1];
+    traceStart[2] = targetPos[2] + 16.0f;
+    traceEnd[0] = targetPos[0] + dirToCover[0] * maxDist;
+    traceEnd[1] = targetPos[1] + dirToCover[1] * maxDist;
+    traceEnd[2] = targetPos[2] + 16.0f + dirToCover[2] * maxDist;
+    mins[0] = -checkRadius;
+    mins[1] = -checkRadius;
+    mins[2] = -checkRadius;
+    maxs[0] = checkRadius;
+    maxs[1] = checkRadius;
+    maxs[2] = checkRadius;
+    G_TraceCapsule(&trace, traceStart, mins, maxs, traceEnd, ENTITYNUM_NONE, 1, &context);
+    if ( trace.fraction >= 1.0f )
+        return false;
+    if ( Vec3LengthSq(trace.normal.vec.v) <= 0.0f )
+        return true;
+    if ( Vec3LengthSq(trace.normal.vec.v) <= Square(0.80f) || Vec3LengthSq(trace.normal.vec.v) >= Square(1.20f) )
+        return false;
+    cosMaxAngle = cos(maxAngle * 0.017453292f);
+    return -(trace.normal.vec.v[0] * dirToCover[0] + trace.normal.vec.v[1] * dirToCover[1] + trace.normal.vec.v[2] * dirToCover[2]) > cosMaxAngle;
+}
+
 int __cdecl NodeVisCacheEntry(int i, int j)
 {
     if ( i >= j && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\pathnode.cpp", 2033, 0, "%s", "i < j") )
@@ -2328,8 +2793,18 @@ pathnode_t *__cdecl Path_NearestNodeNotCrossPlanes(
         adjustedOrigin[0] = *vOrigin;
         adjustedOrigin[1] = vOrigin[1];
         adjustedOrigin[2] = vOrigin[2];
-        adjustedOrigin[2] = adjustedOrigin[2] - 120.0;
-        iNodeCount = Path_NodesInCylinder(adjustedOrigin, fMaxDist, 184.0, nodes, maxNodes, typeFlags);
+        if ( zombiemode->current.enabled )
+        {
+            const float minZBias = zombiemode_path_minz_bias->current.value;
+
+            adjustedOrigin[2] = adjustedOrigin[2] - minZBias;
+            iNodeCount = Path_NodesInCylinder(adjustedOrigin, fMaxDist, minZBias + 64.0f, nodes, maxNodes, typeFlags);
+        }
+        else
+        {
+            adjustedOrigin[2] = adjustedOrigin[2] - 120.0;
+            iNodeCount = Path_NodesInCylinder(adjustedOrigin, fMaxDist, 184.0, nodes, maxNodes, typeFlags);
+        }
     }
 
     //std::_Sort<GfxCachedShaderText *,int,bool (__cdecl *)(GfxCachedShaderText const &,GfxCachedShaderText const &)>(
@@ -3812,10 +4287,9 @@ void    Path_UpdateLimitedDepthArcBadPlaceCount(
     YawVectors((float)(angle * 0.5) + arc->angle0, forward, 0);
     v5 = (float)(angle * 0.0087266462);
     //__libm_sse2_sin(*(long double *)side1end);
-    //*(float *)&v5 = v5;
     v5 = sin(v5);
     v18 = LODWORD(v5);
-    scale = (float)((float)(*(float *)&v5 / angle) * 76.394371) * arc->radius;
+    scale = (float)((float)(v5 / angle) * 76.394371) * arc->radius;
     centroid[0] = (float)(scale * forward[0]) + arc->origin[0];
     centroid[1] = (float)(scale * forward[1]) + arc->origin[1];
     centroid[2] = (float)(scale * forward[2]) + arc->origin[2];

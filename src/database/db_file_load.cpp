@@ -107,7 +107,7 @@ void __cdecl DB_CancelLoadXFile()
 
 signed __int32 DB_WaitXFileStage()
 {
-    signed __int32 result; // eax
+    signed __int32 previousLoadedBlockCount; // eax
     DWORD waitStart; // [esp+0h] [ebp-8h]
 
     if (!g_load.f
@@ -129,9 +129,9 @@ signed __int32 DB_WaitXFileStage()
     waitStart = Sys_Milliseconds();
     SleepEx(0xFFFFFFFF, 1);
     g_totalWait += Sys_Milliseconds() - waitStart;
-    result = _InterlockedExchangeAdd(&g_loadedSize, 1u);
+    previousLoadedBlockCount = _InterlockedExchangeAdd(&g_loadedSize, 1u);
     g_load.stream.avail_in += 0x40000;
-    return result;
+    return previousLoadedBlockCount;
 }
 
 void __cdecl DB_LoadedExternalData(unsigned int size)
@@ -141,9 +141,9 @@ void __cdecl DB_LoadedExternalData(unsigned int size)
 
 unsigned __int8 *__cdecl DB_LoadXFileDataNullTerminated(unsigned __int8 *pos)
 {
-    unsigned __int8 *origPos; // [esp+0h] [ebp-4h]
+    unsigned __int8 *startPos; // [esp+0h] [ebp-4h]
 
-    origPos = pos;
+    startPos = pos;
     do
     {
         if ( g_load.deflateBufferPos == 0x8000 )
@@ -152,7 +152,7 @@ unsigned __int8 *__cdecl DB_LoadXFileDataNullTerminated(unsigned __int8 *pos)
             *pos = g_load.deflateBuffer[g_load.deflateBufferPos++];
     }
     while ( *pos++ );
-    return (unsigned __int8 *)(pos - origPos);
+    return (unsigned __int8 *)(pos - startPos);
 }
 
 void __cdecl DB_LoadXFileSetSize(int size)
@@ -172,11 +172,11 @@ void __cdecl DB_LoadXFileSetSize(int size)
 
 void __cdecl DB_LoadXFileData(unsigned __int8 *pos, int size)
 {
-    const char *v2; // eax
-    int lastAvailOutSize; // [esp+4h] [ebp-1Ch]
-    signed int deflateRemainingFileSize; // [esp+8h] [ebp-18h]
+    const char *errorMessage; // eax
+    int requestedOutputSize; // [esp+4h] [ebp-1Ch]
+    signed int inflateChunkSize; // [esp+8h] [ebp-18h]
     unsigned int bytesToCopy; // [esp+10h] [ebp-10h]
-    unsigned int err; // [esp+18h] [ebp-8h]
+    unsigned int inflateResult; // [esp+18h] [ebp-8h]
 
     iassert(size);
     iassert(g_load.f);
@@ -209,17 +209,17 @@ RESTART:
                 size -= bytesToCopy;
             }
             if ( g_load.deflateRemainingFileSize < 0x8000 )
-                deflateRemainingFileSize = g_load.deflateRemainingFileSize;
+                inflateChunkSize = g_load.deflateRemainingFileSize;
             else
-                deflateRemainingFileSize = 0x8000;
-            g_load.stream.avail_out = deflateRemainingFileSize;
-            g_load.deflateBufferPos = 0x8000 - deflateRemainingFileSize;
-            g_load.stream.next_out = &g_load.deflateBuffer[0x8000 - deflateRemainingFileSize];
-            if ( deflateRemainingFileSize < size )
-                lastAvailOutSize = g_load.stream.avail_out;
+                inflateChunkSize = 0x8000;
+            g_load.stream.avail_out = inflateChunkSize;
+            g_load.deflateBufferPos = 0x8000 - inflateChunkSize;
+            g_load.stream.next_out = &g_load.deflateBuffer[0x8000 - inflateChunkSize];
+            if ( inflateChunkSize < size )
+                requestedOutputSize = g_load.stream.avail_out;
             else
-                lastAvailOutSize = size;
-            size -= lastAvailOutSize;
+                requestedOutputSize = size;
+            size -= requestedOutputSize;
             g_load.deflateRemainingFileSize -= g_load.stream.avail_out;
 
 
@@ -227,17 +227,15 @@ RESTART:
             {
                 if ( g_load.stream.avail_in )
                 {
-                    err = DB_AuthLoad_Inflate(&g_load.stream, 2);
-                    //if ( err >= 2 )
-                    if (err != Z_OK && err != Z_STREAM_END)
+                    inflateResult = DB_AuthLoad_Inflate(&g_load.stream, 2);
+                    if ( inflateResult != Z_OK && inflateResult != Z_STREAM_END )
                     {
-                        //BLOPS_NULLSUB();
                         DB_CancelLoadXFile();
                         Com_Error(
                             ERR_DROP,
                             "Fastfile for zone '%s' appears corrupt or unreadable (code %i.)",
                             g_load.filename,
-                            err + 110);
+                            inflateResult + 110);
                     }
                     if ( g_load.f )
                     {
@@ -259,7 +257,7 @@ RESTART:
 
                     if ( !g_load.stream.avail_out )
                     {
-                        if ( lastAvailOutSize > 0x8000
+                        if ( requestedOutputSize > 0x8000
                             && !Assert_MyHandler(
                                         "C:\\projects_pc\\cod\\codsrc\\src\\database\\db_file_load.cpp",
                                         1558,
@@ -269,25 +267,25 @@ RESTART:
                         {
                             __debugbreak();
                         }
-                        if ( lastAvailOutSize == 1 )
+                        if ( requestedOutputSize == 1 )
                             *pos = g_load.deflateBuffer[g_load.deflateBufferPos];
                         else
-                            memcpy(pos, &g_load.deflateBuffer[g_load.deflateBufferPos], lastAvailOutSize);
-                        g_load.deflateBufferPos += lastAvailOutSize;
-                        pos += lastAvailOutSize;
+                            memcpy(pos, &g_load.deflateBuffer[g_load.deflateBufferPos], requestedOutputSize);
+                        g_load.deflateBufferPos += requestedOutputSize;
+                        pos += requestedOutputSize;
                         goto RESTART;
                     }
 
-                    if ( err )
+                    if ( inflateResult )
                     {
-                        v2 = va("Invalid fast file '%s' (%d != Z_OK)", g_load.filename, err);
+                        errorMessage = va("Invalid fast file '%s' (%d != Z_OK)", g_load.filename, inflateResult);
                         if ( !Assert_MyHandler(
                                         "C:\\projects_pc\\cod\\codsrc\\src\\database\\db_file_load.cpp",
                                         1547,
                                         0,
                                         "%s\n\t%s",
                                         "err == Z_OK",
-                                        v2) )
+                                        errorMessage) )
                             __debugbreak();
                     }
                 }
@@ -362,15 +360,14 @@ int __cdecl DB_ReadData()
 
 void __cdecl DB_LoadXFileInternal()
 {
-    unsigned intv0; // eax
-    int v1; // [esp-4h] [ebp-50h]
-    int err; // [esp+8h] [ebp-44h]
-    bool fileIsSecure; // [esp+Fh] [ebp-3Dh]
-    unsigned int version; // [esp+10h] [ebp-3Ch]
-    XFile file; // [esp+14h] [ebp-38h] BYREF
-    int fileSize; // [esp+38h] [ebp-14h]
+    int waitTimeMs; // [esp-4h] [ebp-50h]
+    int inflateInitResult; // [esp+8h] [ebp-44h]
+    bool isAuthenticatedFile; // [esp+Fh] [ebp-3Dh]
+    unsigned int fastfileVersion; // [esp+10h] [ebp-3Ch]
+    XFile xfileHeader; // [esp+14h] [ebp-38h] BYREF
+    int compressedFileSize; // [esp+38h] [ebp-14h]
     const char *failureReason; // [esp+3Ch] [ebp-10h]
-    char magic[8]; // [esp+40h] [ebp-Ch] BYREF
+    char magicHeader[8]; // [esp+40h] [ebp-Ch] BYREF
 
     g_totalWait = 0;
     if ( !g_load.f
@@ -383,7 +380,7 @@ void __cdecl DB_LoadXFileInternal()
         Com_Error(ERR_DROP, "Fastfile for zone '%s' is empty.", g_load.filename);
     DB_WaitXFileStage();
     DB_ReadXFileStage();
-    if ( g_load.stream.avail_in < 8
+    if ( g_load.stream.avail_in < sizeof(magicHeader)
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\database\\db_file_load.cpp",
                     1768,
@@ -393,16 +390,15 @@ void __cdecl DB_LoadXFileInternal()
     {
         __debugbreak();
     }
-    *(unsigned int *)magic = *(unsigned int *)g_load.stream.next_in;
-    *(unsigned int *)&magic[4] = *((unsigned int *)g_load.stream.next_in + 1);
-    g_load.stream.next_in += 8;
-    g_load.stream.avail_in -= 8;
-    if ( memcmp(magic, "IWff0100", 8u) && memcmp(magic, "IWffu100", 8u) )
+    *(unsigned int *)magicHeader = *(unsigned int *)g_load.stream.next_in;
+    *(unsigned int *)&magicHeader[4] = *((unsigned int *)g_load.stream.next_in + 1);
+    g_load.stream.next_in += sizeof(magicHeader);
+    g_load.stream.avail_in -= sizeof(magicHeader);
+    if ( memcmp(magicHeader, "IWff0100", sizeof(magicHeader)) && memcmp(magicHeader, "IWffu100", sizeof(magicHeader)) )
     {
-        //BLOPS_NULLSUB();
         Com_Error(ERR_DROP, "Fastfile for zone '%s' is corrupt or unreadable.", g_load.filename);
     }
-    if ( g_load.stream.avail_in < 4
+    if ( g_load.stream.avail_in < sizeof(fastfileVersion)
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\database\\db_file_load.cpp",
                     1787,
@@ -412,36 +408,35 @@ void __cdecl DB_LoadXFileInternal()
     {
         __debugbreak();
     }
-    version = *(unsigned int *)g_load.stream.next_in;
-    g_load.stream.next_in += 4;
-    g_load.stream.avail_in -= 4;
-    if ( version != 473 )
+    fastfileVersion = *(unsigned int *)g_load.stream.next_in;
+    g_load.stream.next_in += sizeof(fastfileVersion);
+    g_load.stream.avail_in -= sizeof(fastfileVersion);
+    if ( fastfileVersion != 473 )
     {
-        if ( version >= 0x1D9 )
+        if ( fastfileVersion >= 0x1D9 )
             Com_Error(
                 ERR_DROP,
                 "Fastfile for zone '%s' is newer than client executable (version %d, expecting %d)",
                 g_load.filename,
-                version,
+                fastfileVersion,
                 473);
         else
             Com_Error(
                 ERR_DROP,
                 "Fastfile for zone '%s' is out of date (version %d, expecting %d)",
                 g_load.filename,
-                version,
+                fastfileVersion,
                 473);
     }
-    fileIsSecure = memcmp(magic, "IWffu100", 8u) != 0;
-    err = DB_AuthLoad_InflateInit(&g_load.stream, fileIsSecure);
+    isAuthenticatedFile = memcmp(magicHeader, "IWffu100", sizeof(magicHeader)) != 0;
+    inflateInitResult = DB_AuthLoad_InflateInit(&g_load.stream, isAuthenticatedFile);
     failureReason = 0;
-    if ( fileIsSecure )
+    if ( isAuthenticatedFile )
         failureReason = "authenticated file not supported";
-    if ( err )
+    if ( inflateInitResult )
         failureReason = "init failed";
     if ( failureReason )
     {
-        //BLOPS_NULLSUB();
         DB_CancelLoadXFile();
         Com_Error(ERR_DROP, "Fastfile for zone '%s' could not be loaded (%s)", g_load.filename, failureReason);
     }
@@ -455,23 +450,23 @@ void __cdecl DB_LoadXFileInternal()
     {
         __debugbreak();
     }
-    DB_LoadXFileSetSize(36);
-    DB_LoadXFileData((unsigned __int8 *)&file, 36);
-    DB_LoadXFileSetSize(file.size);
+    DB_LoadXFileSetSize(sizeof(xfileHeader));
+    DB_LoadXFileData((unsigned __int8 *)&xfileHeader, sizeof(xfileHeader));
+    DB_LoadXFileSetSize(xfileHeader.size);
     if ( g_trackLoadProgress )
     {
-        fileSize = GetFileSize(g_load.f, 0);
-        if ( file.externalSize + fileSize >= 0x100000 )
+        compressedFileSize = GetFileSize(g_load.f, 0);
+        if ( xfileHeader.externalSize + compressedFileSize >= 0x100000 )
         {
-            g_totalSize = (fileSize + 0x3FFFF) / 0x40000 - g_loadedSize;
+            g_totalSize = (compressedFileSize + 0x3FFFF) / 0x40000 - g_loadedSize;
             g_loadedSize = 0;
-            g_totalExternalBytes = file.externalSize - g_loadedExternalBytes;
+            g_totalExternalBytes = xfileHeader.externalSize - g_loadedExternalBytes;
             g_loadedExternalBytes = 0;
         }
     }
     Com_Printf(16, "Loading fastfile '%s'\n", g_load.filename);
     tlPrintf("TLPrint: Loading fastfile '%s'\n", g_load.filename);
-    DB_AllocXBlocks(file.blockSize, g_load.filename, g_load.blocks, g_load.allocType, g_load.flags);
+    DB_AllocXBlocks(xfileHeader.blockSize, g_load.filename, g_load.blocks, g_load.allocType, g_load.flags);
     DB_InitStreams(g_load.blocks);
     Load_XAssetListCustom();
     DB_PushStreamPos(4u);
@@ -496,8 +491,8 @@ void __cdecl DB_LoadXFileInternal()
     {
         __debugbreak();
     }
-    v1 = g_totalWait;
-    Com_Printf(10, "Loaded fastfile '%s' in %ims (%dms waiting)\n", g_load.filename, Sys_Milliseconds() - g_load.startTime, v1);
+    waitTimeMs = g_totalWait;
+    Com_Printf(10, "Loaded fastfile '%s' in %ims (%dms waiting)\n", g_load.filename, Sys_Milliseconds() - g_load.startTime, waitTimeMs);
     if ( (g_load.flags & 1) != 0 )
         g_minimumFastFileLoaded = 1;
     DB_CancelLoadXFile();
@@ -506,7 +501,7 @@ void __cdecl DB_LoadXFileInternal()
 void Load_XAssetListCustom()
 {
     varXAssetList = &g_varXAssetList;
-    DB_LoadXFileData((unsigned __int8 *)&g_varXAssetList, 16);
+    DB_LoadXFileData((unsigned __int8 *)&g_varXAssetList, sizeof(g_varXAssetList));
     DB_PushStreamPos(4u);
     varScriptStringList = &varXAssetList->stringList;
     Load_ScriptStringList(0);
@@ -515,17 +510,17 @@ void Load_XAssetListCustom()
 
 void __cdecl Load_XAssetArrayCustom(int count)
 {
-    XAsset *var; // [esp+0h] [ebp-8h]
-    int i; // [esp+4h] [ebp-4h]
+    XAsset *asset; // [esp+0h] [ebp-8h]
+    int assetIndex; // [esp+4h] [ebp-4h]
 
     Load_Stream(1, (unsigned __int8 *)varXAsset, 8 * count);
-    var = varXAsset;
-    for ( i = 0; i < count; ++i )
+    asset = varXAsset;
+    for ( assetIndex = 0; assetIndex < count; ++assetIndex )
     {
-        skipShaderCreationHack = i == skipLoadingMaterialsHack;
-        varXAsset = var;
+        skipShaderCreationHack = assetIndex == skipLoadingMaterialsHack;
+        varXAsset = asset;
         Load_XAsset(0);
-        ++var;
+        ++asset;
         if ( g_load.abort )
             break;
     }

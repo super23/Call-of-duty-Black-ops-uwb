@@ -1792,7 +1792,7 @@ void __cdecl ikNormalizedMatrixAssert_func(float (*mat)[4])
                                 v1) )
                     __debugbreak();
             }
-            len = Vec3Length(&(*mat)[4 * j]);
+            len = Abs(&(*mat)[4 * j]);
             if ( fabs(1.0 - len) >= 0.0020000001 )
             {
                 v2 = va("len == %f", len);

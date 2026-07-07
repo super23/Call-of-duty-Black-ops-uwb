@@ -40,6 +40,23 @@ MantleAnimTransition s_mantleTrans[7] =
   { 7, 10, 21.0 }
 };
 
+#ifdef KISAK_SP
+// Decomp: CoDSP_rdBlackOps.map.c — verified code_post_gfx.ff (Unlinker): player_mantle_* (not mp_mantle_*).
+const char *s_mantleAnimNames[11] =
+{
+  "void",
+  "player_mantle_up_57",
+  "player_mantle_up_51",
+  "player_mantle_up_45",
+  "player_mantle_up_39",
+  "player_mantle_up_33",
+  "player_mantle_up_27",
+  "player_mantle_up_21",
+  "player_mantle_over_high",
+  "player_mantle_over_mid",
+  "player_mantle_over_low"
+};
+#else
 const char *s_mantleAnimNames[11] =
 {
   "mp_mantle_root",
@@ -52,8 +69,9 @@ const char *s_mantleAnimNames[11] =
   "mp_mantle_up_21",
   "mp_mantle_over_high",
   "mp_mantle_over_mid",
-  "player_mantle_over_low"
+  "mp_mantle_over_low"
 };
+#endif
 
 const float turretPronePitchMax = 8.0f;
 const float turretTestDist = 16.0f;
@@ -240,6 +258,7 @@ void __cdecl Mantle_Check(pmove_t *pm, pml_t *pml)
     playerState_s *ps; // [esp+88h] [ebp-4h]
     int savedregs; // [esp+8Ch] [ebp+0h] BYREF
 
+    memset(&trace, 0, 16);
     Mantle_DebugPrint("====== Mantle Debug ======");
     pm->ps->mantleState.flags &= ~0x100u;
     pm->ps->mountAvailable = 0;
@@ -317,6 +336,7 @@ void __cdecl Mount_CheckProne(pmove_t *pm)
     float traceStart[3]; // [esp+ACh] [ebp-18h] BYREF
     float traceEnd[3]; // [esp+B8h] [ebp-Ch] BYREF
 
+    memset(&trace, 0, 16);
     ps = pm->ps;
     if ( !ps && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_mantle.cpp", 543, 0, "%s", "ps") )
         __debugbreak();
@@ -392,6 +412,7 @@ char __cdecl Mantle_CheckLedge(pmove_t *pm, pml_t *pml, MantleResults *mresults,
     playerState_s *ps; // [esp+8Ch] [ebp-4h]
     int savedregs; // [esp+90h] [ebp+0h] BYREF
 
+    memset(&trace, 0, 16);
     ps = pm->ps;
     if ( !ps && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_mantle.cpp", 712, 0, "%s", "ps") )
         __debugbreak();
@@ -542,6 +563,7 @@ void __cdecl Mantle_CalcEndPos(pmove_t *pm, MantleResults *mresults)
     float maxs[3]; // [esp+80h] [ebp-10h] BYREF
     playerState_s *ps; // [esp+8Ch] [ebp-4h]
 
+    memset(&trace, 0, 16);
     ps = pm->ps;
     if ( !ps && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_mantle.cpp", 385, 0, "%s", "ps") )
         __debugbreak();
@@ -780,6 +802,7 @@ void Mount_CheckLedge(pmove_t *pm, pml_t *pml, MantleResults *mresults)
 
     //v29 = a1;
     //pm_a = (pmove_t *)ret;
+    memset(&trace, 0, 16);
     dropTraceWidth = 2.0f;
     heightTestDist = 6.0f;
     ps = pm->ps;

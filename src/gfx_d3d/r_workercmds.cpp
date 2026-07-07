@@ -18,8 +18,24 @@
 #include "r_model_lighting.h"
 #include <EffectsCore/fx_marks.h>
 #include "r_staticmodelcache.h"
+#include <Windows.h>
+#include <excpt.h>
+#include <qcommon/common.h>
 
 // probably decl'd with a macro here, but ya'know
+
+static int __cdecl R_SkinXModelCmd_Try(SkinXModelCmd *data)
+{
+    __try
+    {
+        R_SkinXModelCmd(data);
+        return 1;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        return 0;
+    }
+}
 
 volatile unsigned int fx_update_spotLimit = 1;
 jqModule fx_update_spotModule =

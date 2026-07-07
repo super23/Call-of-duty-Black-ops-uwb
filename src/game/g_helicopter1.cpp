@@ -1,10 +1,10 @@
 #include "g_helicopter1.h"
 #include <universal/com_math_anglevectors.h>
 #include <clientscript/cscr_vm.h>
-#include <game_mp/g_spawn_mp.h>
+#include <game/g_spawn_wrapper.h>
 #include <clientscript/scr_const.h>
 #include <bgame/bg_misc.h>
-#include <game_mp/g_utils_mp.h>
+#include <game/g_utils_wrapper.h>
 
 const dvar_t *vehHelicopterMaxAccelVertical;
 const dvar_t *vehHelicopterLookaheadTime;
@@ -329,6 +329,7 @@ void __cdecl VEH_CheckForPredictedCrash(gentity_s *ent)
     trace_t trace; // [esp+38h] [ebp-48h] BYREF
     float targetPos[3]; // [esp+74h] [ebp-Ch] BYREF
 
+    memset(&trace, 0, 16);
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_helicopter.cpp", 570, 0, "%s", "ent") )
         __debugbreak();
     if ( !ent->scr_vehicle
@@ -363,6 +364,7 @@ void __cdecl VEH_CheckForCrash(gentity_s *ent, float *newPosition)
     scr_vehicle_s *veh; // [esp+2Ch] [ebp-40h]
     trace_t trace; // [esp+30h] [ebp-3Ch] BYREF
 
+    memset(&trace, 0, 16);
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_helicopter.cpp", 601, 0, "%s", "ent") )
         __debugbreak();
     if ( !ent->scr_vehicle
@@ -764,7 +766,7 @@ void __cdecl VEH_UpdateClientChopper(gentity_s *ent)
     VEH_CheckForPredictedCrash(ent);
     MatrixTransposeTransformVector43(phys->vel, axis, phys->bodyVel);
     VEH_UpdateVelocityWithRotation(ent);
-    v4 = Vec3Length(phys->vel);
+    v4 = Abs(phys->vel);
     veh->speed = v4;
     if ( veh->speed < 0.0
         && !Assert_MyHandler(
@@ -1557,6 +1559,7 @@ void __cdecl VEH_UpdateClientPlane(gentity_s *ent)
     move[1] = 0;
     move[2] = 0;
     move[3] = 0;
+    memset(&trace, 0, 16);
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_helicopter.cpp", 1081, 0, "%s", "ent") )
         __debugbreak();
     if ( !ent->scr_vehicle
@@ -1665,9 +1668,9 @@ void __cdecl VEH_UpdateClientPlane(gentity_s *ent)
         if ( phys->bodyVel[0] > info->maxSpeed )
             phys->bodyVel[0] = info->maxSpeed;
         AnglesToAxis(phys->angles, axis);
-        phys->vel[0] = target_axis[0][0] * phys->bodyVel[0];
-        phys->vel[1] = target_axis[0][1] * phys->bodyVel[0];
-        phys->vel[2] = target_axis[0][2] * phys->bodyVel[0];
+        phys->vel[0] = axis[0][0] * phys->bodyVel[0];
+        phys->vel[1] = axis[0][1] * phys->bodyVel[0];
+        phys->vel[2] = axis[0][2] * phys->bodyVel[0];
         end[0] = (float)(0.5 * phys->vel[0]) + phys->origin[0];
         end[1] = (float)(0.5 * phys->vel[1]) + phys->origin[1];
         end[2] = (float)(0.5 * phys->vel[2]) + phys->origin[2];
@@ -1683,9 +1686,9 @@ void __cdecl VEH_UpdateClientPlane(gentity_s *ent)
         end[0] = (float)(0.050000001 * gravityVec[0]) + end[0];
         end[1] = (float)(0.050000001 * gravityVec[1]) + end[1];
         end[2] = (float)(0.050000001 * gravityVec[2]) + end[2];
-        upVec[0] = target_axis[2][0] * vehPlaneLiftForce->current.value;
-        upVec[1] = target_axis[2][1] * vehPlaneLiftForce->current.value;
-        upVec[2] = target_axis[2][2] * vehPlaneLiftForce->current.value;
+        upVec[0] = axis[2][0] * vehPlaneLiftForce->current.value;
+        upVec[1] = axis[2][1] * vehPlaneLiftForce->current.value;
+        upVec[2] = axis[2][2] * vehPlaneLiftForce->current.value;
         end[0] = (float)(0.050000001 * upVec[0]) + end[0];
         end[1] = (float)(0.050000001 * upVec[1]) + end[1];
         end[2] = (float)(0.050000001 * upVec[2]) + end[2];
@@ -1694,7 +1697,7 @@ void __cdecl VEH_UpdateClientPlane(gentity_s *ent)
         phys->origin[0] = end[0];
         phys->origin[1] = end[1];
         phys->origin[2] = end[2];
-        v1 = Vec3Length(phys->bodyVel);
+        v1 = Abs(phys->bodyVel);
         veh->speed = v1;
         if ( veh->speed < 0.0
             && !Assert_MyHandler(

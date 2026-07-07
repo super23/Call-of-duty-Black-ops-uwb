@@ -96,6 +96,7 @@ int __cdecl R_PickEntityBone(int traceMask, const float *org, const float *dir, 
     float yend[3]; // [esp+98h] [ebp-10h] BYREF
     unsigned __int16 hitEntId; // [esp+A4h] [ebp-4h]
 
+    memset(&trace, 0, 16);
     end[0] = (float)(262144.0 * *dir) + *org;
     end[1] = (float)(262144.0 * dir[1]) + org[1];
     end[2] = (float)(262144.0 * dir[2]) + org[2];

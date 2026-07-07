@@ -139,7 +139,11 @@ int __cdecl DDL_Converter_Versions(
     int startTime; // [esp+20h] [ebp-4h]
 
     memset((unsigned __int8 *)backupBuffer, 0, bufferSize);
-    DDL_AssociateBuffer(backupBuffer, bufferSize, ddlVersionTo);
+    // AssociateBuffer already logs if backupBuffer is too small. Do not run the
+    // converter in that case — DDL_Converter_TraverseStruct would write past
+    // the end of backupBuffer and corrupt the stack (RTC failure on return).
+    if ( !DDL_AssociateBuffer(backupBuffer, bufferSize, ddlVersionTo) )
+        return 0;
     DDL_Reset(&oldRootState, ddlVersionFrom);
     DDL_Reset(&newRootState, ddlVersionTo);
     startTime = Sys_Milliseconds();

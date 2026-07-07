@@ -7,42 +7,60 @@
 #include <qcommon/dobj_management.h>
 #include <xanim/dobj_utils.h>
 #include <EffectsCore/fx_system.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_scr_main_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <server_sp/sv_init_sp.h>
+#include <cgame_sp/cg_main_sp.h>
+#include <cgame_sp/cg_ents_sp.h>
+#include <client_sp/cl_input_sp.h>
+#include <cgame_sp/cg_servercmds_sp.h>
+#include <cgame_sp/cg_compassfriendlies_sp.h>
+#include <cgame_sp/cg_vehicles_sp.h>
+#include <client_sp/cl_ui_sp.h>
+#include <cgame_sp/cg_scoreboard_sp.h>
+#include <cgame_sp/cg_draw_sp.h>
+#include <cgame_sp/cg_animscripted_sp.h>
+#else
 #include <client_mp/cl_cgame_mp.h>
 #include <server_mp/sv_init_mp.h>
-#include <clientscript/cscr_stringlist.h>
 #include <cgame_mp/cg_main_mp.h>
+#include <cgame_mp/cg_ents_mp.h>
+#include <client_mp/cl_input_mp.h>
+#include <cgame_mp/cg_servercmds_mp.h>
+#include <cgame_mp/cg_compassfriendlies_mp.h>
+#include <cgame_mp/cg_vehicles_mp.h>
+#include <client_mp/cl_ui_mp.h>
+#include <cgame_mp/cg_scoreboard_mp.h>
+#include <cgame_mp/cg_draw_mp.h>
+#include <cgame_mp/cg_animscripted_mp.h>
+#endif
+#include <clientscript/cscr_stringlist.h>
 #include <DynEntity/DynEntity_client.h>
 #include <demo/demo_playback.h>
 #include <bgame/bg_weapons_def.h>
 #include "cg_sound.h"
 #include <sound/snd_public_async.h>
-#include <cgame_mp/cg_ents_mp.h>
-#include <client_mp/cl_input_mp.h>
 #include <sound/snd_bank.h>
 #include <bgame/bg_weapons_ammo.h>
 #include "offhandweapons.h"
-#include <cgame_mp/cg_servercmds_mp.h>
 #include "cg_camerashake.h"
-#include <cgame_mp/cg_compassfriendlies_mp.h>
 #include <gfx_d3d/r_water_sim.h>
 #include <ragdoll/ragdoll_update.h>
 #include <gfx_d3d/r_foliage.h>
+#include <cgame/cg_draw_names.h>
 #include <bgame/bg_fire.h>
 #include <universal/com_math_anglevectors.h>
 #include <client/splitscreen.h>
 #include <stringed/stringed_hooks.h>
-#include <cgame_mp/cg_vehicles_mp.h>
 #include "cg_main.h"
 #include "cg_spawn.h"
 #include "cg_bolt.h"
 #include <bgame/bg_wind.h>
-#include <client_mp/cl_ui_mp.h>
-#include <cgame_mp/cg_scoreboard_mp.h>
-#include <cgame_mp/cg_draw_mp.h>
 #include <client/cl_console.h>
-#include <cgame_mp/cg_animscripted_mp.h>
 #include <bgame/bg_mantle.h>
 #include <cgame/cg_effects_load_obj.h>
+#include <cgame/cg_weapons.h>
 
 void __cdecl CG_SetWetness(int localClientNum, int entNum, float wetness, int invert)
 {
@@ -950,6 +968,21 @@ void __cdecl CG_EntityEvent(int localClientNum, centity_s *cent, int event)
                     CG_FireWeapon(localClientNum, cent, event, scr_const.tag_flash_22, 0, &cgameGlob->nextSnap->ps, 0);
                     return;
                 case EV_BULLET_HIT:
+#ifdef KISAK_SP
+                    // Decomp: CoDSP_rdBlackOps.map.c (cg_event.cpp case 51) — script bullettracer temp ent.
+                    if ( p_nextState->eventParm
+                        || (float)(cg_tracerChance->current.value * 32768.0) > (float)rand() )
+                    {
+                        CG_SpawnTracer(
+                            localClientNum,
+                            cent->pose.origin,
+                            p_nextState->lerp.u.bulletHit.start,
+                            0,
+                            0.0,
+                            0.0);
+                    }
+                    return;
+#else
                     ByteToDir(p_nextState->eventParm, dir);
                     if (p_nextState->index.bone >= 0x100u
                         && !Assert_MyHandler(
@@ -977,7 +1010,65 @@ void __cdecl CG_EntityEvent(int localClientNum, centity_s *cent, int event)
                         0,
                         p_nextState->index.bone);
                     return;
+#endif
                 case EV_BULLET_HIT_CLIENT_SMALL:
+#ifdef KISAK_SP
+                    ByteToDir(p_nextState->eventParm, dir);
+                    if ( p_nextState->index.bone >= 0x100u
+                        && !Assert_MyHandler(
+                            "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_event.cpp",
+                            1589,
+                            0,
+                            "%s",
+                            "es->index.bone < 256"))
+                    {
+                        __debugbreak();
+                    }
+                    CG_BulletHitEvent(
+                        localClientNum,
+                        p_nextState->otherEntityNum,
+                        p_nextState->groundEntityNum,
+                        p_nextState->weapon,
+                        p_nextState->lerp.u.turret.gunAngles,
+                        cent->pose.origin,
+                        dir,
+                        dir,
+                        p_nextState->surfType,
+                        event,
+                        p_nextState->un1.scale,
+                        weaponDef->damage,
+                        0,
+                        p_nextState->index.bone);
+                    return;
+#else
+                    ByteToDir(p_nextState->eventParm, dir);
+                    if ( p_nextState->index.bone >= 0x100u
+                        && !Assert_MyHandler(
+                            "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_event.cpp",
+                            1589,
+                            0,
+                            "%s",
+                            "es->index.bone < 256"))
+                    {
+                        __debugbreak();
+                    }
+                    CG_BulletHitEvent(
+                        localClientNum,
+                        p_nextState->otherEntityNum,
+                        p_nextState->groundEntityNum,
+                        p_nextState->weapon,
+                        p_nextState->lerp.u.turret.gunAngles,
+                        cent->pose.origin,
+                        dir,
+                        dir,
+                        p_nextState->surfType,
+                        event,
+                        p_nextState->un1.scale,
+                        weaponDef->damage,
+                        0,
+                        p_nextState->index.bone);
+                    return;
+#endif
                 case EV_BULLET_HIT_CLIENT_LARGE:
                     CG_BulletHitClientEvent(
                         localClientNum,
@@ -1792,6 +1883,22 @@ void __cdecl CG_EntityEvent(int localClientNum, centity_s *cent, int event)
                         }
                     }
                     return;
+#ifdef KISAK_SP
+                case EV_PLAY_WEAPON_DEATH_EFFECTS:
+                    CG_DoPlayWeaponDeathEffects(
+                        localClientNum,
+                        p_nextState->otherEntityNum,
+                        p_nextState->weapon,
+                        p_nextState->eventParm);
+                    return;
+                case EV_PLAY_WEAPON_DAMAGE_EFFECTS:
+                    CG_DoPlayWeaponDamageEffects(
+                        localClientNum,
+                        p_nextState->otherEntityNum,
+                        p_nextState->weapon,
+                        p_nextState->eventParm);
+                    return;
+#endif
                 case EV_FACE_EVENT:
                     if (eventParm >= 12
                         && !Assert_MyHandler(
@@ -2239,13 +2346,15 @@ void __cdecl CG_DirectionalHitIndicator(int localClientNum, const entityState_s 
     {
         if ( (fullVictimEntBitArray & 1) != 0 )
         {
+            int entNum;
             slot = 0;
             for ( i = 0; i < 4; ++i )
             {
                 if ( cgameGlob->directionalHitIndicator[i].time < cgameGlob->directionalHitIndicator[slot].time )
                     slot = i;
             }
-            cent = CG_GetEntity(localClientNum, victimEntNum);
+            entNum = CG_EntityNumForClientSlot(localClientNum, cgameGlob, victimEntNum);
+            cent = CG_GetEntity(localClientNum, entNum);
             if ( !cent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_event.cpp", 372, 0, "%s", "cent") )
                 __debugbreak();
             if ( cent )
@@ -2255,7 +2364,6 @@ void __cdecl CG_DirectionalHitIndicator(int localClientNum, const entityState_s 
                 *entOrigin = cent->pose.origin[0];
                 entOrigin[1] = cent->pose.origin[1];
                 entOrigin[2] = cent->pose.origin[2];
-                cgameGlob->directionalHitIndicator[slot].entOrigin[2] = 0.0f;
             }
         }
         fullVictimEntBitArray >>= 1;

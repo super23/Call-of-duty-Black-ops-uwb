@@ -1,14 +1,22 @@
 #include "phys_auto_rigid_body.h"
 
 #include <bgame/bg_local.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_main_sp.h>
+#else
 #include <cgame_mp/cg_main_mp.h>
+#endif
 #include <qcommon/dobj_management.h>
 #include <xanim/dobj_utils.h>
 #include <xanim/xmodel_utils.h>
 #include <tl/base/tl_thread.h>
 #include "physics_system.h"
 #include <universal/com_math_anglevectors.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_ents_sp.h>
+#else
 #include <cgame_mp/cg_ents_mp.h>
+#endif
 #include "physics_system_internal.h"
 #include <tl/physics/rbc_def_vehicle.h>
 
@@ -178,28 +186,20 @@ void    auto_rigid_body::update()
 
 void __cdecl fixup_wheel_constraints_arb(auto_rigid_body *arb)
 {
-    //phys_free_list<rigid_body_constraint_wheel>::T_internal_base *wci; // [esp+Ch] [ebp-8h]
-    //phys_free_list<rigid_body_constraint_wheel> *wci_end; // [esp+10h] [ebp-4h]
-    //
-    //wci = g_physics_system->m_list_rbc_wheel.m_dummy_head.m_next_T_internal;
-    //wci_end = &g_physics_system->m_list_rbc_wheel;
-    //while ( wci_end != (phys_free_list<rigid_body_constraint_wheel> *)wci )
-    //{
-    //    if ( wci != (phys_free_list<rigid_body_constraint_wheel>::T_internal_base *)-16
-    //        && wci[2].m_next_T_internal == (phys_free_list<rigid_body_constraint_wheel>::T_internal_base *)arb->rb )
-    //    {
-    //        //rigid_body_constraint_wheel::set_no_collision((rigid_body_constraint_wheel *)&wci[2]);
-    //        ((rigid_body_constraint_wheel *)&wci[2])->set_no_collision();
-    //    }
-    //    wci = wci->m_next_T_internal;
-    //}
+    phys_free_list<rigid_body_constraint_wheel>::T_internal_base *wci; // [esp+Ch] [ebp-8h]
+    phys_free_list<rigid_body_constraint_wheel> *wci_end; // [esp+10h] [ebp-4h]
 
-    for (rigid_body_constraint_wheel *wci : g_physics_system->m_list_rbc_wheel)
+    wci = g_physics_system->m_list_rbc_wheel.m_dummy_head.m_next_T_internal;
+    wci_end = &g_physics_system->m_list_rbc_wheel;
+    while ( wci_end != (phys_free_list<rigid_body_constraint_wheel> *)wci )
     {
-        if (wci->b2 == arb->rb)
+        if ( wci != (phys_free_list<rigid_body_constraint_wheel>::T_internal_base *)-16
+            && wci[2].m_next_T_internal == (phys_free_list<rigid_body_constraint_wheel>::T_internal_base *)arb->rb )
         {
-            wci->set_no_collision();
+            //rigid_body_constraint_wheel::set_no_collision((rigid_body_constraint_wheel *)&wci[2]);
+            ((rigid_body_constraint_wheel *)&wci[2])->set_no_collision();
         }
+        wci = wci->m_next_T_internal;
     }
 }
 

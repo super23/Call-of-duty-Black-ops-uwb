@@ -1,8 +1,8 @@
 #include "turret.h"
-#include <game_mp/g_main_mp.h>
-#include <game_mp/g_utils_mp.h>
-#include <game_mp/g_misc_mp.h>
-#include <game_mp/g_spawn_mp.h>
+#include <game/g_main_wrapper.h>
+#include <game/g_utils_wrapper.h>
+#include <game/g_misc_wrapper.h>
+#include <game/g_spawn_wrapper.h>
 #include <clientscript/scr_const.h>
 #include <qcommon/dobj_management.h>
 #include <cgame/cg_drawtools.h>
@@ -14,12 +14,16 @@
 #include "g_weapon.h"
 #include "bullet.h"
 #include <clientscript/cscr_stringlist.h>
+#ifdef KISAK_SP
+#include <client_sp/g_client_sp.h>
+#else
 #include <client_mp/g_client_mp.h>
+#endif
 #include <xanim/dobj_utils.h>
 #include <clientscript/cscr_vm.h>
 #include "g_load_utils.h"
 #include <bgame/bg_weapons_def.h>
-#include <game_mp/g_combat_mp.h>
+#include <game/g_combat_wrapper.h>
 #include <xanim/xanim.h>
 #include <sound/snd_bank.h>
 
@@ -61,6 +65,19 @@ void __cdecl G_InitTurrets()
     for ( i = 0; i < 32; ++i )
         turretInfoStore[i].inuse = 0;
     level.turrets = turretInfoStore;
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (G_CanSpawnTurret)
+bool __cdecl G_CanSpawnTurret()
+{
+    int i;
+
+    for ( i = 0; i < 32; ++i )
+    {
+        if ( !turretInfoStore[i].inuse )
+            return true;
+    }
+    return false;
 }
 
 void __cdecl G_ClientStopUsingTurret(gentity_s *self)
@@ -247,6 +264,7 @@ void __cdecl G_PlayerTurretPositionAndBlend(gentity_s *ent, gentity_s *pTurretEn
     float turretAxis[4][3]; // [esp+230h] [ebp-3Ch] BYREF
     float vDelta[3]; // [esp+260h] [ebp-Ch]
 
+    memset(&trace, 0, 16);
     //col_context_t::col_context_t(&context);
     clientNum = ent->s.clientNum;
     if ( (unsigned int)clientNum >= 0x20
@@ -1146,6 +1164,7 @@ void __cdecl turret_RestoreDefaultDropPitch(gentity_s *self)
 
     numSteps = 30;
     pTurretInfo = self->pTurretInfo;
+    memset(&trace, 0, 16);
     if ( !pTurretInfo
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\turret.cpp", 2375, 0, "%s", "pTurretInfo") )
     {
@@ -2260,6 +2279,7 @@ void __cdecl turret_find_max_angles(gentity_s *pOwner, gentity_s *pTurret)
     float color[4]; // [esp+154h] [ebp-1Ch] BYREF
     float toPlayer[3]; // [esp+164h] [ebp-Ch] BYREF
 
+    memset(&tr, 0, 16);
     stepCount = 3.0f;
     dropTraceWidth = 0.25f;
     heightTestDist = 4.0f;
@@ -2750,9 +2770,8 @@ void __cdecl G_SpawnTurret(gentity_s *self, const char *weaponinfoname, SpawnVar
     turretInfo->forwardAngleDot = *((float *)&v8 + 1);
     v7 = (float)(turretInfo->forwardAngleDot * 0.017453292);
     //__libm_sse2_cos(v8);
-    //*(float *)&v7 = v7;
     v7 = cos(v7);
-    turretInfo->forwardAngleDot = *(float *)&v7;
+    turretInfo->forwardAngleDot = v7;
     if ( !spawnVar || !G_SpawnFloat(spawnVar, "toparc", "", turretInfo->arcmin) )
         turretInfo->arcmin[0] = weapDef->topArc;
     turretInfo->arcmin[0] = turretInfo->arcmin[0] * -1.0;

@@ -1,16 +1,20 @@
 #include "g_missile.h"
+#ifdef KISAK_SP
+#include <server_sp/sv_main_sp.h>
+#else
 #include <server_mp/sv_main_mp.h>
+#endif
 #include <server/sv_world.h>
-#include <game_mp/g_main_mp.h>
+#include <game/g_main_wrapper.h>
 #include <clientscript/scr_const.h>
-#include <game_mp/g_utils_mp.h>
+#include <game/g_utils_wrapper.h>
 #include <bgame/bg_misc.h>
 #include <universal/surfaceflags.h>
-#include <game_mp/g_combat_mp.h>
+#include <game/g_combat_wrapper.h>
 #include "actor_script_cmd.h"
-#include <game_mp/g_spawn_mp.h>
+#include <game/g_spawn_wrapper.h>
 #include <clientscript/cscr_vm.h>
-#include <game_mp/g_trigger_mp.h>
+#include <game/g_trigger_wrapper.h>
 #include "g_debug.h"
 #include <cstring>
 #include <glass/glass_server.h>
@@ -21,7 +25,11 @@
 #include <clientscript/cscr_stringlist.h>
 #include <server/sv_game.h>
 #include <cgame/cg_drawtools.h>
+#ifdef KISAK_SP
+#include <client_sp/g_client_sp.h>
+#else
 #include <client_mp/g_client_mp.h>
+#endif
 #include <xanim/xmodel_utils.h>
 #include <qcommon/dobj_management.h>
 #include "turret.h"
@@ -33,7 +41,66 @@ float rollFrac_0 = 0.5f;
 float grenadeRollThreshold = 30.0f;
 const float up[3] = { 0.0, 0.0, 1.0 };
 
+static int Missile_GetValidatedPlayerCorpseEntnum(int corpseIndex)
+{
+    if ( corpseIndex < 0 || corpseIndex >= 4 )
+        return -1;
+    const int e = g_scr_data.playerCorpseInfo[corpseIndex].entnum;
+    if ( e < 0 || e >= MAX_GENTITIES )
+        return -1;
+    return e;
+}
 
+static bool G_DropBomb_FloatBitsNonFinite(float x)
+{
+    return (LODWORD(x) & 0x7F800000) == 0x7F800000;
+}
+
+static void G_DropBomb_FillDirFromParentView(float *dir, const gentity_s *parent)
+{
+    if ( parent->client )
+        AngleVectors(parent->s.lerp.apos.trBase, dir, 0, 0);
+    else
+        AngleVectors(parent->r.currentAngles, dir, 0, 0);
+    if ( G_DropBomb_FloatBitsNonFinite(dir[0]) || G_DropBomb_FloatBitsNonFinite(dir[1])
+         || G_DropBomb_FloatBitsNonFinite(dir[2]) || Vec3LengthSq(dir) < 1.0e-16f )
+    {
+        dir[0] = 0.0f;
+        dir[1] = 0.0f;
+        dir[2] = -1.0f;
+    }
+}
+
+static void G_DropBomb_SanitizeAimDir(float *dir, const gentity_s *parent)
+{
+    if ( G_DropBomb_FloatBitsNonFinite(dir[0]) || G_DropBomb_FloatBitsNonFinite(dir[1])
+         || G_DropBomb_FloatBitsNonFinite(dir[2]) || Vec3LengthSq(dir) < 1.0e-16f )
+    {
+        G_DropBomb_FillDirFromParentView(dir, parent);
+    }
+}
+
+static void G_DropBomb_SanitizeSpawnPos(float *start, const gentity_s *parent)
+{
+    if ( !G_DropBomb_FloatBitsNonFinite(start[0])
+         && !G_DropBomb_FloatBitsNonFinite(start[1])
+         && !G_DropBomb_FloatBitsNonFinite(start[2]) )
+    {
+        return;
+    }
+    if ( parent )
+    {
+        start[0] = parent->r.currentOrigin[0];
+        start[1] = parent->r.currentOrigin[1];
+        start[2] = parent->r.currentOrigin[2];
+    }
+    else
+    {
+        start[0] = 0.0f;
+        start[1] = 0.0f;
+        start[2] = 0.0f;
+    }
+}
 
 struct //$60CB2C8C864AAD4BAC72BAB25E42491F // sizeof=0x380
 {                                       // XREF: .data:attrGlob/r
@@ -487,6 +554,7 @@ void    G_ExplodeMissile(gentity_s *ent)
     int *v21; // [esp+64h] [ebp-168h]
     float endpos[4]; // [esp+68h] [ebp-164h] BYREF
     float impact_normal[4]; // [esp+78h] [ebp-154h] BYREF
+    trace_t tr; // [esp+88h] [ebp-144h] BYREF
     gentity_s *groundEnt; // [esp+C0h] [ebp-10Ch]
     col_context_t explosionPos; // [esp+C4h] [ebp-108h] BYREF
     const float *normal; // [esp+104h] [ebp-C8h]
@@ -693,7 +761,7 @@ void    G_ExplodeMissile(gentity_s *ent)
                 groundEnt = &g_entities[ent->s.groundEntityNum];
                 if (groundEnt->scr_vehicle)
                 {
-                    trace_t tr; // [esp+88h] [ebp-144h] BYREF
+                    memset(&tr, 0, 16);
                     //LODWORD(impact_normal[3]) = &ent->mover.midTime;
                     //LODWORD(impact_normal[0]) = ent->item[1].clipAmmoCount ^ _mask__NegFloat_;
                     (impact_normal[0]) = -ent->item[1].clipAmmoCount;
@@ -912,6 +980,8 @@ void __cdecl G_UnlinkPlayerToRocket(gentity_s *ent)
         client = ent->parent.ent()->client;
         if ( !client && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_missile.cpp", 858, 0, "%s", "client") )
             __debugbreak();
+        // BlackOpsMP.retail.c:349765-349773 G_UnlinkPlayerToRocket — TV guided only: clear
+        // viewlocked_entNum (1148) and weapFlags 0x200 when not on turret (eFlags 0x300).
         if ( (client->ps.eFlags & 0x300) == 0 )
             client->ps.viewlocked_entNum = 1023;
         client->ps.weapFlags &= ~0x200u;
@@ -1125,6 +1195,8 @@ void __cdecl G_RunMissileInternal(gentity_s *ent)
     const WeaponDef *weapDef; // [esp+1DCh] [ebp-4h]
     int savedregs; // [esp+1E0h] [ebp+0h] BYREF
 
+    memset(&tr, 0, 16);
+    memset(&trDown, 0, 16);
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_missile.cpp", 3531, 0, "%s", "ent") )
         __debugbreak();
     if ( ent->s.eType != 4
@@ -1309,7 +1381,7 @@ void __cdecl G_RunMissileInternal(gentity_s *ent)
                     entityHandlers[ent->handler].methodOfDeath);
             if ( tr.fraction == 1.0 )
             {
-                if (Vec3Length(ent->s.lerp.pos.trDelta) != 0.0 )
+                if ( Abs(ent->s.lerp.pos.trDelta) != 0.0 )
                 {
                     ent->s.groundEntityNum = 1023;
                     if ( weapDef->weapType == WEAPTYPE_PROJECTILE
@@ -1544,6 +1616,7 @@ void    MissileImpact(gentity_s *ent, trace_t *trace, float *dir, float *endpos)
     //v88[0] = a1;
     //v88[1] = dira;
     hitClient = 0;
+    memset(&waterTrace, 0, 16);
     impactDamageDealt = 0;
     if (!ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_missile.cpp", 1187, 0, "%s", "ent"))
         __debugbreak();
@@ -1699,7 +1772,7 @@ void    MissileImpact(gentity_s *ent, trace_t *trace, float *dir, float *endpos)
                 if (LogAccuracyHit(other, v61))
                     hitClient = 1;
                 BG_EvaluateTrajectoryDelta(&ent->s.lerp.pos, level.time, velocity);
-                speed = Vec3Length(velocity);
+                speed = Abs(velocity);
                 if (speed == 0.0)
                     velocity[2] = 1.0f;
                 if (weapDef->weapType != WEAPTYPE_GRENADE && weapDef->weapType != WEAPTYPE_MINE
@@ -1904,10 +1977,11 @@ void    MissileImpact(gentity_s *ent, trace_t *trace, float *dir, float *endpos)
                             if (other->client)
                             {
                                 MapHitLocationToRagdollBoneName(hitLocation, &boneName);
-                                if (other->client->ps.pm_type == 9
-                                    && *(int *)&g_scr_data.playerCorpseInfo[1504 * other->client->ps.corpseIndex + 4] >= 0)
+                                if (other->client->ps.pm_type == 9)
                                 {
-                                    entnum = *(int*)&g_scr_data.playerCorpseInfo[1504 * other->client->ps.corpseIndex + 4];
+                                    const int ce = Missile_GetValidatedPlayerCorpseEntnum(other->client->ps.corpseIndex);
+                                    if ( ce >= 0 )
+                                        entnum = ce;
                                 }
                             }
                             else if (other->actor)
@@ -2147,7 +2221,7 @@ bool __cdecl CheckCrumpleMissile(gentity_s *ent, trace_t *trace)
         return 0;
     hitTime = level.previousTime + (int)(float)((float)(level.time - level.previousTime) * trace->fraction);
     BG_EvaluateTrajectoryDelta(&ent->s.lerp.pos, hitTime, velocity);
-    speed = Vec3Length(velocity);
+    speed = Abs(velocity);
     MIN_CRUMPLE_SPEED = 500.0f;
     if ( speed < 500.0 )
         return 0;
@@ -2197,6 +2271,7 @@ bool    BounceMissile(gentity_s *ent, trace_t *trace)
     float v37; // [esp+E8h] [ebp-104h]
     float oldCycle; // [esp+ECh] [ebp-100h]
     float wobbleFreq; // [esp+F0h] [ebp-FCh]
+    trace_t sideTrace; // [esp+F4h] [ebp-F8h] BYREF
     float *v41; // [esp+12Ch] [ebp-C0h]
     float *v42; // [esp+130h] [ebp-BCh]
     float mag; // [esp+134h] [ebp-B8h]
@@ -2232,6 +2307,7 @@ bool    BounceMissile(gentity_s *ent, trace_t *trace)
     //
     //v69 = a1;
     //enta = (gentity_s *)vars0;
+    memset(&tempTrace, 0, 16);
     if (!ent->s.weapon
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_missile.cpp", 529, 0, "%s", "ent->s.weapon"))
     {
@@ -2336,7 +2412,7 @@ bool    BounceMissile(gentity_s *ent, trace_t *trace)
         }
         if (slideDir[2] < 25.0 && trace->normal.vec.v[2] > 0.69999999)
         {
-            trace_t sideTrace; // [esp+F4h] [ebp-F8h] BYREF
+            memset(&sideTrace, 0, 16);
             wobbleFreq = slideSpeed * grenadeWobbleFreq->current.value;
             oldCycle = ent->mover.apos2[2];
             for (ent->mover.apos2[2] = (float)((float)((float)(wobbleFreq * 0.050000001) * 2.0) * 3.1415901)
@@ -2405,7 +2481,7 @@ bool    BounceMissile(gentity_s *ent, trace_t *trace)
             v24[1] = (float)(v23 * side[1]) + v22[1];
             v24[2] = (float)(v23 * side[2]) + v22[2];
         }
-        linearSpeed = Vec3Length(ent->s.lerp.pos.trDelta);
+        linearSpeed = Abs(ent->s.lerp.pos.trDelta);
         revolutions = linearSpeed / (float)((float)(3.1415901 * rollRadius) * 2.0);
         vectoangles(ent->s.lerp.pos.trDelta, targetAngles);
         ent->s.lerp.apos.trBase[1] = targetAngles[1];
@@ -2446,7 +2522,7 @@ bool    BounceMissile(gentity_s *ent, trace_t *trace)
         && (trace->normal.vec.v[2] <= 0.69999999
             || weapDef->stickiness != WEAPSTICKINESS_GROUND
             && weapDef->stickiness != WEAPSTICKINESS_GROUND_WITH_YAW
-            && grenadeRestThreshold->current.value <= Vec3Length(ent->s.lerp.pos.trDelta)))
+            && grenadeRestThreshold->current.value <= Abs(ent->s.lerp.pos.trDelta)))
     {
     LABEL_103:
         vDelta[0] = 0.1 * trace->normal.vec.v[0];
@@ -2498,7 +2574,7 @@ bool    BounceMissile(gentity_s *ent, trace_t *trace)
                 velocity[0] = ent->s.lerp.pos.trDelta[0] - velocity[0];
                 velocity[1] = ent->s.lerp.pos.trDelta[1] - velocity[1];
                 velocity[2] = ent->s.lerp.pos.trDelta[2] - velocity[2];
-                dot = Vec3Length(velocity);
+                dot = Abs(velocity);
                 return dot > 100.0;
             }
             if (weapDef->rotateType == WEAPROTATE_CYLINDER_ROTATE)
@@ -2774,7 +2850,7 @@ char __cdecl GrenadeBounceVelocity(
     float bounceFactor; // [esp+80h] [ebp-8h]
     bool shouldRoll; // [esp+87h] [ebp-1h]
 
-    bounceFactor = Vec3Length(preBounceVelocity);
+    bounceFactor = Abs(preBounceVelocity);
     if ( bounceFactor <= 0.0 || dot > 0.0 )
         goto LABEL_30;
     v12 = grenadeRollingEnabled->current.enabled && weapDef->isRollingGrenade;
@@ -2783,7 +2859,7 @@ char __cdecl GrenadeBounceVelocity(
     {
         par = weapDef->parallelBounce[surfType];
         per = weapDef->perpendicularBounce[surfType];
-        if ( weapDef->bKeepRolling && !isDud && grenadeRollThreshold > Vec3Length(pos->trDelta) )
+        if ( weapDef->bKeepRolling && !isDud && grenadeRollThreshold > Abs(pos->trDelta) )
             par = (float)(par * rollFrac_0) + par;
         tr_n = (float)((float)(pos->trDelta[0] * *normal) + (float)(pos->trDelta[1] * normal[1]))
                  + (float)(pos->trDelta[2] * normal[2]);
@@ -3066,10 +3142,11 @@ int __cdecl StickMissile(
         if ( team == ent->missile.team && !weapDef->timedDetonation && team )
             return isStuck;
         entnum = other->s.number;
-        if ( other->client->ps.pm_type == 9
-            && (int)g_scr_data.actorXAnimTrees[376 * other->client->ps.corpseIndex - 1495] >= 0 )
+        if ( other->client->ps.pm_type == 9 )
         {
-            entnum = (int)g_scr_data.actorXAnimTrees[376 * other->client->ps.corpseIndex - 1495];
+            const int ce = Missile_GetValidatedPlayerCorpseEntnum(other->client->ps.corpseIndex);
+            if ( ce >= 0 )
+                entnum = ce;
         }
         ent->flags |= 0x1000u;
         boneName = 0;
@@ -3163,7 +3240,11 @@ void __cdecl createRetrieveableProjectile(
         {
             target_ent = other;
             if (other->client->ps.pm_type == 9)
-                target_ent = (gentity_s *)((char *)sv.gentities + *(_DWORD *)&g_scr_data.playerCorpseInfo[1504 * other->client->ps.corpseIndex + 4] * sv.gentitySize);
+            {
+                const int ce = Missile_GetValidatedPlayerCorpseEntnum(other->client->ps.corpseIndex);
+                if ( ce >= 0 )
+                    target_ent = (gentity_s *)((char *)sv.gentities + ce * sv.gentitySize);
+            }
         }
         else if ( other->actor )
         {
@@ -3512,7 +3593,7 @@ void    Missile_ApplyAttractorsRepulsors(gentity_s *missile)
                     perpDir[1] = -1.0f;
                     totalDist = 0.0f;
                 }
-                force = Vec3Length(delta);
+                force = Abs(delta);
                 if (force <= attrGlob.attractors[attractorIndex].maxDist)
                 {
                     if (attrGlob.attractors[attractorIndex].maxDist <= 0.0
@@ -3810,6 +3891,7 @@ void __cdecl GuidedMissileSteering(gentity_s *ent)
     float v1; // [esp+14h] [ebp-124h]
     float value; // [esp+18h] [ebp-120h]
     gentity_s *v3; // [esp+54h] [ebp-E4h]
+    trace_t tr; // [esp+58h] [ebp-E0h] BYREF
     float v5; // [esp+94h] [ebp-A4h]
     float v6; // [esp+98h] [ebp-A0h]
     float v7; // [esp+9Ch] [ebp-9Ch]
@@ -3954,8 +4036,7 @@ void __cdecl GuidedMissileSteering(gentity_s *ent)
                 targetPos[0] = targetPos[0] + origin[0];
                 targetPos[1] = targetPos[1] + origin[1];
                 targetPos[2] = targetPos[2] + origin[2];
-
-                trace_t tr; // [esp+58h] [ebp-E0h] BYREF
+                memset(&tr, 0, 16);
                 G_LocationalTraceAllowChildren(&tr, origin, targetPos, v3->s.number, 0x280E833, 0);
                 if ( tr.fraction < 1.0 )
                     Vec3Lerp(origin, targetPos, tr.fraction, targetPos);
@@ -4823,6 +4904,7 @@ int __cdecl G_PredictMissile(gentity_s *ent, int duration, float *vLandPos, int 
     const WeaponDef *weapDef; // [esp+3B8h] [ebp-10h]
     float traceStart[3]; // [esp+3BCh] [ebp-Ch] BYREF
 
+    memset(&tr, 0, 16);
     memcpy(&pos, &ent->s.lerp.pos, sizeof(pos));
     BG_EvaluateTrajectory(&pos, level.time - 50, org);
     memcpy(&backupEnt, ent, sizeof(backupEnt));
@@ -5016,7 +5098,7 @@ void __cdecl PredictBounceMissile(
     }
     if ((ent->s.lerp.eFlags & 0x1000000) == 0)
         goto LABEL_27;
-    bounceFactor = Vec3Length(velocity);
+    bounceFactor = Abs(velocity);
     if ( bounceFactor > 0.0 && dot <= 0.0 )
     {
         dot = dot / (-(bounceFactor));
@@ -5043,7 +5125,7 @@ void __cdecl PredictBounceMissile(
         || trace->normal.vec.v[2] > 0.69999999
         && (weapDef->stickiness == WEAPSTICKINESS_GROUND
          || weapDef->stickiness == WEAPSTICKINESS_GROUND_WITH_YAW
-         || Vec3Length(pos->trDelta) < 20.0) )
+         || Abs(pos->trDelta) < 20.0) )
     {
         pos->trBase[0] = *endpos;
         pos->trBase[1] = endpos[1];
@@ -5248,6 +5330,11 @@ gentity_s *__cdecl G_FireGrenade(
 
     if ( !parent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_missile.cpp", 4297, 0, "%s", "parent") )
         __debugbreak();
+    if ( !grenadeWPID )
+    {
+        Com_PrintWarning(15, "G_FireGrenade: grenade weapon index is 0 (invalid); drop aborted.\n");
+        return NULL;
+    }
     weapDef = BG_GetWeaponDef(grenadeWPID);
     if ( !weapDef && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_missile.cpp", 4300, 0, "%s", "weapDef") )
         __debugbreak();
@@ -5270,7 +5357,7 @@ gentity_s *__cdecl G_FireGrenade(
         G_InitGrenadeMovement(grenade, start, dir, 0, weapDef->rotateType);
     if ( parent->client )
     {
-        speed = Vec3Length(dir);
+        speed = Abs(dir);
         grenade->s.lerp.u.actor.actorNum += CalcMissileNoDrawTime(speed);
     }
     InitGrenadeTimer(parent, grenade, weapDef, time);
@@ -5747,6 +5834,8 @@ gentity_s *__cdecl G_DropBomb(
         start[1] = (float)(v23 * right[1]) + start[1];
         start[2] = (float)(v23 * right[2]) + start[2];
     }
+    G_DropBomb_SanitizeAimDir(dir, parent);
+    G_DropBomb_SanitizeSpawnPos(start, parent);
     bolt = G_Spawn();
     Scr_SetString(&bolt->classname, scr_const.rocket, SCRIPTINSTANCE_SERVER);
     bolt->s.eType = ET_MISSILE;
@@ -5804,20 +5893,21 @@ gentity_s *__cdecl G_DropBomb(
     trBase[1] = start[1];
     trBase[2] = start[2];
     v16 = bolt->s.lerp.pos.trDelta;
-    bolt->s.lerp.pos.trDelta[0] = *gunVel;
-    v16[1] = gunVel[1];
-    v16[2] = gunVel[2];
-    if ( ((LODWORD(bolt->s.lerp.pos.trDelta[0]) & 0x7F800000) == 0x7F800000
-         || (LODWORD(bolt->s.lerp.pos.trDelta[1]) & 0x7F800000) == 0x7F800000
-         || (LODWORD(bolt->s.lerp.pos.trDelta[2]) & 0x7F800000) == 0x7F800000)
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_missile.cpp",
-                    4691,
-                    0,
-                    "%s",
-                    "!IS_NAN((bolt->s.lerp.pos.trDelta)[0]) && !IS_NAN((bolt->s.lerp.pos.trDelta)[1]) && !IS_NAN((bolt->s.lerp.pos.trDelta)[2])") )
     {
-        __debugbreak();
+        const float savedTrDelta0 = v16[0];
+        const float savedTrDelta1 = v16[1];
+        const float savedTrDelta2 = v16[2];
+        bolt->s.lerp.pos.trDelta[0] = *gunVel;
+        v16[1] = gunVel[1];
+        v16[2] = gunVel[2];
+        if ( ((LODWORD(bolt->s.lerp.pos.trDelta[0]) & 0x7F800000) == 0x7F800000
+             || (LODWORD(bolt->s.lerp.pos.trDelta[1]) & 0x7F800000) == 0x7F800000
+             || (LODWORD(bolt->s.lerp.pos.trDelta[2]) & 0x7F800000) == 0x7F800000) )
+        {
+            bolt->s.lerp.pos.trDelta[0] = savedTrDelta0;
+            bolt->s.lerp.pos.trDelta[1] = savedTrDelta1;
+            bolt->s.lerp.pos.trDelta[2] = savedTrDelta2;
+        }
     }
     bolt->s.lerp.pos.trDelta[0] = (float)(int)bolt->s.lerp.pos.trDelta[0];
     bolt->s.lerp.pos.trDelta[1] = (float)(int)bolt->s.lerp.pos.trDelta[1];

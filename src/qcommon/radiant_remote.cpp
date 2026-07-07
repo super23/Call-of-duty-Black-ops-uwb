@@ -1,12 +1,20 @@
 #include "radiant_remote.h"
 #include <clientscript/cscr_stringlist.h>
+#ifdef KISAK_SP
+#include <game/g_main.h>
+#include <game/g_spawn_wrapper.h>
+#include <game/actor_wrapper.h>
+#include <game/g_utils_wrapper.h>
+#include <cgame_sp/cg_local_sp.h>
+#else
 #include <game_mp/g_main_mp.h>
 #include <game_mp/g_spawn_mp.h>
 #include <game_mp/actor_mp.h>
-#include <clientscript/scr_const.h>
 #include <game_mp/g_utils_mp.h>
-#include "dobj_management.h"
 #include <cgame_mp/cg_local_mp.h>
+#endif
+#include <clientscript/scr_const.h>
+#include "dobj_management.h"
 #include <gfx_d3d/r_init.h>
 #include <universal/com_math_anglevectors.h>
 #include <gfx_d3d/r_dvars.h>

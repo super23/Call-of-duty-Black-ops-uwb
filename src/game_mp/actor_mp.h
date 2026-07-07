@@ -3,9 +3,6 @@
 #include <game/actor.h>
 #include <game/actor_fields.h>
 
-#define MAX_ACTORS 16
-#define ACTOR_STOP_TIME 500
-
 struct PhysicsInputs // sizeof=0x1C
 {                                       // XREF: Actor_PhysicsAndDodge/r
     float vVelocity[3];

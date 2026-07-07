@@ -11,6 +11,7 @@
 #include "r_debug.h"
 #include "r_buffers.h"
 #include <qcommon/threads.h>
+#include "r_singlethreaded_device_pc.h"
 #include "r_rendercmds.h"
 #include <win32/win_net.h>
 #include "r_model_lod.h"
@@ -198,7 +199,16 @@ void __cdecl R_XModelDebugBoxes(const DObj *obj, int *partBits)
     if ( boneMatrix )
     {
         boneCount = DObjNumBones(obj);
-        iassert(boneCount <= DOBJ_MAX_PARTS);
+        if ( boneCount > 160
+            && !Assert_MyHandler(
+                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_model.cpp",
+                        232,
+                        0,
+                        "%s",
+                        "boneCount <= DOBJ_MAX_PARTS") )
+        {
+            __debugbreak();
+        }
         DObjGetBoneInfo(obj, boneInfoArray);
         color[0] = 1.0f;
         color[1] = 1.0f;
@@ -286,26 +296,36 @@ void __cdecl R_XModelDebugAxes(const DObj *obj, int *partBits)
 
 void __cdecl R_LockSkinnedCache()
 {
+    int v1; // [esp+0h] [ebp-8h]
+    int semaphore; // [esp+4h] [ebp-4h]
+
     PROF_SCOPED("R_LockSkinnedCache"); // LWSS ADD
 
     iassert(!gfxBuf.skinnedCacheLockAddr);
 
     if (Sys_QueryD3DDeviceOKEvent())
     {
+        semaphore = R_AcquireDXDeviceOwnership(0);
+
         {
             PROF_SCOPED("SkinCache Frame Loop"); // LWSS ADD
             while (*frontEndDataOut->dynamicBufferCurrentFrame
                 && *frontEndDataOut->dynamicBufferCurrentFrame < frontEndDataOut->frameCount)
             {
-                NET_Sleep(1u);
+                v1 = R_ReleaseDXDeviceOwnership();
+                NET_Sleep(0);
+                if (v1)
+                    R_AcquireDXDeviceOwnership(0);
             }
         }
-
+        
         *frontEndDataOut->dynamicBufferCurrentFrame = frontEndDataOut->frameCount;
         gfxBuf.skinnedCacheLockAddr = frontEndDataOut->skinnedCacheVb->verts;
         gfxBuf.oldSkinnedCacheNormalsAddr = gfxBuf.skinnedCacheNormals[gfxBuf.skinnedCacheNormalsFrameCount & 1];
         ++gfxBuf.skinnedCacheNormalsFrameCount;
         gfxBuf.skinnedCacheNormalsAddr = gfxBuf.skinnedCacheNormals[gfxBuf.skinnedCacheNormalsFrameCount & 1];
+        if (semaphore)
+            R_ReleaseDXDeviceOwnership();
     }
 }
 

@@ -1,82 +1,91 @@
 #pragma once
+
 #include <qcommon/common.h>
 #include <qcommon/radiant_remote.h>
 #include "sentient_fields.h"
 
+// ---------------------------------------------------------------------------
+// Vehicle path node flags (spawnflags / runtime)
+// ---------------------------------------------------------------------------
+#define VEH_NODE_FLAG_PATH_NODE        0x00002   // graph vertex for VP_FindPath
+#define VEH_NODE_FLAG_SLIDE_ANGLES     0x10000   // bank from node angles vs velocity heading
+#define VEH_NODE_FLAG_SPEED_OVERRIDE   0x20000   // do not inherit speed from neighbors
+#define VEH_NODE_FLAG_LOOK_OVERRIDE    0x40000   // do not inherit lookAhead from neighbors
+#define VEH_NODE_FLAG_NO_VEHICLE       0x80000   // skip in custom-path graph expansion
+
+#define VEHICLE_MAX_NODES              2000
+#define VEHICLE_MAX_NODE_LINKS         2000
+#define VEHICLE_MAX_CUSTOM_PATH_LEN    128
+
+// Spline chain segment (G_SetupSplinePaths): target / target2 links, dir/length to next node.
 struct vehicle_spline_node_t // sizeof=0x14
-{                                       // XREF: $D7144489F720B3BEDA1018D511D72833/r
+{
     __int16 nextIdx;
     __int16 prevIdx;
     float length;
     float dir[3];
 };
 
+// Alternate union view of the tail of vehicle_node_t (not used by current setup code).
 struct vehicle_path_node_t // sizeof=0x8
-{                                       // XREF: $D7144489F720B3BEDA1018D511D72833/r
+{
     __int16 numLinks;
     __int16 firstLinkIndex;
     float radius;
 };
 
+// Directed edge in the path graph (G_ConnectVehiclePaths -> s_node_links[]).
+// For graph nodes: splineNode.prevIdx = index of first link, splineNode.nextIdx = link count.
 struct vehicle_path_node_link_t // sizeof=0x14
-{                                       // XREF: .data:s_node_links/r
-    __int16 nextIdx;                    // XREF: VP_FindPath(float const * const,float const * const,vehicle_pathpos_t &)+3DC/r
-                                        // VP_FindPath(float const * const,float const * const,vehicle_pathpos_t &)+556/r ...
-    // padding byte
-    // padding byte
-    float length;                       // XREF: VP_FindPath(float const * const,float const * const,vehicle_pathpos_t &)+828/r
-    float dir[3];                       // XREF: VP_FindPath(float const * const,float const * const,vehicle_pathpos_t &)+595/o
+{
+    __int16 nextIdx;
+    // 2 bytes padding
+    float length;
+    float dir[3];
 };
 
 struct vehicle_node_t // sizeof=0x44
-{                                       // XREF: .data:s_nodes/r
-                                        // vehicle_pathpos_t/r ...
-    unsigned __int16 name;              // XREF: G_FindVehicleNode(SpawnVar const *)+C0/r
-    unsigned __int16 target;            // XREF: G_SetupSplinePaths(void)+C2/r
-                                        // G_FindVehicleNode(SpawnVar const *)+E3/r
-    unsigned __int16 target2;           // XREF: G_FindVehicleNode(SpawnVar const *)+106/r
-    unsigned __int16 script_linkname;   // XREF: G_FindVehicleNode(SpawnVar const *)+129/r
-    unsigned __int16 script_noteworthy; // XREF: G_FindVehicleNode(SpawnVar const *)+14C/r
+{
+    unsigned __int16 name;
+    unsigned __int16 target;
+    unsigned __int16 target2;
+    unsigned __int16 script_linkname;
+    unsigned __int16 script_noteworthy;
     __int16 index;
-    int flags;                          // XREF: VP_FindPath(float const * const,float const * const,vehicle_pathpos_t &)+7D7/r
-    float speed;                        // XREF: VP_GetSpeed+85/r
-    float lookAhead;                    // XREF: VP_GetLookAhead+88/r
-    float origin[3];                    // XREF: VP_FindPath(float const * const,float const * const,vehicle_pathpos_t &)+8F/o
-                                        // VP_FindPath(float const * const,float const * const,vehicle_pathpos_t &)+9D/o ...
+    int flags;
+    float speed;
+    float lookAhead;
+    float origin[3];
     float angles[3];
-    //$D7144489F720B3BEDA1018D511D72833 ___u11;
-    union // union $D7144489F720B3BEDA1018D511D72833 // sizeof=0x14
-    {                                       // XREF: VP_FindPath(float const * const,float const * const,vehicle_pathpos_t &)+34D/r
+    union
+    {
         vehicle_spline_node_t splineNode;
         vehicle_path_node_t pathNode;
     };
 };
 
+// Custom A* path: parallel node order and s_node_links indices.
 struct __declspec(align(2)) vehicle_custom_path_t // sizeof=0x202
-{                                       // XREF: .data:vehicle_custom_path_t * gCustomPaths/r
+{
     __int16 pathOrder[128];
     __int16 pathLinkIdx[128];
-    unsigned __int8 inUse;              // XREF: VP_GetFreeCustomPath(void)+39/w
-                                        // VP_GetFreeCustomPath(void)+63/r ...
-    // padding byte
+    unsigned __int8 inUse;
+    // 1 byte padding
 };
 
+// Runtime position along spline or custom path (first member of scr_vehicle_s::pathPos).
 struct vehicle_pathpos_t // sizeof=0xDC
-{                                       // XREF: scr_vehicle_s/r
-                                        // VehiclePhysicsBackup/r ...
-    __int16 nodeIdx;                    // XREF: VP_DrawPath(vehicle_pathpos_t const *)+81/r
+{
+    __int16 nodeIdx;
     __int16 lastNodeIdx;
-    __int16 endOfPath;                  // XREF: VP_DrawPath(vehicle_pathpos_t const *)+C6/r
-    // padding byte
-    // padding byte
+    __int16 endOfPath;
+    // 2 bytes padding
     float frac;
     float speed;
     float lookAhead;
     float slide;
-    float origin[3];                    // XREF: CMD_VEH_GetAttachPos(scr_entref_t)+99/r
-                                        // CMD_VEH_GetAttachPos(scr_entref_t)+A9/r ...
-    float angles[3];                    // XREF: CMD_VEH_GetAttachPos(scr_entref_t)+C9/r
-                                        // CMD_VEH_GetAttachPos(scr_entref_t)+D9/r ...
+    float origin[3];
+    float angles[3];
     float lookPos[3];
     vehicle_node_t switchNode[2];
     int flags;
@@ -86,15 +95,13 @@ struct vehicle_pathpos_t // sizeof=0xDC
 };
 
 struct __declspec(align(4)) vn_field_t // sizeof=0x14
-{                                       // XREF: .data:vn_fields/r
+{
     const char *name;
     int ofs;
     int size[1];
     fieldtype_t type;
     bool writable;
-    // padding byte
-    // padding byte
-    // padding byte
+    // 3 bytes padding
 };
 
 void __cdecl VP_ResetLinks();
@@ -146,9 +153,13 @@ void __cdecl G_ClearSelectedVehicleNode();
 void __cdecl G_ProcessVehicleNodeCommand(const RadiantCommand *command, SpawnVar *spawnVar);
 unsigned __int16 __cdecl GScr_GetVehicleNodeIndex(unsigned int index);
 void __cdecl GScr_AddFieldsForVehicleNode();
+bool __cdecl GScr_VehicleNodeHasSpawnFlag(unsigned int entnum, unsigned int flag);
 void __cdecl GScr_GetVehicleNodeField(unsigned int entnum, unsigned int offset);
+void __cdecl GScr_SetVehicleNodeField(unsigned int entnum, unsigned int offset);
 void __cdecl GScr_GetVehicleNode();
+void __cdecl GScr_GetVehicleNodeArray();
+void __cdecl GScr_GetAllVehicleNodes();
+void __cdecl GScr_SetVehicleNodeEnabled();
 void __cdecl G_SpawnHeliHeightLock(SpawnVar *spawnVar);
-
 
 extern int num_heli_height_lock_patches;

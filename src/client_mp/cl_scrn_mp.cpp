@@ -18,6 +18,7 @@
 #include <cgame/cg_compass.h>
 #include <bgame/bg_misc.h>
 #include <ui_mp/ui_main_mp.h>
+#include <gfx_d3d/r_singlethreaded_device_pc.h>
 #include <qcommon/threads.h>
 #include <win32/win_main.h>
 #include <sound/snd_public_async.h>
@@ -436,8 +437,15 @@ void    SCR_UpdateScreen()
 
     if ( !updateScreenCalled && !SCR_ShouldSkipUpdateScreen() )
     {
+#ifdef KISAK_DW
+        int semaphore = R_AcquireDXDeviceOwnership(r_PumpDemonware);
+#else
+        int semaphore = R_AcquireDXDeviceOwnership(NULL);
+#endif 
         if ( Sys_QueryD3DDeviceOKEvent() )
         {
+            if ( semaphore )
+                R_ReleaseDXDeviceOwnership();
             if ( CL_GetLocalClientConnectionState(0) == 8 )
                 Sys_LoadingKeepAlive();
             shouldSkipRender = com_errorEntered;
@@ -454,6 +462,10 @@ void    SCR_UpdateScreen()
                 SCR_UpdateFrame();
                 updateScreenCalled = 0;
             }
+        }
+        else if ( semaphore )
+        {
+            R_ReleaseDXDeviceOwnership();
         }
     }
 }

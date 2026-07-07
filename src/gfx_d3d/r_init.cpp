@@ -7,6 +7,7 @@
 #include "rb_backend.h"
 #include "r_dvars.h"
 #include <database/db_registry.h>
+#include "r_singlethreaded_device_pc.h"
 #include "rb_logfile.h"
 #include "r_buffers.h"
 #include "r_rendertarget.h"
@@ -190,8 +191,10 @@ void __cdecl R_ReleaseForShutdownOrReset()
     IDirect3DSurface9 *var; // [esp+10h] [ebp-14h]
     IDirect3DSwapChain9 *varCopy; // [esp+14h] [ebp-10h]
     unsigned int fenceIter; // [esp+18h] [ebp-Ch]
+    int semaphore; // [esp+1Ch] [ebp-8h]
     int windowIndex; // [esp+20h] [ebp-4h]
 
+    semaphore = R_AcquireDXDeviceOwnership(0);
     for (windowIndex = 0; windowIndex < dx.windowCount; ++windowIndex)
     {
         do
@@ -237,7 +240,7 @@ void __cdecl R_ReleaseForShutdownOrReset()
                 1392);
         } while (alwaysfails);
     }
-    for (fenceIter = 0; fenceIter < ARRAY_COUNT(dx.fencePool); ++fenceIter)
+    for (fenceIter = 0; fenceIter < 8; ++fenceIter)
     {
         if (dx.fencePool[fenceIter])
         {
@@ -255,13 +258,11 @@ void __cdecl R_ReleaseForShutdownOrReset()
             } while (alwaysfails);
         }
     }
-
-    for (gpuIdx = 0; gpuIdx < ARRAY_COUNT(dx.swapFence); ++gpuIdx)
+    for (gpuIdx = 0; gpuIdx < 4; ++gpuIdx)
     {
         if (dx.swapFence[gpuIdx])
-            dx.swapFence[gpuIdx] = NULL;
+            dx.swapFence[gpuIdx] = 0;
     }
-
     RB_FreeSuperFlareQueries();
     RB_FreeSunSpriteQueries();
     RB_FreeCoronaSpriteQueries();
@@ -283,6 +284,8 @@ void __cdecl R_ReleaseForShutdownOrReset()
             } while (alwaysfails);
         }
     }
+    if (semaphore)
+        R_AcquireDXDeviceOwnership(0);
 }
 
 void __cdecl R_UpdateGpuSyncType()
@@ -328,15 +331,9 @@ char __cdecl R_CreateDevice(const GfxWindowParms *wndParms)
     }
     dx.depthStencilFormat = (D3DFORMAT)R_GetDepthStencilFormat(D3DFMT_A8R8G8B8);
     R_SetD3DPresentParameters(&d3dpp, wndParms);
-    // LWSS: r_multithreaded_device is latched; apply any pending value here, at the
-    // one place behavior flags can actually change (device CREATION — a Reset keeps
-    // the old flags, so the resize path must NOT make it current).
-    Dvar_MakeLatchedValueCurrent((dvar_s*)r_multithreaded_device);
-    behavior = D3DCREATE_HARDWARE_VERTEXPROCESSING;
-
+    behavior = 64;
     if (r_multithreaded_device->current.enabled)
-        behavior |= D3DCREATE_MULTITHREADED;
-
+        behavior |= 4u;
     hr = R_CreateDeviceInternal(hwnd, behavior, &d3dpp);
     if (hr >= 0)
     {
@@ -874,6 +871,7 @@ void __cdecl R_InitThreads()
 
 void __cdecl R_Init()
 {
+    int semaphore; // [esp+0h] [ebp-4h]
 
     Com_Printf(8, "----- R_Init -----\n");
     r_glob.remoteScreenLastSceneResolveTarget = 0;
@@ -884,12 +882,15 @@ void __cdecl R_Init()
     R_InitGraphicsApi();
     RB_RegisterBackendAssets();
     R_InitWater();
+    semaphore = R_AcquireDXDeviceOwnership(0);
     dx.sunSpriteSamples = RB_CalcSunSpriteSamples();
     if ( !dx.sunSpriteSamples )
     {
         Com_Printf(8, "Sun sprite occlusion query calibration failed; reverting to low-quality sun visibility test");
         RB_FreeSunSpriteQueries();
     }
+    if ( semaphore )
+        R_ReleaseDXDeviceOwnership();
 }
 
 void R_InitGraphicsApi()
@@ -1335,8 +1336,11 @@ char __cdecl R_InitHardware(const GfxWindowParms *wndParms)
     unsigned int nvInitialized; // ecx
     int v3; // [esp+0h] [ebp-3Ch]
     unsigned int numAFRGroups; // [esp+4h] [ebp-38h]
+    int v5; // [esp+Ch] [ebp-30h]
+    int v6; // [esp+10h] [ebp-2Ch]
     int count; // [esp+14h] [ebp-28h]
     NV_GET_CURRENT_SLI_STATE sliState; // [esp+18h] [ebp-24h] BYREF
+    int semaphore; // [esp+34h] [ebp-8h]
     bool failed; // [esp+3Bh] [ebp-1h]
 
     if ( !R_CreateDevice(wndParms) )
@@ -1386,14 +1390,23 @@ char __cdecl R_InitHardware(const GfxWindowParms *wndParms)
     R_StoreWindowSettings(wndParms);
     RB_InitSceneViewport();
     //BLOPS_NULLSUB();
+    semaphore = R_AcquireDXDeviceOwnership(0);
     failed = R_CreateForInitOrReset() == 0;
+    if ( semaphore )
+        R_ReleaseDXDeviceOwnership();
     if ( failed )
         return 0;
     Com_Printf(8, "Setting initial state...\n");
+    v6 = R_AcquireDXDeviceOwnership(0);
     RB_SetInitialState();
+    if ( v6 )
+        R_ReleaseDXDeviceOwnership();
     R_InitGamma();
     R_InitScene();
+    v5 = R_AcquireDXDeviceOwnership(0);
     R_InitSystems();
+    if ( v5 )
+        R_ReleaseDXDeviceOwnership();
     //BLOPS_NULLSUB();
     R_FinishAttachingToWindow(wndParms);
     return 1;
@@ -1421,6 +1434,7 @@ char __cdecl R_CreateForInitOrReset()
     int gpuIdx; // [esp+8h] [ebp-10h]
     int hr; // [esp+Ch] [ebp-Ch]
     unsigned int fenceIter; // [esp+10h] [ebp-8h]
+    int semaphore; // [esp+14h] [ebp-4h]
 
     Com_Printf(8, "Initializing render targets...\n");
     R_InitRenderTargets();
@@ -1444,6 +1458,7 @@ char __cdecl R_CreateForInitOrReset()
     Com_Printf(8, "Creating Direct3D queries...\n");
     dx.nextFence = 0;
 
+    semaphore = R_AcquireDXDeviceOwnership(0);
 
     //hr = dx.device->CreateQuery(D3DQUERYTYPE_EVENT, &dx.gpuSyncDelay);
     hr = dx.device->CreateQuery(D3DQUERYTYPE_EVENT, &dx.flushGpuQuery);
@@ -1456,6 +1471,8 @@ char __cdecl R_CreateForInitOrReset()
             iassert(hr >= 0); // LWSS ADD
         }
             
+        if ( semaphore )
+            R_ReleaseDXDeviceOwnership();
         if ( !g_allocateMinimalResources )
         {
             RB_AllocSunSpriteQueries();
@@ -1480,6 +1497,7 @@ IDirect3DQuery9 *__cdecl RB_HW_AllocOcclusionQuery()
     int hr; // [esp+0h] [ebp-8h]
     IDirect3DQuery9 *query; // [esp+4h] [ebp-4h] BYREF
 
+    R_AssertDXDeviceOwnership();
 
     hr = dx.device->CreateQuery(D3DQUERYTYPE_OCCLUSION, &query);
     //hr = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, int, IDirect3DQuery9 **))dx.device->CreateQuery)(
@@ -1636,10 +1654,12 @@ void __cdecl R_ShutdownStreams()
 
 void __cdecl R_ShutdownInternal()
 {
+    int semaphore; // [esp+0h] [ebp-4h]
 
     if ( rg.registered )
     {
         R_SyncRenderThread();
+        semaphore = R_AcquireDXDeviceOwnership(0);
         rg.registered = 0;
         Sys_ClearRGRegisteredEvent();
         r_glob.startedRenderThread = 0;
@@ -1671,6 +1691,8 @@ void __cdecl R_ShutdownInternal()
             R_ShutdownDirect3D();
             R_ShutdownRenderCommands();
         }
+        if ( semaphore )
+            R_ReleaseDXDeviceOwnership();
         R_UnregisterCmds();
     }
 }
@@ -1703,6 +1725,7 @@ void R_ShutdownDirect3DInternal()
             DestroyWindow(dx.windows[dx.windowCount].hwnd);
         dx.windows[dx.windowCount].hwnd = 0;
     }
+    R_AssertDXDeviceOwnership();
     if (dx.device)
     {
         NvAPI_Stereo_DestroyHandle(dx.nvStereoHandle);
@@ -1848,22 +1871,34 @@ void __cdecl R_ConfigureRenderer(const GfxConfiguration *config)
 
 char __cdecl R_ReleaseLostDeviceAssets2()
 {
+    int unitScaleValue; // [esp+0h] [ebp-Ch]
+    int v2; // [esp+4h] [ebp-8h]
+    int semaphore; // [esp+8h] [ebp-4h]
 
+    semaphore = R_ReleaseDXDeviceOwnership();
     while ( !R_FinishedFrontendWorkerCmds() )
         NET_Sleep(1u);
+    if ( semaphore )
+        R_AcquireDXDeviceOwnership(0);
     yuv_lost_device();
     Com_Printf(8, " - R_Cinematic_BeginLostDevice()...\n");
     R_Cinematic_BeginLostDevice();
     Com_Printf(8, "DB_BeginRecoverLostDevice()...\n");
+    v2 = R_ReleaseDXDeviceOwnership();
     while ( !Sys_IsDatabaseReady() )
     {
         if ( r_glob.isRenderingRemoteUpdate )
             Sys_LeaveCriticalSection(CRITSECT_DBHASH);
+        unitScaleValue = R_AcquireDXDeviceOwnership(0);
         RB_Resource_Update(5);
+        if ( unitScaleValue )
+            R_ReleaseDXDeviceOwnership();
         NET_Sleep(1u);
         if ( r_glob.isRenderingRemoteUpdate )
             Sys_EnterCriticalSection(CRITSECT_DBHASH);
     }
+    if ( v2 )
+        R_AcquireDXDeviceOwnership(0);
     DB_BeginRecoverLostDevice();
     Com_Printf(8, "R_ResetModelLighting()...\n");
     R_ResetModelLighting();
@@ -1954,6 +1989,7 @@ char __cdecl R_ResetDevice()
 void __cdecl R_ComErrorCleanup()
 {
     const char *v1; // eax
+    int semaphore; // [esp+0h] [ebp-8h]
     int hr; // [esp+4h] [ebp-4h]
 
     if (!Sys_IsMainThread()
@@ -1965,9 +2001,13 @@ void __cdecl R_ComErrorCleanup()
     R_SyncRenderThread();
     if (dx.inScene)
     {
+        R_AssertDXDeviceOwnership();
         if (r_logFile && r_logFile->current.integer)
             RB_LogPrint("dx.device->EndScene()\n");
+        semaphore = R_AcquireDXDeviceOwnership(0);
         hr = dx.device->EndScene();
+        if (semaphore)
+            R_ReleaseDXDeviceOwnership();
         if (hr < 0)
         {
             ++g_disableRendering;

@@ -3,54 +3,45 @@
 #include <ui/ui_main.h>
 #include <qcommon/com_clients.h>
 #include "cl_main.h"
+#include <client/client_limits.h>
 
-// This is used as a generic "Return 1" function
 int __cdecl CL_LocalClient_GetActiveCount()
 {
-    return 1;
+    int activeCount;
+    int localClientNum;
+
+    activeCount = 0;
+    for ( localClientNum = 0; localClientNum < MAX_LOCAL_CLIENTS; ++localClientNum )
+    {
+        if ( CL_LocalClient_IsActive(localClientNum) )
+            ++activeCount;
+    }
+    return activeCount;
 }
 
 char __cdecl CL_LocalClient_IsActive(int localClientNum)
 {
-    if ( localClientNum
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\client\\splitscreen.cpp",
-                    53,
-                    0,
-                    "%s\n\t(localClientNum) = %i",
-                    "(localClientNum >= 0 && localClientNum < 1)",
-                    localClientNum) )
-    {
-        __debugbreak();
-    }
-    return 1;
+    if ( !Com_IsValidLocalClientNum(localClientNum) )
+        return 0;
+    return (clientUIActives[localClientNum].flags & 1) != 0;
 }
 
 char __cdecl CL_LocalClient_IsFirstActive(int localClientNum)
 {
-    if ( localClientNum
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\client\\splitscreen.cpp",
-                    64,
-                    0,
-                    "%s\n\t(localClientNum) = %i",
-                    "(localClientNum >= 0 && localClientNum < 1)",
-                    localClientNum) )
-    {
-        __debugbreak();
-    }
-    return 1;
+    if ( !Com_IsValidLocalClientNum(localClientNum) )
+        return 0;
+    return localClientNum == 0;
 }
 
 char __cdecl CL_AllLocalClientsDisconnected()
 {
-    int client; // [esp+0h] [ebp-4h]
+    int client;
 
     if ( UI_IsFullscreen(0) )
         return 1;
-    for ( client = 0; client < 1; ++client )
+    for ( client = 0; client < MAX_LOCAL_CLIENTS; ++client )
     {
-        if (CL_LocalClient_IsActive(client) && clientUIActives[client].connectionState >= CA_CONNECTING)
+        if ( CL_LocalClient_IsActive(client) && clientUIActives[client].connectionState >= CA_CONNECTING )
             return 0;
     }
     return 1;
@@ -58,11 +49,11 @@ char __cdecl CL_AllLocalClientsDisconnected()
 
 char __cdecl CL_AnyLocalClientStateActive()
 {
-    int localClientNum; // [esp+0h] [ebp-4h]
+    int localClientNum;
 
-    for ( localClientNum = 0; localClientNum < 1; ++localClientNum )
+    for ( localClientNum = 0; localClientNum < MAX_LOCAL_CLIENTS; ++localClientNum )
     {
-        if (CL_LocalClient_IsActive(localClientNum) && clientUIActives[localClientNum].connectionState == CA_ACTIVE)
+        if ( CL_LocalClient_IsActive(localClientNum) && clientUIActives[localClientNum].connectionState == CA_ACTIVE )
             return 1;
     }
     return 0;
@@ -70,11 +61,11 @@ char __cdecl CL_AnyLocalClientStateActive()
 
 char __cdecl CL_AnyLocalClientChallenging()
 {
-    int localClientNum; // [esp+0h] [ebp-4h]
+    int localClientNum;
 
-    for ( localClientNum = 0; localClientNum < 1; ++localClientNum )
+    for ( localClientNum = 0; localClientNum < MAX_LOCAL_CLIENTS; ++localClientNum )
     {
-        if (CL_LocalClient_IsActive(localClientNum) && clientUIActives[localClientNum].connectionState == CA_CHALLENGING)
+        if ( CL_LocalClient_IsActive(localClientNum) && clientUIActives[localClientNum].connectionState == CA_CHALLENGING )
             return 1;
     }
     return 0;
@@ -82,28 +73,22 @@ char __cdecl CL_AnyLocalClientChallenging()
 
 void __cdecl CL_LocalClients_SetAllUsedActive()
 {
-    int localClientNum; // [esp+0h] [ebp-4h]
+    int localClientNum;
+    bool beingUsed;
 
-    for ( localClientNum = 0; localClientNum < 1; ++localClientNum )
+    for ( localClientNum = 0; localClientNum < MAX_LOCAL_CLIENTS; ++localClientNum )
     {
-        Com_LocalClient_IsBeingUsed(localClientNum);
-        //BLOPS_NULLSUB();
+        beingUsed = Com_LocalClient_IsBeingUsed(localClientNum);
+        if ( beingUsed )
+            clientUIActives[localClientNum].flags |= 1u;
+        else
+            clientUIActives[localClientNum].flags &= ~1u;
     }
 }
 
 int __cdecl CL_LocalActiveIndexFromClientNum(int localClientNum)
 {
-    if ( localClientNum
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\client\\splitscreen.cpp",
-                    394,
-                    0,
-                    "%s\n\t(localClientNum) = %i",
-                    "(localClientNum >= 0 && localClientNum < 1)",
-                    localClientNum) )
-    {
-        __debugbreak();
-    }
+    (void)localClientNum;
     return 0;
 }
 
@@ -113,3 +98,12 @@ const char *__cdecl CL_ControllerIndex_GetUsername()
     return name->current.string;
 }
 
+char __cdecl CL_IsSplitScreen()
+{
+    return CL_LocalClient_GetActiveCount() > 1 && CL_AnyLocalClientStateActive();
+}
+
+char __cdecl CL_IsRenderingSplitScreen()
+{
+    return CL_IsSplitScreen();
+}

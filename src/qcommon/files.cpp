@@ -540,10 +540,10 @@ FS_SERVER_COMPARE_RESULT __cdecl FS_CompareFFs(char *neededFFs, int len, int dls
         fileSize = DB_FileSize(ffName, FFD_DEFAULT);
         if ( !fileSize )
         {
-            v5 = fs_usermapDir && *(_BYTE *)fs_usermapDir->current.integer;
+            v5 = fs_usermapDir && fs_usermapDir->current.string[0];
             if ( !v5 || I_strnicmp(fs_serverReferencedFFNames[i], "usermaps", 8) )
             {
-                v4 = fs_gameDirVar && *(_BYTE *)fs_gameDirVar->current.integer;
+                v4 = fs_gameDirVar && fs_gameDirVar->current.string[0];
                 if ( !v4 || I_strnicmp(fs_serverReferencedFFNames[i], "mods", 4) )
                 {
                     ffName = fs_serverReferencedFFNames[i];
@@ -717,7 +717,7 @@ void __cdecl FS_ReferencedIwds(const char **checksums, const char **names)
         I_strncat(info8, 0x4000, "/");
         I_strncat(info8, 0x4000, iwd->iwdBasename);
     }
-    if ( *(_BYTE *)fs_gameDirVar->current.integer )
+    if ( fs_gameDirVar && fs_gameDirVar->current.string[0] )
     {
         for ( search = fs_searchpaths; search; search = search->next )
         {

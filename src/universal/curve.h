@@ -69,6 +69,7 @@ struct cCurve // sizeof=0xE58
     static int CurveSortCompare(const float *e1, const float *e2);
 
     void Reset();
+    void ResetCurve();
     void Reinit();
     void AddNode(float *p);
     void AddNode(float *p, float timePeriod);
@@ -82,6 +83,8 @@ struct cCurve // sizeof=0xE58
     void Smooth();
     void Constrain();
     void GetPos(float t, float *p);
+    void GetCurClientPos(float *pos);
+    void GetCurServerPos(float *pos);
     double GetLength();
     void SetDraw(const float *userColor);
 };

@@ -1,12 +1,20 @@
 #include "g_client_fields.h"
+#include <stddef.h>
 #include <clientscript/cscr_vm.h>
 #include <clientscript/scr_const.h>
 #include <clientscript/cscr_stringlist.h>
+#ifdef KISAK_SP
+#include <game/g_main_sp.h>
+#include <client_sp/g_client_sp.h>
+#include <server_sp/sv_init_sp.h>
+#include <cgame_sp/cg_scr_main_sp.h>
+#else
 #include <client_mp/g_client_mp.h>
-#include <universal/surfaceflags.h>
 #include <server_mp/sv_init_mp.h>
 #include <cgame_mp/cg_scr_main_mp.h>
-#include <game_mp/g_spawn_mp.h>
+#endif
+#include <universal/surfaceflags.h>
+#include <game/g_spawn_wrapper.h>
 
 const char *g_scoreboardColumnNames[18] =
 {
@@ -51,7 +59,11 @@ const client_fields_s fields[42] =
     ClientScr_GetFFATeam
   },
   { "name", 0, { 0 }, F_LSTRING, 0u, ClientScr_ReadOnly, ClientScr_GetName },
+#ifdef KISAK_SP
+  { "maxhealth", offsetof(gclient_s, sess.maxHealth), { 4 }, F_INT, 0u, ClientScr_SetMaxHealth, NULL },
+#else
   { "maxhealth", 10068, { 4 }, F_INT, 0u, ClientScr_SetMaxHealth, NULL },
+#endif
   {
     "headiconteam",
     0,
@@ -385,14 +397,23 @@ void __cdecl ClientScr_SetSessionState(gclient_s *pSelf, const client_fields_s *
     if ( newState == scr_const.playing )
     {
         pSelf->sess.sessionState = SESS_STATE_PLAYING;
+#ifdef KISAK_SP
+        pSelf->flags &= ~CLIENT_FLAG_SCRIPT_SPECTATOR;
+#endif
     }
     else if ( newState == scr_const.dead )
     {
         pSelf->sess.sessionState = SESS_STATE_DEAD;
+#ifdef KISAK_SP
+        pSelf->flags &= ~CLIENT_FLAG_SCRIPT_SPECTATOR;
+#endif
     }
     else if ( newState == scr_const.spectator )
     {
         pSelf->sess.sessionState = SESS_STATE_SPECTATOR;
+#ifdef KISAK_SP
+        pSelf->flags |= CLIENT_FLAG_SCRIPT_SPECTATOR;
+#endif
     }
     else if ( newState == scr_const.intermission )
     {
@@ -469,6 +490,9 @@ void __cdecl ClientScr_SetMaxHealth(gclient_s *pSelf, const client_fields_s *__f
     if ( pSelf->ps.stats[0] > pSelf->sess.maxHealth )
         pSelf->ps.stats[0] = pSelf->sess.maxHealth;
     g_entities[pSelf - level.clients].health = pSelf->ps.stats[0];
+#ifdef KISAK_SP
+    g_entities[pSelf - level.clients].maxHealth = pSelf->sess.maxHealth;
+#endif
     pSelf->ps.stats[2] = pSelf->sess.maxHealth;
 }
 

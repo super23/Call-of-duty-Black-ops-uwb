@@ -6,6 +6,9 @@
 #include "snd_log.h"
 #include <qcommon/common.h>
 #include "snd_db.h"
+#include "snd_dvar.h"
+#include <universal/com_files.h>
+#include <qcommon/threads.h>
 
 SndBank *g_snd_banks[SND_MAX_BANKS];
 unsigned int g_snd_bankCount;
@@ -40,7 +43,74 @@ const char *SND_TABLE_NAMES[9] =
 
 unsigned int SND_METADATA_FIELD_COUNT[9] = { 53u, 6u, 18u, 8u, 1u, 73u, 9u, 17u, 37u };
 
+static FsThread __cdecl SND_TouchFsThread()
+{
+    if ( Sys_IsDatabaseThread() )
+        return FS_THREAD_DATABASE;
+    if ( Sys_IsMainThread() )
+        return FS_THREAD_MAIN;
+    if ( Sys_IsStreamThread() )
+        return FS_THREAD_STREAM;
+    return FS_THREAD_DATABASE;
+}
 
+// Optional codsrc touch path (guarded by snd_touchStreamFilesOnLoad, default off in retail).
+// CoDMPServer.c:806993 — snd_touchStreamFilesOnLoad defaults to 0; v1.0 SND_AddBank (800858) does not call this.
+static void __cdecl SND_TouchStreamFilesInBank(SndBank *bank)
+{
+    unsigned int listIndex;
+    unsigned int aliasIndex;
+    char filename[256];
+    int fileHandle;
+    FsThread fsThread;
+    snd_alias_list_t *list;
+    snd_alias_t *alias;
+
+    if ( !snd_touchStreamFilesOnLoad || !snd_touchStreamFilesOnLoad->current.enabled )
+        return;
+
+    fsThread = SND_TouchFsThread();
+    for ( listIndex = 0; listIndex < bank->aliasCount; ++listIndex )
+    {
+        list = &bank->alias[listIndex];
+        if ( !list->head || list->count <= 0 )
+            continue;
+
+        for ( aliasIndex = 0; aliasIndex < (unsigned int)list->count; ++aliasIndex )
+        {
+            alias = &list->head[aliasIndex];
+            if ( !alias->soundFile || alias->soundFile->type == 1 )
+                continue;
+            if ( alias->soundFile->exists )
+                continue;
+
+            SND_AliasGetFileName(alias, filename, sizeof(filename));
+            fileHandle = 0;
+            FS_FOpenFileReadForThread(filename, &fileHandle, fsThread);
+            if ( fileHandle )
+            {
+                FS_FCloseFile(fileHandle);
+                alias->soundFile->exists = 1;
+            }
+        }
+    }
+}
+
+void __cdecl SND_TouchAllLoadedBanks()
+{
+    unsigned int bankIndex;
+
+    // CoDMPServer.c:316341-316359 — not invoked from DB_SyncXAssets in v1.0; only runs if called elsewhere while dvar enabled.
+    if ( !snd_touchStreamFilesOnLoad || !snd_touchStreamFilesOnLoad->current.enabled )
+        return;
+    Sys_EnterCriticalSection(CRITSECT_SOUND_BANK);
+    for ( bankIndex = 0; bankIndex < g_snd_bankCount; ++bankIndex )
+    {
+        if ( g_snd_banks[bankIndex] )
+            SND_TouchStreamFilesInBank(g_snd_banks[bankIndex]);
+    }
+    Sys_LeaveCriticalSection(CRITSECT_SOUND_BANK);
+}
 
 void __cdecl SND_AddBank(SndBank *bank)
 {
@@ -68,6 +138,7 @@ void __cdecl SND_AddBank(SndBank *bank)
         if ( g_snd_patches[i] )
             SND_PatchApply(g_snd_patches[i]);
     }
+    // CoDMPServer.c:800858-800894 — v1.0 SND_AddBank returns here; no SND_TouchStreamFilesInBank call.
     Sys_LeaveCriticalSection(CRITSECT_SOUND_BANK);
 }
 
@@ -624,10 +695,11 @@ void __cdecl SND_PatchApply(const SndPatch *patch)
             if ( table < 9 && field < SND_METADATA_FIELD_COUNT[table] )
             {
                 asset = (char *)SND_FindAsset(table, id);
+                if ( !asset )
+                    continue;
 
                 snd_alias_list_t *list = (snd_alias_list_t *)asset;
-                //if ( table )
-                if ( table || !list ) // LWSS: this version of the if() is seen in retail MP exe. The 1st soundbank (table 0) is loaded as all ZERO except the name? 
+                if ( table )
                 {
                     SND_PatchValue(table, asset, field, value);
                 }

@@ -36,6 +36,7 @@ struct SndPatch // sizeof=0x14
 };
 
 void __cdecl SND_AddBank(SndBank *bank);
+void __cdecl SND_TouchAllLoadedBanks();
 void __cdecl SND_AssertBankIndexValid(const SndBank *bank);
 char __cdecl SND_FindInIndex(unsigned int key, const SndBank *bank, snd_alias_list_t **result);
 void __cdecl SND_RemoveBank(SndBank *bank);

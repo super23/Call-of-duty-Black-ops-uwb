@@ -4803,7 +4803,7 @@ void __cdecl MSG_ReadDeltaPlayerstate(
     int lc; // [esp+54h] [ebp-26CCh]
     NetField *array; // [esp+58h] [ebp-26C8h]
     float *v47; // [esp+5Ch] [ebp-26C4h]
-    unsigned __int8 dst[9896]; // [esp+60h] [ebp-26C0h] BYREF
+    playerState_s defaultPlayerState; // SP sizeof=10388, MP=9892 — must not use fixed MP byte buffer
     int Bits; // [esp+2708h] [ebp-18h]
     float *v50; // [esp+270Ch] [ebp-14h]
     BOOL v51; // [esp+2710h] [ebp-10h]
@@ -4813,8 +4813,8 @@ void __cdecl MSG_ReadDeltaPlayerstate(
 
     if (!from)
     {
-        from = (const playerState_s *)dst;
-        memset(dst, 0, sizeof(playerState_s));
+        from = &defaultPlayerState;
+        memset(&defaultPlayerState, 0, sizeof(defaultPlayerState));
     }
 
     memcpy(to, from, sizeof(playerState_s));

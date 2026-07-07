@@ -27,34 +27,34 @@ void __cdecl DB_AllocXBlocks(
                 unsigned int allocType,
                 int flags)
 {
-    double v5; // xmm0_8
-    unsigned int blockIndex; // [esp+28h] [ebp-10h]
-    XBlock buf; // [esp+2Ch] [ebp-Ch]
-    float total_size; // [esp+34h] [ebp-4h]
+    unsigned int blockIndex;
+    unsigned int blockBytes;
+    unsigned __int8 *blockData;
+    float totalSizeBytes;
 
-    total_size = 0.0f;
+    totalSizeBytes = 0.0f;
     for ( blockIndex = 0; blockIndex < 7; ++blockIndex )
     {
-        buf.size = blockSize[blockIndex];
-        if ( buf.size )
+        blockBytes = blockSize[blockIndex];
+        if ( blockBytes )
         {
-            total_size = (double)buf.size + total_size;
-            buf.data = DB_MemAlloc(buf.size, g_block_mem_type[blockIndex], allocType, filename, flags);
-            if ( !buf.data )
+            totalSizeBytes = (double)blockBytes + totalSizeBytes;
+            blockData = DB_MemAlloc(blockBytes, g_block_mem_type[blockIndex], allocType, filename, flags);
+            if ( !blockData )
             {
-                v5 = (float)((float)PMem_GetOverAllocatedSize() * 0.00000095367432);
                 Com_Error(
                     ERR_DROP,
                     "Could not allocate %.2f MB of type '%s' for zone '%s' needed an additional %.2f MB",
-                    (double)buf.size * 0.00000095367432,
+                    (double)blockBytes * 0.00000095367432,
                     g_block_mem_name[blockIndex],
                     filename,
-                    v5);
+                    (float)((float)PMem_GetOverAllocatedSize() * 0.00000095367432));
             }
-            blocks[blockIndex] = buf;
+            blocks[blockIndex].data = blockData;
+            blocks[blockIndex].size = blockBytes;
         }
     }
-    Com_Printf(16, "used %0.2f MB memory in DB alloc\n", (float)(total_size / 1048576.0));
+    Com_Printf(16, "used %0.2f MB memory in DB alloc\n", (float)(totalSizeBytes / 1048576.0));
 }
 
 unsigned __int8 *__cdecl DB_MemAlloc(
@@ -90,7 +90,7 @@ unsigned __int8 *__cdecl DB_MemAlloc(
 
 void __cdecl DB_FreeXBlocks(XBlock *blocks, int flags)
 {
-    unsigned int blockIndex; // [esp+0h] [ebp-4h]
+    unsigned int blockIndex;
 
     for ( blockIndex = 0; blockIndex < 7; ++blockIndex )
     {

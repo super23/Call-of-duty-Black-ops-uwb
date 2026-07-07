@@ -1,10 +1,17 @@
 #include "cg_gamepad.h"
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#include <client_sp/cl_input_sp.h>
+#include <cgame_sp/cg_main_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
 #include <client_mp/cl_input_mp.h>
-#include "cg_playerstate.h"
-#include "cg_main.h"
 #include <cgame_mp/cg_main_mp.h>
 #include <client_mp/cl_cgame_mp.h>
+#endif
+#include "cg_playerstate.h"
+#include "cg_main.h"
 #include <demo/demo_playback.h>
 #include <client/cl_keys.h>
 #include <ui/ui_shared.h>

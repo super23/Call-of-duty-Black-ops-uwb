@@ -1,7 +1,12 @@
 #include "live_storage_pub.h"
+#include <qcommon/common.h>
 #include <DW/dwLogOn_pc.h>
 #include <stringed/stringed_hooks.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_main_sp.h>
+#else
 #include <cgame_mp/cg_main_mp.h>
+#endif
 #include <universal/com_files.h>
 #include <universal/com_tasks.h>
 #include <universal/mem_largelocal.h>
@@ -28,11 +33,15 @@ const TaskDefinition task_LiveFetchOnlineWAD[1] =
 
 bool __cdecl LiveStorage_DoWeHaveContracts()
 {
+    if ( onlinegame && !onlinegame->current.enabled )
+        return true;
     return s_haveContracts;
 }
 
 bool __cdecl LiveStorage_DoWeHavePlaylists()
 {
+    if ( onlinegame && !onlinegame->current.enabled )
+        return true;
     return s_havePlaylists;
 }
 

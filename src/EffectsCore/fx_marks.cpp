@@ -152,17 +152,10 @@ void __cdecl FX_ClearMarks(unsigned int localClientNum)
 
 FxMarksSystem *__cdecl FX_GetMarksSystem(unsigned int clientIndex)
 {
-    if ( clientIndex >= fx_maxLocalClients
-        && !Assert_MyHandler(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\effectscore\\fx_marks.h",
-                    157,
-                    0,
-                    "clientIndex doesn't index fx_maxLocalClients\n\t%i not in [0, %i)",
-                    clientIndex,
-                    fx_maxLocalClients) )
-    {
-        __debugbreak();
-    }
+    if ( fx_maxLocalClients <= 0 )
+        return &fx_marksSystemPool[0];
+    if ( clientIndex >= (unsigned int)fx_maxLocalClients )
+        clientIndex = 0;
     return &fx_marksSystemPool[clientIndex];
 }
 
@@ -2672,11 +2665,11 @@ void    FX_GenerateMarkVertsForMark_MatrixFromAnim(
                 const float *viewOffset,
                 float (*outTransform)[3])
 {
-    float v6[3]; // [esp-Ch] [ebp-11Ch] BYREF
-    float invBasePoseMatrix[4][3]; // [esp+0h] [ebp-110h] BYREF
+    float v6[4][3]; // 3x4 row-major (rotation + translation row), see DObjSkelMatToMatrix43 / MatrixMultiply43
     const DObjAnimMat *BasePose; // [esp+70h] [ebp-A0h]
-    float v9[3]; // [esp+74h] [ebp-9Ch] OVERLAPPED BYREF
-    float bonePoseMatrix[4][3]; // [esp+80h] [ebp-90h] BYREF
+    float v9[4][3]; // bone pose as 4x3 output of DObjSkelMatToMatrix43
+    DObjSkelMat boneSkelMat;
+    DObjSkelMat invBaseSkelMat;
     XModel *v11; // [esp+F0h] [ebp-20h]
     XModel *i; // [esp+F4h] [ebp-1Ch]
     int v13; // [esp+F8h] [ebp-18h]
@@ -2714,12 +2707,12 @@ void    FX_GenerateMarkVertsForMark_MatrixFromAnim(
         v11 = DObjGetModel(dobj, (int)i);
         v13 += XModelNumBones(v11);
     }
-    ConvertQuatToSkelMat(&boneMtxList[dObjModelIndexIter + v13], (DObjSkelMat *)bonePoseMatrix[3]);
-    DObjSkelMatToMatrix43((const DObjSkelMat *)bonePoseMatrix[3], (float (*)[3])v9);
+    ConvertQuatToSkelMat(&boneMtxList[dObjModelIndexIter + v13], &boneSkelMat);
+    DObjSkelMatToMatrix43(&boneSkelMat, v9);
     v11 = DObjGetModel(dobj, (int)model);
     BasePose = XModelGetBasePose(v11);
-    ConvertQuatToInverseSkelMat(&BasePose[dObjModelIndexIter], (DObjSkelMat *)invBasePoseMatrix[3]);
-    DObjSkelMatToMatrix43((const DObjSkelMat *)invBasePoseMatrix[3], (float (*)[3])v6);
+    ConvertQuatToInverseSkelMat(&BasePose[dObjModelIndexIter], &invBaseSkelMat);
+    DObjSkelMatToMatrix43(&invBaseSkelMat, v6);
     MatrixMultiply43((const float (*)[3])v6, (const float (*)[3])v9, outTransform);
 }
 

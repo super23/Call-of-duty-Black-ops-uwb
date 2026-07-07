@@ -61,16 +61,16 @@ void __cdecl FX_DrawProfile(int clientIndex, void (__cdecl *drawFunc)(char *), f
         v6 = va(
                      "%4i of %4i effect elements in use (%.0f%%; %i free)",
                      system->shared->activeElemCount,
-                     2048,
-                     (float)((float)system->shared->activeElemCount * 0.048828125),
-                     2048 - system->shared->activeElemCount);
+                     FX_ELEM_LIMIT,
+                     (float)((float)system->shared->activeElemCount * (100.0f / FX_ELEM_LIMIT)),
+                     FX_ELEM_LIMIT - system->shared->activeElemCount);
         drawFunc(v6);
         v7 = va(
                      "%4i of %4i trail elements in use (%.0f%%; %i free)",
                      system->shared->activeTrailElemCount,
-                     2048,
-                     (float)((float)system->shared->activeTrailElemCount * 0.048828125),
-                     2048 - system->shared->activeTrailElemCount);
+                     FX_ELEM_LIMIT,
+                     (float)((float)system->shared->activeTrailElemCount * (100.0f / FX_ELEM_LIMIT)),
+                     FX_ELEM_LIMIT - system->shared->activeTrailElemCount);
         drawFunc(v7);
         v8 = va(
                      "%4i of %4i cloud elements in use (%.0f%%; %i free)",
@@ -281,9 +281,9 @@ void __cdecl FX_DrawPriorityDebug(int clientIndex, void (__cdecl *drawFunc)(char
     v4 = va(
                  "%4i of %4i effect elements in use (%.0f%%; %i free)",
                  system->system.shared->activeElemCount,
-                 2048,
-                 (float)((float)system->system.shared->activeElemCount * 0.048828125),
-                 2048 - system->system.shared->activeElemCount);
+                 FX_ELEM_LIMIT,
+                 (float)((float)system->system.shared->activeElemCount * (100.0f / FX_ELEM_LIMIT)),
+                 FX_ELEM_LIMIT - system->system.shared->activeElemCount);
     drawFunc(v4);
     v5 = va(
                  "priority warning high %d. Client %d, handles %d",

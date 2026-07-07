@@ -1,6 +1,6 @@
 #include "actor_death.h"
-#include <game_mp/actor_mp.h>
-#include <game_mp/g_main_mp.h>
+#include <game/actor_wrapper.h>
+#include <game/g_main_wrapper.h>
 #include <cgame/cg_event.h>
 #include "actor_corpse.h"
 #include "actor_state.h"

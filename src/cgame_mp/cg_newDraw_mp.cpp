@@ -1,4 +1,5 @@
 #include "cg_newDraw_mp.h"
+#include <client/client_limits.h>
 #include <client_mp/cl_main_mp.h>
 #include <cgame/cg_drawtools.h>
 #include <bgame/bg_weapons_ammo.h>
@@ -13,6 +14,7 @@
 #include <bgame/bg_misc.h>
 #include <bgame/bg_pmove.h>
 #include <demo/demo_playback.h>
+#include <cgame/cg_draw_names.h>
 #include "cg_vehicles_mp.h"
 #include <qcommon/dobj_management.h>
 #include "cg_ents_mp.h"
@@ -836,18 +838,7 @@ $LN46_1:
 
 clientUIActive_t *__cdecl CL_GetLocalClientUIGlobals(int localClientNum)
 {
-    if ( localClientNum
-        && !Assert_MyHandler(
-                    "c:\\projects_pc\\cod\\codsrc\\src\\live\\../client/client.h",
-                    160,
-                    0,
-                    "%s\n\t(localClientNum) = %i",
-                    "(localClientNum == 0)",
-                    localClientNum) )
-    {
-        __debugbreak();
-    }
-    return clientUIActives;
+    return &clientUIActives[Com_ClampLocalClientNum(localClientNum)];
 }
 
 void __cdecl CG_DrawPlayerAmmoBackdrop(
@@ -1753,6 +1744,9 @@ void __cdecl CG_DrawPlayerDirectionalHitIndicator(
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     if ( cgameGlob->cameraMode != 1 )
     {
+        float originZ;
+
+        originZ = cgameGlob->predictedPlayerState.origin[2];
         playerOrigin = cgameGlob->predictedPlayerState.origin[0];
         playerOrigin_4 = cgameGlob->predictedPlayerState.origin[1];
         for ( i = 0; i < 4; ++i )
@@ -1763,7 +1757,7 @@ void __cdecl CG_DrawPlayerDirectionalHitIndicator(
                 {
                     victimDirection[0] = cgameGlob->directionalHitIndicator[i].entOrigin[0] - playerOrigin;
                     victimDirection[1] = cgameGlob->directionalHitIndicator[i].entOrigin[1] - playerOrigin_4;
-                    victimDirection[2] = cgameGlob->directionalHitIndicator[i].entOrigin[2] - 0.0;
+                    victimDirection[2] = cgameGlob->directionalHitIndicator[i].entOrigin[2] - originZ;
                     Vec3Normalize(victimDirection);
                     victimYaw = vectoyaw(victimDirection);
                     playerDir[0] = cgameGlob->refdef.viewaxis[0][0];
@@ -3741,11 +3735,18 @@ void __cdecl CG_DrawPlayerTargetHighlights(int localClientNum, const rectDef_s *
     }
     if ( ShouldDrawPlayerTargetHighlights(localClientNum, cgameGlob) )
     {
-        for ( i = 0; i < 32; ++i )
+        int maxClients = com_maxclients->current.integer;
+
+        for ( i = 0; i < maxClients && i < 32; ++i )
         {
-            cent = CG_GetEntity(localClientNum, i);
+            int entIdx;
+
+            if ( !cgameGlob->bgs.clientinfo[i].infoValid )
+                continue;
+            entIdx = CG_EntityNumForClientSlot(localClientNum, cgameGlob, i);
+            cent = CG_GetEntity(localClientNum, entIdx);
             if ( ((*((unsigned int *)cent + 201) >> 1) & 1) != 0
-                && cent->nextState.number != cgameGlob->clientNum
+                && cent->nextState.clientNum != cgameGlob->clientNum
                 && cent->nextState.eType == 1
                 && (cent->nextState.lerp.eFlags & 0x40000) == 0 )
             {
@@ -3839,7 +3840,9 @@ void __cdecl CG_DrawPlayerTargetHighlightsFriendly(
     }
     if ( ShouldDrawPlayerTargetHighlights(localClientNum, cgameGlob) )
     {
-        cent = CG_GetEntity(localClientNum, cgameGlob->clientNum);
+        cent = CG_GetEntity(
+            localClientNum,
+            CG_EntityNumForClientSlot(localClientNum, cgameGlob, cgameGlob->clientNum));
         if ( ((*((unsigned int *)cent + 201) >> 1) & 1) != 0
             && cent->nextState.eType == 1
             && (cent->nextState.lerp.eFlags & 0x40000) == 0 )
@@ -4920,7 +4923,7 @@ void    CG_DrawCursorhint(
         CG_UpdateCursorHints(cgameGlob);
         if (!IsHardcoreMode(localClientNum) || cgameGlob->cursorHintIcon == 3)
         {
-            *((float *)color + 3) = CG_FadeAlpha(cgameGlob->time, cgameGlob->cursorHintTime, cgameGlob->cursorHintFade, 100)
+            color[3] = CG_FadeAlpha(cgameGlob->time, cgameGlob->cursorHintTime, cgameGlob->cursorHintFade, 100)
                 * color[3];
             if (color[3] == 0.0)
             {
@@ -4937,7 +4940,7 @@ void    CG_DrawCursorhint(
                 //v30 = (float)cgameGlob->time / 150.0;
                 //__libm_sse2_sin(v12);
                 v29 = sin((float)cgameGlob->time / 150.0);// v30;
-                *((float *)color + 3) = (float)((float)(0.5 * v29) + 0.5) * color[3];
+                color[3] = (float)((float)(0.5 * v29) + 0.5) * color[3];
             }
             if (cg_cursorHints->current.integer < 3)
             {
@@ -4957,6 +4960,14 @@ void    CG_DrawCursorhint(
             {
                 halfscale = 0.0f;
                 scale = 0.0f;
+            }
+            /* cg_cursorHints modes 1–2 drive `scale`; folding it into weapon / grenade
+               hint layout makes the icon drift and "breathe". Retail only pulses the
+               legacy mantle-style text hints (cursor hint icons 1 & 2). */
+            if ( cgameGlob->cursorHintIcon != 1 && cgameGlob->cursorHintIcon != 2 )
+            {
+                scale = 0.0f;
+                halfscale = 0.0f;
             }
             if (cgameGlob->cursorHintIcon == 1 || cgameGlob->cursorHintIcon == 2)
             {

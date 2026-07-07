@@ -13,8 +13,6 @@ struct XAnim_s;
 struct hudelem_s;
 union hudelem_color_t;
 
-#define EVENT_PARM_MAX 2047
-
 enum entity_event_t : __int32
 {
     EV_NONE                        = 0x0,
@@ -226,6 +224,9 @@ char    BG_CheckProne(
 void __cdecl BG_GetPlayerViewOrigin(const playerState_s *ps, float *origin, int time);
 void __cdecl BG_GetPlayerViewDirection(const playerState_s *ps, float *forward, float *right, float *up);
 void __cdecl BG_LerpHudColors(const hudelem_s *elem, int time, union hudelem_color_t *toColor);
+#ifdef KISAK_SP
+void __cdecl BG_LerpFontScale(const hudelem_s *elem, int time, float *toScale);
+#endif
 int __cdecl BG_LoadShellShockDvars(const char *name);
 void __cdecl BG_SetShellShockParmsFromDvars(shellshock_parms_t *parms);
 int __cdecl BG_SaveShellShockDvars(const char *name);

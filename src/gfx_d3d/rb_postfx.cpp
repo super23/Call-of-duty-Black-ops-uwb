@@ -1549,6 +1549,7 @@ void __cdecl RB_PoisonFX(const GfxViewInfo *viewInfo)
 #endif
 
 #include <math.h>
+#include "r_singlethreaded_device_pc.h"
 #include "rb_logfile.h"
 #include "rb_shade.h"
 #include "r_state_utils.h"
@@ -1765,6 +1766,7 @@ void    RB_GenericFilterFX(const GfxViewInfo *viewInfo)
   float v99; // [esp+1C4h] [ebp-A0h]
   float v100; // [esp+1C8h] [ebp-9Ch]
   float Param0to4[4]; // [esp+1CCh] [ebp-98h]
+  int v102; // [esp+1DCh] [ebp-88h]
   IDirect3DSurface9 *Surface; // [esp+1E0h] [ebp-84h]
   HRESULT hr; // [esp+1E4h] [ebp-80h]
   int semaphore; // [esp+1E8h] [ebp-7Ch]
@@ -1888,16 +1890,20 @@ LABEL_18:
               {
                 __debugbreak();
               }
+              R_AssertDXDeviceOwnership();
               if ( r_logFile && r_logFile->current.integer )
                 RB_LogPrint(
                   "gfxCmdBufContext.state->prim.device->StretchRect( gfxRenderTargets[gfxCmdBufContext.state->renderTarge"
                   "tId].surface.color, 0, imageSurface, 0, D3DTEXF_LINEAR )\n");
+              v102 = R_AcquireDXDeviceOwnership(0);
               LODWORD(Param0to4[3]) = gfxCmdBufContext.state->prim.device->StretchRect(
                                         gfxRenderTargets[gfxCmdBufContext.state->renderTargetId].surface.color,
                                         0,
                                         Surface,
                                         0,
                                         D3DTEXF_LINEAR);
+              if ( v102 )
+                R_ReleaseDXDeviceOwnership();
               if ( Param0to4[3] < 0.0 )
               {
                 ++g_disableRendering;
@@ -1910,9 +1916,13 @@ LABEL_18:
                   3175,
                   v2);
               }
+              R_AssertDXDeviceOwnership();
               if ( r_logFile && r_logFile->current.integer )
                 RB_LogPrint("imageSurface->Release()\n");
+              LODWORD(Param0to4[2]) = R_AcquireDXDeviceOwnership(0);
               LODWORD(Param0to4[1]) = Surface->Release();
+              if ( LODWORD(Param0to4[2]) )
+                R_ReleaseDXDeviceOwnership();
               if ( Param0to4[1] < 0.0 )
               {
                 ++g_disableRendering;
@@ -2886,7 +2896,9 @@ void __cdecl RB_BlurScreen(const GfxViewInfo *viewInfo, float blurRadius)
 {
   const char *v2; // eax
   const char *v3; // eax
+  int v4; // [esp+44h] [ebp-28h]
   int v5; // [esp+48h] [ebp-24h]
+  int semaphore; // [esp+4Ch] [ebp-20h]
   int hr; // [esp+50h] [ebp-1Ch]
   float blurRadiusMin; // [esp+54h] [ebp-18h]
   IDirect3DSurface9 *imageSurface; // [esp+58h] [ebp-14h]
@@ -2906,9 +2918,11 @@ void __cdecl RB_BlurScreen(const GfxViewInfo *viewInfo, float blurRadius)
   }
   imageSurface = Image_GetSurface(gfxRenderTargets[R_RENDERTARGET_RESOLVED_SCENE].image);
   iassert(imageSurface);
+  R_AssertDXDeviceOwnership();
   if ( r_logFile && r_logFile->current.integer )
     RB_LogPrint(
       "gfxCmdBufContext.state->prim.device->StretchRect( gfxRenderTargets[srcRtId].surface.color, 0, imageSurface, 0, D3DTEXF_LINEAR )\n");
+  semaphore = R_AcquireDXDeviceOwnership(0);
 
   //hr = gfxCmdBufContext.state->prim.device->StretchRect(
   //       gfxCmdBufContext.state->prim.device,
@@ -2919,6 +2933,8 @@ void __cdecl RB_BlurScreen(const GfxViewInfo *viewInfo, float blurRadius)
   //       D3DTEXF_LINEAR);
 
   hr = gfxCmdBufContext.state->prim.device->StretchRect(gfxRenderTargets[R_RENDERTARGET_SCENE].surface.color, NULL, imageSurface, NULL, D3DTEXF_LINEAR);
+  if ( semaphore )
+    R_ReleaseDXDeviceOwnership();
   if ( hr < 0 )
   {
     ++g_disableRendering;
@@ -2930,9 +2946,13 @@ void __cdecl RB_BlurScreen(const GfxViewInfo *viewInfo, float blurRadius)
       4256,
       v2);
   }
+  R_AssertDXDeviceOwnership();
   if ( r_logFile && r_logFile->current.integer )
     RB_LogPrint("imageSurface->Release()\n");
+  v4 = R_AcquireDXDeviceOwnership(0);
   v5 = imageSurface->Release();
+  if ( v4 )
+    R_ReleaseDXDeviceOwnership();
   if ( v5 < 0 )
   {
     ++g_disableRendering;

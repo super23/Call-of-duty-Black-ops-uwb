@@ -2,6 +2,7 @@
 #include "com_stringtable.h"
 #include <qcommon/common.h>
 #include <qcommon/com_gamemodes.h>
+#include <database/db_registry.h>
 #include <stdlib.h>
 
 const StringTable *configStringTable;
@@ -92,10 +93,16 @@ int __cdecl CCS_GetChecksum()
 
 char __cdecl CCS_ShouldLoadConstConfigStrings(int party)
 {
-    if ( Com_GameMode_IsOnlineGame() && party )
-        return 1;
-    else
-        return 1;
+#ifdef KISAK_SP
+    // Decomp: BlackOps.singleplayer.c sub_5B5690 — offline SP skips constant configstrings (checksum 0).
+    if ( !Com_GameMode_IsOnlineGame() || !party )
+        return 0;
+    if ( Com_IsMenuLevel(0) )
+        return 0;
+    return 1;
+#else
+    return Com_GameMode_IsOnlineGame() && party;
+#endif
 }
 
 void __cdecl CCS_LoadConstantConfigStrings(const char *mapname, const char *gametype)
@@ -143,9 +150,21 @@ void __cdecl CCS_LoadConstantConfigStrings(const char *mapname, const char *game
     {
         __debugbreak();
     }
+#ifdef KISAK_SP
+    Com_sprintf(filename, 0x100u, "sp/configstrings/configstrings_pc_%s_%s.csv", mapname, gametype);
+    configStringTable = DB_FindXAssetHeader(ASSET_TYPE_STRINGTABLE, filename, 0, -1).stringTable;
+    if ( !configStringTable || !configStringTable->columnCount || !configStringTable->rowCount )
+    {
+        configStringTable = 0;
+        configStringTableChecksum = 0;
+        Com_DPrintf(30, "CCS: no configstrings table for %s/%s\n", mapname, gametype);
+        return;
+    }
+#else
     dir = "mp";
     Com_sprintf(filename, 0x100u, "%s/configStrings/configStrings_pc_%s_%s.csv", "mp", mapname, gametype);
     StringTable_GetAsset(filename, (XAssetHeader *)&configStringTable);
+#endif
     configStringTableChecksum = StringTable_Checksum(configStringTable, 0);
     Com_DPrintf(30, "CCS: CCS_LoadConstantConfigStrings %s: %d\n", filename, configStringTableChecksum);
 }

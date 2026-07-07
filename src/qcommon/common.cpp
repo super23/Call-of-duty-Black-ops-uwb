@@ -2,19 +2,29 @@
 
 #include <string.h>
 #include <universal/mem_userhunk.h>
+#ifdef KISAK_SP
+#include <game/g_main.h>
+#else
 #include <game_mp/g_main_mp.h>
+#endif
 #include <client/con_channels.h>
 #include <win32/win_common.h>
 #include <client/cl_console.h>
 #include <win32/win_net.h>
 #include <win32/win_main.h>
+#include <win32/win_syscon.h>
 #include <monkey/monkey.h>
 #include <universal/com_files.h>
 #include <ctime>
 #include "threads.h"
 #include <universal/com_buildinfo.h>
+#ifdef KISAK_SP
+#include <server_sp/sv_main_sp.h>
+#include <server_sp/sv_init_sp.h>
+#else
 #include <server_mp/sv_main_mp.h>
 #include <server_mp/sv_init_mp.h>
+#endif
 #include <gfx_d3d/r_water_sim.h>
 #include <gfx_d3d/r_extracam.h>
 #include <gfx_d3d/r_ui3d.h>
@@ -22,12 +32,14 @@
 #include <glass/glass_client.h>
 #include <demo/demo_playback.h>
 #include <stringed/stringed_hooks.h>
+#include <gfx_d3d/r_singlethreaded_device_pc.h>
 #include <universal/com_tasks.h>
 #include <csetjmp>
 #include <win32/win_splash.h>
 #include <clientscript/cscr_stringlist.h>
 #include <universal/com_memory.h>
 #include "dvar_cmds.h"
+#include "com_gamemodes.h"
 #include <win32/win_shared.h>
 #include "com_clients.h"
 #include <client/cl_keys.h>
@@ -35,13 +47,23 @@
 #include <client/splitscreen.h>
 #include <universal/q_parse.h>
 #include <clientscript/cscr_vm.h>
+#ifdef KISAK_SP
+#include <ui_sp/ui_gameinfo_sp.h>
+#else
 #include <game_mp/ui_gameinfo_mp.h>
+#endif
 #include <bgame/bg_fire.h>
+#include <live/live_storage_win.h>  // KISAK: LiveStorage_LocalSaveStats on quit
 #include <EffectsCore/fx_load_obj.h>
 #include "com_profilemapload.h"
 #include "files.h"
 #include <ui/ui_shared.h>
+#include <ui/ui_shared_obj.h>
+#ifdef KISAK_SP
+#include <ui_sp/ui_main_sp.h>
+#else
 #include <ui_mp/ui_main_mp.h>
+#endif
 #include "com_bsp_load_obj.h"
 #include <client/cl_debugdata.h>
 #include <ik/ik.h>
@@ -53,7 +75,19 @@
 #include <DW/dwLogOn_pc.h>
 #include <gfx_d3d/r_stream.h>
 #include <universal/reliablemsg.h>
+#ifdef KISAK_SP
+#include <client/cl_cin.h>
+#include <client_sp/cl_scrn_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <client_sp/cl_main_sp.h>
+#include <gfx_d3d/r_material.h>
+#include <gfx_d3d/r_init.h>
+#include <gfx_d3d/r_drawsurf.h>
+#include <gfx_d3d/r_scene.h>
+#else
 #include <client_mp/cl_scrn_mp.h>
+#include <client_mp/cl_main_mp.h>
+#endif
 #include <win32/win_workercmds.h>
 #include <live/live.h>
 #include <live/live_win.h>
@@ -61,8 +95,9 @@
 #include <bgame/bg_emblems.h>
 #include <demo/demo_files.h>
 #include <mjpeg/mjpeg.h>
-#include <game_mp/pregame.h>
+#include <game/pregame_wrapper.h>
 #include <database/db_file_load.h>
+#include <database/db_registry.h>
 #include <universal/com_loadutils.h>
 #include <ui/ui_viewer.h>
 #include <clientscript/cscr_debugger.h>
@@ -71,15 +106,25 @@
 #include <tl/gdt_remote.h>
 #include <stringed/stringed_remote.h>
 #include <client/cl_main.h>
+#ifdef KISAK_SP
+#include <ui_sp/ui_main_sp.h>
+#endif
 #include <client/client.h>
 #include <cgame/cg_compass.h>
 #include <win32/win_input.h>
 #include "dobj_management.h"
 #include "cm_load.h"
+#ifdef KISAK_SP
+#include <qcommon/cm_world.h>
+#endif
 #include <ui/ui_screenshot.h>
 #include <live/live_fileshare_cache.h>
 #include <server/sv_game.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_ents_sp.h>
+#else
 #include <cgame_mp/cg_ents_mp.h>
+#endif
 #include <bgame/bg_weapons_def.h>
 #include <universal/com_workercmds.h>
 #include <gfx_d3d/r_dvars.h>
@@ -129,6 +174,7 @@ const char *noticeErrors[14] =
 static const int maxDemoMsec = 200;
 
 const dvar_t *collectors;
+const dvar_t *presell;
 const dvar_t *primaryWeaponOffset;
 const dvar_t *scr_xpcollectorsscale;
 const dvar_t *scr_xpscale;
@@ -153,6 +199,7 @@ const dvar_t *dedicated;
 const dvar_t *com_maxfps;
 const dvar_t *arcademode;
 const dvar_t *zombiemode;
+const dvar_t *zombiemode_path_minz_bias;
 const dvar_t *legacy_zombiemode;
 const dvar_t *zombieStopSplitScreen;
 const dvar_t *zombietron;
@@ -307,7 +354,7 @@ bool __cdecl Com_IsRunningMenuLevel(const char *name)
     if ( !com_sv_running->current.enabled )
         return 0;
     if ( I_strnicmp(name, "menu_", 5) )
-        return I_strcmp(name, "ui") == 0;
+        return I_strcmp(name, "ui") == 0 || I_strcmp(name, "ui_mp") == 0 || I_strcmp(name, "frontend") == 0;
     return 1;
 }
 
@@ -316,7 +363,10 @@ bool __cdecl Com_IsMenuLevel(const char *name)
     if ( !name )
         name = sv_mapname->current.string;
 
-    return !I_strnicmp(name, "menu_", 5) || !I_strcmp(name, "ui") || !I_strcmp(name, "ui_mp");
+    return !I_strnicmp(name, "menu_", 5)
+        || !I_strcmp(name, "ui")
+        || !I_strcmp(name, "ui_mp")
+        || !I_strcmp(name, "frontend");
 }
 
 void __cdecl Com_BeginRedirect(char *buffer, unsigned int buffersize, void (__cdecl *flush)(char *))
@@ -454,10 +504,17 @@ void Com_OpenLogFile()
         opening_qconsole = 1;
         _time64(&aclock);
         newtime = _localtime64(&aclock);
+#ifdef KISAK_SP
+        if ( log_append && log_append->current.enabled )
+            logfile = FS_FOpenFileAppend((char*)"console.log");
+        else
+            logfile = FS_FOpenTextFileWrite((char*)"console.log");
+#else
         if ( log_append && log_append->current.enabled )
             logfile = FS_FOpenFileAppend((char*)"console_mp.log");
         else
             logfile = FS_FOpenTextFileWrite((char*)"console_mp.log");
+#endif
         com_consoleLogOpenFailed = logfile == 0;
         v1 = asctime(newtime);
         BuildNumber = Com_GetBuildNumber();
@@ -727,6 +784,7 @@ void Com_Error(errorParm_t code, const char *fmt, ...)
             Com_Printf(16, "\n====================================================\n");
             Com_Printf(16, "Com_ERROR: %s", com_errorMessage);
             Com_Printf(16, "\n====================================================\n\n");
+            R_ReleaseDXDeviceOwnership();
             if ( G_ExitOnComError(code) )
             {
                 printf("Fatal Error: %s\n", com_errorMessage);
@@ -766,6 +824,7 @@ void __cdecl Com_CheckError()
     Sys_LeaveCriticalSection(CRITSECT_COM_ERROR);
     if ( errorEntered )
     {
+        R_ReleaseDXDeviceOwnership();
         Value = (int *)Sys_GetValue(2);
         longjmp(Value, -1);
     }
@@ -776,6 +835,13 @@ void __cdecl    Com_Quit_f()
     int localClientNum; // [esp+0h] [ebp-4h]
 
     Com_Printf(0, "quitting...\n");
+
+    // KISAK: flush local player stats / classes / prestige before tearing
+    // anything down. Without this, any rank-up / class edit / prestige action
+    // that happened since the last match-end (which is the next-most-recent
+    // place LiveStorage_UploadStats is triggered from) would be lost on quit.
+    LiveStorage_LocalSaveStats(0);
+
     R_PopRemoteScreenUpdate();
     Com_SyncThreads();
     Sys_EnterCriticalSection(CRITSECT_COM_ERROR);
@@ -1587,8 +1653,13 @@ void __cdecl Com_Init(char *commandLine)
     {
         if ( *Dvar_GetString("com_errorMessage") )
             Com_LoadUiFastFile();
-        //BLOPS_NULLSUB();
+#ifdef KISAK_SP
+        if ( useFastFile->current.enabled )
+            DB_SyncXAssets();
         Com_LoadFrontEnd();
+#else
+        Com_LoadFrontEnd();
+#endif
     }
 
     if (IsDedicatedServer())
@@ -1839,6 +1910,7 @@ void __cdecl Com_Init_Try_Block_Function(char *commandLine)
     com_codeTimeScale = 1.0f;
 
     collectors = _Dvar_RegisterBool("collectors", 0, 0x40u, "Set to true if the player has the collector's edition");
+    presell = _Dvar_RegisterBool("presell", 0, 0x40u, "Set to true if the player has preordered");
     primaryWeaponOffset = _Dvar_RegisterInt(
                                                     "primaryWeaponOffset",
                                                     0,
@@ -1897,6 +1969,7 @@ void __cdecl Com_Init_Try_Block_Function(char *commandLine)
     if (!IsDedicatedServer())
     {
         CL_InitOnceForAllClients();
+        Sys_InitConsoleThread();
         for (int localClientNum = 0; localClientNum < 1; ++localClientNum)
         {
             CL_Init(localClientNum);
@@ -1945,11 +2018,24 @@ void __cdecl Com_Init_Try_Block_Function(char *commandLine)
 #endif
 
     Sys_LoadingKeepAlive();
+#ifndef KISAK_SP
     Live_Init();
+#else
+    // CoDSP_rdBlackOps.map.c: SP has no Live_Init / DemonWare; register offline-safe live dvars only.
+    Live_RegisterSPOfflineDvars();
+#endif
+#ifndef KISAK_SP
     PC_InitSigninState();
+#endif
+    // SP: profile + ui_signedInToProfile handshake runs in UI_InitOnceForAllClients after
+    // UI_RegisterDvars (GamerProfile_InitSPOfflineProfile). CoDSP_rdBlackOps.map.c — no bdCore here.
+#ifndef KISAK_SP
     Playlist_Init();
+#endif
     R_BeginRemoteScreenUpdate();
+#ifndef KISAK_SP
     BG_EmblemsInit();
+#endif
     SV_InitServerThread();
     Demo_InitFileHandlerSystem();
     mjpeg_initonce();
@@ -2028,10 +2114,20 @@ void __cdecl Com_Assert_f()
 
 void COM_PlayIntroMovies()
 {
-    if (!IsDedicatedServer())
+    if (IsDedicatedServer())
+        return;
+
+#ifdef KISAK_SP
+    if ( com_skipMovies && com_skipMovies->current.enabled )
     {
-        // KISAKTODO: intro movies
+        if ( com_introPlayed )
+            Dvar_SetBool((dvar_s *)com_introPlayed, 1);
+        if ( com_startupIntroPlayed )
+            Dvar_SetBool((dvar_s *)com_startupIntroPlayed, 1);
     }
+#else
+    // KISAKTODO: intro movies
+#endif
 }
 
 static const char *g_dedicatedEnumNames[4] = { "listen server", "dedicated LAN server", "dedicated internet server", NULL }; // idb
@@ -2077,6 +2173,13 @@ void Com_InitDvars()
     com_maxfps = _Dvar_RegisterInt("com_maxfps", 85, 0, 1000, 1u, "Cap frames per second");
     arcademode = _Dvar_RegisterBool("arcademode", 0, 0x100u, "Current game is an arcade mode game");
     zombiemode = _Dvar_RegisterBool("zombiemode", 0, 0x40u, "Current game is an zombie game");
+    zombiemode_path_minz_bias = _Dvar_RegisterFloat(
+        "zombiemode_path_minz_bias",
+        50.0,
+        0.0,
+        200.0,
+        0x1000u,
+        "Bias to prevent missing valid cells below the origin");
     legacy_zombiemode = _Dvar_RegisterBool("legacy_zombiemode", 0, 0x40u, "Current game is a legacy zombie game");
     zombieStopSplitScreen = _Dvar_RegisterBool(
                                                         "zombieStopSplitScreen",
@@ -2088,7 +2191,6 @@ void Com_InitDvars()
     zombiefive_discovered = _Dvar_RegisterBool("zombiefive_discovered", 0, 0x4001u, "Zombie Five map discovered");
 
     // KISAKTODO
-    //zombiemode_path_minz_bias
     //zombietron_discovered_override
     //zombiefive_discovered_override
 
@@ -2098,7 +2200,11 @@ void Com_InitDvars()
         0x4000u,
         "Forces no random character when following the end game credits");
     blackopsmode = _Dvar_RegisterBool("blackopsmode", 0, 0x100u, "Current game is a blackops game");
+#ifdef KISAK_SP
+    spmode = _Dvar_RegisterBool("spmode", 1, 0x100u, "Current game is a sp game");
+#else
     spmode = _Dvar_RegisterBool("spmode", 0, 0x100u, "Current game is a sp game");
+#endif
 #ifdef KISAK_DEDICATED
     onlinegame = _Dvar_RegisterBool(
                                  "onlinegame",
@@ -2272,7 +2378,11 @@ void __cdecl Com_InitCodeXAssets()
     if ( !g_loadedPreXAssets )
     {
         g_loadedPreXAssets = 1;
+#ifdef KISAK_SP
+        zoneInfo[0].name = "code_pre_gfx";
+#else
         zoneInfo[0].name = "code_pre_gfx_mp";
+#endif
         zoneInfo[0].allocFlags = 1;
         zoneInfo[0].freeFlags = 0;
         zoneCount = 1;
@@ -2473,20 +2583,27 @@ void Com_LoadUiFastFile()
         ScrPlace_SetupUI3DForFullscreen(scrPlace, &scrPlaceFull);
 
         zone = 0;
-#ifdef KISAK_DEDICATED
-        zoneInfo[zone].name = "ui_mp";
-        zoneInfo[zone].allocFlags = 0x4000000;
-        zoneInfo[zone].freeFlags = 0;
-        zone++;
+#ifdef KISAK_SP
+        // Decomp: BlackOps.singleplayer.c sub_82CC60 / sub_54EF80 — retail SP has no ui.ff.
+        // Menus come from frontend.ff (Com_LoadFrontendUIMenus); only unload menu/level buckets here.
+        if ( IsFastFileLoad() )
+        {
+            zoneInfo[zone].name = 0;
+            zoneInfo[zone].allocFlags = 0;
+            zoneInfo[zone].freeFlags = 0x06000000;
+            zone++;
+            DB_LoadXAssets(zoneInfo, zone, 0);
+        }
 #else
-        //zoneInfo[zone].name = "patch_ui_mp";
-        //zoneInfo[zone].allocFlags = 0x4000000;
-        //zoneInfo[zone].freeFlags = 0;
-        //zone++;
-
+        if ( Com_ZoneFastfileExistsAnySource("patch_ui_mp") )
+        {
+            zoneInfo[zone].name = "patch_ui_mp";
+            zoneInfo[zone].allocFlags = 0x4000000;
+            zoneInfo[zone].freeFlags = 0;
+            zone++;
+        }
         zoneInfo[zone].name = "ui_mp";
-        //zoneInfo[zone].allocFlags = 0x2000000;
-        zoneInfo[zone].allocFlags = 0x4000000;//  0x2000000; (KISAKTODO: flag fix, this flag doesn't load for some reason)
+        zoneInfo[zone].allocFlags = 0x02000000;
         zoneInfo[zone].freeFlags = 0;
         zone++;
 
@@ -2495,12 +2612,9 @@ void Com_LoadUiFastFile()
 
         zone = 0;
 
+#ifndef KISAK_SP
         zoneInfo[zone].name = "ui_viewer_mp";
-#ifdef KISAK_DEDICATED
-        zoneInfo[zone].allocFlags = 0x2000000;
-#else
         zoneInfo[zone].allocFlags = 2048;
-#endif
         zoneInfo[zone].freeFlags = 0;
         zone++;
 
@@ -2510,14 +2624,15 @@ void Com_LoadUiFastFile()
         }
 
         DB_LoadXAssets(zoneInfo, zone, 0);
+#endif
     }
 }
 
 void __cdecl Com_LoadMapLoadingScreenFastFile(const char *mapName)
 {
+    // BlackOpsMP.retail.c:494043 (sub_610A30) — set loadscreen material before map zones load.
     if (!IsDedicatedServer())
     {
-        //track_set_max_memory_level(mapName);
         DB_ResetZoneSize(0);
         if (useFastFile->current.enabled)
             DB_ReleaseXAssets();
@@ -2538,69 +2653,272 @@ void __cdecl Com_UnloadLevelFastFiles()
     }
 }
 
+// Mirror DB_TryLoadXFileInternal path resolution: zone\Common then localized zone\<lang>.
+bool Com_ZoneFastfileExistsOnDisk(const char *zoneName)
+{
+    char path[260];
+
+    DB_BuildOSPath_Unlocalized(zoneName, ".ff", sizeof(path), path);
+    if ( GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES )
+        return true;
+    DB_BuildOSPath(zoneName, ".ff", sizeof(path), path);
+    return GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES;
+}
+
+bool Com_ZoneFastfileExistsAnySource(const char *zoneName)
+{
+    if ( !zoneName || !zoneName[0] )
+        return false;
+
+    if ( DB_FileExists(zoneName, FFD_DEFAULT) || DB_FileExists(zoneName, FFD_USER_MAP) )
+        return true;
+
+    if ( fs_gameDirVar && fs_gameDirVar->current.string[0] && DB_FileExists(zoneName, FFD_MOD_DIR) )
+        return true;
+
+    return Com_ZoneFastfileExistsOnDisk(zoneName);
+}
+
+bool Com_IsSpecOpsMapToken(const char *mapName)
+{
+    return mapName && mapName[0] && I_strncmp(mapName, "so_", 3) == 0;
+}
+
+bool Com_ParseSpecOpsZoneName(const char *mapName, char *zoneNameOut, unsigned int zoneNameSize)
+{
+    const char *basename;
+
+    if ( !zoneNameOut || zoneNameSize == 0 )
+        return false;
+
+    zoneNameOut[0] = 0;
+    if ( !Com_IsSpecOpsMapToken(mapName) )
+        return false;
+
+    for ( basename = &mapName[3]; *basename && *basename != '_'; ++basename )
+        ;
+
+    if ( !*basename || !basename[1] )
+        return false;
+
+    Com_sprintf(zoneNameOut, zoneNameSize, "%s", basename + 1);
+    return true;
+}
+
+bool Com_MapFastfileExists(const char *mapName)
+{
+    char specOpsZoneName[64];
+
+    if ( !mapName || !mapName[0] )
+        return false;
+
+    if ( Com_ZoneFastfileExistsAnySource(mapName) )
+        return true;
+
+    if ( !Com_ParseSpecOpsZoneName(mapName, specOpsZoneName, sizeof(specOpsZoneName)) )
+        return false;
+
+    return Com_ZoneFastfileExistsAnySource(specOpsZoneName);
+}
+
+const char *Com_GetLevelPrimaryFastfileZone(const char *mapName, char *zoneBuffer, unsigned int zoneBufferSize)
+{
+    char specOpsZoneName[64];
+
+    if ( !mapName || !mapName[0] )
+        return mapName;
+
+    if ( Com_IsSpecOpsMapToken(mapName)
+        && Com_ParseSpecOpsZoneName(mapName, specOpsZoneName, sizeof(specOpsZoneName))
+        && !Com_ZoneFastfileExistsOnDisk(mapName) )
+    {
+        Com_sprintf(zoneBuffer, zoneBufferSize, "%s", specOpsZoneName);
+        return zoneBuffer;
+    }
+
+    return mapName;
+}
+
+static bool s_spFrontendUIMenusRegistered;
+
+#ifdef KISAK_SP
+// Decomp: BlackOps.singleplayer.c sub_54EF80 — unload level/menu zones before map load.
+void Com_SP_UnloadLevelZonesForMapLoad()
+{
+    XZoneInfo zoneInfo[1];
+
+    zoneInfo[0].name = 0;
+    zoneInfo[0].allocFlags = 0;
+    zoneInfo[0].freeFlags = 0x06000000;
+    DB_LoadXAssets(zoneInfo, 1, 0);
+}
+#endif
+
 void __cdecl Com_LoadLevelFastFiles(char *mapName)
 {
     int ControllerIndex; // eax
-    const char *basename; // [esp+44h] [ebp-C4h]
-    XZoneInfo zoneInfo[4]; // [esp+48h] [ebp-C0h] BYREF
+    // Room for: clear, shared, specops, level, <map>_patch, <map>_patch_override
+    XZoneInfo zoneInfo[7]; // [esp+48h] [ebp-C0h] BYREF
     char specOpsZoneName[68]; // [esp+78h] [ebp-90h] BYREF
     const char *levelSharedFastFile; // [esp+BCh] [ebp-4Ch]
-    char levelPatchZoneName[64]; // [esp+C0h] [ebp-48h] BYREF
+    char levelPatchOverride[64]; // [esp+100h] [ebp-8h] BYREF
     int zoneCount; // [esp+104h] [ebp-4h]
+    bool soMap; // so_* map token (spec ops / alias layout)
+    bool soOverlayFastfileExists;
+#ifndef KISAK_SP
+    bool loadCommonFastFile;
+#endif
+    bool queuePatchOverride;
+    const char *patchZoneBase;
+    const char *levelPrimaryZone;
+
+    soOverlayFastfileExists = false;
+    queuePatchOverride = false;
+    specOpsZoneName[0] = 0;
+    levelPatchOverride[0] = 0;
+    soMap = Com_IsSpecOpsMapToken(mapName);
+    if ( soMap )
+    {
+        if ( !Com_ParseSpecOpsZoneName(mapName, specOpsZoneName, sizeof(specOpsZoneName)) )
+            Com_PrintError(1, "Bad specop level name\n");
+        soOverlayFastfileExists = Com_ZoneFastfileExistsAnySource(mapName);
+    }
+
+    patchZoneBase = mapName;
+    levelPrimaryZone = mapName;
+    if ( soMap && !soOverlayFastfileExists && specOpsZoneName[0] )
+    {
+        patchZoneBase = specOpsZoneName;
+        levelPrimaryZone = specOpsZoneName;
+    }
 
     zoneCount = 0;
     DB_ResetZoneSize(0);
     UI_SetLoadingScreenMaterial(mapName);
-    Com_sprintf(levelPatchZoneName, 0x40u, "%s_patch", mapName);
     ControllerIndex = Com_LocalClient_GetControllerIndex(0);
     Cbuf_ExecuteBuffer(0, ControllerIndex, (char *)"ui_animate connect * meet 500 1;\n");
     DB_AddUserMapDir(mapName);
-    zoneInfo[zoneCount].name = 0;
-    zoneInfo[zoneCount].allocFlags = 0;
-    zoneInfo[zoneCount++].freeFlags = 0x4000000;
+
+#ifdef KISAK_SP
+    // Decomp: CoDSP_rdBlackOps.map.c Com_LoadLevelFastFiles @ 8273D028 (PC SP retail).
     if ( I_stristr(mapName, "zombietron") )
     {
         Dvar_SetBool((dvar_s *)zombiemode, 1);
         Dvar_SetBool((dvar_s *)zombietron, 1);
     }
-    if ( I_stristr(mapName, "zombie_cod5_") )
-    {
-        Dvar_SetBool((dvar_s *)zombiemode, 1);
-        Dvar_SetBool((dvar_s *)legacy_zombiemode, 1);
-    }
     else
     {
-        Dvar_SetBool((dvar_s *)legacy_zombiemode, 0);
+        Dvar_SetBool((dvar_s *)zombietron, 0);
+        if ( I_stristr(mapName, "zombie_") )
+            Dvar_SetBool((dvar_s *)zombiemode, 1);
     }
+
+    // Menu levels only: patch_ui (SP uses patch_ui, never patch_ui_mp).
+    if ( Com_IsMenuLevel(mapName) )
+    {
+        s_spFrontendUIMenusRegistered = false;
+        if ( Com_ZoneFastfileExistsAnySource("patch_ui") )
+        {
+            zoneInfo[zoneCount].name = "patch_ui";
+            zoneInfo[zoneCount].allocFlags = 0x4000000;
+            zoneInfo[zoneCount++].freeFlags = 0;
+        }
+        else
+        {
+            Com_PrintWarning(
+                16,
+                "SP: patch_ui.ff not found — skipping UI patch zone (retail SP uses patch_ui, not patch_ui_mp)\n");
+        }
+    }
+
     if ( !Com_IsMenuLevel(mapName) )
         Com_LoadCommonFastFile();
+
+    // CSV init only in retail — return value is not queued as a separate zone.
+    Com_GetLevelSharedFastFile(mapName);
+
+    if ( soMap )
+    {
+        if ( !Com_ParseSpecOpsZoneName(mapName, specOpsZoneName, sizeof(specOpsZoneName)) )
+            Com_PrintError(1, "Bad specop level name\n");
+        else
+        {
+            zoneInfo[zoneCount].name = specOpsZoneName;
+            zoneInfo[zoneCount].allocFlags = 4096;
+            zoneInfo[zoneCount++].freeFlags = 0;
+        }
+    }
+
+    zoneInfo[zoneCount].name = levelPrimaryZone;
+    if ( Com_IsMenuLevel(mapName) )
+        zoneInfo[zoneCount].allocFlags = 0x1000000;
+    else if ( soMap )
+        zoneInfo[zoneCount].allocFlags = 0x8000;
+    else
+        zoneInfo[zoneCount].allocFlags = 4096;
+    zoneInfo[zoneCount++].freeFlags = 0;
+#else
+    zoneInfo[zoneCount].name = 0;
+    zoneInfo[zoneCount].allocFlags = 0;
+    zoneInfo[zoneCount++].freeFlags = 0x06000000;
+    Dvar_SetBool((dvar_s *)zombiemode, 0);
+    Dvar_SetBool((dvar_s *)zombietron, 0);
+    Dvar_SetBool((dvar_s *)legacy_zombiemode, 0);
+    if ( I_stristr(mapName, "zombietron") )
+    {
+        Dvar_SetBool((dvar_s *)zombiemode, 1);
+        Dvar_SetBool((dvar_s *)zombietron, 1);
+    }
+    if ( I_stristr(mapName, "zombie_") )
+    {
+        Dvar_SetBool((dvar_s *)zombiemode, 1);
+        Dvar_SetStringByName("g_gametype", "zombie");
+    }
+    if ( I_stristr(mapName, "cod5") )
+        Dvar_SetBool((dvar_s *)legacy_zombiemode, 1);
+    loadCommonFastFile = !Com_IsMenuLevel(mapName);
+    if ( loadCommonFastFile )
+        Com_LoadCommonFastFile();
     levelSharedFastFile = Com_GetLevelSharedFastFile(mapName);
+    if ( !levelSharedFastFile && soMap && !soOverlayFastfileExists && specOpsZoneName[0] )
+        levelSharedFastFile = Com_GetLevelSharedFastFile(specOpsZoneName);
     if ( levelSharedFastFile )
     {
         zoneInfo[zoneCount].name = levelSharedFastFile;
         zoneInfo[zoneCount].allocFlags = 4096;
         zoneInfo[zoneCount++].freeFlags = 0;
     }
-    if ( !I_strncmp("so_", mapName, strlen("so_")) )
+    if ( soMap && soOverlayFastfileExists )
     {
-        for ( basename = &mapName[strlen("so_")]; *basename && *basename != 95; ++basename )
-            ;
-        if ( !*basename )
-            Com_PrintError(1, "Bad specop level name\n");
-        Com_sprintf(specOpsZoneName, 0x40u, "%s", basename + 1);
         zoneInfo[zoneCount].name = specOpsZoneName;
-        zoneInfo[zoneCount].allocFlags = 0x4000;
+        zoneInfo[zoneCount].allocFlags = 2048;
         zoneInfo[zoneCount++].freeFlags = 0;
     }
-    zoneInfo[zoneCount].name = mapName;
-    if ( I_strncmp("so_", mapName, strlen("so_")) )
-        zoneInfo[zoneCount].allocFlags = 0x4000;
+    zoneInfo[zoneCount].name = levelPrimaryZone;
+    if ( Com_IsMenuLevel(mapName) )
+        zoneInfo[zoneCount].allocFlags = 0x1000000;
     else
-        zoneInfo[zoneCount].allocFlags = 0x10000;
+        zoneInfo[zoneCount].allocFlags = soMap ? 2048 : 0x4000;
     zoneInfo[zoneCount++].freeFlags = 0;
+#endif
+
+#ifdef KISAK_SP
+    Com_Printf(
+        16,
+        "SP level ff sequence: map='%s' zombiemode=%d common_zombie=%d primary='%s' allocFlags=0x%x\n",
+        mapName,
+        zombiemode->current.enabled,
+        DB_IsZoneLoaded("common_zombie"),
+        levelPrimaryZone,
+        zoneInfo[zoneCount - 1].allocFlags);
+#endif
     R_BeginRemoteScreenUpdate();
     DB_LoadXAssets(zoneInfo, zoneCount, 0);
     R_EndRemoteScreenUpdate(0);
+#ifdef KISAK_SP
+    if ( Com_IsMenuLevel(mapName) )
+        DB_SyncXAssets();
+#endif
 }
 
 int gLevelDependenciesInited = 0;
@@ -2651,52 +2969,534 @@ char *__cdecl Com_GetLevelSharedFastFile(char *mapName)
 
 void Com_LoadCommonFastFile()
 {
-    XZoneInfo zoneInfo[1]; // [esp+4h] [ebp-10h] BYREF
+    XZoneInfo zoneInfo[4]; // unload common + load common_zombie needs 2 slots
     int zoneCount; // [esp+10h] [ebp-4h]
 
     zoneCount = 0;
     DB_ResetZoneSize(0);
     if ( useFastFile->current.enabled )
         DB_ReleaseXAssets();
+    // Decomp: CoDSP_rdBlackOps.map.c Com_LoadCommonFastFile @ 8273D710 (PC SP retail).
     if ( zombietron->current.enabled )
     {
         zoneInfo[zoneCount].name = 0;
         zoneInfo[zoneCount].allocFlags = 0;
-        zoneInfo[zoneCount++].freeFlags = 256;
+#ifdef KISAK_SP
+        zoneInfo[zoneCount++].freeFlags = 512;
+#else
+        zoneInfo[zoneCount++].freeFlags = 64;
+#endif
     }
     else if ( zombiemode->current.enabled )
     {
-        if ( legacy_zombiemode->current.enabled )
+#ifdef KISAK_SP
+        if ( !DB_IsZoneLoaded("common_zombie") )
         {
-            if ( !DB_IsZoneLoaded("waw_zombie") )
-            {
-                zoneInfo[zoneCount].name = "waw_zombie";
-                zoneInfo[zoneCount].allocFlags = 256;
-                zoneInfo[zoneCount++].freeFlags = 0;
-            }
+            zoneInfo[zoneCount].name = "common_zombie";
+            zoneInfo[zoneCount].allocFlags = 512;
+            zoneInfo[zoneCount++].freeFlags = 0;
+        }
+#else
+        if ( DB_IsZoneLoaded("common_mp") )
+        {
+            zoneInfo[zoneCount].name = 0;
+            zoneInfo[zoneCount].allocFlags = 0;
+            zoneInfo[zoneCount++].freeFlags = 256;
+        }
+        if ( legacy_zombiemode->current.enabled
+            && DB_FileExists("waw_zombie", FFD_DEFAULT)
+            && !DB_IsZoneLoaded("waw_zombie") )
+        {
+            zoneInfo[zoneCount].name = "waw_zombie";
+            zoneInfo[zoneCount].allocFlags = 64;
+            zoneInfo[zoneCount++].freeFlags = 0;
         }
         else if ( !DB_IsZoneLoaded("common_zombie") )
         {
             zoneInfo[zoneCount].name = "common_zombie";
-            zoneInfo[zoneCount].allocFlags = 256;
+            zoneInfo[zoneCount].allocFlags = 64;
             zoneInfo[zoneCount++].freeFlags = 0;
         }
+#endif
     }
+#ifdef KISAK_SP
+    else if ( !DB_IsZoneLoaded("common") )
+    {
+        zoneInfo[zoneCount].name = "common";
+        zoneInfo[zoneCount].allocFlags = 512;
+        zoneInfo[zoneCount++].freeFlags = 0;
+    }
+#else
     else if ( !DB_IsZoneLoaded("common_mp") )
     {
         zoneInfo[zoneCount].name = "common_mp";
-        zoneInfo[zoneCount].allocFlags = 256;
+        zoneInfo[zoneCount].allocFlags = 64;
         zoneInfo[zoneCount++].freeFlags = 0;
     }
+#endif
     if ( zoneCount )
         DB_LoadXAssets(zoneInfo, zoneCount, 0);
 }
 
+#ifdef KISAK_SP
+static const char *kSPOfflineBotDifficulties[] = { "easy", "normal", "hard", "fu", NULL };
+
+// BlackOps.singleplayer.c / CoDSP_rdBlackOps.map.c: SP.exe has no Live_Init / DemonWare (Live_InitPlatform).
+// MP retail registers these in live_win.cpp:506-526 inside Live_InitPlatform.
+void __cdecl Live_RegisterSPOfflineDvars()
+{
+    if ( !systemlink )
+        systemlink = _Dvar_RegisterBool("systemlink", 0, 0, "Current game is a system link game");
+    if ( !splitscreen )
+        splitscreen = _Dvar_RegisterBool("splitscreen", 0, 0, "Current game is a splitscreen game");
+    if ( !xblive_basictraining )
+        xblive_basictraining = _Dvar_RegisterBool("xblive_basictraining", 0, 4u, "Current game is basic training");
+    if ( !xblive_basictraining_popup )
+        xblive_basictraining_popup = _Dvar_RegisterBool(
+            "xblive_basictraining_popup",
+            1,
+            1u,
+            "The user has seen the basic training popup description");
+    if ( !bot_friends )
+        bot_friends = _Dvar_RegisterInt("bot_friends", 6, 1, 11, 0, "Number of friends allowed in basic training");
+    if ( !bot_enemies )
+        bot_enemies = _Dvar_RegisterInt("bot_enemies", 6, 1, 11, 0, "Number of enemies allowed in basic training");
+    if ( !bot_difficulty )
+        bot_difficulty = _Dvar_RegisterEnum(
+            "bot_difficulty",
+            kSPOfflineBotDifficulties,
+            1,
+            1u,
+            "Difficulty level of the basic training bots");
+    if ( !bot_tips )
+        bot_tips = _Dvar_RegisterBool("bot_tips", 1, 1u, "Combat tips enabled in basic training");
+    if ( !xblive_matchEndingSoon )
+        xblive_matchEndingSoon = _Dvar_RegisterBool("xblive_matchEndingSoon", 0, 0, "True if the match is ending soon");
+    if ( !xblive_wagermatch )
+        xblive_wagermatch = _Dvar_RegisterBool("xblive_wagermatch", 0, 4u, "Current game is a wager match");
+    if ( !xblive_theater )
+        xblive_theater = _Dvar_RegisterBool("xblive_theater", 0, 0, "Current game is a theater mode");
+    if ( !xblive_clanmatch )
+        xblive_clanmatch = _Dvar_RegisterBool("xblive_clanmatch", 0, 0, "Current game is a clan match");
+}
+
+static void Com_LoadFrontendUIMenus()
+{
+    uiInfo_s *uiInfo;
+    MenuList *menuList;
+
+    if ( !useFastFile->current.enabled || !DB_IsZoneLoaded("frontend") )
+        return;
+    uiInfo = UI_UIContext_GetInfo(0);
+    if ( !uiInfo )
+        return;
+
+    // Menus are cleared when frontend.ff unloads; re-register if 'main' is gone.
+    if ( s_spFrontendUIMenusRegistered && Menus_FindByName(&uiInfo->uiDC, "main") )
+        return;
+
+    s_spFrontendUIMenusRegistered = false;
+
+    // Retail SP main menu lives in frontend.ff (menulist ui/menus.txt), not ui_mp.ff.
+    menuList = UI_LoadMenus("ui/menus.txt", 3);
+    if ( menuList )
+        UI_AddMenuList(0, &uiInfo->uiDC, menuList, 1);
+    else
+        Com_PrintWarning(16, "SP frontend: ui/menus.txt missing from frontend.ff\n");
+
+    menuList = UI_LoadMenus("ui/hud_frontend.txt", 3);
+    if ( menuList )
+        UI_AddMenuList(0, &uiInfo->uiDC, menuList, 0);
+
+    if ( Menus_FindByName(&uiInfo->uiDC, "main") )
+    {
+        s_spFrontendUIMenusRegistered = true;
+        Com_Printf(16, "SP frontend: registered %d UI menus from frontend.ff\n", Menu_Count(&uiInfo->uiDC));
+    }
+    else
+        Com_PrintWarning(16, "SP frontend: menu 'main' not found after loading frontend.ff\n");
+}
+
+void __cdecl Com_EnsureFrontendUIMenus()
+{
+    Com_LoadFrontendUIMenus();
+}
+
+static bool s_spFrontendWorldResolveWarned;
+
+static bool Com_FrontendHasClipmap(const char *name)
+{
+    return name
+        && *name
+        && (DB_FindXAssetEntry(ASSET_TYPE_CLIPMAP, name)
+            || DB_FindXAssetEntry(ASSET_TYPE_CLIPMAP_PVS, name));
+}
+
+static bool Com_TryResolveFrontendClipmapName(char *out, int outSize)
+{
+    char bspName[256];
+    char mapBase[64];
+    const char *shortName = "frontend";
+
+    if ( !out || outSize < 2 )
+        return false;
+
+    if ( Com_FrontendHasClipmap(shortName) )
+    {
+        I_strncpyz(out, shortName, outSize);
+        return true;
+    }
+    Com_GetBspFilename(bspName, sizeof(bspName), shortName);
+    if ( Com_IsBspMapPath(bspName) )
+    {
+        Com_StripMapBaseFromBspPath(bspName, mapBase, sizeof(mapBase));
+        if ( mapBase[0] && Com_FrontendHasClipmap(mapBase) )
+        {
+            I_strncpyz(out, mapBase, outSize);
+            return true;
+        }
+    }
+    if ( Com_FrontendHasClipmap(bspName) )
+    {
+        Com_StripMapBaseFromBspPath(bspName, mapBase, sizeof(mapBase));
+        I_strncpyz(out, mapBase[0] ? mapBase : shortName, outSize);
+        return true;
+    }
+    return DB_FindMapAssetNameForFrontend(out, outSize);
+}
+
+bool __cdecl Com_SP_IsMenuMapName(const char *name)
+{
+    char mapBase[64];
+
+    if ( !name || !*name )
+        return false;
+    if ( Com_IsMenuLevel(name) )
+        return true;
+    if ( Com_IsBspMapPath(name) )
+    {
+        Com_StripMapBaseFromBspPath(name, mapBase, sizeof(mapBase));
+        return mapBase[0] && Com_IsMenuLevel(mapBase);
+    }
+    return false;
+}
+
+bool __cdecl Com_SP_MenuLevelHasClipmap(const char *mapToken)
+{
+    char bspName[256];
+    char mapBase[64];
+
+    if ( !mapToken || !*mapToken )
+        return false;
+    if ( Com_FrontendHasClipmap(mapToken) )
+        return true;
+    Com_GetBspFilename(bspName, sizeof(bspName), mapToken);
+    if ( Com_FrontendHasClipmap(bspName) )
+        return true;
+    if ( Com_IsBspMapPath(bspName) )
+    {
+        Com_StripMapBaseFromBspPath(bspName, mapBase, sizeof(mapBase));
+        if ( mapBase[0] && Com_FrontendHasClipmap(mapBase) )
+            return true;
+    }
+    return false;
+}
+
+bool __cdecl Com_SP_TryResolveMenuLevelBspName(const char *mapToken, char *outBspName, int outBspNameSize)
+{
+    char bspName[256];
+    char mapBase[64];
+
+    if ( !outBspName || outBspNameSize < 2 || !mapToken || !*mapToken )
+        return false;
+
+    auto tryName = [&](const char *name) -> bool {
+        if ( !name || !*name )
+            return false;
+        if ( DB_FindXAssetEntry(ASSET_TYPE_GFXWORLD, name)
+            || DB_FindXAssetEntry(ASSET_TYPE_COMWORLD, name)
+            || Com_FrontendHasClipmap(name) )
+        {
+            I_strncpyz(outBspName, name, outBspNameSize);
+            return true;
+        }
+        return false;
+    };
+
+    if ( tryName(mapToken) )
+        return true;
+    Com_GetBspFilename(bspName, sizeof(bspName), mapToken);
+    if ( tryName(bspName) )
+        return true;
+    if ( Com_IsBspMapPath(bspName) )
+    {
+        Com_StripMapBaseFromBspPath(bspName, mapBase, sizeof(mapBase));
+        if ( tryName(mapBase) )
+            return true;
+    }
+    if ( !I_stricmp(mapToken, "frontend") )
+        return DB_FindMapAssetNameForFrontend(outBspName, outBspNameSize);
+    return false;
+}
+
+void __cdecl Com_SP_LoadMenuLevelServerWorld(const char *mapToken, int *outChecksum)
+{
+    char bspName[256];
+    int checksum;
+
+    // CoDSP_rdBlackOps.map.c / BlackOps.singleplayer.c: retail frontend.ff is visual-only (gfx+com, no col_map_sp).
+    if ( !Com_SP_TryResolveMenuLevelBspName(mapToken, bspName, sizeof(bspName)) )
+    {
+        Com_PrintWarning(16, "SP menu map '%s': no gfx_map/com_map in loaded zones\n", mapToken);
+        return;
+    }
+    checksum = 0;
+    if ( Com_SP_MenuLevelHasClipmap(mapToken) )
+    {
+        CM_LoadMap(bspName, &checksum);
+        Com_LoadWorld(bspName);
+        CM_LinkWorld();
+        Com_Printf(16, "SP menu map '%s': loaded col_map_sp + com_map ('%s')\n", mapToken, bspName);
+    }
+    else
+    {
+        Com_PrintWarning(
+            16,
+            "SP menu map '%s': no col_map_sp — loading com_map only ('%s')\n",
+            mapToken,
+            bspName);
+        Com_LoadWorld(bspName);
+        CM_InitAllThreadData();
+    }
+    if ( outChecksum )
+        *outChecksum = checksum;
+}
+
+void __cdecl Com_SP_LoadMenuLevelClientWorld(const char *mapToken)
+{
+    char bspName[256];
+
+    if ( !Com_SP_TryResolveMenuLevelBspName(mapToken, bspName, sizeof(bspName)) )
+        return;
+    if ( Com_SP_MenuLevelHasClipmap(mapToken) )
+        CL_CM_LoadMap(bspName);
+    else
+        Com_LoadWorld(bspName);
+    if ( !rgp.world )
+        LoadWorld(bspName);
+}
+
+static bool Com_TryResolveFrontendGfxWorldName(const char *clipmapName, char *out, int outSize)
+{
+    char bspName[256];
+    char mapBase[64];
+    const char *shortName = "frontend";
+
+    if ( !out || outSize < 2 )
+        return false;
+
+    Com_GetBspFilename(bspName, sizeof(bspName), shortName);
+    if ( DB_FindXAssetEntry(ASSET_TYPE_GFXWORLD, bspName) )
+    {
+        I_strncpyz(out, bspName, outSize);
+        return true;
+    }
+    if ( DB_FindXAssetEntry(ASSET_TYPE_GFXWORLD, shortName) )
+    {
+        I_strncpyz(out, shortName, outSize);
+        return true;
+    }
+    if ( clipmapName && *clipmapName && DB_FindXAssetEntry(ASSET_TYPE_GFXWORLD, clipmapName) )
+    {
+        I_strncpyz(out, clipmapName, outSize);
+        return true;
+    }
+    if ( clipmapName && Com_IsBspMapPath(clipmapName) )
+    {
+        Com_StripMapBaseFromBspPath(clipmapName, mapBase, sizeof(mapBase));
+        if ( mapBase[0] && DB_FindXAssetEntry(ASSET_TYPE_GFXWORLD, mapBase) )
+        {
+            I_strncpyz(out, mapBase, outSize);
+            return true;
+        }
+    }
+    if ( clipmapName && *clipmapName && !Com_IsBspMapPath(clipmapName) )
+    {
+        Com_GetBspFilename(bspName, sizeof(bspName), clipmapName);
+        if ( DB_FindXAssetEntry(ASSET_TYPE_GFXWORLD, bspName) )
+        {
+            I_strncpyz(out, bspName, outSize);
+            return true;
+        }
+    }
+    return false;
+}
+
+static void Com_LoadFrontendWorld()
+{
+    char bspName[256];
+    char clipmapName[256];
+    char gfxWorldName[256];
+    bool hasClipmap;
+
+    if ( !useFastFile->current.enabled || !DB_IsZoneLoaded("frontend") )
+        return;
+    if ( com_sv_running->current.enabled )
+        return;
+
+    DB_SyncXAssets();
+
+    // Decomp: CoDSP_rdBlackOps.map.c — frontend.ff ships gfx_map+com_map at maps/frontend.d3dbsp; col_map_sp is optional.
+    if ( !Com_SP_TryResolveMenuLevelBspName("frontend", bspName, sizeof(bspName)) )
+    {
+        if ( !s_spFrontendWorldResolveWarned )
+        {
+            Com_PrintWarning(
+                16,
+                "SP frontend: no gfx_map/com_map in loaded frontend zones — skipping ui_3d world (menus still work)\n");
+            DB_LogFrontendMapAssetsOnce();
+            s_spFrontendWorldResolveWarned = true;
+        }
+        return;
+    }
+    s_spFrontendWorldResolveWarned = false;
+
+    hasClipmap = Com_SP_MenuLevelHasClipmap("frontend");
+    if ( hasClipmap && Com_TryResolveFrontendClipmapName(clipmapName, sizeof(clipmapName)) )
+        CL_CM_LoadMap(clipmapName);
+    else
+    {
+        hasClipmap = false;
+        Com_PrintWarning(
+            16,
+            "SP frontend: no col_map_sp — loading gfx+com only for ui_3d ('%s')\n",
+            bspName);
+        Com_LoadWorld(bspName);
+    }
+
+    if ( !Com_TryResolveFrontendGfxWorldName(bspName, gfxWorldName, sizeof(gfxWorldName)) )
+        I_strncpyz(gfxWorldName, bspName, sizeof(gfxWorldName));
+
+    if ( !rgp.world )
+    {
+        LoadWorld(gfxWorldName);
+        R_SortWorldSurfaces();
+        R_PerMap_Init();
+    }
+    R_InitAssets_PostMapFastfileLoad();
+    if ( rgp.world )
+    {
+        if ( hasClipmap )
+            Com_Printf(
+                16,
+                "SP frontend: loaded clipmap+gfxworld for ui_3d (col='%s' gfx='%s')\n",
+                clipmapName,
+                gfxWorldName);
+        else
+            Com_Printf(
+                16,
+                "SP frontend: loaded gfx+com only for ui_3d (bsp='%s' gfx='%s')\n",
+                bspName,
+                gfxWorldName);
+    }
+    else
+        Com_PrintWarning(
+            16,
+            "SP frontend: com/gfx world load failed for bsp='%s' gfx='%s'\n",
+            bspName,
+            gfxWorldName);
+}
+#endif
+
 void __cdecl Com_LoadFrontEnd()
 {
-    Dvar_SetBool((dvar_s *)xblive_matchEndingSoon, 0);
+    if ( xblive_matchEndingSoon )
+        Dvar_SetBool((dvar_s *)xblive_matchEndingSoon, 0);
     if (!IsDedicatedServer())
     {
+#ifdef KISAK_SP
+        if ( useFastFile->current.enabled )
+            DB_SyncXAssets();
+        // CoDSP_rdBlackOps.map.c:6371718 Com_LoadFrontEnd — map frontend when not already on a menu level.
+        // Startup treyarch.bik and frontend spinner come from CL_MapLoadingKickLoadMovie + cin_levels.txt.
+        if ( !Com_IsRunningMenuLevel(0) )
+        {
+            int primary;
+            int controllerIndex;
+            XZoneInfo zoneInfo[1];
+
+            Dvar_SetBool((dvar_s *)zombiemode, 0);
+            Dvar_SetBool((dvar_s *)zombietron, 0);
+            Dvar_SetBool((dvar_s *)onlinegame, 0);
+            Dvar_SetBool((dvar_s *)blackopsmode, 0);
+            Dvar_SetBool((dvar_s *)spmode, 0);
+            Dvar_SetBool((dvar_s *)arcademode, 0);
+            if ( systemlink )
+                Dvar_SetBool((dvar_s *)systemlink, 0);
+            if ( splitscreen )
+                Dvar_SetBool((dvar_s *)splitscreen, 0);
+            Dvar_SetIntByName("splitscreen_playerCount", 1);
+
+            zoneInfo[0].name = 0;
+            zoneInfo[0].allocFlags = 0;
+            zoneInfo[0].freeFlags = 256;
+            DB_LoadXAssets(zoneInfo, 1, 0);
+
+            CL_SetupClientsForFrontend();
+            primary = Com_LocalClients_GetPrimary();
+            if ( primary < 0 )
+                primary = 0;
+            controllerIndex = Com_LocalClient_GetControllerIndex(primary);
+            Cbuf_ExecuteBuffer(primary, controllerIndex, (char *)"map frontend\n");
+            return;
+        }
+        if ( useFastFile->current.enabled && !DB_IsZoneLoaded("frontend") )
+        {
+            char frontendMapName[16];
+            I_strncpyz(frontendMapName, "frontend", sizeof(frontendMapName));
+            Com_Printf(16, "SP: loading frontend fastfiles...\n");
+            Com_LoadLevelFastFiles(frontendMapName);
+            DB_SyncXAssets();
+            Com_Printf(16, "SP: frontend fastfiles loaded\n");
+        }
+        {
+            const bool introStillPlaying = CL_IsSPStartupIntroActive()
+                || (com_introPlayed
+                    && !com_introPlayed->current.enabled
+                    && (CL_GetLocalClientConnectionState(0) == CA_CINEMATIC
+                        || CL_GetLocalClientConnectionState(0) == CA_LOGO
+                        || CL_GetLocalClientConnectionState(0) == CA_LOADING));
+            if ( useFastFile->current.enabled && DB_IsZoneLoaded("frontend") )
+            {
+                UI_SetMap((char *)"frontend", (char *)"");
+                Dvar_SetStringByName("mapname", "frontend");
+                Com_LoadFrontendUIMenus();
+                if ( !introStillPlaying )
+                {
+                    s_spFrontendWorldResolveWarned = false;
+                    Com_LoadFrontendWorld();
+                }
+            }
+            else
+            {
+                UI_SetMap((char *)"", "");
+            }
+            if ( cls.uiStarted
+                && CL_GetLocalClientConnectionState(0) == CA_DISCONNECTED
+                && !introStillPlaying
+                && (!useFastFile->current.enabled || DB_IsZoneLoaded("frontend")) )
+            {
+                UI_SP_NotifyOfflineProfileReady();
+                UI_SetActiveMenu(0, UIMENU_MAIN);
+                if ( CL_GetLocalClientConnectionState(0) == CA_CINEMATIC
+                    || CL_GetLocalClientConnectionState(0) == CA_LOGO
+                    || CL_GetLocalClientConnectionState(0) == CA_UICINEMATIC )
+                {
+                    CL_SetLocalClientConnectionState(0, CA_DISCONNECTED);
+                }
+            }
+        }
+#endif
         CL_SetupClientsForFrontend();
     }
 }
@@ -2707,6 +3507,10 @@ void __cdecl Com_UnloadFrontEnd()
     int localClientNum; // [esp+4h] [ebp-10h]
     XZoneInfo zoneInfo[1]; // [esp+8h] [ebp-Ch] BYREF
 
+#ifdef KISAK_SP
+    s_spFrontendUIMenusRegistered = false;
+    s_spFrontendWorldResolveWarned = false;
+#endif
     UI_ViewerShutdown();
     for ( localClientNum = 0; localClientNum < 1; ++localClientNum )
         UI_CloseAll(localClientNum);
@@ -2726,11 +3530,19 @@ void __cdecl Com_UnloadFrontEnd()
         if ( shutdown )
             CL_InitRenderer();
     }
+    CL_ShrinkPerLocalClientMemory();
     R_UI3D_Shutdown();
 }
 
 void __cdecl Com_AssetLoadUI()
 {
+#ifdef KISAK_SP
+    // Frontend should always evaluate common fastfiles as neutral UI state.
+    // Without this, stale map-era zombie flags can leak into menu loads.
+    Dvar_SetBool((dvar_s *)zombiemode, 0);
+    Dvar_SetBool((dvar_s *)zombietron, 0);
+    Dvar_SetBool((dvar_s *)legacy_zombiemode, 0);
+#endif
     if ( useFastFile->current.enabled )
     {
         Com_LoadCommonFastFile();
@@ -2773,6 +3585,7 @@ void __cdecl Com_Frame()
     //if ( !_setjmp3(Value, 0) )
     if ( !_setjmp((int*)Value) )
     {
+        R_ReleaseDXDeviceOwnership();
         Com_CheckSyncFrame();
         Com_Frame_Try_Block_Function();
         ++com_frameNumber;
@@ -2970,7 +3783,11 @@ void __cdecl Com_WriteConfiguration(int localClientNum)
         if ( (dvar_modifiedFlags & 1) != 0 )
         {
             dvar_modifiedFlags &= ~1u;
+#ifdef KISAK_SP
+            I_strncpyz(configFile, "config.cfg", 128);
+#else
             I_strncpyz(configFile, "config_mp.cfg", 128);
+#endif
             Com_WriteConfigToFile(localClientNum, configFile);
             //BLOPS_NULLSUB();
         }
@@ -3076,8 +3893,24 @@ char Com_UpdateMenu()
     uiMenuCommand_t MenuScreen; // eax
     connstate_t clcState; // [esp+4h] [ebp-4h]
 
+#ifdef KISAK_SP
+    if ( cls.uiStarted
+        && useFastFile->current.enabled
+        && DB_IsZoneLoaded("frontend") )
+    {
+        Com_EnsureFrontendUIMenus();
+    }
+#endif
+
     clcState = CL_GetLocalClientConnectionState(0);
     IsFullscreen = UI_IsFullscreen(0);
+#ifdef KISAK_SP
+    if ( CL_IsSPStartupIntroActive()
+        || (com_introPlayed
+            && !com_introPlayed->current.enabled
+            && (clcState == CA_CINEMATIC || clcState == CA_LOGO || clcState == CA_LOADING)) )
+        return IsFullscreen;
+#endif
     if ( !IsFullscreen && (clcState == CA_DISCONNECTED || clcState == CA_UICINEMATIC) )
     {
         IsFullscreen = CG_IsShowingZombieMap();

@@ -1,8 +1,12 @@
 #include "g_player_corpse.h"
+#ifdef KISAK_SP
+#include <game/g_scr_main.h>
+#else
 #include <game_mp/g_scr_main_mp.h>
-#include <game_mp/g_utils_mp.h>
+#endif
+#include <game/g_utils_wrapper.h>
 #include <clientscript/scr_const.h>
-#include <game_mp/g_main_mp.h>
+#include <game/g_main_wrapper.h>
 #include <cgame/cg_event.h>
 #include <universal/com_math_anglevectors.h>
 #include <server/sv_world.h>
@@ -78,8 +82,8 @@ int __cdecl G_GetFreePlayerCorpseIndex()
         14,
         "Freeing Corpse Entity %i entnum %i %i %i\n",
         bestIndex,
-        g_scr_data.playerCorpseInfo[i].entnum,
-        g_scr_data.playerCorpseInfo[i].tree,
+        g_scr_data.playerCorpseInfo[bestIndex].entnum,
+        g_scr_data.playerCorpseInfo[bestIndex].tree,
         level.time);
 
     ent = &level.gentities[g_scr_data.playerCorpseInfo[bestIndex].entnum];
@@ -137,6 +141,7 @@ void __cdecl G_RunCorpseMove(gentity_s *ent)
     corpseInfo_t *corpseInfo; // [esp+190h] [ebp-4h]
     int savedregs; // [esp+194h] [ebp+0h] BYREF
 
+    memset(&tr, 0, 16);
     isRagdoll = Com_IsRagdollTrajectory(&ent->s.lerp.pos);
     //col_context_t::col_context_t(&context);
     if ( ent->s.eType != 2

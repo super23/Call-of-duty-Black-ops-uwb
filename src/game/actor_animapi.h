@@ -20,6 +20,9 @@ struct AnimScriptList // sizeof=0x40C0
     scr_animscript_t cover_arrival;
     scr_animscript_t cover_crouch;
     scr_animscript_t cover_left;
+#ifdef KISAK_SP
+    scr_animscript_t cover_pillar;
+#endif
     scr_animscript_t cover_prone;
     scr_animscript_t cover_right;
     scr_animscript_t cover_stand;
@@ -48,7 +51,7 @@ void __fastcall Actor_KillAnimScript(actor_s *self);
 void __fastcall Actor_SetAnimScript(
                 actor_s *self,
                 scr_animscript_t *pAnimScriptFunc,
-                ai_movemode_t moveMode,
+                unsigned __int8 moveMode,
                 ai_animmode_t animMode,
                 scriptAnimAIFunctionTypes_t animScript);
 void __fastcall Actor_AnimStop(actor_s *self, scr_animscript_t *pAnimScriptFunc);
@@ -57,8 +60,10 @@ scr_animscript_t *__fastcall Actor_GetStopAnim(actor_s *self);
 void __fastcall Actor_AnimTryWalk(actor_s *self);
 void __fastcall Actor_AnimTryRun(actor_s *self);
 void __fastcall Actor_AnimPain(actor_s *self);
+void __fastcall Actor_AnimReact(actor_s *self);
 void __fastcall Actor_AnimDeath(actor_s *self);
 void __fastcall Actor_AnimSpecific(actor_s *self, scr_animscript_t *func, ai_animmode_t eAnimMode, bool bUseGoalWeight);
+void __fastcall Actor_AnimScripted(actor_s *self);
 void __stdcall Actor_AnimSetCompleteGoalWeight(
                 XAnimTree_s *tree,
                 unsigned int animIndex,
@@ -70,4 +75,8 @@ void __stdcall Actor_AnimSetCompleteGoalWeight(
                 int bRestart);
 void __stdcall Actor_AnimClearGoalWeight(unsigned int animIndex, float blendTime);
 
+#ifdef KISAK_SP
+extern AnimScriptList *g_animScriptTable[4];
+#else
 extern AnimScriptList *g_animScriptTable[1];
+#endif

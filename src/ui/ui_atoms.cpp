@@ -1,6 +1,10 @@
 #include "ui_atoms.h"
 #include <gfx_d3d/r_material.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_cgame_sp.h>
+#else
 #include <client_mp/cl_cgame_mp.h>
+#endif
 #include <client/cl_main.h>
 #include <universal/com_memory.h>
 #include <universal/q_shared.h>

@@ -20,7 +20,7 @@ bool __cdecl CG_WorldPosToCompass(
                 const float *playerWorldPos,
                 const float *in,
                 float *out,
-                float *outClipped);
+                float *outClipped /* [2] xy offsets; if non-null, receives clamped position */);
 char __cdecl CG_TextClippedToCompass(
                 CompassType compassType,
                 const cg_s *cgameGlob,

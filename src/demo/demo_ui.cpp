@@ -8,7 +8,11 @@
 #include "demo_playback.h"
 #include <client/client.h>
 #include <win32/win_shared.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_cgame_sp.h>
+#else
 #include <client_mp/cl_cgame_mp.h>
+#endif
 
 
 const char *demo_transition_enum_string_40[2] = { "MENU_DEMO_TRANSITION_CUT", "MENU_DEMO_TRANSITION_FADE" };

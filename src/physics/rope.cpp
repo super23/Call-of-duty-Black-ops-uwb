@@ -3,12 +3,19 @@
 #include "physconstraints_load_obj.h"
 #include <qcommon/common.h>
 #include <gfx_d3d/r_rope_render.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_main_sp.h>
+#include <cgame_sp/cg_ents_sp.h>
+#include <cgame_sp/cg_predict_sp.h>
+#else
 #include <cgame_mp/cg_main_mp.h>
+#include <cgame_mp/cg_ents_mp.h>
+#include <cgame_mp/cg_predict_mp.h>
+#endif
 #include <bgame/bg_wind.h>
 #include <DynEntity/DynEntity_load_obj.h>
 #include <universal/com_math_anglevectors.h>
 #include <qcommon/dobj_management.h>
-#include <cgame_mp/cg_ents_mp.h>
 #include <client/splitscreen.h>
 #include <universal/curve.h>
 #include <gfx_d3d/r_dpvs.h>
@@ -17,7 +24,6 @@
 #include <cgame/cg_drawtools.h>
 #include <game/g_mover.h>
 #include <cgame/cg_world.h>
-#include <cgame_mp/cg_predict_mp.h>
 
 static const float sc = 20.0f;
 
@@ -144,6 +150,25 @@ int __cdecl Rope_GetNumParticles(int rope_index)
         __debugbreak();
     }
     return g_ropes[rope_index].m_num_particles;
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (Rope_GetPosition ~826F61F8)
+void __cdecl Rope_GetPosition(int rope_index, float fraction, float *outPos)
+{
+    rope_t *rope;
+    int i;
+
+    if ( !Rope_IsValid(rope_index) || !outPos )
+        return;
+    rope = &g_ropes[rope_index];
+    if ( !rope->m_num_particles )
+        return;
+    g_ropeCurve.Reinit();
+    for ( i = 0; i < rope->m_num_particles; ++i )
+        g_ropeCurve.AddNode(rope->m_particles[i].p);
+    g_ropeCurve.mCurveType = cCurve::CURVE_BSPLINE;
+    g_ropeCurve.Build();
+    g_ropeCurve.GetPos(fraction, outPos);
 }
 
 void __cdecl Rope_AddAnchor(
@@ -411,7 +436,7 @@ void __cdecl Rope_Init(
     v[0] = *p1 - *p0;
     v[1] = p1[1] - p0[1];
     v[2] = p1[2] - p0[2];
-    vlen = Vec3Length(v);
+    vlen = Abs(v);
     if ( vlen < 0.001 )
     {
         v[0] = 0.0f;
@@ -866,7 +891,7 @@ LABEL_16:
         v[0] = *p2 - *p1;
         v[1] = p2[1] - p1[1];
         v[2] = p2[2] - p1[2];
-        vlen = Vec3Length(v);
+        vlen = Abs(v);
         targetd = rope->m_seglen;
         v[0] = (float)(1.0 / vlen) * v[0];
         v[1] = (float)(1.0 / vlen) * v[1];
@@ -1549,7 +1574,7 @@ void __cdecl Rope_Trace(const float *p0, const float *p1)
     ud[0] = *p1 - *p0;
     ud[1] = p1[1] - p0[1];
     ud[2] = p1[2] - p0[2];
-    vlen = Vec3Length(ud);
+    vlen = Abs(ud);
     if ( vlen >= 0.0099999998 )
     {
         ud[0] = (float)(1.0 / vlen) * ud[0];
@@ -1659,6 +1684,8 @@ void __cdecl Rope_CollideWorld(int rope_index)
     //visitor.__vftable = (colgeom_visitor_inlined_t<200>_vtbl *)&colgeom_visitor_inlined_t<200>::`vftable';
     //colgeom_visitor_inlined_t<500>::reset(&visitor);
     mask = 0x280EC93;
+    memset(&trace, 0, 16);
+    memset(&trace1, 0, 16);
     //col_context_t::col_context_t(&context);
     if ( rope->m_in_use )
     {
@@ -1699,7 +1726,7 @@ void __cdecl Rope_CollideWorld(int rope_index)
                 dir[0] = p1[0] - p0[0];
                 dir[1] = p1[1] - p0[1];
                 dir[2] = p1[2] - p0[2];
-                len = Vec3Length(dir);
+                len = Abs(dir);
                 if ( len >= 0.001 )
                 {
                     hint = -1;

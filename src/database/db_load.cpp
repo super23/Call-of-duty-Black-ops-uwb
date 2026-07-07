@@ -22,6 +22,7 @@
 #include <ui/ui_shared.h>
 #include <universal/com_expressions.h>
 #include <qcommon/com_bsp.h>
+#include <qcommon/com_sp_map_mp.h>
 #include <physics/rope.h>
 #include <glass/glass_shard.h>
 #include <glass/glass.h>
@@ -34,7 +35,7 @@
 #include <game/g_bsp.h>
 #include <qcommon/cm_staticmodel.h>
 
-// This seriously has to be one of the most aids parts of the COD codebases
+// Stream loaders use file-scope cursor variables while walking nested asset data.
 unsigned __int8 *varbyte;
 char *varchar;
 void *varint;
@@ -1439,7 +1440,7 @@ void __cdecl Load_SoundFileRef()
             }
         }
     }
-    else if ( varSoundFileRef->loadSnd )
+    else if ( varSoundFile->type != 1 && varSoundFileRef->loadSnd )
     {
         if ( varSoundFileRef->loadSnd == (LoadedSound *)-1 )
         {
@@ -3182,7 +3183,6 @@ void __cdecl Load_XModel(bool atStreamStart)
         }
         else
         {
-            //DB_ConvertOffsetToPointer(&varXModel->8);
             DB_ConvertOffsetToPointer((uint32_t *)&varXModel->boneNames);
         }
     }
@@ -3196,7 +3196,6 @@ void __cdecl Load_XModel(bool atStreamStart)
         }
         else
         {
-            //DB_ConvertOffsetToPointer(&varXModel->12);
             DB_ConvertOffsetToPointer((uint32_t *)&varXModel->parentList);
         }
     }
@@ -3210,7 +3209,6 @@ void __cdecl Load_XModel(bool atStreamStart)
         }
         else
         {
-            //DB_ConvertOffsetToPointer(&varXModel->16);
             DB_ConvertOffsetToPointer((uint32_t *)&varXModel->quats);
         }
     }
@@ -3224,7 +3222,6 @@ void __cdecl Load_XModel(bool atStreamStart)
         }
         else
         {
-            //DB_ConvertOffsetToPointer(&varXModel->20);
             DB_ConvertOffsetToPointer((uint32_t *)&varXModel->trans);
         }
     }
@@ -3238,7 +3235,6 @@ void __cdecl Load_XModel(bool atStreamStart)
         }
         else
         {
-            //DB_ConvertOffsetToPointer(&varXModel->partClassification);
             DB_ConvertOffsetToPointer((uint32_t *)&varXModel->partClassification);
         }
     }
@@ -3252,7 +3248,6 @@ void __cdecl Load_XModel(bool atStreamStart)
         }
         else
         {
-            //DB_ConvertOffsetToPointer(&varXModel->baseMat);
             DB_ConvertOffsetToPointer((uint32_t *)&varXModel->baseMat);
         }
     }
@@ -3822,7 +3817,7 @@ void __cdecl Load_FxEffectDefHandle(bool atStreamStart)
         if ( *varFxEffectDefHandle == (const FxEffectDef *)-1 || value == -2 )
         {
             *varFxEffectDefHandle = (const FxEffectDef *)AllocLoad_FxElemVisStateSample();
-            varFxEffectDef = *(FxEffectDef**)varFxEffectDefHandle;  //de-const
+            varFxEffectDef = const_cast<FxEffectDef *>(*varFxEffectDefHandle);
             if ( value == -2 )
                 inserted = DB_InsertPointer();
             else
@@ -4062,7 +4057,7 @@ void __cdecl Mark_FxEffectDefHandle()
 {
     if ( *varFxEffectDefHandle )
     {
-        varFxEffectDef = *(FxEffectDef**)varFxEffectDefHandle; //de-const
+        varFxEffectDef = const_cast<FxEffectDef *>(*varFxEffectDefHandle);
         Mark_FxEffectDefAsset(varFxEffectDef);
         Mark_FxEffectDef();
     }
@@ -9161,12 +9156,24 @@ void __cdecl Load_XAssetHeader(bool atStreamStart)
             Load_ComWorldPtr(atStreamStart);
             break;
         case 14:
+#ifdef KISAK_SP
             varGameWorldSpPtr = (GameWorldSp **)varXAssetHeader;
             Load_GameWorldSpPtr(atStreamStart);
-            break;
-        case 15:
+#else
+            // MP has no GAMEWORLD_SP pool; consume layout-compatible path data as GAMEWORLD_MP.
             varGameWorldMpPtr = (GameWorldMp **)varXAssetHeader;
             Load_GameWorldMpPtr(atStreamStart);
+#endif
+            break;
+        case 15:
+#ifdef KISAK_SP
+            // SP has no GAMEWORLD_MP pool; consume layout-compatible path data as GAMEWORLD_SP.
+            varGameWorldSpPtr = (GameWorldSp **)varXAssetHeader;
+            Load_GameWorldSpPtr(atStreamStart);
+#else
+            varGameWorldMpPtr = (GameWorldMp **)varXAssetHeader;
+            Load_GameWorldMpPtr(atStreamStart);
+#endif
             break;
         case 16:
             varMapEntsPtr = (MapEnts **)varXAssetHeader;
@@ -9304,12 +9311,22 @@ void __cdecl Mark_XAssetHeader()
             Mark_ComWorldPtr();
             break;
         case ASSET_TYPE_GAMEWORLD_SP:
+#ifdef KISAK_SP
             varGameWorldSpPtr = (GameWorldSp **)varXAssetHeader;
             Mark_GameWorldSpPtr();
-            break;
-        case ASSET_TYPE_GAMEWORLD_MP:
+#else
             varGameWorldMpPtr = (GameWorldMp **)varXAssetHeader;
             Mark_GameWorldMpPtr();
+#endif
+            break;
+        case ASSET_TYPE_GAMEWORLD_MP:
+#ifdef KISAK_SP
+            varGameWorldSpPtr = (GameWorldSp **)varXAssetHeader;
+            Mark_GameWorldSpPtr();
+#else
+            varGameWorldMpPtr = (GameWorldMp **)varXAssetHeader;
+            Mark_GameWorldMpPtr();
+#endif
             break;
         case ASSET_TYPE_MAP_ENTS:
             varMapEntsPtr = (MapEnts **)varXAssetHeader;

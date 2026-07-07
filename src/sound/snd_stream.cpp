@@ -1491,88 +1491,94 @@ char __cdecl Snd_FileClose(snd_stream_file *file)
 
 char __cdecl Snd_ReadBuffer(char *filename, unsigned int start_offset, unsigned int size, snd_buffer *buffer)
 {
-    signed __int32 v5; // eax
-    unsigned int v6; // [esp+0h] [ebp-138h]
-    int j; // [esp+10h] [ebp-128h]
-    snd_stream_file *c; // [esp+14h] [ebp-124h]
-    char os_filename[260]; // [esp+18h] [ebp-120h] BYREF
-    unsigned int i; // [esp+120h] [ebp-18h]
-    unsigned int read_size; // [esp+124h] [ebp-14h]
-    int oldest_age; // [esp+128h] [ebp-10h]
-    snd_stream_file *file; // [esp+12Ch] [ebp-Ch]
-    int oldest; // [esp+130h] [ebp-8h]
-    snd_stream_file *free_file; // [esp+134h] [ebp-4h]
+    signed __int32 streamTimeStamp;
+    unsigned int readSize;
+    signed int openAttempt;
+    snd_stream_file *filenameWalk;
+    char osFilename[256];
+    unsigned int fileSlotIndex;
+    int oldestFileSlot;
+    int oldestFileAge;
+    snd_stream_file *openFile;
+    snd_stream_file *freeFileSlot;
 
-    free_file = 0;
-    file = 0;
-    oldest = 0;
-    oldest_age = g_snd_stream_files[0].age;
-    for ( i = 0; i < 0xA; ++i )
+    freeFileSlot = 0;
+    openFile = 0;
+    oldestFileSlot = 0;
+    oldestFileAge = g_snd_stream_files[0].age;
+    for ( fileSlotIndex = 0; fileSlotIndex < 0xA; ++fileSlotIndex )
     {
-        if ( g_snd_stream_files[i].handle )
+        if ( g_snd_stream_files[fileSlotIndex].handle )
         {
-            if ( !_stricmp(g_snd_stream_files[i].filename, filename) )
+            if ( !_stricmp(g_snd_stream_files[fileSlotIndex].filename, filename) )
             {
-                file = &g_snd_stream_files[i];
+                openFile = &g_snd_stream_files[fileSlotIndex];
                 break;
             }
         }
         else
         {
-            free_file = &g_snd_stream_files[i];
+            freeFileSlot = &g_snd_stream_files[fileSlotIndex];
         }
-        if ( g_snd_stream_files[i].age < oldest_age )
+        if ( g_snd_stream_files[fileSlotIndex].age < oldestFileAge )
         {
-            oldest = i;
-            oldest_age = g_snd_stream_files[i].age;
+            oldestFileSlot = fileSlotIndex;
+            oldestFileAge = g_snd_stream_files[fileSlotIndex].age;
         }
     }
-    if ( !file && !free_file )
+    if ( !openFile && !freeFileSlot )
     {
-        free_file = &g_snd_stream_files[oldest];
-        Snd_FileClose(free_file);
+        freeFileSlot = &g_snd_stream_files[oldestFileSlot];
+        Snd_FileClose(freeFileSlot);
     }
-    if ( file )
-        goto LABEL_31;
-    I_strncpyz(free_file->filename, filename, 260);
-    for ( c = free_file; c->filename[0]; c = (snd_stream_file *)((char *)c + 1) )
-        c->filename[0] = tolower(c->filename[0]);
-    for ( j = 0; !file && j < 2; ++j )
+    if ( openFile )
+        goto readFromFile;
+
+    I_strncpyz(freeFileSlot->filename, filename, 260);
+    // CoDMPServer.c:814665-814666 — lowercase cached filename (decompiler shows byte-step through filename).
+    for ( filenameWalk = freeFileSlot; filenameWalk->filename[0]; filenameWalk = (snd_stream_file *)((char *)filenameWalk + 1) )
+        filenameWalk->filename[0] = tolower(filenameWalk->filename[0]);
+
+    // CoDMPServer.c:814667-814681 — retail open loop (decompiler goto form; single open attempt in practice).
+    for ( openAttempt = 0; !openFile && openAttempt < 2; ++openAttempt )
     {
-        if ( !j )
+        if ( !openAttempt )
         {
-            j = 1;
-LABEL_25:
-            Com_sprintf(os_filename, 0x100u, "%s", filename);
-            goto LABEL_26;
+            openAttempt = 1;
+openPathLabel:
+            Com_sprintf(osFilename, 0x100u, "%s", filename);
+            goto tryOpenLabel;
         }
-        if ( j == 1 )
-            goto LABEL_25;
-LABEL_26:
-        if ( Snd_FileOpen(os_filename, free_file) )
-            file = free_file;
+        if ( openAttempt == 1 )
+            goto openPathLabel;
+tryOpenLabel:
+        if ( Snd_FileOpen(osFilename, freeFileSlot) )
+            openFile = freeFileSlot;
     }
-    if ( !file )
+
+    if ( !openFile )
     {
-        Com_PrintError(9, "### Could not open streaming sound %s\n", os_filename);
+        Com_PrintError(9, "### Could not open streaming sound %s\n", osFilename);
         return 0;
     }
-LABEL_31:
-    if ( (int)(file->size - start_offset) <= 536576 )
-        v6 = file->size - start_offset;
+readFromFile:
+    if ( (signed int)(openFile->size - start_offset) <= 536576 )
+        readSize = openFile->size - start_offset;
     else
-        v6 = 536576;
-    read_size = v6;
-    if ( !v6 && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_stream.cpp", 1410, 0, "%s", "read_size") )
+        readSize = 536576;
+
+    if ( !readSize && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\sound\\snd_stream.cpp", 1410, 0, "%s", "read_size") )
         __debugbreak();
-    if ( !Snd_FileRead(file, start_offset, read_size, (unsigned __int8 *)buffer->data) )
+
+    if ( !Snd_FileRead(openFile, start_offset, readSize, (unsigned __int8 *)buffer->data) )
         return 0;
-    v5 = _InterlockedExchangeAdd(&g_snd_stream_time, 1u);
-    file->age = v5 + 1;
-    strncpy((char*)buffer->filename, (char *)filename, 0x104u);
+
+    streamTimeStamp = _InterlockedExchangeAdd(&g_snd_stream_time, 1u);
+    openFile->age = streamTimeStamp + 1;
+    strncpy((char *)buffer->filename, (char *)filename, 0x104u);
     buffer->offset_in_file = start_offset;
-    buffer->data_size = read_size;
-    buffer->file_size = file->size;
+    buffer->data_size = readSize;
+    buffer->file_size = openFile->size;
     return 1;
 }
 

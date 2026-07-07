@@ -1,4 +1,5 @@
 #pragma once
+#include <universal/q_shared.h>
 #include <DemonWare/bdCore/bdContainers/bdByteBuffer.h>
 #include <DemonWare/bdPlatform/bdPlatformLog/bdPlatformLog.h>
 #include <DemonWare/bdCore/bdContainers/bdArray.h>
@@ -731,13 +732,13 @@ struct fileShareWriteFileInfo // sizeof=0x34
 
 struct playerNetworkData // sizeof=0x3AD90
 {                                       // XREF: .data:controllerNetworkData/r
-    _BYTE playerStats[40172];
-    _BYTE playerStatsBackup[40172];     // XREF: LiveStorage_GetPersStatsBuffer+81/o
-    _BYTE stableStatsBuffer[40172];     // XREF: LiveStorage_GetPersStatsBuffer+94/o
-    _BYTE basicTrainingStats[40172];    // XREF: LiveStorage_GetPersStatsBuffer+B1/o
+    _BYTE playerStats[LIVE_STATS_DDL_BUFFER_BYTES];
+    _BYTE playerStatsBackup[LIVE_STATS_DDL_BUFFER_BYTES];     // XREF: LiveStorage_GetPersStatsBuffer+81/o
+    _BYTE stableStatsBuffer[LIVE_STATS_DDL_BUFFER_BYTES];     // XREF: LiveStorage_GetPersStatsBuffer+94/o
+    _BYTE basicTrainingStats[LIVE_STATS_DDL_BUFFER_BYTES];
                                         // LiveStorage_GetPersStatsBuffer+117/o
-    _BYTE globalplayerStats[40172];     // XREF: LiveStorage_GetPersStatsBuffer+C5/o
-    _BYTE globalStablePlayerStats[40172];
+    _BYTE globalplayerStats[LIVE_STATS_DDL_BUFFER_BYTES];     // XREF: LiveStorage_GetPersStatsBuffer+C5/o
+    _BYTE globalStablePlayerStats[LIVE_STATS_DDL_BUFFER_BYTES];
                                         // XREF: LiveStorage_GetPersStatsBuffer+D8/o
     bool firstTimeRunning;              // XREF: LiveStorage_PlayerStatsFileNotFound+49/w
                                         // LiveStorage_ReadPlayerStatsSuccessful+79/w ...
@@ -1021,6 +1022,7 @@ void __cdecl LiveStorage_GetFriendStatsCmd();
 void __cdecl LiveStorage_RestoreStatsFromBackupCmd();
 void __cdecl LiveStorage_FakeComErrorCmd();
 void __cdecl LiveStorage_CheckOngoingSessionTasks();
+void __cdecl LiveStorage_ReadStatsCmd();
 
 
 extern const dvar_t *stat_version;

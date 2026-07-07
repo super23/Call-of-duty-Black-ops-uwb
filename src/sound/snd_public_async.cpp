@@ -4,7 +4,11 @@
 #include "snd_public_async_q.h"
 #include "snd_utils.h"
 #include "snd_bank.h"
+#ifdef KISAK_SP
+#include <cgame_sp/cg_consolecmds_sp.h>
+#else
 #include <cgame_mp/cg_consolecmds_mp.h>
+#endif
 #include <cgame/cg_sound.h>
 #include "snd_globals.h"
 #include <win32/win_common.h>

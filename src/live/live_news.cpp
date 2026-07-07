@@ -7,12 +7,17 @@
 #include "live_pcache_profile.h"
 #include <cgame/cg_main.h>
 #include "live_contracts.h"
+#ifdef KISAK_SP
+#include <client_sp/cl_ui_pc_sp.h>
+#include <game/g_utils_wrapper.h>
+#else
 #include <client_mp/cl_ui_pc_mp.h>
+#include <game_mp/g_utils_mp.h>
+#endif
 #include "live_friends_pc.h"
 #include "live_ticker.h"
 #include "live_win.h"
 #include <universal/com_expressions_eval.h>
-#include <game_mp/g_utils_mp.h>
 
 const dvar_t *liveNewsMaxCounters;
 countersNewsState_t s_countersNewsState;

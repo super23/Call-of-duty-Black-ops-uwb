@@ -62,5 +62,5 @@ struct NitrousVehicleController // sizeof=0xA0
 
 
 
-double __cdecl StunRandomBrake(const usercmd_s *cmd, float desired_brake, float last_brake);
-double __cdecl RecalibrateInputCustom(float val, float threshold);
+double StunRandomBrake(const usercmd_s *cmd, float desired_brake, float last_brake);
+double RecalibrateInputCustom(float val, float threshold);

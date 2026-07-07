@@ -13,9 +13,14 @@
 #include <live/live.h>
 #include <live/live_presence_win.h>
 #include <win32/win_content.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_main_sp.h>
+#include <server_sp/sv_main_pc_sp.h>
+#else
 #include <client_mp/cl_main_mp.h>
-#include <qcommon/com_gamemodes.h>
 #include <server_mp/sv_main_pc_mp.h>
+#endif
+#include <qcommon/com_gamemodes.h>
 #include <live/live_storage_win.h>
 
 const dvar_t *party_linearMapCycle;

@@ -283,12 +283,17 @@ void __cdecl CScrCmd_GetLocalGunnerAngles(scr_entref_t entref);
 void __cdecl CScrCmd_SetStunned(scr_entref_t entref);
 void CScr_IsInVehicle();
 void CScr_PrecacheRumble();
+void CScr_IsPS3();
+void CScr_IsPC();
+void CScr_IsXenon();
+void __cdecl CScr_PlayBink();
 void __cdecl CScrCmd_IsVehiclePeelingOut(scr_entref_t entref);
 void __cdecl CScr_line();
 void __cdecl CScr_box();
 void __cdecl CScr_debugstar();
 void CScr_GetMaxLocalClients();
 void CScr_LocalClientActive();
+void CScr_WaitForClient();
 void __cdecl CScr_IsSplitScreenHost();
 void __cdecl CScr_IsSplitScreen();
 void __cdecl CScr_StopBink();
@@ -468,6 +473,7 @@ void __cdecl CScr_Set_Overlay_Enabled(scr_entref_t entref);
 void __cdecl CScr_LaunchRagdoll(scr_entref_t entref);
 void __cdecl CScr_Show(scr_entref_t entref);
 void __cdecl CScr_Hide(scr_entref_t entref);
+void __cdecl CScr_UseWeaponHideTags(scr_entref_t entref);
 void (__cdecl *__cdecl CScr_GetMethod(const char **pName, int *type))(scr_entref_t);
 void __cdecl CScr_LoadLevel();
 int __cdecl CScr_SetScriptAndLabel(
@@ -493,6 +499,8 @@ int __cdecl CScr_SetEntityField(unsigned int entnum, int clientNum, unsigned int
 void __cdecl CScr_AddFieldsForEntity();
 void __cdecl CScr_AddFieldsForRadiant();
 void __cdecl CScr_PostLoadScripts();
+void __cdecl CScr_SetPhysicsGravity(scr_entref_t entref);
+void __cdecl CScr_ClearPhysicsGravity(scr_entref_t entref);
 
 
 extern cg_level_locals_t cg_level;

@@ -1262,7 +1262,7 @@ void gjk_cylinder_t::support(
     v18 = dir_local[this->direction];
     dir_local[this->direction] = 0.0f;
 
-    v16 = Vec3Length(&dir_local.x);
+    v16 = Abs(&dir_local.x);
     if (v16 <= 0.001)
     {
         dir_local.x = PHYS_ZERO_VEC.x;
@@ -1483,7 +1483,7 @@ void gjk_cylinder_t::get_feature(phys_contact_manifold *cman) const
         }
         else
         {
-            v34 = 1.0 / Vec3Length(&len.x);
+            v34 = 1.0 / Abs(&len.x);
             len.x = len.x * v34;
             len.y = len.y * v34;
             len.z = len.z * v34;
@@ -1525,7 +1525,7 @@ void gjk_cylinder_t::get_feature(phys_contact_manifold *cman) const
     }
     else
     {
-        len_ = Vec3Length(&len.x);
+        len_ = Abs(&len.x);
         if (len_ <= 0.0000099999997
             && !Assert_MyHandler("c:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_colgeom.h", 604, 0, "%s", "len > 0.00001f"))
         {
@@ -2638,6 +2638,143 @@ float gjk_polygon_cylinder_t::get_geom_radius() const
         return this->m_geom_radius + this->m_capsule_radius;
     else
         return this->m_geom_radius;
+}
+
+void gjk_polygon_cylinder_t::get_feature(phys_contact_manifold *cman) const
+{
+    // Decomp: POLYGON_CYLINDER_HACK sets m_mode=0 vs brush without always setting xform — use capsule features when xform missing
+    if (m_mode || !get_flag(gjk_base_t::FLAG_XFORM_VALID))
+    {
+        iassert(m_half_height >= m_capsule_radius);
+        float cap_offset = m_half_height - m_capsule_radius;
+        phys_vec3 c0(m_center.x, m_center.y, m_center.z + cap_offset);
+        phys_vec3 c1(m_center.x, m_center.y, m_center.z - cap_offset);
+        float r = m_capsule_radius + m_geom_radius;
+        for (int j = 0; j < 2; ++j)
+        {
+            const phys_vec3 *cc = j == 0 ? &c0 : &c1;
+            phys_vec3 pt;
+            pt.x = cc->x - r * cman->m_feature_hitn.x;
+            pt.y = cc->y - r * cman->m_feature_hitn.y;
+            pt.z = cc->z - r * cman->m_feature_hitn.z;
+            cman->add_feature_point(&pt);
+        }
+        return;
+    }
+
+    iassert(get_flag(gjk_base_t::FLAG_XFORM_VALID));
+    const phys_mat44 *this_xform = m_xform_;
+    assert_mat44_initialized(*this_xform);
+
+    const int direction = 2;
+    phys_vec3 v60;
+    v60.x = PHYS_IDENTITY_MATRIX.z.x;
+    v60.y = PHYS_IDENTITY_MATRIX.z.y;
+    v60.z = PHYS_IDENTITY_MATRIX.z.z;
+
+    phys_vec3 v57;
+    const phys_vec3 *v56 = phys_inv_multiply(&v57, this_xform, &cman->m_feature_hitn);
+    phys_vec3 xyz;
+    xyz.x = v56->x;
+    xyz.y = v56->y;
+    xyz.z = v56->z;
+    phys_vec3 len = xyz;
+    len[direction] = 0.0f;
+
+    float v50 = (float)((float)(v60.x * xyz.x) + (float)(v60.y * xyz.y) + (float)(v60.z * xyz.z));
+    float cyl_radius = m_polygon_cylinder_radius + m_geom_radius;
+    float cyl_half_height = m_half_height;
+
+    if (fabsf(v50) >= 0.70709997f)
+    {
+        phys_vec3 v31;
+        if (fabsf(v50) >= 0.99000001f)
+        {
+            phys_vec3 v27;
+            v27.x = v60[2];
+            v27.y = v60[0];
+            v27.z = v60[1];
+            len = v27;
+            phys_vec3 v23;
+            v23.x = v60[1];
+            v23.y = v60[2];
+            v23.z = v60[0];
+            v31 = v23;
+        }
+        else
+        {
+            float v34 = 1.0f / Abs(&len.x);
+            len.x = len.x * v34;
+            len.y = len.y * v34;
+            len.z = len.z * v34;
+            phys_vec3 v33;
+            phys_vec3 *v32 = phys_cross(&v33, &len, &v60);
+            v31.x = v32->x;
+            v31.y = v32->y;
+            v31.z = v32->z;
+        }
+        phys_vec3 v22;
+        memset(&v22, 0, 12);
+
+        float halfHeight_low;
+        if (xyz[direction] <= 0.0f)
+            halfHeight_low = cyl_half_height;
+        else
+            halfHeight_low = -cyl_half_height;
+
+        v22[direction] = halfHeight_low;
+        len.x = len.x * cyl_radius;
+        len.y = len.y * cyl_radius;
+        len.z = len.z * cyl_radius;
+        v31.x = v31.x * cyl_radius;
+        v31.y = v31.y * cyl_radius;
+        v31.z = v31.z * cyl_radius;
+
+        for (int j = 0; j < 4; ++j)
+        {
+            phys_vec3 v17 = v31 * gjk_cylinder_t_s[j];
+            phys_vec3 v16 = len * gjk_cylinder_t_c[j];
+            phys_vec3 v15 = v16 + v17;
+            phys_vec3 v14 = v15 + v22;
+            phys_vec3 v13;
+            const phys_vec3 *v9 = phys_full_multiply(&v13, this_xform, &v14);
+            cman->add_feature_point(v9);
+        }
+    }
+    else
+    {
+        float len_ = Abs(&len.x);
+        if (len_ <= 0.0000099999997f
+            && !Assert_MyHandler(
+                "c:\\projects_pc\\cod\\codsrc\\src\\physics\\phys_colgeom.h",
+                604,
+                0,
+                "%s",
+                "len > 0.00001f"))
+        {
+            __debugbreak();
+        }
+
+        float v48 = cyl_radius / len_;
+        phys_vec3 v43;
+        v43.x = (-(v48)) * len.x;
+        v43.y = (-(v48)) * len.y;
+        v43.z = (-(v48)) * len.z;
+        v43[direction] = cyl_half_height;
+
+        const phys_vec3 *p_w = &this_xform->w;
+        phys_vec3 v40;
+        const phys_vec3 *v4 = phys_multiply(&v40, this_xform, &v43);
+        phys_vec3 v39 = *v4 + *p_w;
+        cman->add_feature_point(&v39);
+
+        v43[direction] = -cyl_half_height;
+        const phys_vec3 *v12 = &this_xform->w;
+        phys_vec3 v36;
+        const phys_vec3 *v5 = phys_multiply(&v36, this_xform, &v43);
+        phys_vec3 v35 = *v5 + *v12;
+        cman->add_feature_point(&v35);
+    }
 }
 
 // aislop supervised

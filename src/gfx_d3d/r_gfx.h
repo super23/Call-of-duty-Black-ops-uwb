@@ -1,5 +1,6 @@
 #pragma once
 #include <universal/com_math.h>
+#include <cstddef>
 
 enum GfxDrawSceneMethod : __int32
 {                                                                             // XREF: GfxDrawMethod/r
@@ -126,6 +127,9 @@ struct GfxViewParms // sizeof=0x140
     float zNear;
     float zFar;
 };
+static_assert(sizeof(GfxMatrix) == 0x40, "GfxMatrix size mismatch");
+static_assert(sizeof(GfxViewParms) == 0x140, "GfxViewParms size mismatch");
+static_assert(offsetof(GfxViewParms, inverseViewProjectionMatrix) == 0xC0, "GfxViewParms layout mismatch");
 
 struct GfxDrawSurfFields // sizeof=0x8
 {                                                                             // XREF: GfxDrawSurf/r

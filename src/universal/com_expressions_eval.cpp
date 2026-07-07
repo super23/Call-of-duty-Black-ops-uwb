@@ -3,12 +3,27 @@
 #include <ui/ui_localvars.h>
 #include <qcommon/com_clients.h>
 #include <win32/win_shared.h>
+#include <database/db_file_load.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_players_sp.h>
+#include <client_sp/cl_ui_sp.h>
+#include <client_sp/cl_ui_pc_sp.h>
+#include <cgame_sp/cg_consolecmds_sp.h>
+#include <game/g_main.h>
+#include <ui_sp/ui_main_sp.h>
+#else
 #include <cgame_mp/cg_players_mp.h>
-#include <client/cl_rank.h>
 #include <client_mp/cl_ui_mp.h>
+#include <client_mp/cl_ui_pc_mp.h>
+#include <cgame_mp/cg_consolecmds_mp.h>
+#include <game_mp/g_main_mp.h>
+#include <ui_mp/ui_main_mp.h>
+#endif
+#include <client/cl_rank.h>
 #include <bgame/bg_misc.h>
 #include <client/splitscreen.h>
 #include <live/live_win.h>
+#include <qcommon/common.h>
 #include <cgame/cg_compass.h>
 #include <client/client.h>
 #include <bgame/bg_unlockable_items.h>
@@ -16,18 +31,20 @@
 #include <live/live_fileshare_search.h>
 #include <live/live_counter.h>
 #include <ui/ui_utils.h>
-#include <client_mp/cl_ui_pc_mp.h>
 #include <cgame/cg_ammocounter.h>
-#include <cgame_mp/cg_consolecmds_mp.h>
 #include <ui/ui_playlists.h>
-#include <game_mp/g_main_mp.h>
 #include <client/cl_console.h>
 #include <live/live_friends_pc.h>
 #include <ui/ui_emblem.h>
-#include <ui_mp/ui_main_mp.h>
 #include <demo/demo_playback.h>
 #include <demo/demo_ui.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_scoreboard_sp.h>
+#include <ui_sp/ui_gametype_custom_sp.h>
+#else
+#include <cgame_mp/cg_scoreboard_mp.h>
 #include <ui_mp/ui_gametype_custom_mp.h>
+#endif
 #include <live/live_groups_dw.h>
 #include <live/live_storage_win.h>
 #include <live/live_meetplayer.h>
@@ -35,7 +52,11 @@
 #include "com_tasks.h"
 #include <live/live_clans.h>
 #include <live/live_pcache_profile.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_main_pc_sp.h>
+#else
 #include <client_mp/cl_main_pc_mp.h>
+#endif
 #include <win32/win_gamerprofile.h>
 #include <live/live_storage_pub.h>
 #include <ui/ui_feeders.h>
@@ -3296,8 +3317,10 @@ void __cdecl IsCinematicFinished(int localClientNum, itemDef_s *item, OperandSta
 {
     Operand result; // [esp+0h] [ebp-8h] BYREF
 
+    (void)localClientNum;
+    (void)item;
     result.dataType = VAL_INT;
-    result.internals.intVal = 0;
+    result.internals.intVal = DB_GetLoadedFraction() >= 1.0 ? 1 : 0;
     if ( uiscript_debug && uiscript_debug->current.integer )
         Expression_TraceInternal("IsCinematicFinished() = %i\n", result.internals.intVal);
     AddOperandToStack(dataStack, &result);
@@ -8320,7 +8343,7 @@ void __cdecl IsSignedIn(int localClientNum, itemDef_s *item, OperandStack *dataS
     Operand result; // [esp+0h] [ebp-8h] BYREF
 
     ControllerIndex = Com_LocalClient_GetControllerIndex(localClientNum);
-    result.internals.intVal = 0;// Live_IsSignedIn(ControllerIndex);
+    result.internals.intVal = ControllerIndex >= 0 && Live_IsSignedIn(ControllerIndex) ? 1 : 0;
     result.dataType = VAL_INT;
     if (uiscript_debug && uiscript_debug->current.integer)
         Expression_TraceInternal("IsSignedIn() = %i\n", result.internals.intVal);
@@ -8343,7 +8366,7 @@ void __cdecl IsSignedInToLive(int localClientNum, itemDef_s *item, OperandStack 
     Operand result; // [esp+0h] [ebp-8h] BYREF
 
     Com_LocalClient_GetControllerIndex(localClientNum);
-    result.internals.intVal = 0;// Live_IsSignedInToLive();
+    result.internals.intVal = Live_IsSignedInToLive() ? 1 : 0;
     result.dataType = VAL_INT;
     if (uiscript_debug && uiscript_debug->current.integer)
         Expression_TraceInternal("IsSignedInToLive() = %i\n", result.internals.intVal);
@@ -8355,7 +8378,7 @@ void __cdecl AnySignedIn(int localClientNum, itemDef_s *item, OperandStack *data
 {
     Operand result; // [esp+0h] [ebp-8h] BYREF
 
-    result.internals.intVal = 0;
+    result.internals.intVal = Live_IsSignedIn(0) ? 1 : 0;
     result.dataType = VAL_INT;
     if ( uiscript_debug && uiscript_debug->current.integer )
         Expression_TraceInternal("IsSignedIn() = %i\n", result.internals.intVal);
@@ -8366,7 +8389,8 @@ void __cdecl AnySignedInToLiveAndStatsFetched(int localClientNum, itemDef_s *ite
 {
     Operand result; // [esp+0h] [ebp-8h] BYREF
 
-    result.internals.intVal = 0;
+    result.internals.intVal =
+        ( Live_IsSignedInToLive() && LiveStorage_DoWeHaveAllStats(0) ) ? 1 : 0;
     result.dataType = VAL_INT;
     if ( uiscript_debug && uiscript_debug->current.integer )
         Expression_TraceInternal("IsSignedInToLive() = %i\n", result.internals.intVal);
@@ -8379,8 +8403,15 @@ void __cdecl AreStatsFetched(int localClientNum, itemDef_s *item, OperandStack *
     int localControllerIndex; // [esp+8h] [ebp-4h]
 
     localControllerIndex = Com_LocalClient_GetControllerIndex(localClientNum);
+#ifdef KISAK_LIVE
     result.internals.intVal = Live_IsUserSignedInToDemonware(localControllerIndex)
                                                  && LiveStorage_DoWeHaveAllStats(localControllerIndex);
+#else
+    // Live_IsUserSignedInToDemonware is always false without DemonWare; menus
+    // (create-a-class, operations) still need areStatsFetched() once local
+    // buffers are populated.
+    result.internals.intVal = LiveStorage_DoWeHaveAllStats(localControllerIndex) ? 1 : 0;
+#endif
     result.dataType = VAL_INT;
     if ( uiscript_debug && uiscript_debug->current.integer )
         Expression_TraceInternal("AreStatsFetched() = %i\n", result.internals.intVal);
@@ -8436,6 +8467,14 @@ void __cdecl IsDemonwareFetchingDone(int localClientNum, itemDef_s *item, Operan
     result.dataType = VAL_INT;
     result.internals.intVal = 1;
     controllerIndex = Com_LocalClient_GetControllerIndex(localClientNum);
+    if ( onlinegame && !onlinegame->current.enabled )
+    {
+        result.internals.intVal = LiveStorage_DoWeHaveAllStats(controllerIndex >= 0 ? controllerIndex : 0) ? 1 : 0;
+        if ( uiscript_debug && uiscript_debug->current.integer )
+            Expression_TraceInternal("IsDemonwareFetchingDone() = %i\n", result.internals.intVal);
+        AddOperandToStack(dataStack, &result);
+        return;
+    }
     isUserGuest = CG_IsShowingZombieMap();
     isUserSignedInToLive = Live_IsUserSignedInToLive();
     isUserSignedInToDemonware = Live_IsUserSignedInToDemonware(controllerIndex);

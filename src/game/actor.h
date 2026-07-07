@@ -45,9 +45,18 @@ enum actor_think_result_t : __int32
 
 enum AISpecies : __int32
 {                                       // XREF: actor_s/r
+#ifdef KISAK_SP
+    AI_SPECIES_HUMAN = 0x0,
+    AI_SPECIES_DOG = 0x1,
+    AI_SPECIES_ZOMBIE = 0x2,
+    AI_SPECIES_ZOMBIE_DOG = 0x3,
+    MAX_AI_SPECIES = 0x4,
+    AI_SPECIES_ALL = 0x4,
+#else
     AI_SPECIES_DOG = 0x0,
     MAX_AI_SPECIES = 0x1,
     AI_SPECIES_ALL = 0x1,
+#endif
 };
 inline AISpecies &operator++(AISpecies &t)
 {
@@ -59,6 +68,15 @@ inline AISpecies operator++(AISpecies &t, int)
     AISpecies old = t;
     t = static_cast<AISpecies>((static_cast<int>(t) + 1));
     return old;
+}
+
+inline bool G_IsSpeciesDog(AISpecies species)
+{
+#ifdef KISAK_SP
+    return species == AI_SPECIES_DOG || species == AI_SPECIES_ZOMBIE_DOG;
+#else
+    return species == AI_SPECIES_DOG;
+#endif
 }
 
 enum ai_traverse_mode_t : __int32
@@ -182,6 +200,16 @@ struct ActorLookAtInfo // sizeof=0x34
     float fLookAtLimitBlendRate;
 };
 
+#ifdef KISAK_SP
+struct ActorProneAnimInfo // sizeof=0x8
+{
+    unsigned __int16 animProneLow;
+    unsigned __int16 animProneLevel;
+    unsigned __int16 animProneHigh;
+    bool bProneAnimSetup;
+};
+#endif
+
 struct actor_goal_s // sizeof=0x28
 {                                       // XREF: actor_s/r actor_s/r ...
     float pos[3];
@@ -200,14 +228,18 @@ struct ActorCoverArrivalInfo // sizeof=0x20
     float animscriptOverrideOriginError[3];
 };
 
-//enum $D416C61A81CE0211A2B0E6C3C6220A84 : __int32
-enum ai_movemode_t : unsigned __int8 // not a real name
+#ifdef KISAK_SP
+struct ActorAimAnimInfo // sizeof=0xE
 {
-    AI_MOVE_STOP      = 0x0,
-    AI_MOVE_STOP_SOON = 0x1,
-    AI_MOVE_WALK      = 0x2,
-    AI_MOVE_RUN       = 0x3,
+    unsigned __int16 animAimUp;
+    unsigned __int16 animAimDown;
+    unsigned __int16 animAimLeft;
+    unsigned __int16 animAimRight;
+    unsigned __int16 animAimUpLeft;
+    unsigned __int16 animAimUpRight;
+    bool bAimAnimSetup;
 };
+#endif
 
 struct actor_s // sizeof=0x2780
 {                                       // XREF: .data:actor_s * g_actors/r
@@ -249,6 +281,9 @@ struct actor_s // sizeof=0x2780
     float fInvProneAnimHighPitch;
     float fProneLastDiff;
     int bProneOK;
+#ifdef KISAK_SP
+    ActorProneAnimInfo proneAnimInfo;
+#endif
     actor_prone_info_s ProneInfo;
     ActorCachedInfo eyeInfo;
     ActorCachedInfo muzzleInfo;
@@ -275,7 +310,7 @@ struct actor_s // sizeof=0x2780
     scr_animscript_t *pAnimScriptFunc;
     scr_animscript_t AnimScriptSpecific;
     ai_traverse_mode_t eTraverseMode;
-    ai_movemode_t moveMode;
+    unsigned __int8 moveMode;
     bool safeToChangeScript;
     bool bUseGoalWeight;
     // padding byte
@@ -372,6 +407,9 @@ struct actor_s // sizeof=0x2780
     float vGrenadeTossVel[3];
     int bDropWeapon;
     int bDrawOnCompass;
+#ifdef KISAK_SP
+    int hudWarningType;
+#endif
     int bActivateCrosshair;
     bool ignoreTriggers;
     bool pushable;
@@ -396,6 +434,12 @@ struct actor_s // sizeof=0x2780
     int flashBangImmunity;
     const char *pszDebugInfo;
     pathnode_t *pPotentialCoverNode[1000];
+#ifdef KISAK_SP
+    ActorAimAnimInfo aimAnimInfo;
+    unsigned __int16 turretAnim;
+    bool bTurretAnimSetup;
+    gentity_s *pTurret;
+#endif
     int ikPriority;
 };
 
@@ -417,6 +461,13 @@ constexpr float meleeAttackOffsets[4][2] = { { 1.0, 0.0 }, { 0.0, 1.0 }, { -1.0,
 //constexpr float ACTOR_EYE_OFFSET = 64.0f; // in actor_mp.h
 
 
+#ifdef KISAK_SP
+extern const unsigned __int16 *g_AISpeciesNames[4];
+extern const ai_funcs_t *AIFuncTable[4];
+#else
 extern const unsigned __int16 *g_AISpeciesNames[1];
-
 extern const ai_funcs_t *AIFuncTable[1];
+#endif
+
+extern const ai_funcs_t AIDogFuncTable[12];
+extern const ai_funcs_t AIHumanFuncTable[12];

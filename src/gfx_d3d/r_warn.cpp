@@ -45,7 +45,7 @@ const char *s_warnFormat[49] =
   "GFX_MARK_MESH_VERT_LIMIT((1536 * 4)) exceeded\n",
   "Out of debug memory for (%s)\n",
   "FX_SPOT_LIGHT_LIMIT(1) exceeded - not spawning spot light effect\n",
-  "FX_ELEM_LIMIT(2048) exceeded - not spawning fx elem\n",
+  "FX_ELEM_LIMIT(3000) exceeded - not spawning fx elem\n",
   "Dynamic vertex buffer overflow\n",
   "worker command size exceeded for type %i\n",
   "Unknown static model shader (%s)\n",

@@ -1,5 +1,9 @@
 #include "com_stringtable_obj.h"
+#ifdef KISAK_SP
+#include <server_sp/sv_bot_sp.h>
+#else
 #include <server_mp/sv_bot_mp.h>
+#endif
 #include "com_stringtable.h"
 #include "com_loadutils.h"
 #include <qcommon/common.h>

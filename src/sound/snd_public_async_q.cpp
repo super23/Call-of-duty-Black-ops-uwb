@@ -8,6 +8,9 @@
 #include "snd_local.h"
 #include "snd_public_async.h"
 #include <cgame/cg_sound.h>
+#ifdef KISAK_SP
+#include <game/g_utils_sp.h>
+#endif
 
 void __cdecl SND_InitCommands()
 {
@@ -795,7 +798,7 @@ void __cdecl SND_NotifyProcess(const snd_notify *cmd)
             break;
         case SND_NOTIFY_LENGTH:
             //PIXBeginNamedEvent(-1, "CG_ScriptSndLengthNotify");
-            //BLOPS_NULLSUB();
+            CG_ScriptSndLengthNotify(cmd->context.length.ent, cmd->context.length.lengthMs);
             //if ( g_DXDeviceThread == GetCurrentThreadId() )
                 goto LABEL_8;
             break;

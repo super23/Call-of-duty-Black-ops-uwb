@@ -49,25 +49,32 @@ void __cdecl CG_ShutdownEntity(int localClientNum, centity_s *cent, bool shutdow
 
     if ( shutdown_script_for_local_client || CG_GetClientNumForLocalClient(localClientNum) != cent->nextState.number )
     {
-        CScr_Notify(localClientNum, cent, cscr_const.entityshutdown, 0);
-        if ( CL_LocalClient_IsFirstActive(localClientNum) )
+        if ( Scr_IsSystemActive(1u, SCRIPTINSTANCE_CLIENT) )
         {
-            if ( cent )
-                v5 = ((*((unsigned int *)cent + 201) >> 8) & 1) != 0;
+            if ( cscr_const.entityshutdown )
+                CScr_Notify(localClientNum, cent, cscr_const.entityshutdown, 0);
+            if ( CL_LocalClient_IsFirstActive(localClientNum) )
+            {
+                if ( cent )
+                    v5 = ((*((unsigned int *)cent + 201) >> 8) & 1) != 0;
+                else
+                    v5 = 0;
+            }
             else
+            {
                 v5 = 0;
-        }
-        else
-        {
-            v5 = 0;
-        }
-        if ( v5 )
-        {
-            *((unsigned int *)cent + 201) &= ~0x100u;
-            CScr_AddEntity(cent, (unsigned __int16)localClientNum);
-            Scr_AddInt(localClientNum, SCRIPTINSTANCE_CLIENT);
-            t = Scr_ExecThread(SCRIPTINSTANCE_CLIENT, cg_scr_data.entityshutdownCB, 2u);
-            Scr_FreeThread(t, SCRIPTINSTANCE_CLIENT);
+            }
+            if ( v5 )
+            {
+                *((unsigned int *)cent + 201) &= ~0x100u;
+                if ( cg_scr_data.entityshutdownCB )
+                {
+                    CScr_AddEntity(cent, (unsigned __int16)localClientNum);
+                    Scr_AddInt(localClientNum, SCRIPTINSTANCE_CLIENT);
+                    t = Scr_ExecThread(SCRIPTINSTANCE_CLIENT, cg_scr_data.entityshutdownCB, 2u);
+                    Scr_FreeThread(t, SCRIPTINSTANCE_CLIENT);
+                }
+            }
         }
         CScr_FreeEntity(cent, (unsigned __int16)localClientNum);
     }
@@ -543,6 +550,13 @@ void __cdecl CG_SetNextSnap(int localClientNum, snapshot_s *snap)
             I_strncpyz(ci->clanAbbrev, clientState->clanAbbrev, 8);
             ci->attachedVehEntNum = clientState->attachedVehEntNum;
             ci->attachedVehSeat = clientState->attachedVehSeat;
+            // ENTITYNUM_NONE is 1023; 0 is never a valid vehicle entity and is
+            // often the netfield default when the slot was never written. If we
+            // leave 0, code that tests "!= 1023" thinks the player is mounted in
+            // entity 0 and crosshair / trace / name paths break (retail asserts
+            // attachedVehEntNum != 0 for the same reason).
+            if ( ci->attachedVehEntNum == 0 )
+                ci->attachedVehEntNum = 1023;
             if ( !ci->attachedVehEntNum
                 && !Assert_MyHandler(
                             "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_snapshot_mp.cpp",
@@ -1051,10 +1065,13 @@ void CG_ResetEntity(int localClientNum, centity_s *cent, int newEntity)
         {
             *((_DWORD *)cent + 201) |= 0x100u;
             Entity = CG_GetEntity(localClientNum, cent->nextState.clientNum);
-            CScr_AddEntity(Entity, localClientNum);
-            Scr_AddInt(localClientNum, SCRIPTINSTANCE_CLIENT);
-            t = CScr_ExecEntThread(cent, cg_scr_data.corpse_callback, 2u);
-            Scr_FreeThread(t, SCRIPTINSTANCE_CLIENT);
+            if ( cg_scr_data.corpse_callback )
+            {
+                CScr_AddEntity(Entity, localClientNum);
+                Scr_AddInt(localClientNum, SCRIPTINSTANCE_CLIENT);
+                t = CScr_ExecEntThread(cent, cg_scr_data.corpse_callback, 2u);
+                Scr_FreeThread(t, SCRIPTINSTANCE_CLIENT);
+            }
             CG_CopyCorpseInfo(corpseInfo, ci);
             cgs->corpseinfo[corpseIndex].pXAnimTree = pXAnimTree;
             XAnimCloneAnimTree(ci->pXAnimTree, pXAnimTree);
@@ -1543,6 +1560,8 @@ void __cdecl CG_UpdateClientFlags(int localClientNum, centity_s *cent, int oldEF
     signed int flagNum; // [esp+0h] [ebp-8h]
     signed int i; // [esp+4h] [ebp-4h]
 
+    // Decomp: CoDMPServer.c:245125-245166 (CG_UpdateClientFlags @ 0x00507C60).
+    // Rolling Thunder: lerp.eFlags2 bit const_flag_bombing -> CG_ClientFlagSet -> bombdrop on rising edge.
     if ( !cent
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_snapshot_mp.cpp", 962, 0, "%s", "cent") )
     {

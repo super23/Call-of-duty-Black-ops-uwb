@@ -1,8 +1,17 @@
 #include "cg_info.h"
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#include <client_sp/cl_scrn_sp.h>
+#include <client/cl_cin.h>
+#include <gfx_d3d/r_cinematic.h>
+#include <cgame_sp/cg_servercmds_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
 #include <client_mp/cl_scrn_mp.h>
 #include <cgame_mp/cg_servercmds_mp.h>
 #include <client_mp/cl_cgame_mp.h>
+#endif
 #include <win32/win_shared.h>
 #include <database/db_file_load.h>
 
@@ -48,6 +57,11 @@ void __cdecl CG_DrawInformation(int localClientNum)
     }
     CL_GetConfigString(0);
     UI_DrawMapLevelshot(localClientNum);
+#ifdef KISAK_SP
+    // Decomp: CoDSP_rdBlackOps.map.c — map-load bink overlay during briefing/connect UI.
+    if ( R_Cinematic_IsStarted() )
+        SCR_DrawCinematic();
+#endif
     if ( useFastFile->current.enabled )
         v2 = (unsigned __int8 (*)(void))CG_IsShowingProgress_FastFile;
     else

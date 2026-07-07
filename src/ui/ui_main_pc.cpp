@@ -1,10 +1,18 @@
 #include "ui_main_pc.h"
 #include <universal/q_parse.h>
+#ifdef KISAK_SP
+#include <server_sp/sv_init_sp.h>
+#include <client_sp/cl_ui_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <client_sp/cl_ui_pc_sp.h>
+#include <client_sp/cl_main_pc_sp.h>
+#else
 #include <server_mp/sv_init_mp.h>
 #include <client_mp/cl_ui_mp.h>
 #include <client_mp/cl_cgame_mp.h>
 #include <client_mp/cl_ui_pc_mp.h>
 #include <client_mp/cl_main_pc_mp.h>
+#endif
 #include "ui_server.h"
 #include "ui_atoms.h"
 #include <universal/com_files.h>
@@ -12,6 +20,7 @@
 #include <live/live_win.h>
 #include <stringed/stringed_hooks.h>
 #include <database/db_registry.h>
+#include <gfx_d3d/r_material.h>
 
 const dvar_t *ui_joinGameType;
 const dvar_t *ui_netGameTypeName;
@@ -1265,13 +1274,33 @@ void __cdecl UI_DrawNetSource(
 
 Material *__cdecl UI_GetLevelShot(int index)
 {
-    if ( index < 0 || index >= sharedUiInfo.mapCount )
+    mapInfo *mapEntry;
+    const char *levelshotMaterialName;
+
+    // CoDMPServer.c:547569-547570 / BlackOpsMP.retail.c:755020
+    if (index < 0 || index >= sharedUiInfo.mapCount)
         index = 0;
-    if ( !sharedUiInfo.mapList[index].timeToBeat[31] )
-        sharedUiInfo.mapList[index].timeToBeat[31] = (int)Material_RegisterHandle(
-                                                                                                                (char *)&sharedUiInfo.mapList[index].mapPackTypeIndex,
-                                                                                                                3);
-    return (Material *)sharedUiInfo.mapList[index].timeToBeat[31];
+
+    mapEntry = &sharedUiInfo.mapList[index];
+
+    if (!mapEntry->levelShot)
+    {
+        levelshotMaterialName = mapEntry->imageName;
+
+        // mapsTable.csv entries (UI_LoadMaps) never populate imageName; arena files do via loadscreen key.
+        // Fall back to the same loadscreen material naming as UI_SetLoadingScreenMaterial (retail.c:223351).
+        if (!levelshotMaterialName[0])
+        {
+            if (I_stricmp(mapEntry->mapLoadName, "mp_hotel") != 0)
+                levelshotMaterialName = va("loadscreen_%s", mapEntry->mapLoadName);
+            else
+                levelshotMaterialName = "loadscreen_mp_hotel2";
+        }
+
+        mapEntry->levelShot = Material_RegisterHandle(levelshotMaterialName, 3);
+    }
+
+    return mapEntry->levelShot;
 }
 
 void __cdecl UI_DrawMapPreview(int contextIndex, const rectDef_s *rect, const float *color)

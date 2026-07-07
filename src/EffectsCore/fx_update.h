@@ -176,6 +176,7 @@ FxUpdateResult __cdecl FX_UpdateElement(
                 FxElem *elem,
                 int msecUpdateBegin,
                 int msecUpdateEnd);
+bool __cdecl Vec3Compare(const float *a, const float *b);
 const FxElemDef *__cdecl FX_GetUpdateElemDef(const FxUpdateElem *update);
 double __cdecl FX_GetAtRestFraction(const FxUpdateElem *update, float msec);
 int __cdecl FX_UpdateElementPosition(FxSystem *system, FxUpdateElem *update); // KISAKTODO: retval 'FxUpdateResult'

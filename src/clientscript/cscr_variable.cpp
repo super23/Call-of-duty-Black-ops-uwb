@@ -4676,6 +4676,8 @@ unsigned int __cdecl Scr_EvalFieldObject(scriptInstance_t inst, unsigned int tem
     VariableValue tempValue; // [esp+18h] [ebp-8h] BYREF
 
     type = value->type;
+    // Decomp: BlackOpsMP.retail.c sub_69A520 — undefined/non-object types must script-error,
+    // not silently return 0 (which lets parentId=0 reach Scr_FindVariableField and assert).
     if ( type == 1 && (type = gScrVarGlob[inst].variableList[value->u.intValue + 1].w.status & 0x1F, type < 0x14) )
     {
         if ( (gScrVarGlob[inst].variableList[value->u.intValue + 1].w.status & 0x1F) < 0xD
@@ -6811,10 +6813,28 @@ void __cdecl CopyEntity(scriptInstance_t inst, unsigned int parentId, unsigned i
     int type; // [esp+60h] [ebp-8h]
     unsigned int id; // [esp+64h] [ebp-4h]
 
-    iassert(parentId);
-    iassert(newParentId);
+    if ( !parentId
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\clientscript\\cscr_variable.cpp",
+                    4654,
+                    0,
+                    "%s",
+                    "parentId") )
+    {
+        __debugbreak();
+    }
+    if ( !newParentId
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\clientscript\\cscr_variable.cpp",
+                    4655,
+                    0,
+                    "%s",
+                    "newParentId") )
+    {
+        __debugbreak();
+    }
 
-    parentValue = &gScrVarGlob[inst].variableList[parentId + VARIABLELIST_PARENT_BEGIN];
+    parentValue = &gScrVarGlob[inst].variableList[parentId + 1];
 
     if ( (parentValue->w.status & 0x60) != 0x60
         && !Assert_MyHandler(

@@ -2,10 +2,14 @@
 #include <universal/q_shared.h>
 #include <clientscript/cscr_vm.h>
 #include <clientscript/scr_const.h>
-#include <game_mp/g_main_mp.h>
+#include <game/g_main_wrapper.h>
 #include "g_weapon.h"
-#include <game_mp/g_utils_mp.h>
+#include <game/g_utils_wrapper.h>
+#ifdef KISAK_SP
+#include <server_sp/sv_main_sp.h>
+#else
 #include <server_mp/sv_main_mp.h>
+#endif
 #include <bgame/bg_misc.h>
 #include <clientscript/cscr_stringlist.h>
 #include <server/sv_world.h>
@@ -16,29 +20,41 @@
 #include <xanim/xmodel_utils.h>
 #include "bullet.h"
 #include <client/cl_debugdata.h>
-#include <game_mp/g_misc_mp.h>
+#include <game/g_misc_wrapper.h>
+#ifdef KISAK_SP
+#include <client_sp/g_client_sp.h>
+#else
 #include <client_mp/g_client_mp.h>
-#include <game_mp/g_spawn_mp.h>
+#endif
+#include <game/g_spawn_wrapper.h>
 #include <universal/com_loadutils.h>
 #include <bgame/bg_misctables.h>
+#ifdef KISAK_SP
+#include <server_sp/sv_init_sp.h>
+#else
 #include <server_mp/sv_init_mp.h>
+#endif
 #include <universal/CurveManager.h>
 #include <physics/phys_assert.h>
 #include <cgame/cg_drawtools.h>
 #include "g_debug.h"
-#include <game_mp/g_active_mp.h>
+#include <game/g_active_wrapper.h>
 #include "actor_script_cmd.h"
 #include <qcommon/cm_world.h>
 #include <glass/glass_server.h>
 #include <universal/surfaceflags.h>
 #include "g_helicopter1.h"
+#include "g_scr_helicopter.h"
 #include "g_mover.h"
 #include "g_targets.h"
-#include <game_mp/g_combat_mp.h>
+#include <game/g_combat_wrapper.h>
 #include "g_load_utils.h"
 #include <cgame/cg_scr_main.h>
 #include <sound/snd_bank.h>
+#include <cmath>
+#include <cgame/cg_camera.h>
 
+bool gVehicleRelativeGunnerAngles = true;
 
 struct VehiclePhysicsBackup // sizeof=0x204
 {                                       // XREF: .data:s_backup/r
@@ -53,7 +69,7 @@ void __cdecl METHODS_NULLSUB(scr_entref_t entref)
 }
 
 // Looks congruent to retail blops mp latest
-const BuiltinMethodDef s_methods_0[89] =
+const BuiltinMethodDef s_methods_0[94] =
 {
   { "attachpath", CMD_VEH_AttachPath, 0 },
   { "vehgetmodel", CMD_VEH_GetModel, 0 },
@@ -85,8 +101,10 @@ const BuiltinMethodDef s_methods_0[89] =
   { "freevehicle", CMD_VEH_FreeVehicle, 0 },
   { "getwheelsurface", CMD_VEH_GetWheelSurface, 0 },
   { "getvehicleowner", CMD_VEH_GetVehicleOwner, 0 },
-  { "startenginesound", METHODS_NULLSUB, 0 },
-  { "stopenginesound", METHODS_NULLSUB, 0 },
+  { "startenginesound", CMD_VEH_StartEngineSound, 0 },
+  { "stopenginesound", CMD_VEH_StopEngineSound, 0 },
+  { "getenginevolume", CMD_VEH_GetEngineVolume, 0 },
+  { "setenginevolume", CMD_VEH_SetEngineVolume, 0 },
   { "isvehicleusable", CMD_VEH_IsVehicleUsable, 0 },
   { "makevehicleusable", CMD_VEH_MakeVehicleUsable, 0 },
   { "makevehicleunusable", CMD_VEH_MakeVehicleUnusable, 0 },
@@ -94,6 +112,8 @@ const BuiltinMethodDef s_methods_0[89] =
   { "setviewclamp", CMD_VEH_SetViewClamp, 0 },
   { "resetviewclamp", CMD_VEH_ResetViewClamp, 0 },
   { "setvehiclelookattext", CMD_VEH_SetVehicleLookatText, 0 },
+  { "removevehiclefromcompass", CMD_VEH_RemoveVehicleFromCompass, 0 },
+  { "addvehicletocompass", CMD_VEH_AddVehicleToCompass, 0 },
   { "setneargoalnotifydist", CMD_VEH_NearGoalNotifyDist, 0 },
   { "setvehgoalpos", CMD_VEH_SetGoalPos, 0 },
   { "clearvehgoalpos", CMD_VEH_ClearGoalPos, 0 },
@@ -106,6 +126,7 @@ const BuiltinMethodDef s_methods_0[89] =
   { "setlookatent", CMD_VEH_SetLookAtEnt, 0 },
   { "clearlookatent", CMD_VEH_ClearLookAtEnt, 0 },
   { "returnplayercontrol", CMD_VEH_ReturnPlayerControl, 0 },
+  { "sethealthpercent", CMD_VEH_SetHealthPercent, 0 },
   { "setturrettargetvec", CMD_VEH_SetTurretTargetVec, 0 },
   { "setturrettargetent", CMD_VEH_SetTurretTargetEnt, 0 },
   { "clearturrettarget", CMD_VEH_ClearTurretTarget, 0 },
@@ -272,7 +293,7 @@ const float s_correctSolidDeltas[26][3] =
 };
 
 
-scr_vehicle_s s_vehicles[16];
+scr_vehicle_s s_vehicles[MAX_VEHICLES];
 int bg_numVehicleInfos;
 vehicle_info_t bg_vehicleInfos[32];
 
@@ -286,6 +307,7 @@ struct VehicleLocalPhysics // sizeof=0x40
     int onGround;                       // XREF: VEH_UpdateClient+36D/r
 } s_phys;
 
+// Decomp: CoDMPServer.c:427433  BG_GetVehicleInfo
 const vehicle_info_t *__cdecl BG_GetVehicleInfo(int index)
 {
     if ( index < 0
@@ -306,6 +328,7 @@ const vehicle_info_t *__cdecl BG_GetVehicleInfo(int index)
     return &bg_vehicleInfos[index];
 }
 
+// Decomp: CoDMPServer.c:427461  GScr_GetVehicle
 gentity_s *__cdecl GScr_GetVehicle(scr_entref_t entref)
 {
     if ( !entref.classnum )
@@ -314,10 +337,10 @@ gentity_s *__cdecl GScr_GetVehicle(scr_entref_t entref)
     return 0;
 }
 
+// Decomp: CoDMPServer.c:427470  VEH_GetVehicle
 gentity_s *__cdecl VEH_GetVehicle(int entNum)
 {
-    const char *v1; // eax
-    const char *v2; // eax
+    const char *errorMsg;
 
     if ( entNum >= 1024
         && !Assert_MyHandler(
@@ -331,17 +354,18 @@ gentity_s *__cdecl VEH_GetVehicle(int entNum)
     }
     if ( g_entities[entNum].classname != scr_const.script_vehicle )
     {
-        v1 = va("entity %i is not a script_vehicle\n", entNum);
-        Scr_Error(v1, 0);
+        errorMsg = va("entity %i is not a script_vehicle\n", entNum);
+        Scr_Error(errorMsg, 0);
     }
     if ( !g_entities[entNum].scr_vehicle )
     {
-        v2 = va("entity %i doesn't have a script_vehicle\n", entNum);
-        Scr_Error(v2, 0);
+        errorMsg = va("entity %i doesn't have a script_vehicle\n", entNum);
+        Scr_Error(errorMsg, 0);
     }
     return &g_entities[entNum];
 }
 
+// Decomp: CoDMPServer.c:427500  VEH_IsSeatPresent
 int __cdecl VEH_IsSeatPresent(gentity_s *ent, int seatIdx, const vehicle_info_t *info)
 {
     if ( !info )
@@ -353,59 +377,52 @@ int __cdecl VEH_IsSeatPresent(gentity_s *ent, int seatIdx, const vehicle_info_t 
     return seatIdx >= 5 && seatIdx < info->numberOfSeats - info->numberOfGunners - info->isDrivable + 5;
 }
 
+// Decomp: CoDMPServer.c:427514  VEH_GetSeatWeaponIndex
 int __cdecl VEH_GetSeatWeaponIndex(gentity_s *const vehicle, int seatIndex)
 {
     const vehicle_info_t *info; // [esp+8h] [ebp-4h]
 
     info = BG_GetVehicleInfo(vehicle->scr_vehicle->infoIdx);
-    if ( !VEH_IsSeatPresent(0, seatIndex, info) )
+    if ( !VEH_IsSeatPresent(vehicle, seatIndex, info) )
         return 0;
     if ( !seatIndex )
         return G_GetWeaponIndexForName((char*)info->turretWeapon);
     if ( seatIndex - 1 >= info->numberOfGunners )
         return 0;
     else
-        return G_GetWeaponIndexForName((char *)&info->turretTag4[64 * seatIndex]);
+        return G_GetWeaponIndexForName((char *)info->gunnerWeapon[seatIndex - 1]);
 }
 
+// Decomp: CoDMPServer.c:427532  VEH_GetSeatFiringOriginAngles
 int __cdecl VEH_GetSeatFiringOriginAngles(gentity_s *const vehEnt, int seatIndex, float *origin, float *angles)
 {
-    int v5; // [esp+0h] [ebp-60h]
-    bool v6; // [esp+4h] [ebp-5Ch]
-    const VehicleTurret *p_turret; // [esp+8h] [ebp-58h]
-    scr_vehicle_s *veh; // [esp+14h] [ebp-4Ch]
-    float flashMatrix[4][3]; // [esp+18h] [ebp-48h] BYREF
-    float forward[3]; // [esp+48h] [ebp-18h] BYREF
-    int flash; // [esp+54h] [ebp-Ch]
-    const VehicleTurret *pTurret; // [esp+58h] [ebp-8h]
-    int fireBarrel; // [esp+5Ch] [ebp-4h]
+    const VehicleTurret *turret;
+    scr_vehicle_s *veh;
+    float flashMatrix[4][3];
+    float forward[3];
+    int flashBoneIndex;
+    bool useAltFlash;
 
     if ( !VEH_GetSeatWeaponIndex(vehEnt, seatIndex) )
         return 0;
     veh = vehEnt->scr_vehicle;
     if ( seatIndex )
-        p_turret = (const VehicleTurret *)&veh->jitter.jitterPos[8 * seatIndex + 2];
+        turret = &veh->gunnerTurrets[seatIndex - 1];
     else
-        p_turret = &veh->turret;
-    pTurret = p_turret;
-    v6 = (p_turret->flags & 2) != 0 && !pTurret->fireBarrel;
-    fireBarrel = v6;
+        turret = &veh->turret;
+    useAltFlash = (turret->flags & 2) != 0 && !turret->fireBarrel;
     if ( seatIndex )
     {
-        if ( fireBarrel )
-            v5 = veh->boneIndex.flash[4 * seatIndex + 4];
+        if ( useAltFlash )
+            flashBoneIndex = veh->boneIndex.gunnerTags[seatIndex - 1].flash2;
         else
-            v5 = veh->boneIndex.flash[4 * seatIndex + 3];
-        flash = v5;
+            flashBoneIndex = veh->boneIndex.gunnerTags[seatIndex - 1].flash;
     }
     else
-    {
-        flash = veh->boneIndex.flash[fireBarrel];
-    }
-    if ( flash < 0 )
+        flashBoneIndex = veh->boneIndex.flash[useAltFlash];
+    if ( flashBoneIndex < 0 )
         return 0;
-    G_DObjGetWorldBoneIndexMatrix(vehEnt, flash, flashMatrix);
-    //*(_QWORD *)forward = *(_QWORD *)&flashMatrix[0][0];
+    G_DObjGetWorldBoneIndexMatrix(vehEnt, flashBoneIndex, flashMatrix);
     forward[0] = flashMatrix[0][0];
     forward[1] = flashMatrix[0][1];
     forward[2] = flashMatrix[0][2];
@@ -416,6 +433,7 @@ int __cdecl VEH_GetSeatFiringOriginAngles(gentity_s *const vehEnt, int seatIndex
     return 1;
 }
 
+// Decomp: CoDMPServer.c:427587  VEH_GetSeat
 VehicleSeat *__cdecl VEH_GetSeat(scr_vehicle_s *veh, int seatIdx)
 {
     if ( !veh && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 731, 0, "%s", "veh") )
@@ -423,6 +441,7 @@ VehicleSeat *__cdecl VEH_GetSeat(scr_vehicle_s *veh, int seatIdx)
     return &veh->seats[seatIdx];
 }
 
+// Decomp: CoDMPServer.c:427604  VEH_GetSeat
 VehicleSeat *__cdecl VEH_GetSeat(gentity_s *vehEnt, int seatIdx)
 {
     scr_vehicle_s *veh; // [esp+4h] [ebp-4h]
@@ -434,6 +453,7 @@ VehicleSeat *__cdecl VEH_GetSeat(gentity_s *vehEnt, int seatIdx)
         return 0;
 }
 
+// Decomp: CoDMPServer.c:427618  GetVehicleLogObjectError
 scr_vehicle_s *__cdecl GetVehicleLogObjectError(gentity_s *ent)
 {
     scr_vehicle_s *veh; // [esp+0h] [ebp-4h]
@@ -446,6 +466,8 @@ scr_vehicle_s *__cdecl GetVehicleLogObjectError(gentity_s *ent)
     return veh;
 }
 
+// Decomp: CoDMPServer.c:427664  VEH_GetSeatOccupantEntNum
+// Decomp: CoDMPServer.c:427640  VEH_GetSeatOccupantEntNum
 int __cdecl VEH_GetSeatOccupantEntNum(scr_vehicle_s *veh, int seatIdx)
 {
     const VehicleSeat *seat; // [esp+0h] [ebp-4h]
@@ -477,6 +499,7 @@ int __cdecl VEH_GetSeatOccupantEntNum(gentity_s *vehEnt, int seatIdx)
         return 1023;
 }
 
+// Decomp: CoDMPServer.c:427678  VEH_SetSeatOccupantEntNum
 int __cdecl VEH_SetSeatOccupantEntNum(scr_vehicle_s *veh, int seatIdx, unsigned int occEntNum)
 {
     int oldOccEntNum; // [esp+0h] [ebp-8h]
@@ -506,6 +529,8 @@ int __cdecl VEH_SetSeatOccupantEntNum(scr_vehicle_s *veh, int seatIdx, unsigned 
     }
 }
 
+// Decomp: CoDMPServer.c:427726  VEH_GetSeatOccupantEntity
+// Decomp: CoDMPServer.c:427712  VEH_GetSeatOccupantEntity
 gentity_s *__cdecl VEH_GetSeatOccupantEntity(scr_vehicle_s *veh, int seatIdx)
 {
     int occEntNum; // [esp+4h] [ebp-4h]
@@ -528,104 +553,92 @@ gentity_s *__cdecl VEH_GetSeatOccupantEntity(gentity_s *vehEnt, int seatIdx)
         return 0;
 }
 
+// Decomp: CoDMPServer.c:427740  VEH_SetPosition
 void __cdecl VEH_SetPosition(gentity_s *ent, const float *origin, float *vel, const float *angles)
 {
-    const char *v4; // eax
-    int v6; // [esp+20h] [ebp-54h]
-    int v7; // [esp+24h] [ebp-50h]
-    int v8; // [esp+28h] [ebp-4Ch]
-    bool v9; // [esp+2Ch] [ebp-48h]
-    char *v10; // [esp+30h] [ebp-44h]
-    float snapped_vela; // [esp+50h] [ebp-24h]
-    float snapped_vel; // [esp+50h] [ebp-24h]
-    float snapped_vel_4a; // [esp+54h] [ebp-20h]
-    float snapped_vel_4; // [esp+54h] [ebp-20h]
-    float snapped_vel_8a; // [esp+58h] [ebp-1Ch]
-    float snapped_vel_8; // [esp+58h] [ebp-1Ch]
-    float old_vel; // [esp+5Ch] [ebp-18h]
-    float old_vel_4; // [esp+60h] [ebp-14h]
-    float old_vel_8; // [esp+64h] [ebp-10h]
-    float snapped_origin[3]; // [esp+68h] [ebp-Ch] BYREF
-    int savedregs; // [esp+74h] [ebp+0h] BYREF
+    const char *errorMsg;
+    char *targetName;
+    float snappedVel[3];
+    float prevVel[3];
+    float snappedOrigin[3];
+    bool originUnchanged;
+    bool posTrBaseMatches;
+    bool anglesUnchanged;
+    bool aposTrBaseMatches;
 
-    snapped_origin[0] = *origin;
-    snapped_origin[1] = origin[1];
-    snapped_origin[2] = origin[2];
-    snapped_vela = *vel;
-    snapped_vel_4a = vel[1];
-    snapped_vel_8a = vel[2];
-    old_vel = ent->s.lerp.pos.trDelta[0];
-    old_vel_4 = ent->s.lerp.pos.trDelta[1];
-    old_vel_8 = ent->s.lerp.pos.trDelta[2];
-    snapped_origin[0] = (float)(int)snapped_origin[0];
-    snapped_origin[1] = (float)(int)snapped_origin[1];
-    snapped_origin[2] = (float)(int)snapped_origin[2];
-    snapped_vel = (float)(int)snapped_vela;
-    snapped_vel_4 = (float)(int)snapped_vel_4a;
-    snapped_vel_8 = (float)(int)snapped_vel_8a;
-    if ( !BG_ValidateOriginValue(snapped_origin[2], 17, svs.mapCenter[2]) )
+    snappedOrigin[0] = *origin;
+    snappedOrigin[1] = origin[1];
+    snappedOrigin[2] = origin[2];
+    snappedVel[0] = *vel;
+    snappedVel[1] = vel[1];
+    snappedVel[2] = vel[2];
+    prevVel[0] = ent->s.lerp.pos.trDelta[0];
+    prevVel[1] = ent->s.lerp.pos.trDelta[1];
+    prevVel[2] = ent->s.lerp.pos.trDelta[2];
+    snappedOrigin[0] = (float)(int)snappedOrigin[0];
+    snappedOrigin[1] = (float)(int)snappedOrigin[1];
+    snappedOrigin[2] = (float)(int)snappedOrigin[2];
+    snappedVel[0] = (float)(int)snappedVel[0];
+    snappedVel[1] = (float)(int)snappedVel[1];
+    snappedVel[2] = (float)(int)snappedVel[2];
+    if ( !BG_ValidateOriginValue(snappedOrigin[2], 17, svs.mapCenter[2]) )
     {
         if ( ent->targetname )
-            v10 = SL_ConvertToString(ent->targetname, SCRIPTINSTANCE_SERVER);
+            targetName = SL_ConvertToString(ent->targetname, SCRIPTINSTANCE_SERVER);
         else
-            v10 = (char*)"<undefined>";
-        v4 = va("Vehicle %s has fallen out of the world at (%0.2f, %0.2f, %0.2f)\n", v10, *origin, origin[1], origin[2]);
-        Scr_Error(v4, 0);
+            targetName = (char *)"<undefined>";
+        errorMsg = va(
+            "Vehicle %s has fallen out of the world at (%0.2f, %0.2f, %0.2f)\n",
+            targetName,
+            *origin,
+            origin[1],
+            origin[2]);
+        Scr_Error(errorMsg, 0);
     }
-    v9 = ent->r.currentOrigin[0] == snapped_origin[0]
-        && ent->r.currentOrigin[1] == snapped_origin[1]
-        && ent->r.currentOrigin[2] == snapped_origin[2];
-    if ( v9
-        && (ent->s.lerp.pos.trBase[0] != snapped_origin[0]
-         || ent->s.lerp.pos.trBase[1] != snapped_origin[1]
-         || ent->s.lerp.pos.trBase[2] != snapped_origin[2]
-            ? (v8 = 0)
-            : (v8 = 1),
-                v8
-         && (ent->r.currentAngles[0] != *angles
-            || ent->r.currentAngles[1] != angles[1]
-            || ent->r.currentAngles[2] != angles[2]
-             ? (v7 = 0)
-             : (v7 = 1),
-                 v7
-            && (ent->s.lerp.apos.trBase[0] != *angles
-             || ent->s.lerp.apos.trBase[1] != angles[1]
-             || ent->s.lerp.apos.trBase[2] != angles[2]
-                ? (v6 = 0)
-                : (v6 = 1),
-                    v6))) )
+    originUnchanged = ent->r.currentOrigin[0] == snappedOrigin[0]
+        && ent->r.currentOrigin[1] == snappedOrigin[1]
+        && ent->r.currentOrigin[2] == snappedOrigin[2];
+    posTrBaseMatches = ent->s.lerp.pos.trBase[0] == snappedOrigin[0]
+        && ent->s.lerp.pos.trBase[1] == snappedOrigin[1]
+        && ent->s.lerp.pos.trBase[2] == snappedOrigin[2];
+    anglesUnchanged = ent->r.currentAngles[0] == *angles
+        && ent->r.currentAngles[1] == angles[1]
+        && ent->r.currentAngles[2] == angles[2];
+    aposTrBaseMatches = ent->s.lerp.apos.trBase[0] == *angles
+        && ent->s.lerp.apos.trBase[1] == angles[1]
+        && ent->s.lerp.apos.trBase[2] == angles[2];
+    if ( originUnchanged && posTrBaseMatches && anglesUnchanged && aposTrBaseMatches )
     {
-        if ( old_vel != snapped_vel || old_vel_4 != snapped_vel_4 || old_vel_8 != snapped_vel_8 )
+        if ( prevVel[0] != snappedVel[0] || prevVel[1] != snappedVel[1] || prevVel[2] != snappedVel[2] )
         {
-            ent->s.lerp.pos.trDelta[0] = snapped_vel;
-            ent->s.lerp.pos.trDelta[1] = snapped_vel_4;
-            ent->s.lerp.pos.trDelta[2] = snapped_vel_8;
+            ent->s.lerp.pos.trDelta[0] = snappedVel[0];
+            ent->s.lerp.pos.trDelta[1] = snappedVel[1];
+            ent->s.lerp.pos.trDelta[2] = snappedVel[2];
         }
     }
     else
     {
-        G_SetOrigin(ent, snapped_origin);
+        G_SetOrigin(ent, snappedOrigin);
         G_SetAngle(ent, angles);
         ent->s.lerp.pos.trType = 1;
         ent->s.lerp.apos.trType = 1;
-        ent->s.lerp.pos.trDelta[0] = snapped_vel;
-        ent->s.lerp.pos.trDelta[1] = snapped_vel_4;
-        ent->s.lerp.pos.trDelta[2] = snapped_vel_8;
+        ent->s.lerp.pos.trDelta[0] = snappedVel[0];
+        ent->s.lerp.pos.trDelta[1] = snappedVel[1];
+        ent->s.lerp.pos.trDelta[2] = snappedVel[2];
         SV_LinkEntity(ent);
     }
 }
 
+// Decomp: CoDMPServer.c:427828  VEH_InitEntity
 void __cdecl VEH_InitEntity(gentity_s *ent, scr_vehicle_s *veh, int infoIdx)
 {
     int WeaponIndexForName; // eax
-    float v4; // [esp+8h] [ebp-20h]
-    float v5; // [esp+Ch] [ebp-1Ch]
-    float v6; // [esp+10h] [ebp-18h]
-    float v7; // [esp+14h] [ebp-14h]
-    float v8; // [esp+18h] [ebp-10h]
-    int i; // [esp+1Ch] [ebp-Ch]
+    float gunPitchQuantized;
+    float gunYawQuantized;
+    float gunnerPitchQuantized;
+    float gunnerYawQuantized;
+    int gunnerAngleIndex;
     const vehicle_info_t *info; // [esp+20h] [ebp-8h]
-    int savedregs; // [esp+28h] [ebp+0h] BYREF
 
     info = BG_GetVehicleInfo(infoIdx);
     ent->handler = 25;
@@ -649,19 +662,18 @@ void __cdecl VEH_InitEntity(gentity_s *ent, scr_vehicle_s *veh, int infoIdx)
     ent->s.weaponModel = 0;
     ent->s.lerp.u.actor.actorNum = 0;
     ent->s.lerp.u.vehicle.drawOnCompass = 0;
-    v8 = floor(0.0 * 182.04445 + 0.5);
-    ent->s.lerp.u.vehicle.throttle = (int)v8;
+    ent->s.lerp.u.vehicle.throttle = (int)floor(0.0 * 182.04445 + 0.5);
     ent->s.lerp.u.loopFx.period = 0;
-    v7 = floor(0.0 * 182.04445 + 0.5);
-    ent->s.lerp.u.vehicle.gunPitch = (int)v7;
-    v6 = floor(0.0 * 182.04445 + 0.5);
-    ent->s.lerp.u.vehicle.gunYaw = (int)v6;
-    for ( i = 0; i < 4; ++i )
+    gunPitchQuantized = floor(0.0 * 182.04445 + 0.5);
+    ent->s.lerp.u.vehicle.gunPitch = (int)gunPitchQuantized;
+    gunYawQuantized = floor(0.0 * 182.04445 + 0.5);
+    ent->s.lerp.u.vehicle.gunYaw = (int)gunYawQuantized;
+    for ( gunnerAngleIndex = 0; gunnerAngleIndex < 4; ++gunnerAngleIndex )
     {
-        v5 = floor(0.0 * 182.04445 + 0.5);
-        ent->s.lerp.u.vehicle.gunnerAngles[i].pitch = (int)v5;
-        v4 = floor(0.0 * 182.04445 + 0.5);
-        ent->s.lerp.u.vehicle.gunnerAngles[i].yaw = (int)v4;
+        gunnerPitchQuantized = floor(0.0 * 182.04445 + 0.5);
+        ent->s.lerp.u.vehicle.gunnerAngles[gunnerAngleIndex].pitch = (int)gunnerPitchQuantized;
+        gunnerYawQuantized = floor(0.0 * 182.04445 + 0.5);
+        ent->s.lerp.u.vehicle.gunnerAngles[gunnerAngleIndex].yaw = (int)gunnerYawQuantized;
     }
     ent->s.vehicleState.vehicleInfoIndex = infoIdx;
     ent->scr_vehicle = veh;
@@ -674,10 +686,11 @@ void __cdecl VEH_InitEntity(gentity_s *ent, scr_vehicle_s *veh, int infoIdx)
     SV_LinkEntity(ent);
 }
 
+// Decomp: CoDMPServer.c:427889  VEH_InitVehicle
 void __cdecl VEH_InitVehicle(gentity_s *ent, scr_vehicle_s *veh, int infoIdx)
 {
     int WeaponIndexForName; // eax
-    int k; // [esp+Ch] [ebp-Ch]
+    int gunnerIndex;
     const vehicle_info_t *info; // [esp+10h] [ebp-8h]
     int seatIndex; // [esp+14h] [ebp-4h]
 
@@ -746,22 +759,23 @@ void __cdecl VEH_InitVehicle(gentity_s *ent, scr_vehicle_s *veh, int infoIdx)
     veh->m_bDropDeployableEventDown = 0;
     for ( seatIndex = 0; seatIndex < 11; ++seatIndex )
         VEH_InitSeat(veh, seatIndex);
-    for ( k = 0; k < 4; ++k )
+    for ( gunnerIndex = 0; gunnerIndex < 4; ++gunnerIndex )
     {
-        if ( !g_connectpaths->current.integer && !info->gunnerWeaponIndex[k] )
+        if ( !g_connectpaths->current.integer && !info->gunnerWeaponIndex[gunnerIndex] )
         {
-            WeaponIndexForName = G_GetWeaponIndexForName((char*)info->gunnerWeapon[k]);
-            AssignToSmallerType<unsigned short>(&bg_vehicleInfos[infoIdx].gunnerWeaponIndex[k], WeaponIndexForName);
+            WeaponIndexForName = G_GetWeaponIndexForName((char*)info->gunnerWeapon[gunnerIndex]);
+            AssignToSmallerType<unsigned short>(&bg_vehicleInfos[infoIdx].gunnerWeaponIndex[gunnerIndex], WeaponIndexForName);
         }
-        veh->gunnerTargets[k].targetEnt = 1023;
-        veh->gunnerTurrets[k].heatVal = 0.0f;
-        veh->gunnerTurrets[k].overheating = 0;
+        veh->gunnerTargets[gunnerIndex].targetEnt = 1023;
+        veh->gunnerTurrets[gunnerIndex].heatVal = 0.0f;
+        veh->gunnerTurrets[gunnerIndex].overheating = 0;
     }
     VEH_SetPosition(ent, ent->r.currentOrigin, (float *)vec3_origin, ent->r.currentAngles);
     VEH_InitPhysics(ent, infoIdx);
     VEH_InitFromInfo(veh, info);
 }
 
+// Decomp: CoDMPServer.c:427992  VEH_InitSeat
 void __cdecl VEH_InitSeat(scr_vehicle_s *veh, int seatIdx)
 {
     VehicleSeat *seat; // [esp+0h] [ebp-4h]
@@ -771,6 +785,7 @@ void __cdecl VEH_InitSeat(scr_vehicle_s *veh, int seatIdx)
         seat->_occupantEntNum = 1023;
 }
 
+// Decomp: CoDMPServer.c:428002  VEH_InitFromInfo
 void __cdecl VEH_InitFromInfo(scr_vehicle_s *veh, const vehicle_info_t *info)
 {
     veh->team = info->eTeam;
@@ -786,12 +801,13 @@ void __cdecl VEH_InitFromInfo(scr_vehicle_s *veh, const vehicle_info_t *info)
     veh->manualDecel = info->accel;
 }
 
+// Decomp: CoDMPServer.c:428021  VEH_InitPhysics
 void __cdecl VEH_InitPhysics(gentity_s *ent, int infoIdx)
 {
     vehicle_physic_t *phys; // [esp+38h] [ebp-10h]
     const vehicle_info_t *info; // [esp+3Ch] [ebp-Ch]
     scr_vehicle_s *veh; // [esp+40h] [ebp-8h]
-    int i; // [esp+44h] [ebp-4h]
+    int wheelIndex;
 
     veh = ent->scr_vehicle;
     phys = &veh->phys;
@@ -822,11 +838,11 @@ void __cdecl VEH_InitPhysics(gentity_s *ent, int infoIdx)
     veh->phys.rotVel[0] = 0.0f;
     veh->phys.rotVel[1] = 0.0f;
     veh->phys.rotVel[2] = 0.0f;
-    for ( i = 0; i < 6; ++i )
+    for ( wheelIndex = 0; wheelIndex < 6; ++wheelIndex )
     {
-        phys->wheelZVel[i] = 0.0f;
-        phys->wheelZPos[i] = 0.0f;
-        phys->wheelSurfType[i] = 0;
+        phys->wheelZVel[wheelIndex] = 0.0f;
+        phys->wheelZPos[wheelIndex] = 0.0f;
+        phys->wheelSurfType[wheelIndex] = 0;
     }
     veh->phys.worldTilt[0] = 0.0f;
     veh->phys.worldTilt[1] = 0.0f;
@@ -861,70 +877,63 @@ void __cdecl VEH_InitPhysics(gentity_s *ent, int infoIdx)
     }
 }
 
+// Decomp: CoDMPServer.c:428114  VEH_JoltBody
 void __cdecl VEH_JoltBody(gentity_s *ent, const float *dir, float intensity, float speedFrac, float decel)
 {
-    float v5; // [esp+0h] [ebp-48h]
-    float v6; // [esp+14h] [ebp-34h]
-    const vehicle_info_t *info; // [esp+1Ch] [ebp-2Ch]
-    scr_vehicle_s *veh; // [esp+20h] [ebp-28h]
-    float axis[3][3]; // [esp+24h] [ebp-24h] BYREF
+    float clampedIntensity;
+    float intensityClampedHigh;
+    const vehicle_info_t *info;
+    scr_vehicle_s *veh;
+    float axis[3][3];
 
     veh = ent->scr_vehicle;
     info = BG_GetVehicleInfo(veh->infoIdx);
     if ( !info->isNitrous && info->type != 6 )
     {
-        if ( (float)(intensity - 1.0) < 0.0 )
-            v6 = intensity;
+        if ( intensity < 1.0f )
+            intensityClampedHigh = intensity;
         else
-            v6 = 1.0f;
-        if ( (float)(0.0 - intensity) < 0.0 )
-            v5 = v6;
+            intensityClampedHigh = 1.0f;
+        if ( intensity > 0.0f )
+            clampedIntensity = intensityClampedHigh;
         else
-            v5 = 0.0f;
+            clampedIntensity = 0.0f;
         AnglesToAxis(veh->phys.angles, axis);
         veh->joltDir[0] = (float)((float)(*dir * axis[0][0]) + (float)(dir[1] * axis[0][1])) + (float)(dir[2] * axis[0][2]);
-        //LODWORD(veh->joltDir[1]) = COERCE_UNSIGNED_INT((float)((float)(*dir * axis[1][0]) + (float)(dir[1] * axis[1][1])) + (float)(dir[2] * axis[1][2])) ^ _mask__NegFloat_;
-        (veh->joltDir[1]) = -((float)((float)(*dir * axis[1][0]) + (float)(dir[1] * axis[1][1])) + (float)(dir[2] * axis[1][2]));
+        veh->joltDir[1] = -((float)((float)(*dir * axis[1][0]) + (float)(dir[1] * axis[1][1])) + (float)(dir[2] * axis[1][2]));
         veh->joltTime = 1.3f;
         veh->joltWave = 0.0f;
         Vec2Normalize(veh->joltDir);
-        veh->joltDir[0] = (float)(info->maxBodyPitch * v5) * veh->joltDir[0];
-        veh->joltDir[1] = (float)(info->maxBodyRoll * v5) * veh->joltDir[1];
+        veh->joltDir[0] = (float)(info->maxBodyPitch * clampedIntensity) * veh->joltDir[0];
+        veh->joltDir[1] = (float)(info->maxBodyRoll * clampedIntensity) * veh->joltDir[1];
         veh->joltSpeed = veh->speed * speedFrac;
         veh->joltDecel = decel;
     }
 }
 
+// Decomp: CoDMPServer.c:428155  VEH_CalcAccel
 void __cdecl VEH_CalcAccel(gentity_s *ent, char *move, float *bodyAccel, float *rotAccel)
 {
-    float v4; // [esp+4h] [ebp-CCh]
-    float v5; // [esp+8h] [ebp-C8h]
-    float v6; // [esp+Ch] [ebp-C4h]
-    float v7; // [esp+10h] [ebp-C0h]
-    float v8; // [esp+14h] [ebp-BCh]
-    float v9; // [esp+18h] [ebp-B8h]
-    float v10; // [esp+1Ch] [ebp-B4h]
-    float v11; // [esp+20h] [ebp-B0h]
-    float v12; // [esp+2Ch] [ebp-A4h]
-    float v13; // [esp+3Ch] [ebp-94h]
-    float v14; // [esp+40h] [ebp-90h]
-    float v15; // [esp+4Ch] [ebp-84h]
-    float rotRate; // [esp+58h] [ebp-78h]
-    float v17; // [esp+64h] [ebp-6Ch]
-    float v18; // [esp+74h] [ebp-5Ch]
-    float v19; // [esp+7Ch] [ebp-54h]
-    float v20; // [esp+80h] [ebp-50h]
-    float v21; // [esp+88h] [ebp-48h]
-    gentity_s *player; // [esp+94h] [ebp-3Ch]
-    float xAccel; // [esp+98h] [ebp-38h]
-    const vehicle_info_t *info; // [esp+A0h] [ebp-30h]
-    scr_vehicle_s *veh; // [esp+A4h] [ebp-2Ch]
-    float tgtVel[3]; // [esp+A8h] [ebp-28h]
-    float maxSpeed; // [esp+B4h] [ebp-1Ch]
-    float yAccel; // [esp+B8h] [ebp-18h]
-    int i; // [esp+BCh] [ebp-14h]
-    float tgtRotVel[3]; // [esp+C0h] [ebp-10h]
-    float accel; // [esp+CCh] [ebp-4h]
+    float clampedPitchAccel;
+    float clampedRollAccel;
+    float clampedYawRotVel;
+    float clampedYawRotAccel;
+    float clampedBodyVel;
+    float clampedBodyAccel;
+    float targetBodyVel;
+    float targetBodyAccel;
+    float clampedYawRate;
+    float clampedYawAccel;
+    gentity_s *player;
+    float forwardInputScale;
+    const vehicle_info_t *info;
+    scr_vehicle_s *veh;
+    float tgtVel[3];
+    float maxSpeed;
+    float steerInputScale;
+    int velAxisIndex;
+    float tgtRotVel[3];
+    float accel;
 
     veh = ent->scr_vehicle;
     info = BG_GetVehicleInfo(veh->infoIdx);
@@ -941,44 +950,42 @@ void __cdecl VEH_CalcAccel(gentity_s *ent, char *move, float *bodyAccel, float *
         maxSpeed = veh->joltSpeed;
         accel = veh->joltDecel;
     }
-    xAccel = fabs((float)*move) / 127.0;
-    yAccel = fabs((float)move[1]) / 127.0;
+    forwardInputScale = fabs((float)*move) / 127.0f;
+    steerInputScale = fabs((float)move[1]) / 127.0f;
     if ( *move <= 0 )
     {
         if ( *move >= 0 )
             tgtVel[0] = 0.0f;
         else
-            tgtVel[0] = (float)(veh->phys.bodyVel[0] - (float)(accel * 0.050000001)) * xAccel;
+            tgtVel[0] = (float)(veh->phys.bodyVel[0] - (float)(accel * 0.050000001f)) * forwardInputScale;
     }
     else
     {
-        tgtVel[0] = (float)((float)(accel * 0.050000001) + veh->phys.bodyVel[0]) * xAccel;
+        tgtVel[0] = (float)((float)(accel * 0.050000001f) + veh->phys.bodyVel[0]) * forwardInputScale;
     }
     tgtVel[1] = 0.0f;
     tgtVel[2] = veh->phys.bodyVel[2];
-    for ( i = 0; i < 3; ++i )
+    for ( velAxisIndex = 0; velAxisIndex < 3; ++velAxisIndex )
     {
-        v20 = tgtVel[i];
-        if ( (float)(v20 - maxSpeed) < 0.0 )
-            v21 = tgtVel[i];
+        targetBodyVel = tgtVel[velAxisIndex];
+        if ( targetBodyVel < maxSpeed )
+            clampedBodyVel = tgtVel[velAxisIndex];
         else
-            v21 = maxSpeed;
-        if ( (float)((-(maxSpeed)) - v20) < 0.0 )
-            v10 = v21;
+            clampedBodyVel = maxSpeed;
+        if ( clampedBodyVel > -maxSpeed )
+            tgtVel[velAxisIndex] = clampedBodyVel;
         else
-            v10 = -maxSpeed;
-        tgtVel[i] = v10;
-        bodyAccel[i] = (float)(tgtVel[i] - veh->phys.bodyVel[i]) / 0.050000001;
-        v18 = bodyAccel[i];
-        if ( (float)(v18 - accel) < 0.0 )
-            v19 = bodyAccel[i];
+            tgtVel[velAxisIndex] = -maxSpeed;
+        bodyAccel[velAxisIndex] = (float)(tgtVel[velAxisIndex] - veh->phys.bodyVel[velAxisIndex]) / 0.050000001f;
+        targetBodyAccel = bodyAccel[velAxisIndex];
+        if ( targetBodyAccel < accel )
+            clampedBodyAccel = bodyAccel[velAxisIndex];
         else
-            v19 = accel;
-        if ( (float)((-(accel)) - v18) < 0.0 )
-            v9 = v19;
+            clampedBodyAccel = accel;
+        if ( clampedBodyAccel > -accel )
+            bodyAccel[velAxisIndex] = clampedBodyAccel;
         else
-            v9 = -accel;
-        bodyAccel[i] = v9;
+            bodyAccel[velAxisIndex] = -accel;
     }
     if ( move[2] <= 0 )
     {
@@ -987,95 +994,85 @@ void __cdecl VEH_CalcAccel(gentity_s *ent, char *move, float *bodyAccel, float *
             if ( move[1] <= 0 )
                 tgtRotVel[1] = 0.0f;
             else
-                tgtRotVel[1] = (float)(veh->phys.rotVel[1] - (float)(info->rotAccel * 0.050000001)) * yAccel;
+                tgtRotVel[1] = (float)(veh->phys.rotVel[1] - (float)(info->rotAccel * 0.050000001f)) * steerInputScale;
         }
         else
         {
-            tgtRotVel[1] = (float)((float)(info->rotAccel * 0.050000001) + veh->phys.rotVel[1]) * yAccel;
+            tgtRotVel[1] = (float)((float)(info->rotAccel * 0.050000001f) + veh->phys.rotVel[1]) * steerInputScale;
         }
-        if ( (float)(tgtRotVel[1] - info->rotRate) < 0.0 )
-            rotRate = tgtRotVel[1];
+        if ( tgtRotVel[1] < info->rotRate )
+            clampedYawRate = tgtRotVel[1];
         else
-            rotRate = info->rotRate;
-        if ( (float)((-(info->rotRate)) - tgtRotVel[1]) < 0.0 )
-            v7 = rotRate;
+            clampedYawRate = info->rotRate;
+        if ( clampedYawRate > -info->rotRate )
+            tgtRotVel[1] = clampedYawRate;
         else
-            v7 = -info->rotRate;
-        tgtRotVel[1] = v7;
-        rotAccel[1] = (float)(v7 - veh->phys.rotVel[1]) / 0.050000001;
-        v14 = rotAccel[1];
-        if ( (float)(v14 - info->rotAccel) < 0.0 )
-            v15 = rotAccel[1];
+            tgtRotVel[1] = -info->rotRate;
+        rotAccel[1] = (float)(tgtRotVel[1] - veh->phys.rotVel[1]) / 0.050000001f;
+        if ( rotAccel[1] < info->rotAccel )
+            clampedYawAccel = rotAccel[1];
         else
-            v15 = info->rotAccel;
-        if ( (float)((-(info->rotAccel)) - v14) < 0.0 )
-            v6 = v15;
+            clampedYawAccel = info->rotAccel;
+        if ( clampedYawAccel > -info->rotAccel )
+            rotAccel[1] = clampedYawAccel;
         else
-            v6 = -info->rotAccel;
-        rotAccel[1] = v6;
+            rotAccel[1] = -info->rotAccel;
     }
     else
     {
         iassert(ent->r.ownerNum.isDefined());
-
-        //player = EntHandle::ent(&ent->r.ownerNum);
         player = ent->r.ownerNum.ent();
-
         iassert(player->client);
-
-        tgtRotVel[1] = AngleNormalize180(player->client->ps.viewangles[1] - veh->phys.prevAngles[1]) / 0.050000001;
-        if ( (float)(tgtRotVel[1] - info->rotRate) < 0.0 )
-            v17 = tgtRotVel[1];
+        tgtRotVel[1] = AngleNormalize180(player->client->ps.viewangles[1] - veh->phys.prevAngles[1]) / 0.050000001f;
+        if ( tgtRotVel[1] < info->rotRate )
+            clampedYawRotVel = tgtRotVel[1];
         else
-            v17 = info->rotRate;
-        if ( (float)((-(info->rotRate)) - tgtRotVel[1]) < 0.0 )
-            v8 = v17;
+            clampedYawRotVel = info->rotRate;
+        if ( clampedYawRotVel > -info->rotRate )
+            tgtRotVel[1] = clampedYawRotVel;
         else
-            v8 = -info->rotRate;
-        tgtRotVel[1] = v8;
-        rotAccel[1] = (float)(v8 - veh->phys.rotVel[1]) / 0.050000001;
+            tgtRotVel[1] = -info->rotRate;
+        rotAccel[1] = (float)(tgtRotVel[1] - veh->phys.rotVel[1]) / 0.050000001f;
     }
     tgtRotVel[0] = 0.0f;
-    *rotAccel = (float)(0.0 - veh->phys.rotVel[0]) / 0.050000001;
-    if ( (float)(*rotAccel - info->rotAccel) < 0.0 )
-        v13 = *rotAccel;
+    *rotAccel = (float)(0.0f - veh->phys.rotVel[0]) / 0.050000001f;
+    if ( *rotAccel < info->rotAccel )
+        clampedPitchAccel = *rotAccel;
     else
-        v13 = info->rotAccel;
-    if ( (float)((-(info->rotAccel)) - *rotAccel) < 0.0 )
-        v5 = v13;
+        clampedPitchAccel = info->rotAccel;
+    if ( clampedPitchAccel > -info->rotAccel )
+        *rotAccel = clampedPitchAccel;
     else
-        v5 = -info->rotAccel;
-    *rotAccel = v5;
+        *rotAccel = -info->rotAccel;
     tgtRotVel[2] = 0.0f;
-    rotAccel[2] = (float)(0.0 - veh->phys.rotVel[2]) / 0.050000001;
-    v11 = rotAccel[2];
-    if ( (float)(v11 - info->rotAccel) < 0.0 )
-        v12 = rotAccel[2];
+    rotAccel[2] = (float)(0.0f - veh->phys.rotVel[2]) / 0.050000001f;
+    if ( rotAccel[2] < info->rotAccel )
+        clampedRollAccel = rotAccel[2];
     else
-        v12 = info->rotAccel;
-    if ( (float)((-(info->rotAccel)) - v11) < 0.0 )
-        v4 = v12;
+        clampedRollAccel = info->rotAccel;
+    if ( clampedRollAccel > -info->rotAccel )
+        rotAccel[2] = clampedRollAccel;
     else
-        v4 = -info->rotAccel;
-    rotAccel[2] = v4;
+        rotAccel[2] = -info->rotAccel;
 }
 
+// Decomp: CoDMPServer.c:428346  VEH_CorrectAllSolid
 int __cdecl VEH_CorrectAllSolid(gentity_s *ent, trace_t *trace)
 {
     col_context_t context; // [esp+14h] [ebp-40h] BYREF
     vehicle_physic_t *phys; // [esp+3Ch] [ebp-18h]
     scr_vehicle_s *veh; // [esp+40h] [ebp-14h]
-    unsigned int i; // [esp+44h] [ebp-10h]
+    unsigned int solidDeltaIndex;
     float point[3]; // [esp+48h] [ebp-Ch] BYREF
 
     veh = ent->scr_vehicle;
     phys = &veh->phys;
     //col_context_t::col_context_t(&context);
-    for ( i = 0; i < 0x1A; ++i )
+    for ( solidDeltaIndex = 0; solidDeltaIndex < 0x1A; ++solidDeltaIndex )
     {
-        point[0] = phys->origin[0] + (float)s_correctSolidDeltas[i][0];
-        point[1] = phys->origin[1] + (float)s_correctSolidDeltas[i][1];
-        point[2] = phys->origin[2] + (float)s_correctSolidDeltas[i][2];
+        point[0] = phys->origin[0] + (float)s_correctSolidDeltas[solidDeltaIndex][0];
+        point[1] = phys->origin[1] + (float)s_correctSolidDeltas[solidDeltaIndex][1];
+        point[2] = phys->origin[2] + (float)s_correctSolidDeltas[solidDeltaIndex][2];
         G_TraceCapsule(trace, point, phys->mins, phys->maxs, point, ent->s.number, ent->clipmask, &context);
         if ( !trace->startsolid )
         {
@@ -1094,28 +1091,27 @@ int __cdecl VEH_CorrectAllSolid(gentity_s *ent, trace_t *trace)
     return 0;
 }
 
+// Decomp: CoDMPServer.c:428401  VEH_ClearGround
 void __cdecl VEH_ClearGround()
 {
     s_phys.hasGround = 0;
 }
 
+// Decomp: CoDMPServer.c:428407  VEH_SlideMove
 bool __cdecl VEH_SlideMove(gentity_s *ent, int gravity)
 {
-    float *v3; // [esp+8h] [ebp-158h]
-    float *v4; // [esp+Ch] [ebp-154h]
-    float *v5; // [esp+10h] [ebp-150h]
-    float *v6; // [esp+38h] [ebp-128h]
-    float *v7; // [esp+3Ch] [ebp-124h]
-    float *v8; // [esp+40h] [ebp-120h]
-    float *vel; // [esp+48h] [ebp-118h]
-    float timeLeft; // [esp+60h] [ebp-100h]
-    int j; // [esp+64h] [ebp-FCh]
-    col_context_t context; // [esp+68h] [ebp-F8h] BYREF
-    vehicle_physic_t *phys; // [esp+90h] [ebp-D0h]
-    float dir[3]; // [esp+94h] [ebp-CCh] BYREF
-    int bumpCount; // [esp+A0h] [ebp-C0h]
-    scr_vehicle_s *veh; // [esp+A4h] [ebp-BCh]
-    int k; // [esp+A8h] [ebp-B8h]
+    float *physVel;
+    float *clipVelOut;
+    float *zeroVel;
+    float *newPlane;
+    float *velAfterBump;
+    float *velScratch;
+    float timeLeft;
+    col_context_t context;
+    vehicle_physic_t *phys;
+    float dir[3];
+    int bumpCount;
+    scr_vehicle_s *veh;
     float planes[5][3]; // [esp+ACh] [ebp-B4h] BYREF
     float clipVel[3]; // [esp+E8h] [ebp-78h] BYREF
     float end[3]; // [esp+F4h] [ebp-6Ch] BYREF
@@ -1123,11 +1119,14 @@ bool __cdecl VEH_SlideMove(gentity_s *ent, int gravity)
     int numPlanes; // [esp+10Ch] [ebp-54h]
     trace_t trace; // [esp+110h] [ebp-50h] BYREF
     float endClipVel[3]; // [esp+14Ch] [ebp-14h] BYREF
-    int i; // [esp+158h] [ebp-8h]
-    float dot; // [esp+15Ch] [ebp-4h]
+    int planeIndex;
+    int planeIndex2;
+    int planeIndex3;
+    float dot;
 
     veh = ent->scr_vehicle;
     phys = &veh->phys;
+    memset(&trace, 0, sizeof(trace));
     timeLeft = 0.05f;
     endVel[0] = veh->phys.vel[0];
     endVel[1] = veh->phys.vel[1];
@@ -1172,52 +1171,51 @@ bool __cdecl VEH_SlideMove(gentity_s *ent, int gravity)
         timeLeft = timeLeft - (float)(timeLeft * trace.fraction);
         if ( numPlanes >= 5 )
         {
-            vel = phys->vel;
+            physVel = phys->vel;
             phys->vel[0] = 0.0f;
-            vel[1] = 0.0f;
-            vel[2] = 0.0f;
+            physVel[1] = 0.0f;
+            physVel[2] = 0.0f;
             return 1;
         }
-        for ( i = 0; i < numPlanes; ++i )
+        for ( planeIndex = 0; planeIndex < numPlanes; ++planeIndex )
         {
-            if ( (float)((float)((float)(trace.normal.vec.v[0] * planes[i][0]) + (float)(trace.normal.vec.v[1] * planes[i][1]))
-                                 + (float)(trace.normal.vec.v[2] * planes[i][2])) > 0.99000001 )
+            if ( (float)((float)((float)(trace.normal.vec.v[0] * planes[planeIndex][0]) + (float)(trace.normal.vec.v[1] * planes[planeIndex][1]))
+                                 + (float)(trace.normal.vec.v[2] * planes[planeIndex][2])) > 0.99000001 )
             {
-                v7 = phys->vel;
-                v8 = phys->vel;
+                velAfterBump = phys->vel;
+                velScratch = phys->vel;
                 phys->vel[0] = trace.normal.vec.v[0] + phys->vel[0];
-                v7[1] = trace.normal.vec.v[1] + v8[1];
-                v7[2] = trace.normal.vec.v[2] + v8[2];
+                velAfterBump[1] = trace.normal.vec.v[1] + velScratch[1];
+                velAfterBump[2] = trace.normal.vec.v[2] + velScratch[2];
                 break;
             }
         }
-        if ( i >= numPlanes )
+        if ( planeIndex >= numPlanes )
         {
-            v6 = planes[numPlanes];
-            //*(_QWORD *)v6 = *(_QWORD *)trace.normal.vec.v;
-            v6[0] = trace.normal.vec.v[0];
-            v6[1] = trace.normal.vec.v[1];
-            v6[2] = trace.normal.vec.v[2];
+            newPlane = planes[numPlanes];
+            newPlane[0] = trace.normal.vec.v[0];
+            newPlane[1] = trace.normal.vec.v[1];
+            newPlane[2] = trace.normal.vec.v[2];
             ++numPlanes;
-            for ( i = 0; i < numPlanes; ++i )
+            for ( planeIndex = 0; planeIndex < numPlanes; ++planeIndex )
             {
-                if ( (float)((float)((float)(phys->vel[0] * planes[i][0]) + (float)(phys->vel[1] * planes[i][1]))
-                                     + (float)(phys->vel[2] * planes[i][2])) < 0.1 )
+                if ( (float)((float)((float)(phys->vel[0] * planes[planeIndex][0]) + (float)(phys->vel[1] * planes[planeIndex][1]))
+                                     + (float)(phys->vel[2] * planes[planeIndex][2])) < 0.1 )
                 {
-                    VEH_ClipVelocity(phys->vel, planes[i], clipVel);
-                    VEH_ClipVelocity(endVel, planes[i], endClipVel);
-                    for ( j = 0; j < numPlanes; ++j )
+                    VEH_ClipVelocity(phys->vel, planes[planeIndex], clipVel);
+                    VEH_ClipVelocity(endVel, planes[planeIndex], endClipVel);
+                    for ( planeIndex2 = 0; planeIndex2 < numPlanes; ++planeIndex2 )
                     {
-                        if ( j != i
-                            && (float)((float)((float)(clipVel[0] * planes[j][0]) + (float)(clipVel[1] * planes[j][1]))
-                                             + (float)(clipVel[2] * planes[j][2])) < 0.1 )
+                        if ( planeIndex2 != planeIndex
+                            && (float)((float)((float)(clipVel[0] * planes[planeIndex2][0]) + (float)(clipVel[1] * planes[planeIndex2][1]))
+                                             + (float)(clipVel[2] * planes[planeIndex2][2])) < 0.1 )
                         {
-                            VEH_ClipVelocity(clipVel, planes[j], clipVel);
-                            VEH_ClipVelocity(endClipVel, planes[j], endClipVel);
-                            if ( (float)((float)((float)(clipVel[0] * planes[i][0]) + (float)(clipVel[1] * planes[i][1]))
-                                                 + (float)(clipVel[2] * planes[i][2])) < 0.0 )
+                            VEH_ClipVelocity(clipVel, planes[planeIndex2], clipVel);
+                            VEH_ClipVelocity(endClipVel, planes[planeIndex2], endClipVel);
+                            if ( (float)((float)((float)(clipVel[0] * planes[planeIndex][0]) + (float)(clipVel[1] * planes[planeIndex][1]))
+                                                 + (float)(clipVel[2] * planes[planeIndex][2])) < 0.0 )
                             {
-                                Vec3Cross(planes[i], planes[j], dir);
+                                Vec3Cross(planes[planeIndex], planes[planeIndex2], dir);
                                 Vec3Normalize(dir);
                                 dot = (float)((float)(dir[0] * phys->vel[0]) + (float)(dir[1] * phys->vel[1]))
                                         + (float)(dir[2] * phys->vel[2]);
@@ -1228,27 +1226,27 @@ bool __cdecl VEH_SlideMove(gentity_s *ent, int gravity)
                                 endClipVel[0] = dot * dir[0];
                                 endClipVel[1] = dot * dir[1];
                                 endClipVel[2] = dot * dir[2];
-                                for ( k = 0; k < numPlanes; ++k )
+                                for ( planeIndex3 = 0; planeIndex3 < numPlanes; ++planeIndex3 )
                                 {
-                                    if ( k != i
-                                        && k != j
-                                        && (float)((float)((float)(clipVel[0] * planes[k][0]) + (float)(clipVel[1] * planes[k][1]))
-                                                         + (float)(clipVel[2] * planes[k][2])) < 0.1 )
+                                    if ( planeIndex3 != planeIndex
+                                        && planeIndex3 != planeIndex2
+                                        && (float)((float)((float)(clipVel[0] * planes[planeIndex3][0]) + (float)(clipVel[1] * planes[planeIndex3][1]))
+                                                         + (float)(clipVel[2] * planes[planeIndex3][2])) < 0.1 )
                                     {
-                                        v5 = phys->vel;
+                                        zeroVel = phys->vel;
                                         phys->vel[0] = 0.0f;
-                                        v5[1] = 0.0f;
-                                        v5[2] = 0.0f;
+                                        zeroVel[1] = 0.0f;
+                                        zeroVel[2] = 0.0f;
                                         return 1;
                                     }
                                 }
                             }
                         }
                     }
-                    v4 = phys->vel;
+                    clipVelOut = phys->vel;
                     phys->vel[0] = clipVel[0];
-                    v4[1] = clipVel[1];
-                    v4[2] = clipVel[2];
+                    clipVelOut[1] = clipVel[1];
+                    clipVelOut[2] = clipVel[2];
                     endVel[0] = endClipVel[0];
                     endVel[1] = endClipVel[1];
                     endVel[2] = endClipVel[2];
@@ -1259,17 +1257,18 @@ bool __cdecl VEH_SlideMove(gentity_s *ent, int gravity)
     }
     if ( gravity )
     {
-        v3 = phys->vel;
+        physVel = phys->vel;
         phys->vel[0] = endVel[0];
-        v3[1] = endVel[1];
-        v3[2] = endVel[2];
+        physVel[1] = endVel[1];
+        physVel[2] = endVel[2];
     }
     return bumpCount != 0;
 }
 
+// Decomp: CoDMPServer.c:428607  VEH_ClipVelocity
 void __cdecl VEH_ClipVelocity(float *in, float *normal, float *out)
 {
-    int i; // [esp+4h] [ebp-8h]
+    int axisIndex;
     float backoff; // [esp+8h] [ebp-4h]
     float backoffa; // [esp+8h] [ebp-4h]
 
@@ -1280,8 +1279,8 @@ void __cdecl VEH_ClipVelocity(float *in, float *normal, float *out)
             backoffa = backoff / 1.01;
         else
             backoffa = backoff * 1.01;
-        for ( i = 0; i < 3; ++i )
-            out[i] = in[i] - (float)(normal[i] * backoffa);
+        for ( axisIndex = 0; axisIndex < 3; ++axisIndex )
+            out[axisIndex] = in[axisIndex] - (float)(normal[axisIndex] * backoffa);
     }
     else
     {
@@ -1292,6 +1291,7 @@ void __cdecl VEH_ClipVelocity(float *in, float *normal, float *out)
     }
 }
 
+// Decomp: CoDMPServer.c:428633  VEH_AirMove
 void __cdecl VEH_AirMove(gentity_s *ent, int gravity)
 {
     if ( s_phys.hasGround )
@@ -1299,10 +1299,11 @@ void __cdecl VEH_AirMove(gentity_s *ent, int gravity)
     VEH_StepSlideMove(ent, gravity);
 }
 
+// Decomp: CoDMPServer.c:428641  VEH_StepSlideMove
 void __cdecl VEH_StepSlideMove(gentity_s *ent, int gravity)
 {
-    float *vel; // [esp+8h] [ebp-B0h]
-    col_context_t context; // [esp+10h] [ebp-A8h] BYREF
+    float *physVel;
+    col_context_t context;
     vehicle_physic_t *phys; // [esp+38h] [ebp-80h]
     scr_vehicle_s *veh; // [esp+3Ch] [ebp-7Ch]
     float startOrigin[3]; // [esp+40h] [ebp-78h] BYREF
@@ -1314,6 +1315,7 @@ void __cdecl VEH_StepSlideMove(gentity_s *ent, int gravity)
 
     veh = ent->scr_vehicle;
     phys = &veh->phys;
+    memset(&trace, 0, sizeof(trace));
     //col_context_t::col_context_t(&context);
     startOrigin[0] = phys->origin[0];
     startOrigin[1] = phys->origin[1];
@@ -1339,10 +1341,10 @@ void __cdecl VEH_StepSlideMove(gentity_s *ent, int gravity)
                 phys->origin[0] = endpos[0];
                 phys->origin[1] = endpos[1];
                 phys->origin[2] = endpos[2];
-                vel = phys->vel;
+                physVel = phys->vel;
                 phys->vel[0] = startVel[0];
-                vel[1] = startVel[1];
-                vel[2] = startVel[2];
+                physVel[1] = startVel[1];
+                physVel[2] = startVel[2];
                 VEH_SlideMove(ent, gravity);
                 down[0] = phys->origin[0];
                 down[1] = phys->origin[1];
@@ -1358,24 +1360,22 @@ void __cdecl VEH_StepSlideMove(gentity_s *ent, int gravity)
     }
 }
 
+// Decomp: CoDMPServer.c:428749  VEH_ClampPointToBoundingBox
 bool __cdecl VEH_ClampPointToBoundingBox(gentity_s *vehicle, const float *point, float *out)
 {
-    float v4; // [esp+0h] [ebp-118h]
-    float v5; // [esp+8h] [ebp-110h]
-    float v6; // [esp+Ch] [ebp-10Ch]
-    float v7; // [esp+10h] [ebp-108h]
-    float v8; // [esp+1Ch] [ebp-FCh]
-    float v9; // [esp+24h] [ebp-F4h]
-    float v10; // [esp+28h] [ebp-F0h]
-    float v11; // [esp+2Ch] [ebp-ECh]
-    float v12; // [esp+30h] [ebp-E8h]
-    float v13; // [esp+34h] [ebp-E4h]
-    float distanceFromMin; // [esp+50h] [ebp-C8h]
-    float distanceFromMax; // [esp+54h] [ebp-C4h]
-    int i; // [esp+60h] [ebp-B8h]
-    bool isMax; // [esp+67h] [ebp-B1h]
-    float smallestDistance; // [esp+68h] [ebp-B0h]
-    int index; // [esp+6Ch] [ebp-ACh]
+    float axisDistance;
+    float clampedZ;
+    float clampedY;
+    float clampedX;
+    float localZ;
+    float localY;
+    float localX;
+    float distanceFromMin;
+    float distanceFromMax;
+    int bbAxisIndex;
+    bool clampToMax;
+    float smallestDistance;
+    int nearestAxisIndex;
     float vehicleInvQuat[4]; // [esp+70h] [ebp-A8h] BYREF
     float bbMins[3]; // [esp+80h] [ebp-98h] BYREF
     float vehicleAxis[3][3]; // [esp+8Ch] [ebp-8Ch] BYREF
@@ -1410,87 +1410,84 @@ bool __cdecl VEH_ClampPointToBoundingBox(gentity_s *vehicle, const float *point,
     localPlayerOrigin[0] = (float)(playerOrigin[2] * vehicleInvAxis[2][0]) + localPlayerOrigin[0];
     localPlayerOrigin[1] = (float)(playerOrigin[2] * vehicleInvAxis[2][1]) + localPlayerOrigin[1];
     localPlayerOrigin[2] = (float)(playerOrigin[2] * vehicleInvAxis[2][2]) + localPlayerOrigin[2];
-    if ( (float)(localPlayerOrigin[0] - bbMaxs[0]) < 0.0 )
-        v13 = localPlayerOrigin[0];
+    if ( localPlayerOrigin[0] < bbMaxs[0] )
+        localX = localPlayerOrigin[0];
     else
-        v13 = bbMaxs[0];
-    if ( (float)(bbMins[0] - localPlayerOrigin[0]) < 0.0 )
-        v7 = v13;
+        localX = bbMaxs[0];
+    if ( localPlayerOrigin[0] > bbMins[0] )
+        clampedX = localX;
     else
-        v7 = bbMins[0];
-    clampedLocalOrigin[0] = v7;
-    if ( (float)(localPlayerOrigin[1] - bbMaxs[1]) < 0.0 )
-        v12 = localPlayerOrigin[1];
+        clampedX = bbMins[0];
+    clampedLocalOrigin[0] = clampedX;
+    if ( localPlayerOrigin[1] < bbMaxs[1] )
+        localY = localPlayerOrigin[1];
     else
-        v12 = bbMaxs[1];
-    if ( (float)(bbMins[1] - localPlayerOrigin[1]) < 0.0 )
-        v6 = v12;
+        localY = bbMaxs[1];
+    if ( localPlayerOrigin[1] > bbMins[1] )
+        clampedY = localY;
     else
-        v6 = bbMins[1];
-    clampedLocalOrigin[1] = v6;
-    if ( (float)(localPlayerOrigin[2] - bbMaxs[2]) < 0.0 )
-        v11 = localPlayerOrigin[2];
+        clampedY = bbMins[1];
+    clampedLocalOrigin[1] = clampedY;
+    if ( localPlayerOrigin[2] < bbMaxs[2] )
+        localZ = localPlayerOrigin[2];
     else
-        v11 = bbMaxs[2];
-    if ( (float)(bbMins[2] - localPlayerOrigin[2]) < 0.0 )
-        v5 = v11;
+        localZ = bbMaxs[2];
+    if ( localPlayerOrigin[2] > bbMins[2] )
+        clampedZ = localZ;
     else
-        v5 = bbMins[2];
-    clampedLocalOrigin[2] = v5;
+        clampedZ = bbMins[2];
+    clampedLocalOrigin[2] = clampedZ;
     if ( clampedLocalOrigin[0] == localPlayerOrigin[0] && clampedLocalOrigin[1] == localPlayerOrigin[1] )
     {
         wasOutside = 0;
         smallestDistance = FLT_MAX;
-        index = 0;
-        isMax = 1;
-        for ( i = 0; i < 2; ++i )
+        nearestAxisIndex = 0;
+        clampToMax = true;
+        for ( bbAxisIndex = 0; bbAxisIndex < 2; ++bbAxisIndex )
         {
-            distanceFromMax = bbMaxs[i] - clampedLocalOrigin[i];
-            distanceFromMin = clampedLocalOrigin[i] - bbMins[i];
+            distanceFromMax = bbMaxs[bbAxisIndex] - clampedLocalOrigin[bbAxisIndex];
+            distanceFromMin = clampedLocalOrigin[bbAxisIndex] - bbMins[bbAxisIndex];
             if ( distanceFromMin <= distanceFromMax )
-                v4 = clampedLocalOrigin[i] - bbMins[i];
+                axisDistance = clampedLocalOrigin[bbAxisIndex] - bbMins[bbAxisIndex];
             else
-                v4 = bbMaxs[i] - clampedLocalOrigin[i];
-            if ( smallestDistance > v4 )
+                axisDistance = bbMaxs[bbAxisIndex] - clampedLocalOrigin[bbAxisIndex];
+            if ( smallestDistance > axisDistance )
             {
-                smallestDistance = v4;
-                index = i;
-                isMax = distanceFromMin > distanceFromMax;
+                smallestDistance = axisDistance;
+                nearestAxisIndex = bbAxisIndex;
+                clampToMax = distanceFromMin > distanceFromMax;
             }
         }
-        if ( isMax )
-            clampedLocalOrigin[index] = bbMaxs[index];
+        if ( clampToMax )
+            clampedLocalOrigin[nearestAxisIndex] = bbMaxs[nearestAxisIndex];
         else
-            clampedLocalOrigin[index] = bbMins[index];
+            clampedLocalOrigin[nearestAxisIndex] = bbMins[nearestAxisIndex];
     }
     QuatToAxis(vehicleQuat, vehicleAxis);
-    v10 = clampedLocalOrigin[0];
     *out = clampedLocalOrigin[0] * vehicleAxis[0][0];
-    out[1] = v10 * vehicleAxis[0][1];
-    out[2] = v10 * vehicleAxis[0][2];
-    v9 = clampedLocalOrigin[1];
+    out[1] = clampedLocalOrigin[0] * vehicleAxis[0][1];
+    out[2] = clampedLocalOrigin[0] * vehicleAxis[0][2];
     *out = (float)(clampedLocalOrigin[1] * vehicleAxis[1][0]) + *out;
-    out[1] = (float)(v9 * vehicleAxis[1][1]) + out[1];
-    out[2] = (float)(v9 * vehicleAxis[1][2]) + out[2];
-    v8 = clampedLocalOrigin[2];
+    out[1] = (float)(clampedLocalOrigin[1] * vehicleAxis[1][1]) + out[1];
+    out[2] = (float)(clampedLocalOrigin[1] * vehicleAxis[1][2]) + out[2];
     *out = (float)(clampedLocalOrigin[2] * vehicleAxis[2][0]) + *out;
-    out[1] = (float)(v8 * vehicleAxis[2][1]) + out[1];
-    out[2] = (float)(v8 * vehicleAxis[2][2]) + out[2];
+    out[1] = (float)(clampedLocalOrigin[2] * vehicleAxis[2][1]) + out[1];
+    out[2] = (float)(clampedLocalOrigin[2] * vehicleAxis[2][2]) + out[2];
     *out = *out + vehicle->r.currentOrigin[0];
     out[1] = out[1] + vehicle->r.currentOrigin[1];
     out[2] = out[2] + vehicle->r.currentOrigin[2];
     return wasOutside;
 }
 
+// Decomp: CoDMPServer.c:428905  VEH_GetBoundingBoxFromCollmap
 void __cdecl VEH_GetBoundingBoxFromCollmap(gentity_s *vehicle, float *bbMins, float *bbMaxs)
 {
-    BrushWrapper *v3; // edx
-    float v4; // [esp+0h] [ebp-44h]
-    float v5; // [esp+4h] [ebp-40h]
-    float *maxs; // [esp+8h] [ebp-3Ch]
-    float *mins; // [esp+Ch] [ebp-38h]
-    BrushWrapper *brush; // [esp+14h] [ebp-30h]
-    int i; // [esp+18h] [ebp-2Ch]
+    float mergedMax;
+    float mergedMin;
+    float *modelMaxs;
+    float *modelMins;
+    BrushWrapper *brush;
+    int mergeAxisIndex;
     float brushMins[3]; // [esp+1Ch] [ebp-28h]
     float brushMaxs[3]; // [esp+28h] [ebp-1Ch]
     unsigned int geomIndex; // [esp+34h] [ebp-10h]
@@ -1550,45 +1547,45 @@ void __cdecl VEH_GetBoundingBoxFromCollmap(gentity_s *vehicle, float *bbMins, fl
                 brushMins[0] = brush->mins[0];
                 brushMins[1] = brush->mins[1];
                 brushMins[2] = brush->mins[2];
-                v3 = collmap->geoms[geomIndex].brush;
-                brushMaxs[0] = v3->maxs[0];
-                brushMaxs[1] = v3->maxs[1];
-                brushMaxs[2] = v3->maxs[2];
-                for ( i = 0; i < 3; ++i )
+                brushMaxs[0] = brush->maxs[0];
+                brushMaxs[1] = brush->maxs[1];
+                brushMaxs[2] = brush->maxs[2];
+                for ( mergeAxisIndex = 0; mergeAxisIndex < 3; ++mergeAxisIndex )
                 {
-                    if ( bbMins[i] <= brushMins[i] )
-                        v5 = bbMins[i];
+                    if ( bbMins[mergeAxisIndex] <= brushMins[mergeAxisIndex] )
+                        mergedMin = bbMins[mergeAxisIndex];
                     else
-                        v5 = brushMins[i];
-                    bbMins[i] = v5;
-                    if ( brushMaxs[i] <= bbMaxs[i] )
-                        v4 = bbMaxs[i];
+                        mergedMin = brushMins[mergeAxisIndex];
+                    bbMins[mergeAxisIndex] = mergedMin;
+                    if ( brushMaxs[mergeAxisIndex] <= bbMaxs[mergeAxisIndex] )
+                        mergedMax = bbMaxs[mergeAxisIndex];
                     else
-                        v4 = brushMaxs[i];
-                    bbMaxs[i] = v4;
+                        mergedMax = brushMaxs[mergeAxisIndex];
+                    bbMaxs[mergeAxisIndex] = mergedMax;
                 }
             }
         }
     }
     else
     {
-        mins = baseModel->mins;
+        modelMins = baseModel->mins;
         *bbMins = baseModel->mins[0];
-        bbMins[1] = mins[1];
-        bbMins[2] = mins[2];
-        maxs = baseModel->maxs;
+        bbMins[1] = modelMins[1];
+        bbMins[2] = modelMins[2];
+        modelMaxs = baseModel->maxs;
         *bbMaxs = baseModel->maxs[0];
-        bbMaxs[1] = maxs[1];
-        bbMaxs[2] = maxs[2];
+        bbMaxs[1] = modelMaxs[1];
+        bbMaxs[2] = modelMaxs[2];
     }
 }
 
+// Decomp: CoDMPServer.c:429025  VEH_DebugAim
 void __cdecl VEH_DebugAim(gentity_s *ent, const float *color, int duration)
 {
     int boneIndex; // [esp+20h] [ebp-C8h]
     float angles[3]; // [esp+24h] [ebp-C4h] BYREF
     weaponParms wp; // [esp+30h] [ebp-B8h] BYREF
-    BulletFireParams v6; // [esp+78h] [ebp-70h] BYREF
+    BulletFireParams fireParams;
     float flashMtx[4][3]; // [esp+B8h] [ebp-30h] BYREF
 
     Weapon_SetWeaponParamsWeapon(&wp, ent->s.weapon);
@@ -1613,14 +1610,12 @@ void __cdecl VEH_DebugAim(gentity_s *ent, const float *color, int duration)
     wp.forward[1] = flashMtx[0][1];
     wp.forward[2] = flashMtx[0][2];
     AxisToAngles(flashMtx, angles);
-    //*(_QWORD *)v6.origStart = *(_QWORD *)wp.muzzleTrace;
-    v6.origStart[0] = wp.muzzleTrace[0];
-    v6.origStart[1] = wp.muzzleTrace[1];
-    v6.origStart[2] = wp.muzzleTrace[2];
-    //*(_QWORD *)v6.start = *(_QWORD *)wp.muzzleTrace;
-    v6.start[0] = wp.muzzleTrace[0];
-    v6.start[1] = wp.muzzleTrace[1];
-    v6.start[2] = wp.muzzleTrace[2];
+    fireParams.origStart[0] = wp.muzzleTrace[0];
+    fireParams.origStart[1] = wp.muzzleTrace[1];
+    fireParams.origStart[2] = wp.muzzleTrace[2];
+    fireParams.start[0] = wp.muzzleTrace[0];
+    fireParams.start[1] = wp.muzzleTrace[1];
+    fireParams.start[2] = wp.muzzleTrace[2];
     //*(_QWORD *)wp.right = *(_QWORD *)&flashMtx[1][0];
     wp.right[0] = flashMtx[1][0];
     wp.right[1] = flashMtx[1][1];
@@ -1629,11 +1624,12 @@ void __cdecl VEH_DebugAim(gentity_s *ent, const float *color, int duration)
     wp.up[0] = flashMtx[2][0];
     wp.up[1] = flashMtx[2][1];
     wp.up[2] = flashMtx[2][2];
-    Bullet_Endpos(level.time, wp.weapDef->aiSpread, v6.end, v6.dir, &wp, 8192.0);
-    CL_AddDebugLine(v6.start, v6.end, color, 1, duration);
+    Bullet_Endpos(level.time, wp.weapDef->aiSpread, fireParams.end, fireParams.dir, &wp, 8192.0);
+    CL_AddDebugLine(fireParams.start, fireParams.end, color, 1, duration);
 }
 
 static float minSpeedToRotate = 50.0f;
+// Decomp: CoDMPServer.c:429108  VEH_UpdateVelocityWithRotation
 void __cdecl VEH_UpdateVelocityWithRotation(gentity_s *ent)
 {
     float forwardSpeedToRotate; // [esp+20h] [ebp-38h]
@@ -1668,6 +1664,7 @@ void __cdecl VEH_UpdateVelocityWithRotation(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:429151  VEH_GetNewSpeedAndAccel
 void __cdecl VEH_GetNewSpeedAndAccel(
                 scr_vehicle_s *veh,
                 float dt,
@@ -1679,8 +1676,8 @@ void __cdecl VEH_GetNewSpeedAndAccel(
     const vehicle_info_t *info; // [esp+10h] [ebp-10h]
     float decel; // [esp+14h] [ebp-Ch]
     float speed; // [esp+18h] [ebp-8h]
-    float speeda; // [esp+18h] [ebp-8h]
-    float accel; // [esp+1Ch] [ebp-4h]
+    float scaledSpeed;
+    float accel;
 
     if ( !veh && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 5090, 0, "%s", "veh") )
         __debugbreak();
@@ -1711,7 +1708,7 @@ void __cdecl VEH_GetNewSpeedAndAccel(
         accel = info->accel;
         decel = accel * 0.5;
     }
-    speeda = speed * speedScale;
+    scaledSpeed = speed * speedScale;
     if ( veh->stopping )
     {
         *newSpeed = VEH_AccelerateSpeed(veh->speed, 0.0, decel, dt);
@@ -1719,35 +1716,37 @@ void __cdecl VEH_GetNewSpeedAndAccel(
     }
     else
     {
-        if ( speeda < 0.0
+        if ( scaledSpeed < 0.0f
             && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 5128, 0, "%s", "speed >= 0.0f") )
         {
             __debugbreak();
         }
-        *newSpeed = VEH_AccelerateSpeed(veh->speed, speeda, accel, dt);
+        *newSpeed = VEH_AccelerateSpeed(veh->speed, scaledSpeed, accel, dt);
         *accelMax = accel;
     }
 }
 
+// Decomp: CoDMPServer.c:429223  VEH_AccelerateSpeed
 double __cdecl VEH_AccelerateSpeed(float speed, float tgtSpeed, float accel, float dt)
 {
-    float speeda; // [esp+8h] [ebp+8h]
+    float newSpeed;
 
     if ( tgtSpeed <= speed )
     {
-        speeda = speed - (float)(accel * dt);
-        if ( tgtSpeed > speeda )
+        newSpeed = speed - (float)(accel * dt);
+        if ( tgtSpeed > newSpeed )
             return tgtSpeed;
     }
     else
     {
-        speeda = (float)(accel * dt) + speed;
-        if ( speeda > tgtSpeed )
+        newSpeed = (float)(accel * dt) + speed;
+        if ( newSpeed > tgtSpeed )
             return tgtSpeed;
     }
-    return speeda;
+    return newSpeed;
 }
 
+// Decomp: CoDMPServer.c:429243  VEH_SetLinkAngleClamps
 void __cdecl VEH_SetLinkAngleClamps(
                 const vehicle_info_t *info,
                 gentity_s *player,
@@ -1831,13 +1830,12 @@ void __cdecl VEH_SetLinkAngleClamps(
     }
 }
 
+// Decomp: CoDMPServer.c:429335  VEH_SetPlayerVehicle
 void __cdecl VEH_SetPlayerVehicle(gentity_s *ent, bool enable)
 {
-    broad_phase_info *bpi; // eax
-    broad_phase_info *v3; // eax
-    broad_phase_info *j; // [esp+24h] [ebp-28h]
-    broad_phase_info *i; // [esp+38h] [ebp-14h]
-    PhysObjUserData *phys_user_data; // [esp+48h] [ebp-4h]
+    broad_phase_info *bpi;
+    broad_phase_info *bpiNode;
+    PhysObjUserData *phys_user_data;
 
     if ( (!ent || !ent->scr_vehicle || !ent->scr_vehicle->nitrousVehicle)
         && !Assert_MyHandler(
@@ -1864,44 +1862,43 @@ void __cdecl VEH_SetPlayerVehicle(gentity_s *ent, bool enable)
             }
             else
             {
-                for ( i = phys_user_data->m_bpb->get_bpg()->m_list_bpi_head;
-                            i;
-                            i = (broad_phase_info *)i->m_list_bpb_next )
+                for ( bpiNode = phys_user_data->m_bpb->get_bpg()->m_list_bpi_head;
+                            bpiNode;
+                            bpiNode = (broad_phase_info *)bpiNode->m_list_bpb_next )
                 {
-                    i->m_env_collision_flags |= 0x20u;
-                    i->m_my_collision_type_flags |= 0x80u;
+                    bpiNode->m_env_collision_flags |= 0x20u;
+                    bpiNode->m_my_collision_type_flags |= 0x80u;
                 }
             }
         }
         else if ( phys_user_data->m_bpb->is_bpi() )
         {
-            //v3 = broad_phase_base::get_bpi(phys_user_data->m_bpb);
-            v3 = phys_user_data->m_bpb->get_bpi();
-            v3->m_env_collision_flags &= ~0x20u;
-            v3->m_my_collision_type_flags &= ~0x80u;
+            bpi = phys_user_data->m_bpb->get_bpi();
+            bpi->m_env_collision_flags &= ~0x20u;
+            bpi->m_my_collision_type_flags &= ~0x80u;
         }
         else
         {
-            //for ( j = broad_phase_base::get_bpg(phys_user_data->m_bpb)->m_list_bpi_head;
-            for ( j = phys_user_data->m_bpb->get_bpg()->m_list_bpi_head;
-                        j;
-                        j = (broad_phase_info *)j->m_list_bpb_next )
+            for ( bpiNode = phys_user_data->m_bpb->get_bpg()->m_list_bpi_head;
+                        bpiNode;
+                        bpiNode = (broad_phase_info *)bpiNode->m_list_bpb_next )
             {
-                j->m_env_collision_flags &= ~0x20u;
-                j->m_my_collision_type_flags &= ~0x80u;
+                bpiNode->m_env_collision_flags &= ~0x20u;
+                bpiNode->m_my_collision_type_flags &= ~0x80u;
             }
         }
     }
     Sys_LeaveCriticalSection(CRITSECT_PHYSICS);
 }
 
+// Decomp: CoDMPServer.c:429398  VEH_LinkPlayer
 void __cdecl VEH_LinkPlayer(gentity_s *ent, gentity_s *player, int seatIndex, bool changingSeats)
 {
-    char *v4; // eax
-    char *v5; // eax
-    char *v6; // eax
-    char *v7; // eax
-    int occupant; // [esp+14h] [ebp-7Ch]
+    char *seatBoneName;
+    char *occupiedSeatName;
+    char *missingSeatName;
+    char *linkFailSeatName;
+    int occupant;
     gclient_s *client; // [esp+18h] [ebp-78h]
     float playerAngles[3]; // [esp+1Ch] [ebp-74h] BYREF
     const vehicle_info_t *info; // [esp+28h] [ebp-68h]
@@ -1935,14 +1932,14 @@ void __cdecl VEH_LinkPlayer(gentity_s *ent, gentity_s *player, int seatIndex, bo
             Com_Error(ERR_DROP, "VEH_LinkPlayer: No valid seat to attach player too");
         if ( veh->boneIndex.seats[seatIndex] < 0 )
         {
-            v4 = SL_ConvertToString(*s_seatTags[seatIndex], SCRIPTINSTANCE_SERVER);
-            Com_Error(ERR_DROP, "VEH_LinkPlayer: Trying to use vehicle without a bone [%s]", v4);
+            seatBoneName = SL_ConvertToString(*s_seatTags[seatIndex], SCRIPTINSTANCE_SERVER);
+            Com_Error(ERR_DROP, "VEH_LinkPlayer: Trying to use vehicle without a bone [%s]", seatBoneName);
         }
         occupant = VEH_GetSeatOccupantEntNum(veh, seatIndex);
         if ( occupant != 1023 && occupant != player->s.number )
         {
-            v5 = SL_ConvertToString(*s_seatTags[seatIndex], SCRIPTINSTANCE_SERVER);
-            Com_Error(ERR_DROP, "VEH_LinkPlayer: Trying to get in seat [%s] that is already occupied", v5);
+            occupiedSeatName = SL_ConvertToString(*s_seatTags[seatIndex], SCRIPTINSTANCE_SERVER);
+            Com_Error(ERR_DROP, "VEH_LinkPlayer: Trying to get in seat [%s] that is already occupied", occupiedSeatName);
         }
         G_DObjGetWorldBoneIndexMatrix(ent, veh->boneIndex.seats[seatIndex], playerMtx);
         if ( seatIndex )
@@ -1978,12 +1975,12 @@ LABEL_29:
         client->linkAnglesLocked = 0;
         if ( !info->remoteControl && !G_EntLinkToWithOffset(player, ent, *s_seatTags[seatIndex], vec3_origin, vec3_origin) )
         {
-            v6 = SL_ConvertToString(*s_seatTags[seatIndex], SCRIPTINSTANCE_SERVER);
-            Com_PrintWarning(15, "WARNING: vehicle missing bone '%s'\n", v6);
+            missingSeatName = SL_ConvertToString(*s_seatTags[seatIndex], SCRIPTINSTANCE_SERVER);
+            Com_PrintWarning(15, "WARNING: vehicle missing bone '%s'\n", missingSeatName);
             if ( !G_EntLinkToWithOffset(player, ent, scr_const.tag_origin, vec3_origin, vec3_origin) )
             {
-                v7 = SL_ConvertToString(*s_seatTags[seatIndex], SCRIPTINSTANCE_SERVER);
-                Com_Error(ERR_DROP, "VEH_LinkPlayer: Cannot link to vehicle bone [%s]", v7);
+                linkFailSeatName = SL_ConvertToString(*s_seatTags[seatIndex], SCRIPTINSTANCE_SERVER);
+                Com_Error(ERR_DROP, "VEH_LinkPlayer: Cannot link to vehicle bone [%s]", linkFailSeatName);
             }
         }
         if ( info->type == 6 && seatIndex >= 5 && seatIndex <= 10 )
@@ -2017,6 +2014,8 @@ LABEL_29:
         client->ps.viewlocked_entNum = ent->s.number;
         client->ps.vehicleType = info->type;
         client->ps.vehiclePos = seatIndex;
+        if ( seatIndex >= 1 && seatIndex <= 4 )
+            client->ps.leanf = 0.0f;
         Com_Printf(
             14,
             "VEH_LinkPlayer: Player %i %s is linking. Seat %i.\n",
@@ -2040,6 +2039,7 @@ LABEL_29:
     }
 }
 
+// Decomp: CoDMPServer.c:429551  Scr_Vehicle_DamageScale
 double    Scr_Vehicle_DamageScale(
                 gentity_s *pSelf,
                 gentity_s *pAttacker,
@@ -2049,42 +2049,32 @@ double    Scr_Vehicle_DamageScale(
                 int weapon,
                 int *damageFromUnderneath)
 {
-    int v9; // xmm0_4
-    int integer; // xmm0_4
-    long double v11; // [esp-14h] [ebp-9Ch]
-    float v12; // [esp-8h] [ebp-90h]
-    float pointAdjusted; // [esp+8h] [ebp-80h]
-    float pointAdjusted_4; // [esp+Ch] [ebp-7Ch]
-    float pointAdjusted_8; // [esp+10h] [ebp-78h]
-    float height; // [esp+14h] [ebp-74h]
-    int a; // [esp+28h] [ebp-60h]
-    int bestAxis; // [esp+2Ch] [ebp-5Ch]
-    float bestDot; // [esp+30h] [ebp-58h]
-    float vdir[3]; // [esp+34h] [ebp-54h] BYREF
-    float axis[3][3]; // [esp+40h] [ebp-48h] BYREF
-    float scale; // [esp+64h] [ebp-24h]
-    int radius_damage; // [esp+68h] [ebp-20h]
-    int v24; // [esp+6Ch] [ebp-1Ch]
-    float back_angle_limits; // [esp+70h] [ebp-18h]
-    vehicle_physic_t *phys; // [esp+74h] [ebp-14h]
-    scr_vehicle_s *veh; // [esp+78h] [ebp-10h]
-    //_UNKNOWN *v28; // [esp+7Ch] [ebp-Ch]
-    //gentity_s *pSelfa; // [esp+80h] [ebp-8h]
-    //gentity_s *pInflictora; // [esp+88h] [ebp+0h]
-    //
-    //v28 = a1;
-    //pSelfa = pInflictora;
+    float zoneDamageScale;
+    float sideZoneScale;
+    float verticalOffset;
+    float horizontalRadiusSq;
+    float maxHeightOffset;
+    float maxHorizontalDist;
+    float damageBlend;
+    int axisIndex;
+    int bestAxis;
+    float bestDot;
+    float vdir[3];
+    float axis[3][3];
+    float scale;
+    int isRadiusDamage;
+    float backAngleCosLimit;
+    vehicle_physic_t *phys;
+    scr_vehicle_s *veh;
+
     veh = pSelf->scr_vehicle;
     phys = &veh->phys;
-    //__libm_sse2_cos(v11);
-    //back_angle_limits = 0.3490658700466156;
-    back_angle_limits = cos(0.3490658700466156);
-    if (veh->nitrousVehicle && veh->nitrousVehicle->m_vehicle_info->noDirectionalDamage)
+    backAngleCosLimit = cos(0.3490658700466156f);
+    if ( veh->nitrousVehicle && veh->nitrousVehicle->m_vehicle_info->noDirectionalDamage )
         return 1.0;
-    if (mod == 17)
+    if ( mod == 17 )
         return 0.0;
-    v24 = mod;
-    radius_damage = mod == 4 || v24 == 6;
+    isRadiusDamage = mod == 4 || mod == 6;
     scale = 1.0f;
     AnglesToAxis(phys->angles, axis);
     if (point)
@@ -2103,13 +2093,15 @@ double    Scr_Vehicle_DamageScale(
     Vec3Normalize(vdir);
     bestDot = 0.0f;
     bestAxis = -1;
-    for (a = 0; a < 2; ++a)
+    for ( axisIndex = 0; axisIndex < 2; ++axisIndex )
     {
-        if (bestAxis < 0
-            || (fabs((float)((float)(vdir[0] * axis[a][0]) + (float)(vdir[1] * axis[a][1])) + (float)(vdir[2] * axis[a][2]))) > (fabs(bestDot)))
+        if ( bestAxis < 0
+            || fabs((float)((float)(vdir[0] * axis[axisIndex][0]) + (float)(vdir[1] * axis[axisIndex][1]))
+                         + (float)(vdir[2] * axis[axisIndex][2])) > fabs(bestDot) )
         {
-            bestDot = (float)((float)(vdir[0] * axis[a][0]) + (float)(vdir[1] * axis[a][1])) + (float)(vdir[2] * axis[a][2]);
-            bestAxis = a;
+            bestDot = (float)((float)(vdir[0] * axis[axisIndex][0]) + (float)(vdir[1] * axis[axisIndex][1]))
+                    + (float)(vdir[2] * axis[axisIndex][2]);
+            bestAxis = axisIndex;
         }
     }
     if ((unsigned int)bestAxis >= 2
@@ -2122,81 +2114,58 @@ double    Scr_Vehicle_DamageScale(
     {
         __debugbreak();
     }
-    if (radius_damage)
+    if ( isRadiusDamage )
     {
-        height = 1.0f;
-        pointAdjusted_8 = 1.0f;
-        pointAdjusted_4 = pSelf->r.maxs[1] * 0.80000001;
-        pointAdjusted = pSelf->r.maxs[2] * 0.5;
-        v12 = Vec3DistanceSq(point, phys->origin);
-        if (mod == 4)
+        zoneDamageScale = 1.0f;
+        sideZoneScale = 1.0f;
+        maxHorizontalDist = pSelf->r.maxs[1] * 0.80000001f;
+        maxHeightOffset = pSelf->r.maxs[2] * 0.5f;
+        horizontalRadiusSq = Vec3DistanceSq(point, phys->origin);
+        if ( mod == 4 )
         {
-            if ((float)(phys->origin[2] + pointAdjusted) <= (float)(point[2] - 10.0)
-                || (float)(pointAdjusted_4 * pointAdjusted_4) <= v12)
+            if ( (float)(phys->origin[2] + maxHeightOffset) <= (float)(point[2] - 10.0f)
+                || (float)(maxHorizontalDist * maxHorizontalDist) <= horizontalRadiusSq )
             {
-                return scale * 1.0;
+                return scale * 1.0f;
             }
+            *damageFromUnderneath = 1;
+            return scale * vehicle_damage_zone_under->current.value;
+        }
+        if ( bestAxis == 1 )
+        {
+            zoneDamageScale = vehicle_damage_zone_side->current.value;
+            if ( (float)((float)(vdir[0] * axis[0][0]) + (float)(vdir[1] * axis[0][1]) + (float)(vdir[2] * axis[0][2])) >= 0.0f )
+                sideZoneScale = vehicle_damage_zone_front->current.value;
             else
-            {
-                *damageFromUnderneath = 1;
-                return scale * vehicle_damage_zone_under->current.value * 1.0;
-            }
+                sideZoneScale = vehicle_damage_zone_rear->current.value;
         }
         else
         {
-            if (bestAxis)
-            {
-                if (bestAxis == 1)
-                {
-                    height = vehicle_damage_zone_side->current.value;
-                    if ((float)((float)((float)(vdir[0] * axis[0][0]) + (float)(vdir[1] * axis[0][1]))
-                        + (float)(vdir[2] * axis[0][2])) >= 0.0)
-                        integer = vehicle_damage_zone_front->current.integer;
-                    else
-                        integer = vehicle_damage_zone_rear->current.integer;
-                    pointAdjusted_8 = *(float *)&integer;
-                }
-            }
+            if ( bestDot >= 0.0f )
+                zoneDamageScale = vehicle_damage_zone_front->current.value;
             else
-            {
-                if (bestDot >= 0.0)
-                    v9 = vehicle_damage_zone_front->current.integer;
-                else
-                    v9 = vehicle_damage_zone_rear->current.integer;
-                height = *(float *)&v9;
-                pointAdjusted_8 = vehicle_damage_zone_side->current.value;
-            }
-            return (height * (fabs(bestDot))
-                + (1.0 - (fabs(bestDot))) * pointAdjusted_8)
-                * scale
-                * 0.69999999;
+                zoneDamageScale = vehicle_damage_zone_rear->current.value;
+            sideZoneScale = vehicle_damage_zone_side->current.value;
         }
+        damageBlend = fabs(bestDot);
+        return (zoneDamageScale * damageBlend + (1.0f - damageBlend) * sideZoneScale) * scale * 0.69999999f;
     }
-    else if (bestAxis)
-    {
-        if (bestAxis == 1)
-            return scale * vehicle_damage_zone_side->current.value;
-        else
-            return 0.0;
-    }
-    else if (bestDot >= 0.0)
-    {
-        return scale * vehicle_damage_zone_front->current.value;
-    }
-    else if (back_angle_limits <= (-(bestDot)))
-    {
-        return scale * vehicle_damage_zone_rear->current.value;
-    }
-    else
-    {
+    if ( bestAxis == 1 )
         return scale * vehicle_damage_zone_side->current.value;
-    }
+    if ( bestAxis != 0 )
+        return 0.0;
+    if ( bestDot >= 0.0f )
+        return scale * vehicle_damage_zone_front->current.value;
+    if ( backAngleCosLimit <= -bestDot )
+        return scale * vehicle_damage_zone_rear->current.value;
+    return scale * vehicle_damage_zone_side->current.value;
 }
 
+// Decomp: CoDMPServer.c:429719  VEH_UnlinkPlayer
 void __cdecl VEH_UnlinkPlayer(gentity_s *player, bool changingSeats, char *error_msg)
 {
-    gentity_s *v3; // eax
-    gentity_s *v4; // eax
+    gentity_s *ownerVehicle;
+    gentity_s *occupantVehicle;
     float playerAngles[3]; // [esp+14h] [ebp-84h] BYREF
     float barrelMtx[4][3]; // [esp+20h] [ebp-78h] BYREF
     int gunnerIndex; // [esp+50h] [ebp-48h]
@@ -2210,7 +2179,7 @@ void __cdecl VEH_UnlinkPlayer(gentity_s *player, bool changingSeats, char *error
     float angles[3]; // [esp+78h] [ebp-20h] BYREF
     int playerSeatIndex; // [esp+84h] [ebp-14h]
     gentity_s *ent; // [esp+88h] [ebp-10h]
-    int i; // [esp+8Ch] [ebp-Ch]
+    int exitPointIndex;
     int seatIndex; // [esp+90h] [ebp-8h]
     int exitPoint; // [esp+94h] [ebp-4h]
 
@@ -2265,9 +2234,9 @@ void __cdecl VEH_UnlinkPlayer(gentity_s *player, bool changingSeats, char *error
             exitPoint = G_GetEntryPointForSeat(ent, playerSeatIndex);
             if ( !VEH_ExitPosOkay(ent, player, exitPoint, origin) )
             {
-                for ( i = 0; i < 5 && (i == exitPoint || !VEH_ExitPosOkay(ent, player, i, origin)); ++i )
+                for ( exitPointIndex = 0; exitPointIndex < 5 && (exitPointIndex == exitPoint || !VEH_ExitPosOkay(ent, player, exitPointIndex, origin)); ++exitPointIndex )
                     ;
-                if ( i == 5 )
+                if ( exitPointIndex == 5 )
                 {
                     origin[0] = ent->r.currentOrigin[0];
                     origin[1] = ent->r.currentOrigin[1];
@@ -2279,18 +2248,15 @@ void __cdecl VEH_UnlinkPlayer(gentity_s *player, bool changingSeats, char *error
         if ( playerSeatIndex >= 0 )
             VEH_SetSeatOccupantEntNum(veh, playerSeatIndex, 0x3FFu);
         stillOccupied = 0;
-        //v3 = EntHandle::ent(&player->r.ownerNum);
-        v3 = player->r.ownerNum.ent();
-        if ( v3 == ent )
+        if ( player->r.ownerNum.ent() == ent )
         {
             for ( seatIndex = 0; seatIndex < 11 && !stillOccupied; ++seatIndex )
             {
                 occupant = VEH_GetSeatOccupantEntity(veh, seatIndex);
                 if ( occupant )
                 {
-                    //v4 = EntHandle::ent(&occupant->r.ownerNum);
-                    v4 = occupant->r.ownerNum.ent();
-                    if ( v4 != ent
+                    occupantVehicle = occupant->r.ownerNum.ent();
+                    if ( occupantVehicle != ent
                         && !Assert_MyHandler(
                                     "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp",
                                     6638,
@@ -2385,18 +2351,20 @@ void __cdecl VEH_UnlinkPlayer(gentity_s *player, bool changingSeats, char *error
     }
 }
 
+// Decomp: CoDMPServer.c:429927  VEH_ExitPosOkay
 char __cdecl VEH_ExitPosOkay(gentity_s *vehEnt, gentity_s *player, int exitIndex, float *origin)
 {
-    float v5; // [esp+18h] [ebp-D8h]
-    float pushOutVec[3]; // [esp+20h] [ebp-D0h] BYREF
-    col_context_t context; // [esp+2Ch] [ebp-C4h] BYREF
-    float exitMat[4][3]; // [esp+54h] [ebp-9Ch] BYREF
-    float vEnd[3]; // [esp+84h] [ebp-6Ch] BYREF
+    float upOffset;
+    float pushOutVec[3];
+    col_context_t context;
+    float exitMat[4][3];
+    float traceEnd[3];
     trace_t traceResults; // [esp+90h] [ebp-60h] BYREF
     float clampedExitPoint[3]; // [esp+CCh] [ebp-24h] BYREF
     float safeVehicleOrigin[3]; // [esp+D8h] [ebp-18h] BYREF
     float exitPoint[3]; // [esp+E4h] [ebp-Ch] BYREF
 
+    memset(&traceResults, 0, sizeof(traceResults));
     //col_context_t::col_context_t(&context);
     if ( vehEnt->scr_vehicle->boneIndex.entryPoints[exitIndex] < 0 )
         return 0;
@@ -2410,26 +2378,26 @@ char __cdecl VEH_ExitPosOkay(gentity_s *vehEnt, gentity_s *player, int exitIndex
         *origin = exitPoint[0];
         origin[1] = exitPoint[1];
         origin[2] = exitPoint[2];
-        vEnd[0] = exitPoint[0];
-        vEnd[1] = exitPoint[1];
-        vEnd[2] = exitPoint[2];
-        v5 = exitPointOffsetUp;
+        traceEnd[0] = exitPoint[0];
+        traceEnd[1] = exitPoint[1];
+        traceEnd[2] = exitPoint[2];
+        upOffset = exitPointOffsetUp;
         *origin = (float)(exitPointOffsetUp * exitMat[2][0]) + *origin;
-        origin[1] = (float)(v5 * exitMat[2][1]) + origin[1];
-        origin[2] = (float)(v5 * exitMat[2][2]) + origin[2];
-        vEnd[0] = *origin;
-        vEnd[1] = origin[1];
-        vEnd[2] = origin[2] - (float)(exitPointOffsetDown + exitPointOffsetUp);
+        origin[1] = (float)(upOffset * exitMat[2][1]) + origin[1];
+        origin[2] = (float)(upOffset * exitMat[2][2]) + origin[2];
+        traceEnd[0] = *origin;
+        traceEnd[1] = origin[1];
+        traceEnd[2] = origin[2] - (float)(exitPointOffsetDown + exitPointOffsetUp);
         G_TraceCapsule(
             &traceResults,
             origin,
             player->r.mins,
             player->r.maxs,
-            vEnd,
+            traceEnd,
             player->s.number,
             player->clipmask,
             &context);
-        Vec3Lerp(origin, vEnd, traceResults.fraction, origin);
+        Vec3Lerp(origin, traceEnd, traceResults.fraction, origin);
         return 1;
     }
     else
@@ -2460,19 +2428,19 @@ char __cdecl VEH_ExitPosOkay(gentity_s *vehEnt, gentity_s *player, int exitIndex
             &context);
         if ( traceResults.fraction >= 1.0 )
         {
-            vEnd[0] = exitPoint[0];
-            vEnd[1] = exitPoint[1];
-            vEnd[2] = exitPoint[2] - exitPointOffsetDown;
+            traceEnd[0] = exitPoint[0];
+            traceEnd[1] = exitPoint[1];
+            traceEnd[2] = exitPoint[2] - exitPointOffsetDown;
             G_TraceCapsule(
                 &traceResults,
                 exitPoint,
                 player->r.mins,
                 player->r.maxs,
-                vEnd,
+                traceEnd,
                 vehEnt->s.number,
                 player->clipmask,
                 &context);
-            Vec3Lerp(exitPoint, vEnd, traceResults.fraction, origin);
+            Vec3Lerp(exitPoint, traceEnd, traceResults.fraction, origin);
             return 1;
         }
         else
@@ -2482,6 +2450,7 @@ char __cdecl VEH_ExitPosOkay(gentity_s *vehEnt, gentity_s *player, int exitIndex
     }
 }
 
+// Decomp: CoDMPServer.c:430058  G_VehicleFinishedAnimating
 void __cdecl G_VehicleFinishedAnimating(gentity_s *player, pmoveVehAnimState_t vehAnimState)
 {
     gentity_s *vehicle; // [esp+0h] [ebp-4h]
@@ -2519,28 +2488,30 @@ void __cdecl G_VehicleFinishedAnimating(gentity_s *player, pmoveVehAnimState_t v
     }
 }
 
+// Decomp: CoDMPServer.c:430102  VEH_GetNextSeat
 int __cdecl VEH_GetNextSeat(const vehicle_info_t *info, int currentSeat)
 {
-    int i; // [esp+0h] [ebp-4h]
-    int ia; // [esp+0h] [ebp-4h]
+    int seatOrderIndex;
+    int seatOrderWalkIndex;
 
-    for ( i = 0; ; ++i )
+    for ( seatOrderIndex = 0; ; ++seatOrderIndex )
     {
-        if ( i >= 11 )
+        if ( seatOrderIndex >= 11 )
             return -1;
-        if ( info->seatSwitchOrder[i] == currentSeat )
+        if ( info->seatSwitchOrder[seatOrderIndex] == currentSeat )
             break;
     }
-    if ( i != 10 && info->seatSwitchOrder[i + 1] >= 0 )
-        return info->seatSwitchOrder[i + 1];
-    for ( ia = i - 1; ia >= 0; --ia )
+    if ( seatOrderIndex != 10 && info->seatSwitchOrder[seatOrderIndex + 1] >= 0 )
+        return info->seatSwitchOrder[seatOrderIndex + 1];
+    for ( seatOrderWalkIndex = seatOrderIndex - 1; seatOrderWalkIndex >= 0; --seatOrderWalkIndex )
     {
-        if ( info->seatSwitchOrder[ia] < 0 )
-            return info->seatSwitchOrder[ia + 1];
+        if ( info->seatSwitchOrder[seatOrderWalkIndex] < 0 )
+            return info->seatSwitchOrder[seatOrderWalkIndex + 1];
     }
     return info->seatSwitchOrder[0];
 }
 
+// Decomp: CoDMPServer.c:430125  VEH_NextAvailableSeat
 int __cdecl VEH_NextAvailableSeat(gentity_s *player)
 {
     const vehicle_info_t *info; // [esp+4h] [ebp-10h]
@@ -2585,6 +2556,7 @@ int __cdecl VEH_NextAvailableSeat(gentity_s *player)
     return -1;
 }
 
+// Decomp: CoDMPServer.c:430188  VEH_SwitchClientToNextSeat
 void __cdecl VEH_SwitchClientToNextSeat(gentity_s *ent, gentity_s *player)
 {
     int nextSeat; // [esp+4h] [ebp-4h]
@@ -2612,6 +2584,7 @@ void __cdecl VEH_SwitchClientToNextSeat(gentity_s *ent, gentity_s *player)
     }
 }
 
+// Decomp: CoDMPServer.c:430240  VEH_SwitchClientToSeat
 void __cdecl VEH_SwitchClientToSeat(gentity_s *ent, gentity_s *player, int seatIndex)
 {
     int oldSeatIndex; // [esp+0h] [ebp-4h]
@@ -2652,21 +2625,23 @@ void __cdecl VEH_SwitchClientToSeat(gentity_s *ent, gentity_s *player, int seatI
         Scr_Notify(player, scr_const.vehicle_driver, 0);
 }
 
+// Decomp: CoDMPServer.c:430282  G_ParseScrVehicleInfo
 void __cdecl G_ParseScrVehicleInfo()
 {
     bg_numVehicleInfos = 0;
 }
 
+// Decomp: CoDMPServer.c:430288  VEH_RinitVehiclesUsingInfo
 void __cdecl VEH_RinitVehiclesUsingInfo(int infoIdx)
 {
-    int i; // [esp+8h] [ebp-Ch]
+    int vehicleSlotIndex;
     const vehicle_info_t *info; // [esp+Ch] [ebp-8h]
     scr_vehicle_s *veh; // [esp+10h] [ebp-4h]
 
     info = BG_GetVehicleInfo(infoIdx);
-    for ( i = 0; i < 16; ++i )
+    for ( vehicleSlotIndex = 0; vehicleSlotIndex < MAX_VEHICLES; ++vehicleSlotIndex )
     {
-        veh = &s_vehicles[i];
+        veh = &s_vehicles[vehicleSlotIndex];
         if ( veh->entNum != 1023 && veh->infoIdx == infoIdx )
         {
             VEH_InitFromInfo(veh, info);
@@ -2681,16 +2656,17 @@ void __cdecl VEH_RinitVehiclesUsingInfo(int infoIdx)
     }
 }
 
+// Decomp: CoDMPServer.c:430314  G_VehicleUpdateField
 char __cdecl G_VehicleUpdateField(const char *vehicleInfoName, char *keyValue)
 {
     const vehicle_info_t *info; // [esp+0h] [ebp-8h]
-    int i; // [esp+4h] [ebp-4h]
+    int vehicleInfoIndex;
 
     if ( !vehicleInfoName || !*vehicleInfoName )
         return 0;
-    for ( i = 0; i < bg_numVehicleInfos; ++i )
+    for ( vehicleInfoIndex = 0; vehicleInfoIndex < bg_numVehicleInfos; ++vehicleInfoIndex )
     {
-        info = BG_GetVehicleInfo(i);
+        info = BG_GetVehicleInfo(vehicleInfoIndex);
         if ( !I_stricmp(vehicleInfoName, info->name) )
         {
             ParseConfigStringToStruct(
@@ -2702,160 +2678,100 @@ char __cdecl G_VehicleUpdateField(const char *vehicleInfoName, char *keyValue)
                 (int (__cdecl *)(unsigned __int8 *, const char *, const int, const int))VEH_ParseSpecificField,
                 BG_StringCopy);
             NitrousVehicle::reinit_parms();
-            VEH_RinitVehiclesUsingInfo(i);
+            VEH_RinitVehiclesUsingInfo(vehicleInfoIndex);
         }
     }
     return 1;
 }
 
-#if 0
-void __cdecl G_ReloadScrVehicleInfo()
+// Decomp: CoDMPServer.c:430343  G_ReloadScrVehicleInfo
+void G_ReloadScrVehicleInfo()
 {
-    double v0; // xmm0_8
-    long double v1; // [esp+0h] [ebp-4058h]
-    char string[64]; // [esp+8h] [ebp-4050h] BYREF
-    char *pszBuffer; // [esp+48h] [ebp-4010h]
-    unsigned __int8 *pStruct; // [esp+4Ch] [ebp-400Ch]
-    char loadBuffer[16384]; // [esp+50h] [ebp-4008h] BYREF
-    int index; // [esp+4054h] [ebp-4h]
+    char fileName[64];
+    char loadBuffer[16384];
+    int vehicleInfoIndex;
 
-    for ( index = 0; index < bg_numVehicleInfos; ++index )
+    for ( vehicleInfoIndex = 0; vehicleInfoIndex < bg_numVehicleInfos; ++vehicleInfoIndex )
     {
-        pStruct = (unsigned __int8 *)BG_GetVehicleInfo(index);
-        sprintf(string, "vehicles/%s", (const char *)pStruct);
-        pszBuffer = Com_LoadInfoString(string, "vehicle file", "VEHICLEFILE", loadBuffer);
-        if ( ParseConfigStringToStruct(
-                     pStruct,
-                     s_vehicleFields,
-                     s_numVehicleFields,
-                     pszBuffer,
-                     25,
-                     (int (__cdecl *)(unsigned __int8 *, const char *, const int, const int))VEH_ParseSpecificField,
-                     BG_StringCopy) )
+        vehicle_info_t *vehicleInfo = const_cast<vehicle_info_t *>(BG_GetVehicleInfo(vehicleInfoIndex));
+        sprintf(fileName, "vehicles/%s", vehicleInfo->name);
+        char *pszBuffer = Com_LoadInfoString(fileName, "vehicle file", "VEHICLEFILE", loadBuffer);
+        if ( pszBuffer
+            && ParseConfigStringToStruct(
+                (unsigned __int8 *)vehicleInfo,
+                s_vehicleFields,
+                s_numVehicleFields,
+                pszBuffer,
+                25,
+                (int (__cdecl *)(unsigned __int8 *, const char *, const int, const int))VEH_ParseSpecificField,
+                BG_StringCopy) )
         {
-            HIDWORD(v1) = 0;
-            while ( SHIDWORD(v1) < 4 )
+            int gunnerIndex;
+            int axisIndex;
+
+            for ( gunnerIndex = 0; gunnerIndex < 4; ++gunnerIndex )
             {
-                *(float *)&v1 = (float)(*(float *)&pStruct[4 * HIDWORD(v1) + 2788] * 0.5) * 0.017453292;
-                v0 = *(float *)&v1;
-                __libm_sse2_cos(v1);
-                *(float *)&v0 = v0;
-                *(unsigned int *)&pStruct[4 * HIDWORD(v1)++ + 2788] = LODWORD(v0);
+                for ( axisIndex = 0; axisIndex < 2; ++axisIndex )
+                {
+                    float *restAngle = &vehicleInfo->gunnerRestAngles[gunnerIndex][axisIndex];
+
+                    *restAngle = (*restAngle * 0.5f) * 0.017453292f;
+                }
             }
         }
     }
     NitrousVehicle::reinit_parms();
 }
-#endif
 
-// aislop
-static constexpr float DEG2RAD = 0.017453292f;
-
-void G_ReloadScrVehicleInfo()
-{
-    char path[64];
-    char loadBuffer[16384];
-
-    for (int index = 0; index < bg_numVehicleInfos; ++index)
-    {
-        uint8_t *vehicle = (uint8_t *)(BG_GetVehicleInfo(index));
-        if (!vehicle)
-            continue;
-
-        // First field in struct appears to be vehicle name string
-        const char *vehicleName = reinterpret_cast<const char *>(vehicle);
-
-        snprintf(path, sizeof(path), "vehicles/%s", vehicleName);
-
-        char *buffer = Com_LoadInfoString(
-            path,
-            "vehicle file",
-            "VEHICLEFILE",
-            loadBuffer
-        );
-
-        if (!buffer)
-            continue;
-
-        bool parsed = ParseConfigStringToStruct(
-            vehicle,
-            s_vehicleFields,
-            s_numVehicleFields,
-            buffer,
-            25,
-            VEH_ParseSpecificField,
-            BG_StringCopy
-        );
-
-        if (!parsed)
-            continue;
-
-        // Offset 2788 appears to be start of 4 angle values
-        float *angles = reinterpret_cast<float *>(vehicle + 2788);
-
-        for (int i = 0; i < 4; ++i)
-        {
-            // Original logic:
-            // value = (value * 0.5) * DEG2RAD
-            angles[i] = (angles[i] * 0.5f) * DEG2RAD;
-
-            // The old code called cos() but discarded result.
-            // If that was intentional, it would be:
-            // angles[i] = std::cos(angles[i]);
-        }
-    }
-
-    NitrousVehicle::reinit_parms();
-}
-
-
+// Decomp: CoDMPServer.c:430383  G_InitScrVehicles
 void __cdecl G_InitScrVehicles()
 {
-    __int16 i; // [esp+0h] [ebp-4h]
-    __int16 ia; // [esp+0h] [ebp-4h]
+    int vehicleSlotIndex;
+    int tiltIndex;
 
-    for ( i = 0; i < 16; ++i )
+    for ( vehicleSlotIndex = 0; vehicleSlotIndex < MAX_VEHICLES; ++vehicleSlotIndex )
     {
-        G_VehInitPathPos(&s_vehicles[i].pathPos);
-        s_vehicles[i].entNum = 1023;
+        G_VehInitPathPos(&s_vehicles[vehicleSlotIndex].pathPos);
+        s_vehicles[vehicleSlotIndex].entNum = 1023;
     }
-    for ( ia = 0; ia < 1; ++ia )
+    for ( tiltIndex = 0; tiltIndex < 1; ++tiltIndex )
     {
-        s_pitches[ia] = 0.0f;
-        s_rolls[ia] = 0.0f;
+        s_pitches[tiltIndex] = 0.0f;
+        s_rolls[tiltIndex] = 0.0f;
     }
     level.vehicles = s_vehicles;
 }
 
+
+// Decomp: CoDMPServer.c:430401  G_SetupScrVehicles
 void __cdecl G_SetupScrVehicles()
 {
-    gentity_s *ent; // [esp+4h] [ebp-8h]
-    __int16 i; // [esp+8h] [ebp-4h]
+    gentity_s *ent;
+    int vehicleSlotIndex;
 
-    for ( i = 0; i < 16; ++i )
+    for ( vehicleSlotIndex = 0; vehicleSlotIndex < MAX_VEHICLES; ++vehicleSlotIndex )
     {
-        if ( s_vehicles[i].entNum != 1023 )
+        if ( s_vehicles[vehicleSlotIndex].entNum != 1023 )
         {
-            ent = VEH_GetVehicle(s_vehicles[i].entNum);
+            ent = VEH_GetVehicle(s_vehicles[vehicleSlotIndex].entNum);
             VEH_SetupCollmap(ent);
         }
     }
 }
 
+// Decomp: CoDMPServer.c:430422  VEH_SetupCollmap
 void __cdecl VEH_SetupCollmap(gentity_s *ent)
 {
-    unsigned int v1; // eax
-    char *v2; // eax
-    unsigned int v3; // eax
-    char *v4; // eax
-    gentity_s *cmEnt; // [esp+0h] [ebp-4h]
+    unsigned int modelNameIndex;
+    char *modelName;
+    gentity_s *cmEnt;
 
     ent->r.contents = 8462464;
     if ( (ent->spawnflags & 1) != 0 )
         ent->r.contents |= 0x200000u;
-    v1 = G_ModelName(ent->model);
-    v2 = SL_ConvertToString(v1, SCRIPTINSTANCE_SERVER);
-    cmEnt = VEH_GetCollMap(v2);
+    modelNameIndex = G_ModelName(ent->model);
+    modelName = SL_ConvertToString(modelNameIndex, SCRIPTINSTANCE_SERVER);
+    cmEnt = VEH_GetCollMap(modelName);
     if ( cmEnt )
     {
         if ( cmEnt->s.index.brushmodel )
@@ -2868,60 +2784,64 @@ void __cdecl VEH_SetupCollmap(gentity_s *ent)
         }
         else
         {
-            v3 = G_ModelName(ent->model);
-            v4 = SL_ConvertToString(v3, SCRIPTINSTANCE_SERVER);
-            Com_PrintWarning(15, "WARNING: Cannot use empty vehicle collmap for [%s]\n", v4);
+            modelNameIndex = G_ModelName(ent->model);
+            modelName = SL_ConvertToString(modelNameIndex, SCRIPTINSTANCE_SERVER);
+            Com_PrintWarning(15, "WARNING: Cannot use empty vehicle collmap for [%s]\n", modelName);
         }
     }
 }
 
+// Decomp: CoDMPServer.c:430456  VEH_GetCollMap
 gentity_s *__cdecl VEH_GetCollMap(const char *modelname)
 {
-    char *targetname; // [esp+0h] [ebp-Ch]
-    gentity_s *ent; // [esp+4h] [ebp-8h]
-    int i; // [esp+8h] [ebp-4h]
+    char *targetname;
+    gentity_s *ent;
+    int entityIndex;
 
-    for ( i = 0; i < level.num_entities; ++i )
+    for ( entityIndex = 0; entityIndex < level.num_entities; ++entityIndex )
     {
-        ent = &g_entities[i];
+        ent = &g_entities[entityIndex];
         if ( ent->r.inuse && ent->classname == scr_const.script_vehicle_collmap )
         {
             targetname = SL_ConvertToString(ent->targetname, SCRIPTINSTANCE_SERVER);
             if ( Com_IsLegacyXModelName(targetname) )
                 targetname += 7;
             if ( !I_stricmp(targetname, modelname) )
-                return &g_entities[i];
+                return &g_entities[entityIndex];
         }
     }
     return 0;
 }
 
+// Decomp: CoDMPServer.c:430478  G_FreeScrVehicles
 void __cdecl G_FreeScrVehicles()
 {
-    __int16 i; // [esp+0h] [ebp-4h]
+    int vehicleSlotIndex;
 
-    for ( i = 0; i < 16; ++i )
-        G_VehFreePathPos(&s_vehicles[i].pathPos);
+    for ( vehicleSlotIndex = 0; vehicleSlotIndex < MAX_VEHICLES; ++vehicleSlotIndex )
+        G_VehFreePathPos(&s_vehicles[vehicleSlotIndex].pathPos);
 }
 
+// Decomp: CoDMPServer.c:430490  G_SpawnVehicle
 void __cdecl G_SpawnVehicle(gentity_s *ent, char *typeName, int load)
 {
-    const char *v3; // eax
-    unsigned int weapIdx; // [esp+2Ch] [ebp-14h]
+    const char *precacheError;
+    unsigned int weapIdx;
     const vehicle_info_t *info; // [esp+30h] [ebp-10h]
-    scr_vehicle_s *veh; // [esp+34h] [ebp-Ch]
-    int infoIdx; // [esp+38h] [ebp-8h] BYREF
-    int i; // [esp+3Ch] [ebp-4h]
+    scr_vehicle_s *veh;
+    int infoIdx;
+    int vehicleSlotIndex;
+    int cacheSlotIndex;
 
     veh = 0;
-    for ( i = 0; i < 16; ++i )
+    for ( vehicleSlotIndex = 0; vehicleSlotIndex < MAX_VEHICLES; ++vehicleSlotIndex )
     {
-        veh = &s_vehicles[i];
+        veh = &s_vehicles[vehicleSlotIndex];
         if ( veh->entNum == 1023 )
             break;
     }
-    if ( i == 16 )
-        Com_Error(ERR_DROP, "Hit max vehicle count [%d]", 16);
+    if ( vehicleSlotIndex == MAX_VEHICLES )
+        Com_Error(ERR_DROP, "Hit max vehicle count [%d]", MAX_VEHICLES);
     infoIdx = VEH_GetVehicleInfoFromName(typeName);
     if ( infoIdx < 0 )
         Com_Error(ERR_DROP, "Can't find info for script vehicle [%s]", typeName);
@@ -2932,31 +2852,17 @@ void __cdecl G_SpawnVehicle(gentity_s *ent, char *typeName, int load)
         weapIdx = G_GetWeaponIndexForName((char*)info->turretWeapon);
         if ( !IsItemRegistered(weapIdx) )
         {
-            v3 = va("vehicle '%s' not precached", info->name);
-            Scr_Error(v3, 0);
+            precacheError = va("vehicle '%s' not precached", info->name);
+            Scr_Error(precacheError, 0);
         }
     }
     memset((unsigned __int8 *)veh, 0, sizeof(scr_vehicle_s));
-
-    //if ( (_S2_6 & 1) == 0 )
-    //{
-    //    _S2_6 |= 1u;
-    //    colgeom_visitor_t::colgeom_visitor_t(&dummy_0);
-    //    dummy_0.__vftable = (colgeom_visitor_inlined_t<200>_vtbl *)&colgeom_visitor_inlined_t<200>::`vftable';
-    //    colgeom_visitor_inlined_t<500>::reset(&dummy_0);
-    //    atexit(G_SpawnVehicle_::_16_::_dynamic_atexit_destructor_for__dummy__);
-    //}
-
-    static colgeom_visitor_inlined_t<200> dummy_0;
-
-    //veh->vehicle_cache.proximity_data.__vftable = dummy_0.__vftable;
-    veh->vehicle_cache.proximity_data = dummy_0;
-
-    //colgeom_visitor_inlined_t<500>::reset(&veh->vehicle_cache.proximity_data);
+    // memset clears proximity_data's vtable; reconstruct the polymorphic subobject in place (retail ctor path).
+    new (&veh->vehicle_cache.proximity_data) colgeom_visitor_inlined_t<200>();
     veh->vehicle_cache.proximity_data.reset();
-    for ( i = 0; i < 6; ++i )
+    for ( cacheSlotIndex = 0; cacheSlotIndex < 6; ++cacheSlotIndex )
     {
-        veh->vehicle_cache.hit_indices[i] = -1;
+        veh->vehicle_cache.hit_indices[cacheSlotIndex] = -1;
         veh->vehicle_cache.lastOrigin[0] = FLT_MAX;
         veh->vehicle_cache.lastOrigin[1] = FLT_MAX;
         veh->vehicle_cache.lastOrigin[2] = FLT_MAX;
@@ -2979,41 +2885,43 @@ void __cdecl G_SpawnVehicle(gentity_s *ent, char *typeName, int load)
     }
 }
 
+// Decomp: CoDMPServer.c:430574  VEH_GetVehicleInfoFromName
 int __cdecl VEH_GetVehicleInfoFromName(char *name)
 {
-    const vehicle_info_t *info; // [esp+0h] [ebp-8h]
-    const vehicle_info_t *infoa; // [esp+0h] [ebp-8h]
-    int i; // [esp+4h] [ebp-4h]
-    int ia; // [esp+4h] [ebp-4h]
-    int ib; // [esp+4h] [ebp-4h]
-    int ic; // [esp+4h] [ebp-4h]
+    const vehicle_info_t *info;
+    const vehicle_info_t *defaultInfo;
+    int vehicleInfoIndex;
+    int loadedInfoIndex;
+    int defaultInfoIndex;
+    int fallbackInfoIndex;
 
     if ( !name || !*name )
         return -1;
-    for ( i = 0; i < bg_numVehicleInfos; ++i )
+    for ( vehicleInfoIndex = 0; vehicleInfoIndex < bg_numVehicleInfos; ++vehicleInfoIndex )
     {
-        info = BG_GetVehicleInfo(i);
+        info = BG_GetVehicleInfo(vehicleInfoIndex);
         if ( !I_stricmp(name, info->name) )
-            return i;
+            return vehicleInfoIndex;
     }
-    ia = G_LoadVehicle(name);
-    if ( ia >= 0 )
-        return ia;
+    loadedInfoIndex = G_LoadVehicle(name);
+    if ( loadedInfoIndex >= 0 )
+        return loadedInfoIndex;
     Com_PrintWarning(15, "WARNING: couldn't find vehicle info for '%s', attempting to use 'defaultvehicle'.\n", name);
-    for ( ib = 0; ib < bg_numVehicleInfos; ++ib )
+    for ( defaultInfoIndex = 0; defaultInfoIndex < bg_numVehicleInfos; ++defaultInfoIndex )
     {
-        infoa = BG_GetVehicleInfo(ib);
-        if ( !I_stricmp("defaultvehicle_mp", infoa->name) )
-            return ib;
+        defaultInfo = BG_GetVehicleInfo(defaultInfoIndex);
+        if ( !I_stricmp("defaultvehicle_mp", defaultInfo->name) )
+            return defaultInfoIndex;
     }
-    ic = G_LoadVehicle((char*)"defaultvehicle_mp");
-    if ( ic >= 0 )
-        return ic;
+    fallbackInfoIndex = G_LoadVehicle((char*)"defaultvehicle_mp");
+    if ( fallbackInfoIndex >= 0 )
+        return fallbackInfoIndex;
     Com_Error(ERR_DROP, "Cannot find vehicle info for 'defaultvehicle'. This is a default vehicle that you should have.");
     return -1;
 }
 
 #if 0
+// Decomp: CoDMPServer.c:430613  G_LoadVehicle
 int __cdecl G_LoadVehicle(char *name)
 {
     double v2; // xmm0_8
@@ -3056,23 +2964,23 @@ int __cdecl G_LoadVehicle(char *name)
                      (int (__cdecl *)(unsigned __int8 *, const char *, const int, const int))VEH_ParseSpecificField,
                      BG_StringCopy) )
         {
-            for ( i = 0; i < 4; ++i )
+            for ( angleIndex = 0; angleIndex < 4; ++angleIndex )
             {
-                v2 = (float)((float)(*(float *)&dst[4 * i + 2788] * 0.5) * 0.017453292);
+                v2 = (float)((float)(*(float *)&dst[4 * angleIndex + 2788] * 0.5) * 0.017453292);
                 __libm_sse2_cos(v4);
                 *(float *)&v2 = v2;
-                *(unsigned int *)&dst[4 * i + 2788] = LODWORD(v2);
+                *(unsigned int *)&dst[4 * angleIndex + 2788] = LODWORD(v2);
             }
-            for ( j = 0; j < 19; ++j )
+            for ( soundAliasIndex = 0; soundAliasIndex < 19; ++soundAliasIndex )
             {
-                if ( dst[64 * j + 1168] )
+                if ( dst[64 * soundAliasIndex + 1168] )
                 {
-                    AliasId = SND_FindAliasId((char *)&dst[64 * j + 1168]);
-                    *(unsigned int *)&dst[4 * j + 2384] = AliasId;
+                    AliasId = SND_FindAliasId((char *)&dst[64 * soundAliasIndex + 1168]);
+                    *(unsigned int *)&dst[4 * soundAliasIndex + 2384] = AliasId;
                 }
                 else
                 {
-                    *(unsigned int *)&dst[4 * j + 2384] = 0;
+                    *(unsigned int *)&dst[4 * soundAliasIndex + 2384] = 0;
                 }
             }
             if ( (unsigned int)bg_numVehicleInfos >= 0x20
@@ -3102,10 +3010,12 @@ int __cdecl G_LoadVehicle(char *name)
     }
 }
 #else // aislop
+// Decomp: CoDMPServer.c:430613  G_LoadVehicle
 int __cdecl G_LoadVehicle(char *name)
 {
     int index;
-    int i, j;
+    int angleIndex;
+    int soundAliasIndex;
     int aliasId;
     char path[68];
     char loadBuffer[16384];
@@ -3173,17 +3083,13 @@ int __cdecl G_LoadVehicle(char *name)
     /* ---- Fixup 1: convert 4 angle values ---- */
     angles = (float *)(vehicle + 2788);
 
-    for (i = 0; i < 4; ++i)
-    {
-        /* original logic: (value * 0.5) * DEG2RAD */
-        angles[i] = (angles[i] * 0.5f) * 0.017453292f;
-    }
+    for (angleIndex = 0; angleIndex < 4; ++angleIndex)
+        angles[angleIndex] = (angles[angleIndex] * 0.5f) * 0.017453292f;
 
-    /* ---- Fixup 2: resolve 19 sound aliases ---- */
-    for (j = 0; j < 19; ++j)
+    for (soundAliasIndex = 0; soundAliasIndex < 19; ++soundAliasIndex)
     {
-        soundName = (char *)(vehicle + 1168 + (64 * j));
-        aliasSlot = (int *)(vehicle + 2384 + (4 * j));
+        soundName = (char *)(vehicle + 1168 + (64 * soundAliasIndex));
+        aliasSlot = (int *)(vehicle + 2384 + (4 * soundAliasIndex));
 
         if (soundName[0])
         {
@@ -3205,13 +3111,14 @@ int __cdecl G_LoadVehicle(char *name)
 #endif
 
 
+// Decomp: CoDMPServer.c:430720  VEH_InitModelAndValidateTags
 void __cdecl VEH_InitModelAndValidateTags(gentity_s *ent, int *infoIdx)
 {
-    const char *v2; // eax
-    unsigned int v3; // eax
-    char *v4; // eax
-    int defaultInfoIdx; // [esp+18h] [ebp-8h]
-    bool isDefault; // [esp+1Fh] [ebp-1h]
+    const char *assertMsg;
+    unsigned int modelName;
+    char *modelNameStr;
+    int defaultInfoIdx;
+    bool isDefault;
 
     defaultInfoIdx = VEH_GetVehicleInfoFromName((char*)"defaultvehicle_mp");
     isDefault = 0;
@@ -3227,7 +3134,7 @@ void __cdecl VEH_InitModelAndValidateTags(gentity_s *ent, int *infoIdx)
         G_OverrideModel(ent->model, (char *)"defaultvehicle");
         if ( G_XModelBad(ent->model) )
         {
-            v2 = va(
+            assertMsg = va(
                          "Tried to set default vehicle model but it does not exist Entity:%d Origin %.1f %.1f %.1f",
                          ent->s.number,
                          ent->r.currentOrigin[0],
@@ -3239,7 +3146,7 @@ void __cdecl VEH_InitModelAndValidateTags(gentity_s *ent, int *infoIdx)
                             0,
                             "%s\n\t%s",
                             "!G_XModelBad( ent->model )",
-                            v2) )
+                            assertMsg) )
                 __debugbreak();
         }
         *infoIdx = defaultInfoIdx;
@@ -3250,12 +3157,12 @@ void __cdecl VEH_InitModelAndValidateTags(gentity_s *ent, int *infoIdx)
     {
         if ( isDefault )
             Com_Error(ERR_DROP, "ERROR: default vehicle is missing a required tag!");
-        v3 = G_ModelName(ent->model);
-        v4 = SL_ConvertToString(v3, SCRIPTINSTANCE_SERVER);
+        modelName = G_ModelName(ent->model);
+        modelNameStr = SL_ConvertToString(modelName, SCRIPTINSTANCE_SERVER);
         Com_PrintWarning(
             15,
             "WARNING: vehicle '%s' is missing a required tag! switching to default vehicle model and info.\n",
-            v4);
+            modelNameStr);
         G_SetModel(ent, (char *)"defaultvehicle");
         *infoIdx = defaultInfoIdx;
         G_DObjUpdate(ent);
@@ -3264,47 +3171,46 @@ void __cdecl VEH_InitModelAndValidateTags(gentity_s *ent, int *infoIdx)
     }
 }
 
+// Decomp: CoDMPServer.c:430785  VEH_DObjHasRequiredTags
 char __cdecl VEH_DObjHasRequiredTags(gentity_s *ent, int infoIdx)
 {
-    unsigned int v2; // eax
-    char *v3; // eax
-    unsigned int v5; // eax
-    char *v6; // eax
-    char *v7; // [esp-4h] [ebp-10h]
-    char *v8; // [esp-4h] [ebp-10h]
-    const vehicle_info_t *info; // [esp+0h] [ebp-Ch]
-    int numWheels; // [esp+4h] [ebp-8h]
-    int i; // [esp+8h] [ebp-4h]
-    int ia; // [esp+8h] [ebp-4h]
+    unsigned int modelName;
+    char *modelNameStr;
+    char *wheelTagName;
+    char *seatTagName;
+    const vehicle_info_t *info;
+    int numWheels;
+    int wheelIndex;
+    int seatIndex;
 
     info = BG_GetVehicleInfo(infoIdx);
     if ( !info->type || info->type == 2 )
     {
         numWheels = info->type != 0 ? 6 : 4;
-        for ( i = 0; i < numWheels; ++i )
+        for ( wheelIndex = 0; wheelIndex < numWheels; ++wheelIndex )
         {
-            if ( SV_DObjGetBoneIndex(ent, *s_wheelTags[i]) < 0 )
+            if ( SV_DObjGetBoneIndex(ent, *s_wheelTags[wheelIndex]) < 0 )
             {
-                v7 = SL_ConvertToString(*s_wheelTags[i], SCRIPTINSTANCE_SERVER);
-                v2 = G_ModelName(ent->model);
-                v3 = SL_ConvertToString(v2, SCRIPTINSTANCE_SERVER);
-                Com_PrintWarning(15, "WARNING: vehicle model '%s' is missing '%s'\n", v3, v7);
+                wheelTagName = SL_ConvertToString(*s_wheelTags[wheelIndex], SCRIPTINSTANCE_SERVER);
+                modelName = G_ModelName(ent->model);
+                modelNameStr = SL_ConvertToString(modelName, SCRIPTINSTANCE_SERVER);
+                Com_PrintWarning(15, "WARNING: vehicle model '%s' is missing '%s'\n", modelNameStr, wheelTagName);
                 return 0;
             }
         }
     }
     if ( !info->type || info->type == 2 || info->type == 4 || info->type == 1 )
     {
-        for ( ia = 0; ia < 11; ++ia )
+        for ( seatIndex = 0; seatIndex < 11; ++seatIndex )
         {
-            if ( VEH_IsSeatPresent(ent, ia, info) )
+            if ( VEH_IsSeatPresent(ent, seatIndex, info) )
             {
-                if ( SV_DObjGetBoneIndex(ent, *s_seatTags[ia]) < 0 )
+                if ( SV_DObjGetBoneIndex(ent, *s_seatTags[seatIndex]) < 0 )
                 {
-                    v8 = SL_ConvertToString(*s_seatTags[ia], SCRIPTINSTANCE_SERVER);
-                    v5 = G_ModelName(ent->model);
-                    v6 = SL_ConvertToString(v5, SCRIPTINSTANCE_SERVER);
-                    Com_PrintWarning(15, "WARNING: vehicle model '%s' is missing '%s'\n", v6, v8);
+                    seatTagName = SL_ConvertToString(*s_seatTags[seatIndex], SCRIPTINSTANCE_SERVER);
+                    modelName = G_ModelName(ent->model);
+                    modelNameStr = SL_ConvertToString(modelName, SCRIPTINSTANCE_SERVER);
+                    Com_PrintWarning(15, "WARNING: vehicle model '%s' is missing '%s'\n", modelNameStr, seatTagName);
                 }
             }
         }
@@ -3312,6 +3218,7 @@ char __cdecl VEH_DObjHasRequiredTags(gentity_s *ent, int infoIdx)
     return 1;
 }
 
+// Decomp: CoDMPServer.c:430834  G_FreeVehicle
 void __cdecl G_FreeVehicle(gentity_s *ent)
 {
     if ( ent->scr_vehicle->entNum == 1023
@@ -3356,6 +3263,7 @@ void __cdecl G_FreeVehicle(gentity_s *ent)
     ent->scr_vehicle = 0;
 }
 
+// Decomp: CoDMPServer.c:430879  G_HideVehicle
 void __cdecl G_HideVehicle(gentity_s *ent)
 {
     int occupantNum; // [esp+0h] [ebp-8h]
@@ -3383,10 +3291,11 @@ void __cdecl G_HideVehicle(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:430909  G_MakeVehicleUsable
 void __cdecl G_MakeVehicleUsable(gentity_s *ent)
 {
-    int i; // [esp+0h] [ebp-8h]
-    bool hasUseTag; // [esp+7h] [ebp-1h]
+    int entryPointIndex;
+    bool hasUseTag;
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 7241, 0, "%s", "ent") )
         __debugbreak();
@@ -3395,9 +3304,9 @@ void __cdecl G_MakeVehicleUsable(gentity_s *ent)
     if ( (ent->r.contents & 0x200000) != 0 )
     {
         hasUseTag = 0;
-        for ( i = 0; i < 5; ++i )
+        for ( entryPointIndex = 0; entryPointIndex < 5; ++entryPointIndex )
         {
-            if ( ent->scr_vehicle->boneIndex.entryPoints[i] >= 0 )
+            if ( ent->scr_vehicle->boneIndex.entryPoints[entryPointIndex] >= 0 )
                 hasUseTag = 1;
         }
         if ( !hasUseTag )
@@ -3407,24 +3316,29 @@ void __cdecl G_MakeVehicleUsable(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:430943  G_UpdateVehicleTags
 void __cdecl G_UpdateVehicleTags(gentity_s *ent)
 {
-    int BoneIndex; // eax
-    int v2; // eax
-    int v3; // eax
-    int v4; // eax
-    int v5; // eax
-    int v6; // eax
-    int v7; // eax
-    int v8; // eax
-    float v9; // [esp+8h] [ebp-6Ch]
-    float v10; // [esp+Ch] [ebp-68h]
+    int gunnerBarrelBone;
+    int gunnerTurretBone;
+    int gunnerFlashBone;
+    int gunnerFlash2Bone;
+    int wheelBone;
+    int seatBone;
+    int entryBone;
+    int entryBoneFallback;
+    float gunnerYawQuantized;
+    float gunnerPitchQuantized;
     const DObj *obj; // [esp+18h] [ebp-5Ch]
     DObjAnimMat animMat; // [esp+1Ch] [ebp-58h] BYREF
     float tagAxis[3][3]; // [esp+3Ch] [ebp-38h] BYREF
     float tagAngles[3]; // [esp+60h] [ebp-14h] BYREF
-    scr_vehicle_s *veh; // [esp+6Ch] [ebp-8h]
-    int i; // [esp+70h] [ebp-4h]
+    scr_vehicle_s *veh;
+    int flashIndex;
+    int gunnerIndex;
+    int wheelIndex;
+    int seatIndex;
+    int entryPointIndex;
 
     if (!ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 7281, 0, "%s", "ent"))
         __debugbreak();
@@ -3445,63 +3359,64 @@ void __cdecl G_UpdateVehicleTags(gentity_s *ent)
     veh->boneIndex.turret = SV_DObjGetBoneIndex(ent, scr_const.tag_turret);
     veh->boneIndex.barrel = SV_DObjGetBoneIndex(ent, scr_const.tag_barrel);
     veh->boneIndex.turret_base = SV_DObjGetBoneIndex(ent, scr_const.tag_turret_base);
-    for (i = 0; i < 5; ++i)
-        veh->boneIndex.flash[i] = SV_DObjGetBoneIndex(ent, *s_flashTags[i]);
-    for (i = 0; i < 4; ++i)
+    for (flashIndex = 0; flashIndex < 5; ++flashIndex)
+        veh->boneIndex.flash[flashIndex] = SV_DObjGetBoneIndex(ent, *s_flashTags[flashIndex]);
+    for (gunnerIndex = 0; gunnerIndex < 4; ++gunnerIndex)
     {
-        BoneIndex = SV_DObjGetBoneIndex(ent, *s_gunnerBarrelTags[i]);
-        veh->boneIndex.gunnerTags[i].barrel = BoneIndex;
-        v2 = SV_DObjGetBoneIndex(ent, *s_gunnerTurretTags[i]);
-        veh->boneIndex.gunnerTags[i].turret = v2;
-        v3 = SV_DObjGetBoneIndex(ent, *s_gunnerFlashTags[i]);
-        veh->boneIndex.gunnerTags[i].flash = v3;
-        v4 = SV_DObjGetBoneIndex(ent, *s_gunnerFlashTags[i + 4]);
-        veh->boneIndex.gunnerTags[i].flash2 = v4;
-        if (veh->boneIndex.gunnerTags[i].flash2 < 0)
-            veh->gunnerTurrets[i].flags &= ~2u;
+        gunnerBarrelBone = SV_DObjGetBoneIndex(ent, *s_gunnerBarrelTags[gunnerIndex]);
+        veh->boneIndex.gunnerTags[gunnerIndex].barrel = gunnerBarrelBone;
+        gunnerTurretBone = SV_DObjGetBoneIndex(ent, *s_gunnerTurretTags[gunnerIndex]);
+        veh->boneIndex.gunnerTags[gunnerIndex].turret = gunnerTurretBone;
+        gunnerFlashBone = SV_DObjGetBoneIndex(ent, *s_gunnerFlashTags[gunnerIndex]);
+        veh->boneIndex.gunnerTags[gunnerIndex].flash = gunnerFlashBone;
+        gunnerFlash2Bone = SV_DObjGetBoneIndex(ent, *s_gunnerFlashTags[gunnerIndex + 4]);
+        veh->boneIndex.gunnerTags[gunnerIndex].flash2 = gunnerFlash2Bone;
+        if (veh->boneIndex.gunnerTags[gunnerIndex].flash2 < 0)
+            veh->gunnerTurrets[gunnerIndex].flags &= ~2u;
         else
-            veh->gunnerTurrets[i].flags |= 2u;
-        if (veh->boneIndex.gunnerTags[i].barrel != 254 && veh->boneIndex.gunnerTags[i].barrel > 0)
+            veh->gunnerTurrets[gunnerIndex].flags |= 2u;
+        if (veh->boneIndex.gunnerTags[gunnerIndex].barrel != 254 && veh->boneIndex.gunnerTags[gunnerIndex].barrel > 0 )
         {
             obj = Com_GetServerDObj(ent->s.number);
-            DObjGetBasePoseMatrix((DObj*)obj, veh->boneIndex.gunnerTags[i].barrel, &animMat);
+            DObjGetBasePoseMatrix((DObj*)obj, veh->boneIndex.gunnerTags[gunnerIndex].barrel, &animMat);
             QuatToAxis(animMat.quat, tagAxis);
             AxisToAngles(tagAxis, tagAngles);
-            bg_vehicleInfos[veh->infoIdx].gunnerRestAngles[i][1] = tagAngles[1];
-            bg_vehicleInfos[veh->infoIdx].gunnerRestAngles[i][0] = tagAngles[0];
-            v10 = floor(tagAngles[1] * 182.04445 + 0.5);
-            ent->s.lerp.u.vehicle.gunnerAngles[i].yaw = (int)v10;
-            v9 = floor(tagAngles[0] * 182.04445 + 0.5);
-            ent->s.lerp.u.vehicle.gunnerAngles[i].pitch = (int)v9;
+            bg_vehicleInfos[veh->infoIdx].gunnerRestAngles[gunnerIndex][1] = tagAngles[1];
+            bg_vehicleInfos[veh->infoIdx].gunnerRestAngles[gunnerIndex][0] = tagAngles[0];
+            gunnerYawQuantized = floor(tagAngles[1] * 182.04445 + 0.5);
+            ent->s.lerp.u.vehicle.gunnerAngles[gunnerIndex].yaw = (int)gunnerYawQuantized;
+            gunnerPitchQuantized = floor(tagAngles[0] * 182.04445 + 0.5);
+            ent->s.lerp.u.vehicle.gunnerAngles[gunnerIndex].pitch = (int)gunnerPitchQuantized;
         }
     }
-    for (i = 0; i < 6; ++i)
+    for (wheelIndex = 0; wheelIndex < 6; ++wheelIndex)
     {
-        v5 = SV_DObjGetBoneIndex(ent, *s_wheelTags[i]);
-        veh->boneIndex.wheel[i] = v5;
+        wheelBone = SV_DObjGetBoneIndex(ent, *s_wheelTags[wheelIndex]);
+        veh->boneIndex.wheel[wheelIndex] = wheelBone;
     }
-    for (i = 0; i < 11; ++i)
+    for (seatIndex = 0; seatIndex < 11; ++seatIndex)
     {
-        if (s_seatTags[i])
+        if (s_seatTags[seatIndex])
         {
-            v6 = SV_DObjGetBoneIndex(ent, *s_seatTags[i]);
-            veh->boneIndex.seats[i] = v6;
+            seatBone = SV_DObjGetBoneIndex(ent, *s_seatTags[seatIndex]);
+            veh->boneIndex.seats[seatIndex] = seatBone;
         }
     }
-    for (i = 0; i < 5; ++i)
+    for (entryPointIndex = 0; entryPointIndex < 5; ++entryPointIndex)
     {
-        v7 = SV_DObjGetBoneIndex(ent, *s_entryPointTags[i]);
-        veh->boneIndex.entryPoints[i] = v7;
-        if (veh->boneIndex.entryPoints[i] < 0 && s_entryPointOldTags[i])
+        entryBone = SV_DObjGetBoneIndex(ent, *s_entryPointTags[entryPointIndex]);
+        veh->boneIndex.entryPoints[entryPointIndex] = entryBone;
+        if ( veh->boneIndex.entryPoints[entryPointIndex] < 0 && s_entryPointOldTags[entryPointIndex] )
         {
-            v8 = SV_DObjGetBoneIndex(ent, *s_entryPointOldTags[i]);
-            veh->boneIndex.entryPoints[i] = v8;
+            entryBoneFallback = SV_DObjGetBoneIndex(ent, *s_entryPointOldTags[entryPointIndex]);
+            veh->boneIndex.entryPoints[entryPointIndex] = entryBoneFallback;
         }
     }
     if ((ent->r.contents & 0x200000) != 0)
         G_MakeVehicleUsable(ent);
 }
 
+// Decomp: CoDMPServer.c:431052  G_IsVehicleRemoteControl
 bool __cdecl G_IsVehicleRemoteControl(int index)
 {
     if ( index < 0
@@ -3522,12 +3437,13 @@ bool __cdecl G_IsVehicleRemoteControl(int index)
     return BG_GetVehicleInfo(index)->remoteControl != 0;
 }
 
+// Decomp: CoDMPServer.c:431080  GScr_PrecacheVehicle
 void __cdecl GScr_PrecacheVehicle()
 {
-    const char *v0; // eax
-    const vehicle_info_t *info; // [esp+0h] [ebp-Ch]
-    int infoIdx; // [esp+4h] [ebp-8h]
-    char *vehInfo; // [esp+8h] [ebp-4h]
+    const char *errorMsg;
+    const vehicle_info_t *info;
+    int infoIdx;
+    char *vehInfo;
 
     vehInfo = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
     if ( !level.initializing )
@@ -3535,37 +3451,65 @@ void __cdecl GScr_PrecacheVehicle()
     infoIdx = VEH_GetVehicleInfoFromName(vehInfo);
     if ( infoIdx < 0 )
     {
-        v0 = va("Cannot find vehicle info for [%s]\n", vehInfo);
-        Scr_Error(v0, 0);
+        errorMsg = va("Cannot find vehicle info for [%s]\n", vehInfo);
+        Scr_Error(errorMsg, 0);
     }
     info = BG_GetVehicleInfo(infoIdx);
     G_GetWeaponIndexForName((char*)info->turretWeapon);
 }
 
+// Decomp: CoDSP_rdBlackOps.map.c (GScr_GetNumVehicles ~82630C38)
+void __cdecl GScr_GetNumVehicles()
+{
+    int count = 0;
+
+    for ( int i = 0; i < MAX_VEHICLES; ++i )
+    {
+        if ( s_vehicles[i].entNum != 1023 )
+            ++count;
+    }
+    Scr_AddInt(count, SCRIPTINSTANCE_SERVER);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (GScr_SetHeliHeightPatchEnabled ~82630CC0)
+void __cdecl GScr_SetHeliHeightPatchEnabled()
+{
+    unsigned __int16 targetname = (unsigned __int16)Scr_GetConstString(0, SCRIPTINSTANCE_SERVER);
+    int enabled = Scr_GetInt(1u, SCRIPTINSTANCE_SERVER);
+
+    for ( int i = 0; i < num_heli_height_lock_patches; ++i )
+    {
+        if ( heli_height_lock_patches[i].targetname == targetname )
+            heli_height_lock_patches[i].enabled = enabled;
+    }
+}
+
+// Decomp: CoDMPServer.c:431101  GScr_GetVehicleTreadFXArray
 void __cdecl GScr_GetVehicleTreadFXArray()
 {
-    const char *v0; // eax
-    int i; // [esp+0h] [ebp-10h]
-    const vehicle_info_t *info; // [esp+4h] [ebp-Ch]
-    int infoIdx; // [esp+8h] [ebp-8h]
-    char *vehInfo; // [esp+Ch] [ebp-4h]
+    const char *errorMsg;
+    int treadFxIndex;
+    const vehicle_info_t *info;
+    int infoIdx;
+    char *vehInfo;
 
     vehInfo = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
     infoIdx = VEH_GetVehicleInfoFromName(vehInfo);
     if ( infoIdx < 0 )
     {
-        v0 = va("Cannot find vehicle info for [%s]\n", vehInfo);
-        Scr_Error(v0, 0);
+        errorMsg = va("Cannot find vehicle info for [%s]\n", vehInfo);
+        Scr_Error(errorMsg, 0);
     }
     info = BG_GetVehicleInfo(infoIdx);
     Scr_MakeArray(SCRIPTINSTANCE_SERVER);
-    for ( i = 0; i < 31; ++i )
+    for ( treadFxIndex = 0; treadFxIndex < 31; ++treadFxIndex )
     {
-        Scr_AddString(info->treadFx[i], SCRIPTINSTANCE_SERVER);
+        Scr_AddString(info->treadFx[treadFxIndex], SCRIPTINSTANCE_SERVER);
         Scr_AddArray(SCRIPTINSTANCE_SERVER);
     }
 }
 
+// Decomp: CoDMPServer.c:431126  G_IsVehicleOccupied
 int __cdecl G_IsVehicleOccupied(gentity_s *ent)
 {
     int seatIndex; // [esp+0h] [ebp-4h]
@@ -3580,6 +3524,7 @@ int __cdecl G_IsVehicleOccupied(gentity_s *ent)
     return 0;
 }
 
+// Decomp: CoDMPServer.c:431141  G_GetVehicleOccupantsTeam
 team_t __cdecl G_GetVehicleOccupantsTeam(gentity_s *vehEnt)
 {
     const gentity_s *pOccupant; // [esp+0h] [ebp-Ch]
@@ -3599,6 +3544,7 @@ team_t __cdecl G_GetVehicleOccupantsTeam(gentity_s *vehEnt)
     return TEAM_BAD;
 }
 
+// Decomp: CoDMPServer.c:431161  G_IsVehicleSeatOccupied
 bool __cdecl G_IsVehicleSeatOccupied(gentity_s *ent, int seatIndex)
 {
     scr_vehicle_s *veh; // [esp+4h] [ebp-8h]
@@ -3613,6 +3559,7 @@ bool __cdecl G_IsVehicleSeatOccupied(gentity_s *ent, int seatIndex)
     return seat && seat->_occupantEntNum != 1023;
 }
 
+// Decomp: CoDMPServer.c:431176  G_GetVehicleSeatPlayerOccupies
 int __cdecl G_GetVehicleSeatPlayerOccupies(gentity_s *ent, gentity_s *player)
 {
     scr_vehicle_s *veh; // [esp+0h] [ebp-8h]
@@ -3629,16 +3576,17 @@ int __cdecl G_GetVehicleSeatPlayerOccupies(gentity_s *ent, gentity_s *player)
     return -1;
 }
 
+// Decomp: CoDMPServer.c:431193  G_GetVehicleSeatToEnter
 int __cdecl G_GetVehicleSeatToEnter(gentity_s *ent, gentity_s *player, bool scriptUse, int *entryPoint)
 {
     bool foundEntryPoint; // [esp+Fh] [ebp-25h]
     const vehicle_info_t *info; // [esp+10h] [ebp-24h]
     scr_vehicle_s *veh; // [esp+14h] [ebp-20h]
     float bestDist; // [esp+18h] [ebp-1Ch]
-    float dist; // [esp+1Ch] [ebp-18h]
-    int i; // [esp+20h] [ebp-14h]
-    float entryPointPosition[3]; // [esp+24h] [ebp-10h] BYREF
-    int seatIndex; // [esp+30h] [ebp-4h]
+    float dist;
+    int entryPointIndex;
+    float entryPointPosition[3];
+    int seatIndex;
 
     if ( player->r.currentOrigin[2] > (float)(ent->r.currentOrigin[2] + ent->r.maxs[2]) )
         return -1;
@@ -3662,26 +3610,26 @@ int __cdecl G_GetVehicleSeatToEnter(gentity_s *ent, gentity_s *player, bool scri
     if ( scriptUse )
         return seatIndex;
     foundEntryPoint = 0;
-    for ( i = 0; i < 5; ++i )
+    for ( entryPointIndex = 0; entryPointIndex < 5; ++entryPointIndex )
     {
-        if ( veh->boneIndex.entryPoints[i] >= 0 )
+        if ( veh->boneIndex.entryPoints[entryPointIndex] >= 0 )
         {
-            G_DObjGetWorldBoneIndexPos(ent, veh->boneIndex.entryPoints[i], entryPointPosition);
+            G_DObjGetWorldBoneIndexPos(ent, veh->boneIndex.entryPoints[entryPointIndex], entryPointPosition);
             dist = (float)((float)(player->r.currentOrigin[0] - entryPointPosition[0])
                                      * (float)(player->r.currentOrigin[0] - entryPointPosition[0]))
                      + (float)((float)(player->r.currentOrigin[1] - entryPointPosition[1])
                                      * (float)(player->r.currentOrigin[1] - entryPointPosition[1]));
-            if ( bestDist > dist && (float)(info->entryPointRadius[i] * info->entryPointRadius[i]) > dist )
+            if ( bestDist > dist && (float)(info->entryPointRadius[entryPointIndex] * info->entryPointRadius[entryPointIndex]) > dist )
             {
                 if ( vehLocationalVehicleSeatEntry->current.enabled )
                 {
-                    if ( !VEH_IsSeatPresent(ent, i, 0) || G_IsVehicleSeatOccupied(ent, i) )
+                    if ( !VEH_IsSeatPresent(ent, entryPointIndex, 0) || G_IsVehicleSeatOccupied(ent, entryPointIndex) )
                         continue;
-                    seatIndex = i;
+                    seatIndex = entryPointIndex;
                     bestDist = dist;
                 }
                 if ( entryPoint )
-                    *entryPoint = i;
+                    *entryPoint = entryPointIndex;
                 foundEntryPoint = 1;
             }
         }
@@ -3692,11 +3640,12 @@ int __cdecl G_GetVehicleSeatToEnter(gentity_s *ent, gentity_s *player, bool scri
         return -1;
 }
 
+// Decomp: CoDMPServer.c:431260  G_GetEntryPointForSeat
 int __cdecl G_GetEntryPointForSeat(gentity_s *ent, int seat)
 {
-    scr_vehicle_s *veh; // [esp+0h] [ebp-Ch]
-    int entryPoint; // [esp+4h] [ebp-8h]
-    int i; // [esp+8h] [ebp-4h]
+    scr_vehicle_s *veh;
+    int entryPoint;
+    int entryPointIndex;
 
     entryPoint = 0;
     veh = ent->scr_vehicle;
@@ -3704,21 +3653,18 @@ int __cdecl G_GetEntryPointForSeat(gentity_s *ent, int seat)
         entryPoint = seat;
     if ( veh->boneIndex.entryPoints[entryPoint] >= 0 )
         return entryPoint;
-    for ( i = 0; i < 5; ++i )
+    for ( entryPointIndex = 0; entryPointIndex < 5; ++entryPointIndex )
     {
-        if ( veh->boneIndex.entryPoints[i] >= 0 )
-            return i;
+        if ( veh->boneIndex.entryPoints[entryPointIndex] >= 0 )
+            return entryPointIndex;
     }
     return entryPoint;
 }
 
+// Decomp: CoDMPServer.c:431281  G_GetPlayerVehicleMantlePoint
 int __cdecl G_GetPlayerVehicleMantlePoint(gentity_s *ent, gentity_s *player)
 {
-    float v3; // [esp+0h] [ebp-68h]
-    float v4; // [esp+4h] [ebp-64h]
-    float v5; // [esp+8h] [ebp-60h]
-    float v6; // [esp+Ch] [ebp-5Ch]
-    float vecToPlayer[3]; // [esp+28h] [ebp-40h] BYREF
+    float vecToPlayer[3];
     const vehicle_info_t *info; // [esp+34h] [ebp-34h]
     scr_vehicle_s *veh; // [esp+38h] [ebp-30h]
     float axis[3][3]; // [esp+3Ch] [ebp-2Ch] BYREF
@@ -3736,24 +3682,14 @@ int __cdecl G_GetPlayerVehicleMantlePoint(gentity_s *ent, gentity_s *player)
                          + (float)(vecToPlayer[2] * axis[0][2]);
     leftDot = (float)((float)(vecToPlayer[0] * axis[1][0]) + (float)(vecToPlayer[1] * axis[1][1]))
                     + (float)(vecToPlayer[2] * axis[1][2]);
-    if ( (float)(forwardDot - 1.0) < 0.0 )
-        v6 = forwardDot;
-    else
-        v6 = 1.0f;
-    if ( (float)(-1.0 - forwardDot) < 0.0 )
-        v4 = v6;
-    else
-        v4 = -1.0f;
-    forwardDot = v4;
-    if ( (float)(leftDot - 1.0) < 0.0 )
-        v5 = leftDot;
-    else
-        v5 = 1.0f;
-    if ( (float)(-1.0 - leftDot) < 0.0 )
-        v3 = v5;
-    else
-        v3 = -1.0f;
-    leftDot = v3;
+    if ( forwardDot > 1.0f )
+        forwardDot = 1.0f;
+    else if ( forwardDot < -1.0f )
+        forwardDot = -1.0f;
+    if ( leftDot > 1.0f )
+        leftDot = 1.0f;
+    else if ( leftDot < -1.0f )
+        leftDot = -1.0f;
     if ( forwardDot > info->mantleAngles[0] )
         return 0;
     if ( (-(forwardDot)) > info->mantleAngles[1] )
@@ -3765,6 +3701,7 @@ int __cdecl G_GetPlayerVehicleMantlePoint(gentity_s *ent, gentity_s *player)
     return 2;
 }
 
+// Decomp: CoDMPServer.c:431342  G_IsVehicleUsable
 int __cdecl G_IsVehicleUsable(gentity_s *ent, gentity_s *player)
 {
     const vehicle_info_t *info; // [esp+0h] [ebp-24h]
@@ -3839,6 +3776,7 @@ int __cdecl G_IsVehicleUsable(gentity_s *ent, gentity_s *player)
     return hintString;
 }
 
+// Decomp: CoDMPServer.c:431416  VEH_ShouldEjectOccupants
 bool __cdecl VEH_ShouldEjectOccupants(gentity_s *ent)
 {
     float *p_x; // eax
@@ -3874,6 +3812,7 @@ bool __cdecl VEH_ShouldEjectOccupants(gentity_s *ent)
     return result;
 }
 
+// Decomp: CoDMPServer.c:431453  G_IsVehicleImmune
 bool __cdecl G_IsVehicleImmune(gentity_s *ent, int mod, char damageFlags, unsigned int weapon)
 {
     bool result; // eax
@@ -3927,6 +3866,7 @@ LABEL_7:
     return result;
 }
 
+// Decomp: CoDMPServer.c:431520  G_IsPlayerDrivingVehicle
 bool __cdecl G_IsPlayerDrivingVehicle(const gentity_s *player)
 {
     gclient_s *client; // [esp+0h] [ebp-10h]
@@ -3953,36 +3893,19 @@ bool __cdecl G_IsPlayerDrivingVehicle(const gentity_s *player)
     return BG_GetVehicleInfo(veh->infoIdx)->type != 5;
 }
 
-// local variable allocation has failed, the output may be wrong!
-void    VEH_Teleport(gentity_s *pSelf, float *origin, float *angles, float *vel)
+// Decomp: CoDMPServer.c:431548  VEH_Teleport
+void __cdecl VEH_Teleport(gentity_s *pSelf, float *origin, float *angles, float *vel)
 {
-    float *v5; // [esp-24h] [ebp-130h]
-    float *v6; // [esp-20h] [ebp-12Ch]
-    float *v7; // [esp-1Ch] [ebp-128h]
-    float v8; // [esp-18h] [ebp-124h]
-    float v9; // [esp-14h] [ebp-120h]
-    phys_vec3 *p_m_a_vel; // [esp-Ch] [ebp-118h]
-    phys_vec3 *p_m_t_vel; // [esp-4h] [ebp-110h]
-    rigid_body *body; // [esp+5Ch] [ebp-B0h]
-    phys_vec3 physNewOrigin; // [esp+70h] [ebp-9Ch] BYREF
-    float v14; // [esp+80h] [ebp-8Ch]
-    float v15; // [esp+84h] [ebp-88h]
-    float v16; // [esp+88h] [ebp-84h]
-    phys_vec3 *i; // [esp+8Ch] [ebp-80h]
-    phys_vec3 phys_axis[3]; // [esp+90h] [ebp-7Ch] BYREF
-    int v19; // [esp+C4h] [ebp-48h]
-    float newAxis[3][3]; // [esp+C8h] [ebp-44h] BYREF
-    phys_mat44 *mat; // [esp+ECh] [ebp-20h]
-    PhysObjUserData *m_phys_user_data; // [esp+F0h] [ebp-1Ch]
-    NitrousVehicle *nitrousVeh; // [esp+F4h] [ebp-18h]
-    vehicle_physic_t *phys; // [esp+FCh] [ebp-10h]
-    //_UNKNOWN *v26; // [esp+100h] [ebp-Ch]
-    //gentity_s *pSelfa; // [esp+104h] [ebp-8h]
-    //float *origina; // [esp+108h] [ebp-4h] BYREF
-    //float *anglesa; // [esp+10Ch] [ebp+0h]
-
-    //v26 = a1;
-    //pSelfa = (gentity_s *)anglesa;
+    phys_vec3 *angularVel;
+    phys_vec3 *translationalVel;
+    rigid_body *body;
+    phys_vec3 physNewOrigin;
+    phys_vec3 phys_axis[3];
+    float newAxis[3][3];
+    phys_mat44 *mat;
+    PhysObjUserData *physUserData;
+    NitrousVehicle *nitrousVeh;
+    vehicle_physic_t *phys;
 
     iassert(pSelf->scr_vehicle);
     
@@ -3994,28 +3917,18 @@ void    VEH_Teleport(gentity_s *pSelf, float *origin, float *angles, float *vel)
         if (pSelf->scr_vehicle->nitrousVehicle->m_phys_user_data)
         {
             nitrousVeh = pSelf->scr_vehicle->nitrousVehicle;
-            m_phys_user_data = nitrousVeh->m_phys_user_data;
-            mat = &m_phys_user_data->body->m_mat;
+            physUserData = nitrousVeh->m_phys_user_data;
+            mat = &physUserData->body->m_mat;
             AnglesToAxis(angles, newAxis);
-            v19 = 3;
-            for (i = phys_axis; --v19 >= 0; ++i)
-                ;
             Phys_Vec3ToNitrousVec(newAxis[0], phys_axis);
             Phys_Vec3ToNitrousVec(newAxis[1], &phys_axis[1]);
             Phys_Vec3ToNitrousVec(newAxis[2], &phys_axis[2]);
             mat->x = phys_axis[0];
             mat->y = phys_axis[1];
             mat->z = phys_axis[2];
-            //phys_vec3::operator=(&mat->x, phys_axis);
-            //phys_vec3::operator=(&mat->y, &phys_axis[1]);
-            //phys_vec3::operator=(&mat->z, &phys_axis[2]);
-            v16 = *origin;
-            v15 = origin[1];
-            v14 = origin[2];
-            physNewOrigin.x = v16;
-            physNewOrigin.y = v15;
-            physNewOrigin.z = v14;
-            //phys_vec3::operator=(&mat->w, &physNewOrigin);
+            physNewOrigin.x = origin[0];
+            physNewOrigin.y = origin[1];
+            physNewOrigin.z = origin[2];
             mat->w = physNewOrigin;
             if (   (fabs(mat->w.x)) > 100000.0
                 || (fabs(mat->w.y)) > 100000.0
@@ -4033,58 +3946,53 @@ void    VEH_Teleport(gentity_s *pSelf, float *origin, float *angles, float *vel)
             {
                 phys_exec_debug_callback(nitrousVeh->m_phys_user_data->body);
             }
-            p_m_t_vel = &nitrousVeh->m_phys_user_data->body->m_t_vel;
-            p_m_a_vel = &nitrousVeh->m_phys_user_data->body->m_a_vel;
+            translationalVel = &nitrousVeh->m_phys_user_data->body->m_t_vel;
+            angularVel = &nitrousVeh->m_phys_user_data->body->m_a_vel;
             if (vel)
             {
-                v9 = vel[1];
-                v8 = vel[2];
-                p_m_t_vel->x = *vel;
-                p_m_t_vel->y = v9;
-                p_m_t_vel->z = v8;
+                translationalVel->x = vel[0];
+                translationalVel->y = vel[1];
+                translationalVel->z = vel[2];
             }
             else
             {
-                p_m_t_vel->x = 0.0f;
-                p_m_t_vel->y = 0.0f;
-                p_m_t_vel->z = 0.0f;
+                translationalVel->x = 0.0f;
+                translationalVel->y = 0.0f;
+                translationalVel->z = 0.0f;
             }
-            p_m_a_vel->x = 0.0f;
-            p_m_a_vel->y = 0.0f;
-            p_m_a_vel->z = 0.0f;
+            angularVel->x = 0.0f;
+            angularVel->y = 0.0f;
+            angularVel->z = 0.0f;
         }
     }
     Sys_LeaveCriticalSection(CRITSECT_PHYSICS);
     Sys_LeaveCriticalSection(CRITSECT_PHYSICS_UPDATE);
-    phys->origin[0] = *origin;
+    phys->origin[0] = origin[0];
     phys->origin[1] = origin[1];
     phys->origin[2] = origin[2];
-    v7 = phys->angles;
-    phys->angles[0] = *angles;
-    v7[1] = angles[1];
-    v7[2] = angles[2];
+    phys->angles[0] = angles[0];
+    phys->angles[1] = angles[1];
+    phys->angles[2] = angles[2];
     if (vel)
     {
-        v6 = phys->vel;
-        phys->vel[0] = *vel;
-        v6[1] = vel[1];
-        v6[2] = vel[2];
+        phys->vel[0] = vel[0];
+        phys->vel[1] = vel[1];
+        phys->vel[2] = vel[2];
     }
     else
     {
-        v5 = phys->vel;
         phys->vel[0] = 0.0f;
-        v5[1] = 0.0f;
-        v5[2] = 0.0f;
+        phys->vel[1] = 0.0f;
+        phys->vel[2] = 0.0f;
     }
     VEH_SetPosition(pSelf, phys->origin, phys->vel, phys->angles);
 }
 
+// Decomp: CoDMPServer.c:431689  VEH_UpdateNOClip
 void __cdecl VEH_UpdateNOClip(gentity_s *pSelf)
 {
     float newOrigin[3]; // [esp+4h] [ebp-10h] BYREF
     gentity_s *player; // [esp+10h] [ebp-4h]
-    int savedregs; // [esp+14h] [ebp+0h] BYREF
 
     player = VEH_GetSeatOccupantEntity(pSelf, 0);
     if ( player && player->client && player->client->ps.pm_type == 2 )
@@ -4099,15 +4007,16 @@ void __cdecl VEH_UpdateNOClip(gentity_s *pSelf)
     }
 }
 
+// Decomp: CoDMPServer.c:431713  VEH_UpdateDebug
 void __cdecl VEH_UpdateDebug(gentity_s *pSelf)
 {
-    char *v1; // eax
-    float mtx[4][3]; // [esp+38h] [ebp-8Ch] BYREF
+    char *debugText;
+    float mtx[4][3];
     DObj *ServerDObj; // [esp+68h] [ebp-5Ch]
     float end[3]; // [esp+6Ch] [ebp-58h] BYREF
     char *text; // [esp+78h] [ebp-4Ch]
-    int flash; // [esp+7Ch] [ebp-48h]
-    int i; // [esp+80h] [ebp-44h]
+    int flash;
+    int gunnerIndex;
     DObj *obj; // [esp+84h] [ebp-40h]
     const char *tag_name; // [esp+88h] [ebp-3Ch]
     int boneIndex; // [esp+8Ch] [ebp-38h]
@@ -4131,7 +4040,7 @@ void __cdecl VEH_UpdateDebug(gentity_s *pSelf)
         org[1] = phys->origin[1];
         org[2] = phys->origin[2];
         org[2] = org[2] + 30.0;
-        v1 = va(
+        debugText = va(
                      "Ent %d: origin %g %g %g, angles %g %g %g",
                      pSelf->s.number,
                      pSelf->r.currentOrigin[0],
@@ -4140,7 +4049,7 @@ void __cdecl VEH_UpdateDebug(gentity_s *pSelf)
                      pSelf->r.currentAngles[0],
                      pSelf->r.currentAngles[1],
                      pSelf->r.currentAngles[2]);
-        CL_AddDebugString(org, colorWhite, 0.69999999, v1, 0);
+        CL_AddDebugString(org, colorWhite, 0.69999999, debugText, 0);
         color[0] = 0.0f;
         color[1] = 1.0f;
         color[2] = 0.0f;
@@ -4171,9 +4080,9 @@ void __cdecl VEH_UpdateDebug(gentity_s *pSelf)
             pSelf->scr_vehicle->boneIndex.entryPoints[0] = 0;
         if ( pSelf->scr_vehicle->boneIndex.seats[0] < 0 )
             pSelf->scr_vehicle->boneIndex.seats[0] = SV_DObjGetBoneIndex(pSelf, scr_const.tag_origin);
-        for ( i = 0; i < 4; ++i )
+        for ( gunnerIndex = 0; gunnerIndex < 4; ++gunnerIndex )
         {
-            flash = pSelf->scr_vehicle->boneIndex.gunnerTags[i].flash;
+            flash = pSelf->scr_vehicle->boneIndex.gunnerTags[gunnerIndex].flash;
             if ( flash >= 0 )
             {
                 G_DObjGetWorldBoneIndexMatrix(pSelf, flash, mtx);
@@ -4196,16 +4105,17 @@ void __cdecl VEH_UpdateDebug(gentity_s *pSelf)
     VEH_UpdateNOClip(pSelf);
 }
 
+// Decomp: CoDMPServer.c:431837  Scr_Vehicle_Controller
 void __cdecl Scr_Vehicle_Controller(const gentity_s *pSelf, int *partBits)
 {
-    float v2; // [esp+4h] [ebp-3Ch]
-    float v3; // [esp+Ch] [ebp-34h]
-    float barrelAngles[3]; // [esp+10h] [ebp-30h] BYREF
+    float gunnerYawRad;
+    float turretYawRad;
+    float barrelAngles[3];
     DObj *obj; // [esp+1Ch] [ebp-24h]
     scr_vehicle_s *veh; // [esp+20h] [ebp-20h]
     float bodyAngles[3]; // [esp+24h] [ebp-1Ch] BYREF
     float turretAngles[3]; // [esp+30h] [ebp-10h] BYREF
-    int i; // [esp+3Ch] [ebp-4h]
+    int gunnerIndex;
 
     if ( !pSelf && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 8561, 0, "%s", "pSelf") )
         __debugbreak();
@@ -4235,9 +4145,9 @@ void __cdecl Scr_Vehicle_Controller(const gentity_s *pSelf, int *partBits)
     }
     if ( veh->boneIndex.body >= 0 )
         DObjSetLocalBoneIndex(obj, partBits, veh->boneIndex.body, vec3_origin, bodyAngles);
-    v3 = (float)pSelf->s.lerp.u.vehicle.gunYaw * 0.0054931641;
+    turretYawRad = (float)pSelf->s.lerp.u.vehicle.gunYaw * 0.0054931641;
     turretAngles[0] = 0.0f;
-    turretAngles[1] = v3;
+    turretAngles[1] = turretYawRad;
     turretAngles[2] = 0.0f;
     barrelAngles[0] = (float)pSelf->s.lerp.u.vehicle.gunPitch * 0.0054931641;
     barrelAngles[1] = 0.0f;
@@ -4246,33 +4156,27 @@ void __cdecl Scr_Vehicle_Controller(const gentity_s *pSelf, int *partBits)
         DObjSetLocalBoneIndex(obj, partBits, veh->boneIndex.turret, vec3_origin, turretAngles);
     if ( veh->boneIndex.barrel >= 0 )
         DObjSetLocalBoneIndex(obj, partBits, veh->boneIndex.barrel, vec3_origin, barrelAngles);
-    for ( i = 0; i < 4; ++i )
+    for ( gunnerIndex = 0; gunnerIndex < 4; ++gunnerIndex )
     {
-        v2 = (float)pSelf->s.lerp.u.vehicle.gunnerAngles[i].yaw * 0.0054931641;
+        gunnerYawRad = (float)pSelf->s.lerp.u.vehicle.gunnerAngles[gunnerIndex].yaw * 0.0054931641;
         turretAngles[0] = 0.0f;
-        turretAngles[1] = v2;
+        turretAngles[1] = gunnerYawRad;
         turretAngles[2] = 0.0f;
-        barrelAngles[0] = (float)pSelf->s.lerp.u.vehicle.gunnerAngles[i].pitch * 0.0054931641;
+        barrelAngles[0] = (float)pSelf->s.lerp.u.vehicle.gunnerAngles[gunnerIndex].pitch * 0.0054931641;
         barrelAngles[1] = 0.0f;
         barrelAngles[2] = 0.0f;
-        if ( veh->boneIndex.gunnerTags[i].turret >= 0 )
-            DObjSetLocalBoneIndex(obj, partBits, veh->boneIndex.gunnerTags[i].turret, vec3_origin, turretAngles);
-        if ( veh->boneIndex.gunnerTags[i].barrel >= 0 )
-            DObjSetLocalBoneIndex(obj, partBits, veh->boneIndex.gunnerTags[i].barrel, vec3_origin, barrelAngles);
+        if ( veh->boneIndex.gunnerTags[gunnerIndex].turret >= 0 )
+            DObjSetLocalBoneIndex(obj, partBits, veh->boneIndex.gunnerTags[gunnerIndex].turret, vec3_origin, turretAngles);
+        if ( veh->boneIndex.gunnerTags[gunnerIndex].barrel >= 0 )
+            DObjSetLocalBoneIndex(obj, partBits, veh->boneIndex.gunnerTags[gunnerIndex].barrel, vec3_origin, barrelAngles);
     }
 }
 
+// Decomp: CoDMPServer.c:431909  Scr_Vehicle_Init
 void __cdecl Scr_Vehicle_Init(gentity_s *pSelf)
 {
-    double v1; // st7
-    float *prevAngles; // [esp+0h] [ebp-78h]
-    float *angles; // [esp+4h] [ebp-74h]
-    float *prevOrigin; // [esp+8h] [ebp-70h]
-    float *maxs; // [esp+1Ch] [ebp-5Ch]
-    float *mins; // [esp+20h] [ebp-58h]
-    float *phys_maxs; // [esp+28h] [ebp-50h]
-    float *phys_mins; // [esp+2Ch] [ebp-4Ch]
-    float diff; // [esp+34h] [ebp-44h]
+    float barrelOffset;
+    float diff;
     float pos[3]; // [esp+38h] [ebp-40h] BYREF
     vehicle_physic_t *phys; // [esp+44h] [ebp-34h]
     const vehicle_info_t *info; // [esp+48h] [ebp-30h]
@@ -4319,15 +4223,12 @@ void __cdecl Scr_Vehicle_Init(gentity_s *pSelf)
                     maxHeight = (float)(0.5 * (float)(radius - diff)) + maxHeight;
                     minHeight = minHeight - (float)(0.5 * (float)(radius - diff));
                 }
-                mins = phys->mins;
                 phys->mins[0] = -radius;
-                //*((unsigned int *)mins + 1) = LODWORD(radius) ^ _mask__NegFloat_;
-                mins[1] = -radius;
-                mins[2] = minHeight;
-                maxs = phys->maxs;
+                phys->mins[1] = -radius;
+                phys->mins[2] = minHeight;
                 phys->maxs[0] = radius;
-                maxs[1] = radius;
-                maxs[2] = maxHeight;
+                phys->maxs[1] = radius;
+                phys->maxs[2] = maxHeight;
             }
         }
     }
@@ -4349,15 +4250,12 @@ void __cdecl Scr_Vehicle_Init(gentity_s *pSelf)
             __debugbreak();
         }
         radius = sqrtf(radius) + 1.0;
-        phys_mins = phys->mins;
         phys->mins[0] = -radius;
-        //*((unsigned int *)phys_mins + 1) = LODWORD(radius) ^ _mask__NegFloat_;
-        phys_mins[1] = -radius;
-        phys_mins[2] = 0.0f;
-        phys_maxs = phys->maxs;
+        phys->mins[1] = -radius;
+        phys->mins[2] = 0.0f;
         phys->maxs[0] = radius;
-        phys_maxs[1] = radius;
-        phys_maxs[2] = radius * 2.0;
+        phys->maxs[1] = radius;
+        phys->maxs[2] = radius * 2.0f;
     }
     for ( wheelIndex = 0; wheelIndex < 6; ++wheelIndex )
     {
@@ -4371,8 +4269,8 @@ void __cdecl Scr_Vehicle_Init(gentity_s *pSelf)
     {
         G_DObjGetWorldBoneIndexPos(pSelf, veh->boneIndex.flash[0], origin);
         G_DObjGetWorldBoneIndexPos(pSelf, veh->boneIndex.barrel, pos);
-        v1 = Vec3Distance(pos, origin);
-        veh->turret.barrelOffset = v1;
+        barrelOffset = Vec3Distance(pos, origin);
+        veh->turret.barrelOffset = barrelOffset;
     }
 
     if ( !info->type || info->type == 2 )
@@ -4380,16 +4278,12 @@ void __cdecl Scr_Vehicle_Init(gentity_s *pSelf)
 
     VEH_SetPosition(pSelf, phys->origin, phys->vel, phys->angles);
 
-    prevOrigin = phys->prevOrigin;
     phys->prevOrigin[0] = phys->origin[0];
-    prevOrigin[1] = phys->origin[1];
-    prevOrigin[2] = phys->origin[2];
-
-    prevAngles = phys->prevAngles;
-    angles = phys->angles;
+    phys->prevOrigin[1] = phys->origin[1];
+    phys->prevOrigin[2] = phys->origin[2];
     phys->prevAngles[0] = phys->angles[0];
-    prevAngles[1] = angles[1];
-    prevAngles[2] = angles[2];
+    phys->prevAngles[1] = phys->angles[1];
+    phys->prevAngles[2] = phys->angles[2];
 
     VEH_TouchEntities(pSelf);
     G_DoTouchTriggers(pSelf);
@@ -4407,13 +4301,14 @@ void __cdecl Scr_Vehicle_Init(gentity_s *pSelf)
     pSelf->nextthink = level.time + 50;
 }
 
+// Decomp: CoDMPServer.c:432057  VEH_GetWheelOrigin
 void __cdecl VEH_GetWheelOrigin(gentity_s *ent, int idx, float *origin, float *quat)
 {
-    char *v4; // eax
-    char *v5; // [esp-4h] [ebp-38h]
-    const char *v6; // [esp+0h] [ebp-34h]
-    float v7; // [esp+4h] [ebp-30h]
-    const vehicle_info_t *info; // [esp+18h] [ebp-1Ch]
+    char *wheelTagName;
+    char *targetNameStr;
+    const char *modelName;
+    float wheelRadius;
+    const vehicle_info_t *info;
     const DObj *obj; // [esp+1Ch] [ebp-18h]
     const char *name; // [esp+20h] [ebp-14h]
     DObjAnimMat *mtx; // [esp+28h] [ebp-Ch]
@@ -4427,13 +4322,10 @@ void __cdecl VEH_GetWheelOrigin(gentity_s *ent, int idx, float *origin, float *q
         name = 0;
         if ( obj )
             name = DObjGetModel(obj, 0)->name;
-        if ( name )
-            v6 = name;
-        else
-            v6 = "UNKNOWN";
-        v5 = SL_ConvertToString(ent->targetname, SCRIPTINSTANCE_SERVER);
-        v4 = SL_ConvertToString(*s_wheelTags[idx], SCRIPTINSTANCE_SERVER);
-        Com_Error(ERR_DROP, "Script vehicle [%s] with model [%s] needs [%s] with targetname [%s]", info, v6, v4, v5);
+        modelName = name ? name : "UNKNOWN";
+        targetNameStr = SL_ConvertToString(ent->targetname, SCRIPTINSTANCE_SERVER);
+        wheelTagName = SL_ConvertToString(*s_wheelTags[idx], SCRIPTINSTANCE_SERVER);
+        Com_Error(ERR_DROP, "Script vehicle [%s] with model [%s] needs [%s] with targetname [%s]", info, modelName, wheelTagName, targetNameStr);
     }
     mtx = G_DObjGetLocalBoneIndexMatrix(ent, veh->boneIndex.wheel[idx]);
     if ( !mtx && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 975, 0, "%s", "mtx") )
@@ -4452,27 +4344,20 @@ void __cdecl VEH_GetWheelOrigin(gentity_s *ent, int idx, float *origin, float *q
         && (float)((float)((float)(*origin * *origin) + (float)(origin[1] * origin[1])) + (float)(origin[2] * origin[2])) > (float)(veh->phys.maxs[0] * veh->phys.maxs[0]) )
     {
         Vec3Normalize(origin);
-        v7 = veh->phys.maxs[0] - 2.0;
-        *origin = v7 * *origin;
-        origin[1] = v7 * origin[1];
-        origin[2] = v7 * origin[2];
+        wheelRadius = veh->phys.maxs[0] - 2.0f;
+        *origin = wheelRadius * *origin;
+        origin[1] = wheelRadius * origin[1];
+        origin[2] = wheelRadius * origin[2];
     }
 }
 
+// Decomp: CoDMPServer.c:432119  VEH_GroundPlant
 void __cdecl VEH_GroundPlant(gentity_s *ent, vehicle_physic_t *phys, int gravity)
 {
-    float v3; // [esp+28h] [ebp-318h]
-    float v4; // [esp+2Ch] [ebp-314h]
-    float *v5; // [esp+30h] [ebp-310h]
-    float *v6; // [esp+34h] [ebp-30Ch]
-    float v7; // [esp+40h] [ebp-300h]
-    float v8; // [esp+44h] [ebp-2FCh]
-    float v9; // [esp+48h] [ebp-2F8h]
-    float v10; // [esp+4Ch] [ebp-2F4h]
-    float *v11; // [esp+A8h] [ebp-298h]
-    float *v12; // [esp+B0h] [ebp-290h]
-    float *v13; // [esp+B4h] [ebp-28Ch]
-    float v14; // [esp+C4h] [ebp-27Ch]
+    float *hitNormal;
+    float *traceEndPt;
+    float *traceStartPt;
+    float prevOriginZ;
     float proj[4][3]; // [esp+C8h] [ebp-278h] BYREF
     float wheelMatrix[4][3]; // [esp+F8h] [ebp-248h] BYREF
     int contents; // [esp+128h] [ebp-218h]
@@ -4494,12 +4379,13 @@ void __cdecl VEH_GroundPlant(gentity_s *ent, vehicle_physic_t *phys, int gravity
     float temp[3]; // [esp+298h] [ebp-A8h] BYREF
     float pt2[3]; // [esp+2A4h] [ebp-9Ch]
     float wheelPos[6][3]; // [esp+2B0h] [ebp-90h] BYREF
-    int i; // [esp+2F8h] [ebp-48h]
+    int wheelIndex;
     float mn[3]; // [esp+2FCh] [ebp-44h] BYREF
     vehicle_cache_t *vehicle_cache; // [esp+308h] [ebp-38h]
     float axis[4][3]; // [esp+30Ch] [ebp-34h] BYREF
     float dot; // [esp+33Ch] [ebp-4h]
 
+    memset(&trace, 0, sizeof(trace));
     //col_context_t::col_context_t(&context);
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 1984, 0, "%s", "ent") )
         __debugbreak();
@@ -4535,11 +4421,10 @@ void __cdecl VEH_GroundPlant(gentity_s *ent, vehicle_physic_t *phys, int gravity
     contents = 529;
     if ( (veh->flags & 1) != 0 )
         contents |= 0x10000u;
-    v14 = phys->prevOrigin[2];
-    //*(_QWORD *)&axis[3][0] = *(_QWORD *)phys->origin;
+    prevOriginZ = phys->prevOrigin[2];
     axis[3][0] = phys->origin[0];
     axis[3][1] = phys->origin[1];
-    axis[3][2] = v14;
+    axis[3][2] = prevOriginZ;
     AnglesToAxis(phys->angles, axis);
     mn[0] = FLT_MAX;
     mn[1] = FLT_MAX;
@@ -4547,28 +4432,28 @@ void __cdecl VEH_GroundPlant(gentity_s *ent, vehicle_physic_t *phys, int gravity
     mx[0] = -FLT_MAX;
     mx[1] = -FLT_MAX;
     mx[2] = -FLT_MAX;
-    for ( i = 0; i < numWheels; ++i )
+    for ( wheelIndex = 0; wheelIndex < numWheels; ++wheelIndex )
     {
-        VEH_GetWheelOrigin(ent, i, temp, 0);
+        VEH_GetWheelOrigin(ent, wheelIndex, temp, 0);
         MatrixTransformVector43(temp, axis, hitPos);
-        v13 = &trace_points[6 * i];
-        *v13 = hitPos[0];
-        v13[1] = hitPos[1];
-        v13[2] = hitPos[2];
-        v12 = &trace_points[6 * i + 3];
-        *v12 = hitPos[0];
-        v12[1] = hitPos[1];
-        v12[2] = hitPos[2];
-        trace_points[6 * i + 2] = trace_points[6 * i + 2] + 64.0;
-        trace_points[6 * i + 5] = trace_points[6 * i + 5] - 256.0;
-        Vec3Min(&trace_points[6 * i], mn, mn);
-        Vec3Min(&trace_points[6 * i + 3], mn, mn);
-        Vec3Max(&trace_points[6 * i], mx, mx);
-        Vec3Max(&trace_points[6 * i + 3], mx, mx);
+        traceStartPt = &trace_points[6 * wheelIndex];
+        *traceStartPt = hitPos[0];
+        traceStartPt[1] = hitPos[1];
+        traceStartPt[2] = hitPos[2];
+        traceEndPt = &trace_points[6 * wheelIndex + 3];
+        *traceEndPt = hitPos[0];
+        traceEndPt[1] = hitPos[1];
+        traceEndPt[2] = hitPos[2];
+        trace_points[6 * wheelIndex + 2] = trace_points[6 * wheelIndex + 2] + 64.0;
+        trace_points[6 * wheelIndex + 5] = trace_points[6 * wheelIndex + 5] - 256.0;
+        Vec3Min(&trace_points[6 * wheelIndex], mn, mn);
+        Vec3Min(&trace_points[6 * wheelIndex + 3], mn, mn);
+        Vec3Max(&trace_points[6 * wheelIndex], mx, mx);
+        Vec3Max(&trace_points[6 * wheelIndex + 3], mx, mx);
         if ( g_vehicleDebug->current.enabled )
         {
             VEH_DebugBox(hitPos, 4.0, 1.0, 0.0, 0.0);
-            VEH_DebugLine(&trace_points[6 * i], &trace_points[6 * i + 3], 0.0, 0.0, 1.0);
+            VEH_DebugLine(&trace_points[6 * wheelIndex], &trace_points[6 * wheelIndex + 3], 0.0, 0.0, 1.0);
         }
     }
     vehicle_cache = &veh->vehicle_cache;
@@ -4579,48 +4464,47 @@ void __cdecl VEH_GroundPlant(gentity_s *ent, vehicle_physic_t *phys, int gravity
     veh->vehicle_cache.proximity_data.update(mn, mx, contents, expand_vec);
     context.prims = vehicle_cache->proximity_data.prims;
     context.nprims = vehicle_cache->proximity_data.nprims;
-    for ( i = 0; i < numWheels; ++i )
+    for ( wheelIndex = 0; wheelIndex < numWheels; ++wheelIndex )
     {
-        if ( vehicle_cache->hit_indices[i] > 0 )
+        if ( vehicle_cache->hit_indices[wheelIndex] > 0 )
         {
-            //*(_QWORD *)trace.normal.vec.v = *(_QWORD *)&vehicle_cache->hit_normals[i][0];
-            trace.normal.vec.v[0] = vehicle_cache->hit_normals[i][0];
-            trace.normal.vec.v[1] = vehicle_cache->hit_normals[i][1];
-            trace.normal.vec.v[2] = vehicle_cache->hit_normals[i][2];
-            trace.sflags = vehicle_cache->hit_sflags[i];
+            //*(_QWORD *)trace.normal.vec.v = *(_QWORD *)&vehicle_cache->hit_normals[wheelIndex][0];
+            trace.normal.vec.v[0] = vehicle_cache->hit_normals[wheelIndex][0];
+            trace.normal.vec.v[1] = vehicle_cache->hit_normals[wheelIndex][1];
+            trace.normal.vec.v[2] = vehicle_cache->hit_normals[wheelIndex][2];
+            trace.sflags = vehicle_cache->hit_sflags[wheelIndex];
         }
-        trace_point_vs_env(&trace, &trace_points[6 * i], &trace_points[6 * i + 3], &context, &vehicle_cache->hit_indices[i]);
-        if ( vehicle_cache->hit_indices[i] > 0 )
+        trace_point_vs_env(&trace, &trace_points[6 * wheelIndex], &trace_points[6 * wheelIndex + 3], &context, &vehicle_cache->hit_indices[wheelIndex]);
+        if ( vehicle_cache->hit_indices[wheelIndex] > 0 )
         {
-            v11 = vehicle_cache->hit_normals[i];
-            //*(_QWORD *)v11 = *(_QWORD *)trace.normal.vec.v;
-            v11[0] = trace.normal.vec.v[0];
-            v11[1] = trace.normal.vec.v[1];
-            v11[2] = trace.normal.vec.v[2];
-            vehicle_cache->hit_sflags[i] = trace.sflags;
+            hitNormal = vehicle_cache->hit_normals[wheelIndex];
+            hitNormal[0] = trace.normal.vec.v[0];
+            hitNormal[1] = trace.normal.vec.v[1];
+            hitNormal[2] = trace.normal.vec.v[2];
+            vehicle_cache->hit_sflags[wheelIndex] = trace.sflags;
         }
         if ( trace.fraction >= 1.0 )
         {
-            //*(_QWORD *)hitPos = *(_QWORD *)&trace_points[6 * i + 3];
-            hitPos[0] = trace_points[6 * i + 3];
-            hitPos[1] = trace_points[6 * i + 4];
-            hitPos[2] = trace_points[6 * i + 5];
-            phys->wheelSurfType[i] = 0;
+            //*(_QWORD *)hitPos = *(_QWORD *)&trace_points[6 * wheelIndex + 3];
+            hitPos[0] = trace_points[6 * wheelIndex + 3];
+            hitPos[1] = trace_points[6 * wheelIndex + 4];
+            hitPos[2] = trace_points[6 * wheelIndex + 5];
+            phys->wheelSurfType[wheelIndex] = 0;
         }
         else
         {
-            Vec3Lerp(&trace_points[6 * i], &trace_points[6 * i + 3], trace.fraction, hitPos);
-            phys->wheelSurfType[i] = (unsigned __int8)((int)(0x3F00000
+            Vec3Lerp(&trace_points[6 * wheelIndex], &trace_points[6 * wheelIndex + 3], trace.fraction, hitPos);
+            phys->wheelSurfType[wheelIndex] = (unsigned __int8)((int)(0x3F00000
                                                                                                          & trace.sflags) >> 20);
         }
         if ( gravity )
         {
-            phys->wheelZVel[i] = phys->wheelZVel[i] - 40.0;
-            phys->wheelZPos[i] = (float)(phys->wheelZVel[i] * 0.050000001) + phys->wheelZPos[i];
-            if ( hitPos[2] > phys->wheelZPos[i] )
+            phys->wheelZVel[wheelIndex] = phys->wheelZVel[wheelIndex] - 40.0;
+            phys->wheelZPos[wheelIndex] = (float)(phys->wheelZVel[wheelIndex] * 0.050000001) + phys->wheelZPos[wheelIndex];
+            if ( hitPos[2] > phys->wheelZPos[wheelIndex] )
             {
-                phys->wheelZPos[i] = hitPos[2];
-                phys->wheelZVel[i] = 0.0f;
+                phys->wheelZPos[wheelIndex] = hitPos[2];
+                phys->wheelZVel[wheelIndex] = 0.0f;
                 memcpy(wheelMatrix, axis, 0x24u);
                 //*(_QWORD *)&wheelMatrix[3][0] = *(_QWORD *)hitPos;
                 wheelMatrix[3][0] = hitPos[0];
@@ -4630,14 +4514,14 @@ void __cdecl VEH_GroundPlant(gentity_s *ent, vehicle_physic_t *phys, int gravity
         }
         else
         {
-            phys->wheelZPos[i] = hitPos[2];
-            phys->wheelZVel[i] = 0.0f;
+            phys->wheelZPos[wheelIndex] = hitPos[2];
+            phys->wheelZVel[wheelIndex] = 0.0f;
         }
-        wheelPos[i][0] = hitPos[0];
-        wheelPos[i][1] = hitPos[1];
-        wheelPos[i][2] = phys->wheelZPos[i];
+        wheelPos[wheelIndex][0] = hitPos[0];
+        wheelPos[wheelIndex][1] = hitPos[1];
+        wheelPos[wheelIndex][2] = phys->wheelZPos[wheelIndex];
         if ( g_vehicleDebug->current.enabled )
-            VEH_DebugBox(wheelPos[i], 4.0, 0.0, 1.0, 0.0);
+            VEH_DebugBox(wheelPos[wheelIndex], 4.0, 0.0, 1.0, 0.0);
     }
     pt1[0] = 0.5 * (float)(wheelPos[1][0] + wheelPos[3][0]);
     pt1[1] = 0.5 * (float)(wheelPos[1][1] + wheelPos[3][1]);
@@ -4662,14 +4546,14 @@ void __cdecl VEH_GroundPlant(gentity_s *ent, vehicle_physic_t *phys, int gravity
     Vec3Cross(right, forward, plane);
     plane[3] = (float)((float)(wheelPos[0][0] * plane[0]) + (float)(wheelPos[0][1] * plane[1]))
                      + (float)(wheelPos[0][2] * plane[2]);
-    for ( i = 1; i < numWheels; ++i )
+    for ( wheelIndex = 1; wheelIndex < numWheels; ++wheelIndex )
     {
-        dot = (float)((float)((float)(plane[0] * wheelPos[i][0]) + (float)(plane[1] * wheelPos[i][1]))
-                                + (float)(plane[2] * wheelPos[i][2]))
+        dot = (float)((float)((float)(plane[0] * wheelPos[wheelIndex][0]) + (float)(plane[1] * wheelPos[wheelIndex][1]))
+                                + (float)(plane[2] * wheelPos[wheelIndex][2]))
                 - plane[3];
         if ( dot > info->suspensionTravel )
-            plane[3] = (float)((float)((float)(wheelPos[i][0] * plane[0]) + (float)(wheelPos[i][1] * plane[1]))
-                                             + (float)(wheelPos[i][2] * plane[2]))
+            plane[3] = (float)((float)((float)(wheelPos[wheelIndex][0] * plane[0]) + (float)(wheelPos[wheelIndex][1] * plane[1]))
+                                             + (float)(wheelPos[wheelIndex][2] * plane[2]))
                              - info->suspensionTravel;
     }
     Vec3Cross(plane, axis[0], axis[1]);
@@ -4679,26 +4563,14 @@ void __cdecl VEH_GroundPlant(gentity_s *ent, vehicle_physic_t *phys, int gravity
     AxisToAngles(axis, angles);
     phys->angles[0] = DiffTrackAngle(angles[0], phys->prevAngles[0], 6.0, 0.050000001);
     phys->angles[2] = DiffTrackAngle(angles[2], phys->prevAngles[2], 6.0, 0.050000001);
-    v9 = phys->angles[0];
-    if ( (float)(v9 - 60.0) < 0.0 )
-        v10 = phys->angles[0];
-    else
-        v10 = 60.0f;
-    if ( (float)(-60.0 - v9) < 0.0 )
-        v4 = v10;
-    else
-        v4 = -60.0f;
-    phys->angles[0] = v4;
-    v7 = phys->angles[2];
-    if ( (float)(v7 - 60.0) < 0.0 )
-        v8 = phys->angles[2];
-    else
-        v8 = 60.0f;
-    if ( (float)(-60.0 - v7) < 0.0 )
-        v3 = v8;
-    else
-        v3 = -60.0f;
-    phys->angles[2] = v3;
+    if ( phys->angles[0] > 60.0f )
+        phys->angles[0] = 60.0f;
+    else if ( phys->angles[0] < -60.0f )
+        phys->angles[0] = -60.0f;
+    if ( phys->angles[2] > 60.0f )
+        phys->angles[2] = 60.0f;
+    else if ( phys->angles[2] < -60.0f )
+        phys->angles[2] = -60.0f;
     if ( ((veh->flags & 0x80) != 0 || (veh->flags & 1) == 0) && plane[2] != 0.0 )
         phys->origin[2] = (-((float)((float)(phys->origin[0] * plane[0]) + (float)(phys->origin[1] * plane[1])) - plane[3])) / plane[2];
     AnglesSubtract(phys->angles, phys->prevAngles, phys->rotVel);
@@ -4707,14 +4579,12 @@ void __cdecl VEH_GroundPlant(gentity_s *ent, vehicle_physic_t *phys, int gravity
     phys->rotVel[2] = 20.0 * phys->rotVel[2];
     if ( g_vehicleDebug->current.enabled )
     {
-        for ( i = 0; i < 4; ++i )
+        for ( wheelIndex = 0; wheelIndex < 4; ++wheelIndex )
         {
-            v5 = proj[i];
-            v6 = wheelPos[i];
-            *v5 = *v6;
-            v5[1] = v6[1];
-            v5[2] = v6[2];
-            proj[i][2] = (-((float)((float)(proj[i][0] * plane[0]) + (float)(proj[i][1] * plane[1])) - plane[3])) / plane[2];
+            proj[wheelIndex][0] = wheelPos[wheelIndex][0];
+            proj[wheelIndex][1] = wheelPos[wheelIndex][1];
+            proj[wheelIndex][2] = wheelPos[wheelIndex][2];
+            proj[wheelIndex][2] = (-((float)((float)(proj[wheelIndex][0] * plane[0]) + (float)(proj[wheelIndex][1] * plane[1])) - plane[3])) / plane[2];
         }
         VEH_DebugLine(proj[0], proj[1], 1.0, 1.0, 0.0);
         VEH_DebugLine(proj[1], proj[3], 1.0, 1.0, 0.0);
@@ -4723,6 +4593,7 @@ void __cdecl VEH_GroundPlant(gentity_s *ent, vehicle_physic_t *phys, int gravity
     }
 }
 
+// Decomp: CoDMPServer.c:432488  VEH_DebugLine
 void __cdecl VEH_DebugLine(const float *start, const float *end, float r, float g, float b)
 {
     float color[4]; // [esp+0h] [ebp-10h] BYREF
@@ -4734,6 +4605,7 @@ void __cdecl VEH_DebugLine(const float *start, const float *end, float r, float 
     G_DebugLine(start, end, color, 1);
 }
 
+// Decomp: CoDMPServer.c:432503  VEH_DebugBox
 void __cdecl VEH_DebugBox(float *pos, float width, float r, float g, float b)
 {
     float mins[3]; // [esp+10h] [ebp-28h] BYREF
@@ -4755,35 +4627,24 @@ void __cdecl VEH_DebugBox(float *pos, float width, float r, float g, float b)
 }
 
 static float predictTime = 0.15f;
+// Decomp: CoDMPServer.c:432532  VEH_TouchEntities
 void __cdecl VEH_TouchEntities(gentity_s *ent)
 {
-    int contentmask; // [esp+30h] [ebp-1088h]
-    int var1084; // [esp+34h] [ebp-1084h]
-    float v4; // [esp+40h] [ebp-1078h] BYREF
-    float v5; // [esp+44h] [ebp-1074h]
-    float v6; // [esp+48h] [ebp-1070h]
-    DObj *obj; // [esp+4Ch] [ebp-106Ch]
-    scr_vehicle_s *scr_vehicle; // [esp+50h] [ebp-1068h]
-    float mins; // [esp+54h] [ebp-1064h] BYREF
-    float v10; // [esp+58h] [ebp-1060h]
-    float v11; // [esp+5Ch] [ebp-105Ch]
-    void(__cdecl * touch)(gentity_s *, gentity_s *, int); // [esp+60h] [ebp-1058h]
-    gentity_s *enta; // [esp+64h] [ebp-1054h]
-    float out[3]; // [esp+68h] [ebp-1050h] BYREF
-    float v3[3]; // [esp+74h] [ebp-1044h] BYREF
-    float maxs; // [esp+80h] [ebp-1038h] BYREF
-    float v17; // [esp+84h] [ebp-1034h]
-    float v18; // [esp+88h] [ebp-1030h]
-    void(__cdecl * v19)(gentity_s *, gentity_s *, int); // [esp+8Ch] [ebp-102Ch]
-    int entityList[1024]; // [esp+90h] [ebp-1028h] BYREF
-    int i; // [esp+1090h] [ebp-28h]
-    float v22; // [esp+1094h] [ebp-24h] BYREF
-    float v23; // [esp+1098h] [ebp-20h]
-    float v24; // [esp+109Ch] [ebp-1Ch]
-    float v25; // [esp+10A0h] [ebp-18h]
-    float v26; // [esp+10A4h] [ebp-14h]
-    float v27; // [esp+10A8h] [ebp-10h]
-    float offset[3]; // [esp+10ACh] [ebp-Ch] BYREF
+    int contentmask;
+    int numTouchEnts;
+    float touchMaxs[3];
+    DObj *obj;
+    scr_vehicle_s *scr_vehicle;
+    float absMins[3];
+    float absMaxs[3];
+    void(__cdecl * vehicleTouch)(gentity_s *, gentity_s *, int);
+    gentity_s *touchEnt;
+    void(__cdecl * otherTouch)(gentity_s *, gentity_s *, int);
+    int entityList[1024];
+    int touchEntityIndex;
+    float touchMins[3];
+    float predictOffset[3];
+    float offset[3];
 
     if (!ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 2649, 0, "%s", "ent"))
         __debugbreak();
@@ -4799,90 +4660,89 @@ void __cdecl VEH_TouchEntities(gentity_s *ent)
     }
     scr_vehicle = ent->scr_vehicle;
     BG_GetVehicleInfo(scr_vehicle->infoIdx);
-    touch = entityHandlers[ent->handler].touch;
+    vehicleTouch = entityHandlers[ent->handler].touch;
     offset[0] = scr_vehicle->phys.origin[0] - scr_vehicle->phys.prevOrigin[0];
     offset[1] = scr_vehicle->phys.origin[1] - scr_vehicle->phys.prevOrigin[1];
     offset[2] = scr_vehicle->phys.origin[2] - scr_vehicle->phys.prevOrigin[2];
-    AnglesSubtract(scr_vehicle->phys.angles, scr_vehicle->phys.prevAngles, v3);
-    Vec3NormalizeTo(scr_vehicle->phys.vel, out);
-    maxs = ent->r.absmax[0];
-    v17 = ent->r.absmax[1];
-    v18 = ent->r.absmax[2];
-    mins = ent->r.absmin[0];
-    v10 = ent->r.absmin[1];
-    v11 = ent->r.absmin[2];
-    ExtendBounds(&mins, &maxs, offset);
-    v25 = predictTime * scr_vehicle->phys.vel[0];
-    v26 = predictTime * scr_vehicle->phys.vel[1];
-    v27 = predictTime * scr_vehicle->phys.vel[2];
-    mins = mins + v25;
-    v10 = v10 + v26;
-    v11 = v11 + v27;
-    maxs = maxs + v25;
-    v17 = v17 + v26;
-    v18 = v18 + v27;
+    absMins[0] = ent->r.absmin[0];
+    absMins[1] = ent->r.absmin[1];
+    absMins[2] = ent->r.absmin[2];
+    absMaxs[0] = ent->r.absmax[0];
+    absMaxs[1] = ent->r.absmax[1];
+    absMaxs[2] = ent->r.absmax[2];
+    ExtendBounds(absMins, absMaxs, offset);
+    predictOffset[0] = predictTime * scr_vehicle->phys.vel[0];
+    predictOffset[1] = predictTime * scr_vehicle->phys.vel[1];
+    predictOffset[2] = predictTime * scr_vehicle->phys.vel[2];
+    absMins[0] = absMins[0] + predictOffset[0];
+    absMins[1] = absMins[1] + predictOffset[1];
+    absMins[2] = absMins[2] + predictOffset[2];
+    absMaxs[0] = absMaxs[0] + predictOffset[0];
+    absMaxs[1] = absMaxs[1] + predictOffset[1];
+    absMaxs[2] = absMaxs[2] + predictOffset[2];
     contentmask = 0x280E091;
     if (vehicle_riding->current.enabled)
         contentmask = 0x80E091;
-    var1084 = CM_AreaEntities(&mins, &maxs, entityList, 1024, contentmask);
-    for (i = 0; i < var1084; ++i)
+    numTouchEnts = CM_AreaEntities(absMins, absMaxs, entityList, 1024, contentmask);
+    for ( touchEntityIndex = 0; touchEntityIndex < numTouchEnts; ++touchEntityIndex )
     {
-        enta = &g_entities[entityList[i]];
-        v19 = entityHandlers[enta->handler].touch;
-        if (enta->s.number != ent->s.number
-            && (enta->s.eType == 1 || enta->s.eType == 6 || enta->s.eType == 4 || enta->s.eType == 17 || enta->s.eType == 14)
-            && enta->s.groundEntityNum != ent->s.number)
+        touchEnt = &g_entities[entityList[touchEntityIndex]];
+        otherTouch = entityHandlers[touchEnt->handler].touch;
+        if (touchEnt->s.number != ent->s.number
+            && (touchEnt->s.eType == 1 || touchEnt->s.eType == 6 || touchEnt->s.eType == 4 || touchEnt->s.eType == 17 || touchEnt->s.eType == 14)
+            && touchEnt->s.groundEntityNum != ent->s.number)
         {
-            if (enta->classname == scr_const.script_model)
+            if (touchEnt->classname == scr_const.script_model)
             {
-                if (!enta->model)
+                if (!touchEnt->model)
                     continue;
-                obj = Com_GetServerDObj(enta->s.number);
-                DObjPhysicsGetBounds(obj, &v22, &v4);
-                v22 = enta->r.currentOrigin[0] + v22;
-                v23 = enta->r.currentOrigin[1] + v23;
-                v24 = enta->r.currentOrigin[2] + v24;
-                v4 = enta->r.currentOrigin[0] + v4;
-                v5 = enta->r.currentOrigin[1] + v5;
-                v6 = enta->r.currentOrigin[2] + v6;
+                obj = Com_GetServerDObj(touchEnt->s.number);
+                DObjPhysicsGetBounds(obj, touchMins, touchMaxs);
+                touchMins[0] = touchEnt->r.currentOrigin[0] + touchMins[0];
+                touchMins[1] = touchEnt->r.currentOrigin[1] + touchMins[1];
+                touchMins[2] = touchEnt->r.currentOrigin[2] + touchMins[2];
+                touchMaxs[0] = touchEnt->r.currentOrigin[0] + touchMaxs[0];
+                touchMaxs[1] = touchEnt->r.currentOrigin[1] + touchMaxs[1];
+                touchMaxs[2] = touchEnt->r.currentOrigin[2] + touchMaxs[2];
             }
             else
             {
-                v22 = enta->r.absmin[0];
-                v23 = enta->r.absmin[1];
-                v24 = enta->r.absmin[2];
-                v4 = enta->r.absmax[0];
-                v5 = enta->r.absmax[1];
-                v6 = enta->r.absmax[2];
+                touchMins[0] = touchEnt->r.absmin[0];
+                touchMins[1] = touchEnt->r.absmin[1];
+                touchMins[2] = touchEnt->r.absmin[2];
+                touchMaxs[0] = touchEnt->r.absmax[0];
+                touchMaxs[1] = touchEnt->r.absmax[1];
+                touchMaxs[2] = touchEnt->r.absmax[2];
             }
-            ExpandBoundsToWidth(&v22, &v4);
-            v22 = v22 - v25;
-            v23 = v23 - v26;
-            v24 = v24 - v27;
-            v4 = v4 - v25;
-            v5 = v5 - v26;
-            v6 = v6 - v27;
-            if (SV_EntityContact(&v22, &v4, ent))
+            ExpandBoundsToWidth(touchMins, touchMaxs);
+            touchMins[0] = touchMins[0] - predictOffset[0];
+            touchMins[1] = touchMins[1] - predictOffset[1];
+            touchMins[2] = touchMins[2] - predictOffset[2];
+            touchMaxs[0] = touchMaxs[0] - predictOffset[0];
+            touchMaxs[1] = touchMaxs[1] - predictOffset[1];
+            touchMaxs[2] = touchMaxs[2] - predictOffset[2];
+            if (SV_EntityContact(touchMins, touchMaxs, ent))
             {
                 if (Scr_IsSystemActive(1u, SCRIPTINSTANCE_SERVER))
                 {
                     Scr_AddEntity(ent, SCRIPTINSTANCE_SERVER);
-                    Scr_Notify(enta, scr_const.touch, 1u);
-                    Scr_AddEntity(enta, SCRIPTINSTANCE_SERVER);
+                    Scr_Notify(touchEnt, scr_const.touch, 1u);
+                    Scr_AddEntity(touchEnt, SCRIPTINSTANCE_SERVER);
                     Scr_Notify(ent, scr_const.touch, 1u);
                 }
-                if (v19)
-                    v19(enta, ent, 1);
-                if (touch)
-                    touch(ent, enta, 1);
-                if (enta->s.eType == 1 || enta->actor && enta->actor->Physics.bIsAlive)
-                    VEH_PushEntity(ent, enta);
+                if (otherTouch)
+                    otherTouch(touchEnt, ent, 1);
+                if (vehicleTouch)
+                    vehicleTouch(ent, touchEnt, 1);
+                if (touchEnt->s.eType == 1 || touchEnt->actor && touchEnt->actor->Physics.bIsAlive)
+                    VEH_PushEntity(ent, touchEnt);
             }
         }
     }
     GlassSv_PredictTouch(ent);
 }
 
+// Decomp: CoDMPServer.c:432675  VEH_PushEntity
 void __cdecl VEH_PushEntity(gentity_s *ent, gentity_s *target)
 {
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 2550, 0, "%s", "ent") )
@@ -4906,6 +4766,7 @@ void __cdecl VEH_PushEntity(gentity_s *ent, gentity_s *target)
         PushAttachedStickyMissile(ent, target);
 }
 
+// Decomp: CoDMPServer.c:432715  AttachedStickyMissile
 bool __cdecl AttachedStickyMissile(gentity_s *vehicle, gentity_s *missile)
 {
     const WeaponDef *weapDef; // [esp+0h] [ebp-4h]
@@ -4933,6 +4794,7 @@ bool __cdecl AttachedStickyMissile(gentity_s *vehicle, gentity_s *missile)
     return weapDef->stickiness == WEAPSTICKINESS_ALL || weapDef->stickiness == WEAPSTICKINESS_ALL_NO_SENTIENTS;
 }
 
+// Decomp: CoDMPServer.c:432761  PushAttachedStickyMissile
 void __cdecl PushAttachedStickyMissile(gentity_s *vehicle, gentity_s *missile)
 {
     scr_vehicle_s *scr_vehicle; // edx
@@ -4998,6 +4860,7 @@ void __cdecl PushAttachedStickyMissile(gentity_s *vehicle, gentity_s *missile)
     missile->s.lerp.apos.trBase[2] = missile->r.currentAngles[2];
 }
 
+// Decomp: CoDMPServer.c:432856  VEH_UpdateHealth
 void __cdecl VEH_UpdateHealth(gentity_s *pSelf)
 {
     bool maingun_turningpitch; // [esp+5h] [ebp-1Bh]
@@ -5043,6 +4906,7 @@ void __cdecl VEH_UpdateHealth(gentity_s *pSelf)
     G_VehSetClientSideGunOverheating(pSelf, 1u, gunner1_overheating);
 }
 
+// Decomp: CoDMPServer.c:432904  GetPieceHealthPercentage
 double __cdecl GetPieceHealthPercentage(
                 Destructible *dest,
                 unsigned __int16 destructibleLabelString,
@@ -5065,6 +4929,7 @@ double __cdecl GetPieceHealthPercentage(
     return (float)(pieceHealth / pieceMaxHealth);
 }
 
+// Decomp: CoDMPServer.c:432924  GetPieceHealth
 char __cdecl GetPieceHealth(Destructible *dest, unsigned __int16 destructibleLabelString, int *pieceHealth)
 {
     int pieceIndex; // [esp+0h] [ebp-8h]
@@ -5080,6 +4945,7 @@ char __cdecl GetPieceHealth(Destructible *dest, unsigned __int16 destructibleLab
     return 1;
 }
 
+// Decomp: CoDMPServer.c:432940  PlayersSeatGunTurning
 bool __cdecl PlayersSeatGunTurning(gentity_s *const pVehEnt, int seatIndex, int angle)
 {
     const gentity_s *pOccupant; // [esp+Ch] [ebp-4h]
@@ -5090,14 +4956,11 @@ bool __cdecl PlayersSeatGunTurning(gentity_s *const pVehEnt, int seatIndex, int 
             && (int)abs(pOccupant->client->sess.cmd.angles[angle] - pOccupant->client->sess.oldcmd.angles[angle]) >= 5;
 }
 
+// Decomp: CoDMPServer.c:432954  VEH_UpdateNitrousPosition
 void __cdecl VEH_UpdateNitrousPosition(gentity_s *pSelf)
 {
-    char *v1; // eax
-    __int64 X; // [esp+0h] [ebp-ECh]
-    float v3; // [esp+8h] [ebp-E4h]
-    float *origin; // [esp+24h] [ebp-C8h]
-    float *vel; // [esp+30h] [ebp-BCh]
-    float *v6; // [esp+34h] [ebp-B8h]
+    float throttleQuantized;
+    float *pathOrigin;
     NitrousVehicle *nitrousVeh; // [esp+4Ch] [ebp-A0h]
     float absPos[3]; // [esp+50h] [ebp-9Ch] BYREF
     vehicle_physic_t *phys; // [esp+5Ch] [ebp-90h]
@@ -5115,7 +4978,6 @@ void __cdecl VEH_UpdateNitrousPosition(gentity_s *pSelf)
     int hit_entnum; // [esp+D8h] [ebp-14h]
     float avel[3]; // [esp+DCh] [ebp-10h] BYREF
     int notifyFlags; // [esp+E8h] [ebp-4h]
-    int savedregs; // [esp+ECh] [ebp+0h] BYREF
 
     PROF_SCOPED("VEH_UpdateNitrousPosition");
 
@@ -5162,26 +5024,24 @@ void __cdecl VEH_UpdateNitrousPosition(gentity_s *pSelf)
         phys->origin[0] = absPos[0];
         phys->origin[1] = absPos[1];
         phys->origin[2] = absPos[2];
-        v6 = phys->angles;
         phys->angles[0] = angles[0];
-        v6[1] = angles[1];
-        v6[2] = angles[2];
-        vel = phys->vel;
+        phys->angles[1] = angles[1];
+        phys->angles[2] = angles[2];
         phys->vel[0] = tvel[0];
-        vel[1] = tvel[1];
-        vel[2] = tvel[2];
+        phys->vel[1] = tvel[1];
+        phys->vel[2] = tvel[2];
     }
     if ( sv_clientSideVehicles->current.enabled )
     {
-        v3 = floor(nitrousVeh->m_throttle * 32768.0 + 0.5);
-        pSelf->s.lerp.u.vehicle.throttle = (int)v3;
+        throttleQuantized = floor(nitrousVeh->m_throttle * 32768.0 + 0.5);
+        pSelf->s.lerp.u.vehicle.throttle = (int)throttleQuantized;
         //pSelf->s.lerp.u.actor.actorNum = LODWORD(nitrousVeh->m_steer_factor);
         pSelf->s.lerp.u.actor.actorNum = int(nitrousVeh->m_steer_factor); // KISAKTODO: union abuse
         if ( (veh->flags & 0x100) != 0 && (nitrousVeh->m_flags & 0x80) == 0 )
         {
-            origin = veh->pathPos.origin;
+            pathOrigin = veh->pathPos.origin;
             veh->pathPos.origin[0] = absPos[0];
-            origin[1] = absPos[1];
+            pathOrigin[1] = absPos[1];
         }
     }
     else if ( info->type && info->type != 1 )
@@ -5221,9 +5081,7 @@ void __cdecl VEH_UpdateNitrousPosition(gentity_s *pSelf)
                 Scr_AddUndefined(SCRIPTINSTANCE_SERVER);
             else
                 Scr_AddEntityNum(hit_entnum, 0, SCRIPTINSTANCE_SERVER, 0);
-            X = (unsigned int)hit_stype;
-            v1 = (char *)Com_SurfaceTypeToName(hit_stype);
-            Scr_AddString(v1, SCRIPTINSTANCE_SERVER);
+            Scr_AddString((char *)Com_SurfaceTypeToName(hit_stype), SCRIPTINSTANCE_SERVER);
             Scr_AddFloat(intensity, SCRIPTINSTANCE_SERVER);
             Scr_AddVector(hitn, SCRIPTINSTANCE_SERVER);
             Scr_AddVector(hitp, SCRIPTINSTANCE_SERVER);
@@ -5240,14 +5098,57 @@ void __cdecl VEH_UpdateNitrousPosition(gentity_s *pSelf)
     }
 }
 
+// Decomp: CoDSP_rdBlackOps.map.c (Scr_VehicleRestorePaths ~82637B78)
+void __cdecl Scr_VehicleRestorePaths(gentity_s *pSelf)
+{
+    scr_vehicle_s *veh;
+    phys_vec3 goalPosition;
+    float goalSpeed;
+
+    if ( !pSelf && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 9055, 0, "%s", "pSelf") )
+        __debugbreak();
+    if ( !pSelf->scr_vehicle
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp",
+                    9056,
+                    0,
+                    "%s",
+                    "pSelf->scr_vehicle") )
+    {
+        __debugbreak();
+    }
+    veh = pSelf->scr_vehicle;
+    if ( !veh->nitrousVehicle )
+        return;
+    if ( (veh->flags & 0x180) != 0 )
+    {
+        if ( (veh->flags & 0x100) != 0 )
+            veh->nitrousVehicle->start_path(1);
+        else
+            veh->nitrousVehicle->start_path(0);
+    }
+    else if ( (veh->flags & 2) != 0 )
+    {
+        goalSpeed = veh->nitrousVehicle->get_max_speed(true);
+        if ( veh->manualMode == 1 )
+            goalSpeed = veh->manualSpeed;
+        Phys_Vec3ToNitrousVec(veh->goalPosition, &goalPosition);
+        veh->nitrousVehicle->mVehicleController.SetScriptTarget(
+            veh->nitrousVehicle,
+            &goalPosition,
+            veh->hover.hoverRadius,
+            goalSpeed,
+            veh->stopAtGoal != 0);
+    }
+}
+
+// Decomp: CoDMPServer.c:433144  Scr_Vehicle_Think
 void __cdecl Scr_Vehicle_Think(gentity_s *pSelf)
 {
-    int v1; // eax
-    NitrousVehicle *nitrousVeh; // [esp+Ch] [ebp-18h]
+    NitrousVehicle *nitrousVeh;
     const vehicle_info_t *info; // [esp+14h] [ebp-10h]
     scr_vehicle_s *veh; // [esp+1Ch] [ebp-8h]
     float defaultPitch; // [esp+20h] [ebp-4h]
-    int savedregs; // [esp+24h] [ebp+0h] BYREF
 
     PROF_SCOPED("Scr_Vehicle_think");
 
@@ -5274,6 +5175,7 @@ void __cdecl Scr_Vehicle_Think(gentity_s *pSelf)
         {
             //NitrousVehicle::init(veh->nitrousVehicle, pSelf, &info->nitrousVehParams);
             veh->nitrousVehicle->init(pSelf, &info->nitrousVehParams);
+            Scr_VehicleRestorePaths(pSelf);
         }
         Sys_LeaveCriticalSection(CRITSECT_PHYSICS);
         Sys_LeaveCriticalSection(CRITSECT_PHYSICS_UPDATE);
@@ -5283,9 +5185,7 @@ void __cdecl Scr_Vehicle_Think(gentity_s *pSelf)
     //if ( EntHandle::isDefined(&pSelf->r.ownerNum) && g_entities[EntHandle::entnum(&pSelf->r.ownerNum)].health <= 0 )
     if ( pSelf->r.ownerNum.isDefined() && g_entities[pSelf->r.ownerNum.entnum()].health <= 0)
     {
-        //v1 = EntHandle::entnum(&pSelf->r.ownerNum);
-        v1 = pSelf->r.ownerNum.entnum();
-        G_EntUnlink(&g_entities[v1]);
+        G_EntUnlink(&g_entities[pSelf->r.ownerNum.entnum()]);
     }
     if ( (veh->flags & 0x40) == 0 )
         pSelf->s.lerp.eFlags &= ~0x40u;
@@ -5351,6 +5251,7 @@ void __cdecl Scr_Vehicle_Think(gentity_s *pSelf)
         veh->phys.angles[0] = veh->phys.angles[0] - defaultPitch;
 }
 
+// Decomp: CoDMPServer.c:433264  VEH_MoveTrace
 void __cdecl VEH_MoveTrace(gentity_s *ent)
 {
     col_context_t context; // [esp+1Ch] [ebp-84h] BYREF
@@ -5360,6 +5261,7 @@ void __cdecl VEH_MoveTrace(gentity_s *ent)
     trace_t trace; // [esp+58h] [ebp-48h] BYREF
     float maxs[3]; // [esp+94h] [ebp-Ch] BYREF
 
+    memset(&trace, 0, sizeof(trace));
     if ( Scr_IsSystemActive(1u, SCRIPTINSTANCE_SERVER) )
     {
         phys = &ent->scr_vehicle->phys;
@@ -5385,6 +5287,7 @@ void __cdecl VEH_MoveTrace(gentity_s *ent)
     }
 }
 
+// Decomp: CoDMPServer.c:433328  VEH_BackupPosition
 void __cdecl VEH_BackupPosition(gentity_s *ent)
 {
     scr_vehicle_s *veh; // [esp+18h] [ebp-4h]
@@ -5411,12 +5314,12 @@ void __cdecl VEH_BackupPosition(gentity_s *ent)
     memcpy(&s_backup.phys, &veh->phys, sizeof(s_backup.phys));
 }
 
+// Decomp: CoDMPServer.c:433369  VEH_UpdateAim
 void __cdecl VEH_UpdateAim(gentity_s *ent)
 {
-    float v1; // [esp+10h] [ebp-18Ch]
-    float v2; // [esp+14h] [ebp-188h]
-    gentity_s *v3; // [esp+18h] [ebp-184h]
-    vehicle_physic_t *phys; // [esp+84h] [ebp-118h]
+    float gunPitchQuantized;
+    float gunYawQuantized;
+    vehicle_physic_t *phys;
     const vehicle_info_t *info; // [esp+88h] [ebp-114h]
     float mtx[3][3]; // [esp+8Ch] [ebp-110h] BYREF
     float decompressedGunYaw; // [esp+B0h] [ebp-ECh]
@@ -5472,14 +5375,10 @@ void __cdecl VEH_UpdateAim(gentity_s *ent)
             }
             //if ( EntHandle::isDefined(&ent->r.ownerNum) )
             if (ent->r.ownerNum.isDefined())
-            {
-                //v3 = EntHandle::ent(&ent->r.ownerNum);
-                v3 = ent->r.ownerNum.ent();
-            }
+                player = ent->r.ownerNum.ent();
             else
-                v3 = 0;
-            player = v3;
-            if ( v3 && !player->client->ps.vehiclePos && veh->targetEnt == 1023 )
+                player = 0;
+            if ( player && !player->client->ps.vehiclePos && veh->targetEnt == 1023 )
             {
                 tgtDir[0] = veh->targetOrigin[0] - barrelPos[0];
                 tgtDir[1] = veh->targetOrigin[1] - barrelPos[1];
@@ -5533,10 +5432,10 @@ void __cdecl VEH_UpdateAim(gentity_s *ent)
             stopAngles[2] = 0.0f;
             stopAngles[0] = AngleNormalize180(decompressedGunPitch - decompressedGunPitch);
             stopAngles[1] = AngleNormalize180(stopAngles[1] - decompressedGunYaw);
-            v2 = floor(decompressedGunYaw * 182.04445 + 0.5);
-            ent->s.lerp.u.vehicle.gunYaw = (int)v2;
-            v1 = floor(decompressedGunPitch * 182.04445 + 0.5);
-            ent->s.lerp.u.vehicle.gunPitch = (int)v1;
+            gunYawQuantized = floor(decompressedGunYaw * 182.04445 + 0.5);
+            ent->s.lerp.u.vehicle.gunYaw = (int)gunYawQuantized;
+            gunPitchQuantized = floor(decompressedGunPitch * 182.04445 + 0.5);
+            ent->s.lerp.u.vehicle.gunPitch = (int)gunPitchQuantized;
             if ( deltaAngles[0] >= 2.0 && stopAngles[0] == 0.0 || deltaAngles[1] >= 2.0 && stopAngles[1] == 0.0 )
             {
                 veh->turret.turretState = VEH_TURRET_MOVING;
@@ -5607,13 +5506,13 @@ void __cdecl VEH_UpdateGunnerAimAll(gentity_s *ent)
 
 void __cdecl VEH_UpdateGunnerAim(gentity_s *ent, int gunnerIndex)
 {
-    float v2; // [esp+10h] [ebp-178h]
-    float v3; // [esp+14h] [ebp-174h]
-    float v4; // [esp+18h] [ebp-170h]
-    float v5; // [esp+1Ch] [ebp-16Ch]
-    float v6; // [esp+20h] [ebp-168h]
-    float v7; // [esp+24h] [ebp-164h]
-    float leftArc; // [esp+44h] [ebp-144h]
+    float gunnerYawQuantized;
+    float gunnerPitchQuantized;
+    float viewYawQuantized;
+    float viewPitchQuantized;
+    float clampedYaw;
+    float clampedPitch;
+    float leftArc;
     float bottomArc; // [esp+58h] [ebp-130h]
     const vehicle_info_t *info; // [esp+98h] [ebp-F0h]
     float mtx[3][3]; // [esp+9Ch] [ebp-ECh] BYREF
@@ -5753,36 +5652,34 @@ void __cdecl VEH_UpdateGunnerAim(gentity_s *ent, int gunnerIndex)
                     else
                         bottomArc = weapDef->bottomArc;
                     if ( (float)((-(weapDef->topArc)) - pitch) < 0.0 )
-                        v7 = bottomArc;
+                        clampedPitch = bottomArc;
                     else
-                        v7 = -weapDef->topArc;
-                    pitch = v7;
-                    pitch = AngleNormalize180(v7 + info->gunnerRestAngles[gunnerIndex][0]);
+                        clampedPitch = -weapDef->topArc;
+                    pitch = AngleNormalize180(clampedPitch + info->gunnerRestAngles[gunnerIndex][0]);
                     yaw = AngleNormalize180(yaw - info->gunnerRestAngles[gunnerIndex][1]);
                     if ( (float)(yaw - weapDef->leftArc) < 0.0 )
                         leftArc = yaw;
                     else
                         leftArc = weapDef->leftArc;
                     if ( (float)((-(weapDef->rightArc)) - yaw) < 0.0 )
-                        v6 = leftArc;
+                        clampedYaw = leftArc;
                     else
-                        v6 = -weapDef->rightArc;
-                    yaw = v6;
-                    yaw = AngleNormalize180(v6 + info->gunnerRestAngles[gunnerIndex][1]);
+                        clampedYaw = -weapDef->rightArc;
+                    yaw = AngleNormalize180(clampedYaw + info->gunnerRestAngles[gunnerIndex][1]);
                 }
                 if ( player && player->client && gVehicleRelativeGunnerAngles && info->driverControlledGunPos != gunnerIndex )
                 {
-                    v5 = floor((float)(player->client->ps.viewangles[0] + info->gunnerRestAngles[gunnerIndex][0]) * 182.04445 + 0.5);
-                    ent->s.lerp.u.vehicle.gunnerAngles[gunnerIndex].pitch = (int)v5;
-                    v4 = floor((float)(player->client->ps.viewangles[1] + info->gunnerRestAngles[gunnerIndex][1]) * 182.04445 + 0.5);
-                    ent->s.lerp.u.vehicle.gunnerAngles[gunnerIndex].yaw = (int)v4;
+                    viewPitchQuantized = floor((float)(player->client->ps.viewangles[0] + info->gunnerRestAngles[gunnerIndex][0]) * 182.04445 + 0.5);
+                    ent->s.lerp.u.vehicle.gunnerAngles[gunnerIndex].pitch = (int)viewPitchQuantized;
+                    viewYawQuantized = floor((float)(player->client->ps.viewangles[1] + info->gunnerRestAngles[gunnerIndex][1]) * 182.04445 + 0.5);
+                    ent->s.lerp.u.vehicle.gunnerAngles[gunnerIndex].yaw = (int)viewYawQuantized;
                 }
                 else
                 {
-                    v3 = floor(pitch * 182.04445 + 0.5);
-                    ent->s.lerp.u.vehicle.gunnerAngles[gunnerIndex].pitch = (int)v3;
-                    v2 = floor(yaw * 182.04445 + 0.5);
-                    ent->s.lerp.u.vehicle.gunnerAngles[gunnerIndex].yaw = (int)v2;
+                    gunnerPitchQuantized = floor(pitch * 182.04445 + 0.5);
+                    ent->s.lerp.u.vehicle.gunnerAngles[gunnerIndex].pitch = (int)gunnerPitchQuantized;
+                    gunnerYawQuantized = floor(yaw * 182.04445 + 0.5);
+                    ent->s.lerp.u.vehicle.gunnerAngles[gunnerIndex].yaw = (int)gunnerYawQuantized;
                 }
                 stopAngles[0] = AngleNormalize180(stopAngles[0] - pitch);
                 stopAngles[1] = AngleNormalize180(stopAngles[1] - yaw);
@@ -5928,16 +5825,11 @@ void __cdecl VEH_UpdateGunnerWeapon(gentity_s *ent, int gunnerIndex, int msec)
 
 gentity_s *__cdecl VEH_FireGunnerWeapon(gentity_s *ent, int gunnerIndex, gentity_s *attacker)
 {
-    int WeaponIndexForName; // eax
-    const char *v5; // eax
-    char *v6; // eax
-    const char *v7; // eax
-    char *v8; // eax
-    const char *v9; // eax
-    const vehicle_info_t *speedFrac; // [esp+Ch] [ebp-130h]
-    const vehicle_info_t *speedFraca; // [esp+Ch] [ebp-130h]
-    float playerSpread; // [esp+14h] [ebp-128h]
-    gentity_s *v13; // [esp+18h] [ebp-124h]
+    int WeaponIndexForName;
+    const char *errorMsg;
+    char *flashTagName;
+    float playerSpread;
+    gentity_s *defaultAttacker;
     float vel[3]; // [esp+2Ch] [ebp-110h] BYREF
     gentity_s *target; // [esp+38h] [ebp-104h]
     float offset[3]; // [esp+3Ch] [ebp-100h] BYREF
@@ -5953,7 +5845,6 @@ gentity_s *__cdecl VEH_FireGunnerWeapon(gentity_s *ent, int gunnerIndex, gentity
     weaponParms wp; // [esp+94h] [ebp-A8h] BYREF
     float barrelMtx[4][3]; // [esp+DCh] [ebp-60h] BYREF
     float flashMtx[4][3]; // [esp+10Ch] [ebp-30h] BYREF
-    int savedregs; // [esp+13Ch] [ebp+0h] BYREF
 
     veh = ent->scr_vehicle;
     info = BG_GetVehicleInfo(veh->infoIdx);
@@ -5981,8 +5872,8 @@ LABEL_13:
     {
         if ( veh->boneIndex.gunnerTags[gunnerIndex].flash < 0 )
         {
-            v5 = va("Missing tag_flash_gunner%i for [%s]\n", gunnerIndex + 1, info->name);
-            Scr_Error(v5, 0);
+            errorMsg = va("Missing tag_flash_gunner%i for [%s]\n", gunnerIndex + 1, info->name);
+            Scr_Error(errorMsg, 0);
         }
         G_DObjGetWorldBoneIndexMatrix(ent, veh->boneIndex.gunnerTags[gunnerIndex].flash, barrelMtx);
         if ( veh->joltTime == 0.0 || veh->joltTime < 0.64999998 )
@@ -6006,10 +5897,9 @@ LABEL_13:
         flash = veh->boneIndex.gunnerTags[gunnerIndex].flash2;
         if ( flash < 0 )
         {
-            speedFrac = info;
-            v6 = SL_ConvertToString(*s_gunnerFlashTags[gunnerIndex + 4], SCRIPTINSTANCE_SERVER);
-            v7 = va("Missing %s for vehicle %s\n", v6, speedFrac->name);
-            Scr_Error(v7, 0);
+            flashTagName = SL_ConvertToString(*s_gunnerFlashTags[gunnerIndex + 4], SCRIPTINSTANCE_SERVER);
+            errorMsg = va("Missing %s for vehicle %s\n", flashTagName, info->name);
+            Scr_Error(errorMsg, 0);
         }
     }
     else
@@ -6018,10 +5908,9 @@ LABEL_13:
         flash = veh->boneIndex.gunnerTags[gunnerIndex].flash;
         if ( flash < 0 )
         {
-            speedFraca = info;
-            v8 = SL_ConvertToString(*s_gunnerFlashTags[gunnerIndex], SCRIPTINSTANCE_SERVER);
-            v9 = va("Missing %s for vehicle %s\n", v8, speedFraca->name);
-            Scr_Error(v9, 0);
+            flashTagName = SL_ConvertToString(*s_gunnerFlashTags[gunnerIndex], SCRIPTINSTANCE_SERVER);
+            errorMsg = va("Missing %s for vehicle %s\n", flashTagName, info->name);
+            Scr_Error(errorMsg, 0);
         }
     }
     G_DObjGetWorldBoneIndexMatrix(ent, flash, flashMtx);
@@ -6058,10 +5947,10 @@ LABEL_13:
         {
             driver = VEH_GetSeatOccupantEntity(veh, 0);
             if ( driver )
-                v13 = driver;
+                defaultAttacker = driver;
             else
-                v13 = ent;
-            attacker = v13;
+                defaultAttacker = ent;
+            attacker = defaultAttacker;
         }
         if ( !attacker )
             attacker = ent;
@@ -6146,22 +6035,18 @@ LABEL_13:
 
 void __cdecl VEH_UpdateBody(gentity_s *ent)
 {
-    float v1; // xmm0_8
-    //long double v2; // [esp+8h] [ebp-18h]
-    float v3; // [esp+8h] [ebp-18h]
-    scr_vehicle_s *veh; // [esp+18h] [ebp-8h]
-    float intensity; // [esp+1Ch] [ebp-4h]
+    float joltSin;
+    float throttleQuantized;
+    scr_vehicle_s *veh;
+    float intensity;
 
     veh = ent->scr_vehicle;
     if ( !veh->nitrousVehicle && veh->joltTime > 0.0 )
     {
-        v1 = (float)(veh->joltWave * 0.017453292);
-        //__libm_sse2_sin(v2);
-        //*(float *)&v1 = v1;
-        v1 = sin(v1);
-        intensity = (float)(veh->joltTime / 1.3) * *(float *)&v1;
-        v3 = floor((float)(intensity * veh->joltDir[0]) * 182.04445 + 0.5);
-        ent->s.lerp.u.vehicle.throttle = (int)v3;
+        joltSin = sin(veh->joltWave * 0.017453292f);
+        intensity = (veh->joltTime / 1.3f) * joltSin;
+        throttleQuantized = floor(intensity * veh->joltDir[0] * 182.04445f + 0.5f);
+        ent->s.lerp.u.vehicle.throttle = (int)throttleQuantized;
         ent->s.lerp.u.turret.gunAngles[1] = intensity * veh->joltDir[1];
         veh->joltTime = veh->joltTime - 0.050000001;
         veh->joltWave = veh->joltWave + 36.0;
@@ -6170,14 +6055,13 @@ void __cdecl VEH_UpdateBody(gentity_s *ent)
 
 void __cdecl VEH_UpdateSteering(gentity_s *ent)
 {
-    float v1; // [esp+4h] [ebp-44h]
-    float v2; // [esp+8h] [ebp-40h]
-    float v3; // [esp+10h] [ebp-38h]
-    vehicle_physic_t *phys; // [esp+28h] [ebp-20h]
-    scr_vehicle_s *veh; // [esp+30h] [ebp-18h]
-    float forward[3]; // [esp+34h] [ebp-14h] BYREF
-    bool isReverse; // [esp+43h] [ebp-5h]
-    float deltaYaw; // [esp+44h] [ebp-4h]
+    float wheelAngle;
+    float steerScale;
+    vehicle_physic_t *phys;
+    scr_vehicle_s *veh;
+    float forward[3];
+    bool isReverse;
+    float deltaYaw;
 
     veh = ent->scr_vehicle;
     if (BG_GetVehicleInfo(veh->infoIdx)->steerWheels)
@@ -6192,20 +6076,15 @@ void __cdecl VEH_UpdateSteering(gentity_s *ent)
                 + (float)(forward[2] * veh->phys.vel[2])) < 0.0;
         }
         deltaYaw = AngleNormalize180(veh->phys.angles[1] - veh->phys.prevAngles[1]);
-        if (isReverse)
-            v2 = -10.0f;
+        steerScale = isReverse ? -10.0f : 10.0f;
+        deltaYaw = deltaYaw * steerScale;
+        if ( deltaYaw > 45.0f )
+            wheelAngle = 45.0f;
+        else if ( deltaYaw < -45.0f )
+            wheelAngle = -45.0f;
         else
-            v2 = 10.0f;
-        deltaYaw = deltaYaw * v2;
-        if ((float)(deltaYaw - 45.0) < 0.0)
-            v3 = deltaYaw;
-        else
-            v3 = 45.0f;
-        if ((float)(-45.0 - deltaYaw) < 0.0)
-            v1 = v3;
-        else
-            v1 = -45.0f;
-        ent->s.lerp.u.turret.gunAngles[0] = v1;
+            wheelAngle = deltaYaw;
+        ent->s.lerp.u.turret.gunAngles[0] = wheelAngle;
     }
     else
     {
@@ -6215,12 +6094,11 @@ void __cdecl VEH_UpdateSteering(gentity_s *ent)
 
 void __cdecl VEH_UpdateDriverWeapons(gentity_s *ent)
 {
-    int v1; // eax
-    char *v2; // eax
-    float *targetOffset; // [esp+Ch] [ebp-118h]
-    float *v4; // [esp+10h] [ebp-114h]
-    float *v5; // [esp+14h] [ebp-110h]
-    float *v6; // [esp+18h] [ebp-10Ch]
+    char *flashTagName;
+    float *targetOffset;
+    float *gunnerTargetOrigin;
+    float *driverTargetOrigin;
+    float *gasTargetOrigin;
     float *targetOrigin; // [esp+20h] [ebp-104h]
     int hitnum; // [esp+28h] [ebp-FCh] BYREF
     float angles[3]; // [esp+54h] [ebp-D0h] BYREF
@@ -6249,6 +6127,7 @@ void __cdecl VEH_UpdateDriverWeapons(gentity_s *ent)
     player = 0;
     client = 0;
     info = BG_GetVehicleInfo(veh->infoIdx);
+    memset(&trace, 0, sizeof(trace));
     weapVariantDef = 0;
     weapDef = 0;
     VEH_UpdateDriverActions(ent);
@@ -6317,9 +6196,7 @@ void __cdecl VEH_UpdateDriverWeapons(gentity_s *ent)
             veh->targetOrigin[0] = end[0];
             targetOrigin[1] = end[1];
             targetOrigin[2] = end[2];
-            //v1 = EntHandle::entnum(&ent->r.ownerNum);
-            v1 = ent->r.ownerNum.entnum();
-            G_LocationalTrace(&trace, start, end, v1, 0x280E893, 0, 0);
+            G_LocationalTrace(&trace, start, end, ent->r.ownerNum.entnum(), 0x280E893, 0, 0);
             if ( trace.fraction < 1.0 )
                 Vec3Lerp(start, end, trace.fraction, veh->targetOrigin);
             if ( info->driverControlledGunPos >= 0 )
@@ -6335,18 +6212,18 @@ void __cdecl VEH_UpdateDriverWeapons(gentity_s *ent)
                         angles[2] = client->ps.viewangles[2];
                         angles[0] = angles[0] - 6.0;
                         AngleVectors(angles, forward, 0, 0);
-                        v6 = veh->gunnerTargets[driverControlledGunPos].targetOrigin;
-                        *v6 = (float)(5000.0 * forward[0]) + start[0];
-                        v6[1] = (float)(5000.0 * forward[1]) + start[1];
-                        v6[2] = (float)(5000.0 * forward[2]) + start[2];
+                        gasTargetOrigin = veh->gunnerTargets[driverControlledGunPos].targetOrigin;
+                        gasTargetOrigin[0] = 5000.0f * forward[0] + start[0];
+                        gasTargetOrigin[1] = 5000.0f * forward[1] + start[1];
+                        gasTargetOrigin[2] = 5000.0f * forward[2] + start[2];
                     }
                     else
                     {
-                        v4 = veh->gunnerTargets[driverControlledGunPos].targetOrigin;
-                        v5 = veh->targetOrigin;
-                        *v4 = veh->targetOrigin[0];
-                        v4[1] = v5[1];
-                        v4[2] = v5[2];
+                        gunnerTargetOrigin = veh->gunnerTargets[driverControlledGunPos].targetOrigin;
+                        driverTargetOrigin = veh->targetOrigin;
+                        gunnerTargetOrigin[0] = driverTargetOrigin[0];
+                        gunnerTargetOrigin[1] = driverTargetOrigin[1];
+                        gunnerTargetOrigin[2] = driverTargetOrigin[2];
                     }
                     targetOffset = veh->gunnerTargets[driverControlledGunPos].targetOffset;
                     *targetOffset = 0.0f;
@@ -6359,8 +6236,8 @@ void __cdecl VEH_UpdateDriverWeapons(gentity_s *ent)
             {
                 if ( veh->boneIndex.flash[0] < 0 )
                 {
-                    v2 = SL_ConvertToString(*s_flashTags[0], SCRIPTINSTANCE_SERVER);
-                    Com_Error(ERR_DROP, "Player vehicle has no %s", v2);
+                    flashTagName = SL_ConvertToString(*s_flashTags[0], SCRIPTINSTANCE_SERVER);
+                    Com_Error(ERR_DROP, "Player vehicle has no %s", flashTagName);
                 }
                 if ( veh->boneIndex.barrel < 0 && info->type != 3 )
                     Com_Error(ERR_DROP, "Player vehicle has no tag_barrel");
@@ -6571,6 +6448,7 @@ void __cdecl VEH_GroundTrace(gentity_s *ent)
 
     veh = ent->scr_vehicle;
     phys = &veh->phys;
+    memset(&trace, 0, sizeof(trace));
     //col_context_t::col_context_t(&context);
     start[0] = phys->origin[0];
     start[1] = phys->origin[1];
@@ -6603,7 +6481,7 @@ void __cdecl VEH_GroundMove(gentity_s *ent)
     float oldvel_8; // [esp+34h] [ebp-4h]
 
     veh = ent->scr_vehicle;
-    vel = Vec3Length(veh->phys.vel);
+    vel = Abs(veh->phys.vel);
     oldvel = veh->phys.vel[0];
     oldvel_4 = veh->phys.vel[1];
     oldvel_8 = veh->phys.vel[2];
@@ -6623,39 +6501,34 @@ void __cdecl VEH_GroundMove(gentity_s *ent)
 static float avoidRadius = 200.0f;
 void __cdecl VEH_UpdateAvoidance(gentity_s *ent)
 {
-    scr_vehicle_s *scr_vehicle; // ecx
-    scr_vehicle_s *v2; // eax
-    float *lookPos; // edx
-    float v4; // [esp+20h] [ebp-50h]
-    float howClose; // [esp+30h] [ebp-40h]
-    float otherEntPos; // [esp+40h] [ebp-30h]
-    float otherEntPos_4; // [esp+44h] [ebp-2Ch]
-    float otherEntPos_8; // [esp+48h] [ebp-28h]
-    int i; // [esp+4Ch] [ebp-24h]
-    float goalPos[3]; // [esp+50h] [ebp-20h] BYREF
-    scr_vehicle_s *otherVeh; // [esp+5Ch] [ebp-14h]
-    float closestPt[3]; // [esp+60h] [ebp-10h] BYREF
-    gentity_s *otherEnt; // [esp+6Ch] [ebp-4h]
-    int savedregs; // [esp+70h] [ebp+0h] BYREF
+    scr_vehicle_s *veh;
+    float *lookPos;
+    float pushScale;
+    float howClose;
+    float otherEntPos[3];
+    int i;
+    float goalPos[3];
+    scr_vehicle_s *otherVeh;
+    float closestPt[3];
+    gentity_s *otherEnt;
 
     if ( (ent->scr_vehicle->flags & 0x102) != 0 && (ent->scr_vehicle->flags & 0x400) != 0 )
     {
-        if ( (ent->scr_vehicle->flags & 0x100) != 0 )
+        veh = ent->scr_vehicle;
+        if ( (veh->flags & 0x100) != 0 )
         {
-            scr_vehicle = ent->scr_vehicle;
-            goalPos[0] = scr_vehicle->pathPos.lookPos[0];
-            goalPos[1] = scr_vehicle->pathPos.lookPos[1];
-            goalPos[2] = scr_vehicle->pathPos.lookPos[2];
+            goalPos[0] = veh->pathPos.lookPos[0];
+            goalPos[1] = veh->pathPos.lookPos[1];
+            goalPos[2] = veh->pathPos.lookPos[2];
         }
         else
         {
-            v2 = ent->scr_vehicle;
-            goalPos[0] = v2->goalPosition[0];
-            goalPos[1] = v2->goalPosition[1];
-            goalPos[2] = v2->goalPosition[2];
+            goalPos[0] = veh->goalPosition[0];
+            goalPos[1] = veh->goalPosition[1];
+            goalPos[2] = veh->goalPosition[2];
         }
         goalPos[2] = ent->r.currentOrigin[2];
-        for ( i = 0; i < 16; ++i )
+        for ( i = 0; i < MAX_VEHICLES; ++i )
         {
             otherVeh = &s_vehicles[i];
             if ( otherVeh->entNum != 1023 && otherVeh->entNum != ent->s.number )
@@ -6663,21 +6536,21 @@ void __cdecl VEH_UpdateAvoidance(gentity_s *ent)
                 otherEnt = &g_entities[otherVeh->entNum];
                 if ( ent->r.absmin[2] <= otherEnt->r.absmax[2] && otherEnt->r.absmin[2] <= ent->r.absmax[2] )
                 {
-                    otherEntPos = otherEnt->r.currentOrigin[0];
-                    otherEntPos_4 = otherEnt->r.currentOrigin[1];
-                    otherEntPos_8 = goalPos[2];
+                    otherEntPos[0] = otherEnt->r.currentOrigin[0];
+                    otherEntPos[1] = otherEnt->r.currentOrigin[1];
+                    otherEntPos[2] = goalPos[2];
                     GetClosestPointOnSegment(goalPos, ent->r.currentOrigin, otherEnt->r.currentOrigin, closestPt);
-                    howClose = (float)((float)((float)(closestPt[0] - otherEntPos) * (float)(closestPt[0] - otherEntPos))
-                                                     + (float)((float)(closestPt[1] - otherEntPos_4) * (float)(closestPt[1] - otherEntPos_4)))
-                                     + (float)((float)(closestPt[2] - otherEntPos_8) * (float)(closestPt[2] - otherEntPos_8));
+                    howClose = (float)((float)((float)(closestPt[0] - otherEntPos[0]) * (float)(closestPt[0] - otherEntPos[0]))
+                                                     + (float)((float)(closestPt[1] - otherEntPos[1]) * (float)(closestPt[1] - otherEntPos[1])))
+                                     + (float)((float)(closestPt[2] - otherEntPos[2]) * (float)(closestPt[2] - otherEntPos[2]));
                     if ( (float)(avoidRadius * avoidRadius) > howClose )
                     {
-                        v4 = 1.0 / sqrtf(howClose);
-                        goalPos[0] = (float)(avoidRadius * (float)(v4 * (float)(closestPt[0] - otherEntPos)))
+                        pushScale = 1.0 / sqrtf(howClose);
+                        goalPos[0] = (float)(avoidRadius * (float)(pushScale * (float)(closestPt[0] - otherEntPos[0])))
                                              + otherEnt->r.currentOrigin[0];
-                        goalPos[1] = (float)(avoidRadius * (float)(v4 * (float)(closestPt[1] - otherEntPos_4)))
+                        goalPos[1] = (float)(avoidRadius * (float)(pushScale * (float)(closestPt[1] - otherEntPos[1])))
                                              + otherEnt->r.currentOrigin[1];
-                        goalPos[2] = (float)(avoidRadius * (float)(v4 * (float)(closestPt[2] - otherEntPos_8)))
+                        goalPos[2] = (float)(avoidRadius * (float)(pushScale * (float)(closestPt[2] - otherEntPos[2])))
                                              + otherEnt->r.currentOrigin[2];
                         if ( g_vehicleDebug->current.enabled )
                             G_DebugLine(goalPos, otherEnt->r.currentOrigin, colorWhite, 0);
@@ -6698,25 +6571,6 @@ void __cdecl VEH_UpdateAvoidance(gentity_s *ent)
             ent->scr_vehicle->nitrousVehicle->update_script_target(goalPos);
         }
     }
-}
-
-void NitrousVehicle::update_script_target(float *goal_position)
-{
-    NitrousVehicleController *p_mVehicleController; // eax
-    unsigned int v4[3]; // [esp-Ch] [ebp-2Ch] BYREF
-    NitrousVehicle *v5; // [esp+10h] [ebp-10h]
-    //int v6; // [esp+14h] [ebp-Ch]
-    //void *v7; // [esp+18h] [ebp-8h]
-    //void *retaddr; // [esp+20h] [ebp+0h]
-    //
-    //v6 = a2;
-    //v7 = retaddr;
-    v5 = this;
-    Phys_Vec3ToNitrousVec(goal_position, (phys_vec3 *)v4);
-    p_mVehicleController = &v5->mVehicleController;
-    LODWORD(v5->mVehicleController.m_script_goal_position.x) = v4[0];
-    LODWORD(p_mVehicleController->m_script_goal_position.y) = v4[1];
-    LODWORD(p_mVehicleController->m_script_goal_position.z) = v4[2];
 }
 
 void __cdecl GetClosestPointOnSegment(float *pt1, float *pt2, float *testPt, float *out)
@@ -6756,54 +6610,45 @@ void __cdecl GetClosestPointOnSegment(float *pt1, float *pt2, float *testPt, flo
     }
 }
 
-// local variable allocation has failed, the output may be wrong!
-void    VEH_UpdatePath(gentity_s *ent)
+// Decomp: CoDMPServer.c:433200 (VEH_UpdatePath)
+void __cdecl VEH_UpdatePath(gentity_s *ent)
 {
-    float speed; // xmm0_4
-    double v3; // st7
-    double v4; // st7
-    double v5; // st7
-    double v6; // st7
-    double v7; // st7
-    double v8; // st7
-    double v9; // st7
-    phys_vec3 goalPosition; // [esp+34h] [ebp-17Ch] BYREF
-    float goalSpeed; // [esp+50h] [ebp-160h]
-    int v12; // [esp+54h] [ebp-15Ch]
-    float *v13; // [esp+58h] [ebp-158h]
-    float *rotVel; // [esp+5Ch] [ebp-154h]
-    float *bodyVel; // [esp+60h] [ebp-150h]
-    float *v16; // [esp+64h] [ebp-14Ch]
-    float *v17; // [esp+68h] [ebp-148h]
-    float *prevOrigin; // [esp+6Ch] [ebp-144h]
-    float *vel; // [esp+70h] [ebp-140h]
-    float v20; // [esp+74h] [ebp-13Ch]
-    float v21; // [esp+78h] [ebp-138h]
-    float v22; // [esp+7Ch] [ebp-134h]
-    float v23; // [esp+80h] [ebp-130h]
-    float v24; // [esp+84h] [ebp-12Ch]
-    float v25; // [esp+88h] [ebp-128h]
-    float manualTime; // [esp+8Ch] [ebp-124h]
-    float v27; // [esp+90h] [ebp-120h]
-    float v28; // [esp+94h] [ebp-11Ch]
-    float nodeIdx; // [esp+98h] [ebp-118h]
-    int lastNode; // [esp+9Ch] [ebp-114h]
-    float accel; // [esp+A0h] [ebp-110h] BYREF
-    float tgtSpeed; // [esp+A4h] [ebp-10Ch]
-    float v33; // [esp+A8h] [ebp-108h]
-    bool waitNodeHit; // [esp+AFh] [ebp-101h]
-    float prevSpeed; // [esp+B0h] [ebp-100h]
-    vehicle_pathpos_t nextVpp; // [esp+B4h] [ebp-FCh] BYREF
-    const vehicle_info_t *info; // [esp+198h] [ebp-18h]
-    vehicle_physic_t *phys; // [esp+19Ch] [ebp-14h]
-    scr_vehicle_s *veh; // [esp+1A0h] [ebp-10h]
-    //_UNKNOWN *v40; // [esp+1A4h] [ebp-Ch]
-    //gentity_s *enta; // [esp+1A8h] [ebp-8h]
-    //int v42; // [esp+1ACh] [ebp-4h] BYREF
-    //int vars0; // [esp+1B0h] [ebp+0h]
-    //
-    //v40 = a1;
-    //enta = (gentity_s *)vars0;
+    float speed;
+    double newSpeed;
+    double pathPitch;
+    double pathYaw;
+    double pathRoll;
+    double trackedPitch;
+    double trackedYaw;
+    double trackedRoll;
+    phys_vec3 goalPosition;
+    float goalSpeed;
+    int endNodeNotifyIdx;
+    float *rotVelScratch;
+    float *rotVel;
+    float *bodyVel;
+    float *velScratch;
+    float *vel;
+    float *prevOrigin;
+    float *velOut;
+    float pathRollBase;
+    float nextPathRoll;
+    float manualTimeFrac;
+    float pathYawBase;
+    float nextPathYaw;
+    float pathPitchBase;
+    float nextPathPitch;
+    int pathNodeNotifyIdx;
+    int lastNode;
+    float accel;
+    float tgtSpeed;
+    float manualTargetSpeed;
+    bool waitNodeHit;
+    float prevSpeed;
+    vehicle_pathpos_t nextVpp;
+    const vehicle_info_t *info;
+    vehicle_physic_t *phys;
+    scr_vehicle_s *veh;
     if (!ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 4262, 0, "%s", "ent"))
         __debugbreak();
     if (!ent->scr_vehicle
@@ -6850,10 +6695,10 @@ void    VEH_UpdatePath(gentity_s *ent)
                 speed = veh->pathPos.speed;
             else
                 speed = veh->manualSpeed;
-            v33 = speed;
+            manualTargetSpeed = speed;
             tgtSpeed = speed;
-            v3 = VEH_AccelerateSpeed(veh->speed, speed, veh->manualAccel, 0.050000001);
-            veh->speed = v3;
+            newSpeed = VEH_AccelerateSpeed(veh->speed, speed, veh->manualAccel, 0.050000001f);
+            veh->speed = (float)newSpeed;
             if (veh->manualMode == 2 && veh->speed == tgtSpeed)
                 veh->manualMode = 0;
         }
@@ -6877,10 +6722,10 @@ void    VEH_UpdatePath(gentity_s *ent)
             veh->manualTime = veh->manualTime - 1.0;
             if (lastNode != nextVpp.nodeIdx)
             {
-                LOWORD(nodeIdx) = nextVpp.nodeIdx;
+                LOWORD(pathNodeNotifyIdx) = nextVpp.nodeIdx;
                 if (nextVpp.customPath)
-                    LOWORD(nodeIdx) = nextVpp.customPath->pathOrder[nextVpp.nodeIdx];
-                Scr_AddEntityNum(SLOWORD(nodeIdx), 3u, SCRIPTINSTANCE_SERVER, 0);
+                    LOWORD(pathNodeNotifyIdx) = nextVpp.customPath->pathOrder[nextVpp.nodeIdx];
+                Scr_AddEntityNum(SLOWORD(pathNodeNotifyIdx), 3u, SCRIPTINSTANCE_SERVER, 0);
                 Scr_Notify(ent, scr_const.reached_node, 1u);
             }
         }
@@ -6909,27 +6754,25 @@ void    VEH_UpdatePath(gentity_s *ent)
             + veh->pathPos.origin[1];
         phys->origin[2] = (float)((float)(nextVpp.origin[2] - veh->pathPos.origin[2]) * veh->manualTime)
             + veh->pathPos.origin[2];
-        v28 = veh->pathPos.angles[0];
-        v27 = nextVpp.angles[0];
-        manualTime = veh->manualTime;
-        v4 = AngleNormalize180(nextVpp.angles[0] - v28);
-        phys->angles[0] = v4 * manualTime + v28;
-        v25 = veh->pathPos.angles[1];
-        v24 = nextVpp.angles[1];
-        v23 = veh->manualTime;
-        v5 = AngleNormalize180(nextVpp.angles[1] - v25);
-        phys->angles[1] = v5 * v23 + v25;
-        v22 = veh->pathPos.angles[2];
-        v21 = nextVpp.angles[2];
-        v20 = veh->manualTime;
-        v6 = AngleNormalize180(nextVpp.angles[2] - v22);
-        phys->angles[2] = v6 * v20 + v22;
-        v7 = DiffTrackAngle(phys->angles[0], phys->prevAngles[0], 6.0, 0.050000001);
-        phys->angles[0] = v7;
-        v8 = DiffTrackAngle(phys->angles[1], phys->prevAngles[1], 4.0, 0.050000001);
-        phys->angles[1] = v8;
-        v9 = DiffTrackAngle(phys->angles[2], phys->prevAngles[2], 6.0, 0.050000001);
-        phys->angles[2] = v9;
+        pathPitchBase = veh->pathPos.angles[0];
+        nextPathPitch = nextVpp.angles[0];
+        manualTimeFrac = veh->manualTime;
+        pathPitch = AngleNormalize180(nextVpp.angles[0] - pathPitchBase);
+        phys->angles[0] = (float)(pathPitch * manualTimeFrac) + pathPitchBase;
+        pathYawBase = veh->pathPos.angles[1];
+        nextPathYaw = nextVpp.angles[1];
+        pathYaw = AngleNormalize180(nextVpp.angles[1] - pathYawBase);
+        phys->angles[1] = (float)(pathYaw * veh->manualTime) + pathYawBase;
+        pathRollBase = veh->pathPos.angles[2];
+        nextPathRoll = nextVpp.angles[2];
+        pathRoll = AngleNormalize180(nextVpp.angles[2] - pathRollBase);
+        phys->angles[2] = (float)(pathRoll * veh->manualTime) + pathRollBase;
+        trackedPitch = DiffTrackAngle(phys->angles[0], phys->prevAngles[0], 6.0, 0.050000001);
+        phys->angles[0] = (float)trackedPitch;
+        trackedYaw = DiffTrackAngle(phys->angles[1], phys->prevAngles[1], 4.0, 0.050000001);
+        phys->angles[1] = (float)trackedYaw;
+        trackedRoll = DiffTrackAngle(phys->angles[2], phys->prevAngles[2], 6.0, 0.050000001);
+        phys->angles[2] = (float)trackedRoll;
         if ((veh->flags & 0x100) != 0)
         {
             veh->pathPos.lookPos[0] = (float)((float)(nextVpp.lookPos[0] - veh->pathPos.lookPos[0]) * veh->manualTime)
@@ -6950,11 +6793,11 @@ void    VEH_UpdatePath(gentity_s *ent)
             phys->vel[0] = phys->origin[0] - phys->prevOrigin[0];
             vel[1] = phys->origin[1] - prevOrigin[1];
             vel[2] = phys->origin[2] - prevOrigin[2];
-            v17 = phys->vel;
-            v16 = phys->vel;
-            phys->vel[0] = 20.0 * phys->vel[0];
-            v17[1] = 20.0 * v16[1];
-            v17[2] = 20.0 * v16[2];
+            velOut = phys->vel;
+            velScratch = phys->vel;
+            phys->vel[0] = 20.0f * phys->vel[0];
+            velOut[1] = 20.0f * velScratch[1];
+            velOut[2] = 20.0f * velScratch[2];
             bodyVel = phys->bodyVel;
             phys->bodyVel[0] = 0.0f;
             bodyVel[1] = 0.0f;
@@ -6962,20 +6805,20 @@ void    VEH_UpdatePath(gentity_s *ent)
             phys->bodyVel[0] = veh->speed;
             AnglesSubtract(phys->angles, phys->prevAngles, phys->rotVel);
             rotVel = phys->rotVel;
-            v13 = phys->rotVel;
-            phys->rotVel[0] = 20.0 * phys->rotVel[0];
-            rotVel[1] = 20.0 * v13[1];
-            rotVel[2] = 20.0 * v13[2];
+            rotVelScratch = phys->rotVel;
+            phys->rotVel[0] = 20.0f * phys->rotVel[0];
+            rotVel[1] = 20.0f * rotVelScratch[1];
+            rotVel[2] = 20.0f * rotVelScratch[2];
         }
         if (waitNodeHit && veh->waitNode > -1)
             Scr_Notify(ent, scr_const.reached_wait_node, 0);
         if (nextVpp.endOfPath)
         {
             Scr_Notify(ent, scr_const.reached_end_node, 0);
-            LOWORD(v12) = veh->pathPos.nodeIdx;
+            LOWORD(endNodeNotifyIdx) = veh->pathPos.nodeIdx;
             if (nextVpp.customPath)
-                LOWORD(v12) = nextVpp.customPath->pathOrder[veh->pathPos.nodeIdx];
-            Scr_AddEntityNum((__int16)v12, 3u, SCRIPTINSTANCE_SERVER, 0);
+                LOWORD(endNodeNotifyIdx) = nextVpp.customPath->pathOrder[veh->pathPos.nodeIdx];
+            Scr_AddEntityNum((__int16)endNodeNotifyIdx, 3u, SCRIPTINSTANCE_SERVER, 0);
             Scr_Notify(ent, scr_const.reached_node, 1u);
             if ((veh->flags & 0x100) != 0)
             {
@@ -7057,24 +6900,17 @@ void __cdecl VEH_UpdateAIMove(gentity_s *ent)
 
 void __cdecl VEH_UpdateMoveToGoal(gentity_s *ent, const float *goalPos)
 {
-    double v2; // st7
-    float *vel; // [esp+14h] [ebp-150h]
-    float v4; // [esp+18h] [ebp-14Ch]
-    float *accel; // [esp+20h] [ebp-144h]
-    float v6; // [esp+24h] [ebp-140h]
-    float *v7; // [esp+28h] [ebp-13Ch]
-    float *v8; // [esp+30h] [ebp-134h]
-    float speed; // [esp+34h] [ebp-130h]
-    float *v10; // [esp+3Ch] [ebp-128h]
-    float v11; // [esp+48h] [ebp-11Ch]
-    float alignedVel_4; // [esp+80h] [ebp-E4h]
-    float alignedVel_8; // [esp+84h] [ebp-E0h]
-    float axis[3][3]; // [esp+88h] [ebp-DCh] BYREF
-    float dotVec[2]; // [esp+ACh] [ebp-B8h] BYREF
-    float dt; // [esp+B4h] [ebp-B0h]
-    float v17; // [esp+B8h] [ebp-ACh] BYREF
-    float v18; // [esp+BCh] [ebp-A8h]
-    float v19; // [esp+C0h] [ebp-A4h]
+    float currentSpeed;
+    float remainDt;
+    float accelScale;
+    float speed;
+    float alignedVelY;
+    float alignedVelZ;
+    float axis[3][3];
+    float dotVec[2];
+    float dt;
+    float goalDirNorm[3];
+    float accelAlongVel;
     float newVerticalSpeed; // [esp+C4h] [ebp-A0h] BYREF
     float startMoveAngle; // [esp+C8h] [ebp-9Ch]
     float desiredVel[3]; // [esp+CCh] [ebp-98h]
@@ -7137,7 +6973,7 @@ void __cdecl VEH_UpdateMoveToGoal(gentity_s *ent, const float *goalPos)
         VEH_DebugLine(phys->origin, realGoalPos, 0.5, 1.0, 0.5);
     if ( info->type != 6 )
         vecToGoal[2] = 0.0f;
-    distToGoal = Vec3Length(vecToGoal);
+    distToGoal = Abs(vecToGoal);
     desiredDir[0] = (float)(1.0 / distToGoal) * vecToGoal[0];
     desiredDir[1] = (float)(1.0 / distToGoal) * vecToGoal[1];
     desiredDir[2] = (float)(1.0 / distToGoal) * vecToGoal[2];
@@ -7145,10 +6981,9 @@ void __cdecl VEH_UpdateMoveToGoal(gentity_s *ent, const float *goalPos)
     hasGoalhanged = VEH_CheckIfGoalYawChanged(ent, desiredYaw);
     if ( distToGoal <= 0.0 )
     {
-        vel = phys->vel;
         phys->vel[0] = 0.0f;
-        vel[1] = 0.0f;
-        vel[2] = 0.0f;
+        phys->vel[1] = 0.0f;
+        phys->vel[2] = 0.0f;
         if ( info->type == 2 )
             VEH_GroundPlant(ent, phys, 1);
     }
@@ -7174,15 +7009,15 @@ void __cdecl VEH_UpdateMoveToGoal(gentity_s *ent, const float *goalPos)
         VEH_GetNewSpeedAndAccel(veh, dt, hovering, 0.5, &newVerticalSpeed, &accelMax);
         if ( info->type == 6 && newVerticalSpeed > (float)(vehHelicopterMaxSpeedVertical->current.value * 17.6) )
             newVerticalSpeed = vehHelicopterMaxSpeedVertical->current.value * 17.6;
-        v17 = (float)(1.0 / distToGoal) * vecToGoal[0];
-        v18 = (float)(1.0 / distToGoal) * vecToGoal[1];
-        v19 = (float)(1.0 / distToGoal) * vecToGoal[2];
-        desiredVel[0] = newSpeed * v17;
-        desiredVel[1] = newSpeed * v18;
-        desiredVel[2] = v19 * newVerticalSpeed;
-        accelVec[0] = (float)(newSpeed * v17) - prevVel[0];
-        accelVec[1] = (float)(newSpeed * v18) - prevVel[1];
-        accelVec[2] = (float)(v19 * newVerticalSpeed) - prevVel[2];
+        goalDirNorm[0] = (float)(1.0 / distToGoal) * vecToGoal[0];
+        goalDirNorm[1] = (float)(1.0 / distToGoal) * vecToGoal[1];
+        goalDirNorm[2] = (float)(1.0 / distToGoal) * vecToGoal[2];
+        desiredVel[0] = newSpeed * goalDirNorm[0];
+        desiredVel[1] = newSpeed * goalDirNorm[1];
+        desiredVel[2] = goalDirNorm[2] * newVerticalSpeed;
+        accelVec[0] = (float)(newSpeed * goalDirNorm[0]) - prevVel[0];
+        accelVec[1] = (float)(newSpeed * goalDirNorm[1]) - prevVel[1];
+        accelVec[2] = (float)(goalDirNorm[2] * newVerticalSpeed) - prevVel[2];
         if ( !veh->stopping
             && veh->manualSpeed >= veh->speed
             && (float)((float)(prevVel[0] * desiredVel[0]) + (float)(prevVel[1] * desiredVel[1])) > 0.0
@@ -7191,9 +7026,9 @@ void __cdecl VEH_UpdateMoveToGoal(gentity_s *ent, const float *goalPos)
             dotVec[0] = prevVel[0];
             dotVec[1] = prevVel[1];
             Vec2Normalize(dotVec);
-            v11 = (float)(dotVec[0] * accelVec[0]) + (float)(dotVec[1] * accelVec[1]);
-            dotVec[0] = v11 * dotVec[0];
-            dotVec[1] = v11 * dotVec[1];
+            accelAlongVel = (float)(dotVec[0] * accelVec[0]) + (float)(dotVec[1] * accelVec[1]);
+            dotVec[0] = accelAlongVel * dotVec[0];
+            dotVec[1] = accelAlongVel * dotVec[1];
             accelVec[0] = accelVec[0] - dotVec[0];
             accelVec[1] = accelVec[1] - dotVec[1];
         }
@@ -7230,33 +7065,29 @@ void __cdecl VEH_UpdateMoveToGoal(gentity_s *ent, const float *goalPos)
             if ( vecToGoal[2] != 0.0 )
                 VEH_CheckVerticalVelocityToGoal(veh, vecToGoal[2], accelVec);
         }
-        v10 = phys->vel;
         phys->vel[0] = prevVel[0] + accelVec[0];
-        v10[1] = prevVel[1] + accelVec[1];
-        v10[2] = prevVel[2] + accelVec[2];
-        v2 = Vec3Length(phys->vel);
-        veh->speed = v2;
+        phys->vel[1] = prevVel[1] + accelVec[1];
+        phys->vel[2] = prevVel[2] + accelVec[2];
+        currentSpeed = Abs(phys->vel);
+        veh->speed = currentSpeed;
         if ( info->type == 2 )
         {
             AnglesToAxis(ent->r.currentAngles, axis);
             speed = veh->speed;
-            alignedVel_4 = speed * axis[0][1];
-            alignedVel_8 = speed * axis[0][2];
-            v8 = phys->vel;
+            alignedVelY = speed * axis[0][1];
+            alignedVelZ = speed * axis[0][2];
             phys->vel[0] = speed * axis[0][0];
-            v8[1] = alignedVel_4;
-            v8[2] = alignedVel_8;
+            phys->vel[1] = alignedVelY;
+            phys->vel[2] = alignedVelZ;
         }
         Vec3Lerp(phys->accel, accelVec, 0.5, phys->accel);
-        accelMagnitude = Vec3Length(phys->accel);
+        accelMagnitude = Abs(phys->accel);
         if ( accelMagnitude > accelMaxDt && !veh->stopAtGoal )
         {
-            accel = phys->accel;
-            v6 = accelMaxDt / accelMagnitude;
-            v7 = phys->accel;
-            phys->accel[0] = (float)(accelMaxDt / accelMagnitude) * phys->accel[0];
-            accel[1] = v6 * v7[1];
-            accel[2] = v6 * v7[2];
+            accelScale = accelMaxDt / accelMagnitude;
+            phys->accel[0] = accelScale * phys->accel[0];
+            phys->accel[1] = accelScale * phys->accel[1];
+            phys->accel[2] = accelScale * phys->accel[2];
         }
         averageVel[0] = prevVel[0] + phys->vel[0];
         averageVel[1] = prevVel[1] + phys->vel[1];
@@ -7266,16 +7097,16 @@ void __cdecl VEH_UpdateMoveToGoal(gentity_s *ent, const float *goalPos)
         averageVel[2] = 0.5 * averageVel[2];
         if ( dt < 0.050000001 )
         {
-            v4 = 0.050000001 - dt;
-            phys->origin[0] = (float)((float)(0.050000001 - dt) * prevVel[0]) + phys->origin[0];
-            phys->origin[1] = (float)(v4 * prevVel[1]) + phys->origin[1];
-            phys->origin[2] = (float)(v4 * prevVel[2]) + phys->origin[2];
+            remainDt = 0.050000001f - dt;
+            phys->origin[0] = remainDt * prevVel[0] + phys->origin[0];
+            phys->origin[1] = remainDt * prevVel[1] + phys->origin[1];
+            phys->origin[2] = remainDt * prevVel[2] + phys->origin[2];
         }
         phys->origin[0] = (float)(dt * averageVel[0]) + phys->origin[0];
         phys->origin[1] = (float)(dt * averageVel[1]) + phys->origin[1];
         phys->origin[2] = (float)(dt * averageVel[2]) + phys->origin[2];
         if ( info->type != 2 )
-            VEH_UpdateMoveOrientation(ent, &v17);
+            VEH_UpdateMoveOrientation(ent, goalDirNorm);
         if ( info->type == 6 )
             VEH_UpdateVelocityWithRotation(ent);
         if ( info->type == 2 )
@@ -7307,8 +7138,8 @@ bool __cdecl VEH_IsHovering(scr_vehicle_s *veh)
 
 double __cdecl VEH_UpdateMove_GetDesiredYaw(scr_vehicle_s *veh, float *desiredDir)
 {
-    float v3; // [esp+4h] [ebp-34h]
-    float stopAngle; // [esp+10h] [ebp-28h]
+    float yawDelta;
+    float stopAngle;
     float timeToTurn; // [esp+14h] [ebp-24h]
     float timeToStop; // [esp+18h] [ebp-20h]
     float angleDiff; // [esp+1Ch] [ebp-1Ch]
@@ -7356,8 +7187,8 @@ double __cdecl VEH_UpdateMove_GetDesiredYaw(scr_vehicle_s *veh, float *desiredDi
             timeToStop = veh->speed / veh->manualDecel;
             timeToTurn = (float)(phys->maxAngleVel[1] / phys->yawAccel) * 2.0;
             stopAngle = (float)(phys->maxAngleVel[1] * 0.5) * timeToTurn;
-            v3 = AngleNormalize180(desiredYaw - phys->angles[1]);
-            angleDiff = fabs(v3);
+            yawDelta = AngleNormalize180(desiredYaw - phys->angles[1]);
+            angleDiff = fabs(yawDelta);
             if ( timeToStop > timeToTurn && angleDiff > stopAngle )
                 timeToTurn = (float)((float)(angleDiff - stopAngle) / phys->maxAngleVel[1]) + timeToTurn;
             if ( timeToTurn >= timeToStop )
@@ -7532,10 +7363,10 @@ void __cdecl VEH_UpdateAngleAndAngularVel(
 
 double __cdecl VEH_CalcAccelFraction(float accel, int infoIdx)
 {
-    float v3; // [esp+0h] [ebp-14h]
-    float v4; // [esp+4h] [ebp-10h]
-    float minAccel; // [esp+8h] [ebp-Ch]
-    float maxAccel; // [esp+10h] [ebp-4h]
+    float clampedAccel;
+    float scaledAccel;
+    float minAccel;
+    float maxAccel;
 
     minAccel = 0.0 * 17.6;
     maxAccel = BG_GetVehicleInfo(infoIdx)->accel;
@@ -7549,15 +7380,9 @@ double __cdecl VEH_CalcAccelFraction(float accel, int infoIdx)
     {
         __debugbreak();
     }
-    if ( (float)(accel - maxAccel) < 0.0 )
-        v4 = accel;
-    else
-        v4 = maxAccel;
-    if ( (float)(minAccel - accel) < 0.0 )
-        v3 = v4;
-    else
-        v3 = 0.0 * 17.6;
-    return (v3 - minAccel) / (maxAccel - minAccel);
+    scaledAccel = accel < maxAccel ? accel : maxAccel;
+    clampedAccel = accel > minAccel ? scaledAccel : minAccel;
+    return (clampedAccel - minAccel) / (maxAccel - minAccel);
 }
 
 double __cdecl VEH_CalcAngleForAccel(float accelFraction)
@@ -7572,8 +7397,8 @@ double __cdecl VEH_CalcStoppingTime(float accel, float accelFraction)
 
 void __cdecl VEH_UpdateYawAndNotify(gentity_s *ent, float desiredYaw)
 {
-    bool v2; // [esp+14h] [ebp-30h]
-    float finalYawDiff; // [esp+18h] [ebp-2Ch]
+    bool notifyGoalYaw;
+    float finalYawDiff;
     float yawDecel; // [esp+20h] [ebp-24h]
     scr_vehicle_s *veh; // [esp+28h] [ebp-1Ch]
     float initialYawDiff; // [esp+2Ch] [ebp-18h]
@@ -7591,7 +7416,7 @@ void __cdecl VEH_UpdateYawAndNotify(gentity_s *ent, float desiredYaw)
     {
         initialYawDiff = AngleDelta(veh->phys.angles[1], veh->targetYaw);
     }
-    v2 = (veh->hasGoalYaw || veh->hasTargetYaw) && fabs(initialYawDiff) >= 1.5;
+    notifyGoalYaw = (veh->hasGoalYaw || veh->hasTargetYaw) && fabs(initialYawDiff) >= 1.5;
     initalVel = veh->phys.rotVel[1];
     yawAccel = veh->phys.yawAccel;
     yawDecel = veh->phys.yawDecel;
@@ -7612,7 +7437,7 @@ void __cdecl VEH_UpdateYawAndNotify(gentity_s *ent, float desiredYaw)
     VEH_UpdateAngleAndAngularVel(1, desiredYaw, yawAccel, yawDecel, overshoot, &veh->phys);
     if ( veh->hasGoalYaw && (float)(veh->phys.rotVel[1] * initalVel) < 0.0 )
         veh->yawSlowDown = 1;
-    if ( v2 )
+    if ( notifyGoalYaw )
     {
         if ( veh->hasGoalYaw )
             finalYawDiff = AngleDelta(veh->phys.angles[1], veh->goalYaw);
@@ -7632,27 +7457,24 @@ double __cdecl VEH_GetAccelForAngles(scr_vehicle_s *veh)
 
 void __cdecl VEH_AddFakeDrag(const float *velocity, float maxDragSpeed, float *accelVec)
 {
-    float v3; // [esp+0h] [ebp-2Ch]
-    float v4; // [esp+4h] [ebp-28h]
-    float horizontalVel; // [esp+20h] [ebp-Ch]
+    float dragSpeed;
+    float dragScale;
+    float horizontalVel;
     float velocityVec[2]; // [esp+24h] [ebp-8h] BYREF
 
     velocityVec[0] = *velocity;
     velocityVec[1] = velocity[1];
     horizontalVel = Vec2Length(velocityVec);
-    if ( (float)(maxDragSpeed - horizontalVel) < 0.0 )
-        v3 = maxDragSpeed;
-    else
-        v3 = horizontalVel;
+    dragSpeed = horizontalVel < maxDragSpeed ? horizontalVel : maxDragSpeed;
     if ( maxDragSpeed == 0.0
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 4715, 0, "%s", "maxDragSpeed") )
     {
         __debugbreak();
     }
     Vec2Normalize(velocityVec);
-    v4 = 5.0 * (float)((float)(v3 / maxDragSpeed) * (float)(v3 / maxDragSpeed));
-    velocityVec[0] = v4 * velocityVec[0];
-    velocityVec[1] = v4 * velocityVec[1];
+    dragScale = 5.0f * (dragSpeed / maxDragSpeed) * (dragSpeed / maxDragSpeed);
+    velocityVec[0] = dragScale * velocityVec[0];
+    velocityVec[1] = dragScale * velocityVec[1];
     *accelVec = *accelVec + velocityVec[0];
     accelVec[1] = accelVec[1] + velocityVec[1];
 }
@@ -7663,10 +7485,8 @@ void __cdecl VEH_CheckHorizontalVelocityToGoal(
                 float accelMax,
                 float *accelVec)
 {
-    float turningAbility; // [esp+0h] [ebp-94h]
-    float *v5; // [esp+4h] [ebp-90h]
-    float *v6; // [esp+8h] [ebp-8Ch]
-    float *vel; // [esp+24h] [ebp-70h]
+    float turningAbility;
+    float *vel;
     float breakVec; // [esp+40h] [ebp-54h]
     float breakVec_4; // [esp+44h] [ebp-50h]
     float breakingAccel; // [esp+48h] [ebp-4Ch]
@@ -7702,7 +7522,7 @@ void __cdecl VEH_CheckHorizontalVelocityToGoal(
                 vel = phys->vel;
                 *accelVec = newVel[0] - phys->vel[0];
                 accelVec[1] = newVel[1] - vel[1];
-                actualDecel = Vec3Length(accelVec);
+                actualDecel = Abs(accelVec);
                 if ( actualDecel > accelMax )
                 {
                     *accelVec = (float)(accelMax / actualDecel) * *accelVec;
@@ -7759,10 +7579,8 @@ void __cdecl VEH_CheckHorizontalVelocityToGoal(
                         turningAbility = veh->turningAbility;
                     breakVec = (float)((float)((float)(  (-(turningAbility)) * breakingAccel) / horizontalSpeed) * 0.05) * phys->vel[0];
                     breakVec_4 = (float)((float)((float)((-(turningAbility)) * breakingAccel) / horizontalSpeed) * 0.05) * phys->vel[1];
-                    v5 = phys->vel;
-                    v6 = phys->vel;
                     phys->vel[0] = phys->vel[0] + breakVec;
-                    v5[1] = v6[1] + breakVec_4;
+                    phys->vel[1] = phys->vel[1] + breakVec_4;
                     *accelVec = *accelVec + breakVec;
                     accelVec[1] = accelVec[1] + breakVec_4;
                 }
@@ -7773,9 +7591,9 @@ void __cdecl VEH_CheckHorizontalVelocityToGoal(
 
 void __cdecl VEH_CheckVerticalVelocityToGoal(scr_vehicle_s *veh, float verticalDist, float *accelVec)
 {
-    float v3; // [esp+0h] [ebp-2Ch]
-    float v4; // [esp+8h] [ebp-24h]
-    float accelerationCap; // [esp+10h] [ebp-1Ch]
+    float verticalAccel;
+    float clampedBreakingAccel;
+    float accelerationCap;
     float breakingAccel; // [esp+14h] [ebp-18h]
     float desiredStoppingTime; // [esp+18h] [ebp-14h]
     float verticalSpeed; // [esp+28h] [ebp-4h]
@@ -7804,16 +7622,16 @@ void __cdecl VEH_CheckVerticalVelocityToGoal(scr_vehicle_s *veh, float verticalD
             if ( (float)(breakingAccel * breakingAccel) > (float)(accelVec[2] * accelVec[2]) )
             {
                 accelerationCap = (float)(veh->manualAccel * 0.050000001) * 3.0;
-                if ( (float)(breakingAccel - accelerationCap) < 0.0 )
-                    v4 = (float)((-(verticalSpeed)) * 0.050000001) / desiredStoppingTime;
+                if ( breakingAccel < accelerationCap )
+                    clampedBreakingAccel = (-verticalSpeed * 0.050000001f) / desiredStoppingTime;
                 else
-                    v4 = (float)(veh->manualAccel * 0.050000001) * 3.0;
-                if ( (float)((-(accelerationCap)) - breakingAccel) < 0.0 )
-                    v3 = v4;
+                    clampedBreakingAccel = veh->manualAccel * 0.050000001f * 3.0f;
+                if ( breakingAccel < -accelerationCap )
+                    verticalAccel = clampedBreakingAccel;
                 else
-                    v3 = -accelerationCap;
-                veh->phys.vel[2] = (float)(v3 - accelVec[2]) + veh->phys.vel[2];
-                accelVec[2] = v3;
+                    verticalAccel = -accelerationCap;
+                veh->phys.vel[2] = verticalAccel - accelVec[2] + veh->phys.vel[2];
+                accelVec[2] = verticalAccel;
             }
         }
     }
@@ -7821,9 +7639,7 @@ void __cdecl VEH_CheckVerticalVelocityToGoal(scr_vehicle_s *veh, float verticalD
 
 int __cdecl VEH_UpdateMove_CheckGoalReached(gentity_s *ent, float distToGoal)
 {
-    bool v3; // [esp+0h] [ebp-20h]
-    bool v4; // [esp+4h] [ebp-1Ch]
-    bool goalReached; // [esp+17h] [ebp-9h]
+    bool goalReached;
     const vehicle_info_t *info; // [esp+18h] [ebp-8h]
     scr_vehicle_s *veh; // [esp+1Ch] [ebp-4h]
 
@@ -7833,13 +7649,11 @@ int __cdecl VEH_UpdateMove_CheckGoalReached(gentity_s *ent, float distToGoal)
     {
         if ( veh->hover.hoverRadius == 0.0 )
         {
-            v3 = (veh->stopping || distToGoal == 0.0) && veh->speed == 0.0;
-            goalReached = v3;
+            goalReached = (veh->stopping || distToGoal == 0.0) && veh->speed == 0.0;
         }
         else
         {
-            v4 = veh->hover.hoverRadius >= distToGoal && (float)(2.0 * 17.6) > veh->speed;
-            goalReached = v4;
+            goalReached = veh->hover.hoverRadius >= distToGoal && (2.0f * 17.6f) > veh->speed;
         }
         if ( goalReached )
         {
@@ -7872,10 +7686,10 @@ LABEL_20:
 
 double __cdecl VEH_UpdateMove_CheckStop(scr_vehicle_s *veh, float distToGoal)
 {
-    float v3; // [esp+10h] [ebp-1Ch]
-    float v4; // [esp+14h] [ebp-18h]
-    float dt; // [esp+18h] [ebp-14h]
-    float dta; // [esp+18h] [ebp-14h]
+    float stopDt;
+    float remainDt;
+    float dt;
+    float partialDt;
     float newSpeed; // [esp+20h] [ebp-Ch]
     float stopDist; // [esp+28h] [ebp-4h]
 
@@ -7905,16 +7719,10 @@ double __cdecl VEH_UpdateMove_CheckStop(scr_vehicle_s *veh, float distToGoal)
             {
                 __debugbreak();
             }
-            dta = 0.050000001 - (float)((float)(distToGoal - stopDist) / veh->speed);
-            if ( (float)(dta - 0.050000001) < 0.0 )
-                v4 = 0.050000001 - (float)((float)(distToGoal - stopDist) / veh->speed);
-            else
-                v4 = 0.05f;
-            if ( (float)(0.0 - dta) < 0.0 )
-                v3 = v4;
-            else
-                v3 = 0.0f;
-            dt = v3;
+            partialDt = 0.050000001f - (distToGoal - stopDist) / veh->speed;
+            remainDt = partialDt < 0.050000001f ? partialDt : 0.05f;
+            stopDt = partialDt > 0.0f ? remainDt : 0.0f;
+            dt = stopDt;
         }
         veh->stopping = 1;
     }
@@ -7973,8 +7781,8 @@ bool __cdecl VEH_CheckIfGoalYawChanged(gentity_s *ent, float desiredYaw)
 
 void __cdecl VEH_UpdateHover(gentity_s *ent)
 {
-    double v1; // st7
-    scr_vehicle_s *veh; // [esp+14h] [ebp-18h]
+    float distToHoverSq;
+    scr_vehicle_s *veh;
     float hoverPos[3]; // [esp+1Ch] [ebp-10h] BYREF
     float newHoverDist; // [esp+28h] [ebp-4h]
 
@@ -7996,8 +7804,8 @@ void __cdecl VEH_UpdateHover(gentity_s *ent)
     hoverPos[2] = veh->goalPosition[2] + veh->hover.hoverGoalPos[2];
     VEH_UpdateMoveToGoal(ent, hoverPos);
     newHoverDist = veh->hover.hoverRadius * 0.25;
-    v1 = Vec3DistanceSq(veh->phys.origin, hoverPos);
-    if ( newHoverDist * newHoverDist > v1 )
+    distToHoverSq = Vec3DistanceSq(veh->phys.origin, hoverPos);
+    if ( newHoverDist * newHoverDist > distToHoverSq )
         VEH_SetHoverGoal(ent);
 }
 
@@ -8026,12 +7834,10 @@ void __cdecl VEH_SetHoverGoal(gentity_s *ent)
 
 void __cdecl VEH_UpdatePlaneOnCurve(gentity_s *ent)
 {
-    double v1; // st7
-    float *vel; // [esp+14h] [ebp-8Ch]
-    float speed; // [esp+18h] [ebp-88h]
-    float *prevAngles; // [esp+30h] [ebp-70h]
-    float *v5; // [esp+34h] [ebp-6Ch]
-    float yawDiff; // [esp+3Ch] [ebp-64h]
+    float segmentLength;
+    float *vel;
+    float speed;
+    float yawDiff;
     float pos[3]; // [esp+40h] [ebp-60h] BYREF
     float frameDist; // [esp+4Ch] [ebp-54h]
     float diff[3]; // [esp+50h] [ebp-50h] BYREF
@@ -8081,8 +7887,8 @@ void __cdecl VEH_UpdatePlaneOnCurve(gentity_s *ent)
         diff[0] = pos[0] - prevPos[0];
         diff[1] = pos[1] - prevPos[1];
         diff[2] = pos[2] - prevPos[2];
-        v1 = Vec3Length(diff);
-        length = v1 + length;
+        segmentLength = Abs(diff);
+        length = segmentLength + length;
         prevPos[0] = pos[0];
         prevPos[1] = pos[1];
         prevPos[2] = pos[2];
@@ -8099,11 +7905,9 @@ void __cdecl VEH_UpdatePlaneOnCurve(gentity_s *ent)
     phys->origin[0] = pos[0];
     phys->origin[1] = pos[1];
     phys->origin[2] = pos[2];
-    prevAngles = phys->prevAngles;
-    v5 = phys->angles;
     phys->prevAngles[0] = phys->angles[0];
-    prevAngles[1] = v5[1];
-    prevAngles[2] = v5[2];
+    phys->prevAngles[1] = phys->angles[1];
+    phys->prevAngles[2] = phys->angles[2];
     diff[0] = forwardPos[0] - pos[0];
     diff[1] = forwardPos[1] - pos[1];
     diff[2] = forwardPos[2] - pos[2];
@@ -8216,10 +8020,11 @@ void __cdecl VEH_DebugPlaneOnCurve(gentity_s *ent)
     CG_DebugLine(left2, right1, color, 0, 5);
 }
 
+// Decomp: CoDOMPServer.c:436683 (0x0067C080)  VEH_UpdatePlaneRoll
 void __cdecl VEH_UpdatePlaneRoll(gentity_s *ent)
 {
-    float v2; // xmm0_4
-    scr_vehicle_s *veh; // [esp+10h] [ebp-8h]
+    float rollSin;
+    scr_vehicle_s *veh;
 
     if (!ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 5699, 0, "%s", "ent"))
         __debugbreak();
@@ -8243,19 +8048,20 @@ void __cdecl VEH_UpdatePlaneRoll(gentity_s *ent)
     }
     veh->currentRollTime = veh->currentRollTime + 0.050000001;
     //v2 = __libm_sse2_sin((float)((float)((float)(90.0 * veh->currentRollTime) / veh->goalRollTime) * 0.017453292));
-    v2 = sin((float)((float)((float)(90.0 * veh->currentRollTime) / veh->goalRollTime) * 0.017453292));
-    veh->phys.angles[2] = veh->goalRoll * v2;
+    rollSin = sin((float)((float)((float)(90.0 * veh->currentRollTime) / veh->goalRollTime) * 0.017453292));
+    veh->phys.angles[2] = veh->goalRoll * rollSin;
     veh->phys.angles[2] = AngleNormalize360(veh->phys.angles[2]);
     if (veh->currentRollTime >= veh->goalRollTime)
         veh->hasGoalRoll = 0.0f;
 }
 
+// Decomp: CoDMPServer.c:436708 (0x0067C140)  VEH_UpdatePlaneFree
 void __cdecl VEH_UpdatePlaneFree(gentity_s *ent)
 {
-    vehicle_physic_t *phys; // [esp+10h] [ebp-18h]
-    float dir[3]; // [esp+14h] [ebp-14h] BYREF
-    scr_vehicle_s *veh; // [esp+20h] [ebp-8h]
-    float dist; // [esp+24h] [ebp-4h]
+    vehicle_physic_t *phys;
+    float dir[3];
+    scr_vehicle_s *veh;
+    float dist;
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 5855, 0, "%s", "ent") )
         __debugbreak();
@@ -8284,19 +8090,20 @@ void __cdecl VEH_UpdatePlaneFree(gentity_s *ent)
     phys->origin[2] = phys->origin[2] + dir[2];
 }
 
+// Decomp: CoDOMPServer.c:436756  VEH_UpdateChopperPathDrive
 void __cdecl VEH_UpdateChopperPathDrive(gentity_s *ent)
 {
-    float v1; // [esp+28h] [ebp-58h]
-    float v2; // [esp+34h] [ebp-4Ch]
-    float v3; // [esp+40h] [ebp-40h]
-    float transitionTimeFrac; // [esp+5Ch] [ebp-24h]
-    scr_vehicle_s *veh; // [esp+64h] [ebp-1Ch]
-    float pathPosAngles; // [esp+68h] [ebp-18h]
-    float pathPosAngles_4; // [esp+6Ch] [ebp-14h]
-    float pathPosAngles_8; // [esp+70h] [ebp-10h]
-    float pathPosOrigin; // [esp+74h] [ebp-Ch]
-    float pathPosOrigin_4; // [esp+78h] [ebp-8h]
-    float pathPosOrigin_8; // [esp+7Ch] [ebp-4h]
+    float rollAngle;
+    float yawAngle;
+    float pitchAngle;
+    float transitionTimeFrac;
+    scr_vehicle_s *veh;
+    float pathPosAngles;
+    float pathPosAngles_4;
+    float pathPosAngles_8;
+    float pathPosOrigin;
+    float pathPosOrigin_4;
+    float pathPosOrigin_8;
 
     veh = ent->scr_vehicle;
     if ( veh->pathTransitionTime > 0.0 )
@@ -8339,12 +8146,12 @@ void __cdecl VEH_UpdateChopperPathDrive(gentity_s *ent)
                                                     + veh->phys.origin[1];
             veh->phys.origin[2] = (float)((float)(pathPosOrigin_8 - veh->phys.origin[2]) * transitionTimeFrac)
                                                     + veh->phys.origin[2];
-            v3 = veh->phys.angles[0];
-            veh->phys.angles[0] = AngleNormalize180(pathPosAngles - v3) * transitionTimeFrac + v3;
-            v2 = veh->phys.angles[1];
-            veh->phys.angles[1] = AngleNormalize180(pathPosAngles_4 - v2) * transitionTimeFrac + v2;
-            v1 = veh->phys.angles[2];
-            veh->phys.angles[2] = AngleNormalize180(pathPosAngles_8 - v1) * transitionTimeFrac + v1;
+            pitchAngle = veh->phys.angles[0];
+            veh->phys.angles[0] = AngleNormalize180(pathPosAngles - pitchAngle) * transitionTimeFrac + pitchAngle;
+            yawAngle = veh->phys.angles[1];
+            veh->phys.angles[1] = AngleNormalize180(pathPosAngles_4 - yawAngle) * transitionTimeFrac + yawAngle;
+            rollAngle = veh->phys.angles[2];
+            veh->phys.angles[2] = AngleNormalize180(pathPosAngles_8 - rollAngle) * transitionTimeFrac + rollAngle;
         }
     }
     if ( veh->pathPos.endOfPath && (veh->flags & 0x100) != 0 )
@@ -8364,6 +8171,7 @@ void __cdecl VEH_UpdateChopperPathDrive(gentity_s *ent)
     }
 }
 
+// Decomp: CoDOMPServer.c:436836  Scr_Vehicle_Pain
 void __cdecl Scr_Vehicle_Pain(
                 gentity_s *pSelf,
                 gentity_s *pAttacker,
@@ -8374,7 +8182,7 @@ void __cdecl Scr_Vehicle_Pain(
                 hitLocation_t hitLoc,
                 int weaponIdx)
 {
-    const WeaponDef *weapDef; // [esp+Ch] [ebp-4h]
+    const WeaponDef *weapDef;
 
     weapDef = BG_GetWeaponDef(weaponIdx);
     if ( weapDef->weapType == WEAPTYPE_PROJECTILE
@@ -8390,19 +8198,20 @@ void __cdecl Scr_Vehicle_Pain(
     }
 }
 
+// Decomp: CoDMPServer.c:436857 (0x0067C760)  Scr_Vehicle_Touch
 void __cdecl Scr_Vehicle_Touch(gentity_s *pSelf, gentity_s *pOther, int __formal)
 {
-    gentity_s *v2; // [esp+0h] [ebp-68h]
-    int damage; // [esp+2Ch] [ebp-3Ch]
-    float moveLen; // [esp+34h] [ebp-34h]
-    const vehicle_info_t *info; // [esp+3Ch] [ebp-2Ch]
-    float hitDir[2]; // [esp+40h] [ebp-28h] BYREF
-    scr_vehicle_s *veh; // [esp+48h] [ebp-20h]
-    gentity_s *driver; // [esp+4Ch] [ebp-1Ch]
-    float damageScale; // [esp+50h] [ebp-18h]
-    float speed; // [esp+54h] [ebp-14h]
-    float dot; // [esp+58h] [ebp-10h]
-    float moveDir[3]; // [esp+5Ch] [ebp-Ch] BYREF
+    gentity_s *touchMod;
+    int damage;
+    float moveLen;
+    const vehicle_info_t *info;
+    float hitDir[2];
+    scr_vehicle_s *veh;
+    gentity_s *driver;
+    float damageScale;
+    float speed;
+    float dot;
+    float moveDir[3];
 
     if ( !pSelf && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 9248, 0, "%s", "pSelf") )
         __debugbreak();
@@ -8430,26 +8239,31 @@ void __cdecl Scr_Vehicle_Touch(gentity_s *pSelf, gentity_s *pOther, int __formal
         && pOther->s.groundEntityNum != pSelf->s.number
         && !info->remoteControl )
     {
+        bool applyCollisionDamage;
         driver = VEH_GetSeatOccupantEntity(veh, 0);
         if ( !driver || !pOther->client )
-            goto LABEL_28;
-        if ( !driver->client
-            && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp",
-                        9282,
-                        0,
-                        "%s",
-                        "driver->client") )
+            applyCollisionDamage = true;
+        else
         {
-            __debugbreak();
+            if ( !driver->client
+                && !Assert_MyHandler(
+                            "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp",
+                            9282,
+                            0,
+                            "%s",
+                            "driver->client") )
+            {
+                __debugbreak();
+            }
+            applyCollisionDamage = driver->client->sess.cs.team != pOther->client->sess.cs.team
+                || driver->client->sess.cs.team == TEAM_FREE;
         }
-        if ( driver->client->sess.cs.team != pOther->client->sess.cs.team || driver->client->sess.cs.team == TEAM_FREE )
+        if ( applyCollisionDamage )
         {
-LABEL_28:
             if ( driver )
-                v2 = driver;
+                touchMod = driver;
             else
-                v2 = pSelf;
+                touchMod = pSelf;
             if ( info->collisionDamage > 0.0 )
             {
                 moveLen = Vec3NormalizeTo(veh->phys.vel, moveDir);
@@ -8463,7 +8277,7 @@ LABEL_28:
                         G_Damage(
                             pOther,
                             pSelf,
-                            v2,
+                            touchMod,
                             moveDir,
                             pOther->r.currentOrigin,
                             999999,
@@ -8510,7 +8324,7 @@ LABEL_28:
                                     G_Damage(
                                         pOther,
                                         pSelf,
-                                        v2,
+                                        touchMod,
                                         moveDir,
                                         pOther->r.currentOrigin,
                                         damage,
@@ -8530,11 +8344,12 @@ LABEL_28:
     }
 }
 
+// Decomp: CoDMPServer.c:437011 (0x0067CC30)  G_GetVehicleTypeString
 unsigned __int16 __cdecl G_GetVehicleTypeString(int clientNum, int entityNum)
 {
-    const vehicle_info_t *info; // [esp+0h] [ebp-10h]
-    scr_vehicle_s *veh; // [esp+4h] [ebp-Ch]
-    unsigned __int16 string; // [esp+8h] [ebp-8h]
+    const vehicle_info_t *info;
+    scr_vehicle_s *veh;
+    unsigned __int16 string;
 
     veh = g_entities[entityNum].scr_vehicle;
     if ( !veh )
@@ -8546,11 +8361,12 @@ unsigned __int16 __cdecl G_GetVehicleTypeString(int clientNum, int entityNum)
     return string;
 }
 
+// Decomp: CoDMPServer.c:437028 (0x0067CCC0)  Scr_Vehicle_Use
 void __cdecl Scr_Vehicle_Use(gentity_s *pEnt, gentity_s *pOther, gentity_s *__formal)
 {
-    team_t vehicle_team; // [esp+0h] [ebp-Ch]
-    int entryPoint; // [esp+4h] [ebp-8h] BYREF
-    int seatIndex; // [esp+8h] [ebp-4h]
+    team_t vehicle_team;
+    int entryPoint;
+    int seatIndex;
 
     if ( pOther->client )
     {
@@ -8572,6 +8388,7 @@ void __cdecl Scr_Vehicle_Use(gentity_s *pEnt, gentity_s *pOther, gentity_s *__fo
     }
 }
 
+// Decomp: CoDOMPServer.c:436983  Scr_Vehicle_Die
 void __cdecl Scr_Vehicle_Die(
     gentity_s *pSelf,
     gentity_s *pInflictor,
@@ -8583,14 +8400,14 @@ void __cdecl Scr_Vehicle_Die(
     const hitLocation_t hitLoc,
     int timeOffset)
 {
-    gentity_s *v9; // eax
-    int v10; // eax
-    char *v11; // eax
-    unsigned __int16 speedFrac; // [esp+4h] [ebp-20h]
-    gentity_s *occupant; // [esp+14h] [ebp-10h]
-    int seatIndex; // [esp+18h] [ebp-Ch]
-    gentity_s *vehicleOccupant; // [esp+1Ch] [ebp-8h]
-    const WeaponDef *weapDef; // [esp+20h] [ebp-4h]
+    gentity_s *notifyEnt;
+    int driverEntNum;
+    char *weaponNameStr;
+    unsigned __int16 speedFrac;
+    gentity_s *occupant;
+    int seatIndex;
+    gentity_s *vehicleOccupant;
+    const WeaponDef *weapDef;
 
     vehicleOccupant = 0;
     //if ( EntHandle::isDefined(&pSelf->r.ownerNum) )
@@ -8601,11 +8418,11 @@ void __cdecl Scr_Vehicle_Die(
         Scr_AddBool(1u, SCRIPTINSTANCE_SERVER);
         speedFrac = scr_const.vehicle_death;
         //v9 = EntHandle::ent(&pSelf->r.ownerNum);
-        v9 = pSelf->r.ownerNum.ent();
-        Scr_Notify(v9, speedFrac, 1u);
+        notifyEnt = pSelf->r.ownerNum.ent();
+        Scr_Notify(notifyEnt, speedFrac, 1u);
         //v10 = EntHandle::entnum(&pSelf->r.ownerNum);
-        v10 = pSelf->r.ownerNum.entnum();
-        VEH_UnlinkPlayer(&g_entities[v10], 0, (char*)"Scr_Vehicle_Die A");
+        driverEntNum = pSelf->r.ownerNum.entnum();
+        VEH_UnlinkPlayer(&g_entities[driverEntNum], 0, (char*)"Scr_Vehicle_Die A");
         if ( vehicleOccupant->health > 0 )
         {
             if ( damage > 100000 )
@@ -8661,8 +8478,8 @@ void __cdecl Scr_Vehicle_Die(
         }
         else
         {
-            v11 = (char *)BG_WeaponName(weapon);
-            Scr_AddString(v11, SCRIPTINSTANCE_SERVER);
+            weaponNameStr = (char *)BG_WeaponName(weapon);
+            Scr_AddString(weaponNameStr, SCRIPTINSTANCE_SERVER);
         }
         Scr_Notify(pAttacker, scr_const.destroyed_vehicle, 2u);
     }
@@ -8674,9 +8491,10 @@ void __cdecl Scr_Vehicle_Die(
     pSelf->flags |= 0x40000u;
 }
 
+// Decomp: CoDMPServer.c:437138 (0x0067D0A0)  SP_script_vehicle
 void __cdecl SP_script_vehicle(gentity_s *pSelf, SpawnVar *spawnVar)
 {
-    const char *typeName; // [esp+0h] [ebp-4h] BYREF
+    const char *typeName;
 
     if ( spawnVar )
     {
@@ -8685,33 +8503,36 @@ void __cdecl SP_script_vehicle(gentity_s *pSelf, SpawnVar *spawnVar)
     }
 }
 
+// Decomp: CoDMPServer.c:437151 (0x0067D0E0)  SP_script_vehicle_collmap
 void __cdecl SP_script_vehicle_collmap(gentity_s *pSelf, SpawnVar *v)
 {
     pSelf->r.contents = 0;
     pSelf->s.eType = ET_VEHICLE_COLLMAP;
 }
 
+// Decomp: CoDMPServer.c:437158 (0x0067D110)  ScriptVehicle_GetMethod
 void (__cdecl *__cdecl ScriptVehicle_GetMethod(const char **pName))(scr_entref_t)
 {
-    unsigned int i; // [esp+18h] [ebp-4h]
+    unsigned int methodIndex;
 
-    for ( i = 0; i < ARRAY_COUNT(s_methods_0); ++i )
+    for ( methodIndex = 0; methodIndex < ARRAY_COUNT(s_methods_0); ++methodIndex )
     {
-        if ( !strcmp(*pName, s_methods_0[i].actionString) )
+        if ( !strcmp(*pName, s_methods_0[methodIndex].actionString) )
         {
-            *pName = s_methods_0[i].actionString;
-            return s_methods_0[i].actionFunc;
+            *pName = s_methods_0[methodIndex].actionString;
+            return s_methods_0[methodIndex].actionFunc;
         }
     }
     return 0;
 }
 
+// Decomp: CoDOMPServer.c:437180  CMD_VEH_AttachPath
 void __cdecl CMD_VEH_AttachPath(scr_entref_t entref)
 {
-    const vehicle_info_t *info; // [esp+28h] [ebp-10h]
-    unsigned __int16 nodeIdx; // [esp+2Ch] [ebp-Ch]
-    scr_vehicle_s *veh; // [esp+30h] [ebp-8h]
-    gentity_s *ent; // [esp+34h] [ebp-4h]
+    const vehicle_info_t *info;
+    unsigned __int16 nodeIdx;
+    scr_vehicle_s *veh;
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     veh = ent->scr_vehicle;
@@ -8744,11 +8565,12 @@ void __cdecl CMD_VEH_AttachPath(scr_entref_t entref)
     veh->phys.prevAngles[2] = veh->phys.angles[2];
 }
 
+// Decomp: CoDMPServer.c:437228 (0x0067D3F0)  VEH_ResetWheels
 void __cdecl VEH_ResetWheels(gentity_s *ent, vehicle_physic_t *phys)
 {
-    scr_vehicle_s *veh; // [esp+0h] [ebp-14h]
-    int wheelIndex; // [esp+4h] [ebp-10h]
-    float wheelPos[3]; // [esp+8h] [ebp-Ch] BYREF
+    scr_vehicle_s *veh;
+    int wheelIndex;
+    float wheelPos[3];
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 1004, 0, "%s", "ent") )
         __debugbreak();
@@ -8775,9 +8597,10 @@ void __cdecl VEH_ResetWheels(gentity_s *ent, vehicle_physic_t *phys)
     }
 }
 
+// Decomp: CoDOMPServer.c:437260  CMD_VEH_GetModel
 void __cdecl CMD_VEH_GetModel(scr_entref_t entref)
 {
-    gentity_s *ent; // [esp+4h] [ebp-4h]
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     if ( ent && ent->scr_vehicle && ent->scr_vehicle->nitrousVehicle && ent->scr_vehicle->nitrousVehicle->m_xmodel )
@@ -8786,14 +8609,15 @@ void __cdecl CMD_VEH_GetModel(scr_entref_t entref)
         Scr_Error("Incorrect usage of GetModelName()", 0);
 }
 
+// Decomp: CoDOMPServer.c:437290  CMD_VEH_GetAttachPos
 void __cdecl CMD_VEH_GetAttachPos(scr_entref_t entref)
 {
-    const vehicle_info_t *info; // [esp+0h] [ebp-21Ch]
-    vehicle_physic_t phys; // [esp+4h] [ebp-218h] BYREF
-    __int16 nodeIdx; // [esp+12Ch] [ebp-F0h]
-    const scr_vehicle_s *veh; // [esp+130h] [ebp-ECh]
-    vehicle_pathpos_t pathPos; // [esp+134h] [ebp-E8h] BYREF
-    gentity_s *ent; // [esp+218h] [ebp-4h]
+    const vehicle_info_t *info;
+    vehicle_physic_t phys;
+    __int16 nodeIdx;
+    const scr_vehicle_s *veh;
+    vehicle_pathpos_t pathPos;
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     veh = ent->scr_vehicle;
@@ -8817,10 +8641,11 @@ void __cdecl CMD_VEH_GetAttachPos(scr_entref_t entref)
     Scr_AddArray(SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:437320  CMD_VEH_StartPath
 void __cdecl CMD_VEH_StartPath(scr_entref_t entref)
 {
-    const vehicle_info_t *info; // [esp+0h] [ebp-Ch]
-    scr_vehicle_s *veh; // [esp+4h] [ebp-8h]
+    const vehicle_info_t *info;
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     info = BG_GetVehicleInfo(veh->infoIdx);
@@ -8838,11 +8663,12 @@ void __cdecl CMD_VEH_StartPath(scr_entref_t entref)
         veh->pathTransitionTime = vehHelicopterPathTransitionTime->current.value;
 }
 
+// Decomp: CoDOMPServer.c:437350  CMD_VEH_DrivePath
 void __cdecl CMD_VEH_DrivePath(scr_entref_t entref)
 {
-    const vehicle_info_t *info; // [esp+0h] [ebp-10h]
-    unsigned __int16 nodeIdx; // [esp+4h] [ebp-Ch]
-    scr_vehicle_s *veh; // [esp+8h] [ebp-8h]
+    const vehicle_info_t *info;
+    unsigned __int16 nodeIdx;
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     info = BG_GetVehicleInfo(veh->infoIdx);
@@ -8866,11 +8692,12 @@ void __cdecl CMD_VEH_DrivePath(scr_entref_t entref)
     veh->flags |= 0x180u;
 }
 
+// Decomp: CoDOMPServer.c:437380  CMD_VEH_SetDrivePathPhysicsScale
 void __cdecl CMD_VEH_SetDrivePathPhysicsScale(scr_entref_t entref)
 {
-    const vehicle_info_t *info; // [esp+0h] [ebp-10h]
-    scr_vehicle_s *veh; // [esp+4h] [ebp-Ch]
-    float scale; // [esp+Ch] [ebp-4h]
+    const vehicle_info_t *info;
+    scr_vehicle_s *veh;
+    float scale;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     info = BG_GetVehicleInfo(veh->infoIdx);
@@ -8885,11 +8712,12 @@ void __cdecl CMD_VEH_SetDrivePathPhysicsScale(scr_entref_t entref)
         veh->nitrousVehicle->m_drivepath_scale = scale;
 }
 
+// Decomp: CoDOMPServer.c:437410  CMD_VEH_SetSwitchNode
 void __cdecl CMD_VEH_SetSwitchNode(scr_entref_t entref)
 {
-    unsigned __int16 srcNode; // [esp+0h] [ebp-10h]
-    unsigned __int16 dstNode; // [esp+4h] [ebp-Ch]
-    scr_vehicle_s *veh; // [esp+8h] [ebp-8h]
+    unsigned __int16 srcNode;
+    unsigned __int16 dstNode;
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     srcNode = GScr_GetVehicleNodeIndex(0);
@@ -8897,17 +8725,19 @@ void __cdecl CMD_VEH_SetSwitchNode(scr_entref_t entref)
     G_VehSetSwitchNode(&veh->pathPos, srcNode, dstNode);
 }
 
+// Decomp: CoDOMPServer.c:437430  CMD_VEH_SetWaitNode
 void __cdecl CMD_VEH_SetWaitNode(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+0h] [ebp-8h]
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     veh->waitNode = GScr_GetVehicleNodeIndex(0);
 }
 
+// Decomp: CoDOMPServer.c:437450  CMD_VEH_SetWaitSpeed
 void __cdecl CMD_VEH_SetWaitSpeed(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+0h] [ebp-8h]
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     veh->waitSpeed = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER) * 17.6;
@@ -8915,18 +8745,20 @@ void __cdecl CMD_VEH_SetWaitSpeed(scr_entref_t entref)
         Scr_ParamError(0, "Cannot have a negative wait speed on a vehicle", SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:437470  CMD_VEH_SetSpeed
 void __cdecl CMD_VEH_SetSpeed(scr_entref_t entref)
 {
-    gentity_s *ent; // [esp+8h] [ebp-4h]
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     CMD_VEH_Script_SetSpeed(ent);
 }
 
+// Decomp: CoDOMPServer.c:437490  CMD_VEH_Script_SetSpeed
 void __cdecl CMD_VEH_Script_SetSpeed(gentity_s *ent)
 {
-    const vehicle_info_t *info; // [esp+8h] [ebp-8h]
-    scr_vehicle_s *veh; // [esp+Ch] [ebp-4h]
+    const vehicle_info_t *info;
+    scr_vehicle_s *veh;
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 9887, 0, "%s", "ent") )
         __debugbreak();
@@ -8964,21 +8796,22 @@ void __cdecl CMD_VEH_Script_SetSpeed(gentity_s *ent)
     }
 }
 
+// Decomp: CoDOMPServer.c:437520  CMD_VEH_SetSpeedImmediate
 void __cdecl CMD_VEH_SetSpeedImmediate(scr_entref_t entref)
 {
-    int v2; // [esp+4h] [ebp-38h]
-    float speed; // [esp+Ch] [ebp-30h]
-    scr_vehicle_s *veh; // [esp+28h] [ebp-14h]
-    float vecToGoal[3]; // [esp+2Ch] [ebp-10h] BYREF
-    gentity_s *ent; // [esp+38h] [ebp-4h]
+    int hasGoalPosition;
+    float speed;
+    scr_vehicle_s *veh;
+    float vecToGoal[3];
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     veh = ent->scr_vehicle;
     CMD_VEH_Script_SetSpeed(ent);
     memset(vecToGoal, 0, sizeof(vecToGoal));
     if ( veh->speed > 0.0
-        || (veh->goalPosition[0] != 0.0 || veh->goalPosition[1] != 0.0 || veh->goalPosition[2] != 0.0 ? (v2 = 0) : (v2 = 1),
-                !v2) )
+        || (veh->goalPosition[0] != 0.0 || veh->goalPosition[1] != 0.0 || veh->goalPosition[2] != 0.0 ? (hasGoalPosition = 0) : (hasGoalPosition = 1),
+                !hasGoalPosition) )
     {
         vecToGoal[0] = veh->goalPosition[0] - ent->r.currentOrigin[0];
         vecToGoal[1] = veh->goalPosition[1] - ent->r.currentOrigin[1];
@@ -8995,34 +8828,38 @@ void __cdecl CMD_VEH_SetSpeedImmediate(scr_entref_t entref)
     veh->phys.vel[2] = speed * vecToGoal[2];
 }
 
+// Decomp: CoDOMPServer.c:437550  CMD_VEH_GetSpeed
 void __cdecl CMD_VEH_GetSpeed(scr_entref_t entref)
 {
-    scr_vehicle_s *value; // [esp+0h] [ebp-10h]
+    scr_vehicle_s *value;
 
     value = GScr_GetVehicle(entref)->scr_vehicle;
     Scr_AddFloat(value->speed, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:437570  CMD_VEH_GetSpeedMPH
 void __cdecl CMD_VEH_GetSpeedMPH(scr_entref_t entref)
 {
-    gentity_s *ent; // [esp+Ch] [ebp-4h]
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     Scr_AddFloat(ent->scr_vehicle->speed / 17.6, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:437590  CMD_VEH_GetGoalSpeedMPH
 void __cdecl CMD_VEH_GetGoalSpeedMPH(scr_entref_t entref)
 {
-    gentity_s *ent; // [esp+Ch] [ebp-4h]
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     Scr_AddFloat(ent->scr_vehicle->manualSpeed / 17.6, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:437610  CMD_VEH_SetBrake
 void __cdecl CMD_VEH_SetBrake(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+4h] [ebp-Ch]
-    float brake; // [esp+8h] [ebp-8h]
+    scr_vehicle_s *veh;
+    float brake;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     brake = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
@@ -9032,10 +8869,11 @@ void __cdecl CMD_VEH_SetBrake(scr_entref_t entref)
         Scr_Error("SetBrake can only be called on nitrous physics vehicles", 0);
 }
 
+// Decomp: CoDOMPServer.c:437630  CMD_VEH_SetAcceleration
 void __cdecl CMD_VEH_SetAcceleration(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+0h] [ebp-8h]
-    gentity_s *ent; // [esp+4h] [ebp-4h]
+    scr_vehicle_s *veh;
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 10103, 0, "%s", "ent") )
@@ -9046,10 +8884,11 @@ void __cdecl CMD_VEH_SetAcceleration(scr_entref_t entref)
     veh->manualAccel = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER) * 17.6;
 }
 
+// Decomp: CoDOMPServer.c:437650  CMD_VEH_SetDeceleration
 void __cdecl CMD_VEH_SetDeceleration(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+0h] [ebp-8h]
-    gentity_s *ent; // [esp+4h] [ebp-4h]
+    scr_vehicle_s *veh;
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 10126, 0, "%s", "ent") )
@@ -9060,10 +8899,11 @@ void __cdecl CMD_VEH_SetDeceleration(scr_entref_t entref)
     veh->manualDecel = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER) * 17.6;
 }
 
+// Decomp: CoDOMPServer.c:437670  CMD_VEH_ResumeSpeed
 void __cdecl CMD_VEH_ResumeSpeed(scr_entref_t entref)
 {
-    float goalSpeed; // [esp+8h] [ebp-Ch]
-    scr_vehicle_s *veh; // [esp+Ch] [ebp-8h]
+    float goalSpeed;
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     veh->manualMode = 2;
@@ -9079,9 +8919,10 @@ void __cdecl CMD_VEH_ResumeSpeed(scr_entref_t entref)
         Scr_ParamError(0, "Cannot set negative acceleration on vehicle", SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:437700  CMD_VEH_SetYawSpeed
 void __cdecl CMD_VEH_SetYawSpeed(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+0h] [ebp-8h]
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     veh->phys.maxAngleVel[1] = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
@@ -9102,10 +8943,11 @@ void __cdecl CMD_VEH_SetYawSpeed(scr_entref_t entref)
         Scr_ParamError(1u, "Cannot set negative yaw acceleration on vehicle", SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:437730  CMD_VEH_SetMaxPitchRoll
 void __cdecl CMD_VEH_SetMaxPitchRoll(scr_entref_t entref)
 {
-    const vehicle_info_t *info; // [esp+0h] [ebp-Ch]
-    scr_vehicle_s *veh; // [esp+4h] [ebp-8h]
+    const vehicle_info_t *info;
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     info = BG_GetVehicleInfo(veh->infoIdx);
@@ -9119,62 +8961,68 @@ void __cdecl CMD_VEH_SetMaxPitchRoll(scr_entref_t entref)
         Scr_ParamError(1u, "Cannot set negative max roll", SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:437760  CMD_VEH_SetAirResitance
 void __cdecl CMD_VEH_SetAirResitance(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+0h] [ebp-8h]
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     veh->maxDragSpeed = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER) * 17.6;
 }
 
+// Decomp: CoDOMPServer.c:437780  CMD_VEH_GetSteerFactor
 void __cdecl CMD_VEH_GetSteerFactor(scr_entref_t entref)
 {
-    float value; // [esp+8h] [ebp-Ch]
+    float value;
 
     value = GScr_GetVehicle(entref)->scr_vehicle->nitrousVehicle->m_steer_factor;
     Scr_AddFloat(value, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:437800  CMD_VEH_GetThrottle
 void __cdecl CMD_VEH_GetThrottle(scr_entref_t entref)
 {
-    float value; // [esp+8h] [ebp-Ch]
+    float value;
 
     value = GScr_GetVehicle(entref)->scr_vehicle->nitrousVehicle->m_throttle;
     Scr_AddFloat(value, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:437820  CMD_VEH_SetTurningAbility
 void __cdecl CMD_VEH_SetTurningAbility(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+Ch] [ebp-8h]
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     veh->turningAbility = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:437840  CMD_VEH_SetJitterParams
 void __cdecl CMD_VEH_SetJitterParams(scr_entref_t entref)
 {
-    float v1; // [esp+0h] [ebp-1Ch]
-    float Float; // [esp+4h] [ebp-18h]
-    scr_vehicle_s *veh; // [esp+8h] [ebp-14h]
+    float jitterPeriodMaxSec;
+    float jitterPeriodMinSec;
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     Scr_GetVector(0, veh->jitter.jitterOffsetRange, SCRIPTINSTANCE_SERVER);
     if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) <= 1 )
-        Float = 0.5f;
+        jitterPeriodMinSec = 0.5f;
     else
-        Float = Scr_GetFloat(1u, SCRIPTINSTANCE_SERVER);
-    veh->jitter.jitterPeriodMin = (int)(float)(Float * 1000.0);
+        jitterPeriodMinSec = Scr_GetFloat(1u, SCRIPTINSTANCE_SERVER);
+    veh->jitter.jitterPeriodMin = (int)(float)(jitterPeriodMinSec * 1000.0);
     if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) <= 2 )
-        v1 = 1.0f;
+        jitterPeriodMaxSec = 1.0f;
     else
-        v1 = Scr_GetFloat(2u, SCRIPTINSTANCE_SERVER);
-    veh->jitter.jitterPeriodMax = (int)(float)(v1 * 1000.0);
+        jitterPeriodMaxSec = Scr_GetFloat(2u, SCRIPTINSTANCE_SERVER);
+    veh->jitter.jitterPeriodMax = (int)(float)(jitterPeriodMaxSec * 1000.0);
     veh->jitter.jitterEndTime = 0;
 }
 
+// Decomp: CoDOMPServer.c:437870  CMD_VEH_SetHoverParams
 void __cdecl CMD_VEH_SetHoverParams(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+0h] [ebp-8h]
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     veh->hover.hoverRadius = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
@@ -9186,15 +9034,16 @@ void __cdecl CMD_VEH_SetHoverParams(scr_entref_t entref)
     }
 }
 
+// Decomp: CoDOMPServer.c:437900  CMD_VEH_JoltBody
 void __cdecl CMD_VEH_JoltBody(scr_entref_t entref)
 {
-    float joltDir[3]; // [esp+1Ch] [ebp-2Ch] BYREF
-    float intensity; // [esp+28h] [ebp-20h]
-    int numParams; // [esp+2Ch] [ebp-1Ch]
-    float speedFrac; // [esp+30h] [ebp-18h]
-    float decel; // [esp+34h] [ebp-14h]
-    gentity_s *ent; // [esp+38h] [ebp-10h]
-    float joltPos[3]; // [esp+3Ch] [ebp-Ch] BYREF
+    float joltDir[3];
+    float intensity;
+    int numParams;
+    float speedFrac;
+    float decel;
+    gentity_s *ent;
+    float joltPos[3];
 
     ent = GScr_GetVehicle(entref);
     numParams = Scr_GetNumParam(SCRIPTINSTANCE_SERVER);
@@ -9221,18 +9070,19 @@ void __cdecl CMD_VEH_JoltBody(scr_entref_t entref)
     VEH_JoltBody(ent, joltDir, intensity, speedFrac, decel);
 }
 
+// Decomp: CoDOMPServer.c:437930  CMD_VEH_FreeVehicle
 void __cdecl CMD_VEH_FreeVehicle(scr_entref_t entref)
 {
-    const char *v1; // eax
-    scr_vehicle_s *veh; // [esp+0h] [ebp-8h]
-    gentity_s *ent; // [esp+4h] [ebp-4h]
+    const char *freeErrorMsg;
+    scr_vehicle_s *veh;
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     veh = ent->scr_vehicle;
     if ( (veh->flags & 1) != 0 )
     {
-        v1 = va("Can't free vehicle that a player is using");
-        Scr_Error(v1, 0);
+        freeErrorMsg = va("Can't free vehicle that a player is using");
+        Scr_Error(freeErrorMsg, 0);
     }
     if ( !veh->nitrousVehicle )
     {
@@ -9244,14 +9094,15 @@ void __cdecl CMD_VEH_FreeVehicle(scr_entref_t entref)
     Scr_Notify(ent, scr_const.death, 0);
 }
 
+// Decomp: CoDOMPServer.c:437960  CMD_VEH_GetWheelSurface
 void __cdecl CMD_VEH_GetWheelSurface(scr_entref_t entref)
 {
-    const char *v1; // eax
-    char *v2; // eax
-    const vehicle_info_t *info; // [esp+0h] [ebp-14h]
-    scr_vehicle_s *veh; // [esp+4h] [ebp-10h]
-    unsigned int wheelName; // [esp+8h] [ebp-Ch]
-    int wheel; // [esp+10h] [ebp-4h]
+    const char *noWheelsErrorMsg;
+    char *surfaceName;
+    const vehicle_info_t *info;
+    scr_vehicle_s *veh;
+    unsigned int wheelName;
+    int wheel;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     info = BG_GetVehicleInfo(veh->infoIdx);
@@ -9259,8 +9110,8 @@ void __cdecl CMD_VEH_GetWheelSurface(scr_entref_t entref)
     wheel = 0;
     if ( info->type != 2 && info->type && info->type != 1 )
     {
-        v1 = va("Vehicle type [%s] has no wheels\n", info->name);
-        Scr_Error(v1, 0);
+        noWheelsErrorMsg = va("Vehicle type [%s] has no wheels\n", info->name);
+        Scr_Error(noWheelsErrorMsg, 0);
     }
     if ( wheelName == scr_const.front_left )
     {
@@ -9297,8 +9148,8 @@ void __cdecl CMD_VEH_GetWheelSurface(scr_entref_t entref)
         Scr_ParamError(0, "Vehicle has no middle wheels\n", SCRIPTINSTANCE_SERVER);
     if ( veh->phys.wheelSurfType[wheel] )
     {
-        v2 = (char *)Com_SurfaceTypeToName(veh->phys.wheelSurfType[wheel]);
-        Scr_AddString(v2, SCRIPTINSTANCE_SERVER);
+        surfaceName = (char *)Com_SurfaceTypeToName(veh->phys.wheelSurfType[wheel]);
+        Scr_AddString(surfaceName, SCRIPTINSTANCE_SERVER);
     }
     else
     {
@@ -9306,22 +9157,22 @@ void __cdecl CMD_VEH_GetWheelSurface(scr_entref_t entref)
     }
 }
 
+// Decomp: CoDOMPServer.c:438000  CMD_VEH_GetVehicleOwner
 void __cdecl CMD_VEH_GetVehicleOwner(scr_entref_t entref)
 {
-    gentity_s *v1; // eax
-    gentity_s *ent; // [esp+8h] [ebp-4h]
+    gentity_s *owner;
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
 
-    //if ( EntHandle::isDefined(&ent->r.ownerNum) )
     if ( ent->r.ownerNum.isDefined() )
     {
-        //v1 = EntHandle::ent(&ent->r.ownerNum);
-        v1 = ent->r.ownerNum.ent();
-        Scr_AddEntity(v1, SCRIPTINSTANCE_SERVER);
+        owner = ent->r.ownerNum.ent();
+        Scr_AddEntity(owner, SCRIPTINSTANCE_SERVER);
     }
 }
 
+// Decomp: CoDOMPServer.c:438020  CMD_VEH_IsVehicleUsable
 void __cdecl CMD_VEH_IsVehicleUsable(scr_entref_t entref)
 {
     if ( (GScr_GetVehicle(entref)->spawnflags & 1) != 0 )
@@ -9330,17 +9181,19 @@ void __cdecl CMD_VEH_IsVehicleUsable(scr_entref_t entref)
         Scr_AddInt(0, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:438040  CMD_VEH_MakeVehicleUsable
 void __cdecl CMD_VEH_MakeVehicleUsable(scr_entref_t entref)
 {
-    gentity_s *ent; // [esp+8h] [ebp-4h]
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     G_MakeVehicleUsable(ent);
 }
 
+// Decomp: CoDOMPServer.c:438060  CMD_VEH_MakeVehicleUnusable
 void __cdecl CMD_VEH_MakeVehicleUnusable(scr_entref_t entref)
 {
-    gentity_s *ent; // [esp+8h] [ebp-4h]
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     G_MakeVehicleUsable(ent);
@@ -9348,11 +9201,12 @@ void __cdecl CMD_VEH_MakeVehicleUnusable(scr_entref_t entref)
     ent->r.contents &= ~0x200000u;
 }
 
+// Decomp: CoDOMPServer.c:438080  CMD_VEH_UseVehicle
 void __cdecl CMD_VEH_UseVehicle(scr_entref_t entref)
 {
-    gentity_s *user; // [esp+0h] [ebp-Ch]
-    gentity_s *ent; // [esp+4h] [ebp-8h]
-    int seatIndex; // [esp+8h] [ebp-4h]
+    gentity_s *user;
+    gentity_s *ent;
+    int seatIndex;
 
     ent = GScr_GetVehicle(entref);
     if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) != 2
@@ -9375,108 +9229,110 @@ void __cdecl CMD_VEH_UseVehicle(scr_entref_t entref)
     }
 }
 
+// Decomp: CoDOMPServer.c:438100  CMD_VEH_SetViewClamp
 void __cdecl CMD_VEH_SetViewClamp(scr_entref_t entref)
 {
-    const char *v0; // eax
-    float v1; // [esp+0h] [ebp-38h]
-    float v2; // [esp+4h] [ebp-34h]
-    float v3; // [esp+8h] [ebp-30h]
-    float v4; // [esp+Ch] [ebp-2Ch]
-    float v5; // [esp+10h] [ebp-28h]
-    float v6; // [esp+14h] [ebp-24h]
-    float v7; // [esp+18h] [ebp-20h]
-    float v8; // [esp+1Ch] [ebp-1Ch]
-    float v9; // [esp+20h] [ebp-18h]
-    float v10; // [esp+24h] [ebp-14h]
-    float Float; // [esp+28h] [ebp-10h]
-    float v12; // [esp+2Ch] [ebp-Ch]
-    int numParam; // [esp+30h] [ebp-8h]
-    gentity_s *user; // [esp+34h] [ebp-4h]
+    const char *viewClampErrorMsg;
+    float negLeftClamp;
+    float rightArcParam;
+    float rightArcClamp;
+    float negRightClamp;
+    float topArcParam;
+    float topArcClamp;
+    float negTopArc;
+    float bottomArcParam;
+    float bottomArcClamp;
+    float negBottomArc;
+    float leftArcParam;
+    float leftArcClamp;
+    int numParam;
+    gentity_s *user;
 
     numParam = Scr_GetNumParam(SCRIPTINSTANCE_SERVER);
     if ( numParam < 3 || numParam > 5 )
     {
-        v0 = va(
+        viewClampErrorMsg = va(
                      "SetViewClamp:    Does not have manditory parameters SetViewClamp( <user entity>, <right arc>, <left arc>, [<top"
                      " arc>], [<bottom arc>] )\n");
-        Scr_Error(v0, 0);
+        Scr_Error(viewClampErrorMsg, 0);
     }
     user = Scr_GetEntity(0);
     if ( user->client )
     {
         if ( numParam <= 1 )
-            Float = user->client->linkAnglesMinClamp[1];
+            leftArcParam = user->client->linkAnglesMinClamp[1];
         else
-            Float = Scr_GetFloat(1u, SCRIPTINSTANCE_SERVER);
-        if ( (float)(Float - 180.0) < 0.0 )
-            v12 = Float;
+            leftArcParam = Scr_GetFloat(1u, SCRIPTINSTANCE_SERVER);
+        if ( (float)(leftArcParam - 180.0) < 0.0 )
+            leftArcClamp = leftArcParam;
         else
-            v12 = 180.0f;
-        if ( (float)(0.0 - Float) < 0.0 )
-            v4 = v12;
+            leftArcClamp = 180.0f;
+        if ( (float)(0.0 - leftArcParam) < 0.0 )
+            negLeftClamp = leftArcClamp;
         else
-            v4 = 0.0f;
-        user->client->linkAnglesMinClamp[1] = -v4;
+            negLeftClamp = 0.0f;
+        user->client->linkAnglesMinClamp[1] = -negLeftClamp;
         if ( numParam <= 2 )
-            v9 = user->client->linkAnglesMaxClamp[1];
+            rightArcParam = user->client->linkAnglesMaxClamp[1];
         else
-            v9 = Scr_GetFloat(2u, SCRIPTINSTANCE_SERVER);
-        if ( (float)(v9 - 180.0) < 0.0 )
-            v10 = v9;
+            rightArcParam = Scr_GetFloat(2u, SCRIPTINSTANCE_SERVER);
+        if ( (float)(rightArcParam - 180.0) < 0.0 )
+            rightArcClamp = rightArcParam;
         else
-            v10 = 180.0f;
-        if ( (float)(0.0 - v9) < 0.0 )
-            v3 = v10;
+            rightArcClamp = 180.0f;
+        if ( (float)(0.0 - rightArcParam) < 0.0 )
+            negRightClamp = rightArcClamp;
         else
-            v3 = 0.0f;
-        user->client->linkAnglesMaxClamp[1] = v3;
+            negRightClamp = 0.0f;
+        user->client->linkAnglesMaxClamp[1] = negRightClamp;
         if ( numParam <= 3 )
-            v7 = user->client->linkAnglesMinClamp[0];
+            topArcParam = user->client->linkAnglesMinClamp[0];
         else
-            v7 = Scr_GetFloat(3u, SCRIPTINSTANCE_SERVER);
-        if ( (float)(v7 - 180.0) < 0.0 )
-            v8 = v7;
+            topArcParam = Scr_GetFloat(3u, SCRIPTINSTANCE_SERVER);
+        if ( (float)(topArcParam - 180.0) < 0.0 )
+            topArcClamp = topArcParam;
         else
-            v8 = 180.0f;
-        if ( (float)(0.0 - v7) < 0.0 )
-            v2 = v8;
+            topArcClamp = 180.0f;
+        if ( (float)(0.0 - topArcParam) < 0.0 )
+            negTopArc = topArcClamp;
         else
-            v2 = 0.0f;
-        user->client->linkAnglesMinClamp[0] = -v2;
+            negTopArc = 0.0f;
+        user->client->linkAnglesMinClamp[0] = -negTopArc;
         if ( numParam <= 4 )
-            v5 = user->client->linkAnglesMaxClamp[0];
+            bottomArcParam = user->client->linkAnglesMaxClamp[0];
         else
-            v5 = Scr_GetFloat(4u, SCRIPTINSTANCE_SERVER);
-        if ( (float)(v5 - 180.0) < 0.0 )
-            v6 = v5;
+            bottomArcParam = Scr_GetFloat(4u, SCRIPTINSTANCE_SERVER);
+        if ( (float)(bottomArcParam - 180.0) < 0.0 )
+            bottomArcClamp = bottomArcParam;
         else
-            v6 = 180.0f;
-        if ( (float)(0.0 - v5) < 0.0 )
-            v1 = v6;
+            bottomArcClamp = 180.0f;
+        if ( (float)(0.0 - bottomArcParam) < 0.0 )
+            negBottomArc = bottomArcClamp;
         else
-            v1 = 0.0f;
-        user->client->linkAnglesMaxClamp[0] = v1;
+            negBottomArc = 0.0f;
+        user->client->linkAnglesMaxClamp[0] = negBottomArc;
     }
 }
 
+// Decomp: CoDOMPServer.c:438140  CMD_VEH_ResetViewClamp
 void __cdecl CMD_VEH_ResetViewClamp(scr_entref_t entref)
 {
-    const char *v1; // eax
-    const vehicle_info_t *info; // [esp+0h] [ebp-14h]
-    scr_vehicle_s *veh; // [esp+4h] [ebp-10h]
-    gentity_s *user; // [esp+8h] [ebp-Ch]
-    gentity_s *ent; // [esp+Ch] [ebp-8h]
-    int seatIndex; // [esp+10h] [ebp-4h]
+    const char *resetViewClampErrorMsg;
+    const vehicle_info_t *info;
+    scr_vehicle_s *veh;
+    gentity_s *user;
+    gentity_s *ent;
+    int seatIndex;
 
     ent = GScr_GetVehicle(entref);
     veh = ent->scr_vehicle;
     info = BG_GetVehicleInfo(veh->infoIdx);
     if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) != 1 )
     {
-        v1 = va(
+        resetViewClampErrorMsg = va(
                      "SetViewClamp:    Does not have manditory parameters SetViewClamp( <user entity>, <right arc>, <left arc>, [<top"
                      " arc>], [<bottom arc>] )\n");
-        Scr_Error(v1, 0);
+        Scr_Error(resetViewClampErrorMsg, 0);
     }
     user = Scr_GetEntity(0);
     if ( user->client )
@@ -9488,11 +9344,107 @@ void __cdecl CMD_VEH_ResetViewClamp(scr_entref_t entref)
     }
 }
 
+// Decomp: CoDSP_rdBlackOps.map.c (CMD_VEH_AddVehicleToCompass @ 82645980)
+static unsigned __int8 CMD_VEH_ResolveCompassIconFaction(gentity_s *ent, const char *iconType)
+{
+    const vehicle_info_t *info;
+    scr_vehicle_s *veh;
+
+    veh = ent->scr_vehicle;
+    info = BG_GetVehicleInfo(veh->infoIdx);
+    if ( !I_stricmp(iconType, "helicopter") )
+        return 4;
+    if ( !I_stricmp(iconType, "plane") )
+        return 5;
+    if ( !I_stricmp(iconType, "automobile") )
+        return 6;
+    if ( !I_stricmp(iconType, "tank") || !*iconType )
+    {
+        if ( info->type == 2 )
+            return 2;
+        if ( info->type == 1 )
+            return 3;
+        return 1;
+    }
+    Scr_Error(va("Unrecognized vehicle type given, \"%s\".", iconType), 0);
+    return 1;
+}
+
+void __cdecl CMD_VEH_AddVehicleToCompass(scr_entref_t entref)
+{
+    gentity_s *ent;
+    scr_vehicle_s *veh;
+    const char *iconType;
+
+    ent = GScr_GetVehicle(entref);
+    veh = ent->scr_vehicle;
+    if ( Scr_GetNumParam(SCRIPTINSTANCE_SERVER) )
+    {
+#ifdef KISAK_SP
+        if ( !veh->nitrousVehicle )
+        {
+            iconType = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
+            if ( !*iconType )
+            {
+                Com_PrintWarning(
+                    25,
+                    "Script AddVehicleToCompass(); Was not passed a compassIconType, defaulting to \"tank\".\n");
+                ent->s.faction.iHeadIconTeam = 1;
+            }
+            else
+            {
+                ent->s.faction.iHeadIconTeam = CMD_VEH_ResolveCompassIconFaction(ent, iconType);
+            }
+        }
+#endif
+        ent->s.lerp.u.vehicle.drawOnCompass = 1;
+    }
+#ifdef KISAK_SP
+    else
+    {
+        Com_PrintWarning(
+            25,
+            "Script AddVehicleToCompass(); Was not passed a compassIconType, defaulting to \"tank\".\n");
+        if ( !veh->nitrousVehicle )
+            ent->s.faction.iHeadIconTeam = 1;
+    }
+#endif
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (CMD_VEH_RemoveVehicleFromCompass @ 82645B58)
+void __cdecl CMD_VEH_RemoveVehicleFromCompass(scr_entref_t entref)
+{
+    gentity_s *ent;
+    scr_vehicle_s *veh;
+
+    ent = GScr_GetVehicle(entref);
+    veh = ent->scr_vehicle;
+    ent->s.lerp.u.vehicle.drawOnCompass = 0;
+#ifdef KISAK_SP
+    if ( !veh->nitrousVehicle )
+        ent->s.faction.iHeadIconTeam = 0;
+#endif
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (CMD_VEH_SetHealthPercent @ 82648300)
+void __cdecl CMD_VEH_SetHealthPercent(scr_entref_t entref)
+{
+    gentity_s *ent;
+    float healthPercent;
+
+    if ( !Scr_GetNumParam(SCRIPTINSTANCE_SERVER) )
+        Scr_Error("Insufficient arguments for setHealthPercent", 0);
+    ent = GScr_GetVehicle(entref);
+    healthPercent = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
+    ent->s.time2 = (int)(healthPercent * 15.0f) & 0xF;
+}
+
+// Decomp: CoDOMPServer.c:438170  CMD_VEH_SetVehicleLookatText
 void __cdecl CMD_VEH_SetVehicleLookatText(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+0h] [ebp-10h]
-    VariableUnion string1; // [esp+4h] [ebp-Ch]
-    VariableUnion string0; // [esp+8h] [ebp-8h]
+    scr_vehicle_s *veh;
+    VariableUnion string1;
+    VariableUnion string0;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     string0.intValue = Scr_GetConstString(0, SCRIPTINSTANCE_SERVER);
@@ -9504,30 +9456,81 @@ void __cdecl CMD_VEH_SetVehicleLookatText(scr_entref_t entref)
     }
 }
 
+// Decomp: CoDSP_rdBlackOps.map.c (CMD_VEH_StartEngineSound @ 82645C60)
+void __cdecl CMD_VEH_StartEngineSound(scr_entref_t entref)
+{
+    scr_vehicle_s *veh;
+    gentity_s *ent;
+
+    ent = GScr_GetVehicle(entref);
+    veh = ent->scr_vehicle;
+    veh->flags |= 0x1000u;
+    if ( veh->scriptEngineVolume <= 0.0f )
+    {
+        veh->scriptEngineVolume = 1.0f;
+        G_VehSetClientSideEngineVolume(ent, veh->scriptEngineVolume);
+    }
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (CMD_VEH_StopEngineSound @ 82645C68)
+void __cdecl CMD_VEH_StopEngineSound(scr_entref_t entref)
+{
+    scr_vehicle_s *veh;
+    gentity_s *ent;
+
+    ent = GScr_GetVehicle(entref);
+    veh = ent->scr_vehicle;
+    veh->flags &= ~0x1000u;
+    veh->scriptEngineVolume = 0.0f;
+    G_VehSetClientSideEngineVolume(ent, 0.0f);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (CMD_VEH_SetEngineVolume @ 82645C70)
+void __cdecl CMD_VEH_SetEngineVolume(scr_entref_t entref)
+{
+    scr_vehicle_s *veh;
+    gentity_s *ent;
+    float volume;
+
+    ent = GScr_GetVehicle(entref);
+    veh = ent->scr_vehicle;
+    volume = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
+    if ( volume < 0.0f )
+        volume = 0.0f;
+    else if ( volume > 1.0f )
+        volume = 1.0f;
+    veh->scriptEngineVolume = volume;
+    G_VehSetClientSideEngineVolume(ent, volume);
+}
+
+// Decomp: CoDSP_rdBlackOps.map.c (CMD_VEH_GetEngineVolume @ 82645C78)
+void __cdecl CMD_VEH_GetEngineVolume(scr_entref_t entref)
+{
+    scr_vehicle_s *veh;
+
+    veh = GScr_GetVehicle(entref)->scr_vehicle;
+    Scr_AddFloat(veh->scriptEngineVolume, SCRIPTINSTANCE_SERVER);
+}
+
+// Decomp: CoDOMPServer.c:438190  CMD_VEH_NearGoalNotifyDist
 void __cdecl CMD_VEH_NearGoalNotifyDist(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+0h] [ebp-8h]
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     veh->nearGoalNotifyDist = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
 }
 
-void    CMD_VEH_SetGoalPos(scr_entref_t entref)
+// Decomp: CoDOMPServer.c:438260 (0x0067F5A0)  CMD_VEH_SetGoalPos
+void __cdecl CMD_VEH_SetGoalPos(scr_entref_t entref)
 {
-    char *v2; // eax
-    const vehicle_info_t *info; // [esp+18h] [ebp-40h]
-    int usePath; // [esp+1Ch] [ebp-3Ch]
-    phys_vec3 goalPosition; // [esp+2Ch] [ebp-2Ch] BYREF
-    float goalSpeed; // [esp+40h] [ebp-18h]
-    scr_vehicle_s *veh; // [esp+44h] [ebp-14h]
-    gentity_s *ent; // [esp+48h] [ebp-10h]
-    //_UNKNOWN *v9; // [esp+4Ch] [ebp-Ch]
-    //scr_entref_t entrefa; // [esp+50h] [ebp-8h] BYREF
-    //int arg0; // [esp+58h] [ebp+0h]
-    //
-    //v9 = a1;
-    //*(_DWORD *)&entrefa.entnum = arg0;
-
+    char *usePathErrorMsg;
+    const vehicle_info_t *info;
+    int usePath;
+    phys_vec3 goalPosition;
+    float goalSpeed;
+    scr_vehicle_s *veh;
+    gentity_s *ent;
     ent = GScr_GetVehicle(entref);
     veh = ent->scr_vehicle;
     if (!veh->nitrousVehicle)
@@ -9568,8 +9571,8 @@ void    CMD_VEH_SetGoalPos(scr_entref_t entref)
             veh->pathPos.flags |= 0x100u;
             if (info->type != 6 && !veh->nitrousVehicle)
             {
-                v2 = va("SetVehGoalPos with 'usePath' can only be called on helicopters and physics vehicles");
-                Scr_Error(v2, 0);
+                usePathErrorMsg = va("SetVehGoalPos with 'usePath' can only be called on helicopters and physics vehicles");
+                Scr_Error(usePathErrorMsg, 0);
             }
             if (veh->nitrousVehicle)
             {
@@ -9592,9 +9595,10 @@ void    CMD_VEH_SetGoalPos(scr_entref_t entref)
     }
 }
 
+// Decomp: CoDOMPServer.c:438320  CMD_VEH_ClearGoalPos
 void __cdecl CMD_VEH_ClearGoalPos(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+8h] [ebp-8h]
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     if ( veh->nitrousVehicle )
@@ -9615,37 +9619,38 @@ void __cdecl CMD_VEH_ClearGoalPos(scr_entref_t entref)
     veh->flags &= 0xFFFFFE7F;
 }
 
+// Decomp: CoDMPServer.c:438353 (0x0067F8A0)  CMD_VEH_SetPlaneGoalPos
 void __cdecl CMD_VEH_SetPlaneGoalPos(scr_entref_t entref)
 {
-    double Float; // st7
-    const char *v2; // eax
-    float *goalPosition; // [esp+0h] [ebp-B8h]
-    float *v4; // [esp+4h] [ebp-B4h]
-    signed int i; // [esp+14h] [ebp-A4h]
-    float goals[10][3]; // [esp+18h] [ebp-A0h] BYREF
-    scr_vehicle_s *veh; // [esp+94h] [ebp-24h]
-    float goalAngles[3]; // [esp+98h] [ebp-20h] BYREF
-    float travelTime; // [esp+A4h] [ebp-14h]
-    float avgSpeed; // [esp+A8h] [ebp-10h]
-    int numGoals; // [esp+ACh] [ebp-Ch]
-    float speedChange; // [esp+B0h] [ebp-8h]
-    gentity_s *ent; // [esp+B4h] [ebp-4h]
+    double Float;
+    const char *planeGoalErrorMsg;
+    float *goalPosition;
+    float *goalPosPtr;
+    int goalParamIndex;
+    float goals[10][3];
+    scr_vehicle_s *veh;
+    float goalAngles[3];
+    float travelTime;
+    float avgSpeed;
+    int numGoals;
+    float speedChange;
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     veh = ent->scr_vehicle;
     numGoals = 0;
     if ( !veh && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 11096, 0, "%s", "veh") )
         __debugbreak();
-    for ( i = 0; i < 10 && Scr_GetType(i, SCRIPTINSTANCE_SERVER) == 4; ++i )
+    for ( goalParamIndex = 0; goalParamIndex < 10 && Scr_GetType(goalParamIndex, SCRIPTINSTANCE_SERVER) == 4; ++goalParamIndex )
     {
-        Scr_GetVector(i, goals[i], SCRIPTINSTANCE_SERVER);
+        Scr_GetVector(goalParamIndex, goals[goalParamIndex], SCRIPTINSTANCE_SERVER);
         ++numGoals;
     }
     goalPosition = veh->goalPosition;
-    v4 = goals[numGoals - 1];
-    veh->goalPosition[0] = *v4;
-    goalPosition[1] = v4[1];
-    goalPosition[2] = v4[2];
+    goalPosPtr = goals[numGoals - 1];
+    veh->goalPosition[0] = *goalPosPtr;
+    goalPosition[1] = goalPosPtr[1];
+    goalPosition[2] = goalPosPtr[2];
     memset(goalAngles, 0, sizeof(goalAngles));
     veh->hasGoalYaw = 0;
     if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) > 1
@@ -9661,8 +9666,8 @@ void __cdecl CMD_VEH_SetPlaneGoalPos(scr_entref_t entref)
         veh->manualSpeed = veh->speed;
         if ( veh->speed <= 0.0 )
         {
-            v2 = va("entity %i is at rest ( speed of 0 ), new speed is needed to make plane move.", ent->s.number);
-            Scr_Error(v2, 0);
+            planeGoalErrorMsg = va("entity %i is at rest ( speed of 0 ), new speed is needed to make plane move.", ent->s.number);
+            Scr_Error(planeGoalErrorMsg, 0);
         }
     }
     if ( veh->moveState == VEH_MOVESTATE_PLANE_ONCURVE )
@@ -9688,21 +9693,22 @@ void __cdecl CMD_VEH_SetPlaneGoalPos(scr_entref_t entref)
 }
 
 static float tweaker = 0.89999998;
+// Decomp: CoDMPServer.c:438444 (0x0067FC70)  VEH_GenerateCurveForPlane
 void __cdecl VEH_GenerateCurveForPlane(gentity_s *ent, float (*goals)[3], int numGoals, const float *goalAngles)
 {
-    int v4; // edx
-    double v5; // st7
-    float manualSpeed; // [esp+34h] [ebp-ACh]
-    int i; // [esp+68h] [ebp-78h]
-    float distNodes[3]; // [esp+6Ch] [ebp-74h] BYREF
-    vehicle_physic_t *phys; // [esp+78h] [ebp-68h]
-    scr_vehicle_s *veh; // [esp+7Ch] [ebp-64h]
-    float distBetweenGoals; // [esp+80h] [ebp-60h]
-    float vecToGoal[3]; // [esp+84h] [ebp-5Ch] BYREF
-    float nodes[5][3]; // [esp+90h] [ebp-50h] BYREF
-    float distToGoal; // [esp+CCh] [ebp-14h]
-    float distance[3]; // [esp+D0h] [ebp-10h] BYREF
-    float timeStep; // [esp+DCh] [ebp-4h]
+    int nextGoalIndex;
+    double tailCurveLength;
+    float manualSpeed;
+    int goalIndex;
+    float distNodes[3];
+    vehicle_physic_t *phys;
+    scr_vehicle_s *veh;
+    float distBetweenGoals;
+    float vecToGoal[3];
+    float nodes[5][3];
+    float distToGoal;
+    float distance[3];
+    float timeStep;
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 5599, 0, "%s", "ent") )
         __debugbreak();
@@ -9721,7 +9727,7 @@ void __cdecl VEH_GenerateCurveForPlane(gentity_s *ent, float (*goals)[3], int nu
     vecToGoal[0] = (*goals)[0] - veh->phys.origin[0];
     vecToGoal[1] = (*goals)[1] - veh->phys.origin[1];
     vecToGoal[2] = (*goals)[2] - veh->phys.origin[2];
-    distToGoal = Vec3Length(vecToGoal);
+    distToGoal = Abs(vecToGoal);
     *(_QWORD *)&nodes[0][0] = *(_QWORD *)veh->phys.origin;
     nodes[0][2] = veh->phys.origin[2];
     AngleVectors(veh->phys.angles, nodes[1], 0, 0);
@@ -9761,16 +9767,16 @@ void __cdecl VEH_GenerateCurveForPlane(gentity_s *ent, float (*goals)[3], int nu
     distance[0] = (*goals)[0] - nodes[2][0];
     distance[1] = (*goals)[1] - nodes[2][1];
     distance[2] = (*goals)[2] - nodes[2][2];
-    distBetweenGoals = Vec3Length(distance);
-    for ( i = 0; i < numGoals; ++i )
+    distBetweenGoals = Abs(distance);
+    for ( goalIndex = 0; goalIndex < numGoals; ++goalIndex )
     {
         timeStep = (float)(distBetweenGoals / veh->manualSpeed) * tweaker;
-        cCurveManager::AddNodeToCurve(phys->curveID, &(*goals)[3 * i], timeStep);
-        v4 = 3 * (i + 1);
-        distance[0] = (*goals)[v4] - (*goals)[3 * i];
-        distance[1] = (*goals)[v4 + 1] - (*goals)[3 * i + 1];
-        distance[2] = (*goals)[v4 + 2] - (*goals)[3 * i + 2];
-        distBetweenGoals = Vec3Length(distance);
+        cCurveManager::AddNodeToCurve(phys->curveID, &(*goals)[3 * goalIndex], timeStep);
+        nextGoalIndex = 3 * (goalIndex + 1);
+        distance[0] = (*goals)[nextGoalIndex] - (*goals)[3 * goalIndex];
+        distance[1] = (*goals)[nextGoalIndex + 1] - (*goals)[3 * goalIndex + 1];
+        distance[2] = (*goals)[nextGoalIndex + 2] - (*goals)[3 * goalIndex + 2];
+        distBetweenGoals = Abs(distance);
     }
     if ( veh->hasGoalYaw )
         cCurveManager::AddNodeToCurve(phys->curveID, nodes[4], 1.0);
@@ -9781,8 +9787,8 @@ void __cdecl VEH_GenerateCurveForPlane(gentity_s *ent, float (*goals)[3], int nu
         distNodes[0] = nodes[4][0] - nodes[3][0];
         distNodes[1] = nodes[4][1] - nodes[3][1];
         distNodes[2] = nodes[4][2] - nodes[3][2];
-        v5 = Vec3Length(distNodes);
-        phys->curveLength = phys->curveLength - v5;
+        tailCurveLength = Abs(distNodes);
+        phys->curveLength = phys->curveLength - tailCurveLength;
     }
     if ( g_vehicleDebug->current.enabled )
     {
@@ -9791,134 +9797,145 @@ void __cdecl VEH_GenerateCurveForPlane(gentity_s *ent, float (*goals)[3], int nu
     }
 }
 
+// Decomp: CoDMPServer.c:438580 (0x00680380)  CMD_VEH_SetPlaneBarrelRoll
 void __cdecl CMD_VEH_SetPlaneBarrelRoll(scr_entref_t entref)
 {
-    float v1; // xmm0_4
-    VariableUnion *veh; // [esp+4h] [ebp-Ch]
-    float yawDiff; // [esp+8h] [ebp-8h]
+    float goalRollDegrees;
+    scr_vehicle_s *veh;
+    float yawDiff;
 
-    veh = (VariableUnion *)GScr_GetVehicle(entref)->scr_vehicle;
+    veh = GScr_GetVehicle(entref)->scr_vehicle;
     Scr_GetNumParam(SCRIPTINSTANCE_SERVER);
-    veh[297].intValue = Scr_GetInt(0, SCRIPTINSTANCE_SERVER);
-    veh[293].floatValue = 1.0f;
+    veh->numRolls = Scr_GetInt(0, SCRIPTINSTANCE_SERVER);
+    veh->hasGoalRoll = 1.0f;
     if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) <= 1 )
-        veh[295].floatValue = 2.0f;
+        veh->goalRollTime = 2.0f;
     else
-        veh[295].floatValue = Scr_GetFloat(1u, SCRIPTINSTANCE_SERVER);
-    veh[296].intValue = 0;
-    yawDiff = veh[65].floatValue - veh[62].floatValue;
+        veh->goalRollTime = Scr_GetFloat(1u, SCRIPTINSTANCE_SERVER);
+    veh->currentRollTime = 0.0f;
+    yawDiff = veh->phys.prevAngles[1] - veh->phys.angles[1];
     if ( yawDiff >= 0.0 )
     {
         if ( yawDiff <= 0.0 )
         {
             if ( G_irand(0, 1) )
-                v1 = (float)veh[297].intValue * -360.0;
+                goalRollDegrees = (float)veh->numRolls * -360.0f;
             else
-                v1 = (float)veh[297].intValue * 360.0;
-            veh[294].floatValue = v1;
+                goalRollDegrees = (float)veh->numRolls * 360.0f;
+            veh->goalRoll = goalRollDegrees;
         }
         else
         {
-            veh[294].floatValue = (float)veh[297].intValue * 360.0;
+            veh->goalRoll = (float)veh->numRolls * 360.0f;
         }
     }
     else
     {
-        veh[294].floatValue = (float)veh[297].intValue * -360.0;
+        veh->goalRoll = (float)veh->numRolls * -360.0f;
     }
 }
 
+// Decomp: CoDOMPServer.c:438600  CMD_VEH_SetGoalYaw
 void __cdecl CMD_VEH_SetGoalYaw(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+0h] [ebp-8h]
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     veh->goalYaw = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
     veh->hasGoalYaw = 1;
 }
 
+// Decomp: CoDOMPServer.c:438620  CMD_VEH_ClearGoalYaw
 void __cdecl CMD_VEH_ClearGoalYaw(scr_entref_t entref)
 {
-    scr_vehicle_s *scr_vehicle; // edx
+    scr_vehicle_s *scr_vehicle;
 
     scr_vehicle = GScr_GetVehicle(entref)->scr_vehicle;
     scr_vehicle->goalYaw = 0.0f;
     scr_vehicle->hasGoalYaw = 0;
 }
 
+// Decomp: CoDOMPServer.c:438640  CMD_VEH_SetTargetYaw
 void __cdecl CMD_VEH_SetTargetYaw(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+0h] [ebp-8h]
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     veh->targetYaw = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
     veh->hasTargetYaw = 1;
 }
 
+// Decomp: CoDOMPServer.c:438660  CMD_VEH_ClearTargetYaw
 void __cdecl CMD_VEH_ClearTargetYaw(scr_entref_t entref)
 {
-    scr_vehicle_s *scr_vehicle; // edx
+    scr_vehicle_s *scr_vehicle;
 
     scr_vehicle = GScr_GetVehicle(entref)->scr_vehicle;
     scr_vehicle->targetYaw = 0.0f;
     scr_vehicle->hasTargetYaw = 0;
 }
 
+// Decomp: CoDOMPServer.c:438680  CMD_VEH_SetDefaultPitch
 void __cdecl CMD_VEH_SetDefaultPitch(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+0h] [ebp-8h]
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     veh->defaultPitch = Scr_GetFloat(0, SCRIPTINSTANCE_SERVER);
     veh->hasDefaultPitch = 1;
 }
 
+// Decomp: CoDOMPServer.c:438700  CMD_VEH_ClearDefaultPitch
 void __cdecl CMD_VEH_ClearDefaultPitch(scr_entref_t entref)
 {
-    scr_vehicle_s *scr_vehicle; // edx
+    scr_vehicle_s *scr_vehicle;
 
     scr_vehicle = GScr_GetVehicle(entref)->scr_vehicle;
     scr_vehicle->defaultPitch = 0.0f;
     scr_vehicle->hasDefaultPitch = 0;
 }
 
+// Decomp: CoDOMPServer.c:438720  CMD_VEH_GetAngularVelocity
 void __cdecl CMD_VEH_GetAngularVelocity(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+4h] [ebp-8h]
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     Scr_AddVector(veh->phys.rotVel, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:438740  CMD_VEH_SetAngularVelocity
 void __cdecl CMD_VEH_SetAngularVelocity(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+4h] [ebp-8h]
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     Scr_GetVector(0, veh->phys.rotVel, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:438760  CMD_VEH_SetVehVelocity
 void __cdecl CMD_VEH_SetVehVelocity(scr_entref_t entref)
 {
-    const char *v1; // eax
-    scr_vehicle_s *veh; // [esp+8h] [ebp-8h]
+    const char *heliOnlyErrorMsg;
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     if ( BG_GetVehicleInfo(veh->infoIdx)->type != 6 )
     {
-        v1 = va("SetVelocity called only be called on a helicopter\n");
-        Scr_Error(v1, 0);
+        heliOnlyErrorMsg = va("SetVelocity called only be called on a helicopter\n");
+        Scr_Error(heliOnlyErrorMsg, 0);
     }
     Scr_GetVector(0, veh->phys.vel, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:438780  CMD_VEH_SetTurretTargetVec
 void __cdecl CMD_VEH_SetTurretTargetVec(scr_entref_t entref)
 {
-    const char *v1; // eax
-    const char *v2; // eax
-    scr_vehicle_s *veh; // [esp+8h] [ebp-14h]
-    gentity_s *ent; // [esp+Ch] [ebp-10h]
-    float tgtPos[3]; // [esp+10h] [ebp-Ch] BYREF
+    const char *playerVehicleErrorMsg;
+    const char *noHealthErrorMsg;
+    scr_vehicle_s *veh;
+    gentity_s *ent;
+    float tgtPos[3];
 
     ent = GScr_GetVehicle(entref);
     veh = ent->scr_vehicle;
@@ -9926,13 +9943,13 @@ void __cdecl CMD_VEH_SetTurretTargetVec(scr_entref_t entref)
     {
         if ( (veh->flags & 1) != 0 )
         {
-            v1 = va("Can't set target position on player's vehicle");
-            Scr_Error(v1, 0);
+            playerVehicleErrorMsg = va("Can't set target position on player's vehicle");
+            Scr_Error(playerVehicleErrorMsg, 0);
         }
         if ( (float)ent->health <= 0.0 )
         {
-            v2 = va("Vehicle must have health to control the turret");
-            Scr_Error(v2, 0);
+            noHealthErrorMsg = va("Vehicle must have health to control the turret");
+            Scr_Error(noHealthErrorMsg, 0);
         }
         veh->hasTarget = 1;
         veh->targetEnt = 1023;
@@ -9946,13 +9963,14 @@ void __cdecl CMD_VEH_SetTurretTargetVec(scr_entref_t entref)
     }
 }
 
+// Decomp: CoDOMPServer.c:438820  CMD_VEH_SetTurretTargetEnt
 void __cdecl CMD_VEH_SetTurretTargetEnt(scr_entref_t entref)
 {
-    const char *v1; // eax
-    int number; // [esp+0h] [ebp-18h]
-    scr_vehicle_s *veh; // [esp+Ch] [ebp-Ch]
-    gentity_s *tgtEnt; // [esp+10h] [ebp-8h]
-    gentity_s *ent; // [esp+14h] [ebp-4h]
+    const char *turretHealthErrorMsg;
+    int number;
+    scr_vehicle_s *veh;
+    gentity_s *tgtEnt;
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     veh = ent->scr_vehicle;
@@ -9960,8 +9978,8 @@ void __cdecl CMD_VEH_SetTurretTargetEnt(scr_entref_t entref)
     {
         if ( (float)ent->health <= 0.0 )
         {
-            v1 = va("Vehicle must have health to control the turret");
-            Scr_Error(v1, 0);
+            turretHealthErrorMsg = va("Vehicle must have health to control the turret");
+            Scr_Error(turretHealthErrorMsg, 0);
         }
         tgtEnt = Scr_GetEntity(0);
         veh->hasTarget = 1;
@@ -9988,9 +10006,10 @@ void __cdecl CMD_VEH_SetTurretTargetEnt(scr_entref_t entref)
     }
 }
 
+// Decomp: CoDOMPServer.c:438860  CMD_VEH_ClearTurretTarget
 void __cdecl CMD_VEH_ClearTurretTarget(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+8h] [ebp-8h]
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     if ( (veh->flags & 0x10) == 0 )
@@ -10007,13 +10026,14 @@ void __cdecl CMD_VEH_ClearTurretTarget(scr_entref_t entref)
     }
 }
 
+// Decomp: CoDOMPServer.c:438880  CMD_VEH_SetGunnerTargetVec
 void __cdecl CMD_VEH_SetGunnerTargetVec(scr_entref_t entref)
 {
-    unsigned int *targetOffset; // [esp+0h] [ebp-20h]
-    float *targetOrigin; // [esp+4h] [ebp-1Ch]
-    scr_vehicle_s *veh; // [esp+8h] [ebp-18h]
-    unsigned int gunnerIndex; // [esp+Ch] [ebp-14h]
-    float tgtPos[3]; // [esp+14h] [ebp-Ch] BYREF
+    float *gunnerTargetOffset;
+    float *gunnerTargetOrigin;
+    scr_vehicle_s *veh;
+    unsigned int gunnerIndex;
+    float tgtPos[3];
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     gunnerIndex = 0;
@@ -10022,22 +10042,23 @@ void __cdecl CMD_VEH_SetGunnerTargetVec(scr_entref_t entref)
         gunnerIndex = Scr_GetInt(1u, SCRIPTINSTANCE_SERVER);
     if ( gunnerIndex >= 4 )
         Scr_Error("Invalid gunner index set in SetGunnerTargetVec", 0);
-    targetOrigin = veh->gunnerTargets[gunnerIndex].targetOrigin;
-    *targetOrigin = tgtPos[0];
-    targetOrigin[1] = tgtPos[1];
-    targetOrigin[2] = tgtPos[2];
-    targetOffset = (unsigned int *)veh->gunnerTargets[gunnerIndex].targetOffset;
-    *targetOffset = 0;
-    targetOffset[1] = 0;
-    targetOffset[2] = 0;
+    gunnerTargetOrigin = veh->gunnerTargets[gunnerIndex].targetOrigin;
+    *gunnerTargetOrigin = tgtPos[0];
+    gunnerTargetOrigin[1] = tgtPos[1];
+    gunnerTargetOrigin[2] = tgtPos[2];
+    gunnerTargetOffset = veh->gunnerTargets[gunnerIndex].targetOffset;
+    gunnerTargetOffset[0] = 0.0f;
+    gunnerTargetOffset[1] = 0.0f;
+    gunnerTargetOffset[2] = 0.0f;
     veh->gunnerTargets[gunnerIndex].valid = 1;
     veh->gunnerTargets[gunnerIndex].targetEnt = 1023;
 }
 
+// Decomp: CoDOMPServer.c:438920  CMD_VEH_GetGunnerTargetVec
 void __cdecl CMD_VEH_GetGunnerTargetVec(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+0h] [ebp-Ch]
-    int gunnerIndex; // [esp+4h] [ebp-8h]
+    scr_vehicle_s *veh;
+    int gunnerIndex;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     gunnerIndex = Scr_GetInt(0, SCRIPTINSTANCE_SERVER);
@@ -10046,16 +10067,16 @@ void __cdecl CMD_VEH_GetGunnerTargetVec(scr_entref_t entref)
     Scr_AddVector(veh->gunnerTargets[gunnerIndex].targetOrigin, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:438940  CMD_VEH_SetGunnerTargetEnt
 void __cdecl CMD_VEH_SetGunnerTargetEnt(scr_entref_t entref)
 {
-    int targetOrigin; // edx
-    int number; // [esp+0h] [ebp-28h]
-    float *v3; // [esp+8h] [ebp-20h]
-    scr_vehicle_s *veh; // [esp+Ch] [ebp-1Ch]
-    unsigned int gunnerIndex; // [esp+10h] [ebp-18h]
-    gentity_s *tgtEnt; // [esp+14h] [ebp-14h]
-    float targetOffset[3]; // [esp+18h] [ebp-10h] BYREF
-    gentity_s *ent; // [esp+24h] [ebp-4h]
+    float *gunnerTargetOffset;
+    int number;
+    scr_vehicle_s *veh;
+    unsigned int gunnerIndex;
+    gentity_s *tgtEnt;
+    float targetOffset[3];
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     veh = ent->scr_vehicle;
@@ -10075,22 +10096,22 @@ void __cdecl CMD_VEH_SetGunnerTargetEnt(scr_entref_t entref)
     else
         number = 1023;
     veh->gunnerTargets[gunnerIndex].targetEnt = number;
-    v3 = veh->gunnerTargets[gunnerIndex].targetOffset;
-    *v3 = targetOffset[0];
-    v3[1] = targetOffset[1];
-    v3[2] = targetOffset[2];
+    gunnerTargetOffset = veh->gunnerTargets[gunnerIndex].targetOffset;
+    gunnerTargetOffset[0] = targetOffset[0];
+    gunnerTargetOffset[1] = targetOffset[1];
+    gunnerTargetOffset[2] = targetOffset[2];
     veh->gunnerTargets[gunnerIndex].targetOrigin[0] = 0.0f;
-    targetOrigin = (int)veh->gunnerTargets[gunnerIndex].targetOrigin;
-    *(unsigned int *)(targetOrigin + 4) = 0;
-    *(unsigned int *)(targetOrigin + 8) = 0;
+    veh->gunnerTargets[gunnerIndex].targetOrigin[1] = 0.0f;
+    veh->gunnerTargets[gunnerIndex].targetOrigin[2] = 0.0f;
 }
 
+// Decomp: CoDOMPServer.c:438980  CMD_VEH_ClearGunnerTarget
 void __cdecl CMD_VEH_ClearGunnerTarget(scr_entref_t entref)
 {
-    unsigned int *targetOrigin; // [esp+0h] [ebp-14h]
-    unsigned int *targetOffset; // [esp+4h] [ebp-10h]
-    scr_vehicle_s *veh; // [esp+8h] [ebp-Ch]
-    unsigned int gunnerIndex; // [esp+Ch] [ebp-8h]
+    unsigned int *targetOrigin;
+    unsigned int *targetOffset;
+    scr_vehicle_s *veh;
+    unsigned int gunnerIndex;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     gunnerIndex = 0;
@@ -10100,21 +10121,20 @@ void __cdecl CMD_VEH_ClearGunnerTarget(scr_entref_t entref)
         Scr_Error("Invalid gunner index set in ClearGunnerTarget", 0);
     veh->gunnerTargets[gunnerIndex].valid = 0;
     veh->gunnerTargets[gunnerIndex].targetEnt = 1023;
-    targetOffset = (unsigned int *)veh->gunnerTargets[gunnerIndex].targetOffset;
-    *targetOffset = 0;
-    targetOffset[1] = 0;
-    targetOffset[2] = 0;
-    targetOrigin = (unsigned int *)veh->gunnerTargets[gunnerIndex].targetOrigin;
-    *targetOrigin = 0;
-    targetOrigin[1] = 0;
-    targetOrigin[2] = 0;
+    veh->gunnerTargets[gunnerIndex].targetOffset[0] = 0.0f;
+    veh->gunnerTargets[gunnerIndex].targetOffset[1] = 0.0f;
+    veh->gunnerTargets[gunnerIndex].targetOffset[2] = 0.0f;
+    veh->gunnerTargets[gunnerIndex].targetOrigin[0] = 0.0f;
+    veh->gunnerTargets[gunnerIndex].targetOrigin[1] = 0.0f;
+    veh->gunnerTargets[gunnerIndex].targetOrigin[2] = 0.0f;
 }
 
+// Decomp: CoDOMPServer.c:439000  CMD_VEH_SetGunnerTurretOnTargetRange
 void __cdecl CMD_VEH_SetGunnerTurretOnTargetRange(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+0h] [ebp-10h]
-    float range; // [esp+4h] [ebp-Ch]
-    int gunnerIndex; // [esp+8h] [ebp-8h]
+    scr_vehicle_s *veh;
+    float range;
+    int gunnerIndex;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     range = 0.0f;
@@ -10126,11 +10146,12 @@ void __cdecl CMD_VEH_SetGunnerTurretOnTargetRange(scr_entref_t entref)
     veh->gunnerTurrets[gunnerIndex].turretOnTargetRange = range;
 }
 
+// Decomp: CoDOMPServer.c:439030  CMD_VEH_GetGunnerTargetEnt
 void __cdecl CMD_VEH_GetGunnerTargetEnt(scr_entref_t entref)
 {
-    gentity_s *tgtEnt; // [esp+0h] [ebp-10h]
-    scr_vehicle_s *veh; // [esp+4h] [ebp-Ch]
-    int gunnerIndex; // [esp+8h] [ebp-8h]
+    gentity_s *tgtEnt;
+    scr_vehicle_s *veh;
+    int gunnerIndex;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     gunnerIndex = Scr_GetInt(0, SCRIPTINSTANCE_SERVER);
@@ -10147,12 +10168,13 @@ void __cdecl CMD_VEH_GetGunnerTargetEnt(scr_entref_t entref)
     }
 }
 
+// Decomp: CoDOMPServer.c:439060  CMD_VEH_GetGunnerAnimPitch
 void __cdecl CMD_VEH_GetGunnerAnimPitch(scr_entref_t entref)
 {
-    const vehicle_info_t *info; // [esp+Ch] [ebp-14h]
-    int gunnerIndex; // [esp+14h] [ebp-Ch]
-    float pitch; // [esp+18h] [ebp-8h]
-    gentity_s *ent; // [esp+1Ch] [ebp-4h]
+    const vehicle_info_t *info;
+    int gunnerIndex;
+    float pitch;
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     info = BG_GetVehicleInfo(ent->scr_vehicle->infoIdx);
@@ -10165,12 +10187,13 @@ void __cdecl CMD_VEH_GetGunnerAnimPitch(scr_entref_t entref)
     Scr_AddFloat(pitch, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:439090  CMD_VEH_GetGunnerAnimYaw
 void __cdecl CMD_VEH_GetGunnerAnimYaw(scr_entref_t entref)
 {
-    const vehicle_info_t *info; // [esp+Ch] [ebp-14h]
-    int gunnerIndex; // [esp+14h] [ebp-Ch]
-    float yaw; // [esp+18h] [ebp-8h]
-    gentity_s *ent; // [esp+1Ch] [ebp-4h]
+    const vehicle_info_t *info;
+    int gunnerIndex;
+    float yaw;
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     info = BG_GetVehicleInfo(ent->scr_vehicle->infoIdx);
@@ -10183,48 +10206,51 @@ void __cdecl CMD_VEH_GetGunnerAnimYaw(scr_entref_t entref)
     Scr_AddFloat(yaw, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:439110  CMD_VEH_SetLookAtEnt
 void __cdecl CMD_VEH_SetLookAtEnt(scr_entref_t entref)
 {
-    const char *v1; // eax
-    const char *v2; // eax
-    const char *v3; // eax
-    scr_vehicle_s *veh; // [esp+0h] [ebp-Ch]
-    gentity_s *tgtEnt; // [esp+4h] [ebp-8h]
-    gentity_s *ent; // [esp+8h] [ebp-4h]
+    const char *playerVehicleErrorMsg;
+    const char *noHealthErrorMsg;
+    const char *invalidEntErrorMsg;
+    scr_vehicle_s *veh;
+    gentity_s *tgtEnt;
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     veh = ent->scr_vehicle;
     if ( (veh->flags & 1) != 0 )
     {
-        v1 = va("Can't set target on player's vehicle");
-        Scr_Error(v1, 0);
+        playerVehicleErrorMsg = va("Can't set target on player's vehicle");
+        Scr_Error(playerVehicleErrorMsg, 0);
     }
     if ( (float)ent->health <= 0.0 )
     {
-        v2 = va("Vehicle must have health to control");
-        Scr_Error(v2, 0);
+        noHealthErrorMsg = va("Vehicle must have health to control");
+        Scr_Error(noHealthErrorMsg, 0);
     }
     tgtEnt = Scr_GetEntity(0);
     if ( !tgtEnt )
     {
-        v3 = va("Invalid entity");
-        Scr_Error(v3, 0);
+        invalidEntErrorMsg = va("Invalid entity");
+        Scr_Error(invalidEntErrorMsg, 0);
     }
     //EntHandle::setEnt(&veh->lookAtEnt, tgtEnt);
     veh->lookAtEnt.setEnt(tgtEnt);
 }
 
+// Decomp: CoDOMPServer.c:439140  CMD_VEH_ClearLookAtEnt
 void __cdecl CMD_VEH_ClearLookAtEnt(scr_entref_t entref)
 {
-    gentity_s *ent; // [esp+4h] [ebp-4h]
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     ent->scr_vehicle->lookAtEnt.setEnt(0);
 }
 
+// Decomp: CoDOMPServer.c:439160  CMD_VEH_ReturnPlayerControl
 void __cdecl CMD_VEH_ReturnPlayerControl(scr_entref_t entref)
 {
-    gentity_s *ent; // [esp+8h] [ebp-4h]
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     if ( ent->r.ownerNum.isDefined() )
@@ -10233,10 +10259,11 @@ void __cdecl CMD_VEH_ReturnPlayerControl(scr_entref_t entref)
         ent->scr_vehicle->flags &= 0xFFFFFE7F;
 }
 
+// Decomp: CoDMPServer.c:439139 (0x00681580)  VEH_CancelAIMove
 void __cdecl VEH_CancelAIMove(gentity_s *ent)
 {
-    const vehicle_info_t *info; // [esp+0h] [ebp-8h]
-    scr_vehicle_s *veh; // [esp+4h] [ebp-4h]
+    const vehicle_info_t *info;
+    scr_vehicle_s *veh;
 
     if ( !ent && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 4969, 0, "%s", "ent") )
         __debugbreak();
@@ -10257,11 +10284,12 @@ void __cdecl VEH_CancelAIMove(gentity_s *ent)
         HELI_CancelAIMove(ent);
 }
 
+// Decomp: CoDOMPServer.c:439180  CMD_VEH_SetWeapon
 void __cdecl CMD_VEH_SetWeapon(scr_entref_t entref)
 {
-    char *String; // eax
-    int WeaponIndexForName; // eax
-    gentity_s *ent; // [esp+8h] [ebp-4h]
+    char *String;
+    int WeaponIndexForName;
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     String = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
@@ -10270,49 +10298,49 @@ void __cdecl CMD_VEH_SetWeapon(scr_entref_t entref)
     ent->s.weaponModel = 0;
 }
 
+// Decomp: CoDMPServer.c:439191 (0x006816A0)  CMD_VEH_FireWeapon
 void __cdecl CMD_VEH_FireWeapon(scr_entref_t entref)
 {
-    const char *v1; // eax
-    char *v2; // eax
-    const char *v3; // eax
-    const char *v4; // eax
-    char *v5; // eax
-    const char *v6; // eax
-    unsigned int v7; // eax
-    gentity_s *v8; // [esp+14h] [ebp-184h]
-    gentity_s *Entity; // [esp+18h] [ebp-180h]
-    gentity_s *v10; // [esp+1Ch] [ebp-17Ch]
-    float v11; // [esp+20h] [ebp-178h]
-    float v12; // [esp+24h] [ebp-174h]
-    float v13; // [esp+2Ch] [ebp-16Ch]
-    float v14; // [esp+44h] [ebp-154h]
-    float aimPadding; // [esp+50h] [ebp-148h]
-    float spread; // [esp+68h] [ebp-130h]
-    gentity_s *driver; // [esp+6Ch] [ebp-12Ch]
-    float curiosity[3]; // [esp+70h] [ebp-128h] BYREF
-    gentity_s *attacker; // [esp+7Ch] [ebp-11Ch]
-    float joltDir[3]; // [esp+80h] [ebp-118h] BYREF
-    int numBarrels; // [esp+8Ch] [ebp-10Ch]
-    int boneIndex; // [esp+90h] [ebp-108h]
-    unsigned __int16 boneName; // [esp+94h] [ebp-104h]
-    const vehicle_info_t *info; // [esp+98h] [ebp-100h]
-    scr_vehicle_s *veh; // [esp+9Ch] [ebp-FCh]
-    float diffAngles[3]; // [esp+A0h] [ebp-F8h] BYREF
-    int event; // [esp+ACh] [ebp-ECh]
-    gentity_s *target; // [esp+B0h] [ebp-E8h]
-    int startBarrel; // [esp+B4h] [ebp-E4h]
-    gentity_s *proj; // [esp+B8h] [ebp-E0h]
-    float gunAngles[3]; // [esp+BCh] [ebp-DCh] BYREF
-    weaponParms wp; // [esp+C8h] [ebp-D0h] BYREF
-    float targetOffset[3]; // [esp+110h] [ebp-88h] BYREF
-    gentity_s *ent; // [esp+11Ch] [ebp-7Ch]
-    float bulletAngles[3]; // [esp+120h] [ebp-78h] BYREF
-    int i; // [esp+12Ch] [ebp-6Ch]
-    float barrelMtx[4][3]; // [esp+130h] [ebp-68h] BYREF
-    int barrel; // [esp+160h] [ebp-38h]
-    gentity_s *player; // [esp+164h] [ebp-34h]
-    float flashMtx[4][3]; // [esp+168h] [ebp-30h] BYREF
-    int savedregs; // [esp+198h] [ebp+0h] BYREF
+    const char *noHealthErrorMsg;
+    char *targetNameStr;
+    const char *invalidWeaponErrorMsg;
+    const char *unsupportedWeaponErrorMsg;
+    char *targetNameStr2;
+    const char *noBarrelErrorMsg;
+    unsigned int ownerEntNum;
+    gentity_s *projTargetEnt;
+    gentity_s *bombTargetEnt;
+    gentity_s *defaultAttacker;
+    float clampedPitchDiff;
+    float clampedPitchPadding;
+    float barrelOffsetNeg;
+    float unclampedYawDiff;
+    float aimPadding;
+    float spread;
+    gentity_s *driver;
+    float curiosity[3];
+    gentity_s *attacker;
+    float joltDir[3];
+    int numBarrels;
+    int boneIndex;
+    unsigned __int16 boneName;
+    const vehicle_info_t *info;
+    scr_vehicle_s *veh;
+    float diffAngles[3];
+    int event;
+    gentity_s *target;
+    int startBarrel;
+    gentity_s *proj;
+    float gunAngles[3];
+    weaponParms wp;
+    float targetOffset[3];
+    gentity_s *ent;
+    float bulletAngles[3];
+    int barrelLoopIndex;
+    float barrelMtx[4][3];
+    int barrel;
+    gentity_s *player;
+    float flashMtx[4][3];
 
     ent = GScr_GetVehicle(entref);
     veh = ent->scr_vehicle;
@@ -10321,14 +10349,14 @@ void __cdecl CMD_VEH_FireWeapon(scr_entref_t entref)
     boneIndex = 0;
     if ( (float)ent->health <= 0.0 )
     {
-        v1 = va("Vehicle must have health to control the turret");
-        Scr_Error(v1, 0);
+        noHealthErrorMsg = va("Vehicle must have health to control the turret");
+        Scr_Error(noHealthErrorMsg, 0);
     }
     if ( !ent->s.weapon )
     {
-        v2 = SL_ConvertToString(ent->targetname, SCRIPTINSTANCE_SERVER);
-        v3 = va("Invalid weapon specified for [%s]\n", v2);
-        Scr_Error(v3, 0);
+        targetNameStr = SL_ConvertToString(ent->targetname, SCRIPTINSTANCE_SERVER);
+        invalidWeaponErrorMsg = va("Invalid weapon specified for [%s]\n", targetNameStr);
+        Scr_Error(invalidWeaponErrorMsg, 0);
     }
     Weapon_SetWeaponParamsWeapon(&wp, ent->s.weapon);
     if ( wp.weapDef->weapType
@@ -10337,16 +10365,16 @@ void __cdecl CMD_VEH_FireWeapon(scr_entref_t entref)
         && wp.weapDef->weapType != WEAPTYPE_GAS
         && wp.weapDef->weapType != WEAPTYPE_GRENADE )
     {
-        v4 = va("Vehicles only support bullet, bomb, gas, grenade and projectile weapons\n");
-        Scr_Error(v4, 0);
+        unsupportedWeaponErrorMsg = va("Vehicles only support bullet, bomb, gas, grenade and projectile weapons\n");
+        Scr_Error(unsupportedWeaponErrorMsg, 0);
     }
     if ( info->type != 3 && info->type != 6 )
     {
         if ( veh->boneIndex.barrel < 0 )
         {
-            v5 = SL_ConvertToString(ent->targetname, SCRIPTINSTANCE_SERVER);
-            v6 = va("No tag_barrel for [%s]\n", v5);
-            Scr_Error(v6, 0);
+            targetNameStr2 = SL_ConvertToString(ent->targetname, SCRIPTINSTANCE_SERVER);
+            noBarrelErrorMsg = va("No tag_barrel for [%s]\n", targetNameStr2);
+            Scr_Error(noBarrelErrorMsg, 0);
         }
         G_DObjGetWorldBoneIndexMatrix(ent, veh->boneIndex.barrel, barrelMtx);
         joltDir[0] = -barrelMtx[0][0];
@@ -10370,10 +10398,10 @@ void __cdecl CMD_VEH_FireWeapon(scr_entref_t entref)
         startBarrel = 0;
         event = 29;
     }
-    for ( i = 0; i < numBarrels; ++i )
+    for ( barrelLoopIndex = 0; barrelLoopIndex < numBarrels; ++barrelLoopIndex )
     {
-        barrel = i + startBarrel;
-        boneIndex = VEH_GetTagBoneIndex(ent, i + startBarrel);
+        barrel = barrelLoopIndex + startBarrel;
+        boneIndex = VEH_GetTagBoneIndex(ent, barrelLoopIndex + startBarrel);
         if ( boneIndex < 0
             && !Assert_MyHandler(
                         "C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp",
@@ -10416,19 +10444,19 @@ void __cdecl CMD_VEH_FireWeapon(scr_entref_t entref)
             else
                 aimPadding = wp.weapDef->aimPadding;
             if ( (float)((-(wp.weapDef->aimPadding)) - diffAngles[0]) < 0.0 )
-                v12 = aimPadding;
+                clampedPitchPadding = aimPadding;
             else
-                v12 = -wp.weapDef->aimPadding;
-            diffAngles[0] = v12;
+                clampedPitchPadding = -wp.weapDef->aimPadding;
+            diffAngles[0] = clampedPitchPadding;
             if ( (float)(diffAngles[1] - wp.weapDef->aimPadding) < 0.0 )
-                v14 = diffAngles[1];
+                unclampedYawDiff = diffAngles[1];
             else
-                v14 = wp.weapDef->aimPadding;
+                unclampedYawDiff = wp.weapDef->aimPadding;
             if ( (float)((-(wp.weapDef->aimPadding)) - diffAngles[1]) < 0.0 )
-                v11 = v14;
+                clampedPitchDiff = unclampedYawDiff;
             else
-                v11 = -wp.weapDef->aimPadding;
-            diffAngles[1] = v11;
+                clampedPitchDiff = -wp.weapDef->aimPadding;
+            diffAngles[1] = clampedPitchDiff;
             diffAngles[2] = 0.0f;
             AnglesSubtract(gunAngles, diffAngles, gunAngles);
             AngleVectors(gunAngles, wp.gunForward, 0, 0);
@@ -10448,10 +10476,10 @@ void __cdecl CMD_VEH_FireWeapon(scr_entref_t entref)
         wp.up[2] = flashMtx[2][2];
         if ( (veh->turret.flags & 1) != 0 )
         {
-            v13 = -veh->turret.barrelOffset;
-            wp.muzzleTrace[0] = (float)(v13 * wp.gunForward[0]) + flashMtx[3][0];
-            wp.muzzleTrace[1] = (float)(v13 * wp.gunForward[1]) + flashMtx[3][1];
-            wp.muzzleTrace[2] = (float)(v13 * wp.gunForward[2]) + flashMtx[3][2];
+            barrelOffsetNeg = -veh->turret.barrelOffset;
+            wp.muzzleTrace[0] = (float)(barrelOffsetNeg * wp.gunForward[0]) + flashMtx[3][0];
+            wp.muzzleTrace[1] = (float)(barrelOffsetNeg * wp.gunForward[1]) + flashMtx[3][1];
+            wp.muzzleTrace[2] = (float)(barrelOffsetNeg * wp.gunForward[2]) + flashMtx[3][2];
         }
         else
         {
@@ -10460,11 +10488,11 @@ void __cdecl CMD_VEH_FireWeapon(scr_entref_t entref)
         }
         driver = VEH_GetSeatOccupantEntity(ent, 0);
         if ( driver )
-            v10 = driver;
+            defaultAttacker = driver;
         else
-            v10 = ent;
-        attacker = v10;
-        if ( v10 && attacker->client )
+            defaultAttacker = ent;
+        attacker = defaultAttacker;
+        if ( defaultAttacker && attacker->client )
             spread = wp.weapDef->playerSpread;
         else
             spread = wp.weapDef->aiSpread;
@@ -10476,10 +10504,10 @@ void __cdecl CMD_VEH_FireWeapon(scr_entref_t entref)
         if ( wp.weapDef->weapType == WEAPTYPE_BOMB )
         {
             if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) <= 1 )
-                Entity = 0;
+                bombTargetEnt = 0;
             else
-                Entity = Scr_GetEntity(1u);
-            target = Entity;
+                bombTargetEnt = Scr_GetEntity(1u);
+            target = bombTargetEnt;
             if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) <= 2 )
                 memset(targetOffset, 0, sizeof(targetOffset));
             else
@@ -10497,17 +10525,16 @@ void __cdecl CMD_VEH_FireWeapon(scr_entref_t entref)
             {
                 __debugbreak();
             }
-LABEL_87:
             Scr_AddEntity(proj, SCRIPTINSTANCE_SERVER);
             continue;
         }
         if ( wp.weapDef->weapType != WEAPTYPE_GAS )
         {
             if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) <= 1 )
-                v8 = 0;
+                projTargetEnt = 0;
             else
-                v8 = Scr_GetEntity(1u);
-            target = v8;
+                projTargetEnt = Scr_GetEntity(1u);
+            target = projTargetEnt;
             if ( (unsigned int)Scr_GetNumParam(SCRIPTINSTANCE_SERVER) <= 2 )
                 memset(targetOffset, 0, sizeof(targetOffset));
             else
@@ -10525,7 +10552,8 @@ LABEL_87:
             {
                 __debugbreak();
             }
-            goto LABEL_87;
+            Scr_AddEntity(proj, SCRIPTINSTANCE_SERVER);
+            continue;
         }
         veh->flags |= 0x40u;
         ent->s.lerp.eFlags |= 0x40u;
@@ -10540,25 +10568,25 @@ LABEL_87:
     else
     {
         //v7 = EntHandle::entnum(&ent->r.ownerNum);
-        v7 = ent->r.ownerNum.entnum();
-        G_AddEvent(ent, 0xADu, v7);
+        G_AddEvent(ent, 0xADu, ent->r.ownerNum.entnum());
     }
     Scr_Notify(ent, scr_const.weapon_fired, 0);
     veh->turret.fireTime = wp.weapDef->iFireTime;
     veh->turret.fireBarrel = veh->turret.fireBarrel == 0;
 }
 
+// Decomp: CoDMPServer.c:439509 (0x00682310)  VEH_GetTagBoneIndex
 int __cdecl VEH_GetTagBoneIndex(gentity_s *ent, int barrel)
 {
-    VariableUnion v2; // eax
-    char *v3; // eax
-    const char *v4; // eax
-    char *v5; // eax
-    const char *v6; // eax
-    char *v8; // [esp-8h] [ebp-14h]
-    char *boneName; // [esp+0h] [ebp-Ch]
-    int boneIndex; // [esp+4h] [ebp-8h]
-    scr_vehicle_s *veh; // [esp+8h] [ebp-4h]
+    VariableUnion boneNameConst;
+    char *entTargetName;
+    const char *missingTagErrorMsg;
+    char *flashTagName;
+    const char *missingFlashErrorMsg;
+    char *vehicleTargetName;
+    char *boneName;
+    int boneIndex;
+    scr_vehicle_s *veh;
 
     boneIndex = -1;
     veh = ent->scr_vehicle;
@@ -10567,13 +10595,13 @@ int __cdecl VEH_GetTagBoneIndex(gentity_s *ent, int barrel)
         boneName = Scr_GetString(0, SCRIPTINSTANCE_SERVER);
         if ( *boneName )
         {
-            v2.intValue = Scr_GetConstLowercaseString(0, SCRIPTINSTANCE_SERVER);
-            boneIndex = SV_DObjGetBoneIndex(ent, v2.stringValue);
+            boneNameConst.intValue = Scr_GetConstLowercaseString(0, SCRIPTINSTANCE_SERVER);
+            boneIndex = SV_DObjGetBoneIndex(ent, boneNameConst.stringValue);
             if ( boneIndex < 0 )
             {
-                v3 = SL_ConvertToString(ent->targetname, SCRIPTINSTANCE_SERVER);
-                v4 = va("No tag %s for [%s]\n", boneName, v3);
-                Scr_Error(v4, 0);
+                entTargetName = SL_ConvertToString(ent->targetname, SCRIPTINSTANCE_SERVER);
+                missingTagErrorMsg = va("No tag %s for [%s]\n", boneName, entTargetName);
+                Scr_Error(missingTagErrorMsg, 0);
             }
         }
         else
@@ -10585,10 +10613,10 @@ int __cdecl VEH_GetTagBoneIndex(gentity_s *ent, int barrel)
     {
         if ( veh->boneIndex.flash[barrel] < 0 )
         {
-            v8 = SL_ConvertToString(ent->targetname, SCRIPTINSTANCE_SERVER);
-            v5 = SL_ConvertToString(*s_flashTags[barrel], SCRIPTINSTANCE_SERVER);
-            v6 = va("No %s for [%s]\n", v5, v8);
-            Scr_Error(v6, 0);
+            vehicleTargetName = SL_ConvertToString(ent->targetname, SCRIPTINSTANCE_SERVER);
+            flashTagName = SL_ConvertToString(*s_flashTags[barrel], SCRIPTINSTANCE_SERVER);
+            missingFlashErrorMsg = va("No %s for [%s]\n", flashTagName, vehicleTargetName);
+            Scr_Error(missingFlashErrorMsg, 0);
         }
         else
         {
@@ -10598,11 +10626,12 @@ int __cdecl VEH_GetTagBoneIndex(gentity_s *ent, int barrel)
     return boneIndex;
 }
 
+// Decomp: CoDOMPServer.c:439540  CMD_VEH_FireGunnerWeapon
 void __cdecl CMD_VEH_FireGunnerWeapon(scr_entref_t entref)
 {
-    VariableUnion gunnerIndex; // [esp+0h] [ebp-Ch]
-    gentity_s *proj; // [esp+4h] [ebp-8h]
-    gentity_s *ent; // [esp+8h] [ebp-4h]
+    VariableUnion gunnerIndex;
+    gentity_s *proj;
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     gunnerIndex.intValue = 0;
@@ -10615,25 +10644,27 @@ void __cdecl CMD_VEH_FireGunnerWeapon(scr_entref_t entref)
         Scr_AddEntity(proj, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:439570  CMD_VEH_StopFireWeapon
 void __cdecl CMD_VEH_StopFireWeapon(scr_entref_t entref)
 {
-    gentity_s *ent; // [esp+8h] [ebp-4h]
+    gentity_s *ent;
 
     ent = GScr_GetVehicle(entref);
     ent->s.lerp.eFlags &= ~0x40u;
     ent->scr_vehicle->flags &= ~0x40u;
 }
 
+// Decomp: CoDOMPServer.c:439590  CMD_VEH_IsTurretReady
 void __cdecl CMD_VEH_IsTurretReady(scr_entref_t entref)
 {
-    const char *v1; // eax
-    scr_vehicle_s *veh; // [esp+0h] [ebp-8h]
+    const char *notPlayerVehicleErrorMsg;
+    scr_vehicle_s *veh;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     if ( (veh->flags & 1) == 0 )
     {
-        v1 = va("Must be called on a player controlled vehicle");
-        Scr_Error(v1, 0);
+        notPlayerVehicleErrorMsg = va("Must be called on a player controlled vehicle");
+        Scr_Error(notPlayerVehicleErrorMsg, 0);
     }
     if ( veh->turret.fireTime > 0 )
         Scr_AddInt(0, SCRIPTINSTANCE_SERVER);
@@ -10641,10 +10672,11 @@ void __cdecl CMD_VEH_IsTurretReady(scr_entref_t entref)
         Scr_AddInt(1, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:439620  CMD_VEH_ForceMaterialSpeed
 void __cdecl CMD_VEH_ForceMaterialSpeed(scr_entref_t entref)
 {
-    scr_vehicle_s *veh; // [esp+0h] [ebp-10h]
-    float speed; // [esp+Ch] [ebp-4h]
+    scr_vehicle_s *veh;
+    float speed;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     if ( !veh && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 12231, 0, "%s", "veh") )
@@ -10661,11 +10693,12 @@ void __cdecl CMD_VEH_ForceMaterialSpeed(scr_entref_t entref)
     }
 }
 
+// Decomp: CoDOMPServer.c:439650  CMD_VEH_SetMaxSpeed
 void __cdecl CMD_VEH_SetMaxSpeed(scr_entref_t entref)
 {
-    float max_speed_scale; // [esp+8h] [ebp-10h]
-    scr_vehicle_s *veh; // [esp+Ch] [ebp-Ch]
-    float speed; // [esp+14h] [ebp-4h]
+    float max_speed_scale;
+    scr_vehicle_s *veh;
+    float speed;
 
     veh = GScr_GetVehicle(entref)->scr_vehicle;
     if ( !veh && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_scr_vehicle.cpp", 12266, 0, "%s", "veh") )
@@ -10689,11 +10722,12 @@ void __cdecl CMD_VEH_SetMaxSpeed(scr_entref_t entref)
     }
 }
 
+// Decomp: CoDOMPServer.c:439680  CMD_VEH_GetOccupants
 void __cdecl CMD_VEH_GetOccupants(scr_entref_t entref)
 {
-    gentity_s *occupant; // [esp+0h] [ebp-Ch]
-    gentity_s *ent; // [esp+4h] [ebp-8h]
-    int seatIndex; // [esp+8h] [ebp-4h]
+    gentity_s *occupant;
+    gentity_s *ent;
+    int seatIndex;
 
     ent = GScr_GetVehicle(entref);
     if ( !ent->scr_vehicle
@@ -10718,11 +10752,12 @@ void __cdecl CMD_VEH_GetOccupants(scr_entref_t entref)
     }
 }
 
+// Decomp: CoDOMPServer.c:439710  CMD_VEH_GetSeatOccupant
 void __cdecl CMD_VEH_GetSeatOccupant(scr_entref_t entref)
 {
-    gentity_s *occupant; // [esp+0h] [ebp-Ch]
-    gentity_s *vehicle; // [esp+4h] [ebp-8h]
-    int seatIndex; // [esp+8h] [ebp-4h]
+    gentity_s *occupant;
+    gentity_s *vehicle;
+    int seatIndex;
 
     vehicle = GScr_GetVehicle(entref);
     seatIndex = Scr_GetInt(0, SCRIPTINSTANCE_SERVER);
@@ -10731,11 +10766,12 @@ void __cdecl CMD_VEH_GetSeatOccupant(scr_entref_t entref)
         Scr_AddEntity(occupant, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:439740  CMD_VEH_GetOccupantSeat
 void __cdecl CMD_VEH_GetOccupantSeat(scr_entref_t entref)
 {
-    gentity_s *vehicle; // [esp+0h] [ebp-Ch]
-    gentity_s *player; // [esp+4h] [ebp-8h]
-    int seatIndex; // [esp+8h] [ebp-4h]
+    gentity_s *vehicle;
+    gentity_s *player;
+    int seatIndex;
 
     vehicle = GScr_GetVehicle(entref);
     player = Scr_GetEntity(0);
@@ -10744,12 +10780,13 @@ void __cdecl CMD_VEH_GetOccupantSeat(scr_entref_t entref)
         Scr_AddInt(seatIndex, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:439770  CMD_VEH_SetSeatOccupied
 void __cdecl CMD_VEH_SetSeatOccupied(scr_entref_t entref)
 {
-    int occupied; // [esp+0h] [ebp-10h]
-    gentity_s *vehicle; // [esp+4h] [ebp-Ch]
-    int seatIndex; // [esp+8h] [ebp-8h]
-    VehicleSeat *seat; // [esp+Ch] [ebp-4h]
+    int occupied;
+    gentity_s *vehicle;
+    int seatIndex;
+    VehicleSeat *seat;
 
     vehicle = GScr_GetVehicle(entref);
     seatIndex = Scr_GetInt(0, SCRIPTINSTANCE_SERVER);
@@ -10775,20 +10812,21 @@ void __cdecl CMD_VEH_SetSeatOccupied(scr_entref_t entref)
     }
 }
 
+// Decomp: CoDOMPServer.c:439800  CMD_VEH_SeatGetWeapon
 void __cdecl CMD_VEH_SeatGetWeapon(scr_entref_t entref)
 {
-    char *v1; // eax
-    unsigned int weapon; // [esp+0h] [ebp-Ch]
-    gentity_s *vehicle; // [esp+4h] [ebp-8h]
-    int seatIndex; // [esp+8h] [ebp-4h]
+    char *weaponName;
+    unsigned int weapon;
+    gentity_s *vehicle;
+    int seatIndex;
 
     vehicle = GScr_GetVehicle(entref);
     seatIndex = Scr_GetInt(0, SCRIPTINSTANCE_SERVER);
     weapon = VEH_GetSeatWeaponIndex(vehicle, seatIndex);
     if ( weapon )
     {
-        v1 = (char *)BG_WeaponName(weapon);
-        Scr_AddString(v1, SCRIPTINSTANCE_SERVER);
+        weaponName = (char *)BG_WeaponName(weapon);
+        Scr_AddString(weaponName, SCRIPTINSTANCE_SERVER);
     }
     else
     {
@@ -10796,13 +10834,14 @@ void __cdecl CMD_VEH_SeatGetWeapon(scr_entref_t entref)
     }
 }
 
+// Decomp: CoDOMPServer.c:439830  CMD_VEH_GetSeatFiringOrigin
 void __cdecl CMD_VEH_GetSeatFiringOrigin(scr_entref_t entref)
 {
-    const char *v1; // eax
-    float origin[3]; // [esp+0h] [ebp-20h] BYREF
-    gentity_s *vehicle; // [esp+Ch] [ebp-14h]
-    float angles[3]; // [esp+10h] [ebp-10h] BYREF
-    int seatIndex; // [esp+1Ch] [ebp-4h]
+    const char *noFiringOriginErrorMsg;
+    float origin[3];
+    gentity_s *vehicle;
+    float angles[3];
+    int seatIndex;
 
     vehicle = GScr_GetVehicle(entref);
     seatIndex = Scr_GetInt(0, SCRIPTINSTANCE_SERVER);
@@ -10812,18 +10851,19 @@ void __cdecl CMD_VEH_GetSeatFiringOrigin(scr_entref_t entref)
     }
     else
     {
-        v1 = va("Can't get firing origin for a seat that has no weapon or no flash tag (seat %i).", seatIndex);
-        Scr_Error(v1, 0);
+        noFiringOriginErrorMsg = va("Can't get firing origin for a seat that has no weapon or no flash tag (seat %i).", seatIndex);
+        Scr_Error(noFiringOriginErrorMsg, 0);
     }
 }
 
+// Decomp: CoDOMPServer.c:439860  CMD_VEH_GetSeatFiringAngles
 void __cdecl CMD_VEH_GetSeatFiringAngles(scr_entref_t entref)
 {
-    const char *v1; // eax
-    float origin[3]; // [esp+0h] [ebp-20h] BYREF
-    gentity_s *vehicle; // [esp+Ch] [ebp-14h]
-    float angles[3]; // [esp+10h] [ebp-10h] BYREF
-    int seatIndex; // [esp+1Ch] [ebp-4h]
+    const char *noFiringAnglesErrorMsg;
+    float origin[3];
+    gentity_s *vehicle;
+    float angles[3];
+    int seatIndex;
 
     vehicle = GScr_GetVehicle(entref);
     seatIndex = Scr_GetInt(0, SCRIPTINSTANCE_SERVER);
@@ -10833,42 +10873,45 @@ void __cdecl CMD_VEH_GetSeatFiringAngles(scr_entref_t entref)
     }
     else
     {
-        v1 = va("Can't get firing angles for a seat that has no weapon or no flash tag (seat %i).", seatIndex);
-        Scr_Error(v1, 0);
+        noFiringAnglesErrorMsg = va("Can't get firing angles for a seat that has no weapon or no flash tag (seat %i).", seatIndex);
+        Scr_Error(noFiringAnglesErrorMsg, 0);
     }
 }
 
+// Decomp: CoDOMPServer.c:439890  CMD_VEH_IsGunnerFiring
 void __cdecl CMD_VEH_IsGunnerFiring(scr_entref_t entref)
 {
-    gentity_s *vehicle; // [esp+4h] [ebp-8h]
-    bool firing; // [esp+Bh] [ebp-1h]
+    gentity_s *vehicle;
+    bool firing;
 
     vehicle = GScr_GetVehicle(entref);
     firing = vehicle->scr_vehicle->gunnerTurrets[Scr_GetInt(0, SCRIPTINSTANCE_SERVER)].fireTime > 0;
     Scr_AddBool(firing, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:439910  CMD_VEH_DisableGunnerFiring
 void __cdecl CMD_VEH_DisableGunnerFiring(scr_entref_t entref)
 {
-    unsigned int v1; // eax
-    int gunnerIndex; // [esp+0h] [ebp-Ch]
-    gentity_s *vehicle; // [esp+4h] [ebp-8h]
+    unsigned int gunnerTurretFlags;
+    int gunnerIndex;
+    gentity_s *vehicle;
 
     vehicle = GScr_GetVehicle(entref);
     gunnerIndex = Scr_GetInt(0, SCRIPTINSTANCE_SERVER);
     if ( Scr_GetInt(1u, SCRIPTINSTANCE_SERVER) )
-        v1 = vehicle->scr_vehicle->gunnerTurrets[gunnerIndex].flags | 8;
+        gunnerTurretFlags = vehicle->scr_vehicle->gunnerTurrets[gunnerIndex].flags | 8;
     else
-        v1 = vehicle->scr_vehicle->gunnerTurrets[gunnerIndex].flags & 0xFFFFFFF7;
-    vehicle->scr_vehicle->gunnerTurrets[gunnerIndex].flags = v1;
+        gunnerTurretFlags = vehicle->scr_vehicle->gunnerTurrets[gunnerIndex].flags & 0xFFFFFFF7;
+    vehicle->scr_vehicle->gunnerTurrets[gunnerIndex].flags = gunnerTurretFlags;
 }
 
+// Decomp: CoDOMPServer.c:439940  CMD_VEH_GetTreadHealth
 void __cdecl CMD_VEH_GetTreadHealth(scr_entref_t entref)
 {
-    unsigned __int16 right_tread; // [esp+2h] [ebp-12h]
-    int treadHealth; // [esp+8h] [ebp-Ch] BYREF
-    int leftRightIndex; // [esp+Ch] [ebp-8h]
-    gentity_s *vehicle; // [esp+10h] [ebp-4h]
+    unsigned __int16 right_tread;
+    int treadHealth;
+    int leftRightIndex;
+    gentity_s *vehicle;
 
     vehicle = GScr_GetVehicle(entref);
     if ( vehicle->destructible
@@ -10885,38 +10928,38 @@ void __cdecl CMD_VEH_GetTreadHealth(scr_entref_t entref)
     }
 }
 
+// Decomp: CoDOMPServer.c:439970  CMD_VEH_finishVehicleDamage
 void __cdecl CMD_VEH_finishVehicleDamage(scr_entref_t entref)
 {
-    unsigned __int16 floatValue; // ax
-    float v2; // [esp+0h] [ebp-90h]
-    gentity_s *occupant; // [esp+10h] [ebp-80h]
-    int seatIndex; // [esp+14h] [ebp-7Ch]
-    gentity_s *attacker; // [esp+18h] [ebp-78h]
-    int damage; // [esp+1Ch] [ebp-74h]
-    int damagea; // [esp+1Ch] [ebp-74h]
-    meansOfDeath_t mod; // [esp+20h] [ebp-70h]
-    char *weaponName; // [esp+24h] [ebp-6Ch]
-    float *dir; // [esp+28h] [ebp-68h]
-    float localdir[3]; // [esp+2Ch] [ebp-64h] BYREF
-    float vDir[3]; // [esp+38h] [ebp-58h] BYREF
-    float vPoint[3]; // [esp+44h] [ebp-4Ch] BYREF
-    gentity_s *tempBulletHitEntity; // [esp+50h] [ebp-40h]
-    int iWeapon; // [esp+54h] [ebp-3Ch]
-    int psTimeOffset; // [esp+58h] [ebp-38h]
-    gentity_s *self; // [esp+5Ch] [ebp-34h]
-    int dflags; // [esp+60h] [ebp-30h]
-    int isBulletWeapon; // [esp+64h] [ebp-2Ch]
-    int damageTeamates; // [esp+68h] [ebp-28h]
-    int damageFromUnderneath; // [esp+6Ch] [ebp-24h] BYREF
-    gentity_s *inflictor; // [esp+70h] [ebp-20h]
-    hitLocation_t hitLoc; // [esp+74h] [ebp-1Ch]
-    void (__cdecl *die)(gentity_s *, gentity_s *, gentity_s *, int, int, const int, const float *, const hitLocation_t, int); // [esp+78h] [ebp-18h]
-    void (__cdecl *pain)(gentity_s *, gentity_s *, int, const float *, const int, const float *, const hitLocation_t, const int); // [esp+7Ch] [ebp-14h]
-    int originalDamage; // [esp+80h] [ebp-10h]
-    unsigned int modelIndex; // [esp+84h] [ebp-Ch]
-    unsigned int partName; // [esp+88h] [ebp-8h]
-    const float *point; // [esp+8Ch] [ebp-4h]
-    int savedregs; // [esp+90h] [ebp+0h] BYREF
+    unsigned __int16 hitLocString;
+    float damageAttacker;
+    gentity_s *occupant;
+    int seatIndex;
+    gentity_s *attacker;
+    int damage;
+    int damagea;
+    meansOfDeath_t mod;
+    char *weaponName;
+    float *dir;
+    float localdir[3];
+    float damageDir[3];
+    float damagePoint[3];
+    gentity_s *unusedBulletHit;
+    int iWeapon;
+    int psTimeOffset;
+    gentity_s *self;
+    int dflags;
+    int isBulletWeapon;
+    int damageTeamates;
+    int damageFromUnderneath;
+    gentity_s *inflictor;
+    hitLocation_t hitLoc;
+    void (__cdecl *die)(gentity_s *, gentity_s *, gentity_s *, int, int, const int, const float *, const hitLocation_t, int);
+    void (__cdecl *pain)(gentity_s *, gentity_s *, int, const float *, const int, const float *, const hitLocation_t, const int);
+    int originalDamage;
+    unsigned int modelIndex;
+    unsigned int partName;
+    const float *point;
 
     self = GScr_GetVehicle(entref);
     inflictor = &g_entities[1022];
@@ -10924,7 +10967,7 @@ void __cdecl CMD_VEH_finishVehicleDamage(scr_entref_t entref)
     dir = 0;
     point = 0;
     isBulletWeapon = 0;
-    tempBulletHitEntity = 0;
+    unusedBulletHit = 0;
     damage = Scr_GetInt(2u, SCRIPTINSTANCE_SERVER);
     if ( damage > 0 )
     {
@@ -10938,16 +10981,16 @@ void __cdecl CMD_VEH_finishVehicleDamage(scr_entref_t entref)
         iWeapon = G_GetWeaponIndexForName(weaponName);
         if ( Scr_GetType(6u, SCRIPTINSTANCE_SERVER) )
         {
-            Scr_GetVector(6u, vPoint, SCRIPTINSTANCE_SERVER);
-            point = vPoint;
+            Scr_GetVector(6u, damagePoint, SCRIPTINSTANCE_SERVER);
+            point = damagePoint;
         }
         if ( Scr_GetType(7u, SCRIPTINSTANCE_SERVER) )
         {
-            Scr_GetVector(7u, vDir, SCRIPTINSTANCE_SERVER);
-            dir = vDir;
+            Scr_GetVector(7u, damageDir, SCRIPTINSTANCE_SERVER);
+            dir = damageDir;
         }
-        floatValue = (unsigned __int16)Scr_GetConstString(8u, SCRIPTINSTANCE_SERVER);
-        hitLoc = (hitLocation_t)G_GetHitLocationIndexFromString(floatValue);
+        hitLocString = (unsigned __int16)Scr_GetConstString(8u, SCRIPTINSTANCE_SERVER);
+        hitLoc = (hitLocation_t)G_GetHitLocationIndexFromString(hitLocString);
         psTimeOffset = Scr_GetInt(9u, SCRIPTINSTANCE_SERVER);
         damageFromUnderneath = Scr_GetInt(0xAu, SCRIPTINSTANCE_SERVER);
         modelIndex = Scr_GetInt(0xBu, SCRIPTINSTANCE_SERVER);
@@ -10958,7 +11001,7 @@ void __cdecl CMD_VEH_finishVehicleDamage(scr_entref_t entref)
         else
             memset(localdir, 0, sizeof(localdir));
         originalDamage = damage;
-        v2 = (float)damage;
+        damageAttacker = (float)damage;
         damagea = (int)(Scr_Vehicle_DamageScale(
                                             self,
                                             attacker,
@@ -10967,7 +11010,7 @@ void __cdecl CMD_VEH_finishVehicleDamage(scr_entref_t entref)
                                             mod,
                                             iWeapon,
                                             &damageFromUnderneath)
-                                    * v2);
+                                    * damageAttacker);
         if ( damagea && (dflags & 1) == 0 && self->destructible )
             damagea = DestructibleDamage(self, attacker, dir, point, damagea, mod, modelIndex, partName);
         if ( self->health > 0 )
@@ -11023,35 +11066,36 @@ void __cdecl CMD_VEH_finishVehicleDamage(scr_entref_t entref)
     }
 }
 
+// Decomp: CoDOMPServer.c:440080  CMD_VEH_finishVehicleRadiusDamage
 void __cdecl CMD_VEH_finishVehicleRadiusDamage(scr_entref_t entref)
 {
-    gentity_s *attacker; // [esp+24h] [ebp-68h]
-    int damage; // [esp+28h] [ebp-64h]
-    meansOfDeath_t mod; // [esp+2Ch] [ebp-60h]
-    char *weaponName; // [esp+30h] [ebp-5Ch]
-    float *coneDirection; // [esp+34h] [ebp-58h]
-    float localdir[3]; // [esp+38h] [ebp-54h] BYREF
-    float vDir[3]; // [esp+44h] [ebp-48h] BYREF
-    float vPoint[3]; // [esp+50h] [ebp-3Ch] BYREF
-    gentity_s *tempBulletHitEntity; // [esp+5Ch] [ebp-30h]
-    float radius; // [esp+60h] [ebp-2Ch]
-    int iWeapon; // [esp+64h] [ebp-28h]
-    int psTimeOffset; // [esp+68h] [ebp-24h]
-    float fOuterDamage; // [esp+6Ch] [ebp-20h]
-    gentity_s *self; // [esp+70h] [ebp-1Ch]
-    int dflags; // [esp+74h] [ebp-18h]
-    float fConeAngleCos; // [esp+78h] [ebp-14h]
-    float damageScale; // [esp+7Ch] [ebp-10h]
-    gentity_s *inflictor; // [esp+80h] [ebp-Ch]
-    const float *point; // [esp+84h] [ebp-8h]
-    float fInnerDamage; // [esp+88h] [ebp-4h]
+    gentity_s *attacker;
+    int damage;
+    meansOfDeath_t mod;
+    char *weaponName;
+    float *coneDirection;
+    float localdir[3];
+    float coneDir[3];
+    float explosionPoint[3];
+    gentity_s *unusedBulletHit;
+    float radius;
+    int iWeapon;
+    int psTimeOffset;
+    float fOuterDamage;
+    gentity_s *self;
+    int dflags;
+    float fConeAngleCos;
+    float damageScale;
+    gentity_s *inflictor;
+    const float *point;
+    float fInnerDamage;
 
     self = GScr_GetVehicle(entref);
     inflictor = &g_entities[1022];
     attacker = &g_entities[1022];
     coneDirection = 0;
     point = 0;
-    tempBulletHitEntity = 0;
+    unusedBulletHit = 0;
     damage = Scr_GetInt(2u, SCRIPTINSTANCE_SERVER);
     if ( damage > 0 )
     {
@@ -11067,32 +11111,32 @@ void __cdecl CMD_VEH_finishVehicleRadiusDamage(scr_entref_t entref)
         iWeapon = G_GetWeaponIndexForName(weaponName);
         if ( Scr_GetType(8u, SCRIPTINSTANCE_SERVER) )
         {
-            Scr_GetVector(8u, vPoint, SCRIPTINSTANCE_SERVER);
-            point = vPoint;
+            Scr_GetVector(8u, explosionPoint, SCRIPTINSTANCE_SERVER);
+            point = explosionPoint;
         }
         radius = Scr_GetFloat(9u, SCRIPTINSTANCE_SERVER);
         fConeAngleCos = Scr_GetFloat(0xAu, SCRIPTINSTANCE_SERVER);
         if ( Scr_GetType(0xBu, SCRIPTINSTANCE_SERVER) )
         {
-            Scr_GetVector(0xBu, vDir, SCRIPTINSTANCE_SERVER);
-            Vec3Normalize(vDir);
-            coneDirection = vDir;
+            Scr_GetVector(0xBu, coneDir, SCRIPTINSTANCE_SERVER);
+            Vec3Normalize(coneDir);
+            coneDirection = coneDir;
         }
         psTimeOffset = Scr_GetInt(0xCu, SCRIPTINSTANCE_SERVER);
-        damageScale = CanDamage(self, inflictor, vPoint, fConeAngleCos, coneDirection, 8396819);
+        damageScale = CanDamage(self, inflictor, explosionPoint, fConeAngleCos, coneDirection, 8396819);
         if ( damageScale > 0.0 )
         {
-            localdir[0] = self->r.currentOrigin[0] - vPoint[0];
-            localdir[1] = self->r.currentOrigin[1] - vPoint[1];
-            localdir[2] = self->r.currentOrigin[2] - vPoint[2];
+            localdir[0] = self->r.currentOrigin[0] - explosionPoint[0];
+            localdir[1] = self->r.currentOrigin[1] - explosionPoint[1];
+            localdir[2] = self->r.currentOrigin[2] - explosionPoint[2];
             if ( self->destructible )
-                damage = (int)DestructibleRadiusDamage(self, vPoint, fInnerDamage, fOuterDamage, radius, mod, attacker);
+                damage = (int)DestructibleRadiusDamage(self, explosionPoint, fInnerDamage, fOuterDamage, radius, mod, attacker);
             G_Damage(
                 self,
                 inflictor,
                 attacker,
                 localdir,
-                vPoint,
+                explosionPoint,
                 (int)(float)((float)damage * damageScale),
                 dflags,
                 mod,
@@ -11105,13 +11149,14 @@ void __cdecl CMD_VEH_finishVehicleRadiusDamage(scr_entref_t entref)
     }
 }
 
+// Decomp: CoDOMPServer.c:440150  CMD_VEH_IsVehicleImmuneToDamage
 void __cdecl CMD_VEH_IsVehicleImmuneToDamage(scr_entref_t entref)
 {
-    char *String; // eax
-    meansOfDeath_t mod; // [esp+0h] [ebp-10h]
-    unsigned int iWeapon; // [esp+4h] [ebp-Ch]
-    gentity_s *vehicle; // [esp+8h] [ebp-8h]
-    char dflags; // [esp+Ch] [ebp-4h]
+    char *String;
+    meansOfDeath_t mod;
+    unsigned int iWeapon;
+    gentity_s *vehicle;
+    char dflags;
 
     vehicle = GScr_GetVehicle(entref);
     dflags = (unsigned __int8)Scr_GetInt(0, SCRIPTINSTANCE_SERVER);
@@ -11124,10 +11169,11 @@ void __cdecl CMD_VEH_IsVehicleImmuneToDamage(scr_entref_t entref)
         Scr_AddBool(0, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:440180  CMD_VEH_IsBoosting
 void __cdecl CMD_VEH_IsBoosting(scr_entref_t entref)
 {
-    bool isBoosting; // [esp+7h] [ebp-9h]
-    scr_vehicle_s *veh; // [esp+8h] [ebp-8h]
+    bool isBoosting;
+    scr_vehicle_s *veh;
 
     isBoosting = 0;
     veh = GScr_GetVehicle(entref)->scr_vehicle;
@@ -11136,12 +11182,13 @@ void __cdecl CMD_VEH_IsBoosting(scr_entref_t entref)
     Scr_AddBool(isBoosting, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDOMPServer.c:440210  CMD_VEH_GetBoost
 void __cdecl CMD_VEH_GetBoost(scr_entref_t entref)
 {
-    NitrousVehicle *nitVeh; // [esp+8h] [ebp-10h]
-    scr_vehicle_s *veh; // [esp+Ch] [ebp-Ch]
-    float boost; // [esp+10h] [ebp-8h]
-    gentity_s *self; // [esp+14h] [ebp-4h]
+    NitrousVehicle *nitVeh;
+    scr_vehicle_s *veh;
+    float boost;
+    gentity_s *self;
 
     boost = 0.0f;
     self = GScr_GetVehicle(entref);
@@ -11158,42 +11205,63 @@ void __cdecl CMD_VEH_GetBoost(scr_entref_t entref)
     Scr_AddFloat(boost, SCRIPTINSTANCE_SERVER);
 }
 
+// Decomp: CoDMPServer.c:440240 (0x00683600)  G_VehSetClientSideHealthPercentageEntity
 void __cdecl G_VehSetClientSideHealthPercentageEntity(gentity_s *const ent, float percentage)
 {
     VehSetClientSideHealth(ent, percentage, 63, 0);
 }
 
+// Decomp: CoDOMPServer.c:440260  VehSetClientSideHealth
 void __cdecl VehSetClientSideHealth(gentity_s *const ent, float percentage, int mask, char shift)
 {
-    float v4; // [esp+0h] [ebp-Ch]
-    float v5; // [esp+4h] [ebp-8h]
+    float clampedPct;
+    float cappedPct;
 
     if ( (float)(percentage - 1.0) < 0.0 )
-        v5 = percentage;
+        cappedPct = percentage;
     else
-        v5 = 1.0f;
+        cappedPct = 1.0f;
     if ( (float)(0.0 - percentage) < 0.0 )
-        v4 = v5;
+        clampedPct = cappedPct;
     else
-        v4 = 0.0f;
-    VehSetClientSideTime2Val(ent, (int)(float)(v4 * 63.0), mask, shift);
+        clampedPct = 0.0f;
+    VehSetClientSideTime2Val(ent, (int)(float)(clampedPct * 63.0), mask, shift);
 }
 
+// Decomp: CoDOMPServer.c:440290  VehSetClientSideTime2Val
 void __cdecl VehSetClientSideTime2Val(gentity_s *const ent, int val, int mask, char shift)
 {
     ent->s.time2 = mask & (val << shift) | ent->s.time2 & ~mask;
 }
 
+void __cdecl G_VehSetClientSideEngineVolume(gentity_s *const ent, float volume)
+{
+    int val;
+    float clamped;
+
+    if ( volume < 0.0f )
+        clamped = 0.0f;
+    else if ( volume > 1.0f )
+        clamped = 1.0f;
+    else
+        clamped = volume;
+    val = (int)(clamped * 63.0f);
+    VehSetClientSideTime2Val(ent, val, 0xFC000000, 26);
+}
+
+// Decomp: CoDOMPServer.c:440310  G_VehSetClientSideHealthPercentageLeftTread
 void __cdecl G_VehSetClientSideHealthPercentageLeftTread(gentity_s *const ent, float percentage)
 {
     VehSetClientSideHealth(ent, percentage, 4032, 6);
 }
 
+// Decomp: CoDOMPServer.c:440330  G_VehSetClientSideHealthPercentageRightTread
 void __cdecl G_VehSetClientSideHealthPercentageRightTread(gentity_s *const ent, float percentage)
 {
     VehSetClientSideHealth(ent, percentage, 258048, 12);
 }
 
+// Decomp: CoDOMPServer.c:440350  G_VehSetClientSideSeatOccupancyFlags
 void __cdecl G_VehSetClientSideSeatOccupancyFlags(gentity_s *const ent, int occupancy_flags)
 {
     VehSetClientSideTime2Val(ent, occupancy_flags, 786432, 18);
@@ -11206,6 +11274,7 @@ const int pitchturn_masks_0[2] = { 2097152, 8388608 };
 const int overheating_shifts_0[2] = { 24, 25 };
 const int overheating_masks_0[2] = { 16777216, 33554432 };
 
+// Decomp: CoDOMPServer.c:440370  G_VehSetClientSideGunTurningYaw
 void __cdecl G_VehSetClientSideGunTurningYaw(gentity_s *const ent, unsigned int seatIndex, bool turning)
 {
     if ( seatIndex >= 2
@@ -11221,6 +11290,7 @@ void __cdecl G_VehSetClientSideGunTurningYaw(gentity_s *const ent, unsigned int 
     VehSetClientSideGunTurnRate(ent, (float)turning, yawturn_masks_0[seatIndex], yawturn_shifts[seatIndex]);
 }
 
+// Decomp: CoDOMPServer.c:440390  VehSetClientSideGunTurnRate
 void __cdecl VehSetClientSideGunTurnRate(gentity_s *const ent, float percentage, int mask, char shift)
 {
     if ( percentage == 0.0 )
@@ -11229,6 +11299,7 @@ void __cdecl VehSetClientSideGunTurnRate(gentity_s *const ent, float percentage,
         VehSetClientSideTime2Val(ent, 1, mask, shift);
 }
 
+// Decomp: CoDOMPServer.c:440410  G_VehSetClientSideGunTurningPitch
 void __cdecl G_VehSetClientSideGunTurningPitch(gentity_s *const ent, unsigned int seatIndex, bool turning)
 {
     if ( seatIndex >= 2
@@ -11244,6 +11315,7 @@ void __cdecl G_VehSetClientSideGunTurningPitch(gentity_s *const ent, unsigned in
     VehSetClientSideGunTurnRate(ent, (float)turning, pitchturn_masks_0[seatIndex], pitchturn_shifts[seatIndex]);
 }
 
+// Decomp: CoDOMPServer.c:440430  G_VehSetClientSideGunOverheating
 void __cdecl G_VehSetClientSideGunOverheating(gentity_s *const ent, unsigned int seatIndex, bool overheating)
 {
     if ( seatIndex >= 2
@@ -11258,4 +11330,3 @@ void __cdecl G_VehSetClientSideGunOverheating(gentity_s *const ent, unsigned int
     }
     VehSetClientSideTime2Val(ent, overheating, overheating_masks_0[seatIndex], overheating_shifts_0[seatIndex]);
 }
-

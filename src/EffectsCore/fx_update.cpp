@@ -1200,6 +1200,11 @@ FxUpdateResult __cdecl FX_UpdateElement(
     return updateResult;
 }
 
+bool __cdecl Vec3Compare(const float *a, const float *b)
+{
+    return *a == *b && a[1] == b[1] && a[2] == b[2];
+}
+
 const FxElemDef *__cdecl FX_GetUpdateElemDef(const FxUpdateElem *update)
 {
     if ( !update->effect
@@ -2583,7 +2588,7 @@ void __cdecl FX_UpdateEffect(FxSystem *system, FxEffect *effect, FxEffectContain
     }
 }
 
-#if 0
+#if 1 // Decomp: CoDMPServer.c — retail dword bolt update (511 sentinel via packed >> 20)
 void __cdecl FX_UpdateEffectBolt(FxSystem *system, FxEffect *effect, FxEffectContainer *remoteEffect)
 {
     const DynEntityPose *ClientPose; // eax
@@ -2593,11 +2598,11 @@ void __cdecl FX_UpdateEffectBolt(FxSystem *system, FxEffect *effect, FxEffectCon
     const DynEntityPose *dynEntPose; // [esp+78h] [ebp-8h]
     bool temporalBitsValid; // [esp+7Fh] [ebp-1h]
 
-    if ( ((*(unsigned int *)&effect->boltAndSortOrder.0 >> 29) & 3) == 2 )
+    if ( ((effect->boltAndSortOrder.packed >> 29) & 3) == 2 )
     {
-        if ( DynEnt_Valid(*(unsigned int *)&effect->boltAndSortOrder.0 >> 8) )
+        if ( DynEnt_Valid(effect->boltAndSortOrder.packed >> 8) )
         {
-            ClientPose = DynEnt_GetClientPose(*(unsigned int *)&effect->boltAndSortOrder.0 >> 8);
+            ClientPose = DynEnt_GetClientPose(effect->boltAndSortOrder.packed >> 8);
             dynEntPose = ClientPose;
             effect->frameNow.origin[0] = ClientPose->pose.origin[0];
             effect->frameNow.origin[1] = ClientPose->pose.origin[1];
@@ -2612,15 +2617,15 @@ void __cdecl FX_UpdateEffectBolt(FxSystem *system, FxEffect *effect, FxEffectCon
             FX_KillEffect(system, remoteEffect);
         }
     }
-    else if ( ((*(unsigned int *)&effect->boltAndSortOrder.0 >> 29) & 3) == 1 )
+    else if ( ((effect->boltAndSortOrder.packed >> 29) & 3) == 1 )
     {
         localClientNum = system->localClientNum;
-        temporalBitsValid = FX_GetBoltTemporalBits(localClientNum, (*(unsigned int *)&effect->boltAndSortOrder.0 >> 8) & 0x7FF) == ((*(unsigned int *)&effect->boltAndSortOrder.0 >> 19) & 1);
+        temporalBitsValid = FX_GetBoltTemporalBits(localClientNum, (effect->boltAndSortOrder.packed >> 8) & 0x7FF) == ((effect->boltAndSortOrder.packed >> 19) & 1);
         if ( temporalBitsValid
             && FX_GetBoneOrientation(
                      localClientNum,
-                     (*(unsigned int *)&effect->boltAndSortOrder.0 >> 8) & 0x7FF,
-                     (*(unsigned int *)&effect->boltAndSortOrder.0 >> 20) & 0x1FF,
+                     (effect->boltAndSortOrder.packed >> 8) & 0x7FF,
+                     (effect->boltAndSortOrder.packed >> 20) & 0x1FF,
                      &orient) )
         {
             OrientationConcatenate(&effect->boneOffset, &orient, &fullOrient);
@@ -2635,15 +2640,14 @@ void __cdecl FX_UpdateEffectBolt(FxSystem *system, FxEffect *effect, FxEffectCon
                 FX_KillEffect(system, remoteEffect);
             else
                 FX_StopEffect(system, remoteEffect);
-            *(unsigned int *)&effect->boltAndSortOrder.0 |= 0x1FF00000u;
-            *(unsigned int *)&effect->boltAndSortOrder.0 |= 0x7FF00u;
-            *(unsigned int *)&effect->boltAndSortOrder.0 &= 0x9FFFFFFF;
-            *(unsigned int *)&effect->boltAndSortOrder.0 |= 0x80000000;
+            effect->boltAndSortOrder.packed |= 0x1FF00000u;
+            effect->boltAndSortOrder.packed |= 0x7FF00u;
+            effect->boltAndSortOrder.packed &= 0x9FFFFFFF;
+            effect->boltAndSortOrder.packed |= 0x80000000;
         }
     }
 }
-#endif
-
+#else // aislop refactored — 8-bit boneIndex cannot represent FX_BONE_INDEX_NONE (511)
 // aislopped unionization
 void FX_UpdateEffectBolt(
     FxSystem *system,
@@ -2727,6 +2731,7 @@ void FX_UpdateEffectBolt(
         }
     }
 }
+#endif
 
 
 char __cdecl FX_CanKillImmediate(const FxEffectDef *def)
@@ -2745,23 +2750,22 @@ char __cdecl FX_CanKillImmediate(const FxEffectDef *def)
     return 1;
 }
 
-#if 0
+#if 1 // Decomp: CoDOMPServer.c:365350-365361 (FX_ShouldProcessEffect @ 0x005EF390)
 bool __cdecl FX_ShouldProcessEffect(
                 FxSystem *system,
                 FxEffect *effect,
                 FxEffectContainer *remoteEffect,
                 bool nonBoltedEffectsOnly)
 {
-    if ( nonBoltedEffectsOnly && ((*(unsigned int *)&effect->boltAndSortOrder.0 >> 29) & 3) != 0 )
-        return 0;
+    if ( nonBoltedEffectsOnly && ((effect->boltAndSortOrder.packed >> 29) & 3) != 0 )
+        return false;
     if ( _InterlockedExchange(&remoteEffect->effect.frameCount, system->frameCount) == system->frameCount )
-        return 0;
+        return false;
     return system->shared->activeSpotLightEffectCount <= 0
             || remoteEffect != FX_EffectFromHandle(system, system->shared->activeSpotLightEffectHandle);
 }
-#endif
-
-// aislop unionization
+#else // aislop — bolt.type is 2-bit bitfield, diverges from retail packed >> 29 check
+// aislopped unionization
 bool FX_ShouldProcessEffect(
     FxSystem *system,
     FxEffect *effect,
@@ -2785,6 +2789,7 @@ bool FX_ShouldProcessEffect(
             system,
             system->shared->activeSpotLightEffectHandle);
 }
+#endif
 
 void __cdecl FX_Update(FxSystem *system, FxSystem *remoteSystem, int localClientNum, bool nonBoltedEffectsOnly)
 {
@@ -3440,7 +3445,7 @@ camera->frustum[4][1] = (float)((float)(tanHalfFovY * cosHalfFova) * (float)(*vi
     {
         if ( !Vec3IsNormalized(camera->frustum[planeIndex]) )
         {
-            v6 = Vec3Length(camera->frustum[planeIndex]);
+            v6 = Abs(camera->frustum[planeIndex]);
             v7 = va(
                          "(%g %g %g) len %g",
                          camera->frustum[planeIndex][0],

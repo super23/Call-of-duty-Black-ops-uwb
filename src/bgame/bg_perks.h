@@ -3,6 +3,14 @@
 #include <universal/dvar.h>
 #include <universal/q_shared.h>
 
+#ifdef KISAK_SP
+#define BG_PERK_COUNT 15
+#define BG_PERK_INVALID 15
+#else
+#define BG_PERK_COUNT 52
+#define BG_PERK_INVALID 52
+#endif
+
 unsigned int __cdecl BG_GetPerkIndexForName(const char *perkName);
 const char *__cdecl BG_GetPerkNameForIndex(unsigned int perkIndex);
 void __cdecl Perks_RegisterDvars();
@@ -41,14 +49,14 @@ extern const dvar_t *perk_blackbirdShowsGpsJammer;
 
 inline bool __cdecl BG_HasPerk(const unsigned int *perks, unsigned int perkIndex)
 {
-    if (perkIndex >= 0x34
+    if ( perkIndex >= BG_PERK_COUNT
         && !Assert_MyHandler(
             "c:\\projects_pc\\cod\\codsrc\\src\\bgame\\../bgame/bg_perks.h",
             136,
             0,
             "perkIndex doesn't index PERK_COUNT\n\t%i not in [0, %i)",
             perkIndex,
-            52))
+            BG_PERK_COUNT) )
     {
         __debugbreak();
     }

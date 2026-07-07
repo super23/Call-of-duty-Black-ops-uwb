@@ -12,41 +12,46 @@ void __cdecl Flame_Cull_Stream_Chunk(bool is_server, flameChunk_s *cull, flameCh
 
 void __cdecl Flame_Cull_Stream_Chunks(bool is_server, flameStream_s *stream)
 {
-    double v2; // st7
-    double v3; // st7
-    float v4; // [esp+1Ch] [ebp-34h]
-    float v5; // [esp+24h] [ebp-2Ch]
-    float thisEndOrg[3]; // [esp+28h] [ebp-28h] BYREF
-    float nextEndOrg[3]; // [esp+34h] [ebp-1Ch] BYREF
-    flameChunk_s *thisChunk; // [esp+40h] [ebp-10h]
-    int lifeFrac; // [esp+44h] [ebp-Ch]
-    flameChunk_s *nextChunk; // [esp+48h] [ebp-8h]
-    float cullDist; // [esp+4Ch] [ebp-4h]
+    flameChunk_s *thisChunk;
+    flameChunk_s *nextChunk;
+    int chunkAgeMs;
+    float cullDist;
+    float thisRemainingLife;
+    float nextRemainingLife;
+    float thisEndOrg[3];
+    float nextEndOrg[3];
+    float endpointDistSq;
+    float originDistSq;
 
     thisChunk = stream->chunkList;
     while ( thisChunk )
     {
         nextChunk = (flameChunk_s *)thisChunk->gen.listLocal.next;
-        lifeFrac = thisChunk->gen.age.lastUpdateTime - thisChunk->gen.age.startTime;
         if ( !nextChunk )
-            goto LABEL_12;
-        if ( (float)(stream->flameVars->flameVar_streamChunkCullMinLife * 1000.0) <= (float)lifeFrac
-            && (float)lifeFrac <= (float)(stream->flameVars->flameVar_streamChunkCullMaxLife * 1000.0) )
+            break;
+
+        chunkAgeMs = thisChunk->gen.age.lastUpdateTime - thisChunk->gen.age.startTime;
+        if ( (float)(stream->flameVars->flameVar_streamChunkCullMinLife * 1000.0) <= (float)chunkAgeMs
+            && (float)chunkAgeMs <= (float)(stream->flameVars->flameVar_streamChunkCullMaxLife * 1000.0) )
         {
             cullDist = thisChunk->gen.size.current * stream->flameVars->flameVar_streamChunkCullDistSizeFrac;
-            v5 = (float)(thisChunk->gen.age.endTime - thisChunk->gen.age.lastUpdateTime);
-            thisEndOrg[0] = (float)(v5 * thisChunk->gen.phys.velocity[0]) + thisChunk->gen.phys.origin[0];
-            thisEndOrg[1] = (float)(v5 * thisChunk->gen.phys.velocity[1]) + thisChunk->gen.phys.origin[1];
-            thisEndOrg[2] = (float)(v5 * thisChunk->gen.phys.velocity[2]) + thisChunk->gen.phys.origin[2];
-            v4 = (float)(nextChunk->gen.age.endTime - nextChunk->gen.age.lastUpdateTime);
-            nextEndOrg[0] = (float)(v4 * nextChunk->gen.phys.velocity[0]) + nextChunk->gen.phys.origin[0];
-            nextEndOrg[1] = (float)(v4 * nextChunk->gen.phys.velocity[1]) + nextChunk->gen.phys.origin[1];
-            nextEndOrg[2] = (float)(v4 * nextChunk->gen.phys.velocity[2]) + nextChunk->gen.phys.origin[2];
-            v2 = Vec3DistanceSq(nextEndOrg, thisEndOrg);
-            if ( cullDist * cullDist > v2 )
+
+            // CoDMPServer.c:705476-705483 — remaining life is ms, not converted to seconds.
+            thisRemainingLife = (float)(thisChunk->gen.age.endTime - thisChunk->gen.age.lastUpdateTime);
+            thisEndOrg[0] = thisRemainingLife * thisChunk->gen.phys.velocity[0] + thisChunk->gen.phys.origin[0];
+            thisEndOrg[1] = thisRemainingLife * thisChunk->gen.phys.velocity[1] + thisChunk->gen.phys.origin[1];
+            thisEndOrg[2] = thisRemainingLife * thisChunk->gen.phys.velocity[2] + thisChunk->gen.phys.origin[2];
+
+            nextRemainingLife = (float)(nextChunk->gen.age.endTime - nextChunk->gen.age.lastUpdateTime);
+            nextEndOrg[0] = nextRemainingLife * nextChunk->gen.phys.velocity[0] + nextChunk->gen.phys.origin[0];
+            nextEndOrg[1] = nextRemainingLife * nextChunk->gen.phys.velocity[1] + nextChunk->gen.phys.origin[1];
+            nextEndOrg[2] = nextRemainingLife * nextChunk->gen.phys.velocity[2] + nextChunk->gen.phys.origin[2];
+
+            endpointDistSq = Vec3DistanceSq(nextEndOrg, thisEndOrg);
+            if ( cullDist * cullDist > endpointDistSq )
             {
-                v3 = Vec3DistanceSq(nextChunk->gen.phys.origin, thisChunk->gen.phys.origin);
-                if ( cullDist * cullDist > v3 )
+                originDistSq = Vec3DistanceSq(nextChunk->gen.phys.origin, thisChunk->gen.phys.origin);
+                if ( cullDist * cullDist > originDistSq )
                 {
                     if ( nextChunk->gen.size.current <= thisChunk->gen.size.current )
                     {
@@ -59,13 +64,8 @@ void __cdecl Flame_Cull_Stream_Chunks(bool is_server, flameStream_s *stream)
                     }
                 }
             }
-LABEL_12:
-            thisChunk = nextChunk;
         }
-        else
-        {
-            thisChunk = nextChunk;
-        }
+
+        thisChunk = nextChunk;
     }
 }
-

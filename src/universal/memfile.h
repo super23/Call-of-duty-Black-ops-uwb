@@ -66,6 +66,16 @@ inline void __cdecl MemFile_WriteData(MemoryFile *memFile, unsigned int byteCoun
     }
 }
 
+inline void __cdecl MemFile_WriteByte(MemoryFile *memFile, unsigned __int8 value)
+{
+    MemFile_WriteData(memFile, 1, &value);
+}
+
+inline void __cdecl MemFile_WriteShort(MemoryFile *memFile, __int16 value)
+{
+    MemFile_WriteData(memFile, 2, (unsigned __int8 *)&value);
+}
+
 inline void __cdecl MemFile_WriteCString(MemoryFile *memFile, char *string)
 {
     if (!string

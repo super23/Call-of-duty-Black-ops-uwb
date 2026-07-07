@@ -1,25 +1,28 @@
 #include "com_clients.h"
 
+#include <universal/assertive.h>
 #include <cstring>
 #include <universal/com_memory.h>
 #include <client/cl_main.h>
+#include <client/client_limits.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_main_sp.h>
+#else
 #include <client_mp/cl_main_mp.h>
-#include <cgame_mp/cg_local_mp.h>
+#endif
 
-ClientGameState clientGameStates[1];
+ClientGameState clientGameStates[MAX_LOCAL_CLIENTS];
 
 void __cdecl Com_InitClientGameStates()
 {
     int client; // [esp+0h] [ebp-4h]
 
-    clientGameStates[0].flags = 0;
-    clientGameStates[0].localClientNum = 0;
-    clientGameStates[0].controllerIndex = 0;
-    clientGameStates[0].uiContextIndex = 0;
-    clientGameStates[0].networkID = NS_CLIENT1;
-    for (client = 0; client < 1; ++client)
+    for (client = 0; client < MAX_LOCAL_CLIENTS; ++client)
     {
+        clientGameStates[client].flags = 0;
         clientGameStates[client].localClientNum = client;
+        clientGameStates[client].controllerIndex = 0;
+        clientGameStates[client].uiContextIndex = 0;
         clientGameStates[client].networkID = (netsrc_t)client;
     }
 }
@@ -34,7 +37,7 @@ void __cdecl Com_LocalClients_CompressClients()
     int lastUsedIndex; // [esp+74h] [ebp-4h]
 
     lastUsedIndex = 0;
-    for (cgsIndex = 0; cgsIndex < 1; ++cgsIndex)
+    for (cgsIndex = 0; cgsIndex < MAX_LOCAL_CLIENTS; ++cgsIndex)
     {
         if (Com_LocalClient_IsBeingUsed(cgsIndex))
         {
@@ -42,7 +45,7 @@ void __cdecl Com_LocalClients_CompressClients()
         }
         else
         {
-            for (activeIndex = cgsIndex + 1; activeIndex < 1; ++activeIndex)
+            for (activeIndex = cgsIndex + 1; activeIndex < MAX_LOCAL_CLIENTS; ++activeIndex)
             {
                 if (Com_LocalClient_IsBeingUsed(activeIndex))
                 {
@@ -150,7 +153,7 @@ void __cdecl Com_LocalClients_AssignUIContextsForInGame()
     int contextIndex; // [esp+4h] [ebp-4h]
 
     contextIndex = 0;
-    for (cgsIndex = 0; cgsIndex < 1; ++cgsIndex)
+    for (cgsIndex = 0; cgsIndex < MAX_LOCAL_CLIENTS; ++cgsIndex)
         clientGameStates[cgsIndex].uiContextIndex = contextIndex++;
 }
 
@@ -160,7 +163,7 @@ void __cdecl Com_LocalClients_AssignUIContextsForFrontEnd()
     int contextIndex; // [esp+4h] [ebp-4h]
 
     contextIndex = 0;
-    for (cgsIndex = 0; cgsIndex < 1; ++cgsIndex)
+    for (cgsIndex = 0; cgsIndex < MAX_LOCAL_CLIENTS; ++cgsIndex)
     {
         clientGameStates[cgsIndex].uiContextIndex = 0;
         ++contextIndex;
@@ -171,43 +174,20 @@ int __cdecl Com_LocalClient_GetUIContextIndex(int localClientNum)
 {
     int cgsIndex; // [esp+0h] [ebp-4h]
 
-    if (localClientNum
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\com_clients.cpp",
-            162,
-            0,
-            "localClientNum doesn't index MAX_LOCAL_CLIENTS\n\t%i not in [0, %i)",
-            localClientNum,
-            1))
-    {
-        __debugbreak();
-    }
-    for (cgsIndex = 0; cgsIndex < 1; ++cgsIndex)
+    for (cgsIndex = 0; cgsIndex < MAX_LOCAL_CLIENTS; ++cgsIndex)
     {
         if (clientGameStates[cgsIndex].localClientNum == localClientNum)
             return clientGameStates[cgsIndex].uiContextIndex;
     }
-    if (!Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\com_clients.cpp", 171, 0, "%s", "0"))
-        __debugbreak();
-    return -1;
+    return 0;
 }
 
 int __cdecl Com_LocalClient_GetControllerIndex(int localClientNum)
 {
     int cgsIndex; // [esp+0h] [ebp-4h]
 
-    if (localClientNum
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\com_clients.cpp",
-            177,
-            0,
-            "localClientNum doesn't index MAX_LOCAL_CLIENTS\n\t%i not in [0, %i)",
-            localClientNum,
-            1))
-    {
-        __debugbreak();
-    }
-    for (cgsIndex = 0; cgsIndex < 1; ++cgsIndex)
+    bcassert(localClientNum, MAX_LOCAL_CLIENTS);
+    for (cgsIndex = 0; cgsIndex < MAX_LOCAL_CLIENTS; ++cgsIndex)
     {
         if (clientGameStates[cgsIndex].localClientNum == localClientNum)
             return clientGameStates[cgsIndex].controllerIndex;
@@ -221,40 +201,18 @@ netsrc_t __cdecl Com_LocalClient_GetNetworkID(int localClientNum)
 {
     int cgsIndex; // [esp+0h] [ebp-4h]
 
-    if (localClientNum
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\com_clients.cpp",
-            192,
-            0,
-            "localClientNum doesn't index MAX_LOCAL_CLIENTS\n\t%i not in [0, %i)",
-            localClientNum,
-            1))
-    {
-        __debugbreak();
-    }
-    for (cgsIndex = 0; cgsIndex < 1; ++cgsIndex)
+    for (cgsIndex = 0; cgsIndex < MAX_LOCAL_CLIENTS; ++cgsIndex)
     {
         if (clientGameStates[cgsIndex].localClientNum == localClientNum)
             return clientGameStates[cgsIndex].networkID;
     }
-    if (!Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\com_clients.cpp", 201, 0, "%s", "0"))
-        __debugbreak();
     return NS_PACKET;
 }
 
 void __cdecl Com_LocalClient_SetControllerIndex(int localClientNum, int controllerIndex)
 {
-    if (localClientNum
-        && !Assert_MyHandler(
-            "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\com_clients.cpp",
-            208,
-            0,
-            "localClientNum doesn't index MAX_LOCAL_CLIENTS\n\t%i not in [0, %i)",
-            localClientNum,
-            1))
-    {
-        __debugbreak();
-    }
+    if ( !Com_IsValidLocalClientNum(localClientNum) )
+        return;
     clientGameStates[localClientNum].controllerIndex = controllerIndex;
 }
 
@@ -262,17 +220,8 @@ void __cdecl Com_LocalClient_SetPrimary(int localClientNum, bool primary)
 {
     int v2; // eax
 
-    if ( localClientNum
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\com_clients.cpp",
-                    239,
-                    0,
-                    "localClientNum doesn't index MAX_LOCAL_CLIENTS\n\t%i not in [0, %i)",
-                    localClientNum,
-                    1) )
-    {
-        __debugbreak();
-    }
+    if ( !Com_IsValidLocalClientNum(localClientNum) )
+        return;
     if ( primary )
     {
         Com_LocalClient_ClearAllPrimary();
@@ -290,7 +239,7 @@ int Com_LocalClient_ClearAllPrimary()
     int result; // eax
     int i; // [esp+0h] [ebp-4h]
 
-    for ( i = 0; i < 1; ++i )
+    for ( i = 0; i < MAX_LOCAL_CLIENTS; ++i )
     {
         clientGameStates[i].flags &= ~2u;
         result = i + 1;
@@ -322,13 +271,15 @@ int __cdecl Com_LocalClients_GetPrimary()
 
 bool __cdecl Com_LocalClient_IsPrimary(int localClientNum)
 {
-    bcassert(localClientNum, MAX_LOCAL_CLIENTS);
+    if ( !Com_IsValidLocalClientNum(localClientNum) )
+        return false;
     return (clientGameStates[localClientNum].flags & 2) != 0;
 }
 
 bool __cdecl Com_LocalClient_IsBeingUsed(int localClientNum)
 {
-    bcassert(localClientNum, MAX_LOCAL_CLIENTS);
+    if ( !Com_IsValidLocalClientNum(localClientNum) )
+        return false;
     return (clientGameStates[localClientNum].flags & 1) != 0;
 }
 
@@ -336,17 +287,8 @@ void __cdecl Com_LocalClient_SetBeingUsed(int localClientNum, bool beingUsed)
 {
     int v2; // edx
 
-    if ( localClientNum
-        && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\com_clients.cpp",
-                    279,
-                    0,
-                    "localClientNum doesn't index MAX_LOCAL_CLIENTS\n\t%i not in [0, %i)",
-                    localClientNum,
-                    1) )
-    {
-        __debugbreak();
-    }
+    if ( !Com_IsValidLocalClientNum(localClientNum) )
+        return;
     if ( beingUsed )
         v2 = clientGameStates[localClientNum].flags | 1;
     else
@@ -361,7 +303,7 @@ int __cdecl Com_LocalClients_GetUsedControllerCount()
 
     i = 0;
     count = 0;
-    while ( i < 1 )
+    while ( i < MAX_LOCAL_CLIENTS )
     {
         if ( Com_LocalClient_IsBeingUsed(i) )
             ++count;
@@ -385,7 +327,7 @@ int __cdecl Com_ControllerIndex_GetLocalClientNum(int controllerIndex)
     {
         __debugbreak();
     }
-    for (cgsIndex = 0; cgsIndex < 1; ++cgsIndex)
+    for (cgsIndex = 0; cgsIndex < MAX_LOCAL_CLIENTS; ++cgsIndex)
     {
         if (clientGameStates[cgsIndex].controllerIndex == controllerIndex)
             return clientGameStates[cgsIndex].localClientNum;
@@ -410,7 +352,7 @@ int __cdecl Com_ControllerIndex_GetUIContextIndex(int controllerIndex)
     {
         __debugbreak();
     }
-    for (cgsIndex = 0; cgsIndex < 1; ++cgsIndex)
+    for (cgsIndex = 0; cgsIndex < MAX_LOCAL_CLIENTS; ++cgsIndex)
     {
         if (clientGameStates[cgsIndex].controllerIndex == controllerIndex)
             return clientGameStates[cgsIndex].uiContextIndex;

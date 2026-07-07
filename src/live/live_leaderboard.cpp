@@ -9,9 +9,14 @@
 #include "live_win_common.h"
 #include <client/cl_rank.h>
 #include "live_win.h"
+#ifdef KISAK_SP
+#include <client_sp/cl_ui_pc_sp.h>
+#include <game/g_main.h>
+#else
 #include <client_mp/cl_ui_pc_mp.h>
-#include "live_friends_pc.h"
 #include <game_mp/g_main_mp.h>
+#endif
+#include "live_friends_pc.h"
 #include "live_stats.h"
 #include "live.h"
 #include "live_storage_win.h"

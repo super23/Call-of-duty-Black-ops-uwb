@@ -1,6 +1,7 @@
 #include "yuv.h"
 
 #include <d3d9.h>
+#include <gfx_d3d/r_singlethreaded_device_pc.h>
 #include <gfx_d3d/r_dvars.h>
 #include <gfx_d3d/r_init.h>
 #include <gfx_d3d/rb_logfile.h>
@@ -727,32 +728,46 @@ void __cdecl yuv_init_internal()
     const char *v7; // eax
     const char *v8; // eax
     const char *v9; // eax
+    int v10; // [esp+Ch] [ebp-78h]
     int v11; // [esp+10h] [ebp-74h]
+    int v12; // [esp+14h] [ebp-70h]
     int v13; // [esp+18h] [ebp-6Ch]
+    int v14; // [esp+1Ch] [ebp-68h]
     int v15; // [esp+20h] [ebp-64h]
+    int v16; // [esp+24h] [ebp-60h]
     int v17; // [esp+28h] [ebp-5Ch]
+    int v18; // [esp+2Ch] [ebp-58h]
     int v19; // [esp+30h] [ebp-54h]
+    int v20; // [esp+34h] [ebp-50h]
     int v21; // [esp+38h] [ebp-4Ch]
+    int v22; // [esp+3Ch] [ebp-48h]
     int v23; // [esp+40h] [ebp-44h]
+    int v24; // [esp+44h] [ebp-40h]
     int v25; // [esp+48h] [ebp-3Ch]
+    int v26; // [esp+4Ch] [ebp-38h]
     int v27; // [esp+50h] [ebp-34h]
+    int v28; // [esp+54h] [ebp-30h]
     int hr; // [esp+58h] [ebp-2Ch]
     _D3DVERTEXELEMENT9 VertexElements[3]; // [esp+5Ch] [ebp-28h] BYREF
     int width; // [esp+74h] [ebp-10h]
     int height; // [esp+78h] [ebp-Ch]
     float *vtx; // [esp+7Ch] [ebp-8h] BYREF
+    int semaphore; // [esp+80h] [ebp-4h]
 
     width = yuv_globals.width;
     height = yuv_globals.height;
+    semaphore = R_AcquireDXDeviceOwnership(0);
     yuv_globals.outY = (unsigned __int8 *)operator new[](width * (height + 16));
     memset(yuv_globals.outY, 0, width * (height + 16));
     yuv_globals.outU = (unsigned __int8 *)operator new[](width * (height + 16) / 4);
     memset(yuv_globals.outU, 0, width * (height + 16) / 4);
     yuv_globals.outV = (unsigned __int8 *)operator new[](width * (height + 16) / 4);
     memset(yuv_globals.outV, 0, width * (height + 16) / 4);
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint(
             "dx.device->CreateTexture(width, height, 1, (0x00000001L), D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &yuv_globals.renderTarget1, 0)\n");
+    v28 = R_AcquireDXDeviceOwnership(0);
     hr = dx.device->CreateTexture(
                  width,
                  height,
@@ -762,6 +777,8 @@ void __cdecl yuv_init_internal()
                  D3DPOOL_DEFAULT,
                  &yuv_globals.renderTarget1,
                  0);
+    if ( v28 )
+        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -775,9 +792,11 @@ void __cdecl yuv_init_internal()
     }
     if ( yuv_globals.double_buffer )
     {
+        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint(
                 "dx.device->CreateTexture(width, height, 1, (0x00000001L), D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &yuv_globals.renderTarget2, 0)\n");
+        v26 = R_AcquireDXDeviceOwnership(0);
         //v27 = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, int, int, int, int, int, unsigned int, IDirect3DTexture9 **, unsigned int))dx.device->CreateTexture)(
         //                dx.device,
         //                dx.device,
@@ -790,6 +809,8 @@ void __cdecl yuv_init_internal()
         //                &yuv_globals.renderTarget2,
         //                0);
         v27 = dx.device->CreateTexture(width, height, 1, 1, (D3DFORMAT)21, D3DPOOL_DEFAULT, &yuv_globals.renderTarget2, NULL);
+        if ( v26 )
+            R_ReleaseDXDeviceOwnership();
         if ( v27 < 0 )
         {
             ++g_disableRendering;
@@ -802,9 +823,11 @@ void __cdecl yuv_init_internal()
                 v1);
         }
     }
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint(
             "dx.device->CreateTexture(width, height, 1, (0x00000001L), D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &yuv_globals.srcTexture, 0)\n");
+    v24 = R_AcquireDXDeviceOwnership(0);
     v25 = dx.device->CreateTexture(
                     width,
                     height,
@@ -814,6 +837,8 @@ void __cdecl yuv_init_internal()
                     D3DPOOL_DEFAULT,
                     &yuv_globals.srcTexture,
                     0);
+    if ( v24 )
+        R_ReleaseDXDeviceOwnership();
     if ( v25 < 0 )
     {
         ++g_disableRendering;
@@ -825,8 +850,10 @@ void __cdecl yuv_init_internal()
             48,
             v2);
     }
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("dx.device->CreateTexture(width, height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &yuv_globals.dstTexture, 0)\n");
+    v22 = R_AcquireDXDeviceOwnership(0);
     v23 = dx.device->CreateTexture(
                     width,
                     height,
@@ -836,6 +863,8 @@ void __cdecl yuv_init_internal()
                     D3DPOOL_SYSTEMMEM,
                     &yuv_globals.dstTexture,
                     0);
+    if ( v22 )
+        R_ReleaseDXDeviceOwnership();
     if ( v23 < 0 )
     {
         ++g_disableRendering;
@@ -847,9 +876,13 @@ void __cdecl yuv_init_internal()
             49,
             v3);
     }
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("dx.device->CreateVertexBuffer(24 * 4, 0, 0, D3DPOOL_MANAGED, &yuv_globals.vertexBuffer, 0)\n");
+    v20 = R_AcquireDXDeviceOwnership(0);
     v21 = dx.device->CreateVertexBuffer(96u, 0, 0, D3DPOOL_MANAGED, &yuv_globals.vertexBuffer, 0);
+    if ( v20 )
+        R_ReleaseDXDeviceOwnership();
     if ( v21 < 0 )
     {
         ++g_disableRendering;
@@ -861,9 +894,13 @@ void __cdecl yuv_init_internal()
             50,
             v4);
     }
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("yuv_globals.vertexBuffer->Lock(0, 0, (void**)&vtx, 0)\n");
+    v18 = R_AcquireDXDeviceOwnership(0);
     v19 = yuv_globals.vertexBuffer->Lock(0, 0, (void **)&vtx, 0);
+    if ( v18 )
+        R_ReleaseDXDeviceOwnership();
     if ( v19 < 0 )
     {
         ++g_disableRendering;
@@ -898,12 +935,16 @@ void __cdecl yuv_init_internal()
     vtx[21] = 1.0f;
     vtx[22] = 0.0f;
     vtx[23] = 0.0f;
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("yuv_globals.vertexBuffer->Unlock()\n");
+    v16 = R_AcquireDXDeviceOwnership(0);
     //v17 = ((int (__thiscall *)(IDirect3DVertexBuffer9 *, IDirect3DVertexBuffer9 *))yuv_globals.vertexBuffer->Unlock)(
     //                yuv_globals.vertexBuffer,
     //                yuv_globals.vertexBuffer);
     v17 = yuv_globals.vertexBuffer->Unlock();
+    if ( v16 )
+        R_ReleaseDXDeviceOwnership();
     if ( v17 < 0 )
     {
         ++g_disableRendering;
@@ -932,14 +973,18 @@ void __cdecl yuv_init_internal()
     VertexElements[2].Method = 0;
     VertexElements[2].Usage = 0;
     VertexElements[2].UsageIndex = 0;
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("dx.device->CreateVertexDeclaration(VertexElements, &yuv_globals.vertexDeclaration)\n");
+    v14 = R_AcquireDXDeviceOwnership(0);
     //v15 = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, _D3DVERTEXELEMENT9 *, IDirect3DVertexDeclaration9 **))dx.device->CreateVertexDeclaration)(
     //                dx.device,
     //                dx.device,
     //                VertexElements,
     //                &yuv_globals.vertexDeclaration);
     v15 = dx.device->CreateVertexDeclaration(VertexElements, &yuv_globals.vertexDeclaration);
+    if ( v14 )
+        R_ReleaseDXDeviceOwnership();
     if ( v15 < 0 )
     {
         ++g_disableRendering;
@@ -951,9 +996,13 @@ void __cdecl yuv_init_internal()
             67,
             v7);
     }
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("dx.device->CreateVertexShader((DWORD*)g_vs30_mjpeg_shader_vtx, &yuv_globals.vertexShader)\n");
+    v12 = R_AcquireDXDeviceOwnership(0);
     v13 = dx.device->CreateVertexShader((const DWORD*)g_vs30_mjpeg_shader_vtx, &yuv_globals.vertexShader);
+    if ( v12 )
+        R_ReleaseDXDeviceOwnership();
     if ( v13 < 0 )
     {
         ++g_disableRendering;
@@ -965,9 +1014,13 @@ void __cdecl yuv_init_internal()
             68,
             v8);
     }
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("dx.device->CreatePixelShader((DWORD*)g_ps30_mjpeg_shader_yuv, &yuv_globals.pixelShader)\n");
+    v10 = R_AcquireDXDeviceOwnership(0);
     v11 = dx.device->CreatePixelShader((const DWORD*)g_ps30_mjpeg_shader_yuv, &yuv_globals.pixelShader);
+    if ( v10 )
+        R_ReleaseDXDeviceOwnership();
     if ( v11 < 0 )
     {
         ++g_disableRendering;
@@ -979,6 +1032,8 @@ void __cdecl yuv_init_internal()
             69,
             v9);
     }
+    if ( semaphore )
+        R_ReleaseDXDeviceOwnership();
     yuv_globals.init = 1;
 }
 
@@ -1017,15 +1072,18 @@ char __cdecl yuv_encode_frame()
     unsigned __int8 *outU; // [esp+30h] [ebp-2Ch]
     int row; // [esp+34h] [ebp-28h]
     int col; // [esp+38h] [ebp-24h]
+    int v14; // [esp+3Ch] [ebp-20h]
     HRESULT hr; // [esp+40h] [ebp-1Ch]
     IDirect3DSurface9 *dstSurface; // [esp+44h] [ebp-18h] BYREF
     IDirect3DSurface9 *imageSurface; // [esp+48h] [ebp-14h] BYREF
     unsigned __int8 *pixels; // [esp+4Ch] [ebp-10h]
+    int semaphore; // [esp+50h] [ebp-Ch]
     IDirect3DTexture9 *renderTarget; // [esp+54h] [ebp-8h]
     IDirect3DSurface9 *srcSurface; // [esp+58h] [ebp-4h]
 
     if ( !yuv_globals.init )
         return 0;
+    semaphore = R_AcquireDXDeviceOwnership(0);
     //((void (__thiscall *)(IDirect3DTexture9 *, IDirect3DTexture9 *, unsigned int, IDirect3DSurface9 **))yuv_globals.srcTexture->GetSurfaceLevel)(
     //    yuv_globals.srcTexture,
     //    yuv_globals.srcTexture,
@@ -1033,8 +1091,10 @@ char __cdecl yuv_encode_frame()
     //    &dstSurface);
     yuv_globals.srcTexture->GetSurfaceLevel(0, &dstSurface);
     srcSurface = gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.color;
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("dx.device->StretchRect(srcSurface, 0, dstSurface, 0, D3DTEXF_NONE)\n");
+    v14 = R_AcquireDXDeviceOwnership(0);
     //hr = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, IDirect3DSurface9 *, unsigned int, IDirect3DSurface9 *, unsigned int, unsigned int))dx.device->StretchRect)(
     //             dx.device,
     //             dx.device,
@@ -1044,6 +1104,8 @@ char __cdecl yuv_encode_frame()
     //             0,
     //             0);
     hr = dx.device->StretchRect(srcSurface, 0, dstSurface, 0, D3DTEXF_NONE);
+    if ( v14 )
+        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -1171,6 +1233,8 @@ char __cdecl yuv_encode_frame()
         dstSurface->Release();
     }
     R_InitCmdBufState(&gfxCmdBufState);
+    if ( semaphore )
+        R_ReleaseDXDeviceOwnership();
     ++yuv_globals.frame;
     return 1;
 }

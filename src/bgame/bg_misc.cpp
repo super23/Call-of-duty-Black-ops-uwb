@@ -2318,7 +2318,7 @@ void __cdecl BG_EvaluateTrajectory(const trajectory_t *tr, int atTime, float *re
             }
             if ( tr->trDuration )
             {
-                v9 = Vec3Length(tr->trDelta) / ((double)tr->trDuration * 0.001);
+                v9 = Abs(tr->trDelta) / ((double)tr->trDuration * 0.001);
                 Vec3NormalizeTo(tr->trDelta, result);
                 v8 = (float)((float)(v9 * 0.5) * v15) * v15;
                 *result = (float)(v8 * *result) + tr->trBase[0];
@@ -2349,7 +2349,7 @@ void __cdecl BG_EvaluateTrajectory(const trajectory_t *tr, int atTime, float *re
             }
             if ( tr->trDuration )
             {
-                v10 = Vec3Length(tr->trDelta) / ((double)tr->trDuration * 0.001);
+                v10 = Abs(tr->trDelta) / ((double)tr->trDuration * 0.001);
                 Vec3NormalizeTo(tr->trDelta, result);
                 v6 = (float)(v16 * tr->trDelta[1]) + tr->trBase[1];
                 v7 = (float)(v16 * tr->trDelta[2]) + tr->trBase[2];
@@ -2564,6 +2564,7 @@ bool __cdecl BG_ValidateOriginValue(float val, char bits, float mapCenterValue)
             && (int)val >= (int)(float)(mapCenterValue - (float)maxVal);
 }
 
+// (aislop)
 template<typename EventType, typename EventParmType>
 void BG_AddEvent(
     unsigned int newEvent,
@@ -2577,13 +2578,47 @@ void BG_AddEvent(
     if (!newEvent)
         return;
 
-    bcassert(newEvent, 256);
+    if (newEvent >= 0x100 &&
+        !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_misc.cpp",
+            1708, 0,
+            "newEvent doesn't index 256\n\t%i not in [0, %i)",
+            newEvent, 256))
+    {
+        __debugbreak();
+    }
 
-    iassert(eventParm <= EVENT_PARM_MAX);
-    iassert(eventParm == static_cast<EventParmType>(eventParm));
-    iassert(events);
-    iassert(eventParms);
-    iassert(eventSequence);
+    if (eventParm > 0x7FF &&
+        !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_misc.cpp",
+            1709, 0, "%s", "eventParm <= EVENT_PARM_MAX"))
+    {
+        __debugbreak();
+    }
+
+    if (eventParm != static_cast<EventParmType>(eventParm) &&
+        !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_misc.cpp",
+            1710, 0, "%s",
+            "eventParm == static_cast<EventParm>(eventParm)"))
+    {
+        __debugbreak();
+    }
+
+    if (!events && !Assert_MyHandler(
+        "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_misc.cpp",
+        1711, 0, "%s", "events"))
+        __debugbreak();
+
+    if (!eventParms && !Assert_MyHandler(
+        "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_misc.cpp",
+        1712, 0, "%s", "eventParms"))
+        __debugbreak();
+
+    if (!eventSequence && !Assert_MyHandler(
+        "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_misc.cpp",
+        1713, 0, "%s", "eventSequence"))
+        __debugbreak();
 
     if (Dvar_GetBool("showevents"))
         Com_Printf(
@@ -2599,10 +2634,25 @@ void BG_AddEvent(
     events[sequence] = static_cast<EventType>(newEvent);
     eventParms[sequence] = static_cast<EventParmType>(eventParm);
 
-    iassert(newEvent == (EventType)events[sequence]);
-    iassert(eventParm == (EventParmType)eventParms[sequence]);
+    if (newEvent != events[sequence] &&
+        !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_misc.cpp",
+            1725, 0, "%s",
+            "newEvent == (EventType)events[sequence]"))
+    {
+        __debugbreak();
+    }
 
-    *eventSequence = static_cast<unsigned __int8>(*eventSequence + 1);
+    if (eventParm != eventParms[sequence] &&
+        !Assert_MyHandler(
+            "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_misc.cpp",
+            1726, 0, "%s",
+            "eventParm == (EventParmType)eventParms[sequence]"))
+    {
+        __debugbreak();
+    }
+
+    *eventSequence = static_cast<__int16>(*eventSequence + 1);
 }
 
 
@@ -3367,6 +3417,39 @@ void __cdecl BG_LerpHudColors(const hudelem_s *elem, int time, hudelem_color_t *
         toColor->a = (int)(float)((float)elem->fromColor.a + (float)((float)(elem->color.a - elem->fromColor.a) * lerp));
     }
 }
+
+#ifdef KISAK_SP
+// Decomp: CoDSP_rdBlackOps.map.c (BG_LerpFontScale ~822DA0F0)
+void __cdecl BG_LerpFontScale(const hudelem_s *elem, int time, float *toScale)
+{
+    float lerp;
+    int elapsed;
+
+    elapsed = time - elem->fontScaleStartTime;
+    if ( elem->fadeTime <= 0 || elapsed >= elem->fadeTime )
+    {
+        *toScale = elem->fontScale;
+    }
+    else
+    {
+        if ( elapsed < 0 )
+            elapsed = 0;
+        lerp = (float)elapsed / (float)elem->fadeTime;
+        if ( (lerp < 0.0 || lerp > 1.0)
+            && !Assert_MyHandler(
+                        "C:\\projects_pc\\cod\\codsrc\\src\\bgame\\bg_misc.cpp",
+                        2590,
+                        0,
+                        "%s\n\t(lerp) = %g",
+                        "(lerp >= 0.0f && lerp <= 1.0f)",
+                        lerp) )
+        {
+            __debugbreak();
+        }
+        *toScale = elem->fromFontScale + (elem->fontScale - elem->fromFontScale) * lerp;
+    }
+}
+#endif
 
 int __cdecl BG_LoadShellShockDvars(const char *name)
 {

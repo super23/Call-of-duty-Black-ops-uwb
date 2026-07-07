@@ -4,7 +4,7 @@
 #include <clientscript/cscr_stringlist.h>
 #include <qcommon/com_bsp_load_obj.h>
 #include "actor_exposed.h"
-#include <game_mp/g_main_mp.h>
+#include <game/g_main_wrapper.h>
 #include <bgame/bg_misc.h>
 #include <server/sv_game.h>
 #include "g_bsp.h"

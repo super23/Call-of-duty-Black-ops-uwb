@@ -362,6 +362,56 @@ static NetFieldList s_entityNetFieldList[22] =
   { eventEntityStateFields, 69u, "eventEntityStateFields" }
 };
 
+#ifdef KISAK_SP
+static const NetField hudElemFields[45] =
+{
+  { "ui3dWindow", 117, 1, 8, 0u, "8", "0" },
+  { "fromFontScale", 16, 4, -86, 0u, "MSG_FIELD_FONTSCALE", "0" },
+  { "fontScaleStartTime", 20, 4, -97, 0u, "MSG_FIELD_TIME", "0" },
+  { "color.rgba", 24, 4, -85, 0u, "MSG_FIELD_RGBA", "0" },
+  { "fadeStartTime", 32, 4, -97, 0u, "MSG_FIELD_TIME", "0" },
+  { "fromColor.rgba", 28, 4, -85, 0u, "MSG_FIELD_RGBA", "0" },
+  { "y", 4, 4, -91, 0u, "MSG_FIELD_ORIGINY", "0" },
+  { "type", 108, 1, 4, 0u, "4", "0" },
+  { "materialIndex", 112, 1, 8, 0u, "8", "0" },
+  { "height", 84, 2, 10, 0u, "10", "0" },
+  { "width", 82, 2, 10, 0u, "10", "0" },
+  { "x", 0, 4, -92, 0u, "MSG_FIELD_ORIGINX", "0" },
+  { "fadeTime", 78, 2, 16, 0u, "16", "0" },
+  { "z", 8, 4, -90, 0u, "MSG_FIELD_ORIGINZ", "0" },
+  { "value", 60, 4, 0, 0u, "0", "0" },
+  { "alignScreen", 111, 1, 8, 0u, "8", "0" },
+  { "sort", 64, 4, 0, 0u, "0", "0" },
+  { "alignOrg", 110, 1, 4, 0u, "4", "0" },
+  { "offscreenMaterialIdx", 113, 1, 8, 0u, "8", "0" },
+  { "fontScale", 12, 4, -86, 0u, "MSG_FIELD_FONTSCALE", "0" },
+  { "text", 94, 2, 10, 0u, "LOCALIZEDSTRINGINDEXBITS", "0" },
+  { "font", 109, 1, 4, 0u, "4", "0" },
+  { "scaleStartTime", 36, 4, -97, 0u, "MSG_FIELD_TIME", "0" },
+  { "scaleTime", 90, 2, 16, 0u, "16", "0" },
+  { "fromWidth", 86, 2, 10, 0u, "10", "0" },
+  { "fromHeight", 88, 2, 10, 0u, "10", "0" },
+  { "targetEntNum", 76, 2, 10, 0u, "GENTITYNUM_BITS", "0" },
+  { "glowColor.rgba", 68, 4, -85, 0u, "MSG_FIELD_RGBA", "0" },
+  { "fxBirthTime", 72, 4, -97, 0u, "MSG_FIELD_TIME", "0" },
+  { "soundID", 116, 1, 5, 0u, "HUDELEM_SOUND_ID_BITS", "0" },
+  { "fxLetterTime", 96, 2, 12, 0u, "12", "0" },
+  { "fxDecayStartTime", 98, 2, 16, 0u, "16", "0" },
+  { "fxDecayDuration", 100, 2, 16, 0u, "16", "0" },
+  { "fxRedactDecayStartTime", 102, 2, 16, 0u, "16", "0" },
+  { "fxRedactDecayDuration", 104, 2, 16, 0u, "16", "0" },
+  { "flags", 106, 2, 13, 0u, "HUDELEMFLAGBITS", "0" },
+  { "label", 80, 2, 10, 0u, "LOCALIZEDSTRINGINDEXBITS", "0" },
+  { "time", 52, 4, -97, 0u, "MSG_FIELD_TIME", "0" },
+  { "moveStartTime", 48, 4, -97, 0u, "MSG_FIELD_TIME", "0" },
+  { "moveTime", 92, 2, 16, 0u, "16", "0" },
+  { "fromX", 40, 4, -99, 0u, "MSG_FIELD_HUDELEMCOORD", "0" },
+  { "fromY", 44, 4, -99, 0u, "MSG_FIELD_HUDELEMCOORD", "0" },
+  { "fromAlignScreen", 115, 1, 8, 0u, "8", "0" },
+  { "fromAlignOrg", 114, 1, 4, 0u, "4", "0" },
+  { "duration", 56, 4, 32, 0u, "32", "0" }
+};
+#else
 static const NetField hudElemFields[43] =
 {
   { "ui3dWindow", 109, 1, 8, 0u, "8", "0" },
@@ -408,6 +458,7 @@ static const NetField hudElemFields[43] =
   { "fromAlignOrg", 106, 1, 4, 0u, "4", "0" },
   { "duration", 48, 4, 32, 0u, "32", "0" }
 };
+#endif
 
 static NetFieldList s_otherNetFieldList[6] =
 {
@@ -415,6 +466,10 @@ static NetFieldList s_otherNetFieldList[6] =
   { clientStateFields, 50u, "clientStateFields" },
   { playerStateFields, 179u, "playerStateFields" },
   { objectiveFields, 9u, "objectiveFields" },
+#ifdef KISAK_SP
+  { hudElemFields, 45u, "hudElemFields" },
+#else
   { hudElemFields, 43u, "hudElemFields" },
+#endif
   { matchStateFields, 15u, "matchStateFields" }
 };

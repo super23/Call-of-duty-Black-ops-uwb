@@ -343,7 +343,7 @@ int __cdecl dwCreateSessionComplete(overlappedTask *const task)
     {
         dwLobbyPump(task->controllerIndex);
         taskStatus = bdRemoteTask::getStatus(task->overlappedIO.m_ptr);
-        if ( taskStatus == BD )
+        if ( taskStatus == bdRemoteTask::BD_DONE )
         {
             bdSecurityKey::bdSecurityKey(&key);
             if ( MatchMakingInfo::getSessionKey(g_matchmakingInfo, &key) )
@@ -420,7 +420,7 @@ taskCompleteResults __cdecl dwUpdateSessionComplete(overlappedTask *const task)
         {
             taskStatus = bdRemoteTask::getStatus(task->overlappedIO.m_ptr);
             errorCode = BD_NO_ERROR;
-            if ( taskStatus == BD )
+            if ( taskStatus == bdRemoteTask::BD_DONE )
             {
                 errorCode = bdRemoteTask::getErrorCode(task->overlappedIO.m_ptr);
                 if ( errorCode )

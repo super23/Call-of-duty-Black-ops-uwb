@@ -713,10 +713,7 @@ struct __declspec(align(8)) gjk_polygon_cylinder_t : gjk_base_t // sizeof=0x80
             *result = this->m_center;
             return result;
         }
-        virtual void get_feature(phys_contact_manifold *) const override 
-        {
-            iassert(0); // should be empty func, just curious if this gets called
-        }
+        virtual void get_feature(phys_contact_manifold *cman) const override;
         virtual float get_geom_radius() const override;
         virtual void calc_aabb(const phys_mat44 *xform, phys_vec3 *aabb_min, phys_vec3 *aabb_max) const override;
         // ray_cast() - phys_gjk_geom

@@ -265,6 +265,42 @@ void __cdecl SV_BotSetAttacker(const client_t *bot, const gentity_s *attacker)
         botInfo->attackerEnt = 0;
 }
 
+const gentity_s *__cdecl SV_BotGetThreatEnemy(const client_t *bot)
+{
+    unsigned int clientNum;
+
+    if ( !bot || !bot->bIsTestClient || !bot->gentity )
+        return 0;
+    clientNum = (unsigned int)(bot - svs.clients);
+    if ( clientNum >= sizeof(botInfos) / sizeof(botInfos[0]) )
+        return 0;
+    return botInfos[clientNum].threat.enemy;
+}
+
+int __cdecl SV_BotGetLookahead(const client_t *bot, float *outDir3, float *outDist)
+{
+    unsigned int clientNum;
+    bot_info_t *botInfo;
+
+    if ( !bot || !bot->bIsTestClient || !bot->gentity )
+        return 0;
+    clientNum = (unsigned int)(bot - svs.clients);
+    if ( clientNum >= sizeof(botInfos) / sizeof(botInfos[0]) )
+        return 0;
+    botInfo = &botInfos[clientNum];
+    if ( !Path_Exists(&botInfo->path) )
+        return 0;
+    if ( outDir3 )
+    {
+        outDir3[0] = botInfo->path.lookaheadDir[0];
+        outDir3[1] = botInfo->path.lookaheadDir[1];
+        outDir3[2] = botInfo->path.lookaheadDir[2];
+    }
+    if ( outDist )
+        *outDist = botInfo->path.fLookaheadDist;
+    return 1;
+}
+
 void __cdecl SV_BotThink(client_t *bot, usercmd_s *cmd)
 {
     int j; // [esp+10h] [ebp-54h]
@@ -331,6 +367,7 @@ void __cdecl SV_BotThink(client_t *bot, usercmd_s *cmd)
     Bot_UpdateTimedAction(&botInfo->pitchEndTime);
     Bot_UpdateTimedAction(&botInfo->crouchEndTime);
     Bot_UpdateTimedAction(&botInfo->useButtonEndTime);
+    Bot_UpdateTimedAction(&botInfo->scriptAttackButtonEndTime);
     if ( (bot->gentity->client->flags & 4) != 0 )
     {
         cmd->forwardmove = 0;
@@ -359,6 +396,8 @@ void __cdecl SV_BotThink(client_t *bot, usercmd_s *cmd)
             cmd->button_bits.setBit(9);
             cmd->button_bits.setBit(5);
         }
+        if ( botInfo->scriptAttackButtonEndTime )
+            cmd->button_bits.setBit(0);
         if ( sv_botsForceStand->current.enabled )
         {
             cmd->button_bits.resetBit(9);
@@ -1091,6 +1130,7 @@ void __cdecl Bot_GetStrafeInput(const client_t *bot, bot_info_t *botInfo, usercm
     ps = (const playerState_s *)G_GetPlayerState(bot->gentity->s.number);
     if ( (botInfo->flags & 0x40) != 0 )
     {
+        memset(&trace, 0, 16);
         gentity = bot->gentity;
         vStart[0] = gentity->r.currentOrigin[0];
         vStart[1] = gentity->r.currentOrigin[1];
@@ -1349,6 +1389,7 @@ char __cdecl Bot_PathValid(const gentity_s *bot, const path_t *path)
     float vStart[3]; // [esp+C8h] [ebp-Ch] BYREF
 
     //PIXBeginNamedEvent(-1, "Bot_PathValid");
+    memset(&trace, 0, 16);
     if ( Path_Exists(path) )
     {
         if ( Path_HasNegotiationNode(path) )

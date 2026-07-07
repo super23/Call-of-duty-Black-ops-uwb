@@ -1,4 +1,5 @@
 #include "flame_system.h"
+#include <universal/assertive.h>
 #include "flame_class_chunk.h"
 #include "flame_class_fire.h"
 #include "flame_class_smoke.h"
@@ -1064,26 +1065,26 @@ cmd_function_s Flame_CMD_Use_Dvars_Toggle_VAR;
 
 void __cdecl Flame_Init_FlameVars()
 {
-    int i; // [esp+14h] [ebp-4h]
+    int fieldIndex;
 
-    memset((unsigned __int8 *)flameVarList, 0, sizeof(flameVarList));
+    memset(flameVarList, 0, sizeof(flameVarList));
     numFlameVars = 0;
-    for ( i = 0; i < bg_iNumFlameTableFields; ++i )
+    for (fieldIndex = 0; fieldIndex < bg_iNumFlameTableFields; ++fieldIndex)
     {
-        if (flameVars[i].dvarName)
-            flameDvars[i] = _Dvar_RegisterFloat(
-                flameVars[i].dvarName,
-                flameVars[i].defaultVal,
-                flameVars[i].minVal,
-                flameVars[i].maxVal,
+        if (flameVars[fieldIndex].dvarName)
+            flameDvars[fieldIndex] = _Dvar_RegisterFloat(
+                flameVars[fieldIndex].dvarName,
+                flameVars[fieldIndex].defaultVal,
+                flameVars[fieldIndex].minVal,
+                flameVars[fieldIndex].maxVal,
                 0,
-                flameVars[i].description);
+                flameVars[fieldIndex].description);
     }
 }
 
 void __cdecl Flame_Reset_FlameVars()
 {
-    memset((unsigned __int8 *)flameVarList, 0, sizeof(flameVarList));
+    memset(flameVarList, 0, sizeof(flameVarList));
     numFlameVars = 0;
 }
 
@@ -1100,15 +1101,15 @@ void __cdecl Flame_Init_Classes()
 
 void __cdecl Flame_Init_Sources()
 {
-    int i; // [esp+0h] [ebp-4h]
+    int sourceIndex;
 
     Flame_Init_DVars();
-    memset((unsigned __int8 *)flameSources, 0, sizeof(flameSources));
-    memset(flameSourceLookup, 0, 0x3FEu);
-    memset((unsigned __int8 *)sv_flameSources, 0, sizeof(sv_flameSources));
-    memset(sv_flameSourceLookup, 0, 0x3FEu);
-    for ( i = 0; i < 64; ++i )
-        sv_flameSources[i].is_server_alloc = 1;
+    memset(flameSources, 0, sizeof(flameSources));
+    memset(flameSourceLookup, 0, sizeof(flameSourceLookup));
+    memset(sv_flameSources, 0, sizeof(sv_flameSources));
+    memset(sv_flameSourceLookup, 0, sizeof(sv_flameSourceLookup));
+    for (sourceIndex = 0; sourceIndex < 64; ++sourceIndex)
+        sv_flameSources[sourceIndex].is_server_alloc = 1;
 }
 
 void __cdecl Flame_Init_DVars()
@@ -1194,11 +1195,11 @@ void __cdecl Flame_Init_DVars()
 
 char __cdecl Flame_TableInDevGui(const char *tableName)
 {
-    int i; // [esp+0h] [ebp-4h]
+    int tableIndex;
 
-    for ( i = 0; i < numFlameTablesLoaded; ++i )
+    for (tableIndex = 0; tableIndex < numFlameTablesLoaded; ++tableIndex)
     {
-        if ( !I_strcmp(tableName, loadedFlameTables[i]) )
+        if (!I_strcmp(tableName, loadedFlameTables[tableIndex]))
             return 1;
     }
     return 0;
@@ -1206,17 +1207,15 @@ char __cdecl Flame_TableInDevGui(const char *tableName)
 
 void __cdecl Flame_InitDevGui()
 {
-    char *v0; // eax
-    char *v1; // eax
-    unsigned int j; // [esp+0h] [ebp-Ch]
-    int i; // [esp+4h] [ebp-8h]
-    int ia; // [esp+4h] [ebp-8h]
-    const WeaponDef *weapDef; // [esp+8h] [ebp-4h]
+    unsigned int weaponIndex;
+    int tableIndex;
+    int dvarIndex;
+    const WeaponDef *weapDef;
 
     numFlameTablesLoaded = 0;
-    for (j = 0; j < BG_GetNumWeapons(); ++j)
+    for (weaponIndex = 0; weaponIndex < BG_GetNumWeapons(); ++weaponIndex)
     {
-        weapDef = BG_GetWeaponDef(j);
+        weapDef = BG_GetWeaponDef(weaponIndex);
         if (weapDef && weapDef->flameTableFirstPersonPtr && !Flame_TableInDevGui(weapDef->flameTableFirstPerson))
         {
             if (numFlameTablesLoaded >= 8
@@ -1265,21 +1264,27 @@ void __cdecl Flame_InitDevGui()
     Cmd_AddCommandInternal("flame_use_dvars_toggle", Flame_CMD_Use_Dvars_Toggle, &Flame_CMD_Use_Dvars_Toggle_VAR);
     Cbuf_InsertText(0, "devgui_cmd \"FT/Toggle Flamethrower:1\" flame_test_toggle");
     Cbuf_InsertText(0, "devgui_cmd \"FT/Toggle Dvar Use:2\" flame_use_dvars_toggle");
-    for (i = 0; i < numFlameTablesLoaded; ++i)
+    for (tableIndex = 0; tableIndex < numFlameTablesLoaded; ++tableIndex)
     {
-        v0 = va(
-            "devgui_cmd \"FT/Flametables:3/%s:%i\" \"set flameVar_editingFlameTable %s\"",
-            loadedFlameTables[i],
-            i + 1,
-            loadedFlameTables[i]);
-        Cbuf_InsertText(0, v0);
+        Cbuf_InsertText(
+            0,
+            va(
+                "devgui_cmd \"FT/Flametables:3/%s:%i\" \"set flameVar_editingFlameTable %s\"",
+                loadedFlameTables[tableIndex],
+                tableIndex + 1,
+                loadedFlameTables[tableIndex]));
     }
-    for (ia = 0; ia < 128; ++ia)
+    for (dvarIndex = 0; dvarIndex < 128; ++dvarIndex)
     {
-        if (flameVars[ia].name)
+        if (flameVars[dvarIndex].name)
         {
-            v1 = va("devgui_dvar \"FT/Edit Dvars:4/%s:%i\" %s", flameVars[ia].name, ia + 1, flameVars[ia].dvarName);
-            Cbuf_InsertText(0, v1);
+            Cbuf_InsertText(
+                0,
+                va(
+                    "devgui_dvar \"FT/Edit Dvars:4/%s:%i\" %s",
+                    flameVars[dvarIndex].name,
+                    dvarIndex + 1,
+                    flameVars[dvarIndex].dvarName));
         }
     }
     Cbuf_InsertText(0, "devgui_cmd \"FT/Print DVars:5\" flame_printdvars");
@@ -1300,7 +1305,7 @@ void __cdecl Flame_Reset()
 
 void __cdecl Flame_CMD_PrintDVarsToConsol()
 {
-    int i; // [esp+8h] [ebp-4h]
+    int fieldIndex;
 
     Com_Printf(0, "\n------------------------------------------\nDumping Flamethrower Dvars...\n\n[BEGIN]\n");
     Com_Printf(
@@ -1309,10 +1314,10 @@ void __cdecl Flame_CMD_PrintDVarsToConsol()
         "ONSETTINGS.GDT!\n"
         "\n",
         flameVar_editingFlameTable->current.string);
-    for ( i = 0; i < bg_iNumFlameTableFields; ++i )
+    for (fieldIndex = 0; fieldIndex < bg_iNumFlameTableFields; ++fieldIndex)
     {
-        if ( flameVars[i].dvarName )
-            Com_Printf(0, "        \"%s\" \"%f\"\n", flameVars[i].dvarName, flameDvars[i]->current.value);
+        if (flameVars[fieldIndex].dvarName)
+            Com_Printf(0, "        \"%s\" \"%f\"\n", flameVars[fieldIndex].dvarName, flameDvars[fieldIndex]->current.value);
     }
     Com_Printf(0, "[END]\n\nDone.\n------------------------------------------\n");
 }
@@ -1335,68 +1340,47 @@ void __cdecl Flame_CMD_Use_Dvars_Toggle()
 
 void __cdecl Flame_DVarsToFlameVars(flameTable *fTable)
 {
-    const cspField_t *field; // [esp+4h] [ebp-10h]
-    const cspField_t *fielda; // [esp+4h] [ebp-10h]
-    float flt; // [esp+8h] [ebp-Ch]
-    flameTable *fltptr; // [esp+Ch] [ebp-8h]
-    flameTable *fltptra; // [esp+Ch] [ebp-8h]
-    int i; // [esp+10h] [ebp-4h]
-    int ia; // [esp+10h] [ebp-4h]
+    float *tableFloat;
+    int fieldIndex;
+    const cspField_t *field;
 
-    if ( !fTable
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_system.cpp", 467, 0, "%s", "fTable") )
+    iassert(fTable);
+    iassert(fTable->name);
+
+    if (I_strcmp(flameVar_editingFlameTable->current.string, flameVar_lastFlameTable->current.string))
     {
-        __debugbreak();
-    }
-    if ( !fTable->name
-        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_system.cpp", 468, 0, "%s", "fTable->name") )
-    {
-        __debugbreak();
-    }
-    if ( I_strcmp(flameVar_editingFlameTable->current.string, flameVar_lastFlameTable->current.string) )
-    {
-        i = 0;
-        fltptr = fTable;
+        tableFloat = &fTable->flameVar_streamChunkGravityStart;
         field = flameTableFields;
-        while ( i < bg_iNumFlameTableFields )
+        for (fieldIndex = 0; fieldIndex < bg_iNumFlameTableFields; ++fieldIndex, ++field, ++tableFloat)
         {
-            if ( field->iFieldType == 7 )
-                Dvar_SetFloatByName(field->szName, fltptr->flameVar_streamChunkGravityStart);
-            ++field;
-            ++i;
-            fltptr = (flameTable *)((char *)fltptr + 4);
+            if (field->iFieldType == 7)
+                Dvar_SetFloatByName(field->szName, *tableFloat);
         }
         Dvar_SetString((dvar_s *)flameVar_lastFlameTable, flameVar_editingFlameTable->current.string);
     }
-    ia = 0;
-    fielda = flameTableFields;
-    fltptra = fTable;
-    while ( ia < bg_iNumFlameTableFields )
+
+    tableFloat = &fTable->flameVar_streamChunkGravityStart;
+    field = flameTableFields;
+    for (fieldIndex = 0; fieldIndex < bg_iNumFlameTableFields; ++fieldIndex, ++field, ++tableFloat)
     {
-        if ( fielda->iFieldType == 7 )
-        {
-            flt = Dvar_GetFloat(fielda->szName);
-            fltptra->flameVar_streamChunkGravityStart = flt;
-        }
-        ++fielda;
-        ++ia;
-        fltptra = (flameTable *)((char *)fltptra + 4);
+        if (field->iFieldType == 7)
+            *tableFloat = Dvar_GetFloat(field->szName);
     }
 }
 
 flameTable *__cdecl Flame_FindFlameTable(const char *tableName)
 {
-    unsigned int i; // [esp+0h] [ebp-Ch]
-    unsigned int numWeapons; // [esp+4h] [ebp-8h]
-    const WeaponDef *weapDef; // [esp+8h] [ebp-4h]
+    unsigned int weaponIndex;
+    unsigned int numWeapons;
+    const WeaponDef *weapDef;
 
     numWeapons = BG_GetNumWeapons();
-    for ( i = 0; i < numWeapons; ++i )
+    for (weaponIndex = 0; weaponIndex < numWeapons; ++weaponIndex)
     {
-        weapDef = BG_GetWeaponDef(i);
-        if ( weapDef && weapDef->flameTableFirstPersonPtr && !I_strcmp(weapDef->flameTableFirstPerson, tableName) )
+        weapDef = BG_GetWeaponDef(weaponIndex);
+        if (weapDef && weapDef->flameTableFirstPersonPtr && !I_strcmp(weapDef->flameTableFirstPerson, tableName))
             return weapDef->flameTableFirstPersonPtr;
-        if ( weapDef && weapDef->flameTableThirdPersonPtr && !I_strcmp(weapDef->flameTableThirdPerson, tableName) )
+        if (weapDef && weapDef->flameTableThirdPersonPtr && !I_strcmp(weapDef->flameTableThirdPerson, tableName))
             return weapDef->flameTableThirdPersonPtr;
     }
     return 0;
@@ -1412,102 +1396,99 @@ float __cdecl Flame_SwayRand(float x, float y, int time)
 
 flameSource_t *__cdecl SV_Flame_Source_Get(int entityNum)
 {
-    if ( sv_flameSourceLookup[entityNum] )
+    if (sv_flameSourceLookup[entityNum])
         return &sv_flameSources[sv_flameSourceLookup[entityNum] - 1];
-    else
-        return 0;
+    return 0;
 }
 
 flameSource_t *__cdecl Flame_Source_Get(int entityNum)
 {
-    if ( flameSourceLookup[entityNum] )
+    if (flameSourceLookup[entityNum])
         return &flameSources[flameSourceLookup[entityNum] - 1];
-    else
-        return 0;
+    return 0;
 }
 
 flameRender_s *__cdecl Flame_Get_FlameRender(const char *name)
 {
-    char v1; // cl
-    flameRender_s *v3; // [esp+8h] [ebp-38h]
-    const char *v4; // [esp+Ch] [ebp-34h]
-    bool is_found; // [esp+37h] [ebp-9h]
-    flameRender_s *trav; // [esp+38h] [ebp-8h]
-    int i; // [esp+3Ch] [ebp-4h]
+    bool isFound;
+    flameRender_s *flameRenderEntry;
+    int renderIndex;
 
-    if ( strlen(name) >= 0x7F
+    if (strlen(name) >= 0x7F
         && !Assert_MyHandler(
-                    "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_system.cpp",
-                    579,
-                    0,
-                    "%s\n\t%s",
-                    "strlen( name ) < (MAX_FLAMEVAR_NAME-1)",
-                    "Flame config name is too long") )
+            "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_system.cpp",
+            579,
+            0,
+            "%s\n\t%s",
+            "strlen( name ) < (MAX_FLAMEVAR_NAME-1)",
+            "Flame config name is too long"))
     {
         __debugbreak();
     }
-    is_found = 0;
-    trav = flameVarList;
-    for ( i = 0; i < numFlameVars; ++i )
+
+    isFound = 0;
+    flameRenderEntry = flameVarList;
+    for (renderIndex = 0; renderIndex < numFlameVars; ++renderIndex)
     {
-        if ( !strcmp(name, trav->name) )
+        if (!strcmp(name, flameRenderEntry->name))
         {
-            is_found = 1;
+            isFound = 1;
             break;
         }
-        ++trav;
+        ++flameRenderEntry;
     }
-    if ( !is_found )
+
+    if (!isFound)
     {
-        if ( numFlameVars >= 15
+        if (numFlameVars >= 15
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_system.cpp",
-                        594,
-                        0,
-                        "%s",
-                        "numFlameVars < MAX_FLAMEVARLIST-1") )
+                "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_system.cpp",
+                594,
+                0,
+                "%s",
+                "numFlameVars < MAX_FLAMEVARLIST-1"))
         {
             __debugbreak();
         }
-        trav = &flameVarList[numFlameVars++];
-        v4 = name;
-        v3 = trav;
-        do
-        {
-            v1 = *v4;
-            v3->name[0] = *v4++;
-            v3 = (flameRender_s *)((char *)v3 + 1);
-        }
-        while ( v1 );
+        flameRenderEntry = &flameVarList[numFlameVars++];
+        I_strncpyz(flameRenderEntry->name, name, sizeof(flameRenderEntry->name));
     }
-    return trav;
+    return flameRenderEntry;
 }
 
 void __cdecl Flame_Item_Init(flameGeneric_s *item, unsigned int itemSize)
 {
-    flameList_t globalList; // [esp+0h] [ebp-10h]
-    flameList_t localList; // [esp+8h] [ebp-8h]
+    flameGeneric_s *globalPrev;
+    flameGeneric_s *globalNext;
+    flameGeneric_s *localPrev;
+    flameGeneric_s *localNext;
 
-    globalList = item->listGlobal;
-    localList = item->listLocal;
-    memset((unsigned __int8 *)item, 0, itemSize);
-    item->listGlobal = globalList;
-    item->listLocal = localList;
+    globalPrev = item->listGlobal.prev;
+    globalNext = item->listGlobal.next;
+    localPrev = item->listLocal.prev;
+    localNext = item->listLocal.next;
+    memset(item, 0, itemSize);
+    item->listGlobal.prev = globalPrev;
+    item->listGlobal.next = globalNext;
+    item->listLocal.prev = localPrev;
+    item->listLocal.next = localNext;
 }
 
 void __cdecl Flame_List_Init(flameGeneric_s *list, int itemSize, int listSize)
 {
-    int i; // [esp+4h] [ebp-8h]
+    int itemIndex;
+    char *listTrav;
 
-    for ( i = 0; i < listSize; ++i )
+    listTrav = (char *)list;
+    for (itemIndex = 0; itemIndex < listSize; ++itemIndex)
     {
-        list->listGlobal.prev = (flameGeneric_s *)((char *)list - itemSize);
-        if ( !i )
-            list->listGlobal.prev = 0;
-        list->listGlobal.next = (flameGeneric_s *)((char *)list + itemSize);
-        if ( i >= listSize - 1 )
-            list->listGlobal.next = 0;
-        list = (flameGeneric_s *)((char *)list + itemSize);
+        ((flameGeneric_s *)listTrav)->listGlobal.prev = (flameGeneric_s *)(listTrav - itemSize);
+        if (!itemIndex)
+            ((flameGeneric_s *)listTrav)->listGlobal.prev = 0;
+        ((flameGeneric_s *)listTrav)->listGlobal.next = (flameGeneric_s *)(listTrav + itemSize);
+        if (itemIndex >= listSize - 1)
+            ((flameGeneric_s *)listTrav)->listGlobal.next = 0;
+        listTrav += itemSize;
     }
 }
 
@@ -1579,22 +1560,22 @@ void __cdecl SV_Flame_Age_All_Objects(int time)
 
 flameSource_t *__cdecl Flame_Source_Alloc(int entityNum)
 {
-    flameSource_t *source; // [esp+0h] [ebp-8h]
-    unsigned __int8 i; // [esp+7h] [ebp-1h]
+    flameSource_t *source;
+    unsigned __int8 sourceIndex;
 
-    i = 0;
+    sourceIndex = 0;
     source = flameSources;
-    while ( i < 0x40u )
+    while (sourceIndex < 64)
     {
-        if ( !source->inUse )
+        if (!source->inUse)
         {
             source->entityNum = entityNum;
             source->inUse = 1;
-            flameSourceLookup[entityNum] = i + 1;
+            flameSourceLookup[entityNum] = sourceIndex + 1;
             Flame_Class_Source_Sound_Init(source);
             return source;
         }
-        ++i;
+        ++sourceIndex;
         ++source;
     }
     return 0;
@@ -1602,46 +1583,50 @@ flameSource_t *__cdecl Flame_Source_Alloc(int entityNum)
 
 flameSource_t *__cdecl SV_Flame_Source_Alloc(int entityNum)
 {
-    flameSource_t *v2; // [esp+0h] [ebp-8h]
-    unsigned __int8 i; // [esp+7h] [ebp-1h]
+    flameSource_t *source;
+    unsigned __int8 sourceIndex;
 
-    i = 0;
-    v2 = sv_flameSources;
-    while ( i < 0x40u )
+    sourceIndex = 0;
+    source = sv_flameSources;
+    while (sourceIndex < 64)
     {
-        if ( !v2->inUse )
+        if (!source->inUse)
         {
-            v2->entityNum = entityNum;
-            v2->inUse = 1;
-            sv_flameSourceLookup[entityNum] = i + 1;
-            return v2;
+            source->entityNum = entityNum;
+            source->inUse = 1;
+            sv_flameSourceLookup[entityNum] = sourceIndex + 1;
+            return source;
         }
-        ++i;
-        ++v2;
+        ++sourceIndex;
+        ++source;
     }
     return 0;
 }
 
 void __cdecl Flame_Render_Sprite(
-                cg_s *clientGlobals,
-                Material *material,
-                flameGeneric_s *flameGeneric,
-                float alpha,
-                float frame,
-                unsigned __int8 col)
+    cg_s *clientGlobals,
+    Material *material,
+    flameGeneric_s *flameGeneric,
+    float alpha,
+    float frame,
+    unsigned __int8 col)
 {
-    float angles[3]; // [esp+Ch] [ebp-10h] BYREF
-    unsigned __int8 rgbaColor[4]; // [esp+18h] [ebp-4h] BYREF
+    float angles[3];
+    unsigned __int8 rgbaColor[4];
+
+    if ( !material )
+        return;
 
     rgbaColor[0] = col;
     rgbaColor[1] = col;
     rgbaColor[2] = col;
-    rgbaColor[3] = (int)(alpha * 255.0);
+    rgbaColor[3] = (int)(alpha * 255.0f);
     AxisToAngles(clientGlobals->refdef.viewaxis, angles);
+    // CoDMPServer.c:708423-708424 — v8 = phys.rotation shares stack with angles[2].
     angles[2] = flameGeneric->phys.rotation;
-    if ( frame < 0.0 )
+    if ( frame < 0.0f )
         frame = (float)(flameGeneric->age.lastUpdateTime - flameGeneric->age.startTime)
-                    / (float)(flameGeneric->age.endTime - flameGeneric->age.startTime);
+            / (float)(flameGeneric->age.endTime - flameGeneric->age.startTime);
     R_BeginCodeMeshVerts();
     R_GenerateQuadStampCodeMeshVerts(
         material,
@@ -1665,6 +1650,9 @@ void __cdecl Flame_Render_Sprites(
     int totalCount;
     flameGeneric_s **cur;
 
+    if ( !material || numItems <= 0 )
+        return;
+
     AxisCopy(clientGlobals->refdef.viewaxis, viewAxis);
 
     cur = &flameGenericList[numItems - 1];
@@ -1682,16 +1670,23 @@ void __cdecl Flame_Render_Sprites(
             flameGeneric_s *f = *cur;
             renderQuad_t *q = &quads[quadCount];
 
+            // CoDMPServer.c:7089470-7089472 — copy origin xyz only (*v7 = **v12; v7[1]=v8[1]; v7[2]=v8[2]).
             q->pos[0] = f->phys.origin[0];
             q->pos[1] = f->phys.origin[1];
             q->pos[2] = f->phys.origin[2];
+            // CoDMPServer.c:1057385 reads pos[3] into binormalSign (v11 = v7->pos[3]).
+            // Retail stack leaves pos[3] uninitialized; 1.0f matches R_BuildQuadStampCodeMeshVerts
+            // binormalSign=1.0f (CoDMPServer.c:1057397 / r_sprite.cpp R_BuildQuadStampCodeMeshVerts).
+            q->pos[3] = 1.0f;
 
-            q->rotation = f->phys.rotation;   // +0x2C
-            q->radius = f->size.current;     // +0x34
+            // CoDMPServer.c:7089473 — *((int *)*v12 + 11) = phys.rotation (offset 0x2C).
+            q->rotation = f->phys.rotation;
+            // CoDMPServer.c:7089474 — *((int *)*v12 + 13) = size.current (offset 0x34).
+            q->radius = f->size.current;
 
-            q->lifeFrac =
-                (float)(f->age.lastUpdateTime - f->age.startTime) /
-                (float)(f->age.endTime - f->age.startTime);
+            // CoDMPServer.c:7089475-7089476 — lifeFrac from age.{lastUpdateTime,startTime,endTime}.
+            q->lifeFrac = (float)(f->age.lastUpdateTime - f->age.startTime)
+                / (float)(f->age.endTime - f->age.startTime);
 
             --cur;
             ++quadCount;
@@ -1710,14 +1705,101 @@ void __cdecl Flame_Render_Sprites(
     R_EndCodeMeshVerts();
 }
 
+static const WeaponDef *CG_Flame_ResolveGasWeapDef(
+                unsigned int weaponIndex,
+                unsigned int primaryWeaponIndex,
+                const WeaponDef **tagWeapDefOut)
+{
+    const WeaponDef *weapDef;
+    const WeaponVariantDef *weapVariantDef;
+    unsigned int altIndex;
+
+    if ( !weaponIndex )
+        return 0;
+    weapDef = BG_GetWeaponDef(weaponIndex);
+    if ( !weapDef )
+        return 0;
+
+    if ( weapDef->weapType == WEAPTYPE_GAS )
+    {
+        if ( tagWeapDefOut )
+            *tagWeapDefOut = weapDef;
+        return weapDef;
+    }
+
+    if ( weapDef->inventoryType == WEAPINVENTORY_ALTMODE && primaryWeaponIndex )
+    {
+        weapVariantDef = BG_GetWeaponVariantDef(primaryWeaponIndex);
+        if ( weapVariantDef && weapVariantDef->altWeaponIndex )
+        {
+            altIndex = weapVariantDef->altWeaponIndex;
+            weapDef = BG_GetWeaponDef(altIndex);
+            if ( weapDef && weapDef->weapType == WEAPTYPE_GAS )
+            {
+                if ( tagWeapDefOut )
+                    *tagWeapDefOut = BG_GetWeaponDef(primaryWeaponIndex);
+                return weapDef;
+            }
+        }
+    }
+    return 0;
+}
+
+static void CG_Flame_DeactivateLocalSource(int localClientNum, cg_s *cgameGlob)
+{
+    flameSource_t *source;
+    const WeaponDef *gasWeapDef;
+    flameTable *table;
+    int clientNum;
+    unsigned int weaponIndex;
+    bool isFirstPerson;
+
+    clientNum = cgameGlob->predictedPlayerState.clientNum;
+    weaponIndex = CG_GetPlayerWeapon(&cgameGlob->predictedPlayerState, localClientNum);
+    gasWeapDef = CG_Flame_ResolveGasWeapDef(
+        weaponIndex,
+        cgameGlob->predictedPlayerState.lastWeaponAltModeSwitch,
+        0);
+    if ( gasWeapDef )
+        return;
+
+    source = Flame_Source_Get(clientNum);
+    if ( !source || (!source->wasFiring && !source->currentStream) )
+        return;
+
+    table = source->currentStream ? source->currentStream->flameVars : 0;
+    isFirstPerson = cgameGlob->nextSnap->ps.clientNum == clientNum
+        && ((cgameGlob->nextSnap->ps.otherFlags & 2) == 0
+            || cgameGlob->renderingThirdPerson != TP_FOR_MODEL);
+    if ( source->currentStream )
+    {
+        Flame_Class_Stream_Free(0, source->currentStream);
+        source->currentStream = 0;
+    }
+    source->bIsFiring = 0;
+
+    if ( table )
+    {
+        Flame_Class_Source_Sound(
+            localClientNum,
+            0,
+            isFirstPerson,
+            cgameGlob->time,
+            table,
+            source);
+    }
+}
+
 
 int __cdecl Flame_GetLocalClientFlameSource(int localClientNum, int EntNum)
 {
+    // CoDMPServer.c: idb import — entity index is the flameSources lookup key.
     return EntNum;
 }
 
 bool __cdecl Flame_GetLocalClientSourceRange(const char *__formal)
 {
+    // CoDMPServer.c:894990 — always returns 1 in retail.
     return 1;
 }
 
@@ -1732,6 +1814,7 @@ void __cdecl SV_Flame_Update_Source_Internal(
                 flameWeaponConfig_t *weaponConfig,
                 int time)
 {
+    // CoDMPServer.c:708502-708516
     if ( weaponConfig->bIsFiring != source->bIsFiring )
         source->currentStream = 0;
     if ( weaponConfig->bIsFiring || weaponConfig->bFireWhileIdle )
@@ -1746,6 +1829,7 @@ void __cdecl CG_Flame_Update_Source_Internal(
                 int time,
                 flameRender_s *flameRend)
 {
+    // CoDMPServer.c:708510-708516
     if ( weaponConfig->bIsFiring != source->bIsFiring )
         source->currentStream = 0;
     if ( weaponConfig->bIsFiring || weaponConfig->bFireWhileIdle )
@@ -1755,20 +1839,20 @@ void __cdecl CG_Flame_Update_Source_Internal(
 
 void __cdecl SV_Flame_Update_Source(int entityNum, flameWeaponConfig_t *weaponConfig, int time)
 {
-    flameSource_t *source; // [esp+0h] [ebp-4h]
+    flameSource_t *source;
 
     source = SV_Flame_Source_Get(entityNum);
-    if ( !source )
+    if (!source)
     {
         source = SV_Flame_Source_Alloc(entityNum);
-        if ( !source
+        if (!source
             && !Assert_MyHandler(
-                        "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_system.cpp",
-                        1003,
-                        0,
-                        "%s\n\t%s",
-                        "source",
-                        "No free flameSources") )
+                "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_system.cpp",
+                1003,
+                0,
+                "%s\n\t%s",
+                "source",
+                "No free flameSources"))
         {
             __debugbreak();
         }
@@ -1778,90 +1862,113 @@ void __cdecl SV_Flame_Update_Source(int entityNum, flameWeaponConfig_t *weaponCo
 
 void __cdecl CG_Flame_Update_Source(int localClientNum)
 {
-    int LocalClientFlameSource; // eax
-    int v2; // eax
-    int v3; // eax
-    int v4; // [esp+8h] [ebp-20Ch]
-    int time; // [esp+Ch] [ebp-208h]
-    float dir[3]; // [esp+34h] [ebp-1E0h] BYREF
-    float start[3]; // [esp+40h] [ebp-1D4h] BYREF
-    flameSource_t *source; // [esp+88h] [ebp-18Ch]
-    const clientInfo_t *ci; // [esp+8Ch] [ebp-188h]
-    const centity_s *player; // [esp+90h] [ebp-184h]
-    int j; // [esp+94h] [ebp-180h]
-    int weapon; // [esp+98h] [ebp-17Ch]
-    const WeaponDef *gunnerWeapDef; // [esp+9Ch] [ebp-178h]
-    int gunnerIndex; // [esp+A0h] [ebp-174h]
-    const vehicle_info_t *info; // [esp+A4h] [ebp-170h]
-    unsigned __int8 thirdBoneIndex; // [esp+AAh] [ebp-16Ah] BYREF
-    bool isFireEvent; // [esp+ABh] [ebp-169h]
-    flameWeaponConfig_t flameWeaponConfig; // [esp+ACh] [ebp-168h] BYREF
-    int thirdDobjHandle; // [esp+F4h] [ebp-120h]
-    bool isFirstPerson; // [esp+FBh] [ebp-119h]
-    flameRender_s *flameRend; // [esp+FCh] [ebp-118h]
-    unsigned __int8 firstBoneIndex; // [esp+103h] [ebp-111h] BYREF
-    orientation_t thirdOrient; // [esp+104h] [ebp-110h] BYREF
-    int firstDobjHandle; // [esp+134h] [ebp-E0h]
-    orientation_t firstOrient; // [esp+138h] [ebp-DCh] BYREF
-    bool isFiring; // [esp+16Bh] [ebp-A9h]
-    unsigned int bits; // [esp+16Ch] [ebp-A8h]
-    int indexHigh; // [esp+170h] [ebp-A4h]
-    unsigned __int16 boneName; // [esp+174h] [ebp-A0h]
-    const centity_s *centForFlags; // [esp+178h] [ebp-9Ch]
-    cg_s *cgameGlob; // [esp+17Ch] [ebp-98h]
-    centity_s *cent; // [esp+180h] [ebp-94h]
-    unsigned int centInNextSnapshot[32]; // [esp+184h] [ebp-90h] BYREF
-    int usingVehicleTagFlash; // [esp+204h] [ebp-10h]
-    int i; // [esp+208h] [ebp-Ch]
-    const WeaponDef *weapDef; // [esp+20Ch] [ebp-8h]
-    int clientNum; // [esp+210h] [ebp-4h]
+    int entityFlameSourceNum;
+    int time;
+    float dir[3];
+    float start[3];
+    trace_t trace;
+    flameSource_t *source;
+    const clientInfo_t *ci;
+    const centity_s *player;
+    int clientIndex;
+    int weapon;
+    const WeaponDef *gunnerWeapDef;
+    int gunnerIndex;
+    const vehicle_info_t *info;
+    unsigned __int8 thirdBoneIndex;
+    bool isFireEvent;
+    flameWeaponConfig_t flameWeaponConfig;
+    flameTable *table;
+    int thirdDobjHandle;
+    bool isFirstPerson;
+    flameRender_s *flameRend;
+    unsigned __int8 firstBoneIndex;
+    orientation_t thirdOrient;
+    int firstDobjHandle;
+    orientation_t firstOrient;
+    bool isFiring;
+    unsigned int bits;
+    int snapshotWordIndex;
+    unsigned __int16 boneName;
+    const centity_s *centForFlags;
+    cg_s *cgameGlob;
+    centity_s *cent;
+    unsigned int centInNextSnapshot[32];
+    int usingVehicleTagFlash;
+    int entityIndex;
+    const WeaponDef *weapDef;
+    const WeaponDef *tagWeapDef;
+    int clientNum;
 
     boneName = scr_const.tag_flash;
     weapDef = 0;
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
-    if ( cgameGlob->nextSnap && (!zombietron->current.enabled || localClientNum <= 0) )
+    if (cgameGlob->nextSnap && (!zombietron->current.enabled || localClientNum <= 0))
     {
         memcpy(centInNextSnapshot, cgameGlob->centInNextSnapshot, sizeof(centInNextSnapshot));
         clientNum = cgameGlob->clientNum;
         centInNextSnapshot[clientNum >> 5] |= 0x80000000 >> (clientNum & 0x1F);
         clientNum = cgameGlob->predictedPlayerState.clientNum;
         centInNextSnapshot[clientNum >> 5] |= 0x80000000 >> (clientNum & 0x1F);
-        for ( indexHigh = 0; indexHigh < 32; ++indexHigh )
+        for (snapshotWordIndex = 0; snapshotWordIndex < 32; ++snapshotWordIndex)
         {
-            bits = centInNextSnapshot[indexHigh];
-            i = 32 * indexHigh;
-            while ( bits )
+            bits = centInNextSnapshot[snapshotWordIndex];
+            entityIndex = 32 * snapshotWordIndex;
+            while (bits)
             {
-                if ( (bits & 0x80000000) != 0 )
+                if ((bits & 0x80000000) != 0)
                 {
-                    cent = CG_GetEntity(localClientNum, i);
+                    cent = CG_GetEntity(localClientNum, entityIndex);
                     centForFlags = cent;
                     usingVehicleTagFlash = 0;
-                    if ( ((*((unsigned int *)cent + 201) >> 1) & 1) != 0 )
+                    if ( cent->nextValid )
                     {
-                        weapDef = BG_GetWeaponDef(cent->nextState.weapon);
-                        if ( cent->nextState.eType == 14 )
+                        unsigned int primaryWeaponIndex;
+                        unsigned int entityWeaponIndex;
+
+                        entityWeaponIndex = cent->nextState.weapon;
+                        primaryWeaponIndex = cent->nextState.lerp.u.player.primaryWeapon;
+                        if ( entityIndex == cgameGlob->predictedPlayerState.clientNum )
+                        {
+                            entityWeaponIndex = CG_GetPlayerWeapon(
+                                &cgameGlob->predictedPlayerState,
+                                localClientNum);
+                            primaryWeaponIndex = cgameGlob->predictedPlayerState.lastWeaponAltModeSwitch;
+                        }
+                        else if ( cent->nextState.eType == 1 )
+                        {
+                            entityWeaponIndex = CG_GetClientWeapon(
+                                cent->nextState.clientNum,
+                                localClientNum);
+                        }
+                        tagWeapDef = 0;
+                        weapDef = CG_Flame_ResolveGasWeapDef(
+                            entityWeaponIndex,
+                            primaryWeaponIndex,
+                            &tagWeapDef);
+                        if (cent->nextState.eType == 14)
                         {
                             info = CG_GetVehicleInfo(cent->nextState.vehicleState.vehicleInfoIndex);
-                            for ( gunnerIndex = 0; gunnerIndex < 4; ++gunnerIndex )
+                            for (gunnerIndex = 0; gunnerIndex < 4; ++gunnerIndex)
                             {
                                 weapon = info->gunnerWeaponIndex[gunnerIndex];
                                 gunnerWeapDef = BG_GetWeaponDef(weapon);
-                                if ( gunnerWeapDef->weapType == WEAPTYPE_GAS )
+                                if (gunnerWeapDef && gunnerWeapDef->weapType == WEAPTYPE_GAS)
                                 {
                                     boneName = scr_const.tag_flash_gunner[gunnerIndex];
                                     usingVehicleTagFlash = 1;
                                     weapDef = gunnerWeapDef;
-                                    for ( j = 0; j < com_maxclients->current.integer; ++j )
+                                    tagWeapDef = gunnerWeapDef;
+                                    for (clientIndex = 0; clientIndex < com_maxclients->current.integer; ++clientIndex)
                                     {
-                                        player = CG_GetEntity(localClientNum, j);
-                                        if ( player->nextState.eType == 1 )
+                                        player = CG_GetEntity(localClientNum, clientIndex);
+                                        if (player->nextState.eType == 1)
                                         {
                                             ci = &cgameGlob->bgs.clientinfo[player->nextState.clientNum];
-                                            if ( ci->attachedVehEntNum == i && ci->attachedVehSeat == gunnerIndex + 1 )
+                                            if (ci->attachedVehEntNum == entityIndex && ci->attachedVehSeat == gunnerIndex + 1)
                                             {
                                                 centForFlags = player;
-                                                goto LABEL_25;
+                                                break;
                                             }
                                         }
                                     }
@@ -1869,19 +1976,20 @@ void __cdecl CG_Flame_Update_Source(int localClientNum)
                                 }
                             }
                         }
-LABEL_25:
-                        if ( centForFlags && weapDef && weapDef->weapType == WEAPTYPE_GAS )
+                        if (centForFlags && weapDef && weapDef->weapType == WEAPTYPE_GAS)
                         {
+                            if ( !tagWeapDef )
+                                tagWeapDef = weapDef;
                             thirdDobjHandle = cent->nextState.number;
                             firstDobjHandle = CG_WeaponDObjHandle(localClientNum);
-                            isFirstPerson = cgameGlob->nextSnap->ps.clientNum == i
-                                                     && ((cgameGlob->nextSnap->ps.otherFlags & 2) == 0
-                                                        || cgameGlob->renderingThirdPerson != TP_FOR_MODEL);
-                            if ( Demo_IsThirdPersonCamera() || Demo_IsMovieCamera() )
+                            isFirstPerson = cgameGlob->nextSnap->ps.clientNum == entityIndex
+                                && ((cgameGlob->nextSnap->ps.otherFlags & 2) == 0
+                                    || cgameGlob->renderingThirdPerson != TP_FOR_MODEL);
+                            if (Demo_IsThirdPersonCamera() || Demo_IsMovieCamera())
                                 isFirstPerson = 0;
-                            if ( !weapDef->bUseAltTagFlash || isFirstPerson )
+                            if (!tagWeapDef->bUseAltTagFlash || isFirstPerson)
                             {
-                                if ( !usingVehicleTagFlash )
+                                if (!usingVehicleTagFlash)
                                     boneName = scr_const.tag_flash;
                             }
                             else
@@ -1891,32 +1999,42 @@ LABEL_25:
                             firstBoneIndex = -2;
                             thirdBoneIndex = -2;
                             isFireEvent = cent->nextState.eType == 50;
-                            if ( cent->nextState.eType == 6 && (centForFlags->nextState.lerp.eFlags & 0x40) != 0 )
+                            if (cent->nextState.eType == 6 && (centForFlags->nextState.lerp.eFlags & 0x40) != 0)
                                 isFireEvent = 1;
-                            if ( (isFirstPerson
-                                 || isFireEvent
-                                 || CG_GetBoneIndex(localClientNum, thirdDobjHandle, boneName, &thirdBoneIndex))
-                                && (!isFirstPerson || CG_GetBoneIndex(localClientNum, firstDobjHandle, boneName, &firstBoneIndex)) )
+                            if ((isFirstPerson
+                                    || isFireEvent
+                                    || CG_GetBoneIndex(localClientNum, thirdDobjHandle, boneName, &thirdBoneIndex))
+                                && (!isFirstPerson || CG_GetBoneIndex(localClientNum, firstDobjHandle, boneName, &firstBoneIndex)))
                             {
-                                isFiring = flame_test->current.enabled
-                                                || (centForFlags->nextState.lerp.eFlags & 0x40) != 0
-                                                && (cent->nextState.lerp.eFlags & 0x300) == 0
-                                                && cgameGlob->predictedPlayerState.waterlevel < 3
-                                                || isFireEvent;
+                                // CoDMPServer.c:708699-708711 — eFlags 0x40 gates pilot + stream update.
+                                if (flame_test->current.enabled)
+                                {
+                                    isFiring = 1;
+                                }
+                                else if ( (centForFlags->nextState.lerp.eFlags & 0x40) == 0
+                                    || (cent->nextState.lerp.eFlags & 0x300) != 0
+                                    || cgameGlob->predictedPlayerState.waterlevel >= 3 )
+                                {
+                                    isFiring = isFireEvent;
+                                }
+                                else
+                                {
+                                    isFiring = 1;
+                                }
                                 if ( isFiring )
-                                    *((unsigned int *)cent + 201) |= 4u;
+                                    cent->bMuzzleFlash = 1;
                                 if ( isFiring && isFirstPerson && cent->lastMuzzleFlash < cgameGlob->time - weapDef->iRechamberBoltTime )
                                 {
-                                    *((unsigned int *)cent + 201) |= 4u;
+                                    cent->bMuzzleFlash = 1;
                                     cent->lastMuzzleFlash = cgameGlob->time;
                                 }
                                 if ( isFiring )
                                 {
-                                    if ( isFirstPerson )
+                                    if (isFirstPerson)
                                     {
                                         FX_GetBoneOrientation(localClientNum, firstDobjHandle, firstBoneIndex, &firstOrient);
                                     }
-                                    else if ( isFireEvent )
+                                    else if (isFireEvent)
                                     {
                                         thirdOrient.origin[0] = cent->pose.origin[0];
                                         thirdOrient.origin[1] = cent->pose.origin[1];
@@ -1930,17 +2048,18 @@ LABEL_25:
                                 }
                                 if ( isFirstPerson )
                                 {
-                                    flameWeaponConfig.fTable = weapDef->flameTableFirstPersonPtr;
-                                    flameRend = Flame_Get_FlameRender(weapDef->flameTableFirstPersonPtr->name);
+                                    table = weapDef->flameTableFirstPersonPtr;
+                                    flameRend = Flame_Get_FlameRender(table->name);
                                 }
                                 else
                                 {
-                                    flameWeaponConfig.fTable = weapDef->flameTableThirdPersonPtr;
-                                    flameRend = Flame_Get_FlameRender(weapDef->flameTableThirdPersonPtr->name);
+                                    table = weapDef->flameTableThirdPersonPtr;
+                                    flameRend = Flame_Get_FlameRender(table->name);
                                 }
+                                {
                                 if ( isFiring )
                                 {
-                                    if ( isFirstPerson )
+                                    if (isFirstPerson)
                                     {
                                         flameWeaponConfig.origin[0] = firstOrient.origin[0];
                                         flameWeaponConfig.origin[1] = firstOrient.origin[1];
@@ -1964,6 +2083,7 @@ LABEL_25:
                                     flameWeaponConfig.angle[1] = cent->nextState.lerp.apos.trBase[1];
                                     flameWeaponConfig.angle[2] = cent->nextState.lerp.apos.trBase[2];
                                 }
+                                flameWeaponConfig.fTable = table;
                                 flameWeaponConfig.bFireWhileIdle = 0;
                                 flameWeaponConfig.bIsFiring = isFiring;
                                 flameWeaponConfig.burnRate = 1.0f;
@@ -1973,29 +2093,28 @@ LABEL_25:
                                 flameWeaponConfig.entityOrigin[1] = cent->nextState.lerp.pos.trBase[1];
                                 flameWeaponConfig.entityOrigin[2] = cent->nextState.lerp.pos.trBase[2];
                                 flameWeaponConfig.damage = weapDef->damage;
-                                LocalClientFlameSource = Flame_GetLocalClientFlameSource(localClientNum, i);
-                                source = Flame_Source_Get(LocalClientFlameSource);
-                                if ( !source )
+                                flameWeaponConfig.damageDuration = weapDef->damageDuration;
+                                flameWeaponConfig.damageInterval = weapDef->damageInterval;
+                                entityFlameSourceNum = Flame_GetLocalClientFlameSource(localClientNum, entityIndex);
+                                source = Flame_Source_Get(entityFlameSourceNum);
+                                if (!source)
                                 {
-                                    CG_GetLocalClientGlobals(localClientNum);
-                                    v2 = Flame_GetLocalClientFlameSource(localClientNum, i);
-                                    source = Flame_Source_Alloc(v2);
-                                    if ( !source
+                                    source = Flame_Source_Alloc(entityFlameSourceNum);
+                                    if (!source
                                         && !Assert_MyHandler(
-                                                    "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_system.cpp",
-                                                    1271,
-                                                    0,
-                                                    "%s\n\t%s",
-                                                    "source",
-                                                    "No free flameSources") )
+                                            "C:\\projects_pc\\cod\\codsrc\\src\\flame\\flame_system.cpp",
+                                            1271,
+                                            0,
+                                            "%s\n\t%s",
+                                            "source",
+                                            "No free flameSources"))
                                     {
                                         __debugbreak();
                                     }
                                 }
-                                if ( source )
+                                if (source)
                                 {
-                                    v3 = Flame_GetLocalClientFlameSource(localClientNum, i);
-                                    source->entityNum = v3;
+                                    source->entityNum = entityFlameSourceNum;
                                     source->firstDobjHandle = firstDobjHandle;
                                     source->firstBoneIndex = firstBoneIndex;
                                     source->thirdDobjHandle = thirdDobjHandle;
@@ -2004,12 +2123,12 @@ LABEL_25:
                                     source->firingThroughGeo = 0;
                                     if ( isFiring && !isFirstPerson )
                                     {
-                                        trace_t trace; // [esp+4Ch] [ebp-1C8h] BYREF
+                                        memset(&trace, 0, 16);
                                         AngleVectors(flameWeaponConfig.angle, dir, 0, 0);
-                                        start[0] = (float)(-23.0 * dir[0]) + flameWeaponConfig.origin[0];
-                                        start[1] = (float)(-23.0 * dir[1]) + flameWeaponConfig.origin[1];
-                                        start[2] = (float)(-23.0 * dir[2]) + flameWeaponConfig.origin[2];
-                                        if ( flame_debug_render->current.integer > 0 )
+                                        start[0] = -23.0f * dir[0] + flameWeaponConfig.origin[0];
+                                        start[1] = -23.0f * dir[1] + flameWeaponConfig.origin[1];
+                                        start[2] = -23.0f * dir[2] + flameWeaponConfig.origin[2];
+                                        if (flame_debug_render->current.integer > 0)
                                             CG_DebugLine(start, flameWeaponConfig.origin, colorRed, 0, 300);
                                         CG_LocationalTrace(
                                             &trace,
@@ -2019,7 +2138,7 @@ LABEL_25:
                                             0x280E833,
                                             0,
                                             0);
-                                        if ( trace.fraction < 1.0 )
+                                        if (trace.fraction < 1.0f)
                                         {
                                             flameWeaponConfig.origin[0] = start[0];
                                             flameWeaponConfig.origin[1] = start[1];
@@ -2027,98 +2146,102 @@ LABEL_25:
                                             source->firingThroughGeo = 1;
                                         }
                                     }
-                                    time = CG_GetLocalClientGlobals(localClientNum)->time;
-                                    CG_Flame_Update_Source_Internal(source, i, &flameWeaponConfig, time, flameRend);
-                                    v4 = CG_GetLocalClientGlobals(localClientNum)->time;
+                                    time = cgameGlob->time;
+                                    CG_Flame_Update_Source_Internal(source, entityIndex, &flameWeaponConfig, time, flameRend);
                                     Flame_Class_Source_Sound(
                                         localClientNum,
                                         isFiring,
                                         isFirstPerson,
-                                        v4,
-                                        flameWeaponConfig.fTable,
+                                        time,
+                                        table,
                                         source);
+                                }
                                 }
                             }
                         }
                     }
                 }
-                ++i;
+                ++entityIndex;
                 bits *= 2;
             }
         }
     }
+    CG_Flame_DeactivateLocalSource(localClientNum, cgameGlob);
 }
 
 void __cdecl Flame_Generate_Verts(int localClientNum)
 {
-    char *Name; // [esp+8h] [ebp-Ch]
-    int i; // [esp+10h] [ebp-4h]
+    int renderIndex;
 
     PROF_SCOPED("Flame_Generate_Verts");
     ZoneTextF("(cl=%d)", localClientNum);
-    if ( flame_render->current.enabled )
+    if (flame_render->current.enabled)
     {
         Flame_Class_Smoke_Render_All(localClientNum);
         Flame_Class_Fire_Render_All(localClientNum);
         Flame_Class_Drips_Render_All(localClientNum);
         Flame_Class_Chunk_Render_All(localClientNum);
         Flame_Class_Stream_Render_All(localClientNum);
-        for ( i = 0; i < numFlameVars; ++i )
+        for (renderIndex = 0; renderIndex < numFlameVars; ++renderIndex)
         {
-            Flame_Class_Fire_Render_Local_List(localClientNum, (flameFire_t *)flameVarList[i].fireList);
-            Flame_Class_Drips_Render_Local_List(localClientNum, (flameDrips_t *)flameVarList[i].dripsList);
+            Flame_Class_Fire_Render_Local_List(localClientNum, (flameFire_t *)flameVarList[renderIndex].fireList);
+            Flame_Class_Drips_Render_Local_List(localClientNum, (flameDrips_t *)flameVarList[renderIndex].dripsList);
         }
     }
 }
 
 void __cdecl CG_Flame_Update_ViewModel(int localClientNum, centity_s *cent)
 {
-    int k; // [esp+18h] [ebp-14h]
-    float oldOffset; // [esp+1Ch] [ebp-10h]
-    int j; // [esp+20h] [ebp-Ch]
-    int i; // [esp+24h] [ebp-8h]
-    cg_s *cgameGlob; // [esp+28h] [ebp-4h]
+    float oldOffset;
+    int axisIndex;
+    int recoverAxisIndex;
+    int kickAxisIndex;
+    cg_s *cgameGlob;
 
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
-    if ( (cent->nextState.lerp.eFlags & 0x40) != 0 )
+    if ((cent->nextState.lerp.eFlags & 0x40) != 0)
     {
-        for ( i = 0; i < 3; ++i )
+        for (kickAxisIndex = 0; kickAxisIndex < 3; ++kickAxisIndex)
         {
-            cgameGlob->flamethrowerKickOffset[i] = (float)((float)((float)(flame_kick_offset->current.vector[i]
-                                                                                                                                     * flame_kick_speed->current.value)
-                                                                                                                     * (float)cgameGlob->frametime)
-                                                                                                     / 1000.0)
-                                                                                     + cgameGlob->flamethrowerKickOffset[i];
-            if (fabs(cgameGlob->flamethrowerKickOffset[i]) > fabs(flame_kick_offset->current.value))// COERCE_FLOAT(*(&flame_kick_offset->current.integer + i) & _mask__AbsFloat_) )
-                cgameGlob->flamethrowerKickOffset[i] = flame_kick_offset->current.vector[i];
+            cgameGlob->flamethrowerKickOffset[kickAxisIndex] =
+                flame_kick_offset->current.vector[kickAxisIndex]
+                * flame_kick_speed->current.value
+                * cgameGlob->frametime
+                / 1000.0f
+                + cgameGlob->flamethrowerKickOffset[kickAxisIndex];
+            if (fabs(cgameGlob->flamethrowerKickOffset[kickAxisIndex]) > fabs(flame_kick_offset->current.vector[kickAxisIndex]))
+                cgameGlob->flamethrowerKickOffset[kickAxisIndex] = flame_kick_offset->current.vector[kickAxisIndex];
         }
     }
     else
     {
-        for ( j = 0; j < 3; ++j )
+        for (recoverAxisIndex = 0; recoverAxisIndex < 3; ++recoverAxisIndex)
         {
-            oldOffset = cgameGlob->flamethrowerKickOffset[j];
-            cgameGlob->flamethrowerKickOffset[j] = oldOffset
-                                                                                     - (float)((float)((float)(flame_kick_offset->current.vector[j]
-                                                                                                                                     * flame_kick_recover_speed->current.value)
-                                                                                                                     * (float)cgameGlob->frametime)
-                                                                                                     / 1000.0);
-            if ( fabs(cgameGlob->flamethrowerKickOffset[j]) > fabs(oldOffset) )
-                cgameGlob->flamethrowerKickOffset[j] = 0.0f;
+            oldOffset = cgameGlob->flamethrowerKickOffset[recoverAxisIndex];
+            cgameGlob->flamethrowerKickOffset[recoverAxisIndex] = oldOffset
+                - flame_kick_offset->current.vector[recoverAxisIndex]
+                * flame_kick_recover_speed->current.value
+                * cgameGlob->frametime
+                / 1000.0f;
+            if (fabs(cgameGlob->flamethrowerKickOffset[recoverAxisIndex]) > fabs(oldOffset))
+                cgameGlob->flamethrowerKickOffset[recoverAxisIndex] = 0.0f;
         }
     }
-    for ( k = 0; k < 3; ++k )
+    for (axisIndex = 0; axisIndex < 3; ++axisIndex)
     {
-        cgameGlob->viewModelAxis[3][0] = (float)(cgameGlob->flamethrowerKickOffset[k] * cgameGlob->viewModelAxis[k][0])
-                                                                     + cgameGlob->viewModelAxis[3][0];
-        cgameGlob->viewModelAxis[3][1] = (float)(cgameGlob->flamethrowerKickOffset[k] * cgameGlob->viewModelAxis[k][1])
-                                                                     + cgameGlob->viewModelAxis[3][1];
-        cgameGlob->viewModelAxis[3][2] = (float)(cgameGlob->flamethrowerKickOffset[k] * cgameGlob->viewModelAxis[k][2])
-                                                                     + cgameGlob->viewModelAxis[3][2];
+        cgameGlob->viewModelAxis[3][0] =
+            cgameGlob->flamethrowerKickOffset[axisIndex] * cgameGlob->viewModelAxis[axisIndex][0]
+            + cgameGlob->viewModelAxis[3][0];
+        cgameGlob->viewModelAxis[3][1] =
+            cgameGlob->flamethrowerKickOffset[axisIndex] * cgameGlob->viewModelAxis[axisIndex][1]
+            + cgameGlob->viewModelAxis[3][1];
+        cgameGlob->viewModelAxis[3][2] =
+            cgameGlob->flamethrowerKickOffset[axisIndex] * cgameGlob->viewModelAxis[axisIndex][2]
+            + cgameGlob->viewModelAxis[3][2];
     }
 }
 
-int flame_randomseed = 12345; // cool
+int flame_randomseed = 12345;
 double __cdecl Flame_Random(bool is_server)
 {
     if ( is_server )
@@ -2142,17 +2265,16 @@ double __cdecl Flame_CalcTimeScale(int startTime, int endTime)
 
 double __cdecl Flame_CalcInvStartSpeed(float invInitialSpeed, float speedScale)
 {
-    float v3; // [esp+0h] [ebp-8h]
-    float speedScalea; // [esp+14h] [ebp+Ch]
+    float invSpeed;
+    float scaledInvSpeed;
 
-    if ( invInitialSpeed == 0.0 )
-        v3 = 0.0f;
+    if (invInitialSpeed == 0.0f)
+        invSpeed = 0.0f;
     else
-        v3 = 1.0 / invInitialSpeed;
-    speedScalea = speedScale * v3;
-    if ( speedScalea == 0.0 )
+        invSpeed = 1.0f / invInitialSpeed;
+    scaledInvSpeed = speedScale * invSpeed;
+    if (scaledInvSpeed == 0.0f)
         return 0.0;
-    else
-        return 1.0 / speedScalea;
+    return 1.0 / scaledInvSpeed;
 }
 

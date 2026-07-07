@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstring>
+
 #include <qcommon/cm_trace.h>
 #include <qcommon/cm_test.h>
 #include <qcommon/common.h>
@@ -228,6 +230,8 @@ struct colgeom_visitor_inlined_t : colgeom_visitor_t // sizeof=0x6B8
     {
         col_prim_t *prim;
 
+        if (!brush)
+            return;
         if (this->nprims < NUM_PRIMS)
         {
             prim = &this->prims[this->nprims++];
@@ -240,6 +244,8 @@ struct colgeom_visitor_inlined_t : colgeom_visitor_t // sizeof=0x6B8
     {
         col_prim_t *prim; // [esp+4h] [ebp-4h]
 
+        if (!tree)
+            return;
         if (this->nprims < NUM_PRIMS)
         {
             prim = &this->prims[this->nprims++];
@@ -348,6 +354,7 @@ struct colgeom_visitor_inlined_t : colgeom_visitor_t // sizeof=0x6B8
     {
         this->nprims = 0;
         this->overflow = 0;
+        memset(this->prims, 0, sizeof(this->prims));
 
         this->m_mn.vec.v[0] = 9.9999997e37f; // cool float constant, man
         this->m_mn.vec.v[1] = 9.9999997e37f;

@@ -1,11 +1,9 @@
 #pragma once
 
-struct StreamDelayInfo // sizeof=0x8
-{                                       // XREF: .data:StreamDelayInfo * g_streamDelayArray/r
-    const void *ptr;                    // XREF: Load_Stream(bool,void const *,int)+CE/w
-                                        // Load_DelayStream(void)+26/r
-    int size;                           // XREF: Load_Stream(bool,void const *,int)+DD/w
-                                        // Load_DelayStream(void)+33/r
+struct StreamDelayInfo
+{
+    const void *ptr;
+    int size;
 };
 
 void __cdecl Load_Stream(bool atStreamStart, unsigned __int8 *ptr, int size);

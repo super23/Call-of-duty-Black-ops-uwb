@@ -442,6 +442,7 @@ void __cdecl XAnimResetAnimMap_r(XModelNameMap *modelMap, unsigned int infoIndex
 void __cdecl XAnimResetAnimMapLeaf(const XModelNameMap *modelMap, unsigned int infoIndex);
 double __cdecl XAnimGetLength(const XAnim_s *anims, unsigned int animIndex);
 int __cdecl XAnimGetFrameCount(const XAnim_s *anims, unsigned int animIndex);
+unsigned __int8 __cdecl XAnimGetAssetType(const XAnim_s *anims, unsigned int animIndex);
 int __cdecl XAnimGetLengthMsec(const XAnim_s *anims, unsigned int anim);
 unsigned int __cdecl XAnimGetInfoIndex(const XAnimTree_s *tree, unsigned int animIndex);
 unsigned int __cdecl XAnimGetInfoIndex_r(unsigned int animIndex, unsigned int infoIndex);
@@ -656,6 +657,11 @@ bool __cdecl XAnimIsClientNode(const XAnim_s *anims, unsigned int animIndex);
 bool __cdecl XAnimIsClientNode(XAnimTree_s *tree, unsigned int animIndex);
 char __cdecl XAnimNotetrackExists(const XAnim_s *anims, unsigned int animIndex, unsigned int name);
 void __cdecl XAnimAddNotetrackTimesToScriptArray(const XAnim_s *anims, unsigned int animIndex, unsigned int name);
+void __cdecl XAnimAddNotetracksInDeltaToScriptArray(
+    const XAnim_s *anims,
+    unsigned int animIndex,
+    float startDelta,
+    float endDelta);
 int __cdecl XAnimSetCompleteGoalWeight(
                 DObj *obj,
                 unsigned int animIndex,

@@ -13,6 +13,7 @@
 #include "rb_resource.h"
 #include "r_jpeg.h"
 #include "r_state.h"
+#include "r_singlethreaded_device_pc.h"
 #include "rb_backend.h"
 
 const float cubemapShotAxis[7][3][3] =
@@ -716,10 +717,14 @@ int R_CubemapShotSetInitialState()
 {
   const char *v0; // eax
   int result; // eax
+  int v2; // [esp+8h] [ebp-Ch]
   int hr; // [esp+Ch] [ebp-8h]
+  int semaphore; // [esp+10h] [ebp-4h]
 
   R_SetRenderTargetSize(&gfxCmdBufSourceState, R_RENDERTARGET_FRAME_BUFFER);
   R_SetRenderTarget(gfxCmdBufContext, R_RENDERTARGET_FRAME_BUFFER);
+  semaphore = R_AcquireDXDeviceOwnership(0);
+  R_AssertDXDeviceOwnership();
   if ( r_logFile && r_logFile->current.integer )
     RB_LogPrint(
       "dx.device->Clear( 0, 0, 0x00000001l | 0x00000002l | 0x00000004l, ((D3DCOLOR)((((255)&0xff)<<24)|(((255)&0xff)<<16)"
@@ -738,6 +743,7 @@ int R_CubemapShotSetInitialState()
       "* (((( 1/(((((( 1/(((-0x7fffffff))/(0x7fffffff)) == 1) || 0 || ( 1/(((-0x7fffffff))/(0x7fffffff)) == 1)) ? (0x7fff"
       "ffff) : (-0x7fffffff)) * (((( 1/(((-0x7fffffff))/(0x7fffffff)) == 1) || 0 || ( 1/(((-0x7fffffff))/(0x7fffffff)) =="
       " 1))&~1) == 0)))/(0x7fffffff)) == 1) && 1)&~1) == 0)))/(0x7fffffff)) == 1))&~1) == 0)))/(0x7fffffff)) == 1) ? 0.0f : 1.0f), 0 )\n");
+  v2 = R_AcquireDXDeviceOwnership(0);
   //hr = ((int (__stdcall *)(IDirect3DDevice9 *, unsigned int, unsigned int, int, int, unsigned int, unsigned int))dx.device->Clear)(
   //       dx.device,
   //       0,
@@ -747,6 +753,8 @@ int R_CubemapShotSetInitialState()
   //       1.0,
   //       0);
   hr = dx.device->Clear(0, 0, 7, -65281, 1.0, 0);
+  if ( v2 )
+    R_ReleaseDXDeviceOwnership();
   if ( hr < 0 )
   {
     ++g_disableRendering;
@@ -774,6 +782,8 @@ int R_CubemapShotSetInitialState()
       v0);
   }
   result = 0;
+  if ( semaphore )
+    return R_ReleaseDXDeviceOwnership();
   return result;
 }
 

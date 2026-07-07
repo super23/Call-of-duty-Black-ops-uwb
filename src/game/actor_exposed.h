@@ -11,3 +11,7 @@ char __fastcall Actor_Exposed_StartReacquireMove(actor_s *self);
 void __fastcall Actor_Exposed_FlashBanged(actor_s *self);
 int __cdecl Path_IsValidClaimNode(const pathnode_t *node);
 void __fastcall Actor_Exposed_Touch(actor_s *self, gentity_s *pOther);
+bool __fastcall Actor_Exposed_Start(actor_s *self, ai_state_t ePrevState);
+void __fastcall Actor_Exposed_Finish(actor_s *self, ai_state_t eNextState);
+bool __fastcall Actor_Exposed_Resume(actor_s *self, ai_state_t ePrevState);
+actor_think_result_t __fastcall Actor_Exposed_Think(actor_s *self);

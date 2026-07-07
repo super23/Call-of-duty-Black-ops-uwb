@@ -1,6 +1,6 @@
 #pragma once
 #include <bgame/bg_public.h>
-#include <game_mp/g_main_mp.h>
+#include <game/g_main_wrapper.h>
 #include <clientscript/cscr_variable.h>
 
 enum he_type_t : __int32
@@ -47,7 +47,7 @@ struct game_hudelem_field_t // sizeof=0x20
     void (__cdecl *getter)(game_hudelem_s *, int);
 };
 
-struct game_hudelem_s // sizeof=0x7C
+struct game_hudelem_s // sizeof=0x84
 {                                       // XREF: .data:game_hudelem_s * g_hudelems/r
     hudelem_s elem;                     // XREF: HudElem_Alloc(int,int)+25/r
                                         // HudElem_ClientDisconnect(gentity_s *)+25/r ...
@@ -145,6 +145,9 @@ void __cdecl HECmd_SetClockUp(scr_entref_t entref);
 void __cdecl HECmd_SetValue(scr_entref_t entref);
 void __cdecl HECmd_SetWaypoint(scr_entref_t entref);
 void __cdecl HECmd_FadeOverTime(scr_entref_t entref);
+#ifdef KISAK_SP
+void __cdecl HECmd_ChangeFontScaleOverTime(scr_entref_t entref);
+#endif
 void __cdecl HECmd_ScaleOverTime(scr_entref_t entref);
 void __cdecl HECmd_MoveOverTime(scr_entref_t entref);
 void __cdecl HECmd_Reset(scr_entref_t entref);

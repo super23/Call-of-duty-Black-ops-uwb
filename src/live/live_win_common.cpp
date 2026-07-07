@@ -9,7 +9,13 @@
 #include "live_news.h"
 #include "live_counter.h"
 #include "live_pcache.h"
+#include "live_storage.h"
+#include "live_storage_win.h"
+#ifdef KISAK_SP
+#include <client_sp/cl_main_pc_sp.h>
+#else
 #include <client_mp/cl_main_pc_mp.h>
+#endif
 #include <win32/win_shared.h>
 #include "live.h"
 #include <qcommon/common.h>
@@ -18,6 +24,10 @@
 
 #include <DW/dwLogOn_pc.h>
 #include <DW/MatchMakingInfo_win32.h>
+#include <qcommon/net_chan_mp.h>
+
+// KISAK: forward declaration for our spoofed local sign-in (defined below).
+static void LiveStorage_FakeSignInLocal(int controllerIndex);
 
 const char *s_comErrorString;
 bool s_shouldComError;
@@ -136,8 +146,83 @@ char __cdecl Live_Frame_MP(int localControllerIndex)
         }
     }
 #else
-return 0;
+    // KISAK: no DemonWare backend in this build. Instead of returning 0
+    // forever (which leaves xblive_loggedin = 0, blocks the multiplayer
+    // menus behind a "connecting to online service" popup, and prevents
+    // LiveStorage_ReadStats from ever being invoked) we synthesise a
+    // local sign-in on the first frame. From that point on the engine
+    // believes it is signed in to Live, the stats system fires its
+    // normal Read/Upload calls, and our local file persistence (see
+    // LiveStorage_LocalSaveStats / LiveStorage_LocalLoadStats in
+    // live_storage_win.cpp) takes care of rank-up / class / prestige
+    // survival across restarts.
+    static bool s_fakeSignedIn = false;
+    if ( !s_fakeSignedIn )
+    {
+        s_fakeSignedIn = true;
+        LiveStorage_FakeSignInLocal(localControllerIndex);
+    }
+    return 1;
 #endif
+}
+
+// ---------------------------------------------------------------------------
+// LiveStorage_FakeSignInLocal
+// Stand-in for Live_UserSignedInToLive when no DemonWare backend is present.
+// Runs once on the first Live_Frame_MP() and emulates just enough of the
+// retail sign-in path that downstream code (stats, custom classes, prestige,
+// CAC validation) believes a profile is signed in:
+//   - flip xblive_loggedin / dw_loggedin on
+//   - mark xenonUserData[0] as signed-in tier-none with a stable XUID
+//   - call LiveStorage_NewUser (zeros the buffers + wires up fileOps)
+//   - call LiveStorage_ReadStats which loads our local profile file
+// ---------------------------------------------------------------------------
+extern const dvar_t *xblive_loggedin;
+extern XenonUserData xenonUserData[];
+
+static void LiveStorage_FakeSignInLocal(int controllerIndex)
+{
+    if ( controllerIndex < 0 || controllerIndex >= 1 )
+        return;
+    if ( xenonUserData[controllerIndex].signinState >= 2 )
+        return;
+
+    xenonUserData[controllerIndex].signinState = 2;
+    xenonUserData[controllerIndex].isGuestUser = 0;
+    xenonUserData[controllerIndex].tier = USER_TIER_NONE;
+
+    // Stable per-machine XUID. The exact value doesn't matter as long as it
+    // stays the same across launches so the local stats file is keyed
+    // consistently. We use 0xE0000000xxxxxxxx (Live unofficial range) with
+    // the controller index in the low bits.
+    unsigned __int64 xuid = 0xE000000000000001ull + (unsigned __int64)controllerIndex;
+    LODWORD(xenonUserData[controllerIndex].xuid) = (unsigned int)xuid;
+    HIDWORD(xenonUserData[controllerIndex].xuid) = (unsigned int)(xuid >> 32);
+    XUIDToString(&xenonUserData[controllerIndex].xuid, xenonUserData[controllerIndex].xuidString);
+
+    if ( xenonUserData[controllerIndex].gamertag[0] == 0 )
+    {
+        char gamerTagBuffer[32];
+        if ( Live_UserGetName(controllerIndex, gamerTagBuffer, sizeof(gamerTagBuffer)) && gamerTagBuffer[0] )
+            I_strncpyz(xenonUserData[controllerIndex].gamertag, gamerTagBuffer, 32);
+        else
+            I_strncpyz(xenonUserData[controllerIndex].gamertag, "Unknown Soldier", 32);
+    }
+
+    LiveStorage_NewUser(controllerIndex);
+    Dvar_SetBoolByName("dw_loggedin", true);
+    Dvar_SetBool((dvar_s *)xblive_loggedin, 1);
+    Dvar_SetBoolByName("ui_ethernetLinkActive", true);
+
+    LiveStorage_ReadStats(controllerIndex, 0, 0);
+    LiveStorage_FetchPlaylistsLocal(controllerIndex);
+
+    Com_Printf(
+        16,
+        "LiveStorage_FakeSignInLocal: signed-in controllerIndex=%d as '%s' (xuid=%s)\n",
+        controllerIndex,
+        xenonUserData[controllerIndex].gamertag,
+        xenonUserData[controllerIndex].xuidString);
 }
 
 extern const dvar_t *dw_popup; // KISAKTODO: remove later

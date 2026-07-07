@@ -1,19 +1,29 @@
 #include "cg_playerstate.h"
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#include <cgame_sp/cg_predict_sp.h>
+#include <client_sp/cl_input_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <cgame_sp/cg_view_sp.h>
+#include <cgame_sp/cg_main_sp.h>
+#include <cgame_sp/cg_servercmds_sp.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
 #include <cgame_mp/cg_predict_mp.h>
-#include "cg_camerashake.h"
 #include <client_mp/cl_input_mp.h>
 #include <client_mp/cl_cgame_mp.h>
-#include "offhandweapons.h"
 #include <cgame_mp/cg_view_mp.h>
-#include "cg_main.h"
 #include <cgame_mp/cg_main_mp.h>
+#include <cgame_mp/cg_servercmds_mp.h>
+#endif
+#include "cg_camerashake.h"
+#include "offhandweapons.h"
+#include "cg_main.h"
 #include <clientscript/cscr_vm.h>
 #include <clientscript/scr_const.h>
 #include <bgame/bg_misc.h>
 #include <bgame/bg_perks.h>
 #include <universal/com_math_anglevectors.h>
-#include <cgame_mp/cg_servercmds_mp.h>
 #include "cg_event.h"
 
 void __cdecl CG_Respawn(int localClientNum, int spectate)

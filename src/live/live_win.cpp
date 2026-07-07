@@ -5,8 +5,15 @@
 #include "live_friends_pc.h"
 #include <qcommon/com_clients.h>
 #include <client/client.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_main_pc_sp.h>
+#include <game/g_main.h>
+#include <server_sp/sv_main_sp.h>
+#else
 #include <client_mp/cl_main_pc_mp.h>
 #include <game_mp/g_main_mp.h>
+#include <server_mp/sv_main_mp.h>
+#endif
 #include "live_sessions_win.h"
 #include "live_groups_dw.h"
 #include "live_pcache.h"
@@ -23,7 +30,6 @@
 #include "live_storage_win.h"
 #include <DW/dwUtils.h>
 #include <client/splitscreen.h>
-#include <server_mp/sv_main_mp.h>
 #include <gfx_d3d/r_rendercmds.h>
 
 const char *bot_difficulties[5] = { "easy", "normal", "hard", "fu", NULL };
@@ -115,7 +121,10 @@ char __cdecl Live_ContentRatingAllowed()
 
 bool __cdecl Live_IsUserSignedInToLive()
 {
-    return LiveSteam_IsClientSignedInOnline();
+    // Keep UI / session / stats gating aligned with menu script (IsSignedInToLive).
+    // That path treats xblive_loggedin from local fake sign-in as valid without
+    // Steam "online" or DemonWare — required for offline mode and LAN.
+    return Live_IsSignedInToLive();
 }
 
 bool __cdecl Live_IsUserSignedInToDemonware(int controllerIndex)
@@ -123,7 +132,9 @@ bool __cdecl Live_IsUserSignedInToDemonware(int controllerIndex)
 #ifdef KISAK_LIVE
     return dwGetLogOnStatus(controllerIndex) == 4;
 #else
-    return false;
+    // Offline/LAN builds set dw_loggedin in LiveStorage_FakeSignInLocal; without
+    // this, stats DDL and subsystem menus stay permanently disabled.
+    return dw_loggedin && dw_loggedin->current.enabled;
 #endif
 }
 
@@ -869,6 +880,14 @@ bool __cdecl Live_IsSignedIn(int controllerIndex)
 
 bool __cdecl Live_IsSignedInToLive()
 {
+#ifndef KISAK_LIVE
+    // Retail required Steam online + dw_active. Without DemonWare we still set
+    // xblive_loggedin from LiveStorage_FakeSignInLocal; honor that so UI
+    // IsSignedInToLive() (main.menu) does not open error_netconnect_popmenu
+    // when Steam is in offline mode or Airplane Mode on Windows.
+    if ( xblive_loggedin && xblive_loggedin->current.enabled )
+        return true;
+#endif
     if ( !LiveSteam_IsClientSignedInOnline() )
         return 0;
     return dw_active && dw_active->current.enabled;

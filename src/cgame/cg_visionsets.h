@@ -236,7 +236,13 @@ enum visionSetMode_t : __int32
         VISIONSETMODE_INFRARED = 0x3,
         VISIONSETMODE_TVGUIDED = 0x4,
         VISIONSETMODE_EXTRACAM = 0x5,
+#ifdef KISAK_SP
+        VISIONSETMODE_DAMAGE     = 0x7,
+        VISIONSETMODE_UNDERWATER = 0x9,
+        VISIONSETMODECOUNT         = 0xA,
+#else
         VISIONSETMODECOUNT         = 0x6,
+#endif
 };
 
 struct visionSetLerpData_t // sizeof=0xC
@@ -292,6 +298,7 @@ bool __cdecl CG_VisionSetStartLerp_To(
 void __cdecl SetDefaultVision(int localClientNum);
 void __cdecl CG_VisionSetConfigString_Naked(int localClientNum);
 void __cdecl CG_VisionSetConfigString_Night(int localClientNum);
+void __cdecl CG_VisionSetConfigString_LastStand(int localClientNum);
 void __cdecl CG_VisionSetMyChanges();
 void __cdecl CG_VisionSetUpdateTweaksFromFile_Film();
 bool __cdecl LoadVisionFileForTweaks(visionSetVars_t *setVars);

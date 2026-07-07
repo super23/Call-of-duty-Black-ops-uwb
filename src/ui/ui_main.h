@@ -362,6 +362,9 @@ void __cdecl UI_OpenToastPopup(
                 int toastPopupDuration);
 void __cdecl UI_DrawMapLevelshot(int localClientNum);
 void __cdecl UI_LoadIngameMenus(int contextIndex);
+void __cdecl UI_ReregisterCoreMenus(int contextIndex);
+void __cdecl UI_ResetIngameMenusLoaded(int contextIndex);
+bool __cdecl UI_HasMenuRegistered(int contextIndex, const char *menuName);
 unsigned __int8 __cdecl UI_ToUpper_CodePage_1250(unsigned __int8 character);
 unsigned __int8 __cdecl UI_ToUpper_CodePage_1251(unsigned __int8 character);
 unsigned __int8 __cdecl UI_ToUpper_CodePage_1252(unsigned __int8 character);

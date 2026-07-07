@@ -1,8 +1,7 @@
 #pragma once
-#include <cstddef>
 
 enum XAssetType : __int32
-{                                                                             // XREF: XAsset/r
+{
     ASSET_TYPE_XMODELPIECES = 0x0,
     ASSET_TYPE_PHYSPRESET = 0x1,
     ASSET_TYPE_PHYSCONSTRAINTS = 0x2,
@@ -63,8 +62,8 @@ inline XAssetType operator++(XAssetType &t, int)
 }
 
 
-union XAssetHeader // sizeof=0x4
-{                                                                             // XREF: CG_AddVisionSetMenuItem+13/r
+union XAssetHeader
+{
     struct XModelPieces *xmodelPieces;
     struct PhysPreset *physPreset;
     struct PhysConstraints *physConstraints;
@@ -104,12 +103,12 @@ union XAssetHeader // sizeof=0x4
     void *data;
 
     XAssetHeader()
+        : data(nullptr)
     {
-        data = NULL;
     }
 
     XAssetHeader(void *p)
+        : data(p)
     {
-        data = p;
     }
 };

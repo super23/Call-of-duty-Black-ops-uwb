@@ -141,10 +141,22 @@ int __cdecl DDL_AssociateBuffer(char *buffer, int bufferSize, ddlDef_t *ddl)
         totalDDLByteSize = totalDDLBitSize / 8;
     if ( 8 * bufferSize < totalDDLBitSize )
     {
-        Com_Error(
-            ERR_DROP,
-            "DDL: Buffer validation error - buffer is not large enough to accommodate this DDL. %d bytes required.\n",
-            totalDDLByteSize);
+        // Stock T5 calls Com_Error(ERR_DROP, ...) here, which produces a fatal
+        // "Exit" popup mid-frame. In this build the stock stats buffer size
+        // (40168 bytes / LiveStorage_GetStatsBufferSize) can be smaller than
+        // the stats.ddl shipped in the fastfile (e.g. 40548 bytes), and any
+        // code path that runs while onlinegame==1 (stats validation, CAC
+        // validate, SV_*ClientD*Stat, etc.) would crash the engine. Every
+        // caller of DDL_AssociateBuffer already handles a 0 return - they
+        // either fall back to DDL_FixBufferVersion, flag the buffer as
+        // unvalidated, or print their own error - so a non-fatal warning is
+        // strictly an improvement and lets offline/LAN/internet play continue
+        // regardless of the onlinegame dvar.
+        Com_PrintError(
+            29,
+            "DDL: Buffer validation error - buffer is not large enough to accommodate this DDL. %d bytes required (have %d).\n",
+            totalDDLByteSize,
+            bufferSize);
         return 0;
     }
     if ( 8 * bufferSize > totalDDLBitSize )

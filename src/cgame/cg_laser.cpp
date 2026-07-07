@@ -2,8 +2,13 @@
 #include <universal/q_shared.h>
 #include <clientscript/scr_const.h>
 #include <xanim/dobj_utils.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_ents_sp.h>
+#include <cgame_sp/cg_main_sp.h>
+#else
 #include <cgame_mp/cg_ents_mp.h>
 #include <cgame_mp/cg_main_mp.h>
+#endif
 #include <EffectsCore/fx_beam.h>
 #include <EffectsCore/fx_postlight.h>
 
@@ -50,6 +55,7 @@ void __cdecl CG_Laser_Add_Core(
     FxPostLight postLight; // [esp+140h] [ebp-34h] BYREF
     float laserEnd[3]; // [esp+168h] [ebp-Ch] BYREF
 
+    memset(&traceResults, 0, 16);
     Com_Memset((unsigned int *)&traceResults, 0, 56);
     if ( (unsigned int)laserOwner >= 2
         && !Assert_MyHandler(

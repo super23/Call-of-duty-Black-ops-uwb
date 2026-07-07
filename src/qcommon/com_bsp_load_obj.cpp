@@ -1062,6 +1062,40 @@ const DiskPrimaryLight_Version16 *Com_LoadPrimaryLights_Version16()
 
 void __cdecl Com_LoadWorld_FastFile(const char *name)
 {
+#ifdef KISAK_SP
+    XAssetHeader header;
+    char bspName[256];
+    char mapBase[64];
+
+    // Decomp: CoDSP_rdBlackOps.map.c — com_map singleton at &comWorld; DB_FindXAssetHeader binds zone asset.
+    header.xmodelPieces = 0;
+    if ( DB_FindXAssetEntry(ASSET_TYPE_COMWORLD, name) )
+        header = DB_FindXAssetHeader(ASSET_TYPE_COMWORLD, (char *)name, true, -1);
+    else if ( Com_IsBspMapPath(name) )
+    {
+        Com_StripMapBaseFromBspPath(name, mapBase, sizeof(mapBase));
+        if ( mapBase[0] && DB_FindXAssetEntry(ASSET_TYPE_COMWORLD, mapBase) )
+            header = DB_FindXAssetHeader(ASSET_TYPE_COMWORLD, mapBase, true, -1);
+    }
+    else
+    {
+        Com_GetBspFilename(bspName, sizeof(bspName), name);
+        if ( I_stricmp(bspName, name) && DB_FindXAssetEntry(ASSET_TYPE_COMWORLD, bspName) )
+            header = DB_FindXAssetHeader(ASSET_TYPE_COMWORLD, bspName, true, -1);
+    }
+    if ( !header.comWorld )
+        Com_Error(ERR_DROP, "Com_LoadWorld_FastFile: missing com_map for map '%s'", name);
+    if ( header.comWorld != &comWorld
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\com_bsp_load_obj.cpp",
+                    813,
+                    0,
+                    "%s",
+                    "comWorld == &comWorld") )
+    {
+        __debugbreak();
+    }
+#else
     if ( DB_FindXAssetHeader(ASSET_TYPE_COMWORLD, (char*)name, 1, -1).comWorld != &comWorld
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\com_bsp_load_obj.cpp",
@@ -1072,6 +1106,7 @@ void __cdecl Com_LoadWorld_FastFile(const char *name)
     {
         __debugbreak();
     }
+#endif
     if ( !comWorld.isInUse
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\qcommon\\com_bsp_load_obj.cpp",

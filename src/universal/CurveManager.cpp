@@ -2,6 +2,7 @@
 #include <win32/win_common.h>
 #include "assertive.h"
 #include <universal/com_math.h>
+#include <bgame/bg_public.h>
 
 // really dont see much point to this class, guys
 
@@ -136,6 +137,81 @@ void __cdecl cCurveManager::BuildCurve(unsigned int curve)
     mCurves[curve].Build();
 }
 
+void __cdecl cCurveManager::StartCurve(unsigned int curve)
+{
+    if ( curve >= 4
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\CurveManager.cpp",
+                    141,
+                    0,
+                    "%s",
+                    "curve >= 0 && curve < MAX_CURVES") )
+    {
+        __debugbreak();
+    }
+    if ( !cCurveManager::mCurves[curve].mActive
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\CurveManager.cpp",
+                    142,
+                    0,
+                    "%s",
+                    "mCurves[curve].IsActive()") )
+    {
+        __debugbreak();
+    }
+    mCurves[curve].mPaused = false;
+}
+
+void __cdecl cCurveManager::ResetCurve(unsigned int curve)
+{
+    if ( curve >= 4
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\CurveManager.cpp",
+                    0xCD,
+                    0,
+                    "%s",
+                    "curve >= 0 && curve < MAX_CURVES") )
+    {
+        __debugbreak();
+    }
+    if ( !cCurveManager::mCurves[curve].mActive
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\CurveManager.cpp",
+                    0xCE,
+                    0,
+                    "%s",
+                    "mCurves[curve].IsActive()") )
+    {
+        __debugbreak();
+    }
+    cCurveManager::mCurves[curve].ResetCurve();
+}
+
+void __cdecl cCurveManager::StopCurve(unsigned int curve)
+{
+    if ( curve >= 4
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\CurveManager.cpp",
+                    0xBD,
+                    0,
+                    "%s",
+                    "curve >= 0 && curve < MAX_CURVES") )
+    {
+        __debugbreak();
+    }
+    if ( !cCurveManager::mCurves[curve].mActive
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\CurveManager.cpp",
+                    0xBE,
+                    0,
+                    "%s",
+                    "mCurves[curve].IsActive()") )
+    {
+        __debugbreak();
+    }
+    mCurves[curve].mPaused = true;
+}
+
 void __cdecl cCurveManager::FreeCurve(unsigned int curve)
 {
     if ( curve >= 4
@@ -162,7 +238,7 @@ void __cdecl cCurveManager::FreeCurve(unsigned int curve)
     mCurves[curve].Reset();
 }
 
-void __cdecl cCurveManager::SetCurveBSpline(unsigned int curve)
+static void __cdecl cCurveManager_ValidateCurve(unsigned int curve)
 {
     if ( curve >= 4
         && !Assert_MyHandler(
@@ -184,13 +260,50 @@ void __cdecl cCurveManager::SetCurveBSpline(unsigned int curve)
     {
         __debugbreak();
     }
+}
 
-    //if ( cCurveManager::mCurves[curve].mCurveType != CURVE_BSPLINE )
-    //    cCurveManager::mCurves[curve].mCurveType = CURVE_BSPLINE;
-    if (mCurves[curve].mCurveType != cCurve::eCurveType::CURVE_BSPLINE)
-    {
-        cCurveManager::mCurves[curve].mCurveType = cCurve::eCurveType::CURVE_BSPLINE;
-    }
+void __cdecl cCurveManager::SetCurveBSpline(unsigned int curve)
+{
+    cCurveManager_ValidateCurve(curve);
+    mCurves[curve].mCurveType = cCurve::eCurveType::CURVE_BSPLINE;
+}
+
+void __cdecl cCurveManager::SetCurveRounded(unsigned int curve)
+{
+    cCurveManager_ValidateCurve(curve);
+    mCurves[curve].mCurveType = cCurve::eCurveType::CURVE_RNS;
+}
+
+void __cdecl cCurveManager::SetCurveSmooth(unsigned int curve)
+{
+    cCurveManager_ValidateCurve(curve);
+    mCurves[curve].mCurveType = cCurve::eCurveType::CURVE_SNS;
+}
+
+void __cdecl cCurveManager::SetCurveSpeed(unsigned int curve, float speed)
+{
+    cCurveManager_ValidateCurve(curve);
+    mCurves[curve].mSpeed = speed;
+}
+
+void __cdecl cCurveManager::SetNotifyEnt(unsigned int curve, int entnum)
+{
+    cCurveManager_ValidateCurve(curve);
+    mCurves[curve].mNotifyLevel = false;
+    mCurves[curve].mNotifyEntNum = entnum;
+}
+
+void __cdecl cCurveManager::SetNotifyLevel(unsigned int curve)
+{
+    cCurveManager_ValidateCurve(curve);
+    mCurves[curve].mNotifyLevel = true;
+    mCurves[curve].mNotifyEntNum = 959;
+}
+
+void __cdecl cCurveManager::SetCameraEnt(unsigned int curve, int entnum)
+{
+    cCurveManager_ValidateCurve(curve);
+    mCurves[curve].mCameraEntNum = entnum;
 }
 
 void __cdecl cCurveManager::SetCurveDraw(unsigned int curve, const float *color)
@@ -245,6 +358,58 @@ void __cdecl cCurveManager::GetPos(unsigned int curve, float t, float *p)
     mCurves[curve].GetPos(t, p);
 
     nanassertvec3(p);
+}
+
+void __cdecl cCurveManager::GetCurClientPos(unsigned int curve, float *pos)
+{
+    if ( curve >= 4
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\CurveManager.cpp",
+                    285,
+                    0,
+                    "%s",
+                    "curve >= 0 && curve < MAX_CURVES") )
+    {
+        __debugbreak();
+    }
+    if ( !cCurveManager::mCurves[curve].mActive
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\CurveManager.cpp",
+                    286,
+                    0,
+                    "%s",
+                    "mCurves[curve].IsActive()") )
+    {
+        __debugbreak();
+    }
+    mCurves[curve].GetCurClientPos(pos);
+    nanassertvec3(pos);
+}
+
+void __cdecl cCurveManager::GetCurServerPos(unsigned int curve, float *pos)
+{
+    if ( curve >= 4
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\CurveManager.cpp",
+                    293,
+                    0,
+                    "%s",
+                    "curve >= 0 && curve < MAX_CURVES") )
+    {
+        __debugbreak();
+    }
+    if ( !cCurveManager::mCurves[curve].mActive
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\universal\\CurveManager.cpp",
+                    294,
+                    0,
+                    "%s",
+                    "mCurves[curve].IsActive()") )
+    {
+        __debugbreak();
+    }
+    mCurves[curve].GetCurServerPos(pos);
+    nanassertvec3(pos);
 }
 
 double __cdecl cCurveManager::GetCurveLength(unsigned int curve)

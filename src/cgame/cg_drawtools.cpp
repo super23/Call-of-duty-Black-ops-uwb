@@ -3,10 +3,18 @@
 #include <gfx_d3d/r_material.h>
 #include <gfx_d3d/r_rendercmds.h>
 #include <gfx_d3d/r_font.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_main_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#else
 #include <cgame_mp/cg_main_mp.h>
 #include <client_mp/cl_cgame_mp.h>
+#endif
 #include <universal/q_parse.h>
 #include <universal/com_stringtable.h>
+#ifdef KISAK_SP
+#include <bgame/bg_sp_assets.h>
+#endif
 #include <qcommon/com_clients.h>
 #include <ui/ui_localvars.h>
 #include <clientscript/cscr_vm.h>
@@ -228,20 +236,20 @@ void __cdecl CG_DrawRotatedQuadPic(
     {
         v25 = x / ScrPlace_HiResGetScale();
         v24 = v25 * scrPlace->scaleRealToVirtual[0];
-        v22 = (*verts)[2 * i];
+        v22 = verts[i][0];
         v23 = v22 / ScrPlace_HiResGetScale();
         v21 = v23 * scrPlace->scaleRealToVirtual[0];
-        v19 = (*verts)[2 * i + 1];
+        v19 = verts[i][1];
         v20 = v19 / ScrPlace_HiResGetScale();
         v17 = (float)((float)(v21 * c) + v24) - (float)((float)(v20 * scrPlace->scaleRealToVirtual[1]) * s);
         v18 = ScrPlace_HiResGetScale() * v17;
         xy[i][0] = v18 * scrPlace->scaleVirtualToReal[0];
         v16 = y / ScrPlace_HiResGetScale();
         v15 = v16 * scrPlace->scaleRealToVirtual[1];
-        v13 = (*verts)[2 * i];
+        v13 = verts[i][0];
         v14 = v13 / ScrPlace_HiResGetScale();
         v12 = v14 * scrPlace->scaleRealToVirtual[0];
-        v10 = (*verts)[2 * i + 1];
+        v10 = verts[i][1];
         v11 = v10 / ScrPlace_HiResGetScale();
         v8 = (float)((float)(v12 * s) + v15) + (float)((float)(v11 * scrPlace->scaleRealToVirtual[1]) * c);
         v9 = ScrPlace_HiResGetScale() * v8;
@@ -436,6 +444,13 @@ float *__cdecl CG_FadeColor(int timeNow, int startMsec, int totalMsec, int fadeM
     return color_2;
 }
 
+/*
+ * Minimap world AABB and north alignment — see BlackOpsMP.retail.c:
+ *   sub_5DF110 @ 0x5DF110  (configstring 1548 / north yaw + cos/sin)
+ *   sub_644780 @ 0x644780  (configstring 1549 / material + corners → compassMapWorldSize)
+ * Server-side validation + CS build: sub_84C450 @ 0x84C450 (matches GScr_SetMiniMap).
+ * World→HUD normalized UV: sub_4FFEE0 @ 0x4FFEE0 when compassType != 0.
+ */
 void __cdecl CG_MiniMapChanged(int localClientNum)
 {
     const char *v1; // eax
@@ -449,11 +464,18 @@ void __cdecl CG_MiniMapChanged(int localClientNum)
     float south[2]; // [esp+18h] [ebp-18h]
     float east[2]; // [esp+20h] [ebp-10h]
     float lowerRight[2]; // [esp+28h] [ebp-8h]
+    float northCos;
+    float northSin;
 
+    // CS 1549 only; uses compassNorth[] from 1548 (sub_5DF110 calls sub_644780 after setting north).
     string = CL_GetConfigString(1549);
+    if ( !string || !*string )
+        return;
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     material = Com_Parse(&string)->token;
-    cgameGlob->compassMapMaterial = Material_RegisterHandle((char*)material, 7);
+    if ( !material || !*material )
+        return;
+    cgameGlob->compassMapMaterial = Material_RegisterHandle((char *)material, 7);
     v1 = Com_Parse(&string)->token;
     cgameGlob->compassMapUpperLeft[0] = atof(v1);
     v2 = Com_Parse(&string)->token;
@@ -462,20 +484,23 @@ void __cdecl CG_MiniMapChanged(int localClientNum)
     lowerRight[0] = atof(v3);
     v4 = Com_Parse(&string)->token;
     lowerRight[1] = atof(v4);
-    east[0] = cgameGlob->compassNorth[1];
-    east[1] = -cgameGlob->compassNorth[0];
-    south[0] = -cgameGlob->compassNorth[0];
-    south[1] = -cgameGlob->compassNorth[1];
+    northCos = cgameGlob->compassNorth[0];
+    northSin = cgameGlob->compassNorth[1];
+    east[0] = northSin;
+    east[1] = -northCos;
+    south[0] = -northCos;
+    south[1] = -northSin;
     toLR[0] = lowerRight[0] - cgameGlob->compassMapUpperLeft[0];
     toLR[1] = lowerRight[1] - cgameGlob->compassMapUpperLeft[1];
     cgameGlob->compassMapWorldSize[0] = (float)(toLR[0] * east[0]) + (float)(toLR[1] * east[1]);
     cgameGlob->compassMapWorldSize[1] = (float)(toLR[0] * south[0]) + (float)(toLR[1] * south[1]);
-    if ( cgameGlob->compassMapWorldSize[0] == 0.0 )
+    if ( cgameGlob->compassMapWorldSize[0] == 0.0f )
         cgameGlob->compassMapWorldSize[0] = 1000.0f;
-    if ( cgameGlob->compassMapWorldSize[1] == 0.0 )
+    if ( cgameGlob->compassMapWorldSize[1] == 0.0f )
         cgameGlob->compassMapWorldSize[1] = 1000.0f;
 }
 
+/* BlackOpsMP.retail.c sub_5DF110 @ 0x5DF110 — then calls sub_644780 (CG_MiniMapChanged). */
 void __cdecl CG_NorthDirectionChanged(int localClientNum)
 {
     float v1; // [esp+8h] [ebp-Ch]
@@ -601,7 +626,15 @@ void __cdecl CG_ScoreboardTeamColor(int localClientNum, int team, float *color)
         UIContextIndex = Com_LocalClient_GetUIContextIndex(localClientNum);
         LocalVarsContext = UI_UIContext_GetLocalVarsContext(UIContextIndex);
         var = UILocalVar_Find(LocalVarsContext, "ui_team");
+#ifdef KISAK_SP
+        // Decomp: BlackOps.singleplayer.c — SP maps table is maps/mapsTable.csv; MP HUD path is mp/mapsTable.csv.
+        if ( !BG_SP_TryGetStringTableAsset("maps/mapsTable.csv", "mp/mapsTable.csv", &tablePtr) )
+            tablePtr = 0;
+#else
         StringTable_GetAsset("mp/mapsTable.csv", (XAssetHeader *)&tablePtr);
+#endif
+        if ( !tablePtr )
+            return;
         String = Dvar_GetString("mapname");
         StringTable_Lookup(tablePtr, 0, String, 1);
         switch ( team )
@@ -661,7 +694,7 @@ void __cdecl CG_ScoreboardTeamColor(int localClientNum, int team, float *color)
 void __cdecl CG_RelativeTeamColor(int clientNum, float *color, int localClientNum)
 {
     cg_s *cgameGlob; // [esp+4h] [ebp-10h]
-    int savedAlpha; // [esp+Ch] [ebp-8h]
+    float savedAlpha; // [esp+Ch] [ebp-8h]
     int teamIndicator; // [esp+10h] [ebp-4h]
 
     teamIndicator = CG_GetTeamIndicator();
@@ -677,7 +710,7 @@ void __cdecl CG_RelativeTeamColor(int clientNum, float *color, int localClientNu
     {
         __debugbreak();
     }
-    savedAlpha = *((unsigned int *)color + 3);
+    savedAlpha = color[3];
     if ( cgameGlob->bgs.clientinfo[clientNum].team == TEAM_SPECTATOR )
     {
         Dvar_GetUnpackedColor(cg_TeamColor_Spectator, color);
@@ -699,7 +732,7 @@ void __cdecl CG_RelativeTeamColor(int clientNum, float *color, int localClientNu
     {
         Dvar_GetUnpackedColor(cg_TeamColor_EnemyTeam, color);
     }
-    *((unsigned int *)color + 3) = savedAlpha;
+    color[3] = savedAlpha;
 }
 
 void __cdecl CG_XModelDebugBoxes(
@@ -732,9 +765,16 @@ void __cdecl CG_XModelDebugBoxes(
     if ( !obj && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_drawtools.cpp", 900, 0, "%s", "obj") )
         __debugbreak();
     numBones = DObjNumBones(obj);
-
-    iassert(numBones <= DOBJ_MAX_PARTS);
-
+    if ( numBones > 160
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_drawtools.cpp",
+                    903,
+                    0,
+                    "%s",
+                    "numBones <= DOBJ_MAX_PARTS") )
+    {
+        __debugbreak();
+    }
     DObjGetBoneInfo(obj, boneInfoArray);
     boneMatrix = DObjGetRotTransArray(obj);
     AnglesToAxis(cent->pose.angles, axis);

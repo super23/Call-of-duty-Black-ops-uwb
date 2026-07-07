@@ -6,6 +6,52 @@
 #include <database/db_registry.h>
 #include <gfx_d3d/r_font.h>
 #include <universal/com_buildinfo.h>
+#ifdef KISAK_SP
+#include <client_sp/cl_cgame_sp.h>
+#include "ui_shared.h"
+#include <gfx_d3d/r_rendercmds.h>
+#include <client_sp/cl_main_sp.h>
+#include <ui_sp/ui_main_sp.h>
+#include "ui_server.h"
+#include <win32/win_shared.h>
+#include <client_sp/cl_scrn_sp.h>
+#include "ui_utils.h"
+#include "ui_main_pc.h"
+#include "ui_atoms.h"
+#include <cgame/cg_compass.h>
+#include <client/cl_keys.h>
+#include "ui_friends.h"
+#include <client/cl_main.h>
+#include <cgame/cg_camera.h>
+#include <client/client.h>
+#include <client/splitscreen.h>
+#include "ui_localvars.h"
+#include "ui_shared_obj.h"
+#include <client_sp/cl_ui_pc_sp.h>
+#include <live/live_leaderboard.h>
+#include <client_sp/cl_main_pc_sp.h>
+#include "ui_feeders.h"
+#include <live/live_groups_dw.h>
+#include <ui_sp/ui_gameinfo_sp.h>
+#include <client_sp/cl_input_sp.h>
+#include <win32/win_voice.h>
+#include <client/cl_voice.h>
+#include <cgame_sp/cg_consolecmds_sp.h>
+#include <cgame_sp/cg_newDraw_sp.h>
+#include <win32/win_gamerprofile.h>
+#include <qcommon/com_profilemapload.h>
+#include "ui_emblem.h"
+#include "ui_playlists.h"
+#include <qcommon/com_gamemodes.h>
+#include <client_sp/cl_ui_sp.h>
+#include <live/live_clans.h>
+#include <live/live_stats.h>
+#include <client/cl_rank.h>
+#include <live/live_ticker.h>
+#include <database/db_file_load.h>
+#include <sound/snd_driver_xaudio2.h>
+#include <game/g_main.h>
+#else
 #include <client_mp/cl_cgame_mp.h>
 #include "ui_shared.h"
 #include <gfx_d3d/r_rendercmds.h>
@@ -49,8 +95,19 @@
 #include <database/db_file_load.h>
 #include <sound/snd_driver_xaudio2.h>
 #include <game_mp/g_main_mp.h>
+#endif
 #include <live/live_win.h>
 #include <stringed/stringed_hooks.h>
+
+#ifdef KISAK_SP
+// CoDSP_rd.map ui_main.obj: "ui/", "ui/scriptmenus/", "ui/patch_menus.txt", "ui/menus.txt", "ui/code.txt"
+static const char kUiMenuPrefix[] = "ui/";
+static const char kUiScriptMenuPrefix[] = "ui/scriptmenus/";
+#else
+// CoDMP_rd.map ui_main.obj: "ui_mp/", "ui_mp/patch_mp_menus.txt", "ui_mp/menus.txt", "ui_mp/code.txt"
+static const char kUiMenuPrefix[] = "ui_mp/";
+static const char kUiScriptMenuPrefix[] = "ui_mp/scriptmenus/";
+#endif
 
 const dvar_t *ui_netGameType;
 const dvar_t *uiscript_debug;
@@ -889,7 +946,7 @@ MenuList *__cdecl Load_ScriptMenuInternal(const char *pszMenu, int imageTrack)
 {
     char szMenuFile[260]; // [esp+0h] [ebp-108h] BYREF
 
-    strcpy(szMenuFile, "ui_mp/scriptmenus/");
+    strcpy(szMenuFile, kUiScriptMenuPrefix);
     I_strncat(szMenuFile, 256, pszMenu);
     I_strncat(szMenuFile, 256, ".menu");
     return UI_LoadMenu(szMenuFile, imageTrack);
@@ -1101,6 +1158,13 @@ void __cdecl UI_RunMenuScript(int localClientNum, int contextIndex, __int64 args
             Cmd_ExecuteSingleCommand(localClientNum, ControllerIndex, (char*)"quit");
             return;
         }
+#ifdef KISAK_SP
+        if ( !I_stricmp(out, "sendMenuNotify") )
+        {
+            UI_SP_RunSendMenuNotify(localClientNum, (const char **)args);
+            return;
+        }
+#endif
         if (I_stricmp(out, "openurl"))
         {
             if (!I_stricmp(out, "iviteOrDeleteFriend")
@@ -3266,6 +3330,12 @@ int __cdecl UI_OwnerDrawHandleKey(int ownerDraw, int flags, int key)
     }
 }
 
+#ifdef KISAK_SP
+static const char kUiMapCsvPrefix[] = "maps/";
+#else
+static const char kUiMapCsvPrefix[] = "maps/mp/";
+#endif
+
 void __cdecl UI_InitOnceForAllClients()
 {
     const char *v0; // eax
@@ -3273,12 +3343,19 @@ void __cdecl UI_InitOnceForAllClients()
     Font_s *FontHandleDefault; // eax
 
     UI_InitUIInfos();
+#ifdef KISAK_SP
+    Com_EnsureFrontendUIMenus();
+#endif
     if ( useFastFile->current.enabled )
         DB_ResetZoneSize(0);
     //if ( !G_ExitAfterConnectPaths() && !useFastFile->current.enabled )
         //BLOPS_NULLSUB();
     String_Init();
     UI_RegisterDvars();
+#ifdef KISAK_SP
+    // Offline SP: seed gamerSettings from menu/campaign dvars (dvarNameList in win_gamerprofile.cpp).
+    GamerProfile_InitSPOfflineProfile();
+#endif
     UI_AssetCache();
     UI_GetGameTypesList();
     
@@ -3291,7 +3368,7 @@ void __cdecl UI_InitOnceForAllClients()
     UI_LoadMaps();
     if ( g_mapname[0] && !useFastFile->current.enabled )
     {
-        v0 = va("%s%s.csv", "maps/mp/", g_mapname);
+        v0 = va("%s%s.csv", kUiMapCsvPrefix, g_mapname);
         UI_MapLoadInfo(v0);
     }
     UI_ServersSort(8);
@@ -3540,7 +3617,12 @@ void UI_RegisterDvars()
                                                      "Whether or not the reading save device menu is open.");
     ui_signedInToProfile = _Dvar_RegisterBool(
                                                      "ui_signedInToProfile",
+#ifdef KISAK_SP
+                                                     // BlackOps.singleplayer.c offline PC: no save-device gate at boot.
+                                                     1,
+#else
                                                      0,
+#endif
                                                      0x40u,
                                                      "Whether or not the profile has been read.");
     emblem_scroll_delay_first = _Dvar_RegisterInt("emblem_scroll_delay_first", 150, 0, 1000, 0, "First repeat delay for emblem editor");
@@ -3596,16 +3678,24 @@ void UI_InitUIInfos()
                                                 * 0.5;
         if ( useFastFile->current.enabled )
         {
-            Com_sprintf(menuname, 0x80u, "%spatch.txt", "ui_mp/");
+#ifdef KISAK_SP
+            Com_sprintf(menuname, 0x80u, "%spatch_menus.txt", kUiMenuPrefix);
+#else
+            Com_sprintf(menuname, 0x80u, "%spatch_mp_menus.txt", kUiMenuPrefix);
+#endif
             menuList = UI_LoadMenus(menuname, 3);
             UI_AddMenuList(0, &uiInfo->uiDC, menuList, 1);
-            Com_sprintf(menuname, 0x80u, "%scode.txt", "ui_mp/");
+            Com_sprintf(menuname, 0x80u, "%scode.txt", kUiMenuPrefix);
             menuList = UI_LoadMenus(menuname, 3);
             UI_AddMenuList(0, &uiInfo->uiDC, menuList, 1);
         }
+#ifdef KISAK_SP
+        if ( !G_ExitAfterToolComplete() && !useFastFile->current.enabled && !g_mapname[0] )
+#else
         if ( !G_ExitAfterToolComplete() && (!g_mapname[0] || !useFastFile->current.enabled) )
+#endif
         {
-            Com_sprintf(menuname, 0x80u, "%smenus.txt", "ui_mp/");
+            Com_sprintf(menuname, 0x80u, "%smenus.txt", kUiMenuPrefix);
             menuList = UI_LoadMenus(menuname, 3);
             UI_AddMenuList(0, &uiInfo->uiDC, menuList, 1);
         }
@@ -3832,10 +3922,18 @@ void __cdecl UI_DrawMapLevelshot(int localClientNum)
     {
         if ( g_showLoadingScreenMenu )
         {
+#ifdef KISAK_SP
+            // CoDSP_rdBlackOps.map.c:6445273-6445290 — SP uses briefing menu, not connect.
+            if ( useFastFile->current.enabled )
+                menua = DB_FindXAssetHeader(ASSET_TYPE_MENU, (char *)"briefing", 1, -1).menu;
+            else
+                menua = Menus_FindByName(&uiInfo->uiDC, "briefing");
+#else
             if ( useFastFile->current.enabled )
                 menua = DB_FindXAssetHeader(ASSET_TYPE_MENU, (char*)"connect", 1, -1).menu;
             else
                 menua = Menus_FindByName(&uiInfo->uiDC, "connect");
+#endif
         }
         else
         {
@@ -3870,7 +3968,7 @@ void __cdecl UI_LoadIngameMenus(int contextIndex)
     if ( !g_ingameMenusLoaded[contextIndex] )
     {
         g_ingameMenusLoaded[contextIndex] = 1;
-        v1 = va("%singame.txt", "ui_mp/");
+        v1 = va("%singame.txt", kUiMenuPrefix);
         menuList = UI_LoadMenus(v1, 3);
         uiInfo = UI_UIContext_GetInfo(contextIndex);
         UI_AddMenuList(contextIndex, &uiInfo->uiDC, menuList, 1);

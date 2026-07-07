@@ -7,7 +7,7 @@
 #include <xanim/xanim.h>
 #include "bg_local.h"
 #include "bg_misc.h"
-#include "bg_dog_animations_mp.h"
+#include "bg_dog_animations_wrapper.h"
 #include <qcommon/ent.h>
 
 const dvar_s *dog_debug;
@@ -151,6 +151,14 @@ int __cdecl BG_Actor_GetAnimStateIndex(unsigned __int16 animStateName)
     char *v2; // eax
     const char *v3; // eax
     int i; // [esp+0h] [ebp-4h]
+
+    // KISAK FIX: dog_combat setanimstate uses scr strings not in s_animStateNames[47] (retail table same count).
+    // Without aliases, setanimstate falls through to idle (0) — dogs stand at target while melee() still plays sounds.
+    if ( animStateName == scr_const.combat_attack_player
+        || animStateName == scr_const.combat_attack_player_lunge )
+        return ACTOR_ANIMATION_ATTACK_PLAYER_CLOSE_RANGE;
+    if ( animStateName == scr_const.combat_attack_player_early )
+        return ACTOR_ANIMATION_ATTACK_RUN;
 
     for ( i = 0; i < 47; ++i )
     {

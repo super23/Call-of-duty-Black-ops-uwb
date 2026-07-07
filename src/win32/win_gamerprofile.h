@@ -136,5 +136,8 @@ void __cdecl GamerProfile_AppendByteListToConfig(
 void __cdecl GamerProfile_CreateCommonBindingsConfig(int controllerIndex);
 bool __cdecl GamerProfile_IsNewLocalProfile(int controllerIndex);
 void __cdecl GamerProfile_InitAllProfiles();
+#ifdef KISAK_SP
+void __cdecl GamerProfile_InitSPOfflineProfile();
+#endif
 void __cdecl GamerProfile_LogInProfile(int controllerIndex);
 void __cdecl GamerProfile_LogOutProfile(int controllerIndex);

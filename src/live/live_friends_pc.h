@@ -1,5 +1,9 @@
 #pragma once
+#ifdef KISAK_SP
+#include <client_sp/cl_ui_pc_sp.h>
+#else
 #include <client_mp/cl_ui_pc_mp.h>
+#endif
 
 enum LiveSteam_PersonaState : __int32
 {                                       // XREF: ?LiveSteam_GetFriendPersonaState@@YA?AW4LiveSteam_PersonaState@@_K@Z/r

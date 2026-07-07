@@ -5,6 +5,7 @@
 #include <universal/com_files.h>
 #include <qcommon/com_profilemapload.h>
 #include "r_utils.h"
+#include "r_singlethreaded_device_pc.h"
 #include "r_init.h"
 #include <universal/com_memory.h>
 #include <qcommon/md4.h>
@@ -2577,6 +2578,7 @@ MaterialVertexShader *__cdecl Material_LoadVertexShader(char *shaderName)
     char target[16]; // [esp+1Ch] [ebp-2Ch] BYREF
     DWORD *program; // [esp+30h] [ebp-18h]
     unsigned int nameSize; // [esp+34h] [ebp-14h]
+    int semaphore; // [esp+38h] [ebp-10h]
     ID3DXBuffer *shader; // [esp+3Ch] [ebp-Ch]
     unsigned int totalSize; // [esp+40h] [ebp-8h]
     MaterialVertexShader *mtlShader; // [esp+44h] [ebp-4h]
@@ -2607,6 +2609,7 @@ MaterialVertexShader *__cdecl Material_LoadVertexShader(char *shaderName)
     v2 = (unsigned __int8 *)shader->GetBufferPointer();
     //v2 = (unsigned __int8 *)((int (__thiscall *)(ID3DXBuffer *))shader->GetBufferPointer)(shader);
     memcpy((unsigned __int8 *)program, v2, (unsigned int)v4);
+    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = dx.device->CreateVertexShader((const DWORD*)program, &mtlShader->prog.vs);
     //hr = ((int (__stdcall *)(IDirect3DDevice9 *, unsigned int *, MaterialVertexShaderProgram *, unsigned int))dx.device->CreateVertexShader)(
     //             dx.device,
@@ -2615,6 +2618,8 @@ MaterialVertexShader *__cdecl Material_LoadVertexShader(char *shaderName)
     //             programSize);
     if ( hr >= 0 )
     {
+        if ( semaphore )
+            R_ReleaseDXDeviceOwnership();
         mtlShader->prog.loadDef.programSize = programSize >> 2;
         if ( 4 * mtlShader->prog.loadDef.programSize != programSize
             && !Assert_MyHandler(
@@ -5216,6 +5221,7 @@ MaterialPixelShader *__cdecl Material_LoadPixelShader(char *shaderName)
     char target[16]; // [esp+1Ch] [ebp-2Ch] BYREF
     DWORD *program; // [esp+30h] [ebp-18h]
     unsigned int nameSize; // [esp+34h] [ebp-14h]
+    int semaphore; // [esp+38h] [ebp-10h]
     ID3DXBuffer *shader; // [esp+3Ch] [ebp-Ch]
     unsigned int totalSize; // [esp+40h] [ebp-8h]
     MaterialPixelShader *mtlShader; // [esp+44h] [ebp-4h]
@@ -5246,6 +5252,7 @@ MaterialPixelShader *__cdecl Material_LoadPixelShader(char *shaderName)
     //v2 = (unsigned __int8 *)((int (__thiscall *)(ID3DXBuffer *))shader->GetBufferPointer)(shader);
     //memcpy((unsigned __int8 *)program, v2, (unsigned int)v4);
     memcpy(program, shader->GetBufferPointer(), programSize);
+    semaphore = R_AcquireDXDeviceOwnership(0);
 
     hr = dx.device->CreatePixelShader(program, &mtlShader->prog.ps);
     //hr = ((int (__stdcall *)(IDirect3DDevice9 *, unsigned int *, MaterialPixelShaderProgram *, unsigned int))dx.device->CreatePixelShader)(
@@ -5255,6 +5262,8 @@ MaterialPixelShader *__cdecl Material_LoadPixelShader(char *shaderName)
     //             programSize);
     if ( hr >= 0 )
     {
+        if ( semaphore )
+            R_ReleaseDXDeviceOwnership();
         mtlShader->prog.loadDef.programSize = programSize >> 2;
         if ( 4 * mtlShader->prog.loadDef.programSize != programSize
             && !Assert_MyHandler(
@@ -5276,6 +5285,8 @@ MaterialPixelShader *__cdecl Material_LoadPixelShader(char *shaderName)
     {
         v3 = R_ErrorDescription(hr);
         Com_ScriptError("pixel shader creation failed for %s: %s\n", shaderName, v3);
+        if ( semaphore )
+            R_ReleaseDXDeviceOwnership();
         return 0;
     }
 }

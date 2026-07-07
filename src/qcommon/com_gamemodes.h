@@ -25,6 +25,10 @@ char ValidateGameModes();
 void __cdecl Com_GameMode_ResetGameModes();
 
 extern const dvar_s *onlinegame;
+#ifdef KISAK_SP
+extern const dvar_s *systemlink;
+extern const dvar_s *splitscreen;
+#endif
 extern const dvar_s *xblive_privatematch;
 extern const dvar_s *xblive_basictraining;
 extern const dvar_s *xblive_theater;

@@ -493,6 +493,7 @@ extern const dvar_t *con_typewriterColorGlowCheckpoint;
 extern const dvar_t *con_restricted;
 extern const dvar_t *con_restricted_access;
 extern const dvar_t *con_matchPrefixOnly;
+extern const dvar_t *con_extcon;
 
 extern field_t g_consoleField;
 extern field_t historyEditLines[32];

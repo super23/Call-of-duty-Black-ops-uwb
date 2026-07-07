@@ -7,7 +7,11 @@
 #include <game/g_scr_vehicle.h>
 #include "bg_mantle.h"
 #include <gfx_d3d/r_shader_constant_set.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_scoreboard_sp.h>
+#else
 #include <cgame_mp/cg_scoreboard_mp.h>
+#endif
 
 #define ACTOR_CORPSES 36
 
@@ -359,13 +363,17 @@ union hudelem_color_t // sizeof=0x4
     int rgba;
 };
 
-struct __declspec(align(4)) hudelem_s // sizeof=0x70
+struct __declspec(align(4)) hudelem_s // sizeof=0x70 (MP) / 0x78 (SP)
 {                                                                             // XREF: .data:g_dummyHudCurrent/r
                                                                                 // .data:g_dummyHudCurrent_0/r ...
         float x;
         float y;
         float z;
         float fontScale;
+#ifdef KISAK_SP
+        float fromFontScale;
+        int fontScaleStartTime;
+#endif
         hudelem_color_t color;
         hudelem_color_t fromColor;
         int fadeStartTime;
@@ -409,6 +417,11 @@ struct __declspec(align(4)) hudelem_s // sizeof=0x70
         // padding byte
         // padding byte
 };
+#ifdef KISAK_SP
+static_assert(sizeof(hudelem_s) == 0x78);
+#else
+static_assert(sizeof(hudelem_s) == 0x70);
+#endif
 
 
 enum OffhandSecondaryClass : __int32
@@ -728,7 +741,11 @@ struct playerState_s // sizeof=0x26A4
                 hudelem_s archival[31];
         } hud;
 };
+#ifdef KISAK_SP
+static_assert(sizeof(playerState_s) == 10388);
+#else
 static_assert(sizeof(playerState_s) == 9892);
+#endif
 
 struct lerpFrame_t // sizeof=0x34
 {                                                                             // XREF: clientInfo_t/r

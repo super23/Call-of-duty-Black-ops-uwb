@@ -1,8 +1,6 @@
 #include "bg_vehicle_anim.h"
 #include "bg_local.h"
-
 #include <universal/dvar.h>
-
 #include <cstring>
 #include <universal/com_math_anglevectors.h>
 #include <universal/com_math.h>
@@ -11,17 +9,17 @@
 
 vehAnimClient_t clVehAnimClients[1];
 vehAnimClient_t svVehAnimClients[32];
-
 const dvar_t *vehanim_enable;
 const dvar_t *vehanim_debug;
 
-
+// Decomp: CoDMPServer.c:153311  (RVA 0044EDF0)
 void __cdecl VehAnim_RegisterDvars()
 {
     vehanim_enable = _Dvar_RegisterBool("vehanim_enable", 1, 0x80u, "Enable player vehicle anims");
     vehanim_debug = _Dvar_RegisterBool("vehanim_debug", 0, 0x80u, "Show debug information for vehicle anims");
 }
 
+// Decomp: CoDMPServer.c:153322  (RVA 0044EE50)
 void __cdecl VehAnim_Init()
 {
     *(unsigned int *)&clVehAnimClients[0].initialized = 0;
@@ -34,6 +32,7 @@ void __cdecl VehAnim_Init()
     memset((unsigned __int8 *)svVehAnimClients, 0, sizeof(svVehAnimClients));
 }
 
+// Decomp: CoDMPServer.c:153341  (RVA 0044EE90)
 void __cdecl VehAnim_UpdatePosRot(
                 int localClientNum,
                 const entityState_s *es,
@@ -42,27 +41,26 @@ void __cdecl VehAnim_UpdatePosRot(
                 float *origin,
                 float *angles)
 {
-    float *v6; // [esp+8h] [ebp-90h]
-    float v7; // [esp+Ch] [ebp-8Ch]
-    float finalAxis[3][3]; // [esp+10h] [ebp-88h] BYREF
-    float trans[3]; // [esp+34h] [ebp-64h] BYREF
-    float tempAxis[3][3]; // [esp+40h] [ebp-58h] BYREF
-    float yaw; // [esp+64h] [ebp-34h]
-    float rot[2]; // [esp+68h] [ebp-30h] BYREF
-    int i; // [esp+70h] [ebp-28h]
-    float axis[3][3]; // [esp+74h] [ebp-24h] BYREF
-
+    float *axis_row;
+    float trans_along_axis;
+    float finalAxis[3][3];
+    float trans[3];
+    float tempAxis[3][3];
+    float yaw;
+    float rot[2];
+    int i;
+    float axis[3][3];
     if ( vehanim_enable->current.enabled )
     {
         VehAnim_GetAnimDelta(ci->pXAnimTree, es->animState.state & 0xFFFFFBFF, rot, trans);
         AnglesToAxis(angles, axis);
         for ( i = 0; i < 3; ++i )
         {
-            v6 = axis[i];
-            v7 = trans[i];
-            *origin = (float)(v7 * *v6) + *origin;
-            origin[1] = (float)(v7 * v6[1]) + origin[1];
-            origin[2] = (float)(v7 * v6[2]) + origin[2];
+            axis_row = axis[i];
+            trans_along_axis = trans[i];
+            *origin = (float)(trans_along_axis * *axis_row) + *origin;
+            origin[1] = (float)(trans_along_axis * axis_row[1]) + origin[1];
+            origin[2] = (float)(trans_along_axis * axis_row[2]) + origin[2];
         }
         yaw = RotationToYaw(rot);
         YawToAxis(yaw, tempAxis);
@@ -71,11 +69,11 @@ void __cdecl VehAnim_UpdatePosRot(
     }
 }
 
+// Decomp: CoDMPServer.c:153373  (RVA 0044EFE0)
 void __cdecl VehAnim_GetAnimDelta(XAnimTree_s *tree, unsigned int animIndex, float *rot, float *trans)
 {
-    float frac; // [esp+4h] [ebp-8h]
-    XAnim_s *pXAnims; // [esp+8h] [ebp-4h]
-
+    float frac;
+    XAnim_s *pXAnims;
     BG_CheckThread();
     iassert(bgs);
     //if ( !*(unsigned int *)(*((unsigned int *)NtCurrentTeb()->ThreadLocalStoragePointer + _tls_index) + 8)
@@ -88,4 +86,3 @@ void __cdecl VehAnim_GetAnimDelta(XAnimTree_s *tree, unsigned int animIndex, flo
     frac = XAnimGetTime(tree, animIndex);
     XAnimGetAbsDelta(pXAnims, animIndex, rot, trans, frac);
 }
-

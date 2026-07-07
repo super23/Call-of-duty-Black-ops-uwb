@@ -4,6 +4,9 @@
 #include <gfx_d3d/r_model_lod.h>
 #include <live/live_pcache.h>
 #include <database/db_registry.h>
+#ifdef KISAK_SP
+#include <cstring>
+#endif
 
 const dvar_t *weaponCamoLodDist;
 const dvar_t *weaponEmblemLodDist;
@@ -294,6 +297,12 @@ void __thiscall WeaponOptions::WeaponOverride::AddToGold(const char *matName, bo
 
 void __thiscall WeaponOptions::WeaponOverride::Init(const WeaponVariantDef *weapVarDef)
 {
+#ifdef KISAK_SP
+    // Decomp: BlackOps.singleplayer.c — camo/emblem overrides are MP create-a-class; SP uses base weapon materials.
+    this->lastFrame = com_frameNumber;
+    this->weapon = weapVarDef;
+    return;
+#endif
     const char *ColumnValueForRow; // eax
     const char *v3; // eax
     const char *v4; // eax
@@ -943,8 +952,13 @@ char __thiscall WeaponOptions::GetWeaponOptionLensColor(
 
 void __cdecl GC_InitWeaponOptions()
 {
+#ifdef KISAK_SP
+    // Decomp: BlackOps.singleplayer.c — mp/weaponoptions.csv is create-a-class MP UI; not used in SP campaign/zombie load.
+    memset((unsigned __int8 *)&weaponOptions, 0, sizeof(weaponOptions));
+#else
     //WeaponOptions::InitWeaponOptions(&weaponOptions);
     weaponOptions.InitWeaponOptions();
+#endif
 }
 
 int __cdecl CG_SetupWeaponOptionsRender(

@@ -1,20 +1,31 @@
 #include "cg_draw_debug.h"
 #include <client/screen_placement.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_main_sp.h>
+#include <game/g_main.h>
+#include <server_sp/sv_main_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <server_sp/sv_bot_sp.h>
+#else
 #include <cgame_mp/cg_main_mp.h>
+#include <game_mp/g_main_mp.h>
+#include <server_mp/sv_main_mp.h>
+#include <client_mp/cl_cgame_mp.h>
+#include <server_mp/sv_bot_mp.h>
+#endif
 #include <gfx_d3d/r_font.h>
 #include "cg_drawtools.h"
 #include <qcommon/mem_track.h>
 #include <gfx_d3d/r_init.h>
-#include <game_mp/g_main_mp.h>
-#include <server_mp/sv_main_mp.h>
 #include <bgame/bg_misc.h>
 #include <sound/snd_debug.h>
 #include <win32/win_shared.h>
 #include <ui/ui_atoms.h>
 #include <aim_assist/aim_assist.h>
 #include <gfx_d3d/r_utils.h>
-#include <client_mp/cl_cgame_mp.h>
 #include <bgame/bg_pmove.h>
+#include <universal/com_math.h>
+#include <bgame/bg_weapons.h>
 #include <clientscript/cscr_vm.h>
 #include <clientscript/cscr_memorytree.h>
 #include <EffectsCore/fx_profile.h>
@@ -24,7 +35,6 @@
 #include <EffectsCore/fx_dvars.h>
 #include <ragdoll/ragdoll.h>
 #include <glass/glass_client.h>
-#include <server_mp/sv_bot_mp.h>
 #include <gfx_d3d/r_foliage.h>
 #include "cg_perf.h"
 #include <physics/physics_system_internal.h>
@@ -621,7 +631,176 @@ void __cdecl CG_DrawDebugOverlays(int localClientNum)
     AimAssist_DrawDebugOverlay(localClientNum);
     if ( player_debugSprint->current.enabled )
         CG_DrawDebugPlayerSprint(localClientNum);
+#ifdef KISAK_SP
+    if ( cg_debugPosition->current.enabled )
+        CG_DrawDebugPositionInfo(localClientNum);
+#endif
 }
+
+#ifdef KISAK_SP
+static const char *__cdecl CG_DebugPmTypeName(int pmType)
+{
+    return va("PM_%i", pmType);
+}
+
+void __cdecl CG_DrawDebugPositionInfo(int localClientNum)
+{
+    const cg_s *cgameGlob;
+    const playerState_s *predPs;
+    const playerState_s *snapPs;
+    const centity_s *cent;
+    const ScreenPlacement *scrPlace;
+    float x;
+    float y;
+    float lineHeight;
+    char line[512];
+
+    cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+    predPs = &cgameGlob->predictedPlayerState;
+    snapPs = cgameGlob->nextSnap ? &cgameGlob->nextSnap->ps : 0;
+    cent = &cgameGlob->predictedPlayerEntity;
+    scrPlace = &scrPlaceView[localClientNum];
+    x = 8.0f;
+    y = 120.0f;
+    lineHeight = 10.0f;
+
+    CG_DrawDevString(scrPlace, x, y, 1.0f, 1.0f, "=== cg_debugposition ===", colorYellow, 5, cgMedia.smallDevFont);
+    y += lineHeight * 1.5f;
+
+    Com_sprintf(
+        line,
+        sizeof(line),
+        "time: cg %i  cmd %i  snap %i  ping %i",
+        cgameGlob->time,
+        predPs->commandTime,
+        snapPs ? cgameGlob->nextSnap->serverTime : -1,
+        cgameGlob->snap ? cgameGlob->snap->ping : -1);
+    CG_DrawDevString(scrPlace, x, y, 1.0f, 1.0f, line, colorWhite, 5, cgMedia.smallDevFont);
+    y += lineHeight;
+
+    Com_sprintf(
+        line,
+        sizeof(line),
+        "pred origin: %.2f %.2f %.2f",
+        predPs->origin[0],
+        predPs->origin[1],
+        predPs->origin[2]);
+    CG_DrawDevString(scrPlace, x, y, 1.0f, 1.0f, line, colorWhite, 5, cgMedia.smallDevFont);
+    y += lineHeight;
+
+    if ( snapPs )
+    {
+        Com_sprintf(
+            line,
+            sizeof(line),
+            "snap origin: %.2f %.2f %.2f  delta: %.2f",
+            snapPs->origin[0],
+            snapPs->origin[1],
+            snapPs->origin[2],
+            Vec3Distance(predPs->origin, snapPs->origin));
+        CG_DrawDevString(scrPlace, x, y, 1.0f, 1.0f, line, colorWhite, 5, cgMedia.smallDevFont);
+        y += lineHeight;
+    }
+
+    Com_sprintf(
+        line,
+        sizeof(line),
+        "refdef vieworg: %.2f %.2f %.2f",
+        cgameGlob->refdef.vieworg[0],
+        cgameGlob->refdef.vieworg[1],
+        cgameGlob->refdef.vieworg[2]);
+    CG_DrawDevString(scrPlace, x, y, 1.0f, 1.0f, line, colorWhite, 5, cgMedia.smallDevFont);
+    y += lineHeight;
+
+    Com_sprintf(
+        line,
+        sizeof(line),
+        "cent pose.origin: %.2f %.2f %.2f  valid: %i",
+        cent->pose.origin[0],
+        cent->pose.origin[1],
+        cent->pose.origin[2],
+        cent->nextValid);
+    CG_DrawDevString(scrPlace, x, y, 1.0f, 1.0f, line, colorWhite, 5, cgMedia.smallDevFont);
+    y += lineHeight;
+
+    Com_sprintf(
+        line,
+        sizeof(line),
+        "pred vel: %.1f %.1f %.1f  speed %.1f",
+        predPs->velocity[0],
+        predPs->velocity[1],
+        predPs->velocity[2],
+        Vec3Length(predPs->velocity));
+    CG_DrawDevString(scrPlace, x, y, 1.0f, 1.0f, line, colorWhite, 5, cgMedia.smallDevFont);
+    y += lineHeight;
+
+    Com_sprintf(
+        line,
+        sizeof(line),
+        "viewangles pred: %.1f %.1f %.1f  refdef: %.1f %.1f %.1f",
+        predPs->viewangles[0],
+        predPs->viewangles[1],
+        predPs->viewangles[2],
+        cgameGlob->refdefViewAngles[0],
+        cgameGlob->refdefViewAngles[1],
+        cgameGlob->refdefViewAngles[2]);
+    CG_DrawDevString(scrPlace, x, y, 1.0f, 1.0f, line, colorWhite, 5, cgMedia.smallDevFont);
+    y += lineHeight;
+
+    Com_sprintf(
+        line,
+        sizeof(line),
+        "pm_type: %s  pm_flags: 0x%x  eFlags: 0x%x",
+        CG_DebugPmTypeName(predPs->pm_type),
+        predPs->pm_flags,
+        predPs->eFlags);
+    CG_DrawDevString(scrPlace, x, y, 1.0f, 1.0f, line, colorWhite, 5, cgMedia.smallDevFont);
+    y += lineHeight;
+
+    Com_sprintf(
+        line,
+        sizeof(line),
+        "groundEnt: %i  clientNum: %i  entityNum: %i",
+        predPs->groundEntityNum,
+        cgameGlob->clientNum,
+        cent->nextState.number);
+    CG_DrawDevString(scrPlace, x, y, 1.0f, 1.0f, line, colorWhite, 5, cgMedia.smallDevFont);
+    y += lineHeight;
+
+    Com_sprintf(
+        line,
+        sizeof(line),
+        "weapon: %i (%s)  state: %i  weapFlags: 0x%x",
+        predPs->weapon,
+        BG_WeaponName(predPs->weapon),
+        predPs->weaponstate,
+        predPs->weapFlags);
+    CG_DrawDevString(scrPlace, x, y, 1.0f, 1.0f, line, colorWhite, 5, cgMedia.smallDevFont);
+    y += lineHeight;
+
+    Com_sprintf(
+        line,
+        sizeof(line),
+        "offHand: %i  grenadeTimeLeft: %i  pm_time: %i",
+        predPs->offHandIndex,
+        predPs->grenadeTimeLeft,
+        predPs->pm_time);
+    CG_DrawDevString(scrPlace, x, y, 1.0f, 1.0f, line, colorWhite, 5, cgMedia.smallDevFont);
+    y += lineHeight;
+
+    if ( snapPs )
+    {
+        Com_sprintf(
+            line,
+            sizeof(line),
+            "snap pm_type: %s  snap weapon: %i  snap eFlags: 0x%x",
+            CG_DebugPmTypeName(snapPs->pm_type),
+            snapPs->weapon,
+            snapPs->eFlags);
+        CG_DrawDevString(scrPlace, x, y, 1.0f, 1.0f, line, colorWhite, 5, cgMedia.smallDevFont);
+    }
+}
+#endif
 
 void __cdecl CG_DrawModelBoneAxis(int localClientNum)
 {
@@ -1464,5 +1643,26 @@ void __cdecl CG_QuickPrintFlush()
         quick_print_buffer_pos = 0;
         quick_print_buffer[0] = 0;
     }
+}
+
+static float g_debugScriptOrigin[3];
+static float g_debugScriptAngles[3];
+
+void __cdecl CG_SetDebugOrigin(const float *origin)
+{
+    if ( !origin )
+        return;
+    g_debugScriptOrigin[0] = origin[0];
+    g_debugScriptOrigin[1] = origin[1];
+    g_debugScriptOrigin[2] = origin[2];
+}
+
+void __cdecl CG_SetDebugAngles(const float *angles)
+{
+    if ( !angles )
+        return;
+    g_debugScriptAngles[0] = angles[0];
+    g_debugScriptAngles[1] = angles[1];
+    g_debugScriptAngles[2] = angles[2];
 }
 

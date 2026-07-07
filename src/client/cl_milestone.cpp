@@ -9,7 +9,11 @@
 #include <bgame/bg_unlockable_items.h>
 #include <qcommon/common.h>
 #include <stringed/stringed_hooks.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_draw_sp.h>
+#else
 #include <cgame_mp/cg_draw_mp.h>
+#endif
 
 int __cdecl CL_GetMilestoneRowNum(
                 XAssetHeader *stringTable,

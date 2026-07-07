@@ -118,6 +118,8 @@ unsigned __int16 __cdecl DynEntCl_CreateEntityModel(
                 const float *hitDir,
                 int mod,
                 PhysPreset *preset);
+void __cdecl DynEntCl_Launch(unsigned __int16 absDynEntId, const float *force, const float *hitPos);
+void __cdecl DynEntCl_Enable(unsigned __int16 absDynEntId, bool enabled);
 unsigned __int16 __cdecl DynEntCl_AddEntityModel();
 void DynEntCl_CleanUpOldModels();
 void __cdecl DynEntCl_PointTrace(const pointtrace_t *clip, trace_t *results);

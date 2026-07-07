@@ -38,3 +38,5 @@ char *__cdecl Sys_ConsoleInput();
 void __cdecl Conbuf_AppendText(char *pMsg);
 void __cdecl Conbuf_AppendTextInMainThread(char *msg);
 void __cdecl Sys_SetErrorText(const char *buf);
+void __cdecl Sys_ConsoleThread(unsigned int index);
+void __cdecl Sys_InitConsoleThread();

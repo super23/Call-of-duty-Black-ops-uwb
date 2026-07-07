@@ -1,19 +1,29 @@
 #include "cg_draw_reticles.h"
 #include <universal/com_math_anglevectors.h>
 #include <bgame/bg_weapons_def.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_main_sp.h>
+#include <client_sp/cl_cgame_sp.h>
+#include <cgame_sp/cg_view_sp.h>
+#include <cgame_sp/cg_newDraw_sp.h>
+#include <cgame_sp/cg_draw_sp.h>
+#include <cgame_sp/cg_vehicles_sp.h>
+#include <ui_sp/ui_main_sp.h>
+#else
 #include <cgame_mp/cg_main_mp.h>
 #include <client_mp/cl_cgame_mp.h>
 #include <cgame_mp/cg_view_mp.h>
 #include <cgame_mp/cg_newDraw_mp.h>
-#include <bgame/bg_misc.h>
 #include <cgame_mp/cg_draw_mp.h>
+#include <cgame_mp/cg_vehicles_mp.h>
+#include <ui_mp/ui_main_mp.h>
+#endif
+#include <bgame/bg_misc.h>
 #include <gfx_d3d/r_init.h>
 #include "cg_world.h"
 #include <gfx_d3d/r_dvars.h>
 #include "cg_compass.h"
-#include <cgame_mp/cg_vehicles_mp.h>
 #include <demo/demo_playback.h>
-#include <ui_mp/ui_main_mp.h>
 #include "cg_drawtools.h"
 
 void __cdecl CG_CalcCrosshairPosition(const cg_s *cgameGlob, float *x, float *y)
@@ -277,6 +287,7 @@ void __cdecl CG_DrawCrosshair(int localClientNum)
                                     {
                                         if ( R_StereoActivated() )
                                         {
+                                            memset(&trace, 0, 16);
                                             start[0] = cgameGlob->refdef.vieworg[0];
                                             start[1] = cgameGlob->refdef.vieworg[1];
                                             start[2] = cgameGlob->refdef.vieworg[2];
@@ -462,6 +473,7 @@ void __cdecl CG_DrawAdsOverlay(int localClientNum, int weaponIndex, const float 
             centerW = 1.0f;
             if ( R_StereoActivated() )
             {
+                memset(&trace, 0, 16);
                 start[0] = cgameGlob->refdef.vieworg[0];
                 start[1] = cgameGlob->refdef.vieworg[1];
                 start[2] = cgameGlob->refdef.vieworg[2];
@@ -708,7 +720,8 @@ void __cdecl CG_CalcCrosshairColor(int localClientNum, float alpha, float *color
     {
         __debugbreak();
     }
-    if ( !(isInVehicle | weapDef->crosshairColorChange) )
+    if ( !(isInVehicle | weapDef->crosshairColorChange)
+        && (cgameGlob->predictedPlayerState.weapFlags & 0x18) == 0 )
         goto LABEL_27;
     if ( (cgameGlob->predictedPlayerState.weapFlags & 8) != 0 )
     {
@@ -917,6 +930,7 @@ void __cdecl CG_DrawVehicleCrossHair(int localClientNum)
             centerW = 1.0f;
             if ( R_StereoActivated() )
             {
+                memset(&trace, 0, 16);
                 start[0] = cgameGlob->refdef.vieworg[0];
                 start[1] = cgameGlob->refdef.vieworg[1];
                 start[2] = cgameGlob->refdef.vieworg[2];

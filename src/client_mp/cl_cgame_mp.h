@@ -1,4 +1,7 @@
 #pragma once
+#ifdef KISAK_SP
+#include <client_sp/cl_cgame_sp.h>
+#else
 #include <client/cl_main.h>
 #include <qcommon/bitarray.h>
 
@@ -177,3 +180,5 @@ void __cdecl CL_DrawString(int x, int y, char *pszString, int bShadow, int iChar
 void __cdecl CL_LookupColor(unsigned __int8 c, float *color);
 void __cdecl CL_UpdateColor();
 bool __cdecl CL_IsServerRestarting(int localClientNum);
+
+#endif // !KISAK_SP

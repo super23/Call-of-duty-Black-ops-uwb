@@ -594,6 +594,8 @@ void __cdecl R_MissileCam_SetSceneParms(const refdef_s *refdef, GfxSceneParms *s
 void __cdecl R_LinkDObjEntity(int localClientNum, unsigned int entnum, float *origin, float radius);
 void __cdecl R_LinkBModelEntity(int localClientNum, unsigned int entnum, GfxBrushModel *bmodel);
 void __cdecl R_UnlinkEntity(int localClientNum, unsigned int entnum);
+void __cdecl R_SetSunLightOverride(const float *diffuseColor, const float *specularColor);
+void __cdecl R_ResetSunLightOverride();
 void __cdecl R_LinkDynEnt(unsigned int dynEntId, DynEntityDrawType drawType, float *mins, float *maxs);
 void __cdecl R_UnlinkDynEnt(unsigned int dynEntId, DynEntityDrawType drawType);
 void __cdecl R_PvsLock_GetViewOrigin(float *out);

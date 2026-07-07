@@ -7,6 +7,7 @@
 #include "r_foliage.h"
 #include "r_state.h"
 #include "r_dvars.h"
+#include "r_singlethreaded_device_pc.h"
 #include "rb_logfile.h"
 #include "rb_draw3d.h"
 #include <EffectsCore/fx_sprite.h>
@@ -757,7 +758,9 @@ void __cdecl R_Resolve(GfxCmdBufContext context, GfxImage *image)
     const char *v3; // eax
     const char *v4; // eax
     const char *v6; // eax
+    int v7; // [esp+0h] [ebp-80h]
     int v8; // [esp+4h] [ebp-7Ch]
+    int v9; // [esp+8h] [ebp-78h]
     int v10; // [esp+Ch] [ebp-74h]
     int semaphore; // [esp+10h] [ebp-70h]
     int hr; // [esp+14h] [ebp-6Ch]
@@ -858,16 +861,20 @@ void __cdecl R_Resolve(GfxCmdBufContext context, GfxImage *image)
         surfx->UnlockRect();
         surfd->UnlockRect();
         context.state->prim.device->UpdateSurface(surfx, 0, surfxd, 0);
+        R_AssertDXDeviceOwnership();
         if (r_logFile && r_logFile->current.integer)
             RB_LogPrint(
                 "context.state->prim.device->StretchRect( gfxRenderTargets[R_RENDERTARGET_SCENE].surface.color, 0, imageSurface, "
                 "0, D3DTEXF_LINEAR)\n");
+        semaphore = R_AcquireDXDeviceOwnership(0);
         hr = context.state->prim.device->StretchRect(
             gfxRenderTargets[R_RENDERTARGET_SCENE].surface.color,
             0,
             imageSurface,
             0,
             D3DTEXF_LINEAR);
+        if (semaphore)
+            R_ReleaseDXDeviceOwnership();
         if (hr < 0)
         {
             ++g_disableRendering;
@@ -882,10 +889,14 @@ void __cdecl R_Resolve(GfxCmdBufContext context, GfxImage *image)
     }
     else
     {
+        R_AssertDXDeviceOwnership();
         if (r_logFile && r_logFile->current.integer)
             RB_LogPrint(
                 "context.state->prim.device->StretchRect( gfxRenderTargets[context.state->renderTargetId].surface.color, 0, imageSurface, 0, D3DTEXF_NONE)\n");
+        v9 = R_AcquireDXDeviceOwnership(0);
         v10 = context.state->prim.device->StretchRect(gfxRenderTargets[context.state->renderTargetId].surface.color, 0, imageSurface, 0, D3DTEXF_NONE);
+        if (v9)
+            R_ReleaseDXDeviceOwnership();
         if (v10 < 0)
         {
             ++g_disableRendering;
@@ -897,9 +908,13 @@ void __cdecl R_Resolve(GfxCmdBufContext context, GfxImage *image)
                 R_ErrorDescription(v10));
         }
     }
+    R_AssertDXDeviceOwnership();
     if (r_logFile && r_logFile->current.integer)
         RB_LogPrint("imageSurface->Release()\n");
+    v7 = R_AcquireDXDeviceOwnership(0);
     v8 = imageSurface->Release();
+    if (v7)
+        R_ReleaseDXDeviceOwnership();
     if (v8 < 0)
     {
         ++g_disableRendering;
@@ -1355,7 +1370,9 @@ void __cdecl RB_StretchRaw(int x, int y, int w, int h, int cols, int rows, const
     const char *v7; // eax
     const char *v8; // eax
     const char *v9; // eax
+    int v10; // [esp+8h] [ebp-44h]
     int v11; // [esp+Ch] [ebp-40h]
+    int v12; // [esp+10h] [ebp-3Ch]
     int v13; // [esp+14h] [ebp-38h]
     int semaphore; // [esp+18h] [ebp-34h]
     int hr; // [esp+1Ch] [ebp-30h]
@@ -1367,8 +1384,10 @@ void __cdecl RB_StretchRaw(int x, int y, int w, int h, int cols, int rows, const
     int newline; // [esp+44h] [ebp-8h]
     int rowIndex; // [esp+48h] [ebp-4h]
 
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("dx.device->CreateOffscreenPlainSurface( cols, rows, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT, &rawSurf, 0 )\n");
+    semaphore = R_AcquireDXDeviceOwnership(0);
     //hr = ((int (__thiscall *)(IDirect3DDevice9 *, IDirect3DDevice9 *, int, int, int, unsigned int, IDirect3DSurface9 **, unsigned int))dx.device->CreateOffscreenPlainSurface)(
     //             dx.device,
     //             dx.device,
@@ -1379,6 +1398,8 @@ void __cdecl RB_StretchRaw(int x, int y, int w, int h, int cols, int rows, const
     //             &rawSurf,
     //             0);
     hr = dx.device->CreateOffscreenPlainSurface(cols, rows, (D3DFORMAT)22, (D3DPOOL)0, &rawSurf, 0);
+    if ( semaphore )
+        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -1390,8 +1411,10 @@ void __cdecl RB_StretchRaw(int x, int y, int w, int h, int cols, int rows, const
             1787,
             v7);
     }
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("rawSurf->LockRect( &lockedRect, 0, 0x00002000L )\n");
+    v12 = R_AcquireDXDeviceOwnership(0);
     //v13 = ((int (__thiscall *)(IDirect3DSurface9 *, IDirect3DSurface9 *, _D3DLOCKED_RECT *, unsigned int, int))rawSurf->LockRect)(
     //                rawSurf,
     //                rawSurf,
@@ -1399,6 +1422,8 @@ void __cdecl RB_StretchRaw(int x, int y, int w, int h, int cols, int rows, const
     //                0,
     //                0x2000);
     v13 = rawSurf->LockRect(&lockedRect, 0, 0x2000);
+    if ( v12 )
+        R_ReleaseDXDeviceOwnership();
     if ( v13 < 0 )
     {
         ++g_disableRendering;
@@ -1427,10 +1452,14 @@ void __cdecl RB_StretchRaw(int x, int y, int w, int h, int cols, int rows, const
     dstRect.top = y;
     dstRect.right = w + x;
     dstRect.bottom = h + y;
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint(
             "dx.device->StretchRect( rawSurf, 0, gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.color, &dstRect, D3DTEXF_LINEAR )\n");
+    v10 = R_AcquireDXDeviceOwnership(0);
     v11 = dx.device->StretchRect(rawSurf, 0, gfxRenderTargets[R_RENDERTARGET_FRAME_BUFFER].surface.color, &dstRect, D3DTEXF_LINEAR);
+    if ( v10 )
+        R_ReleaseDXDeviceOwnership();
     if ( v11 < 0 )
     {
         ++g_disableRendering;
@@ -1688,9 +1717,17 @@ unsigned int __cdecl R_RenderDrawSurfListMaterial(const GfxDrawSurfListArgs *lis
         isPixelCostEnabled = pixelCostMode != GFX_PIXEL_COST_MODE_OFF;
         if ( pixelCostMode )
             R_PixelCost_BeginSurface(listArgs->context);
-
-        iassert(!prepassContext.state || (prepassContext.state->technique->passCount == 1));
-
+        if ( prepassContext.state
+            && prepassContext.state->technique->passCount != 1
+            && !Assert_MyHandler(
+                        "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\rb_backend.cpp",
+                        2128,
+                        0,
+                        "%s",
+                        "!prepassContext.state || (prepassContext.state->technique->passCount == 1)") )
+        {
+            __debugbreak();
+        }
         passPrepassContext = prepassContext.source;
         subListCount = 0;
         passCount = listArgs->context.state->technique->passCount;
@@ -1712,17 +1749,20 @@ unsigned int __cdecl R_RenderDrawSurfListMaterial(const GfxDrawSurfListArgs *lis
                                              passPrepassContext,
                                              passPrepassContext_4);
         }
-
         if ( isPixelCostEnabled )
             R_PixelCost_EndSurface(listArgs->context);
         R_EndPixMaterial(listArgs->context.state);
         if ( prepassContext.state )
             R_EndPixMaterial(prepassContext.state);
-        return subListCount;
+        v5 = subListCount;
+        //ScopedShaderConstantSetUndo::~ScopedShaderConstantSetUndo(&shaderConstantUndo);
+        return v5;
     }
     else
     {
-        return R_SkipDrawSurfListMaterial(drawSurfList, drawSurfCount);
+        v6 = R_SkipDrawSurfListMaterial(drawSurfList, drawSurfCount);
+        //ScopedShaderConstantSetUndo::~ScopedShaderConstantSetUndo(&shaderConstantUndo);
+        return v6;
     }
 }
 
@@ -2394,9 +2434,13 @@ void __cdecl RB_PCCopyImageGenMIPCmd(GfxRenderCommandExecState *execState)
     const char *v9; // eax
     const char *v10; // eax
     const char *v11; // eax
+    int v12; // [esp+4h] [ebp-E4h]
     int v13; // [esp+8h] [ebp-E0h]
+    int v14; // [esp+Ch] [ebp-DCh]
     int v15; // [esp+10h] [ebp-D8h]
+    int v16; // [esp+14h] [ebp-D4h]
     int v17; // [esp+18h] [ebp-D0h]
+    int v18; // [esp+1Ch] [ebp-CCh]
     int v19; // [esp+20h] [ebp-C8h]
     int xx; // [esp+24h] [ebp-C4h]
     int yy; // [esp+28h] [ebp-C0h]
@@ -2407,16 +2451,22 @@ void __cdecl RB_PCCopyImageGenMIPCmd(GfxRenderCommandExecState *execState)
     int x; // [esp+3Ch] [ebp-ACh]
     unsigned __int8 *in; // [esp+40h] [ebp-A8h]
     int y; // [esp+44h] [ebp-A4h]
+    int v29; // [esp+48h] [ebp-A0h]
     int v30; // [esp+4Ch] [ebp-9Ch]
+    int v31; // [esp+50h] [ebp-98h]
     int v32; // [esp+54h] [ebp-94h]
     unsigned __int8 *out; // [esp+58h] [ebp-90h]
     unsigned __int8 *outa; // [esp+58h] [ebp-90h]
     unsigned __int8 *linear; // [esp+5Ch] [ebp-8Ch]
     int step; // [esp+60h] [ebp-88h]
     unsigned int destMipLevel; // [esp+64h] [ebp-84h]
+    int v38; // [esp+68h] [ebp-80h]
     signed int v39; // [esp+6Ch] [ebp-7Ch]
+    int v40; // [esp+70h] [ebp-78h]
     int v41; // [esp+74h] [ebp-74h]
+    int v42; // [esp+78h] [ebp-70h]
     int v43; // [esp+7Ch] [ebp-6Ch]
+    int v44; // [esp+80h] [ebp-68h]
     int v45; // [esp+84h] [ebp-64h]
     int semaphore; // [esp+88h] [ebp-60h]
     int hr; // [esp+8Ch] [ebp-5Ch]
@@ -2435,9 +2485,13 @@ void __cdecl RB_PCCopyImageGenMIPCmd(GfxRenderCommandExecState *execState)
 
     cmd = (const GfxCmdPCCopyImageGenMIP *)execState->cmd;
     renderSurface = gfxRenderTargets[R_RENDERTARGET_COMPOSITE].surface.color;
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("dx.device->CreateTexture(256, 256, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &resolveTexture, 0)\n");
+    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = dx.device->CreateTexture(256u, 256u, 1u, 0, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &resolveTexture, 0);
+    if ( semaphore )
+        R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
         ++g_disableRendering;
@@ -2449,9 +2503,13 @@ void __cdecl RB_PCCopyImageGenMIPCmd(GfxRenderCommandExecState *execState)
             3127,
             v1);
     }
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("resolveTexture->GetSurfaceLevel(0, &resolveSurface)\n");
+    v44 = R_AcquireDXDeviceOwnership(0);
     v45 = resolveTexture->GetSurfaceLevel(0, &resolveSurface);
+    if ( v44 )
+        R_ReleaseDXDeviceOwnership();
     if ( v45 < 0 )
     {
         ++g_disableRendering;
@@ -2462,9 +2520,13 @@ void __cdecl RB_PCCopyImageGenMIPCmd(GfxRenderCommandExecState *execState)
             3128,
             v2);
     }
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("dx.device->GetRenderTargetData(renderSurface, resolveSurface)\n");
+    v42 = R_AcquireDXDeviceOwnership(0);
     v43 = dx.device->GetRenderTargetData(renderSurface, resolveSurface);
+    if ( v42 )
+        R_ReleaseDXDeviceOwnership();
     if ( v43 < 0 )
     {
         ++g_disableRendering;
@@ -2476,9 +2538,13 @@ void __cdecl RB_PCCopyImageGenMIPCmd(GfxRenderCommandExecState *execState)
             3129,
             v3);
     }
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("resolveSurface->LockRect(&srcRect, 0, 0x00000010L)\n");
+    v40 = R_AcquireDXDeviceOwnership(0);
     v41 = resolveSurface->LockRect(&srcRect, 0, 16u);
+    if ( v40 )
+        R_ReleaseDXDeviceOwnership();
     if ( v41 < 0 )
     {
         ++g_disableRendering;
@@ -2490,10 +2556,14 @@ void __cdecl RB_PCCopyImageGenMIPCmd(GfxRenderCommandExecState *execState)
             v4);
     }
     destTexture = cmd->image->texture.map;
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("numMipLevels = destTexture->GetLevelCount()\n");
+    v38 = R_AcquireDXDeviceOwnership(0);
     numMipLevels = destTexture->GetLevelCount();
     v39 = numMipLevels;
+    if ( v38 )
+        R_ReleaseDXDeviceOwnership();
     if ( v39 < 0 )
     {
         ++g_disableRendering;
@@ -2507,9 +2577,13 @@ void __cdecl RB_PCCopyImageGenMIPCmd(GfxRenderCommandExecState *execState)
     inHeight = 256;
     for ( destMipLevel = 0; destMipLevel < numMipLevels; ++destMipLevel )
     {
+        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint("destTexture->LockRect(destMipLevel, &mipRect, 0, 0x00002000L)\n");
+        v31 = R_AcquireDXDeviceOwnership(0);
         v32 = destTexture->LockRect(destMipLevel, &mipRect, 0, 0x2000u);
+        if ( v31 )
+            R_ReleaseDXDeviceOwnership();
         if ( v32 < 0 )
         {
             ++g_disableRendering;
@@ -2521,14 +2595,18 @@ void __cdecl RB_PCCopyImageGenMIPCmd(GfxRenderCommandExecState *execState)
                 3141,
                 v6);
         }
+        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint("destTexture->GetLevelDesc(destMipLevel, &mipDesc)\n");
+        v29 = R_AcquireDXDeviceOwnership(0);
         //v30 = ((int (__thiscall *)(IDirect3DTexture9 *, IDirect3DTexture9 *, unsigned int, _D3DSURFACE_DESC *))destTexture->GetLevelDesc)(
         //                destTexture,
         //                destTexture,
         //                destMipLevel,
         //                &mipDesc);
         v30 = destTexture->GetLevelDesc(destMipLevel, &mipDesc);
+        if ( v29 )
+            R_ReleaseDXDeviceOwnership();
         if ( v30 < 0 )
         {
             ++g_disableRendering;
@@ -2572,9 +2650,13 @@ void __cdecl RB_PCCopyImageGenMIPCmd(GfxRenderCommandExecState *execState)
                 out = outa + 1;
             }
         }
+        R_AssertDXDeviceOwnership();
         if ( r_logFile && r_logFile->current.integer )
             RB_LogPrint("destTexture->UnlockRect(destMipLevel)\n");
+        v18 = R_AcquireDXDeviceOwnership(0);
         v19 = destTexture->UnlockRect(destMipLevel);
+        if ( v18 )
+            R_ReleaseDXDeviceOwnership();
         if ( v19 < 0 )
         {
             ++g_disableRendering;
@@ -2586,9 +2668,13 @@ void __cdecl RB_PCCopyImageGenMIPCmd(GfxRenderCommandExecState *execState)
                 v8);
         }
     }
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("resolveSurface->UnlockRect()\n");
+    v16 = R_AcquireDXDeviceOwnership(0);
     v17 = resolveSurface->UnlockRect();
+    if ( v16 )
+        R_ReleaseDXDeviceOwnership();
     if ( v17 < 0 )
     {
         ++g_disableRendering;
@@ -2599,12 +2685,16 @@ void __cdecl RB_PCCopyImageGenMIPCmd(GfxRenderCommandExecState *execState)
             3180,
             v9);
     }
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("resolveSurface->Release()\n");
+    v14 = R_AcquireDXDeviceOwnership(0);
     //v15 = ((int (__thiscall *)(IDirect3DSurface9 *, IDirect3DSurface9 *))resolveSurface->Release)(
     //                resolveSurface,
     //                resolveSurface);
     v15 = resolveSurface->Release();
+    if ( v14 )
+        R_ReleaseDXDeviceOwnership();
     if ( v15 < 0 )
     {
         ++g_disableRendering;
@@ -2615,9 +2705,13 @@ void __cdecl RB_PCCopyImageGenMIPCmd(GfxRenderCommandExecState *execState)
             3181,
             v10);
     }
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
         RB_LogPrint("resolveTexture->Release()\n");
+    v12 = R_AcquireDXDeviceOwnership(0);
     v13 = resolveTexture->Release();
+    if ( v12 )
+        R_ReleaseDXDeviceOwnership();
     if ( v13 < 0 )
     {
         ++g_disableRendering;
@@ -4605,9 +4699,13 @@ void __cdecl RB_BeginFrame(GfxBackEndData *data)
         iassert(!dx.inScene);
 
         dx.inScene = 1;
+        R_AssertDXDeviceOwnership();
         if (r_logFile && r_logFile->current.integer)
             RB_LogPrint("dx.device->BeginScene()\n");
+        semaphore = R_AcquireDXDeviceOwnership(0);
         hr = dx.device->BeginScene();
+        if (semaphore)
+            R_ReleaseDXDeviceOwnership();
         if (hr < 0)
         {
             ++g_disableRendering;
@@ -4691,6 +4789,10 @@ void __cdecl RB_EndFrame(char drawType)
 
 void RB_SwapBuffers()
 {
+    const char *v0; // eax
+    const char *v1; // eax
+    HRESULT v2; // [esp+18h] [ebp-44h]
+    HRESULT v3; // [esp+18h] [ebp-44h]
     unsigned __int8 stereoActivated; // [esp+2Fh] [ebp-2Dh] BYREF
     int semaphore; // [esp+30h] [ebp-2Ch]
     int actualShow; // [esp+34h] [ebp-28h]
@@ -4710,8 +4812,7 @@ void RB_SwapBuffers()
         else
             hr = dx.windows[dx.targetWindowIndex].swapChain->Present(0, 0, 0, 0, 0);
     }
-
-    FrameMark; // backend thread Frame marker
+    
 
     mjpeg_draw();
 
@@ -4729,7 +4830,10 @@ void RB_SwapBuffers()
             PROF_SCOPED("Sys_QueryRenderEvent() Loop"); // LWSS ADD
             while ( Sys_QueryRenderEvent() )
             {
+                semaphore = R_ReleaseDXDeviceOwnership();
                 NET_Sleep(1u);
+                if ( semaphore )
+                    R_AcquireDXDeviceOwnership(0);
             }
         }
     }
@@ -4797,7 +4901,9 @@ void RB_SwapBuffers()
             }
             else if ( hr )
             {
-                Com_Error(ERR_FATAL, "Direct3DDevice9::Present failed: %s (%d)\n", R_ErrorDescription(hr), hr);
+                v2 = hr;
+                v0 = R_ErrorDescription(hr);
+                Com_Error(ERR_FATAL, "Direct3DDevice9::Present failed: %s (%d)\n", v0, v2);
             }
 
             PROF_SCOPED("(#2) Win32 Msg Pump"); // LWSS ADD
@@ -4815,11 +4921,15 @@ void RB_SwapBuffers()
     }
     else if ( hr )
     {
+        R_ReleaseDXDeviceOwnership();
         if ( r_glob.isRenderingRemoteUpdate )
             Sys_LeaveCriticalSection(CRITSECT_DBHASH);
-        Com_Error(ERR_FATAL, "Direct3DDevice9::Present failed: %s (%d)\n", R_ErrorDescription(hr), hr);
+        v3 = hr;
+        v1 = R_ErrorDescription(hr);
+        Com_Error(ERR_FATAL, "Direct3DDevice9::Present failed: %s (%d)\n", v1, v3);
     }
 
+    //R_HW_InsertFence(&dx.swapFence[r_glob.backEndFrameCount % dx.gpuCount + 2]);
     R_HW_InsertFence(&dx.swapFence[r_glob.backEndFrameCount % dx.gpuCount]);
     gfxBuf.dynamicIndexBuffer->used = 0;
 }
@@ -5116,9 +5226,13 @@ void __cdecl RB_CallExecuteRenderCommands()
     }
     iassert(dx.inScene);
 
+    R_AssertDXDeviceOwnership();
     if ( r_logFile && r_logFile->current.integer )
       RB_LogPrint("dx.device->EndScene()\n");
+    semaphore = R_AcquireDXDeviceOwnership(0);
     hr = dx.device->EndScene();
+    if ( semaphore )
+      R_ReleaseDXDeviceOwnership();
     if ( hr < 0 )
     {
       ++g_disableRendering;
@@ -5242,28 +5356,25 @@ void     RB_RenderThread(unsigned int threadContext)
             Com_ErrorAbort();
         }
     }
+    R_ReleaseDXDeviceOwnership();
     while ( 1 )
     {
-        {
-            PROF_SCOPED("R_StreamUpdate_ProcessFileCallbacks"); // LWSS ADD
-            R_StreamAlloc_Lock();
-            R_StreamUpdate_ProcessFileCallbacks();
-            R_StreamAlloc_Unlock();
-        }
-        {
-            PROF_SCOPED("RB_Resource_Update"); // LWSS ADD
-            RB_Resource_Update(5);
-        }
+        R_StreamAlloc_Lock();
+        R_StreamUpdate_ProcessFileCallbacks();
+        R_StreamAlloc_Unlock();
+        RB_Resource_Update(5);
         Sys_StopRenderer();
         Sys_StartRenderer();
-
-        if ( Sys_WaitBackendEvent(1) )
+        if ( Sys_WaitBackendEvent(0) )
         {
             data = (GfxBackEndData *)Sys_RendererSleep();
             if (data)
             {
+                semaphore = R_AcquireDXDeviceOwnership(0);
                 RB_UpdateDynamicBuffers((GfxBackEndData*)data);
                 RB_RenderCommandFrame((GfxBackEndData *)data);
+                if ( semaphore )
+                    R_ReleaseDXDeviceOwnership();
             }
             data = 0;
         }
@@ -5282,7 +5393,10 @@ void     RB_RenderThread(unsigned int threadContext)
         }
         else if ( dx.resizeWindow )
         {
+            v5 = R_AcquireDXDeviceOwnership(0);
             RB_SwapBuffers();
+            if ( v5 )
+                R_ReleaseDXDeviceOwnership();
         }
         else
         {
@@ -5314,14 +5428,20 @@ void     RB_RenderThread(unsigned int threadContext)
             r_glob.isRenderingRemoteUpdate = 1;
             do
             {
+                v4 = R_AcquireDXDeviceOwnership(0);
                 R_StreamAlloc_Lock();
                 R_StreamUpdate_ProcessFileCallbacks();
                 R_StreamAlloc_Unlock();
                 RB_Resource_Update(8);
+                if ( v4 )
+                    R_ReleaseDXDeviceOwnership();
                 if ( Sys_TryEnterCriticalSection(CRITSECT_DBHASH) )
                 {
+                    v3 = R_AcquireDXDeviceOwnership(0);
                     SCR_UpdateScreen();
                     Sys_LeaveCriticalSection(CRITSECT_DBHASH);
+                    if ( v3 )
+                        R_ReleaseDXDeviceOwnership();
                     if ( Sys_IsDatabaseReady() )
                         NET_Sleep(5u);
                 }
@@ -5389,12 +5509,25 @@ void __cdecl RB_RenderCommandFrame(const GfxBackEndData *data)
         Sys_RenderCompleted();
     }
 
+    while (!RB_BackendTimeout((r_glob.backEndFrameCount + dx.gpuCount - 1) % dx.gpuCount))
+    {
+        semaphore = R_ReleaseDXDeviceOwnership();
+        NET_Sleep(1);
+        if (semaphore)
+            R_AcquireDXDeviceOwnership(0);
+    }
+
     {
         PROF_SCOPED("end frame");
         RB_EndFrame(drawType);
     }
     
     rb_swapMS = Sys_Milliseconds() - renderStartMS - rb_execCmdsMS;
+}
+
+bool __cdecl RB_BackendTimeout(int gpuIndex)
+{
+    return !R_HW_IsFencePending(&dx.swapFence[gpuIndex]);
 }
 
 void __cdecl RB_InitBackendGlobalStructs()

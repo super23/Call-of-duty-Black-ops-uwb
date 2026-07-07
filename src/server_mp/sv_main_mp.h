@@ -3,6 +3,8 @@
 #include <server/server.h>
 #include <client_mp/client_mp.h>
 
+#define MAX_CONFIGSTRINGS 3260
+
 enum serverState_t : __int32
 {                                       // XREF: server_t/r
     SS_DEAD    = 0x0,
@@ -410,7 +412,7 @@ struct __declspec(align(4)) server_t // sizeof=0x5C28C
     cmodel_t *models[512];
     unsigned __int16 emptyConfigString; // XREF: SV_SendClientGameState(client_t *)+64A/r
                                         // SV_SendClientGameState(client_t *)+736/r ...
-    unsigned __int16 configstrings[0xCBC/*MAX_CONFIGSTRINGS*/];
+    unsigned __int16 configstrings[MAX_CONFIGSTRINGS];
     svEntity_s svEntities[1024];        // XREF: CM_GetWaterHeight(float const * const,float,float)+107/o
                                         // CM_UnlinkEntity(svEntity_s *)+75/o ...
     gentity_s *gentities;

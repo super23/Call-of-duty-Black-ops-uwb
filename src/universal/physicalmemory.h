@@ -95,8 +95,15 @@ void __cdecl PMem_BeginAllocInPrim(PhysicalMemoryPrim *prim, const char *name, E
 void __cdecl PMem_EndAlloc(const char *name, unsigned int allocType);
 void __cdecl PMem_EndAllocInPrim(PhysicalMemoryPrim *prim, const char *name);
 void __cdecl PMem_Free(const char *name);
-void __cdecl PMem_FreeInPrim(PhysicalMemoryPrim *prim, const char *name, int location);
+bool __cdecl PMem_FreeInPrim(PhysicalMemoryPrim *prim, const char *name, int location);
 void __cdecl PMem_FreeIndex(PhysicalMemoryPrim *prim, unsigned int allocIndex, int location);
+bool __cdecl PMem_SafeToFree(const char *name);
+unsigned __int8 *__cdecl PMem_Shrink(
+                const char *name,
+                unsigned int size,
+                unsigned int alignment,
+                signed int type,
+                unsigned __int8 trackResize);
 int __cdecl PMem_GetOverAllocatedSize();
 unsigned __int8 *__cdecl _PMem_AllocNamed(
                 unsigned int size,

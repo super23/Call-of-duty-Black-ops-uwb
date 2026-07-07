@@ -2615,6 +2615,7 @@ char __cdecl DynEntCl_DynEntImpactEvent(
     PROF_SCOPED("DynEntCl_DynEntImpactEvent");
 
     ////TraceExtents::TraceExtents(&clip.extents);
+    memset(&trace, 0, 16);
     if ( !start
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\DynEntity\\DynEntity_client.cpp", 2379, 0, "%s", "start") )
     {
@@ -3238,5 +3239,64 @@ void __cdecl MapHitLocationToRagdollBoneName(hitLocation_t hitLoc, unsigned int 
             break;
         default:
             return;
+    }
+}
+
+void __cdecl DynEntCl_Launch(unsigned __int16 absDynEntId, const float *force, const float *hitPos)
+{
+    DynEntityClient *dynEntClient;
+    const DynEntityDef *dynEntDef;
+    const DynEntityPose *dynEntPose;
+    float massCenter[3];
+
+    dynEntClient = DynEnt_GetClientEntity(absDynEntId);
+    dynEntDef = DynEnt_GetEntityDef(absDynEntId);
+    dynEntPose = DynEnt_GetClientPose(absDynEntId);
+    if ( !dynEntClient || !dynEntDef || !dynEntPose )
+        return;
+    if ( !dynEntClient->physObjId )
+        dynEntClient->physObjId = DynEntCl_CreatePhysObj(dynEntDef, dynEntClient, &dynEntPose->pose);
+    if ( !dynEntClient->physObjId )
+        return;
+    if ( hitPos )
+    {
+        massCenter[0] = hitPos[0];
+        massCenter[1] = hitPos[1];
+        massCenter[2] = hitPos[2];
+    }
+    else
+    {
+        Phys_ObjGetCenterOfMass(dynEntClient->physObjId, massCenter);
+    }
+    Phys_ObjAddCustomForce(dynEntClient->physObjId, massCenter, force, 0, dynEntDef->physPreset);
+}
+
+void __cdecl DynEntCl_Enable(unsigned __int16 absDynEntId, bool enabled)
+{
+    unsigned __int16 dynEntId;
+    DynEntityDrawType drawType;
+    DynEntityClient *dynEntClient;
+
+    DynEnt_GetClientIdDrawType(absDynEntId, &dynEntId, &drawType);
+    dynEntClient = DynEnt_GetClientEntity(dynEntId, drawType);
+    if ( !dynEntClient )
+        return;
+    if ( enabled )
+    {
+        dynEntClient->flags = 3;
+        if ( drawType == DYNENT_DRAW_BRUSH )
+            DynEntCl_LinkBrush(dynEntId);
+        else
+            DynEntCl_LinkModel(dynEntId);
+    }
+    else
+    {
+        dynEntClient->flags &= ~3u;
+        if ( dynEntClient->physObjId )
+        {
+            Phys_ObjDestroy(0, dynEntClient->physObjId);
+            dynEntClient->physObjId = 0;
+        }
+        DynEntCl_UnlinkEntity(dynEntId, (DynEntityCollType)drawType);
     }
 }

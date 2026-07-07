@@ -37,6 +37,7 @@
 #include "r_sunshadow.h"
 #include "r_add_staticmodel.h"
 #include <DynEntity/DynEntity_pieces.h>
+#include "r_singlethreaded_device_pc.h"
 #include "r_spotshadow.h"
 #include "r_foliage.h"
 #include "r_water_sim.h"
@@ -2986,6 +2987,13 @@ void __cdecl R_SetViewParmsForScene(const refdef_s *refdef, GfxViewParms *viewPa
 
 void __cdecl R_SetupProjection(float tanHalfFovX, float tanHalfFovY, GfxViewParms *viewParms)
 {
+    const float defaultTanHalfFov = tan(DEG2RAD(65.0f) * 0.5f) * 0.75f;
+
+    if ( !(tanHalfFovX > 0.0f) )
+        tanHalfFovX = defaultTanHalfFov;
+    if ( !(tanHalfFovY > 0.0f) )
+        tanHalfFovY = defaultTanHalfFov;
+
     InfinitePerspectiveMatrix(tanHalfFovX, tanHalfFovY, viewParms->zNear, viewParms->projectionMatrix.m);
     viewParms->depthHackNearClip = -r_znear_depthhack->current.value;
 }
@@ -3162,7 +3170,7 @@ void __cdecl R_RenderScene(refdef_s *refdef, int frameTime)
     GfxSceneParms sceneParms; // [esp+1Ch] [ebp-14E8h] BYREF
     GfxViewParms *viewParms; // [esp+1500h] [ebp-4h]
 
-    if ( refdef->tanHalfFovX <= 0.0
+    if ( !(refdef->tanHalfFovX > 0.0f)
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp",
                     7168,
@@ -3172,7 +3180,7 @@ void __cdecl R_RenderScene(refdef_s *refdef, int frameTime)
     {
         __debugbreak();
     }
-    if ( refdef->tanHalfFovY <= 0.0
+    if ( !(refdef->tanHalfFovY > 0.0f)
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp",
                     7169,
@@ -3448,6 +3456,7 @@ void __cdecl R_GenerateSortedDrawSurfs(
     GfxViewInfo *viewInfo; // [esp+240h] [ebp-50h]
     int viewInfoIndex; // [esp+244h] [ebp-4Ch]
     bool forStereoRightEyeView; // [esp+24Bh] [ebp-45h]
+    int semaphore; // [esp+24Ch] [ebp-44h]
     ShadowType dynamicShadowType; // [esp+250h] [ebp-40h]
     SceneEntCmd sceneEntCmd; // [esp+254h] [ebp-3Ch] BYREF
     FxCmd cmd; // [esp+258h] [ebp-38h] BYREF
@@ -3746,6 +3755,7 @@ void __cdecl R_GenerateSortedDrawSurfs(
             R_AddAllStaticModelSurfacesSunShadow(viewInfoIndex);
         }
     }
+    semaphore = R_ReleaseDXDeviceOwnership();
     FX_BeginMarks(viewInfo->localClientNum);
     memset((unsigned __int8 *)&cmd, 0, sizeof(cmd));
     cmd.localClientNum = viewInfo->localClientNum;
@@ -3761,6 +3771,11 @@ void __cdecl R_GenerateSortedDrawSurfs(
     {
         PROF_SCOPED("wait for r_spot_shadow_ent");
         Sys_WaitWorkerCmdInternal(&r_spot_shadow_entWorkerCmd);
+    }
+    
+    if (semaphore)
+    {
+        R_AcquireDXDeviceOwnership(0);
     }
 
     {
@@ -4761,7 +4776,7 @@ void R_SetDLightsConstants(
     const GfxSpotShadow *spotShadow = nullptr;
 
     // ===== Accumulate per-light data =====
-    // IDA original uses `ys[i + 1]` etc. — indexed by the visible-light index. That's a
+    // IDA original uses `ys[i + 1]` etc. â€” indexed by the visible-light index. That's a
     // latent OOB: the arrays are float[4], the upload only consumes slots [1..3], and the
     // loop bound is `visibleLightCount` with no cap. When the caller passes 4+ visible
     // lights (e.g. 1 spot + 3 omnis, or 4 omnis), the last omni's `i+1` lands at array
@@ -4814,7 +4829,7 @@ void R_SetDLightsConstants(
 
             cutOn  = L.cosHalfFovInner;
             cutOff = L.cosHalfFovOuter;
-            // IDA also writes `nearEdge = L.exponent;` here; dead — never read.
+            // IDA also writes `nearEdge = L.exponent;` here; dead â€” never read.
 
             falloffParams[0] = L.falloff[0];
             falloffParams[1] = L.falloff[1];
@@ -4856,7 +4871,7 @@ void R_SetDLightsConstants(
     }
 
     // ===== Upload GLIGHT_POSXS..BLUES (slots 0x8B-0x91) =====
-    // W of each slot pulls the previous attribute's [0] — always 0.
+    // W of each slot pulls the previous attribute's [0] â€” always 0.
     R_SetInputCodeConstant(input, CONST_SRC_CODE_GLIGHT_POSXS,    ys[1],       ys[2],       ys[3],       xs[0]);
     R_SetInputCodeConstant(input, CONST_SRC_CODE_GLIGHT_POSYS,    zs[1],       zs[2],       zs[3],       ys[0]);
     R_SetInputCodeConstant(input, CONST_SRC_CODE_GLIGHT_POSZS,    falloffs[1], falloffs[2], falloffs[3], zs[0]);
@@ -4925,10 +4940,10 @@ void R_SetDLightsConstants(
         R_SetInputCodeImageSamplerState(input, 7u, 0x62u);
     }
 
-    // ===== DLIGHT_ATTENUATION (slot 0x95) — actually the spot direction =====
+    // ===== DLIGHT_ATTENUATION (slot 0x95) â€” actually the spot direction =====
     R_SetInputCodeConstantFromVec4(input, CONST_SRC_CODE_DLIGHT_ATTENUATION, lightDir);
 
-    // ===== DLIGHT_FALLOFF (slot 0x96) — outer/inner slope+bias =====
+    // ===== DLIGHT_FALLOFF (slot 0x96) â€” outer/inner slope+bias =====
     // Outer edge spans falloff[0] -> falloff[2]; inner edge spans falloff[3] -> falloff[1].
     float outerSlope, outerBias, innerSlope, innerBias;
     if (falloffParams[0] == falloffParams[2]) {
@@ -4948,7 +4963,7 @@ void R_SetDLightsConstants(
     R_SetInputCodeConstant(input, CONST_SRC_CODE_DLIGHT_FALLOFF,
                            outerSlope, innerSlope, outerBias, innerBias);
 
-    // ===== DLIGHT_SPOT_MATRIX_0..3 (slots 0x97-0x9A) — spot view*proj =====
+    // ===== DLIGHT_SPOT_MATRIX_0..3 (slots 0x97-0x9A) â€” spot view*proj =====
     // 1. Transform light position through the spot's view matrix; the result replaces the
     //    view matrix's translation row (row 3).
     MatrixTransformVector44(&lightAttentuation[1],
@@ -4963,7 +4978,7 @@ void R_SetDLightsConstants(
     MatrixMultiply44((const float (*)[4])viewMatrix,
                      (const float (*)[4])projMatrix,
                      finalMatrix);
-    // 4. Upload transposed — each slot gets one column of the row-major finalMatrix.
+    // 4. Upload transposed â€” each slot gets one column of the row-major finalMatrix.
     R_SetInputCodeConstant(input, CONST_SRC_CODE_DLIGHT_SPOT_MATRIX_0,
                            finalMatrix[0][0], finalMatrix[1][0], finalMatrix[2][0], finalMatrix[3][0]);
     R_SetInputCodeConstant(input, CONST_SRC_CODE_DLIGHT_SPOT_MATRIX_1,
@@ -4973,12 +4988,12 @@ void R_SetDLightsConstants(
     R_SetInputCodeConstant(input, CONST_SRC_CODE_DLIGHT_SPOT_MATRIX_3,
                            finalMatrix[0][3], finalMatrix[1][3], finalMatrix[2][3], finalMatrix[3][3]);
 
-    // ===== DLIGHT_POSITION (slot 0x92) — xyz = pos rel view, w = 1/r^2 =====
+    // ===== DLIGHT_POSITION (slot 0x92) â€” xyz = pos rel view, w = 1/r^2 =====
     R_SetInputCodeConstant(input, CONST_SRC_CODE_DLIGHT_POSITION,
         lightAttentuation[1], lightAttentuation[2], lightAttentuation[3],
         1.0f / (lightCosHalfFovOuter * lightCosHalfFovOuter));
 
-    // ===== DLIGHT_DIFFUSE (slot 0x93) — specularColor[] really holds scaled diffuse =====
+    // ===== DLIGHT_DIFFUSE (slot 0x93) â€” specularColor[] really holds scaled diffuse =====
     R_SetInputCodeConstant(input, CONST_SRC_CODE_DLIGHT_DIFFUSE,
                            specularColor[0], specularColor[1], specularColor[2], 1.0f);
 
@@ -4986,11 +5001,11 @@ void R_SetDLightsConstants(
     R_SetInputCodeConstant(input, CONST_SRC_CODE_DLIGHT_SPECULAR,
                            lightOrigin[2], lightOrigin[3], v60, 1.0f);
 
-    // ===== DLIGHT_SPOT_DIR (slot 0x9B) — = L.dir[0..2] =====
+    // ===== DLIGHT_SPOT_DIR (slot 0x9B) â€” = L.dir[0..2] =====
     R_SetInputCodeConstant(input, CONST_SRC_CODE_DLIGHT_SPOT_DIR,
                            lightCosHalfFovInner, spotShadowFade, lightRadius, 0.0f);
 
-    // ===== DLIGHT_SPOT_FACTORS (slot 0x9C) — cone dot scale/bias, w = shadow fade bits =====
+    // ===== DLIGHT_SPOT_FACTORS (slot 0x9C) â€” cone dot scale/bias, w = shadow fade bits =====
     const float spotDotScale = 1.0f / (cutOn - cutOff);
     const float spotDotBias  = -cutOff * spotDotScale;
     R_SetInputCodeConstant(input, CONST_SRC_CODE_DLIGHT_SPOT_FACTORS,
@@ -5517,7 +5532,7 @@ void __cdecl R_RenderMissileCam(const refdef_s *refdef, int frameTime)
     GfxSceneParms sceneParms; // [esp+1Ch] [ebp-14E8h] BYREF
     GfxViewParms *viewParms; // [esp+1500h] [ebp-4h]
 
-    if ( refdef->tanHalfFovX <= 0.0
+    if ( !(refdef->tanHalfFovX > 0.0f)
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp",
                     7268,
@@ -5527,7 +5542,7 @@ void __cdecl R_RenderMissileCam(const refdef_s *refdef, int frameTime)
     {
         __debugbreak();
     }
-    if ( refdef->tanHalfFovY <= 0.0
+    if ( !(refdef->tanHalfFovY > 0.0f)
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_scene.cpp",
                     7269,
@@ -5663,6 +5678,22 @@ void __cdecl R_UnlinkEntity(int localClientNum, unsigned int entnum)
 {
     R_UnfilterEntFromCells(localClientNum, entnum);
     R_UnlinkEntityFromPrimaryLights(localClientNum, entnum);
+}
+
+void __cdecl R_SetSunLightOverride(const float *diffuseColor, const float *specularColor)
+{
+    rg.useSunLightOverride = true;
+    rg.diffuseSunLightOverride[0] = diffuseColor[0];
+    rg.diffuseSunLightOverride[1] = diffuseColor[1];
+    rg.diffuseSunLightOverride[2] = diffuseColor[2];
+    rg.specularSunLightOverride[0] = specularColor[0];
+    rg.specularSunLightOverride[1] = specularColor[1];
+    rg.specularSunLightOverride[2] = specularColor[2];
+}
+
+void __cdecl R_ResetSunLightOverride()
+{
+    rg.useSunLightOverride = false;
 }
 
 void __cdecl R_LinkDynEnt(unsigned int dynEntId, DynEntityDrawType drawType, float *mins, float *maxs)

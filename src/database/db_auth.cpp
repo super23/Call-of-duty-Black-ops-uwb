@@ -9,7 +9,7 @@ int __cdecl DB_AuthLoad_InflateInit(z_stream_s *stream, bool isSecure)
     {
         __debugbreak();
     }
-    return inflateInit_(stream, "1.2.3", sizeof(z_stream_s));
+    return inflateInit_(stream, ZLIB_VERSION, sizeof(*stream));
 }
 
 void __cdecl DB_AuthLoad_InflateEnd(z_stream_s *stream)

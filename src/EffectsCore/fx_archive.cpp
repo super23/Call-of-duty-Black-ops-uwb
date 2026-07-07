@@ -1,5 +1,6 @@
 #include "fx_archive.h"
 #include "fx_random.h"
+#include "fx_system.h"
 
 FxEffectContainer *__cdecl FX_EffectFromHandle(FxSystem *system, unsigned __int16 handle)
 {
@@ -33,7 +34,7 @@ FxPool<FxElem,FxElemContainer> *__cdecl FX_ElemFromHandle(FxSystem *system, unsi
     {
         __debugbreak();
     }
-    return FX_PoolFromHandle_Generic<FxElem,FxElemContainer,2048>(system->elems, handle);
+    return FX_PoolFromHandle_Generic<FxElem,FxElemContainer,FX_ELEM_LIMIT>(system->elems, handle);
 }
 
 FxElemVisuals __cdecl FX_GetElemVisuals(const FxElemDef *elemDef, int randomSeed)

@@ -766,10 +766,12 @@ int __cdecl DObjGetBoneIndex(const DObj *obj, unsigned int name, unsigned __int8
     unsigned int localBoneIndex; // [esp+10h] [ebp-8h]
     XModel **models; // [esp+14h] [ebp-4h]
 
-    if ( !obj && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\xanim\\dobj_utils.cpp", 1180, 0, "%s", "obj") )
-        __debugbreak();
-    if ( !name && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\xanim\\dobj_utils.cpp", 1181, 0, "%s", "name") )
-        __debugbreak();
+    if ( !obj || !name )
+    {
+        if ( index )
+            *index = (unsigned __int8)-1;
+        return 0;
+    }
     localBoneIndex = *index;
     if ( localBoneIndex == 255 )
         return 0;

@@ -1,9 +1,15 @@
 #include "ui_server.h"
 #include "ui_shared.h"
+#ifdef KISAK_SP
+#include <client_sp/cl_ui_pc_sp.h>
+#include <ui_sp/ui_main_sp.h>
+#include <ui_sp/ui_gameinfo_sp.h>
+#else
 #include <client_mp/cl_ui_pc_mp.h>
-#include "ui_main_pc.h"
 #include <ui_mp/ui_main_mp.h>
 #include <game_mp/ui_gameinfo_mp.h>
+#endif
+#include "ui_main_pc.h"
 #include <qcommon/com_clients.h>
 #include <universal/com_shared.h>
 #include <live/live_win.h>

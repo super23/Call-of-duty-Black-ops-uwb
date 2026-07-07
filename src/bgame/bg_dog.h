@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bg_dog_animations_mp.h"
+#include "bg_dog_animations_wrapper.h"
 
 struct entityState_s;
 struct actorInfo_t;

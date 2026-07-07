@@ -1,6 +1,6 @@
 #include "actor_state.h"
-#include <game_mp/g_main_mp.h>
-#include <game_mp/actor_mp.h>
+#include <game/g_main_wrapper.h>
+#include <game/actor_wrapper.h>
 
 const ai_state_transition_t g_eSimplificationRules[4][4] =
 {

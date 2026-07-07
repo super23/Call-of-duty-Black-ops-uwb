@@ -1,9 +1,14 @@
 #include "statmonitor.h"
 #include <gfx_d3d/r_dvars.h>
+#ifdef KISAK_SP
+#include <game/g_main.h>
+#include <client_sp/cl_main_sp.h>
+#else
 #include <game_mp/g_main_mp.h>
+#include <client_mp/cl_main_mp.h>
+#endif
 #include <win32/win_common.h>
 #include <win32/win_shared.h>
-#include <client_mp/cl_main_mp.h>
 
 statmonitor_s stats[14];
 int statCount;

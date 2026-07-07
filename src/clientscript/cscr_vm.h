@@ -349,6 +349,7 @@ void __cdecl Scr_InitSystem(scriptInstance_t inst, int sys);
 void __cdecl Scr_ShutdownSystem(scriptInstance_t inst, unsigned __int8 sys, int bComplete);
 void __cdecl VM_TerminateTime(scriptInstance_t inst, unsigned int timeId);
 bool __cdecl Scr_IsSystemActive(unsigned __int8 sys, scriptInstance_t inst);
+bool __cdecl Scr_BuiltinWaittillFrameEnd(scriptInstance_t inst);
 int __cdecl Scr_GetInt(unsigned int index, scriptInstance_t inst);
 scr_anim_s __cdecl Scr_GetAnim(unsigned int index, XAnimTree_s *tree, scriptInstance_t inst);
 void __cdecl Scr_ErrorInternal(scriptInstance_t inst);
@@ -428,6 +429,8 @@ bool __cdecl Scr_IsStackClear(scriptInstance_t inst);
 void __cdecl Scr_StackClear(scriptInstance_t inst);
 
 extern const dvar_t *logScriptTimes;
+// KISAK / LinkerMod: scr_suppressErrors (see cscr_parser.cpp RuntimeError) — revert with LinkerMod block if undesired
+extern const dvar_t *scr_suppressErrors;
 extern const dvar_t *scrVmEnableScripts;
 extern const dvar_t *scrShowVarUseage;
 extern const dvar_t *scrShowStrUsage;

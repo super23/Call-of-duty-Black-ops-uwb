@@ -27,6 +27,7 @@ struct scr_const_t // sizeof=0x40C
         unsigned __int16 bad_path;                    // XREF: .text:0069D061/w
                                                                                 // Bot_UpdateScriptGoal+173/r ...
         unsigned __int16 begin_firing;            // XREF: G_ClientDoPerFrameNotifies+160/r
+        unsigned __int16 begin_custom_anim;
                                                                                 // .text:0069D074/w
         unsigned __int16 unknown_location;    // XREF: .text:0069D087/w
         unsigned __int16 cancel_location;     // XREF: ClientThink_real(gentity_s *,usercmd_s *)+653/r
@@ -46,6 +47,7 @@ struct scr_const_t // sizeof=0x40C
                                                                                 // ClientScr_GetSessionState+94/r ...
         unsigned __int16 death;                         // XREF: player_die(gentity_s *,gentity_s *,gentity_s *,int,int,int,float const * const,hitLocation_t,int):loc_613970/r
                                                                                 // player_die(gentity_s *,gentity_s *,gentity_s *,int,int,int,float const * const,hitLocation_t,int)+3A8/r ...
+        unsigned __int16 deathplant;
         unsigned __int16 disconnect;                // XREF: .text:0069D132/w
                                                                                 // VM_Notify:loc_8D2C29/r
         unsigned __int16 death_or_disconnect; // XREF: .text:0069D145/w
@@ -275,6 +277,7 @@ struct scr_const_t // sizeof=0x40C
         unsigned __int16 weapon_change_complete; // XREF: .text:0069DCB3/w
         unsigned __int16 weapon_fired;            // XREF: CMD_VEH_FireWeapon(scr_entref_t)+C20/r
                                                                                 // FireWeapon(gentity_s *,int,int)+50/r ...
+        unsigned __int16 weapon_raising;          // XREF: G_ClientDoPerFrameNotifies/r
         unsigned __int16 worldspawn;                // XREF: SP_worldspawn(SpawnVar *)+22A/r
                                                                                 // .text:0069DCD9/w
         unsigned __int16 flashbang;                 // XREF: FlashbangBlastEnt+1CA/r
@@ -685,6 +688,9 @@ struct scr_const_t // sizeof=0x40C
                                                                                 // ActorCmd_AnimMode:loc_91751B/r
         unsigned __int16 bulletwhizby;            // XREF: .text:0069EB3F/w
                                                                                 // .data:g_AIEV_scrConst_table/o
+        unsigned __int16 human;
+        unsigned __int16 zombie;
+        unsigned __int16 zombie_dog;
         unsigned __int16 dog;                             // XREF: .text:0069EB52/w
                                                                                 // .data:ushort const * * g_AISpeciesNames/o
         unsigned __int16 enemy;                         // XREF: .text:0069EB65/w

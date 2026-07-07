@@ -4,7 +4,11 @@
 #include "q_shared.h"
 #include <qcommon/common.h>
 #include "com_expressions_eval.h"
+#ifdef KISAK_SP
+#include <server_sp/sv_bot_sp.h>
+#else
 #include <server_mp/sv_bot_mp.h>
+#endif
 #include <ui/l_precomp.h>
 #include "com_loadutils.h"
 #include <ui/ui_shared.h>

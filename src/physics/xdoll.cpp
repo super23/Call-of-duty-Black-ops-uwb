@@ -1,9 +1,14 @@
 #include "xdoll.h"
 #include "phys_main.h"
 #include <qcommon/threads.h>
+#ifdef KISAK_SP
+#include <cgame_sp/cg_local_sp.h>
+#include <cgame_sp/cg_ents_sp.h>
+#else
 #include <cgame_mp/cg_local_mp.h>
-#include <qcommon/dobj_management.h>
 #include <cgame_mp/cg_ents_mp.h>
+#endif
+#include <qcommon/dobj_management.h>
 #include "physics_system.h"
 #include <xanim/dobj_utils.h>
 #include <qcommon/common.h>

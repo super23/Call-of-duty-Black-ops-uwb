@@ -1,19 +1,50 @@
 #include "actor_animapi.h"
 #include <clientscript/cscr_variable.h>
 #include <clientscript/cscr_vm.h>
-#include <game_mp/g_spawn_mp.h>
+#include <game/g_spawn_wrapper.h>
 #include <clientscript/scr_const.h>
 #include "actor_orientation.h"
 #include <clientscript/cscr_stringlist.h>
-#include <game_mp/actor_mp.h>
+#include <game/actor_wrapper.h>
 
+#ifdef KISAK_SP
+AnimScriptList *g_animScriptTable[4];
+#else
 AnimScriptList *g_animScriptTable[1];
+#endif
 
 void __fastcall Actor_InitAnim(actor_s *self)
 {
-    iassert(self->AnimScriptHandle == 0);
-    iassert(self->pAnimScriptFunc == NULL);
-    iassert(self->eAnimMode == AI_ANIM_UNKNOWN);
+    if ( self->AnimScriptHandle
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_animapi.cpp",
+                    24,
+                    0,
+                    "%s",
+                    "self->AnimScriptHandle == 0") )
+    {
+        __debugbreak();
+    }
+    if ( self->pAnimScriptFunc
+        && !Assert_MyHandler(
+                    "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_animapi.cpp",
+                    25,
+                    0,
+                    "%s",
+                    "self->pAnimScriptFunc == NULL") )
+    {
+        __debugbreak();
+    }
+    if ( self->eAnimMode )
+    {
+        if ( !Assert_MyHandler(
+                        "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_animapi.cpp",
+                        26,
+                        0,
+                        "%s",
+                        "self->eAnimMode == AI_ANIM_UNKNOWN") )
+            __debugbreak();
+    }
 }
 
 bool __fastcall Actor_IsAnimScriptAlive(actor_s *self)
@@ -33,7 +64,22 @@ void __fastcall Actor_KillAnimScript(actor_s *self)
     {
         __debugbreak();
     }
+#ifdef KISAK_SP
+    scr_animscript_t *prevScript;
+
+    prevScript = self->pAnimScriptFunc;
+#endif
     self->pAnimScriptFunc = 0;
+#ifdef KISAK_SP
+    // Decomp: CoDSP — only clear per-actor negotiation/custom script when that script was active.
+    // Do not key off AnimScriptSpecific.name alone: MP obstacle negotiation sets name+func on
+    // push while pAnimScriptFunc still points at dog_move; clearing here breaks Actor_AnimSpecific.
+    if ( prevScript == &self->AnimScriptSpecific )
+    {
+        self->AnimScriptSpecific.func = 0;
+        Scr_SetString(&self->AnimScriptSpecific.name, 0, SCRIPTINSTANCE_SERVER);
+    }
+#endif
     if ( self->AnimScriptHandle )
     {
         Scr_Notify(self->ent, scr_const.killanimscript, 0);
@@ -46,7 +92,7 @@ void __fastcall Actor_KillAnimScript(actor_s *self)
 void __fastcall Actor_SetAnimScript(
                 actor_s *self,
                 scr_animscript_t *pAnimScriptFunc,
-                ai_movemode_t moveMode,
+                unsigned __int8 moveMode,
                 ai_animmode_t animMode,
                 scriptAnimAIFunctionTypes_t animScript)
 {
@@ -79,7 +125,7 @@ void __fastcall Actor_SetAnimScript(
     self->bGrenadeTossValid = 0;
     self->safeToChangeScript = 1;
     self->eScriptSetAnimMode = AI_ANIM_UNKNOWN;
-    self->ent->flags &= ~0x2000u;
+    self->ent->flags &= ~0x1000u;
     Scr_SetString(&self->scriptState, 0, SCRIPTINSTANCE_SERVER);
     Scr_SetString(&self->stateChangeReason, 0, SCRIPTINSTANCE_SERVER);
     self->pAnimScriptFunc = pAnimScriptFunc;
@@ -104,8 +150,11 @@ void __fastcall Actor_SetAnimScript(
 
 void __fastcall Actor_AnimStop(actor_s *self, scr_animscript_t *pAnimScriptFunc)
 {
-    iassert(pAnimScriptFunc);
-
+    if ( !pAnimScriptFunc
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_animapi.cpp", 194, 0, "%s", "pAnimScriptFunc") )
+    {
+        __debugbreak();
+    }
     Actor_CheckCollisions(self);
     if ( self->pCloseEnt.isDefined() )
     {
@@ -113,26 +162,33 @@ void __fastcall Actor_AnimStop(actor_s *self, scr_animscript_t *pAnimScriptFunc)
     }
     else
     {
-        iassert(pAnimScriptFunc);
-
-        Actor_SetAnimScript(self, pAnimScriptFunc, AI_MOVE_STOP, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_STOP);
+        if ( !pAnimScriptFunc
+            && !Assert_MyHandler(
+                        "C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_animapi.cpp",
+                        200,
+                        0,
+                        "%s",
+                        "pAnimScriptFunc") )
+        {
+            __debugbreak();
+        }
+        Actor_SetAnimScript(self, pAnimScriptFunc, 0, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_STOP);
         self->bUseGoalWeight = 0;
     }
 }
 
 void __fastcall Actor_AnimMoveAway(actor_s *self, scr_animscript_t *pAnimScriptFunc)
 {
-    iassert(pAnimScriptFunc);
-
-    if (Vec2LengthSq(self->Physics.vVelocity) >= 1.0f)
+    if ( !pAnimScriptFunc
+        && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_animapi.cpp", 176, 0, "%s", "pAnimScriptFunc") )
     {
-        Actor_SetAnimScript(self, &g_animScriptTable[self->species]->move, AI_MOVE_WALK, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_MOVE);
+        __debugbreak();
     }
+    if ( (float)((float)(self->Physics.vVelocity[0] * self->Physics.vVelocity[0])
+                         + (float)(self->Physics.vVelocity[1] * self->Physics.vVelocity[1])) >= 1.0 )
+        Actor_SetAnimScript(self, &g_animScriptTable[self->species]->move, 2u, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_MOVE);
     else
-    {
-        Actor_SetAnimScript(self, pAnimScriptFunc, AI_MOVE_STOP_SOON, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_MOVE);
-    }
-
+        Actor_SetAnimScript(self, pAnimScriptFunc, 1u, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_MOVE);
     self->bUseGoalWeight = 0;
 }
 
@@ -164,11 +220,11 @@ void __fastcall Actor_AnimTryWalk(actor_s *self)
         if ( self->Path.iPathEndTime && self->Path.iPathEndTime - level.time < 200 )
         {
             StopAnim = Actor_GetStopAnim(self);
-            Actor_SetAnimScript(self, StopAnim, AI_MOVE_STOP_SOON, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_MOVE);
+            Actor_SetAnimScript(self, StopAnim, 1u, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_MOVE);
         }
         else
         {
-            Actor_SetAnimScript(self, &g_animScriptTable[self->species]->move, AI_MOVE_WALK, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_MOVE);
+            Actor_SetAnimScript(self, &g_animScriptTable[self->species]->move, 2u, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_MOVE);
         }
         self->bUseGoalWeight = 0;
     }
@@ -197,11 +253,11 @@ void __fastcall Actor_AnimTryRun(actor_s *self)
         if ( self->Path.iPathEndTime && self->Path.iPathEndTime - level.time <= 200 )
         {
             StopAnim = Actor_GetStopAnim(self);
-            Actor_SetAnimScript(self, StopAnim, AI_MOVE_STOP_SOON, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_MOVE);
+            Actor_SetAnimScript(self, StopAnim, 1u, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_MOVE);
         }
         else
         {
-            Actor_SetAnimScript(self, &g_animScriptTable[self->species]->move, AI_MOVE_RUN, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_MOVE);
+            Actor_SetAnimScript(self, &g_animScriptTable[self->species]->move, 3u, AI_ANIM_MOVE_CODE, AI_ANIM_FUNCTION_MOVE);
         }
         self->bUseGoalWeight = 0;
     }
@@ -209,7 +265,13 @@ void __fastcall Actor_AnimTryRun(actor_s *self)
 
 void __fastcall Actor_AnimPain(actor_s *self)
 {
-    Actor_SetAnimScript(self, &g_animScriptTable[self->species]->pain, AI_MOVE_STOP, AI_ANIM_USE_BOTH_DELTAS, AI_ANIM_FUNCTION_PAIN);
+    Actor_SetAnimScript(self, &g_animScriptTable[self->species]->pain, 0, AI_ANIM_USE_BOTH_DELTAS, AI_ANIM_FUNCTION_PAIN);
+    self->bUseGoalWeight = 0;
+}
+
+void __fastcall Actor_AnimReact(actor_s *self)
+{
+    Actor_SetAnimScript(self, &g_animScriptTable[self->species]->react, 0, AI_ANIM_USE_BOTH_DELTAS, AI_ANIM_FUNCTION_REACT);
     self->bUseGoalWeight = 0;
 }
 
@@ -219,14 +281,14 @@ void __fastcall Actor_AnimDeath(actor_s *self)
         Actor_SetAnimScript(
             self,
             &g_animScriptTable[self->species]->death,
-            AI_MOVE_STOP,
+            0,
             self->eScriptSetAnimMode,
             AI_ANIM_FUNCTION_DEATH);
     else
         Actor_SetAnimScript(
             self,
             &g_animScriptTable[self->species]->death,
-            AI_MOVE_STOP,
+            0,
             AI_ANIM_USE_BOTH_DELTAS,
             AI_ANIM_FUNCTION_DEATH);
     self->bUseGoalWeight = 0;
@@ -237,10 +299,16 @@ void __fastcall Actor_AnimSpecific(actor_s *self, scr_animscript_t *func, ai_ani
     if ( !func && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\actor_animapi.cpp", 457, 0, "%s", "func") )
         __debugbreak();
     if ( self->eScriptSetAnimMode )
-        Actor_SetAnimScript(self, func, AI_MOVE_STOP, self->eScriptSetAnimMode, AI_ANIM_FUNCTION_STOP);
+        Actor_SetAnimScript(self, func, 0, self->eScriptSetAnimMode, AI_ANIM_FUNCTION_STOP);
     else
-        Actor_SetAnimScript(self, func, AI_MOVE_STOP, eAnimMode, AI_ANIM_FUNCTION_STOP);
+        Actor_SetAnimScript(self, func, 0, eAnimMode, AI_ANIM_FUNCTION_STOP);
     self->bUseGoalWeight = bUseGoalWeight;
+}
+
+void __fastcall Actor_AnimScripted(actor_s *self)
+{
+    Actor_SetAnimScript(self, &g_animScriptTable[self->species]->scripted, 0, AI_ANIM_USE_BOTH_DELTAS, AI_ANIM_FUNCTION_STOP);
+    self->bUseGoalWeight = 1;
 }
 
 void __stdcall Actor_AnimSetCompleteGoalWeight(

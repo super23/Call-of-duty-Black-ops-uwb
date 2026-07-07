@@ -1,6 +1,7 @@
 #include "r_water_sim.h"
 #include "r_init.h"
 #include <qcommon/com_bsp.h>
+#include "r_singlethreaded_device_pc.h"
 #include "r_foliage.h"
 #include "r_dvars.h"
 #include <universal/com_workercmds.h>
@@ -471,6 +472,7 @@ void __cdecl R_WaterSimulationTeleport(int posX, int posY)
 
 void __cdecl R_InitWaterSimulationBuffers(unsigned int location)
 {
+    int semaphore; // [esp+1Ch] [ebp-4h]
 
     if ( comWorld.numWaterCells )
     {
@@ -496,7 +498,10 @@ void __cdecl R_InitWaterSimulationBuffers(unsigned int location)
             memset((unsigned __int8 *)data.shoredist.v, 0, data.shoredist.bufferSize);
             memset((unsigned __int8 *)data.colors.v, 0, data.colors.bufferSize);
             PMem_EndAlloc("water buffers", location);
+            semaphore = R_AcquireDXDeviceOwnership(0);
             R_InitWaterSimulationVertexBuffers();
+            if ( semaphore )
+                R_ReleaseDXDeviceOwnership();
             buffersAllocated = 1;
         }
     }

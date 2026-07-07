@@ -290,4 +290,7 @@ void __cdecl Path_DodgeDrawRaisedLine(const float *start, const float *end, cons
 bool __fastcall Path_MayFaceEnemy(path_t *pPath, float *vEnemyDir, float *vOrg);
 void __fastcall Path_TrimToBadPlaceLink(path_t *pPath, team_t eTeam);
 
+bool __fastcall Actor_IsDoingCover(actor_s *self);
+bool __fastcall Actor_NearCoverNode(actor_s *self);
+
 extern float g_pathAttemptGoalPos[3];
